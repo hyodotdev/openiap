@@ -94,6 +94,10 @@ export class ReferenceImplementation {
    * isValid so callers never have to branch on the concrete shape.
    */
   async verifyPurchase({ purchaseToken }) {
+    if (!this.store.verifierAvailable) {
+      // Infrastructure failure is an error, never an isValid verdict.
+      throw new ConformanceError('service-error', 'verification backend unreachable');
+    }
     const record = this.store.owned.get(purchaseToken);
     return {
       isValid: record?.state === 'purchased',

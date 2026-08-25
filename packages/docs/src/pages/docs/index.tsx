@@ -138,6 +138,7 @@ import FoundationOnePager from './foundation/one-pager';
 import FoundationSponsorship from './foundation/sponsorship';
 import FoundationRoadmapBudget from './foundation/roadmap-budget';
 import FoundationFoundingSupporters from './foundation/founding-supporters';
+import FoundationResearch from './foundation/research';
 import NotFound from '../404';
 
 /* Preserve the URL hash when redirecting away from a deprecated path so
@@ -1056,6 +1057,7 @@ function Docs() {
                   to: '/docs/foundation/founding-supporters',
                   label: 'Founding Supporters',
                 },
+                { to: '/docs/foundation/research', label: 'Research' },
               ]}
               onItemClick={closeSidebar}
             />
@@ -1657,6 +1659,7 @@ function Docs() {
             path="foundation/founding-supporters"
             element={<FoundationFoundingSupporters />}
           />
+          <Route path="foundation/research" element={<FoundationResearch />} />
           <Route path="updates/announcements" element={<Announcements />} />
           <Route
             path="updates/notes"

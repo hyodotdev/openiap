@@ -62,6 +62,7 @@ knowledge/
 ├── archive/                         # Historical references; not indexed
 │   ├── expo-iap-api.md             # Archived legacy expo-iap API
 │   └── react-native-iap-api.md     # Archived legacy react-native-iap API
+├── research/                        # Research registry; see research/README.md
 ├── _agent-context/                  # COMPILED - Shared agent context
 │   └── context.md                   # Auto-generated combined context
 └── _claude-context -> _agent-context # Backward-compatible alias

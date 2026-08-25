@@ -134,6 +134,26 @@ store.forceOutcome("premium", StoreOutcome.UserCancelled);
 **A passing reference run says nothing about any shipped SDK** — it proves the
 suite is executable, and shows adapter authors the expected shape.
 
+## Differential mode and metamorphic relations
+
+`runDifferential` executes two or more adapters over the same behaviors and
+reports every disagreement between comparable outcomes as a divergence — the
+bug oracle for implementations of one spec.
+
+```js
+import {
+  runDifferential,
+  formatDifferentialReport,
+} from "openiap-conformance/differential";
+
+const result = await runDifferential([adapterA, adapterB]);
+console.log(formatDifferentialReport(result));
+```
+
+`openiap-conformance/metamorphic` exports the relation registry live-store E2E
+suites assert against; `unverifiedRelations()` lists the relations only a real
+store can exercise.
+
 ## Cross-language use
 
 _Repository tooling — these scripts read monorepo paths and are not published._
@@ -157,17 +177,29 @@ Honest status — not every behavior is exercised against every implementation y
 
 Run `node scripts/coverage-report.mjs` for the current matrix.
 
-| Implementation                         | Bound to spec                                                | Notes                                                                              |
-| -------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| expo-iap                               | products, purchases, restoration, subscriptions, identifiers | Real SDK over a fake native module                                                 |
-| react-native-iap                       | + completion                                                 | Real SDK over a fake Nitro module                                                  |
-| Android stores (Play, Horizon, Amazon) | subscriptions, errors, identifiers                           | Real flavor code, one suite for all three                                          |
-| Apple client                           | errors, identifiers, verification, capabilities              | Purchase flows need a live StoreKit session (StoreKitTest), unavailable to SwiftPM |
-| IAPKit webhooks (Apple, Google)        | `lifecycle.*`                                                | Real normalizers + state machine                                                   |
-| Reference (fake store)                 | all client-side behaviors                                    | Proves the suite runs; **not a shipped SDK**                                       |
-| Flutter, KMP, MAUI, Godot              | —                                                            | Adapters not yet written                                                           |
+| Implementation                         | Bound to spec                                                              | Notes                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| expo-iap                               | products, purchases, restoration, subscriptions, identifiers, verification | Real SDK over a fake native module                                                 |
+| react-native-iap                       | + completion, verification                                                 | Real SDK over a fake Nitro module                                                  |
+| Android stores (Play, Horizon, Amazon) | subscriptions, errors, identifiers                                         | Real flavor code, one suite for all three                                          |
+| Apple client                           | errors, identifiers, verification, capabilities                            | Purchase flows need a live StoreKit session (StoreKitTest), unavailable to SwiftPM |
+| IAPKit webhooks (Apple, Google)        | `lifecycle.*`                                                              | Real normalizers + state machine                                                   |
+| Reference (fake store)                 | all client-side behaviors                                                  | Proves the suite runs; **not a shipped SDK**                                       |
+| Flutter, KMP, MAUI, Godot              | —                                                                          | Adapters not yet written                                                           |
 
 Adding an implementation means writing an adapter, not another test suite.
+
+## Prior art
+
+Three research lines shape the suite; full citations live in the repository's
+[research registry](https://github.com/hyodotdev/openiap/blob/main/knowledge/research/bibliography.md):
+
+- **Differential testing** (Frankencerts, IEEE S&P 2014) — disagreement between
+  implementations of one spec is a bug oracle; `runDifferential` applies it.
+- **Loose specs diverge** (_Parsing JSON is a Minefield_, 2016) — behaviors pin
+  down what the schema alone leaves open.
+- **The oracle problem** (ACM Computing Surveys, 2018) — store answers are
+  unpredictable, so metamorphic relations check consistency across executions.
 
 <!-- sponsors:start -->
 <!-- Generated by scripts/sync-sponsors.mjs from packages/docs/sponsor-registry.json. -->

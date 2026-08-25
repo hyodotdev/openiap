@@ -6,16 +6,17 @@ This document provides an overview for AI agents working across the OpenIAP mono
 
 ## Quick Reference
 
-| Topic                   | File                                                                                                                                                                       |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Naming Conventions      | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                                               |
-| Architecture            | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                                           |
-| Coding Style            | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                                           |
-| Platform Packages       | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) (run `bun audit:parity` before commits; pre-commit mirrors CI's SDK parity job) |
-| Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                         |
-| Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
-| Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
-| Fact Graph (Declared Facts) | [`knowledge/internal/08-fact-graph.md`](knowledge/internal/08-fact-graph.md) (run `bun audit:facts` after bumping a tool version or runner image) |
+| Topic                       | File                                                                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Naming Conventions          | [`knowledge/internal/01-naming-conventions.md`](knowledge/internal/01-naming-conventions.md)                                                                               |
+| Architecture                | [`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md)                                                                                           |
+| Coding Style                | [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md)                                                                                           |
+| Platform Packages           | [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md) (run `bun audit:parity` before commits; pre-commit mirrors CI's SDK parity job) |
+| Docs Patterns               | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                         |
+| Git & Deployment            | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
+| Docs Consistency / SSOT     | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
+| Fact Graph (Declared Facts) | [`knowledge/internal/08-fact-graph.md`](knowledge/internal/08-fact-graph.md) (run `bun audit:facts` after bumping a tool version or runner image)                          |
+| Research References         | [`knowledge/research/README.md`](knowledge/research/README.md) (paper registry and evidence-backed engineering backlog)                                                    |
 
 ## Monorepo Structure
 
@@ -317,26 +318,26 @@ Cursor-specific files.
 
 ## Available Skills (Slash Commands / Codex Workflows)
 
-| Skill                | Description                                        | Usage                                 |
-| -------------------- | -------------------------------------------------- | ------------------------------------- |
-| `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
-| `$loop-review`       | Start from current main, review, PR, and merge     | `$loop-review`                        |
-| `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
-| `$generate-doc`      | Write OpenIAP docs and pre-release release notes   | `$generate-doc`                       |
-| `$add-showcase-app`  | Add apps to the "Who uses OpenIAP?" showcase       | `$add-showcase-app`                   |
-| `$opencollective-steward` | Manage OpenCollective profile and updates     | `$opencollective-steward`             |
-| `$iapkit-e2e-petgu`  | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
-| `$iapkit-e2e-martie` | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
-| `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
-| `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
-| `/audit-security`    | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
-| `/audit-iapkit`      | Reconcile the IAPKit surface with OpenIAP updates  | `/audit-iapkit`                       |
-| `/compile-knowledge` | Compile the shared AI agent context                | `/compile-knowledge`                  |
-| `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
-| `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |
-| `/e2e-tests`         | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
-| `/release`           | Release stable packages or an on-demand RC train   | `/release all stable`                 |
-| `/commit`            | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
+| Skill                     | Description                                        | Usage                                 |
+| ------------------------- | -------------------------------------------------- | ------------------------------------- |
+| `$review-self`            | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
+| `$loop-review`            | Start from current main, review, PR, and merge     | `$loop-review`                        |
+| `$rebase-main`            | Pull main and safely rebase the current branch     | `$rebase-main`                        |
+| `$generate-doc`           | Write OpenIAP docs and pre-release release notes   | `$generate-doc`                       |
+| `$add-showcase-app`       | Add apps to the "Who uses OpenIAP?" showcase       | `$add-showcase-app`                   |
+| `$opencollective-steward` | Manage OpenCollective profile and updates          | `$opencollective-steward`             |
+| `$iapkit-e2e-petgu`       | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
+| `$iapkit-e2e-martie`      | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
+| `/review-pr`              | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
+| `/audit-code`             | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
+| `/audit-security`         | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
+| `/audit-iapkit`           | Reconcile the IAPKit surface with OpenIAP updates  | `/audit-iapkit`                       |
+| `/compile-knowledge`      | Compile the shared AI agent context                | `/compile-knowledge`                  |
+| `/resolve-issue`          | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
+| `/verify-all`             | Run the full monorepo health check                 | `/verify-all`                         |
+| `/e2e-tests`              | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
+| `/release`                | Release stable packages or an on-demand RC train   | `/release all stable`                 |
+| `/commit`                 | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
 
 ### $review-self Workflow
 

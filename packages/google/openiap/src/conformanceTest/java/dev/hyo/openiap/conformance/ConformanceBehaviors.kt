@@ -5,7 +5,7 @@ package dev.hyo.openiap.conformance
 // packages/conformance/src/spec/behaviors.mjs.
 
 object ConformanceBehaviors {
-    const val SUITE_VERSION = "2.0.0"
+    const val SUITE_VERSION = "3.0.0"
 
     const val PRODUCTS_FETCH_RETURNS_REQUESTED_SKUS = "products.fetch-returns-requested-skus"
     const val PRODUCTS_FETCH_NORMALIZES_REQUIRED_FIELDS = "products.fetch-normalizes-required-fields"
@@ -38,6 +38,8 @@ object ConformanceBehaviors {
     const val ERRORS_UNRECOGNIZED_STORE_CODE_NORMALIZES_TO_UNKNOWN = "errors.unrecognized-store-code-normalizes-to-unknown"
     const val ERRORS_UNSUPPORTED_CODES_ARE_NOT_SYNTHESIZED = "errors.unsupported-codes-are-not-synthesized"
     const val VERIFICATION_RESULT_EXPOSES_UNIFORM_VALIDITY = "verification.result-exposes-uniform-validity"
+    const val VERIFICATION_FORGED_TOKEN_IS_INVALID = "verification.forged-token-is-invalid"
+    const val VERIFICATION_INFRASTRUCTURE_ERROR_IS_NOT_A_VERDICT = "verification.infrastructure-error-is-not-a-verdict"
     const val IDENTIFIERS_PURCHASE_CARRIES_A_CONCRETE_STORE = "identifiers.purchase-carries-a-concrete-store"
     const val IDENTIFIERS_PURCHASE_TOKEN_IS_STABLE_ACROSS_READS = "identifiers.purchase-token-is-stable-across-reads"
     const val CAPABILITIES_UNSUPPORTED_OPERATIONS_DEGRADE_PREDICTABLY = "capabilities.unsupported-operations-degrade-predictably"

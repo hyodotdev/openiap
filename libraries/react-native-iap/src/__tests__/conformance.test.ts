@@ -33,11 +33,13 @@ const store = {
   unfinished: new Set<string>(),
   forced: new Map<string, string>(),
   sequence: 0,
+  verifierAvailable: true,
   reset() {
     this.owned.clear();
     this.unfinished.clear();
     this.forced.clear();
     this.sequence = 0;
+    this.verifierAvailable = true;
   },
 };
 
@@ -68,6 +70,38 @@ const mockIap: Record<string, unknown> = {
   initConnection: jest.fn(async () => true),
   endConnection: jest.fn(async () => true),
 
+  verifyPurchase: jest.fn(async (params: any) => {
+    if (!store.verifierAvailable) {
+      // Nitro rejects with structured objects; the SDK must preserve the code.
+      throw {
+        code: 'service-error',
+        message: 'verification backend unreachable',
+      };
+    }
+    const record = store.owned.get(params?.google?.purchaseToken ?? '');
+    return {
+      isValid: record?.state === 'purchased',
+      autoRenewing: false,
+      betaProduct: false,
+      cancelDate: null,
+      cancelReason: '',
+      deferredDate: null,
+      deferredSku: null,
+      freeTrialEndDate: 0,
+      gracePeriodEndDate: 0,
+      parentProductId: '',
+      productId: record?.sku ?? '',
+      productType: 'inapp',
+      purchaseDate: 0,
+      quantity: 1,
+      receiptId: '',
+      renewalDate: 0,
+      term: '',
+      termSku: '',
+      testTransaction: false,
+    };
+  }),
+
   fetchProducts: jest.fn(async (skus: string[], nitroType?: string) => {
     const type = !nitroType || nitroType === 'all' ? undefined : nitroType;
     return skus
@@ -94,7 +128,11 @@ const mockIap: Record<string, unknown> = {
       props?.skus?.[0];
 
     if (!CATALOG[sku]) {
-      const error = {code: 'sku-not-found', message: 'unknown sku', productId: sku};
+      const error = {
+        code: 'sku-not-found',
+        message: 'unknown sku',
+        productId: sku,
+      };
       purchaseErrorListeners.forEach((listener) => listener(error));
       throw error;
     }
@@ -103,7 +141,11 @@ const mockIap: Record<string, unknown> = {
     store.forced.delete(sku);
 
     if (forced === 'user-cancelled') {
-      const error = {code: 'user-cancelled', message: 'cancelled', productId: sku};
+      const error = {
+        code: 'user-cancelled',
+        message: 'cancelled',
+        productId: sku,
+      };
       purchaseErrorListeners.forEach((listener) => listener(error));
       throw error;
     }
@@ -112,7 +154,11 @@ const mockIap: Record<string, unknown> = {
       (record) => record.sku === sku && record.state === 'purchased',
     );
     if (owned && CATALOG[sku] === 'in-app') {
-      const error = {code: 'already-owned', message: 'already owned', productId: sku};
+      const error = {
+        code: 'already-owned',
+        message: 'already owned',
+        productId: sku,
+      };
       purchaseErrorListeners.forEach((listener) => listener(error));
       throw error;
     }
@@ -145,9 +191,11 @@ const mockIap: Record<string, unknown> = {
     return true;
   }),
 
-  addPurchaseUpdatedListener: jest.fn((listener: (purchase: unknown) => void) => {
-    purchaseUpdatedListeners.push(listener);
-  }),
+  addPurchaseUpdatedListener: jest.fn(
+    (listener: (purchase: unknown) => void) => {
+      purchaseUpdatedListeners.push(listener);
+    },
+  ),
   removePurchaseUpdatedListener: jest.fn(),
   addPurchaseErrorListener: jest.fn((listener: (error: unknown) => void) => {
     purchaseErrorListeners.push(listener);
@@ -164,7 +212,10 @@ const mockIap: Record<string, unknown> = {
   getActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
     [...store.owned.values()]
       .filter((record) => record.type === 'subs')
-      .filter((record) => !subscriptionIds?.length || subscriptionIds.includes(record.sku))
+      .filter(
+        (record) =>
+          !subscriptionIds?.length || subscriptionIds.includes(record.sku),
+      )
       .map((record) => ({
         productId: record.sku,
         currentPlanId: record.sku,
@@ -214,6 +265,9 @@ const COVERED_BEHAVIORS = [
   'subscriptions.has-active-agrees-with-get-active',
   'identifiers.purchase-carries-a-concrete-store',
   'identifiers.purchase-token-is-stable-across-reads',
+  'verification.result-exposes-uniform-validity',
+  'verification.forged-token-is-invalid',
+  'verification.infrastructure-error-is-not-a-verdict',
 ];
 
 const androidRequest = (sku: string) => ({
@@ -241,7 +295,9 @@ describe('conformance: react-native-iap', () => {
       skus: ['dev.hyo.martie.10bulbs', 'not-a-real-sku'],
       type: 'in-app',
     });
-    expect(products.map((product: any) => product.id)).toEqual(['dev.hyo.martie.10bulbs']);
+    expect(products.map((product: any) => product.id)).toEqual([
+      'dev.hyo.martie.10bulbs',
+    ]);
   });
 
   it('products.fetch-normalizes-required-fields', async () => {
@@ -261,11 +317,15 @@ describe('conformance: react-native-iap', () => {
       skus: ['dev.hyo.martie.premium', 'dev.hyo.martie.10bulbs'],
       type: 'subs',
     });
-    expect(subs.map((product: any) => product.id)).toEqual(['dev.hyo.martie.premium']);
+    expect(subs.map((product: any) => product.id)).toEqual([
+      'dev.hyo.martie.premium',
+    ]);
   });
 
   it('products.fetch-empty-sku-list-is-an-error', async () => {
-    await expect(IAP.fetchProducts({skus: [], type: 'in-app'})).rejects.toMatchObject({
+    await expect(
+      IAP.fetchProducts({skus: [], type: 'in-app'}),
+    ).rejects.toMatchObject({
       code: 'empty-sku-list',
     });
   });
@@ -289,7 +349,9 @@ describe('conformance: react-native-iap', () => {
     IAP.purchaseErrorListener((error: any) => errors.push(error));
     store.forced.set('dev.hyo.martie.10bulbs', 'user-cancelled');
 
-    await expect(IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'))).rejects.toBeDefined();
+    await expect(
+      IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs')),
+    ).rejects.toBeDefined();
 
     expect(errors[0]?.code).toBe('user-cancelled');
     expect(purchases).toHaveLength(0);
@@ -304,13 +366,17 @@ describe('conformance: react-native-iap', () => {
 
   it('purchases.pending-purchase-is-not-delivered-as-purchased', async () => {
     store.forced.set('dev.hyo.martie.10bulbs', 'pending');
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.10bulbs'),
+    );
     expect(purchase.purchaseState).not.toBe('purchased');
     expect(purchase.purchaseState).toBe('pending');
   });
 
   it('purchases.unknown-sku-surfaces-sku-not-found', async () => {
-    await expect(IAP.requestPurchase(androidRequest('not-a-real-sku'))).rejects.toMatchObject({
+    await expect(
+      IAP.requestPurchase(androidRequest('not-a-real-sku')),
+    ).rejects.toMatchObject({
       code: 'sku-not-found',
     });
   });
@@ -318,7 +384,9 @@ describe('conformance: react-native-iap', () => {
   // --- completion ---------------------------------------------------------
 
   it('completion.finish-removes-transaction-from-pending', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.10bulbs'),
+    );
     expect(store.unfinished.has(purchase.purchaseToken)).toBe(true);
 
     await IAP.finishTransaction({purchase, isConsumable: true});
@@ -326,15 +394,25 @@ describe('conformance: react-native-iap', () => {
   });
 
   it('completion.finish-is-idempotent', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.10bulbs'),
+    );
     await IAP.finishTransaction({purchase, isConsumable: true});
-    await expect(IAP.finishTransaction({purchase, isConsumable: true})).resolves.not.toThrow();
+    await expect(
+      IAP.finishTransaction({purchase, isConsumable: true}),
+    ).resolves.not.toThrow();
   });
 
   it('completion.unfinished-purchase-remains-available', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.lifetime'),
+    );
     const available = await IAP.getAvailablePurchases();
-    expect(available.some((item: any) => item.purchaseToken === purchase.purchaseToken)).toBe(true);
+    expect(
+      available.some(
+        (item: any) => item.purchaseToken === purchase.purchaseToken,
+      ),
+    ).toBe(true);
   });
 
   // --- restoration --------------------------------------------------------
@@ -351,11 +429,17 @@ describe('conformance: react-native-iap', () => {
   });
 
   it('restoration.available-purchases-excludes-consumed-items', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.10bulbs'),
+    );
     await IAP.finishTransaction({purchase, isConsumable: true});
 
     const available = await IAP.getAvailablePurchases();
-    expect(available.some((item: any) => item.purchaseToken === purchase.purchaseToken)).toBe(false);
+    expect(
+      available.some(
+        (item: any) => item.purchaseToken === purchase.purchaseToken,
+      ),
+    ).toBe(false);
   });
 
   it('restoration.available-purchases-is-empty-for-new-user', async () => {
@@ -375,8 +459,12 @@ describe('conformance: react-native-iap', () => {
     await IAP.requestPurchase(androidRequest('dev.hyo.martie.pro'));
 
     const subscriptions = await IAP.getActiveSubscriptions();
-    const premium = subscriptions.find((item: any) => item.productId === 'dev.hyo.martie.premium');
-    const pro = subscriptions.find((item: any) => item.productId === 'dev.hyo.martie.pro');
+    const premium = subscriptions.find(
+      (item: any) => item.productId === 'dev.hyo.martie.premium',
+    );
+    const pro = subscriptions.find(
+      (item: any) => item.productId === 'dev.hyo.martie.pro',
+    );
 
     expect(premium.currentPlanId).toBe('dev.hyo.martie.premium');
     expect(pro.currentPlanId).toBe('dev.hyo.martie.pro');
@@ -392,17 +480,82 @@ describe('conformance: react-native-iap', () => {
   // --- identifiers --------------------------------------------------------
 
   it('identifiers.purchase-carries-a-concrete-store', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.10bulbs'),
+    );
     expect(purchase.store).toBeTruthy();
     expect(purchase.store).not.toBe('unknown');
   });
 
   it('identifiers.purchase-token-is-stable-across-reads', async () => {
-    const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime'));
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.lifetime'),
+    );
     const first = (await IAP.getAvailablePurchases())[0].purchaseToken;
     const second = (await IAP.getAvailablePurchases())[0].purchaseToken;
 
     expect(first).toBe(purchase.purchaseToken);
     expect(second).toBe(purchase.purchaseToken);
+  });
+
+  // --- verification -------------------------------------------------------
+
+  it('verification.result-exposes-uniform-validity', async () => {
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.lifetime'),
+    );
+
+    const valid = await IAP.verifyPurchase({
+      google: {
+        sku: 'dev.hyo.martie.lifetime',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: purchase.purchaseToken,
+        accessToken: 'test-access-token',
+        isSub: false,
+      },
+    });
+
+    expect(typeof valid.isValid).toBe('boolean');
+    expect(valid.isValid).toBe(true);
+  });
+
+  it('verification.forged-token-is-invalid', async () => {
+    await IAP.requestPurchase(androidRequest('dev.hyo.martie.lifetime'));
+
+    const result = await IAP.verifyPurchase({
+      google: {
+        sku: 'dev.hyo.martie.lifetime',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: 'forged-token-0001',
+        accessToken: 'test-access-token',
+        isSub: false,
+      },
+    });
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('verification.infrastructure-error-is-not-a-verdict', async () => {
+    const purchase = await IAP.requestPurchase(
+      androidRequest('dev.hyo.martie.lifetime'),
+    );
+    const token = purchase.purchaseToken;
+
+    store.verifierAvailable = false;
+    await expect(
+      IAP.verifyPurchase({
+        google: {
+          sku: 'dev.hyo.martie.lifetime',
+          packageName: 'dev.hyo.martie',
+          purchaseToken: token,
+          accessToken: 'test-access-token',
+          isSub: false,
+        },
+      }),
+      // The statement requires a ServiceError/NetworkError surface, not just
+      // any rejection.
+    ).rejects.toMatchObject({
+      code: expect.stringMatching(/^(service-error|network-error)$/),
+    });
   });
 });

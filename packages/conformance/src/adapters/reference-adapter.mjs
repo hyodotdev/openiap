@@ -261,6 +261,25 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
         assert.equal(unknown.isValid, false);
       },
 
+      'verification.forged-token-is-invalid': async () => {
+        const impl = fresh();
+        // Own the product legitimately, then present a token the store never issued.
+        await impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' });
+        const forged = await impl.verifyPurchase({ purchaseToken: 'forged-token-0001' });
+        assert.equal(forged.isValid, false, 'a token the store never issued must not verify');
+      },
+
+      'verification.infrastructure-error-is-not-a-verdict': async () => {
+        const impl = fresh();
+        const purchase = await impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' });
+        fake.setVerifierAvailable(false);
+        await assert.rejects(
+          () => impl.verifyPurchase({ purchaseToken: purchase.purchaseToken }),
+          (error) => error.code === 'service-error' || error.code === 'network-error',
+          'an unreachable verifier must surface an error, not an isValid verdict',
+        );
+      },
+
       // --- identifiers ---------------------------------------------------
       'identifiers.purchase-carries-a-concrete-store': async () => {
         const impl = fresh();

@@ -37,6 +37,8 @@ export class FakeStore {
     this.unfinished = new Set();
     /** @type {Map<string, string>} sku -> forced outcome */
     this.forcedOutcomes = new Map();
+    /** Verifier reachability, so infrastructure failure can be simulated. */
+    this.verifierAvailable = true;
   }
 
   /** Force the next purchase of `sku` to take a non-success path. */
@@ -44,10 +46,16 @@ export class FakeStore {
     this.forcedOutcomes.set(sku, outcome);
   }
 
+  /** Simulate the verification backend being unreachable. */
+  setVerifierAvailable(available) {
+    this.verifierAvailable = available;
+  }
+
   reset() {
     this.owned.clear();
     this.unfinished.clear();
     this.forcedOutcomes.clear();
+    this.verifierAvailable = true;
   }
 
   /** Store-shaped product lookup. Unknown skus are simply absent. */
