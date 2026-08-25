@@ -259,11 +259,9 @@ const IAP = {
 // ============================================================================
 // EVENT LISTENERS
 //
-// Uses a singleton native listener per event type with JS-level fan-out.
-// This avoids the iOS bug where removePurchaseUpdatedListener calls
-// removeAll() instead of removing a specific listener, which caused ALL
-// listeners to be lost when any single useIAP instance unmounted.
-// See: https://github.com/hyochan/react-native-iap/issues/3150
+// Uses one native listener per event type with JS fan-out so removing one JS
+// subscriber cannot detach another. See hyochan/react-native-iap#3150 and
+// hyodotdev/openiap#382.
 // ============================================================================
 
 const purchaseUpdateJsListeners = new Set<(purchase: Purchase) => void>();
@@ -1593,9 +1591,7 @@ export const initConnection: MutationField<'initConnection'> = async (
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
     if (!iapRef) return true;
-    const result = await IAP.instance.endConnection();
-    resetListenerState();
-    return result;
+    return await IAP.instance.endConnection();
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to end IAP connection:',
@@ -1607,6 +1603,8 @@ export const endConnection: MutationField<'endConnection'> = async () => {
       responseCode: parsedError.responseCode,
       debugMessage: parsedError.debugMessage,
     });
+  } finally {
+    resetListenerState();
   }
 };
 

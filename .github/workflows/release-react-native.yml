@@ -102,9 +102,11 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Build Android library
+      - name: Test and build Android library
         working-directory: libraries/react-native-iap/example/android
-        run: ./gradlew :react-native-iap:assembleDebug --stacktrace
+        run: >-
+          ./gradlew :react-native-iap:testDebugUnitTest
+          :react-native-iap:assembleDebug --stacktrace
 
   validate-ios:
     needs: [release-branch]
