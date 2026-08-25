@@ -32,6 +32,7 @@ import {
   PurchaseInput,
   getActiveSubscriptions,
   hasActiveSubscriptions,
+  openRedeemOfferCode,
   verifyPurchase,
   verifyPurchaseWithProvider,
   ErrorCode,
@@ -1588,6 +1589,42 @@ describe('Public API (index.ts)', () => {
           packageNameAndroid: 'com.app',
         }),
       ).rejects.toThrow(/Unsupported platform: web/);
+    });
+
+    it('openRedeemOfferCode resolves the iOS redemption result', async () => {
+      (Platform as any).OS = 'ios';
+      const purchase = nativePurchase('redeemed', {store: 'apple'});
+      (
+        ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
+      ).mockResolvedValueOnce(purchase);
+      await expect(openRedeemOfferCode()).resolves.toBe(purchase);
+
+      (
+        ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
+      ).mockResolvedValueOnce(null);
+      await expect(openRedeemOfferCode()).resolves.toBeNull();
+    });
+
+    it('openRedeemOfferCode maps the Android launch result to null', async () => {
+      (Platform as any).OS = 'android';
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockResolvedValueOnce(true);
+      await expect(openRedeemOfferCode()).resolves.toBeNull();
+      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+    });
+
+    it('openRedeemOfferCode resolves null on Vega without launching', async () => {
+      (Platform as any).OS = 'kepler';
+      await expect(openRedeemOfferCode()).resolves.toBeNull();
+      expect(ExpoIapModule.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+    });
+
+    it('openRedeemOfferCode rejects on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+      await expect(openRedeemOfferCode()).rejects.toThrow(
+        /Unsupported platform: web/,
+      );
     });
 
     it('requestPurchase rejects on unsupported platform', async () => {

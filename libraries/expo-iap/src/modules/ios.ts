@@ -290,6 +290,9 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *
  * @platform iOS
  *
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
+ * OpenIAP 4.0.
+ *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
  */
 export const presentCodeRedemptionSheetIOS: MutationField<

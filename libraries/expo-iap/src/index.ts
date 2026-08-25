@@ -4,10 +4,15 @@ import {Platform} from 'react-native';
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
 import {isVegaOS} from './vega';
-import {isProductIOS, deepLinkToSubscriptionsIOS} from './modules/ios';
+import {
+  isProductIOS,
+  deepLinkToSubscriptionsIOS,
+  presentCodeRedemptionSheetIOS,
+} from './modules/ios';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
+  openRedeemOfferCodeAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
 import {restorePurchasesIOSNative} from './utils/restorePurchases';
@@ -1296,6 +1301,38 @@ export const deepLinkToSubscriptions: MutationField<
   if (Platform.OS === 'android') {
     await deepLinkToSubscriptionsAndroid((options as DeepLinkOptions) ?? null);
     return;
+  }
+
+  throw unsupportedPlatformError();
+};
+
+/**
+ * Open the platform's offer/promo code redemption flow so the user can enter a code.
+ *
+ * iOS presents the App Store offer code redemption sheet and resolves the
+ * redeemed purchase when StoreKit reports it synchronously, or null after
+ * presenting otherwise. Android launches the Play Store redeem page and
+ * resolves null; store flavors without a redemption surface (Horizon, Amazon,
+ * Vega) resolve null without launching anything. Redeemed purchases arrive
+ * through the purchase listeners, so reconcile with `getAvailablePurchases`
+ * when the app resumes.
+ *
+ * @returns Promise resolving to the redeemed purchase, or null
+ * @throws Error when a redemption flow exists but cannot be presented or launched
+ *
+ * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
+ */
+export const openRedeemOfferCode: MutationField<
+  'openRedeemOfferCode'
+> = async () => {
+  if (Platform.OS === 'ios') {
+    return presentCodeRedemptionSheetIOS();
+  }
+
+  if (isAndroidStoreRuntime()) {
+    // Native returns Boolean; false also maps to null until the SDK adopts openiap-google 3.4.0.
+    await openRedeemOfferCodeAndroid();
+    return null;
   }
 
   throw unsupportedPlatformError();

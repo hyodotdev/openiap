@@ -21,6 +21,7 @@ import {
   verifyPurchaseWithProvider as verifyPurchaseWithProviderInternal,
   getActiveSubscriptions,
   hasActiveSubscriptions,
+  openRedeemOfferCode,
   type ActiveSubscription,
   type ProductTypeInput,
 } from './index';
@@ -125,6 +126,11 @@ type UseIap = {
   launchExternalLinkAndroid: MutationField<'launchExternalLinkAndroid'>;
   showBillingProgramInformationDialogAndroid: MutationField<'showBillingProgramInformationDialogAndroid'>;
   showInAppMessagesAndroid: MutationField<'showInAppMessagesAndroid'>;
+  openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
+  /**
+   * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
+   * OpenIAP 4.0.
+   */
   openRedeemOfferCodeAndroid: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
@@ -897,7 +903,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     launchExternalLinkAndroid,
     showBillingProgramInformationDialogAndroid,
     showInAppMessagesAndroid,
-    // Offer code redemption (Android only)
+    // Offer code redemption
+    openRedeemOfferCode,
     openRedeemOfferCodeAndroid,
   };
 }

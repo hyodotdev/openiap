@@ -18,6 +18,7 @@ import ExpoIapModule from '../ExpoIapModule';
 import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
 import * as AndroidApi from '../modules/android';
+import {openRedeemOfferCode} from '../index';
 /* eslint-enable import/first */
 
 const ReactTestRenderer = {
@@ -191,6 +192,7 @@ describe('useIAP hook', () => {
       expect(hookResult!.openRedeemOfferCodeAndroid).toBe(
         AndroidApi.openRedeemOfferCodeAndroid,
       );
+      expect(hookResult!.openRedeemOfferCode).toBe(openRedeemOfferCode);
     });
   });
 

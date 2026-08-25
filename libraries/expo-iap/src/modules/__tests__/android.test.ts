@@ -33,6 +33,7 @@ import {
   showInAppMessagesAndroid,
 } from '../android';
 import {syncIOS} from '../ios';
+import {openRedeemOfferCode} from '../../index';
 /* eslint-enable import/first */
 
 describe('Android Module Functions', () => {
@@ -171,6 +172,32 @@ describe('Android Module Functions', () => {
       } finally {
         (Platform as {OS: string}).OS = originalOS;
       }
+    });
+  });
+
+  describe('openRedeemOfferCode (Android path)', () => {
+    it('maps a launched Play redeem flow to null', async () => {
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockResolvedValueOnce(true);
+      await expect(openRedeemOfferCode()).resolves.toBeNull();
+      expect(ExpoIapModule.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+    });
+
+    it('maps unsupported store flavors to null as well', async () => {
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockResolvedValueOnce(false);
+      await expect(openRedeemOfferCode()).resolves.toBeNull();
+    });
+
+    it('rethrows native launch failures', async () => {
+      (
+        ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
+      ).mockRejectedValueOnce(new Error('Unable to launch redeem page'));
+      await expect(openRedeemOfferCode()).rejects.toThrow(
+        'Unable to launch redeem page',
+      );
     });
   });
 
