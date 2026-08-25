@@ -36,13 +36,12 @@ body {
   position: relative;
 }
 
-img[src='/sponsors/meta.webp'] {
-  filter: var(--meta-logo-filter);
-}
-
 .sponsor-wordmark {
+  --sponsor-wordmark-height: 2.4rem;
+
   display: inline-flex;
   max-width: 100%;
+  height: var(--sponsor-wordmark-height);
   align-items: center;
   line-height: 0;
 }
@@ -54,8 +53,10 @@ img[src='/sponsors/meta.webp'] {
   object-fit: contain;
 }
 
-.meta-wordmark {
-  gap: 0.08em;
+/* Swoosh below the baseline shrinks Amazon's text at equal height. */
+.amazon-wordmark {
+  height: calc(var(--sponsor-wordmark-height) * 1.4);
+  transform: translateY(calc(var(--sponsor-wordmark-height) * 0.14));
 }
 
 .sponsor-wordmark-dark {
@@ -71,11 +72,11 @@ img[src='/sponsors/meta.webp'] {
 }
 
 .foundation-sponsor-wordmark {
-  height: 3rem;
+  --sponsor-wordmark-height: 3rem;
 }
 
 .announcement-sponsor-wordmark {
-  height: 2.75rem;
+  --sponsor-wordmark-height: 2.75rem;
 }
 
 /* Wrapped onto its own line above the title, the tiny banner reads as noise. */

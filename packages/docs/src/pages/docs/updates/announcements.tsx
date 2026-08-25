@@ -944,11 +944,7 @@ function Announcements() {
       element: (
         <div key="2025-10-01" style={cardStyle}>
           <div style={headerStyle}>
-            <img
-              src="/sponsors/meta.webp"
-              alt="Meta Horizon"
-              style={{ width: '92px', height: '48px', objectFit: 'contain' }}
-            />
+            <MetaSponsorWordmark className="announcement-sponsor-wordmark" />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Meta Horizon OS Support is Here!
             </h2>

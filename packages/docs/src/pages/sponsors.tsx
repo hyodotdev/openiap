@@ -302,11 +302,8 @@ function Sponsors() {
         <section className="xp-supporters" aria-labelledby="past-supporters">
           <div>
             <p>With thanks to</p>
-            <h2 id="past-supporters">Past react-native-iap supporters</h2>
-            <p>
-              Recognized for support before the OpenIAP-wide sponsor program;
-              not listed as current sponsors.
-            </p>
+            <h2 id="past-supporters">Past supporters</h2>
+            <p>Supported the project before the OpenIAP sponsor program.</p>
           </div>
           <div>
             {PAST_SUPPORTERS.map((supporter) => (

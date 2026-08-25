@@ -25,7 +25,7 @@
 
 .xp-kicker,
 .xp-section-heading > div > p,
-.xp-supporters > div:first-child > p {
+.xp-supporters > div:first-child > p:first-child {
   margin: 0 0 0.75rem;
   color: var(--xp-accent);
   font-size: 0.66rem;
@@ -817,14 +817,9 @@
 }
 
 .xp-sponsor-node .sponsor-wordmark {
-  max-width: 12rem;
-  height: 3rem;
-}
+  --sponsor-wordmark-height: 2.5rem;
 
-.xp-sponsor-node .amazon-wordmark {
-  max-width: 12rem;
-  height: 2.4rem;
-  transform: translateY(0.2rem);
+  max-width: 13rem;
 }
 
 .xp-sponsor-open-node {
@@ -1063,6 +1058,13 @@
   font-size: clamp(1.5rem, 3vw, 2.3rem);
 }
 
+.xp-supporters > div:first-child > h2 + p {
+  margin: 0.9rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
 .xp-supporters > div:last-child {
   display: flex;
   gap: 2.5rem;
@@ -1281,13 +1283,9 @@
   }
 
   .xp-sponsor-node .sponsor-wordmark {
-    max-width: 8.75rem;
-    height: 2.35rem;
-  }
+    --sponsor-wordmark-height: 1.8rem;
 
-  .xp-sponsor-node .amazon-wordmark {
-    max-width: 8.75rem;
-    height: 1.9rem;
+    max-width: 9.5rem;
   }
 }
 

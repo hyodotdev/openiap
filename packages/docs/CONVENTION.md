@@ -37,9 +37,9 @@
 
 ## Sponsor Surfaces
 
-- Treat `sponsors.json` as the SSOT for supporter records and logos; funding
-  channel links on the sponsor, sponsorship, founding-supporter, governance,
-  one-pager, and IAPKit docs; generated README sponsor blocks; and
+- Treat `sponsor-registry.json` as the SSOT for supporter records and logos;
+  funding channel links on the sponsor, sponsorship, founding-supporter,
+  governance, one-pager, and IAPKit docs; generated README sponsor blocks; and
   `.github/FUNDING.yml`.
 - Run `bun run sponsors:sync` from the repository root after changing it. The
   command updates every root/package/library README and `.github/FUNDING.yml`.

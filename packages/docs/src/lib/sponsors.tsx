@@ -1,5 +1,5 @@
 import type { ComponentType, ReactElement } from 'react';
-import * as sponsorRegistry from '../../sponsors.json';
+import * as sponsorRegistry from '../../sponsor-registry.json';
 
 interface SponsorWordmarkProps {
   className?: string;

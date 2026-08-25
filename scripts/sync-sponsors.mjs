@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
-const registryPath = "packages/docs/sponsors.json";
+const registryPath = "packages/docs/sponsor-registry.json";
 
 export const sponsorBlockStart = "<!-- sponsors:start -->";
 export const sponsorBlockEnd = "<!-- sponsors:end -->";
@@ -258,9 +258,9 @@ export function renderSponsorBlock(
     "",
     `[Become a sponsor](${funding.openCollectiveSponsorUrl}) | [Become a backer](${funding.openCollectiveBackerUrl})`,
     "",
-    "### Past react-native-iap supporters",
+    "### Past supporters",
     "",
-    "These companies supported react-native-iap before the OpenIAP-wide sponsor program. This acknowledgement does not imply current sponsorship.",
+    "Supported the project before the OpenIAP sponsor program.",
     "",
     '<p align="center">',
     pastLogos,

@@ -83,8 +83,8 @@ test("renders current, collective, and past supporters from one registry", () =>
   assert.match(block, /Meta/);
   assert.match(block, /amazon-dark\.webp/);
   assert.match(block, /OpenCollective sponsors/);
-  assert.match(block, /Past react-native-iap supporters/);
-  assert.match(block, /does not imply current sponsorship/);
+  assert.match(block, /Past supporters/);
+  assert.match(block, /before the OpenIAP sponsor program/);
   assert.match(block, /\[openiap-github-sponsors\]/);
   assert.match(block, /\[openiap-paypal\]/);
   assert.match(block, /\[openiap-company-contact\]/);
@@ -250,7 +250,7 @@ test("writes every discovered surface and then reports a clean audit", () => {
     writeSponsorAssets(root);
 
     fs.writeFileSync(
-      path.join(root, "packages/docs/sponsors.json"),
+      path.join(root, "packages/docs/sponsor-registry.json"),
       JSON.stringify(registry),
     );
     fs.writeFileSync(path.join(root, "README.md"), "# Root\n");
@@ -291,7 +291,7 @@ test("rejects hardcoded funding URLs outside the generated block", () => {
     }
     writeSponsorAssets(root);
     fs.writeFileSync(
-      path.join(root, "packages/docs/sponsors.json"),
+      path.join(root, "packages/docs/sponsor-registry.json"),
       JSON.stringify(registry),
     );
     fs.writeFileSync(
@@ -323,7 +323,7 @@ test("audits sponsor surfaces from the staged snapshot", () => {
     }
     writeSponsorAssets(root);
     fs.writeFileSync(
-      path.join(root, "packages/docs/sponsors.json"),
+      path.join(root, "packages/docs/sponsor-registry.json"),
       JSON.stringify(registry),
     );
     fs.writeFileSync(path.join(root, "README.md"), "# Root\n");
@@ -351,11 +351,13 @@ test("audits sponsor surfaces from the staged snapshot", () => {
     const changedRegistry = structuredClone(registry);
     changedRegistry.currentSponsors[0].url = "https://meta.changed.example";
     fs.writeFileSync(
-      path.join(root, "packages/docs/sponsors.json"),
+      path.join(root, "packages/docs/sponsor-registry.json"),
       JSON.stringify(changedRegistry),
     );
     synchronizeSponsorFiles(root, { write: true });
-    execFileSync("git", ["add", "packages/docs/sponsors.json"], { cwd: root });
+    execFileSync("git", ["add", "packages/docs/sponsor-registry.json"], {
+      cwd: root,
+    });
     fs.rmSync(path.join(root, "packages/alpha/README.md"));
     fs.mkdirSync(path.join(root, "packages/untracked"), { recursive: true });
     fs.writeFileSync(

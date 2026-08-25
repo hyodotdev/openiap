@@ -8,7 +8,7 @@
       "url": "https://meta.com",
       "logo": {
         "src": "/sponsors/meta.webp",
-        "darkSrc": "/sponsors/meta-dark.svg",
+        "darkSrc": "/sponsors/meta-dark.webp",
         "height": 44,
         "readme": {
           "src": "/meta.svg",

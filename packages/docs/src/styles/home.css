@@ -552,12 +552,7 @@
 }
 
 .hero-backer .sponsor-wordmark {
-  height: 2.4rem;
-}
-
-.hero-backer .amazon-wordmark {
-  height: 2.1rem;
-  transform: translateY(0.16rem);
+  --sponsor-wordmark-height: 2.4rem;
 }
 
 @media (max-width: 1050px) {
@@ -693,11 +688,7 @@
   }
 
   .hero-backer .sponsor-wordmark {
-    height: 1.9rem;
-  }
-
-  .hero-backer .amazon-wordmark {
-    height: 1.65rem;
+    --sponsor-wordmark-height: 1.9rem;
   }
 
   .hero-native-links,
@@ -1530,12 +1521,7 @@ a.spec-item:hover code {
 }
 
 .home-sponsor-logo-link .sponsor-wordmark {
-  height: 4.1rem;
-}
-
-.home-sponsor-logo-link .amazon-wordmark {
-  height: 3.6rem;
-  transform: translateY(0.12rem);
+  --sponsor-wordmark-height: 4.1rem;
 }
 
 .home-sponsor-tier {
@@ -1687,11 +1673,7 @@ a.spec-item:hover code {
   }
 
   .home-sponsor-logo-link .sponsor-wordmark {
-    height: 2.5rem;
-  }
-
-  .home-sponsor-logo-link .amazon-wordmark {
-    height: 2.2rem;
+    --sponsor-wordmark-height: 2.5rem;
   }
 
   .home-sponsor-flow {

@@ -13,7 +13,6 @@
   --logo-text-filter: invert(1);
   --apple-logo-filter: none;
   --expo-logo-filter: invert(1);
-  --meta-logo-filter: brightness(0) invert(1);
   --iapkit-text-color: #000000;
 
   /* Dark mode sidebar (slightly darker than content) */
@@ -97,11 +96,6 @@
     background-color 0.3s ease,
     color 0.3s ease,
     border-color 0.3s ease;
-}
-
-/* Fix for SVG visibility in dark mode on all browsers */
-:root.dark img[src*='meta-txt.svg'] {
-  filter: invert(1) brightness(1.5) contrast(1.1);
 }
 
 /* Callouts - Dark Mode */
