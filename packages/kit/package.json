@@ -81,8 +81,8 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "4.1.10",
-    "@vitest/ui": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/ui": "4.1.11",
     "autoprefixer": "~10",
     "dotenv": "^16.4.7",
     "eslint": "^9.39.4",
@@ -98,7 +98,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.24.1",
     "vite": "^6.4.3",
-    "vitest": "4.1.10"
+    "vitest": "4.1.11"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,json,css,md,html}": [
