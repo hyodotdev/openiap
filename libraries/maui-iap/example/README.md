@@ -11,7 +11,7 @@ seven flows, same UX patterns.
 - **`PurchaseFlowPage`** ← `app/purchase-flow.tsx` — `requestPurchase`, `PurchaseUpdated` listener, verification picker (none / local / IAPKit), available-purchases panel, copy-result button, iOS App Transaction probe, two modal sheets (product / purchase details).
 - **`SubscriptionFlowPage`** ← `app/subscription-flow.tsx` — subscriptions list, `getActiveSubscriptions`, `deepLinkToSubscriptions`, details modal.
 - **`AvailablePurchasesPage`** ← `app/available-purchases.tsx` — `getAvailablePurchases` (deduplicated), `getActiveSubscriptions`, manage deep link.
-- **`OfferCodePage`** ← `app/offer-code.tsx` — iOS-only `presentCodeRedemptionSheetIOS` with Android hint copy.
+- **`OfferCodePage`** ← `app/offer-code.tsx` — unified `openRedeemOfferCode` (StoreKit sheet on iOS, Play redeem page on Android) with platform hint copy.
 - **`AlternativeBillingPage`** ← `app/alternative-billing.tsx` — Android `isBillingProgramAvailableAndroid`, iOS external purchase link + custom-link eligibility.
 
 Shared layer:
