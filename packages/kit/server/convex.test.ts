@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConvexError } from "convex/values";
+import { ErrorCode, createError } from "../convex/utils/errors";
 
 process.env.VITE_KIT_CONVEX_URL ??= "https://placeholder.convex.cloud";
 
@@ -84,5 +85,19 @@ describe("handleConvexError", () => {
     expect(handleConvexError(new ConvexError("internal backend detail"))).toBe(
       null,
     );
+  });
+
+  // AppError reaches /v1 routes from every Convex function they call. Its
+  // payload is dashboard-facing, so routes must keep their generic fallback
+  // rather than start publishing internal codes and details.
+  it("does not expose dashboard-scoped AppError payloads", () => {
+    expect(handleConvexError(createError(ErrorCode.PROJECT_NOT_FOUND))).toBe(
+      null,
+    );
+    expect(
+      handleConvexError(
+        createError(ErrorCode.INVALID_INPUT, "Sync job not found"),
+      ),
+    ).toBe(null);
   });
 });

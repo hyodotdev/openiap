@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { ConvexError } from "convex/values";
 import * as v from "valibot";
+import { APP_ERROR_SCOPE } from "../convex/utils/errors";
 
 export function resolveServerConvexUrl(
   env: Readonly<Record<string, string | undefined>> = process.env,
@@ -38,6 +39,18 @@ interface ApiError {
 
 export function handleConvexError(error: unknown): ApiError | null {
   if (error instanceof ConvexError === false) {
+    return null;
+  }
+
+  // Dashboard-scoped payloads keep the generic 500 fallback: `/v1` responses
+  // are a published contract that shipped SDKs decode, so internal codes and
+  // details must not start appearing there. See packages/kit/CONVENTION.md.
+  const data: unknown = error.data;
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { scope?: unknown }).scope === APP_ERROR_SCOPE
+  ) {
     return null;
   }
 

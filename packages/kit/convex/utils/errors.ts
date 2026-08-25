@@ -1,3 +1,5 @@
+import { ConvexError } from "convex/values";
+
 // Error codes for consistent error handling across the application
 export enum ErrorCode {
   // Authentication & Authorization
@@ -38,22 +40,34 @@ export enum ErrorCode {
   SERVER_ERROR = "SERVER_ERROR",
 }
 
-export class AppError extends Error {
-  constructor(
-    public code: ErrorCode,
-    public message: string = "",
-    public statusCode: number = 400,
-  ) {
-    super(message || code);
+// Marks payloads meant for the dashboard. `/v1` route layers reject this
+// scope so internal codes stay out of the published response contract.
+export const APP_ERROR_SCOPE = "dashboard";
+
+/** Payload the client receives on `ConvexError.data`. */
+export interface AppErrorData {
+  code: ErrorCode;
+  message: string;
+  scope: string;
+  // Convex requires an index signature for structured error payloads.
+  [key: string]: string;
+}
+
+// Convex redacts plain `Error` messages to "Server Error" on production
+// deployments; only ConvexError data crosses to the client.
+export class AppError extends ConvexError<AppErrorData> {
+  readonly code: ErrorCode;
+
+  constructor(code: ErrorCode, details?: string) {
+    super({ code, message: details ?? code, scope: APP_ERROR_SCOPE });
     this.name = "AppError";
+    // Keep server logs keyed by the code rather than the JSON payload.
+    this.message = details ? `${code}: ${details}` : code;
+    this.code = code;
   }
 }
 
 // Helper function to create standardized errors
 export function createError(code: ErrorCode, details?: string): AppError {
-  // Always include the error code in the message so frontend can parse it
-  // Frontend will use the error code to display localized messages
-  const message = details ? `${code}: ${details}` : code;
-
-  return new AppError(code, message);
+  return new AppError(code, details);
 }
