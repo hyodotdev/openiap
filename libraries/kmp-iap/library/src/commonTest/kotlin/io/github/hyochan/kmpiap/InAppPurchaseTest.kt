@@ -1130,9 +1130,22 @@ class InAppPurchaseTest {
     }
 
     // =========================================================================
-    // openRedeemOfferCodeAndroid Handler Tests
+    // openRedeemOfferCode Handler Tests
     // =========================================================================
 
+    @Test
+    fun testMutationHandlersExposeOpenRedeemOfferCode() = runTest {
+        val handlers = MutationHandlers(openRedeemOfferCode = { null })
+
+        assertNull(handlers.openRedeemOfferCode?.invoke())
+        assertNull(MutationHandlers().openRedeemOfferCode)
+    }
+
+    // =========================================================================
+    // openRedeemOfferCodeAndroid Handler Tests (deprecated, removal in OpenIAP 4.0)
+    // =========================================================================
+
+    @Suppress("DEPRECATION")
     @Test
     fun testMutationHandlersExposeOpenRedeemOfferCodeAndroid() = runTest {
         val handlers = MutationHandlers(openRedeemOfferCodeAndroid = { true })
