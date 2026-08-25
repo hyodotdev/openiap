@@ -22,6 +22,7 @@
     "generate:csharp": "bun codegen/index.ts csharp",
     "sync": "node scripts/sync-to-platforms.mjs",
     "verify:generated-staged": "node scripts/assert-generated-staged.mjs",
+    "audit:schema-semver": "node --test scripts/audit-schema-semver.test.mjs && node scripts/audit-schema-semver.mjs",
     "test": "vitest run src"
   },
   "keywords": [

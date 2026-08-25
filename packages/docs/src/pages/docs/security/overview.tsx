@@ -102,6 +102,11 @@ const FURTHER_READING: FurtherReading[] = [
     note: 'CRA readiness, OpenChain self-assessment, and the behavioral conformance suite',
   },
   {
+    href: '/docs/foundation/research',
+    label: 'Research Foundations',
+    note: 'the studies behind these security and conformance decisions',
+  },
+  {
     href: 'https://github.com/hyodotdev/openiap/tree/main/security',
     label: 'security/',
     note: 'the maintainer-facing policy documents',
@@ -240,12 +245,23 @@ function SecurityOverview() {
         </AnchorLink>
         <p>
           OpenIAP submits all six Bun lock graphs as exact dependency snapshots
-          for repository vulnerability monitoring. React Native&apos;s Yarn
-          graph remains covered by GitHub&apos;s native lockfile support and the
-          independent OSV scan. Its CocoaPods toolchain has a committed Bundler
-          lock, a pinned Ruby CI runtime, OSV coverage, and Dependabot updates.
-          Other Dependabot version-update pull requests stay focused on IAPKit,
-          GitHub Actions, and the IAPKit container image.
+          for repository vulnerability monitoring — coverage motivated by
+          ecosystem-scale research showing a handful of unmaintained packages or
+          compromised maintainer accounts can reach most of a dependency network
+          (
+          <a
+            href="https://www.usenix.org/conference/usenixsecurity19/presentation/zimmerman"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            USENIX Security 2019
+          </a>
+          ). React Native&apos;s Yarn graph remains covered by GitHub&apos;s
+          native lockfile support and the independent OSV scan. Its CocoaPods
+          toolchain has a committed Bundler lock, a pinned Ruby CI runtime, OSV
+          coverage, and Dependabot updates. Other Dependabot version-update pull
+          requests stay focused on IAPKit, GitHub Actions, and the IAPKit
+          container image.
         </p>
         <p>
           Native SDK platform dependencies are pinned deliberately — several

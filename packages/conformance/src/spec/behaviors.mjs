@@ -284,12 +284,29 @@ export const BEHAVIORS = Object.freeze([
   },
 
   // --- verification ------------------------------------------------------
+  // Trust-boundary behaviors are evidence-backed: client-only validation is a
+  // measured failure mode (mulliner2014virtualswindle, yang2017showme in
+  // knowledge/research/bibliography.md; backlog R2).
   {
     id: 'verification.result-exposes-uniform-validity',
     category: 'verification',
     level: 'MUST',
     statement:
       'Every VerifyPurchaseResult variant exposes isValid, so a caller can gate entitlement without inspecting the concrete platform variant.',
+  },
+  {
+    id: 'verification.forged-token-is-invalid',
+    category: 'verification',
+    level: 'MUST',
+    statement:
+      'A purchase token the store never issued verifies with isValid false; verification consults store state rather than trusting the token shape.',
+  },
+  {
+    id: 'verification.infrastructure-error-is-not-a-verdict',
+    category: 'verification',
+    level: 'MUST',
+    statement:
+      'A verification attempt that fails for infrastructure reasons surfaces ErrorCode.ServiceError or ErrorCode.NetworkError; it never resolves to an isValid verdict in either direction.',
   },
 
   // --- identifiers -------------------------------------------------------

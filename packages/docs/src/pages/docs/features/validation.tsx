@@ -59,7 +59,25 @@ function Validation() {
 
       <Callout kind="warning" title="Security">
         Never rely only on local client purchase state. Use your backend or
-        IAPKit as the verifier.
+        IAPKit as the verifier. An automated attack cracked 60% of 85 popular
+        apps that trusted client-side billing state (
+        <a
+          href="https://www.mulliner.org/collin/publications/virtualswindle_asiaccs2014_mulliner.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          AsiaCCS 2014
+        </a>
+        ), and a later study traced most payment flaws to SDK and documentation
+        gaps rather than app code (
+        <a
+          href="https://www.ndss-symposium.org/wp-content/uploads/2017/09/ndss2017_05A-2_Yang_paper.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          NDSS 2017
+        </a>
+        ).
       </Callout>
 
       <section>

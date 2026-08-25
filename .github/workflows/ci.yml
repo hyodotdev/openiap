@@ -311,6 +311,12 @@ jobs:
       - name: Audit declared facts
         run: npm run audit:facts
 
+      - name: Audit research references
+        run: npm run audit:research
+
+      - name: Test issue-mining script
+        run: node --test scripts/mine-iap-issues.test.mjs
+
       - name: Audit agent surfaces
         run: npm run audit:agents
 
@@ -327,6 +333,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Full history so the schema semver audit compares against the
+          # merge base, not the moving base-branch tip.
+          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -350,6 +359,15 @@ jobs:
       - name: Run tests
         working-directory: packages/gql
         run: bun run test
+
+      # Breaking-change guard for the schema (knowledge/research backlog R1).
+      # PR-only: after merge the base comparison is no longer actionable.
+      - name: Audit schema semver claims
+        if: github.event_name == 'pull_request'
+        working-directory: packages/gql
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: bun run audit:schema-semver -- --base "origin/$BASE_REF"
 
       - name: Verify generated types are committed (no drift)
         run: node scripts/assert-clean-worktree.mjs

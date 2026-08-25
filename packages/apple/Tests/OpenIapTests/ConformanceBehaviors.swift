@@ -3,7 +3,7 @@
 // packages/conformance/src/spec/behaviors.mjs.
 
 enum ConformanceBehaviors {
-    static let suiteVersion = "2.0.0"
+    static let suiteVersion = "3.0.0"
 
     static let productsFetchReturnsRequestedSkus = "products.fetch-returns-requested-skus"
     static let productsFetchNormalizesRequiredFields = "products.fetch-normalizes-required-fields"
@@ -36,6 +36,8 @@ enum ConformanceBehaviors {
     static let errorsUnrecognizedStoreCodeNormalizesToUnknown = "errors.unrecognized-store-code-normalizes-to-unknown"
     static let errorsUnsupportedCodesAreNotSynthesized = "errors.unsupported-codes-are-not-synthesized"
     static let verificationResultExposesUniformValidity = "verification.result-exposes-uniform-validity"
+    static let verificationForgedTokenIsInvalid = "verification.forged-token-is-invalid"
+    static let verificationInfrastructureErrorIsNotAVerdict = "verification.infrastructure-error-is-not-a-verdict"
     static let identifiersPurchaseCarriesAConcreteStore = "identifiers.purchase-carries-a-concrete-store"
     static let identifiersPurchaseTokenIsStableAcrossReads = "identifiers.purchase-token-is-stable-across-reads"
     static let capabilitiesUnsupportedOperationsDegradePredictably = "capabilities.unsupported-operations-degrade-predictably"

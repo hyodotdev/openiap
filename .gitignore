@@ -172,3 +172,4 @@ libraries/*/docs/build/
 *.maui.bundle/
 # Resx generated designer code (per-build artifact)
 *.resx.designer.cs
+knowledge/research/_datasets/

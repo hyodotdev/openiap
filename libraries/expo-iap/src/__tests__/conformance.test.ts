@@ -28,10 +28,12 @@ const fakeStore = {
   owned: new Map<string, FakeRecord>(),
   forced: new Map<string, string>(),
   sequence: 0,
+  verifierAvailable: true,
   reset() {
     this.owned.clear();
     this.forced.clear();
     this.sequence = 0;
+    this.verifierAvailable = true;
   },
 };
 
@@ -56,13 +58,29 @@ function toPurchase(record: FakeRecord) {
 }
 
 const nativeModule: Record<string, unknown> = {
+  verifyPurchase: jest.fn(async (options: any) => {
+    if (!fakeStore.verifierAvailable) {
+      // Expo modules reject with coded errors; the SDK must not strip the code.
+      throw Object.assign(new Error('verification backend unreachable'), {
+        code: 'service-error',
+      });
+    }
+    const record = fakeStore.owned.get(options?.google?.purchaseToken ?? '');
+    return {
+      isValid: record?.state === 'purchased',
+      productId: record?.sku ?? '',
+      store: 'google',
+    };
+  }),
   initConnection: jest.fn(async () => true),
   endConnection: jest.fn(async () => true),
 
   fetchProducts: jest.fn(async (params: any, legacySkus?: string[]) => {
     // The SDK calls fetchProducts({skus, type}) on modern natives and
     // fetchProducts(type, skus) on the legacy signature; support both.
-    const skus: string[] = Array.isArray(legacySkus) ? legacySkus : (params?.skus ?? []);
+    const skus: string[] = Array.isArray(legacySkus)
+      ? legacySkus
+      : (params?.skus ?? []);
     const rawType = Array.isArray(legacySkus) ? params : params?.type;
     const type = rawType === 'all' ? undefined : rawType;
 
@@ -90,20 +108,29 @@ const nativeModule: Record<string, unknown> = {
       props?.skus?.[0];
 
     if (!CATALOG[sku]) {
-      throw Object.assign(new Error('unknown sku'), {code: 'sku-not-found', productId: sku});
+      throw Object.assign(new Error('unknown sku'), {
+        code: 'sku-not-found',
+        productId: sku,
+      });
     }
 
     const forced = fakeStore.forced.get(sku);
     fakeStore.forced.delete(sku);
     if (forced === 'user-cancelled') {
-      throw Object.assign(new Error('cancelled'), {code: 'user-cancelled', productId: sku});
+      throw Object.assign(new Error('cancelled'), {
+        code: 'user-cancelled',
+        productId: sku,
+      });
     }
 
     const owned = [...fakeStore.owned.values()].some(
       (record) => record.sku === sku && record.state === 'purchased',
     );
     if (owned && CATALOG[sku] === 'in-app') {
-      throw Object.assign(new Error('already owned'), {code: 'already-owned', productId: sku});
+      throw Object.assign(new Error('already owned'), {
+        code: 'already-owned',
+        productId: sku,
+      });
     }
 
     fakeStore.sequence += 1;
@@ -122,7 +149,8 @@ const nativeModule: Record<string, unknown> = {
   ),
 
   finishTransaction: jest.fn(async (params: any) => {
-    const token = params?.purchaseToken ?? params?.purchase?.purchaseToken ?? params;
+    const token =
+      params?.purchaseToken ?? params?.purchase?.purchaseToken ?? params;
     if (params?.isConsumable) fakeStore.owned.delete(token);
     return true;
   }),
@@ -136,7 +164,10 @@ const nativeModule: Record<string, unknown> = {
   getActiveSubscriptions: jest.fn(async (subscriptionIds?: string[]) =>
     [...fakeStore.owned.values()]
       .filter((record) => record.type === 'subs')
-      .filter((record) => !subscriptionIds?.length || subscriptionIds.includes(record.sku))
+      .filter(
+        (record) =>
+          !subscriptionIds?.length || subscriptionIds.includes(record.sku),
+      )
       .map((record) => ({
         productId: record.sku,
         currentPlanId: record.sku,
@@ -200,10 +231,16 @@ const COVERED_BEHAVIORS = [
   'subscriptions.has-active-agrees-with-get-active',
   'identifiers.purchase-carries-a-concrete-store',
   'identifiers.purchase-token-is-stable-across-reads',
+  'verification.result-exposes-uniform-validity',
+  'verification.forged-token-is-invalid',
+  'verification.infrastructure-error-is-not-a-verdict',
 ];
 
 const buy = (sku: string) =>
-  IAP.requestPurchase({request: {google: {skus: [sku]}}, type: 'in-app'} as never);
+  IAP.requestPurchase({
+    request: {google: {skus: [sku]}},
+    type: 'in-app',
+  } as never);
 
 describe('conformance: expo-iap', () => {
   beforeEach(() => {
@@ -222,7 +259,9 @@ describe('conformance: expo-iap', () => {
       skus: ['dev.hyo.martie.10bulbs', 'not-a-real-sku'],
       type: 'in-app',
     });
-    expect((products as any[]).map((product) => product.id)).toEqual(['dev.hyo.martie.10bulbs']);
+    expect((products as any[]).map((product) => product.id)).toEqual([
+      'dev.hyo.martie.10bulbs',
+    ]);
   });
 
   it('products.fetch-normalizes-required-fields', async () => {
@@ -242,11 +281,15 @@ describe('conformance: expo-iap', () => {
       skus: ['dev.hyo.martie.premium', 'dev.hyo.martie.10bulbs'],
       type: 'subs',
     })) as any[];
-    expect(subs.map((product) => product.id)).toEqual(['dev.hyo.martie.premium']);
+    expect(subs.map((product) => product.id)).toEqual([
+      'dev.hyo.martie.premium',
+    ]);
   });
 
   it('products.fetch-empty-sku-list-is-an-error', async () => {
-    await expect(IAP.fetchProducts({skus: [], type: 'in-app'})).rejects.toMatchObject({
+    await expect(
+      IAP.fetchProducts({skus: [], type: 'in-app'}),
+    ).rejects.toMatchObject({
       code: ErrorCode.EmptySkuList,
     });
   });
@@ -261,7 +304,9 @@ describe('conformance: expo-iap', () => {
 
   it('purchases.already-owned-surfaces-already-owned-error', async () => {
     await buy('dev.hyo.martie.lifetime');
-    await expect(buy('dev.hyo.martie.lifetime')).rejects.toMatchObject({code: 'already-owned'});
+    await expect(buy('dev.hyo.martie.lifetime')).rejects.toMatchObject({
+      code: 'already-owned',
+    });
   });
 
   it('purchases.pending-purchase-is-not-delivered-as-purchased', async () => {
@@ -272,7 +317,9 @@ describe('conformance: expo-iap', () => {
   });
 
   it('purchases.unknown-sku-surfaces-sku-not-found', async () => {
-    await expect(buy('not-a-real-sku')).rejects.toMatchObject({code: 'sku-not-found'});
+    await expect(buy('not-a-real-sku')).rejects.toMatchObject({
+      code: 'sku-not-found',
+    });
   });
 
   // --- restoration --------------------------------------------------------
@@ -293,7 +340,9 @@ describe('conformance: expo-iap', () => {
     await IAP.finishTransaction({purchase, isConsumable: true});
 
     const available = (await IAP.getAvailablePurchases()) as any[];
-    expect(available.some((item) => item.purchaseToken === purchase.purchaseToken)).toBe(false);
+    expect(
+      available.some((item) => item.purchaseToken === purchase.purchaseToken),
+    ).toBe(false);
   });
 
   it('restoration.available-purchases-is-empty-for-new-user', async () => {
@@ -313,8 +362,12 @@ describe('conformance: expo-iap', () => {
     await buy('dev.hyo.martie.pro');
 
     const subscriptions = (await IAP.getActiveSubscriptions()) as any[];
-    const premium = subscriptions.find((item) => item.productId === 'dev.hyo.martie.premium');
-    const pro = subscriptions.find((item) => item.productId === 'dev.hyo.martie.pro');
+    const premium = subscriptions.find(
+      (item) => item.productId === 'dev.hyo.martie.premium',
+    );
+    const pro = subscriptions.find(
+      (item) => item.productId === 'dev.hyo.martie.pro',
+    );
 
     expect(premium.currentPlanId).toBe('dev.hyo.martie.premium');
     expect(pro.currentPlanId).toBe('dev.hyo.martie.pro');
@@ -337,10 +390,68 @@ describe('conformance: expo-iap', () => {
 
   it('identifiers.purchase-token-is-stable-across-reads', async () => {
     const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
-    const first = ((await IAP.getAvailablePurchases()) as any[])[0].purchaseToken;
-    const second = ((await IAP.getAvailablePurchases()) as any[])[0].purchaseToken;
+    const first = ((await IAP.getAvailablePurchases()) as any[])[0]
+      .purchaseToken;
+    const second = ((await IAP.getAvailablePurchases()) as any[])[0]
+      .purchaseToken;
 
     expect(first).toBe(purchase.purchaseToken);
     expect(second).toBe(purchase.purchaseToken);
+  });
+
+  // --- verification -------------------------------------------------------
+
+  it('verification.result-exposes-uniform-validity', async () => {
+    const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
+
+    const valid = (await IAP.verifyPurchase({
+      google: {
+        sku: 'dev.hyo.martie.lifetime',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: purchase.purchaseToken,
+        accessToken: 'test-access-token',
+        isSub: false,
+      },
+    } as never)) as any;
+
+    expect(typeof valid.isValid).toBe('boolean');
+    expect(valid.isValid).toBe(true);
+  });
+
+  it('verification.forged-token-is-invalid', async () => {
+    await buy('dev.hyo.martie.lifetime');
+
+    const result = (await IAP.verifyPurchase({
+      google: {
+        sku: 'dev.hyo.martie.lifetime',
+        packageName: 'dev.hyo.martie',
+        purchaseToken: 'forged-token-0001',
+        accessToken: 'test-access-token',
+        isSub: false,
+      },
+    } as never)) as any;
+
+    expect(result.isValid).toBe(false);
+  });
+
+  it('verification.infrastructure-error-is-not-a-verdict', async () => {
+    const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
+
+    fakeStore.verifierAvailable = false;
+    await expect(
+      IAP.verifyPurchase({
+        google: {
+          sku: 'dev.hyo.martie.lifetime',
+          purchaseToken: purchase.purchaseToken,
+          packageName: 'dev.hyo.martie',
+          accessToken: 'test-access-token',
+          isSub: false,
+        },
+      } as never),
+      // The statement requires a ServiceError/NetworkError surface, not just
+      // any rejection.
+    ).rejects.toMatchObject({
+      code: expect.stringMatching(/^(service-error|network-error)$/),
+    });
   });
 });

@@ -8,7 +8,9 @@
     "./spec": "./src/spec/behaviors.mjs",
     "./runner": "./src/runner/runner.mjs",
     "./report": "./src/runner/report.mjs",
-    "./fake-store": "./src/fake-store/fake-store.mjs"
+    "./fake-store": "./src/fake-store/fake-store.mjs",
+    "./differential": "./src/runner/differential.mjs",
+    "./metamorphic": "./src/spec/metamorphic-relations.mjs"
   },
   "scripts": {
     "test": "vitest run test",
