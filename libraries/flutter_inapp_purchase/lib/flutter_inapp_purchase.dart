@@ -1117,6 +1117,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Show the App Store offer code redemption sheet.
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+  @Deprecated(
+      'Use openRedeemOfferCode instead. Scheduled for removal in OpenIAP 4.0.')
   gentype.MutationPresentCodeRedemptionSheetIOSHandler
       get presentCodeRedemptionSheetIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2681,6 +2683,56 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
+  /// Open the platform's offer/promo code redemption flow so the user can
+  /// enter a code.
+  ///
+  /// On iOS, presents the App Store redemption sheet and resolves the
+  /// verified purchase when StoreKit reports it synchronously; otherwise
+  /// resolves null. On Android, launches the Play Store redeem page and
+  /// resolves null; store flavors without a redemption surface also resolve
+  /// null. Redeemed purchases arrive through the purchase listeners;
+  /// reconcile with `getAvailablePurchases` when the app resumes. Throws
+  /// only when a redemption flow cannot be presented or launched.
+  ///
+  /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
+  gentype.MutationOpenRedeemOfferCodeHandler get openRedeemOfferCode =>
+      () async {
+        try {
+          if (_platform.isIOS && !_platform.isMacOS) {
+            // ignore: deprecated_member_use_from_same_package
+            return await presentCodeRedemptionSheetIOS();
+          }
+
+          if (_platform.isAndroid) {
+            // Deprecated getter stays the single owner of the channel name;
+            // the unified contract resolves null for its Boolean either way.
+            // ignore: deprecated_member_use_from_same_package
+            await openRedeemOfferCodeAndroid();
+            return null;
+          }
+
+          throw PurchaseError(
+            code: _platform.isMacOS
+                ? gentype.ErrorCode.FeatureNotSupported
+                : gentype.ErrorCode.IapNotAvailable,
+            message: _platform.isMacOS
+                ? 'Offer code redemption is not supported on macOS'
+                : 'openRedeemOfferCode is only available on iOS and Android',
+          );
+        } on PlatformException catch (error) {
+          throw _purchaseErrorFromPlatformException(
+            error,
+            'open redeem offer code',
+          );
+        } catch (error) {
+          if (error is PurchaseError) rethrow;
+          throw PurchaseError(
+            code: gentype.ErrorCode.ServiceError,
+            message: 'Failed to open redeem offer code: ${error.toString()}',
+          );
+        }
+      };
+
   /// Open the Google Play offer/promo code redemption flow so the user can
   /// enter a code.
   ///
@@ -2690,6 +2742,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// flavors return false. Android counterpart of `presentCodeRedemptionSheetIOS`.
   ///
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+  @Deprecated(
+      'Use openRedeemOfferCode instead. Scheduled for removal in OpenIAP 4.0.')
   Future<bool> openRedeemOfferCodeAndroid() async {
     if (!_platform.isAndroid) {
       throw PurchaseError(
@@ -3038,8 +3092,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         initConnection: initConnection,
         isBillingProgramAvailableAndroid: isBillingProgramAvailableAndroid,
         launchExternalLinkAndroid: _launchExternalLinkAndroidHandler,
-        openRedeemOfferCodeAndroid: openRedeemOfferCodeAndroid,
-        presentCodeRedemptionSheetIOS: presentCodeRedemptionSheetIOS,
+        openRedeemOfferCode: openRedeemOfferCode,
+        openRedeemOfferCodeAndroid:
+            // ignore: deprecated_member_use_from_same_package
+            openRedeemOfferCodeAndroid,
+        presentCodeRedemptionSheetIOS:
+            // ignore: deprecated_member_use_from_same_package
+            presentCodeRedemptionSheetIOS,
         requestPurchase: requestPurchase,
         restorePurchases: restorePurchases,
         showBillingProgramInformationDialogAndroid:

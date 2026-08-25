@@ -452,6 +452,7 @@ void main() {
         FakePlatform(operatingSystem: 'android'),
       );
 
+      // ignore: deprecated_member_use_from_same_package
       final result = await iap.openRedeemOfferCodeAndroid();
       expect(result, isTrue);
 
@@ -471,6 +472,7 @@ void main() {
         FakePlatform(operatingSystem: 'android'),
       );
 
+      // ignore: deprecated_member_use_from_same_package
       final result = await iap.openRedeemOfferCodeAndroid();
       expect(result, isFalse);
     });
@@ -486,6 +488,7 @@ void main() {
       );
 
       await expectLater(
+        // ignore: deprecated_member_use_from_same_package
         iap.openRedeemOfferCodeAndroid(),
         throwsA(isA<PlatformException>()),
       );
@@ -497,12 +500,188 @@ void main() {
       );
 
       await expectLater(
+        // ignore: deprecated_member_use_from_same_package
         iap.openRedeemOfferCodeAndroid(),
         throwsA(
           isA<PurchaseError>().having(
             (error) => error.code,
             'code',
             types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('openRedeemOfferCode', () {
+    test('decodes the synchronously reported purchase on iOS', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'presentCodeRedemptionSheetIOS') {
+          return <String, dynamic>{
+            'id': 'redeemed-transaction',
+            'productId': 'com.example.subscription',
+            'transactionDate': 1700000000000,
+            'transactionId': 'redeemed-transaction',
+            'purchaseState': 'PURCHASED',
+            'purchaseToken': 'redeemed-jws',
+            'quantity': 1,
+            'isAutoRenewing': true,
+            'platform': 'ios',
+            'store': 'apple',
+          };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      final purchase = await iap.openRedeemOfferCode();
+      expect(purchase, isA<types.PurchaseIOS>());
+      expect(purchase!.productId, 'com.example.subscription');
+      expect(purchase.id, 'redeemed-transaction');
+
+      final methodCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'presentCodeRedemptionSheetIOS',
+      );
+      expect(methodCall.arguments, isNull);
+    });
+
+    test('resolves null when the iOS sheet reports no purchase', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      expect(await iap.openRedeemOfferCode(), isNull);
+    });
+
+    test('maps the Android Boolean channel result to null', () async {
+      final calls = <MethodCall>[];
+      var nativeResult = true;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'openRedeemOfferCodeAndroid') {
+          return nativeResult;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.openRedeemOfferCode(), isNull);
+
+      // No-surface store flavors report false and still resolve null.
+      nativeResult = false;
+      expect(await iap.openRedeemOfferCode(), isNull);
+
+      final methodCalls = calls.where(
+        (MethodCall call) => call.method == 'openRedeemOfferCodeAndroid',
+      );
+      expect(methodCalls, hasLength(2));
+      expect(methodCalls.first.arguments, isNull);
+    });
+
+    test('throws PurchaseError on unsupported platforms', () async {
+      final macIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'macos'),
+      );
+
+      await expectLater(
+        macIap.openRedeemOfferCode(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.FeatureNotSupported,
+          ),
+        ),
+      );
+
+      final windowsIap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'windows'),
+      );
+
+      await expectLater(
+        windowsIap.openRedeemOfferCode(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+
+    test('maps PlatformException to PurchaseError on Android', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'service-error', message: 'boom');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openRedeemOfferCode(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
+          ),
+        ),
+      );
+    });
+
+    test('maps PlatformException to PurchaseError on iOS', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        throw PlatformException(code: 'user-cancelled', message: 'dismissed');
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+
+      await expectLater(
+        iap.openRedeemOfferCode(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.UserCancelled,
+          ),
+        ),
+      );
+    });
+
+    test('wraps non-platform channel failures into ServiceError', () async {
+      // No mock handler: the channel throws MissingPluginException.
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await expectLater(
+        iap.openRedeemOfferCode(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.ServiceError,
           ),
         ),
       );

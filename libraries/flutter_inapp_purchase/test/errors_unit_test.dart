@@ -642,6 +642,7 @@ void main() {
         );
 
         try {
+          // ignore: deprecated_member_use_from_same_package
           await iap.presentCodeRedemptionSheetIOS();
           fail('Expected PurchaseError');
         } on errors.PurchaseError catch (e) {

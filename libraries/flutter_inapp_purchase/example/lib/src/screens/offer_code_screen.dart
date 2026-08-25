@@ -55,10 +55,13 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     }
   }
 
-  Future<void> _presentCodeRedemptionSheet() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+  Future<void> _openRedeemOfferCode() async {
+    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    final bool isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    if (!isIOS && !isAndroid) {
       setState(() {
-        _statusMessage = 'Offer codes are only available on iOS';
+        _statusMessage = 'Offer codes are only available on iOS and Android';
         _isSuccess = false;
       });
       return;
@@ -70,55 +73,28 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     });
 
     try {
-      final purchase = await _iap.presentCodeRedemptionSheetIOS();
+      final purchase = await _iap.openRedeemOfferCode();
       setState(() {
-        _statusMessage = purchase != null
-            ? 'Verified redemption: ${purchase.productId} (${purchase.id}).'
-            : 'The system sheet did not return a transaction directly. Refresh purchases after completing redemption.';
+        if (purchase != null) {
+          _statusMessage =
+              'Verified redemption: ${purchase.productId} (${purchase.id}).';
+        } else if (isAndroid) {
+          _statusMessage =
+              'Play redeem page opened. Complete the redemption in Google '
+              'Play, then reconcile purchases when the app resumes.';
+        } else {
+          _statusMessage =
+              'The system sheet did not return a transaction directly. '
+              'Refresh purchases after completing redemption.';
+        }
         _isSuccess = true;
       });
     } catch (e) {
       setState(() {
-        _statusMessage = 'Failed to present redemption sheet: $e';
+        _statusMessage = 'Failed to open the redemption flow: $e';
         _isSuccess = false;
       });
-      debugPrint('Error presenting code redemption sheet: $e');
-    } finally {
-      setState(() {
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _openRedeemOfferCode() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      setState(() {
-        _statusMessage = 'Play redeem flow is only available on Android';
-        _isSuccess = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _loading = true;
-      _statusMessage = null;
-    });
-
-    try {
-      final launched = await _iap.openRedeemOfferCodeAndroid();
-      setState(() {
-        _statusMessage = launched
-            ? 'Play redeem page opened. Complete the redemption in Google Play, '
-                'then reconcile purchases when the app resumes.'
-            : 'This Android store does not provide an offer-code redemption flow.';
-        _isSuccess = launched;
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Failed to open Play redeem page: $e';
-        _isSuccess = false;
-      });
-      debugPrint('Error opening Play redeem page: $e');
+      debugPrint('Error opening the redemption flow: $e');
     } finally {
       setState(() {
         _loading = false;
@@ -134,10 +110,10 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
 
     Future<void> Function()? onRedeemPressed;
     if (isAndroid && !_loading) {
-      // openRedeemOfferCodeAndroid does not require the billing client.
+      // On Android the redeem page does not require the billing client.
       onRedeemPressed = _openRedeemOfferCode;
     } else if (isIOS && _connected && !_loading) {
-      onRedeemPressed = _presentCodeRedemptionSheet;
+      onRedeemPressed = _openRedeemOfferCode;
     }
 
     return Scaffold(
