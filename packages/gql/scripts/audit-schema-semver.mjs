@@ -49,11 +49,13 @@ function rootTypeChanges(baseSchema, headSchema) {
       headSchema.getSubscriptionType(),
     ],
   ];
+  // Adding a root where none existed is additive; only removal or
+  // replacement of an existing root breaks operations.
   return roots
-    .filter(([, base, head]) => (base?.name ?? null) !== (head?.name ?? null))
+    .filter(([, base, head]) => base && base.name !== (head?.name ?? null))
     .map(([operation, base, head]) => ({
       type: 'ROOT_TYPE_CHANGED',
-      description: `${operation} root changed from ${base?.name ?? 'none'} to ${head?.name ?? 'none'}.`,
+      description: `${operation} root changed from ${base.name} to ${head?.name ?? 'none'}.`,
     }));
 }
 

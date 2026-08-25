@@ -118,6 +118,39 @@ type NewQuery { ping: String }
   );
 });
 
+test('adding a root operation where none existed is additive, not breaking', () => {
+  const base = `schema { query: Query }
+type Query { ping: String }
+`;
+  const head = `schema { query: Query mutation: Mutation }
+type Query { ping: String }
+type Mutation { doIt: String }
+`;
+  const result = classifySchemaChange(base, head);
+  assert.equal(result.breaking.length, 0);
+  assert.ok(result.addedTypes.includes('Mutation'));
+});
+
+test('removing a root operation is breaking', () => {
+  const base = `schema { query: Query mutation: Mutation }
+type Query { ping: String }
+type Mutation { doIt: String }
+`;
+  const head = `schema { query: Query }
+type Query { ping: String }
+type Mutation { doIt: String }
+`;
+  const result = classifySchemaChange(base, head);
+  const roots = result.breaking.filter(
+    (change) => change.type === 'ROOT_TYPE_CHANGED',
+  );
+  assert.equal(roots.length, 1);
+  assert.match(
+    roots[0].description,
+    /mutation root changed from Mutation to none/,
+  );
+});
+
 test('parses the schema inventory from a schema-files.mjs source snapshot', () => {
   const source = `export const SCHEMA_FILE_NAMES = Object.freeze([
   'schema.graphql',
