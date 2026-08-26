@@ -64,7 +64,7 @@ public partial class OfferCodePage : ContentPage
             ResultPanel.IsVisible = true;
             ResultLabel.Text = purchase is not null
                 ? $"Verified redemption: {purchase.ProductId} ({purchase.Id})"
-                : "Redemption flow opened without returning a purchase. Complete it there, then refresh available purchases to see the result.";
+                : "Redemption requested. Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.";
         }
         catch (Exception ex)
         {
