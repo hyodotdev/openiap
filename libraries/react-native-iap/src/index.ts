@@ -2392,17 +2392,14 @@ export const presentCodeRedemptionSheetIOS: MutationField<
 };
 
 /**
- * Open the store's offer/promo code redemption flow (cross-platform).
- * iOS presents the App Store redemption sheet and resolves the verified
- * purchase when StoreKit reports it synchronously (Xcode 27+ building for
- * Apple 27+); older system sheets resolve null after presenting. Android
- * launches the Play Store redeem page and resolves null. Amazon Vega has no
- * redemption surface and resolves null without launching. Redeemed purchases
- * arrive through the standard purchase listeners — reconcile with
- * getAvailablePurchases when the app resumes. Throws when a redemption flow
- * exists but cannot be presented or launched.
+ * Open the store's offer/promo code redemption flow.
  *
- * @returns Promise<Purchase | null> - The redeemed purchase when reported synchronously, otherwise null
+ * Resolves the redeemed purchase only when the store reports it synchronously;
+ * every other path resolves null, so reconcile with `getAvailablePurchases`
+ * when the app resumes.
+ *
+ * @returns Promise<Purchase | null> - The redeemed purchase, or null
+ * @throws When a redemption flow exists but cannot be opened
  *
  * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
  */

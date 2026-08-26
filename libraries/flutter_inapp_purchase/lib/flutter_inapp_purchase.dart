@@ -2683,16 +2683,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     }
   }
 
-  /// Open the platform's offer/promo code redemption flow so the user can
-  /// enter a code.
+  /// Open the platform's offer/promo code redemption flow.
   ///
-  /// On iOS, presents the App Store redemption sheet and resolves the
-  /// verified purchase when StoreKit reports it synchronously; otherwise
-  /// resolves null. On Android, launches the Play Store redeem page and
-  /// resolves null; store flavors without a redemption surface also resolve
-  /// null. Redeemed purchases arrive through the purchase listeners;
-  /// reconcile with `getAvailablePurchases` when the app resumes. Throws
-  /// only when a redemption flow cannot be presented or launched.
+  /// Resolves the redeemed purchase only when the store reports it
+  /// synchronously; every other path resolves null, so reconcile with
+  /// `getAvailablePurchases` when the app resumes. Throws when a redemption
+  /// flow exists but cannot be opened.
   ///
   /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
   gentype.MutationOpenRedeemOfferCodeHandler get openRedeemOfferCode =>

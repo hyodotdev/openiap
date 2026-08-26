@@ -55,6 +55,19 @@ This repo standardizes schema and identifier naming to improve clarity across pl
   - Example: `type: ProductQueryType = inApp`.
 - Document defaults in the field description if behavior matters.
 
+## Field and Operation Descriptions
+
+- A description is copied verbatim into every generated language, so it is the
+  most duplicated prose in the repo. Keep it to the contract: one line on what
+  the API does, the single point a caller gets wrong without it, the
+  availability line, and the `See:` link.
+- Do not restate the docs page's per-platform behavior matrix here. Link to it.
+  Full rule and examples:
+  [`knowledge/internal/03-coding-style.md`](../../knowledge/internal/03-coding-style.md#doc-comments-are-not-the-docs-site).
+- Existing operation descriptions in `api.graphql` run two lines at the median.
+  A description several times that length is a signal that it belongs on the
+  docs page instead.
+
 ## API Availability Comments
 
 - Lead with the OpenIAP release that exposes the API, then state the upstream

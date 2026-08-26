@@ -2128,13 +2128,9 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 # ==========================================
 
 ## Open the platform offer/promo code redemption flow (cross-platform).
-## iOS presents the App Store offer code redemption sheet and returns the
-## redeemed Types.PurchaseIOS when StoreKit reports it synchronously
-## (Xcode 27+ building for iOS 27+); older sheets resolve null after
-## presentation. Android launches the Play Store redeem page and returns null;
-## redeemed purchases arrive through purchase listeners — reconcile with
-## get_available_purchases() on resume. Returns null when no redemption
-## surface is available (desktop/editor, or no native plugin).
+## Returns the redeemed purchase only when the store reports it synchronously;
+## every other path returns null, so reconcile with get_available_purchases()
+## on resume.
 ## @return Types.PurchaseIOS or null
 ##
 ## See: https://openiap.dev/docs/apis/open-redeem-offer-code

@@ -4966,19 +4966,10 @@ public interface MutationResolver
     Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
 
     /// <summary>
-    /// Open the platform&apos;s offer/promo code redemption flow so the user can enter a code.
-    /// On Apple platforms this presents the App Store offer code redemption sheet and
-    /// resolves the verified purchase when StoreKit reports it synchronously (Xcode 27+
-    /// building for iOS 27+, Mac Catalyst 27+, or visionOS 27+); older sheet APIs
-    /// resolve null after presentation. On Google Play builds this launches the Play
-    /// Store redeem page (https://play.google.com/redeem) and resolves null; the
-    /// billing client does not need to be initialized. Meta Horizon and Amazon
-    /// Appstore have no equivalent redemption surface and resolve null without
-    /// launching anything. Apple platforms without the redemption sheet (macOS,
-    /// tvOS, watchOS) throw FeatureNotSupported. Redeemed purchases are delivered
-    /// through the standard purchase listeners; always reconcile with
-    /// getAvailablePurchases when the app resumes. Throws when a redemption flow
-    /// exists but cannot be presented or launched.
+    /// Open the platform&apos;s offer/promo code redemption flow.
+    /// Resolves the redeemed purchase only when the store reports it synchronously;
+    /// every other path resolves null, so reconcile through the purchase listeners.
+    /// Throws when a redemption flow exists but cannot be opened.
     /// Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
     /// Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
     /// See: https://openiap.dev/docs/apis/open-redeem-offer-code

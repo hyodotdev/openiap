@@ -1307,18 +1307,14 @@ export const deepLinkToSubscriptions: MutationField<
 };
 
 /**
- * Open the platform's offer/promo code redemption flow so the user can enter a code.
+ * Open the platform's offer/promo code redemption flow.
  *
- * iOS presents the App Store offer code redemption sheet and resolves the
- * redeemed purchase when StoreKit reports it synchronously, or null after
- * presenting otherwise. Android launches the Play Store redeem page and
- * resolves null; store flavors without a redemption surface (Horizon, Amazon,
- * Vega) resolve null without launching anything. Redeemed purchases arrive
- * through the purchase listeners, so reconcile with `getAvailablePurchases`
+ * Resolves the redeemed purchase only when the store reports it synchronously;
+ * every other path resolves null, so reconcile with `getAvailablePurchases`
  * when the app resumes.
  *
  * @returns Promise resolving to the redeemed purchase, or null
- * @throws Error when a redemption flow exists but cannot be presented or launched
+ * @throws Error when a redemption flow exists but cannot be opened
  *
  * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
  */
