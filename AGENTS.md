@@ -268,9 +268,9 @@ After installation, ask Codex normally (for example, "review PR 65" or
 "resolve issue 88"), or explicitly mention `$openiap-workflows` or
 `$review-self`.
 
-Keep `$review-self` and `$loop-review` repo-local. Their review, merge, and
-release-safety policies are project-specific; globally linking them could apply
-the wrong repository workflow elsewhere.
+Keep `$review-self`, `$loop-review`, and `$ship-release` repo-local. Their review,
+merge, and release-safety policies are project-specific; globally linking them
+could apply the wrong repository workflow elsewhere.
 
 ## Grok Compatibility
 
@@ -322,6 +322,7 @@ Cursor-specific files.
 | ------------------------- | -------------------------------------------------- | ------------------------------------- |
 | `$review-self`            | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
 | `$loop-review`            | Start from current main, review, PR, and merge     | `$loop-review`                        |
+| `$ship-release`           | Merge, publish, document, and deploy a release     | `$ship-release`                       |
 | `$rebase-main`            | Pull main and safely rebase the current branch     | `$rebase-main`                        |
 | `$generate-doc`           | Write OpenIAP docs and pre-release release notes   | `$generate-doc`                       |
 | `$add-showcase-app`       | Add apps to the "Who uses OpenIAP?" showcase       | `$add-showcase-app`                   |

@@ -30,6 +30,18 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const unifiedOfferCodeReleases = [
+  ['OpenIAP Spec 3.3.0', 'docs-3.3.0'],
+  ['openiap-apple 3.3.0', '3.3.0'],
+  ['openiap-google 3.4.0', 'google-3.4.0'],
+  ['react-native-iap 16.4.0', 'react-native-iap-16.4.0'],
+  ['expo-iap 5.4.0', 'expo-iap-5.4.0'],
+  ['flutter_inapp_purchase 10.4.0', 'flutter-iap-10.4.0'],
+  ['godot-iap 3.4.0', 'godot-iap-3.4.0'],
+  ['kmp-iap 3.4.0', 'kmp-iap-3.4.0'],
+  ['OpenIap.Maui 2.4.0', 'maui-iap-2.4.0'],
+] as const;
+
 const androidListenerIsolationReleases = [
   ['react-native-iap 16.3.3', 'react-native-iap-16.3.3'],
 ] as const;
@@ -267,6 +279,132 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 27, 2026 - Unified offer code redemption
+    {
+      id: 'unified-offer-code-redemption-2026-08-27',
+      date: new Date('2026-08-27'),
+      element: (
+        <div
+          key="unified-offer-code-redemption-2026-08-27"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="unified-offer-code-redemption-2026-08-27" level="h4">
+            August 27, 2026 - Unified offer code redemption
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Apps can now open the current store&apos;s offer or promo code flow
+            through one cross-platform <code>openRedeemOfferCode</code> API (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/384"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #384
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                OpenIAP Spec 3.3.0, openiap-apple 3.3.0, and openiap-google
+                3.4.0
+              </strong>{' '}
+              - define and implement the unified mutation. Apple opens the
+              StoreKit redemption sheet and can return a verified purchase when
+              the store reports one synchronously; Google Play opens its redeem
+              page, while Amazon Appstore and Meta Horizon resolve{' '}
+              <code>null</code> without launching a flow. Apple platforms
+              without a redemption sheet report a{' '}
+              <code>FeatureNotSupported</code> error.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                react-native-iap 16.4.0, expo-iap 5.4.0, flutter_inapp_purchase
+                10.4.0, godot-iap 3.4.0, kmp-iap 3.4.0, and OpenIap.Maui 2.4.0
+              </strong>{' '}
+              - expose the same cross-platform operation and update their offer
+              code examples to use it.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Replace <code>presentCodeRedemptionSheetIOS</code> and{' '}
+              <code>openRedeemOfferCodeAndroid</code> with{' '}
+              <code>openRedeemOfferCode</code>. The platform-specific methods
+              are deprecated and scheduled for removal in OpenIAP 4.0.
+            </li>
+            <li>
+              A successful presentation can still resolve <code>null</code>.
+              Keep purchase listeners active and reconcile available purchases
+              when the app resumes.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {unifiedOfferCodeReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 26, 2026 - react-native-iap 16.3.3 listener cleanup
     {
       id: 'react-native-iap-android-listener-isolation-2026-08-26',
