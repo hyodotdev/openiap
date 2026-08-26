@@ -91,10 +91,7 @@ class HomeScreen extends StatelessWidget {
                         context,
                         icon: CupertinoIcons.gift,
                         title: 'Redeem Offer Code',
-                        subtitle: !kIsWeb &&
-                                defaultTargetPlatform == TargetPlatform.iOS
-                            ? 'Redeem promotional codes'
-                            : 'iOS only feature',
+                        subtitle: 'Redeem promotional codes',
                         color: const Color(0xFFFF3B30),
                         onTap: () =>
                             Navigator.pushNamed(context, '/offer-code'),
