@@ -1452,6 +1452,7 @@ func get_all_transactions_ios() -> Array:
 ## a sheet because StoreKit 1 has no effect there.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in OpenIAP 4.0.
 func present_code_redemption_sheet_ios() -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -2006,6 +2007,7 @@ func launch_external_link_android(params) -> bool:
 ## @return bool - true if launched, false if unavailable
 ##
 ## See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in OpenIAP 4.0.
 func open_redeem_offer_code_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("openRedeemOfferCodeAndroid")
@@ -2120,6 +2122,26 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 	var unavailable_result = Types.VoidResult.new()
 	unavailable_result.success = false
 	return unavailable_result
+
+# ==========================================
+# Offer Code Redemption (OpenIAP Mutation)
+# ==========================================
+
+## Open the platform offer/promo code redemption flow (cross-platform).
+## Returns the redeemed purchase only when the store reports it synchronously;
+## every other path returns null, so reconcile with get_available_purchases()
+## on resume.
+## @return Types.PurchaseIOS or null
+##
+## See: https://openiap.dev/docs/apis/open-redeem-offer-code
+func open_redeem_offer_code() -> Variant:
+	if _platform == "Android":
+		# The suffixed wrapper owns both Android dispatch paths (native plugin and
+		# the plugin-less shell_open fallback); its launched flag maps to null.
+		open_redeem_offer_code_android()
+		return null
+	# iOS reuses the released sheet dispatch and its purchase parsing; other surfaces resolve null.
+	return await present_code_redemption_sheet_ios()
 
 # ==========================================
 # Utility Functions

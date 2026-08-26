@@ -362,6 +362,7 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
 
     // MARK: - Misc
     func syncIOS() async throws -> Bool { true }
+    func openRedeemOfferCode() async throws -> PurchaseIOS? { nil }
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? { nil }
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { [] }
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void { () }

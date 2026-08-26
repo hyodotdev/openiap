@@ -113,6 +113,7 @@ const operationParityRegistry = {
     "initConnection",
     "isBillingProgramAvailableAndroid",
     "launchExternalLinkAndroid",
+    "openRedeemOfferCode",
     "openRedeemOfferCodeAndroid",
     "presentCodeRedemptionSheetIOS",
     "presentExternalPurchaseLinkIOS",

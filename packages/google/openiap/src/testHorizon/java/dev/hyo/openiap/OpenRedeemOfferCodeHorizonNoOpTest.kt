@@ -1,16 +1,12 @@
 package dev.hyo.openiap
 
+import android.content.ContextWrapper
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * Horizon flavor: Google Play offer-code redemption has no Meta Horizon
- * counterpart, so openRedeemOfferCode must stay an explicit no-op that
- * returns false and never launches an intent, while the mutation bundle
- * still wires openRedeemOfferCodeAndroid for API parity with the
- * generated handler surface.
- */
+/** Horizon has no redemption surface: both handlers stay wired but never launch an intent. */
 class OpenRedeemOfferCodeHorizonNoOpTest {
 
     @Test
@@ -19,5 +15,14 @@ class OpenRedeemOfferCodeHorizonNoOpTest {
             "Horizon offer-code paths must return false (no-op)",
             runBlocking { unsupportedRedeemOfferCode() }
         )
+    }
+
+    @Test
+    fun `unified openRedeemOfferCode handler resolves null without an activity`() {
+        val module = OpenIapModule(ContextWrapper(null))
+
+        val purchase = runBlocking { module.mutationHandlers.openRedeemOfferCode!!.invoke() }
+
+        assertNull("Horizon has no redemption surface; unified handler resolves null", purchase)
     }
 }

@@ -38,6 +38,11 @@ describe('Core Functions Tests', () => {
       expect(ExpoIap.getStorefront).toBeDefined();
       expect(typeof ExpoIap.getStorefront).toBe('function');
     });
+
+    it('should export openRedeemOfferCode function', () => {
+      expect(ExpoIap.openRedeemOfferCode).toBeDefined();
+      expect(typeof ExpoIap.openRedeemOfferCode).toBe('function');
+    });
   });
 
   describe('Event Listeners', () => {

@@ -9,11 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {
-  presentCodeRedemptionSheetIOS,
-  openRedeemOfferCodeAndroid,
-  useIAP,
-} from 'expo-iap';
+import {openRedeemOfferCode, useIAP} from 'expo-iap';
 
 /**
  * Offer Code Redemption Example
@@ -79,34 +75,24 @@ export default function OfferCodeScreen() {
     setIsRedeeming(true);
 
     try {
-      if (isIOS) {
-        // Present native iOS redemption sheet
-        const result = await presentCodeRedemptionSheetIOS();
-        if (result) {
-          Alert.alert(
-            'Verified Redemption',
-            `Redeemed ${result.productId} (${result.id}).`,
-          );
-        } else {
-          Alert.alert(
-            'Redemption Sheet Presented',
-            'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
-          );
-        }
+      // Unified API: iOS presents the redemption sheet, Android opens the
+      // Play Store redeem page. Resolves the redeemed purchase or null.
+      const purchase = await openRedeemOfferCode();
+      if (purchase) {
+        Alert.alert(
+          'Verified Redemption',
+          `Redeemed ${purchase.productId} (${purchase.id}).`,
+        );
+      } else if (isIOS) {
+        Alert.alert(
+          'Redemption Sheet Presented',
+          'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
+        );
       } else {
-        // Open the Play Store redeem page for Android
-        const result = await openRedeemOfferCodeAndroid();
-        if (result) {
-          Alert.alert(
-            'Play Store Opened',
-            'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
-          );
-        } else {
-          Alert.alert(
-            'Not Supported',
-            'This Android store does not provide an offer-code redemption flow.',
-          );
-        }
+        Alert.alert(
+          'Redemption Requested',
+          'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
+        );
       }
     } catch (error) {
       console.log('Error redeeming code:', error);

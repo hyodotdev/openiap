@@ -292,6 +292,8 @@ internal class AmazonInAppPurchaseAndroid(
         failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
+    // Amazon and Horizon have no offer-code redemption surface; resolve null without launching.
+    override suspend fun openRedeemOfferCode(): Purchase? = null
     override suspend fun openRedeemOfferCodeAndroid(): Boolean = false
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails =
         failUnsupported("User Choice Billing is unavailable on $storeName.")

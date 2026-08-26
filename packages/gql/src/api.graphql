@@ -78,6 +78,17 @@ extend type Mutation {
   # Future
   deepLinkToSubscriptions(options: DeepLinkOptions): VoidResult!
   """
+  Open the platform's offer/promo code redemption flow.
+  Resolves the redeemed purchase only when the store reports it synchronously;
+  every other path resolves null, so reconcile through the purchase listeners.
+  Throws when a redemption flow exists but cannot be opened.
+  Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+  Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+  See: https://openiap.dev/docs/apis/open-redeem-offer-code
+  """
+  # Future
+  openRedeemOfferCode: Purchase
+  """
   Verify a purchase against your own backend. Every VerifyPurchaseResult
   variant exposes isValid, so entitlement can be gated without inspecting the
   concrete type. Variants add their own metadata on top: IOS carries

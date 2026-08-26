@@ -4,9 +4,10 @@ using OpenIap.Maui.Example.Utils;
 
 namespace OpenIap.Maui.Example.Pages;
 
-// Mirrors libraries/expo-iap/example/app/offer-code.tsx — iOS presents the
-// StoreKit sheet via PresentCodeRedemptionSheetIOSAsync, Android opens the
-// Play Store redeem page via OpenRedeemOfferCodeAndroidAsync.
+// Mirrors libraries/expo-iap/example/app/offer-code.tsx — both platforms call
+// the unified OpenRedeemOfferCodeAsync: iOS presents the StoreKit sheet,
+// Android opens the Play Store redeem page; a null result means the redeemed
+// purchase arrives through listeners / available purchases instead.
 public partial class OfferCodePage : ContentPage
 {
     private bool _connected;
@@ -55,40 +56,20 @@ public partial class OfferCodePage : ContentPage
         _isRedeeming = true;
         UpdateButtonState();
 
-#if IOS || MACCATALYST
+#if IOS || MACCATALYST || ANDROID
         try
         {
             var mutate = (MutationResolver)OpenIapClient.Instance;
-            var purchase = await mutate.PresentCodeRedemptionSheetIOSAsync();
+            var purchase = await mutate.OpenRedeemOfferCodeAsync();
             ResultPanel.IsVisible = true;
             ResultLabel.Text = purchase is not null
-                ? $"Verified redemption: {purchase.ProductId} ({purchase.TransactionId})"
-                : "The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.";
+                ? $"Verified redemption: {purchase.ProductId} ({purchase.Id})"
+                : "Redemption requested. Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.";
         }
         catch (Exception ex)
         {
             ResultPanel.IsVisible = true;
-            ResultLabel.Text = $"Failed to redeem code: {ErrorUtils.ExtractErrorMessage(ex)}";
-        }
-        finally
-        {
-            _isRedeeming = false;
-            UpdateButtonState();
-        }
-#elif ANDROID
-        try
-        {
-            var mutate = (MutationResolver)OpenIapClient.Instance;
-            var opened = await mutate.OpenRedeemOfferCodeAndroidAsync();
-            ResultPanel.IsVisible = true;
-            ResultLabel.Text = opened
-                ? "Play Store opened. Enter your code there, then return to this app to see your purchase."
-                : "The Play Store redemption page could not be opened.";
-        }
-        catch (Exception ex)
-        {
-            ResultPanel.IsVisible = true;
-            ResultLabel.Text = $"Failed to open Play Store: {ErrorUtils.ExtractErrorMessage(ex)}";
+            ResultLabel.Text = $"Failed to open redemption flow: {ErrorUtils.ExtractErrorMessage(ex)}";
         }
         finally
         {

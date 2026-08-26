@@ -81,9 +81,11 @@ Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
 scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
-OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
-Xcode 27 builds call the new API, require a verified result, and return the
-mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
+OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
+(Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
+return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
+OpenIAP 4.0. Xcode 27 builds call the new API, require a verified result, and
+return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
 `StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and

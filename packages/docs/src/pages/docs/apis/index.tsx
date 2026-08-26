@@ -253,6 +253,18 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
+                <Link to="/docs/apis/open-redeem-offer-code">
+                  <code>openRedeemOfferCode</code>
+                </Link>
+              </td>
+              <td>
+                Open the platform's offer/promo code redemption flow. Resolves
+                the verified purchase only on Apple 27+ from Xcode 27+ builds;
+                every other flow resolves <code>null</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <Link to="/docs/apis/get-storefront">
                   <code>getStorefront</code>
                 </Link>
@@ -492,13 +504,12 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Show the App Store offer code redemption sheet. Xcode 27+ builds
-                return its verified transaction on Apple 27+; other supported
-                system-sheet paths return <code>null</code>. See{' '}
-                <Link to="/docs/features/offer-code-redemption">
-                  Offer Code Redemption
+                Deprecated — use{' '}
+                <Link to="/docs/apis/open-redeem-offer-code">
+                  <code>openRedeemOfferCode</code>
                 </Link>
-                .
+                ; scheduled for removal in OpenIAP 4.0. Shows the App Store
+                offer code redemption sheet.
               </td>
             </tr>
             <tr>
@@ -695,8 +706,12 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Open the Google Play offer-code redemption page (no billing
-                client required).
+                Deprecated — use{' '}
+                <Link to="/docs/apis/open-redeem-offer-code">
+                  <code>openRedeemOfferCode</code>
+                </Link>
+                ; scheduled for removal in OpenIAP 4.0. Opens the Google Play
+                offer-code redemption page.
               </td>
             </tr>
           </tbody>

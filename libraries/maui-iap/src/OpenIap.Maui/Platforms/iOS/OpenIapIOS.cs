@@ -371,10 +371,17 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return tcs.Task;
     }
 
+    public Task<Purchase?> OpenRedeemOfferCodeAsync() =>
+        // Shipped xcframework (openiap-apple 3.2.1) exposes the redemption sheet
+        // only through the presentCodeRedemptionSheetIOS selector; same
+        // purchase-or-null payload as the unified contract.
+        InvokeDict<Purchase>(cb => _module.PresentCodeRedemptionSheetIOS(cb));
+
     // ---- iOS-only mutations --------------------------------------------
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
     public Task<bool> ClearTransactionIOSAsync() => InvokeBool(cb => _module.ClearTransactionIOS(cb));
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
     public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() =>
         InvokeDict<PurchaseIOS>(cb => _module.PresentCodeRedemptionSheetIOS(cb));
 
@@ -413,6 +420,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params) => NotSupportedAndroid<BillingResultAndroid>("showBillingProgramInformationDialogAndroid");
     public Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null) => NotSupportedAndroid<InAppMessageResultAndroid>("showInAppMessagesAndroid");
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params) => Task.FromResult(false);
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
     public Task<bool> OpenRedeemOfferCodeAndroidAsync() => Task.FromResult(false);
 
     // ====================================================================

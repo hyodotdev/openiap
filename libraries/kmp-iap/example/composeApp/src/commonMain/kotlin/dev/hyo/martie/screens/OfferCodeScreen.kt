@@ -132,7 +132,7 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    val purchase = kmpIAP.presentCodeRedemptionSheetIOS()
+                                    val purchase = kmpIAP.openRedeemOfferCode()
                                     result = if (purchase != null) {
                                         "Verified redemption: ${purchase.productId} (${purchase.id})"
                                     } else {
@@ -193,14 +193,11 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    val launched = kmpIAP.openRedeemOfferCodeAndroid()
-                                    result = if (launched) {
-                                        "Play Store redemption opened"
-                                    } else {
-                                        "Offer code redemption is unavailable for this Android store"
-                                    }
+                                    // Only Google Play has a redeem page; Amazon and Horizon resolve null.
+                                    kmpIAP.openRedeemOfferCode()
+                                    result = "Redemption requested. Google Play opens its redeem page; stores without one open nothing. Refresh purchases after redeeming"
                                 } catch (e: Exception) {
-                                    result = "Failed to open Play Store redemption: ${e.message}"
+                                    result = "Failed to open the redemption flow: ${e.message}"
                                 } finally {
                                     isLoading = false
                                 }

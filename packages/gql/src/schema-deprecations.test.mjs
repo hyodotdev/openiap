@@ -125,6 +125,14 @@ type Query {
         reason:
           'Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.',
       },
+      {
+        owner: 'Mutation.presentCodeRedemptionSheetIOS',
+        reason: 'Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.',
+      },
+      {
+        owner: 'Mutation.openRedeemOfferCodeAndroid',
+        reason: 'Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.',
+      },
     ]);
     expect(deprecations.typeReasons).toEqual(new Map());
     expect(deprecations.operationArguments).toEqual([]);

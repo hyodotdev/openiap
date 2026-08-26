@@ -2073,6 +2073,7 @@ export const consumePurchaseAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
@@ -2358,6 +2359,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -2387,6 +2389,35 @@ export const presentCodeRedemptionSheetIOS: MutationField<
       debugMessage: parsedError.debugMessage,
     });
   }
+};
+
+/**
+ * Open the store's offer/promo code redemption flow.
+ *
+ * Resolves the redeemed purchase only when the store reports it synchronously;
+ * every other path resolves null, so reconcile with `getAvailablePurchases`
+ * when the app resumes.
+ *
+ * @returns Promise<Purchase | null> - The redeemed purchase, or null
+ * @throws When a redemption flow exists but cannot be opened
+ *
+ * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
+ */
+export const openRedeemOfferCode: MutationField<
+  'openRedeemOfferCode'
+> = async () => {
+  if (Platform.OS === 'ios') {
+    return presentCodeRedemptionSheetIOS();
+  }
+  if (isVegaOS()) {
+    return null;
+  }
+  if (Platform.OS === 'android') {
+    // false also maps to null until the SDK adopts openiap-google 3.4.0's unified handler.
+    await IAP.instance.openRedeemOfferCodeAndroid();
+    return null;
+  }
+  throw unsupportedPlatformError();
 };
 
 /**

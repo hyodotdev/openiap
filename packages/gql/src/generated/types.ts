@@ -801,7 +801,18 @@ export interface Mutation {
    */
   launchExternalLinkAndroid: Promise<boolean>;
   /**
-   * Open the Google Play offer/promo code redemption flow so the user can enter a code.
+   * Open the platform's offer/promo code redemption flow.
+   * Resolves the redeemed purchase only when the store reports it synchronously;
+   * every other path resolves null, so reconcile through the purchase listeners.
+   * Throws when a redemption flow exists but cannot be opened.
+   * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+   * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+   * See: https://openiap.dev/docs/apis/open-redeem-offer-code
+   */
+  openRedeemOfferCode?: Promise<(Purchase | null)>;
+  /**
+   * Deprecated. Open the Google Play offer/promo code redemption flow — use
+   * openRedeemOfferCode instead.
    * On Google Play builds, launches the Play Store redeem page
    * (https://play.google.com/redeem). A purchase listener can receive the redeemed
    * purchase while the app is running with an active billing connection; always
@@ -812,10 +823,12 @@ export interface Mutation {
    * Returns true when the redemption flow was launched, or false when the current
    * store flavor does not provide an equivalent redemption flow.
    * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
    */
   openRedeemOfferCodeAndroid: Promise<boolean>;
   /**
-   * Show the App Store offer code redemption sheet.
+   * Deprecated. Show the App Store offer code redemption sheet — use
+   * openRedeemOfferCode instead.
    * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
    * visionOS 27+, returns the verified transaction produced by the redemption.
    * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -826,6 +839,7 @@ export interface Mutation {
    * sheet through the normal transaction listener or an explicit
    * available-purchases refresh.
    * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
    */
   presentCodeRedemptionSheetIOS?: Promise<(PurchaseIOS | null)>;
   /**
@@ -2298,6 +2312,7 @@ export type MutationArgsMap = {
   initConnection: MutationInitConnectionArgs;
   isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidArgs;
   launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidArgs;
+  openRedeemOfferCode: never;
   openRedeemOfferCodeAndroid: never;
   presentCodeRedemptionSheetIOS: never;
   presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIosArgs;

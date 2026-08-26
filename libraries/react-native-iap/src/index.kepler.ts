@@ -272,8 +272,13 @@ export const getPromotedProductIOS: QueryField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
+/** @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0. */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
+> = async () => null;
+// Amazon Vega has no offer-code redemption surface.
+export const openRedeemOfferCode: MutationField<
+  'openRedeemOfferCode'
 > = async () => null;
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
@@ -296,6 +301,7 @@ export const consumePurchaseAndroid: MutationField<
   return getVegaModule().consumePurchaseAndroid(purchaseToken);
 };
 
+/** @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0. */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
 > = async () => false;

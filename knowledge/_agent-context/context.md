@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-08-20T15:02:26.238Z
+> Last updated: 2026-08-26T00:39:33.783Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -864,6 +864,54 @@ isActive = purchaseState == PurchaseState.Purchased
 
 Section banners (`// --- Runner ---`) are fine when a file has genuinely
 distinct parts; do not add them to short files.
+
+### Doc Comments Are Not the Docs Site
+
+A public API's doc comment states the **contract**; `packages/docs` states the
+**behavior matrix**. Where the two overlap, the doc comment loses — a schema
+description is copied verbatim into every generated language and every SDK
+wrapper, so one per-platform paragraph becomes the same paragraph in a dozen
+files that then drift apart independently.
+
+Keep in the doc comment:
+
+- one line saying what the API does
+- the single contract point a caller gets wrong without it
+- required availability / deprecation metadata
+- the `See:` link
+
+Move to the docs page: per-platform behavior, OS and SDK version matrices,
+store-flavor differences, and worked examples.
+
+```graphql
+# ✅ CORRECT — the contract, then the link out
+"""
+Open the platform's offer/promo code redemption flow.
+Resolves the redeemed purchase only when the store reports it synchronously;
+every other path resolves null, so reconcile through the purchase listeners.
+Throws when a redemption flow exists but cannot be opened.
+Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+See: https://openiap.dev/docs/apis/open-redeem-offer-code
+"""
+
+# ❌ INCORRECT — reprints the docs page's platform matrix, and ships that
+# paragraph into every generated type file
+"""
+Open the platform's offer/promo code redemption flow so the user can enter a
+code. On Apple platforms this presents the App Store offer code redemption
+sheet and resolves the verified purchase when StoreKit reports it
+synchronously (Xcode 27+ building for iOS 27+, Mac Catalyst 27+, or visionOS
+27+); older sheet APIs resolve null after presentation. On Google Play builds
+this launches the Play Store redeem page and resolves null; the billing client
+does not need to be initialized. Meta Horizon and Amazon Appstore have no
+equivalent redemption surface and resolve null without launching anything...
+"""
+```
+
+Two checks before committing a public API doc comment: it reads at a glance,
+and it does not repeat a sentence that already lives on the API's docs page.
+The same limit applies to the wrapper doc comment in each SDK — write the
+contract once, not the matrix six times.
 
 ### Document "Why", Not "What"
 
@@ -4225,9 +4273,11 @@ Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
 scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
-OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
-Xcode 27 builds call the new API, require a verified result, and return the
-mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
+OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
+(Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
+return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
+OpenIAP 4.0. Xcode 27 builds call the new API, require a verified result, and
+return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
 `StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and

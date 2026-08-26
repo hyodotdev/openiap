@@ -26,6 +26,7 @@ import {
   launchExternalLinkAndroid,
   showBillingProgramInformationDialogAndroid,
   showInAppMessagesAndroid,
+  openRedeemOfferCode,
   openRedeemOfferCodeAndroid,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
@@ -235,6 +236,15 @@ type UseIap = {
    * Updates the `connected` state on success.
    */
   reconnect: () => Promise<boolean>;
+  /**
+   * Open the store's offer/promo code redemption flow. Resolves the redeemed
+   * purchase only when StoreKit reports it synchronously (iOS 27+ built with
+   * Xcode 27+), otherwise null; redeemed purchases arrive through the standard
+   * purchase listeners.
+   *
+   * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
+   */
+  openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
   /** Fetch assets and loyalty text for a developer-rendered Billing Choice screen. */
   getBillingChoiceInfoAndroid?: QueryField<'getBillingChoiceInfoAndroid'>;
   /** Check Billing Program availability and the configured choice renderer. */
@@ -247,7 +257,10 @@ type UseIap = {
   showBillingProgramInformationDialogAndroid?: MutationField<'showBillingProgramInformationDialogAndroid'>;
   /** Show Play billing in-app messages. */
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
-  /** Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners. */
+  /**
+   * Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners.
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+   */
   openRedeemOfferCodeAndroid?: MutationField<'openRedeemOfferCodeAndroid'>;
 };
 
@@ -803,6 +816,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
     getActiveSubscriptions: getActiveSubscriptionsInternal,
     hasActiveSubscriptions: hasActiveSubscriptionsInternal,
     reconnect,
+    openRedeemOfferCode,
     // Alternative billing (Android only)
     ...(Platform.OS === 'android'
       ? {

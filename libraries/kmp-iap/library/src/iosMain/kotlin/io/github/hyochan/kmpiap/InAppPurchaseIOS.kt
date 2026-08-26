@@ -400,7 +400,19 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
 
     /**
+     * Open the App Store offer code redemption flow. Resolves the verified purchase
+     * only when StoreKit reports it synchronously; otherwise null after presentation.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/open-redeem-offer-code">https://openiap.dev/docs/apis/open-redeem-offer-code</a>
+     */
+    override suspend fun openRedeemOfferCode(): Purchase? =
+        // Pinned openiap-apple has no openRedeemOfferCodeWithCompletion yet;
+        // the shipped sheet bridge runs the same redemption flow.
+        presentCodeRedemptionSheetIOS()
+
+    /**
      * Show the App Store offer code redemption sheet.
+     * Deprecated: use [openRedeemOfferCode].
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */

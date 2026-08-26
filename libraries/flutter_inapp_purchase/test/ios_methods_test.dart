@@ -204,6 +204,7 @@ void main() {
     test(
       'presentCodeRedemptionSheetIOS calls correct channel method',
       () async {
+        // ignore: deprecated_member_use_from_same_package
         final purchase = await iap.presentCodeRedemptionSheetIOS();
         expect(purchase?.id, 'redeemed-transaction');
         expect(calls.last.method, 'presentCodeRedemptionSheetIOS');
@@ -217,6 +218,7 @@ void main() {
         return null;
       });
 
+      // ignore: deprecated_member_use_from_same_package
       expect(await iap.presentCodeRedemptionSheetIOS(), isNull);
     });
 
@@ -421,6 +423,7 @@ void main() {
       );
 
       await expectLater(
+        // ignore: deprecated_member_use_from_same_package
         androidIap.presentCodeRedemptionSheetIOS(),
         throwsA(isA<PlatformException>()),
       );
@@ -532,6 +535,7 @@ void main() {
       final initialCallCount = calls.length;
 
       await expectLater(
+        // ignore: deprecated_member_use_from_same_package
         macIap.presentCodeRedemptionSheetIOS(),
         throwsA(isA<PlatformException>()),
       );

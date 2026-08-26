@@ -5761,7 +5761,18 @@ public interface MutationResolver {
      */
     suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean
     /**
-     * Open the Google Play offer/promo code redemption flow so the user can enter a code.
+     * Open the platform's offer/promo code redemption flow.
+     * Resolves the redeemed purchase only when the store reports it synchronously;
+     * every other path resolves null, so reconcile through the purchase listeners.
+     * Throws when a redemption flow exists but cannot be opened.
+     * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+     * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+     * See: https://openiap.dev/docs/apis/open-redeem-offer-code
+     */
+    suspend fun openRedeemOfferCode(): Purchase?
+    /**
+     * Deprecated. Open the Google Play offer/promo code redemption flow — use
+     * openRedeemOfferCode instead.
      * On Google Play builds, launches the Play Store redeem page
      * (https://play.google.com/redeem). A purchase listener can receive the redeemed
      * purchase while the app is running with an active billing connection; always
@@ -5772,10 +5783,13 @@ public interface MutationResolver {
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.
      * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
      */
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     suspend fun openRedeemOfferCodeAndroid(): Boolean
     /**
-     * Show the App Store offer code redemption sheet.
+     * Deprecated. Show the App Store offer code redemption sheet — use
+     * openRedeemOfferCode instead.
      * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
      * visionOS 27+, returns the verified transaction produced by the redemption.
      * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -5786,7 +5800,9 @@ public interface MutationResolver {
      * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
      */
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS?
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
@@ -6056,6 +6072,7 @@ public typealias MutationFinishTransactionHandler = suspend (purchase: PurchaseI
 public typealias MutationInitConnectionHandler = suspend (config: InitConnectionConfig?) -> Boolean
 public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
+public typealias MutationOpenRedeemOfferCodeHandler = suspend () -> Purchase?
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = suspend () -> Boolean
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
@@ -6150,7 +6167,18 @@ public data class MutationHandlers(
      */
     val launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = null,
     /**
-     * Open the Google Play offer/promo code redemption flow so the user can enter a code.
+     * Open the platform's offer/promo code redemption flow.
+     * Resolves the redeemed purchase only when the store reports it synchronously;
+     * every other path resolves null, so reconcile through the purchase listeners.
+     * Throws when a redemption flow exists but cannot be opened.
+     * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+     * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+     * See: https://openiap.dev/docs/apis/open-redeem-offer-code
+     */
+    val openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = null,
+    /**
+     * Deprecated. Open the Google Play offer/promo code redemption flow — use
+     * openRedeemOfferCode instead.
      * On Google Play builds, launches the Play Store redeem page
      * (https://play.google.com/redeem). A purchase listener can receive the redeemed
      * purchase while the app is running with an active billing connection; always
@@ -6161,10 +6189,13 @@ public data class MutationHandlers(
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.
      * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
      */
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     /**
-     * Show the App Store offer code redemption sheet.
+     * Deprecated. Show the App Store offer code redemption sheet — use
+     * openRedeemOfferCode instead.
      * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
      * visionOS 27+, returns the verified transaction produced by the redemption.
      * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -6175,7 +6206,9 @@ public data class MutationHandlers(
      * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
      */
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).

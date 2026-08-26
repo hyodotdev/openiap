@@ -177,6 +177,9 @@ export const acknowledgePurchaseAndroid: MutationField<
  *
  * @returns Promise resolving to true when launched, or false when unsupported
  *
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
+ * OpenIAP 4.0.
+ *
  * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
  */
 export const openRedeemOfferCodeAndroid: MutationField<

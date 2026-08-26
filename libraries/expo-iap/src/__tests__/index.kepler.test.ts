@@ -1,6 +1,7 @@
 import {
   fetchProducts,
   getAvailablePurchases,
+  openRedeemOfferCode,
   openRedeemOfferCodeAndroid,
   requestPurchase,
 } from '../index.kepler';
@@ -24,6 +25,10 @@ describe('Amazon Vega public API', () => {
       getAvailableItems: getAvailablePurchasesNative,
       requestPurchase: requestPurchaseNative,
     });
+  });
+
+  it('resolves null for openRedeemOfferCode without launching anything', async () => {
+    await expect(openRedeemOfferCode()).resolves.toBeNull();
   });
 
   it('returns false when offer-code redemption is unsupported', async () => {

@@ -107,11 +107,13 @@ void main() {
     });
 
     test('presentCodeRedemptionSheetIOS only on iOS', () async {
+      // ignore: deprecated_member_use_from_same_package
       await iapIOS.presentCodeRedemptionSheetIOS();
       final iapAndroid = FlutterInappPurchase.private(
         FakePlatform(operatingSystem: 'android'),
       );
       expect(
+        // ignore: deprecated_member_use_from_same_package
         () => iapAndroid.presentCodeRedemptionSheetIOS(),
         throwsA(isA<PlatformException>()),
       );

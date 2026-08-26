@@ -2088,6 +2088,70 @@ describe('Public API (src/index.ts)', () => {
         'Unsupported platform: web',
       );
     });
+
+    it('openRedeemOfferCode resolves the synchronously reported purchase on iOS', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
+        id: 'redeemed-transaction',
+        transactionId: 'redeemed-transaction',
+        productId: 'premium',
+        transactionDate: 1700000000000,
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: true,
+      });
+      await expect(IAP.openRedeemOfferCode()).resolves.toMatchObject({
+        id: 'redeemed-transaction',
+        productId: 'premium',
+        store: 'apple',
+      });
+      expect(mockIap.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(1);
+    });
+
+    it('openRedeemOfferCode resolves null when the iOS sheet reports nothing', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce(null);
+      await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+    });
+
+    it('openRedeemOfferCode launches the Play redeem page and resolves null on Android', async () => {
+      (Platform as any).OS = 'android';
+      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
+      await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+      expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
+
+      mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(false);
+      await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+    });
+
+    it('openRedeemOfferCode resolves null on Vega without launching anything', async () => {
+      jest.resetModules();
+      jest.doMock('react-native', () => ({
+        Platform: {OS: 'kepler'},
+      }));
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {
+          createHybridObject: jest.fn(() => mockIap),
+        },
+      }));
+      jest.doMock('../vega', () => ({
+        getVegaIapModule: jest.fn(() => mockIap),
+        isVegaOS: jest.fn(() => true),
+      }));
+      IAP = require('../index');
+
+      await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+      expect(mockIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+      expect(mockIap.presentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
+    });
+
+    it('openRedeemOfferCode throws on unsupported platform', async () => {
+      (Platform as any).OS = 'web';
+      await expect(IAP.openRedeemOfferCode()).rejects.toThrow(
+        'Unsupported platform: web',
+      );
+    });
   });
 
   describe('subscription helpers', () => {

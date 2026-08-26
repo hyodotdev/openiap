@@ -8,14 +8,13 @@ import * as ExpoIap from 'expo-iap';
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 jest.mock('expo-iap', () => ({
-  presentCodeRedemptionSheetIOS: jest.fn(() =>
+  openRedeemOfferCode: jest.fn(() =>
     Promise.resolve({
       id: 'redeemed-transaction',
       productId: 'premium',
       store: 'apple',
     }),
   ),
-  openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
   useIAP: jest.fn(() => ({
     connected: true,
   })),
@@ -80,8 +79,7 @@ describe('OfferCode Component', () => {
 
     await fireEvent.press(getByText('Amazon Vega IAP'));
 
-    expect(ExpoIap.presentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
-    expect(ExpoIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+    expect(ExpoIap.openRedeemOfferCode).not.toHaveBeenCalled();
     expect(
       getByText(/Offer code redemption is not supported on Amazon Vega/),
     ).toBeDefined();
@@ -101,7 +99,7 @@ describe('OfferCode Component', () => {
 
     // Wait for async operation and Alert
     await waitFor(() => {
-      expect(ExpoIap.presentCodeRedemptionSheetIOS).toHaveBeenCalled();
+      expect(ExpoIap.openRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
         'Verified Redemption',
         'Redeemed premium (redeemed-transaction).',
@@ -114,6 +112,8 @@ describe('OfferCode Component', () => {
       get: jest.fn(() => 'android'),
       configurable: true,
     });
+    // Android resolves null after launching the Play redeem page
+    jest.mocked(ExpoIap.openRedeemOfferCode).mockResolvedValueOnce(null);
 
     const {getByText} = await render(<OfferCode />);
     // The button text is "🎁 Open Play Store" on Android
@@ -123,10 +123,10 @@ describe('OfferCode Component', () => {
 
     // Wait for async operation and Alert
     await waitFor(() => {
-      expect(ExpoIap.openRedeemOfferCodeAndroid).toHaveBeenCalled();
+      expect(ExpoIap.openRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Play Store Opened',
-        'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+        'Redemption Requested',
+        'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
       );
     });
   });
@@ -136,9 +136,7 @@ describe('OfferCode Component', () => {
       get: jest.fn(() => 'ios'),
       configurable: true,
     });
-    jest
-      .mocked(ExpoIap.presentCodeRedemptionSheetIOS)
-      .mockResolvedValueOnce(null);
+    jest.mocked(ExpoIap.openRedeemOfferCode).mockResolvedValueOnce(null);
 
     const {getByText} = await render(<OfferCode />);
     await fireEvent.press(getByText('🎁 Redeem Offer Code'));
@@ -151,22 +149,22 @@ describe('OfferCode Component', () => {
     });
   });
 
-  it('should report unsupported Android store results', async () => {
+  it('should surface launch failures as errors', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'android'),
       configurable: true,
     });
     jest
-      .mocked(ExpoIap.openRedeemOfferCodeAndroid)
-      .mockResolvedValueOnce(false);
+      .mocked(ExpoIap.openRedeemOfferCode)
+      .mockRejectedValueOnce(new Error('Unable to launch redeem page'));
 
     const {getByText} = await render(<OfferCode />);
     await fireEvent.press(getByText('🎁 Open Play Store'));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Not Supported',
-        'This Android store does not provide an offer-code redemption flow.',
+        'Error',
+        'Failed to redeem code: Unable to launch redeem page',
       );
     });
   });

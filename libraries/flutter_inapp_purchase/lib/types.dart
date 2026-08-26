@@ -5838,7 +5838,16 @@ abstract class MutationResolver {
     required ExternalLinkTypeAndroid linkType,
     required String linkUri,
   });
-  /// Open the Google Play offer/promo code redemption flow so the user can enter a code.
+  /// Open the platform's offer/promo code redemption flow.
+  /// Resolves the redeemed purchase only when the store reports it synchronously;
+  /// every other path resolves null, so reconcile through the purchase listeners.
+  /// Throws when a redemption flow exists but cannot be opened.
+  /// Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+  /// Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+  /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
+  Future<Purchase?> openRedeemOfferCode();
+  /// Deprecated. Open the Google Play offer/promo code redemption flow — use
+  /// openRedeemOfferCode instead.
   /// On Google Play builds, launches the Play Store redeem page
   /// (https://play.google.com/redeem). A purchase listener can receive the redeemed
   /// purchase while the app is running with an active billing connection; always
@@ -5849,8 +5858,10 @@ abstract class MutationResolver {
   /// Returns true when the redemption flow was launched, or false when the current
   /// store flavor does not provide an equivalent redemption flow.
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
   Future<bool> openRedeemOfferCodeAndroid();
-  /// Show the App Store offer code redemption sheet.
+  /// Deprecated. Show the App Store offer code redemption sheet — use
+  /// openRedeemOfferCode instead.
   /// When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
   /// visionOS 27+, returns the verified transaction produced by the redemption.
   /// StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -5861,6 +5872,7 @@ abstract class MutationResolver {
   /// sheet through the normal transaction listener or an explicit
   /// available-purchases refresh.
   /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
   Future<PurchaseIOS?> presentCodeRedemptionSheetIOS();
   /// Present an external purchase link, StoreKit External (iOS 16+).
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -6095,6 +6107,7 @@ typedef MutationLaunchExternalLinkAndroidHandler = Future<bool> Function({
   required ExternalLinkTypeAndroid linkType,
   required String linkUri,
 });
+typedef MutationOpenRedeemOfferCodeHandler = Future<Purchase?> Function();
 typedef MutationOpenRedeemOfferCodeAndroidHandler = Future<bool> Function();
 typedef MutationPresentCodeRedemptionSheetIOSHandler = Future<PurchaseIOS?> Function();
 typedef MutationPresentExternalPurchaseLinkIOSHandler = Future<ExternalPurchaseLinkResultIOS> Function(String url);
@@ -6134,6 +6147,7 @@ class MutationHandlers {
     this.initConnection,
     this.isBillingProgramAvailableAndroid,
     this.launchExternalLinkAndroid,
+    this.openRedeemOfferCode,
     this.openRedeemOfferCodeAndroid,
     this.presentCodeRedemptionSheetIOS,
     this.presentExternalPurchaseLinkIOS,
@@ -6160,6 +6174,7 @@ class MutationHandlers {
   final MutationInitConnectionHandler? initConnection;
   final MutationIsBillingProgramAvailableAndroidHandler? isBillingProgramAvailableAndroid;
   final MutationLaunchExternalLinkAndroidHandler? launchExternalLinkAndroid;
+  final MutationOpenRedeemOfferCodeHandler? openRedeemOfferCode;
   final MutationOpenRedeemOfferCodeAndroidHandler? openRedeemOfferCodeAndroid;
   final MutationPresentCodeRedemptionSheetIOSHandler? presentCodeRedemptionSheetIOS;
   final MutationPresentExternalPurchaseLinkIOSHandler? presentExternalPurchaseLinkIOS;

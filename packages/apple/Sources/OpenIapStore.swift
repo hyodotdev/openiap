@@ -504,16 +504,25 @@ public final class OpenIapStore: ObservableObject {
         try await module.syncIOS()
     }
 
+    /// Open the offer/promo code redemption flow (App Store offer code
+    /// redemption sheet). Resolves the redeemed purchase when StoreKit reports
+    /// it synchronously; otherwise nil after presentation.
+    public func openRedeemOfferCode() async throws -> PurchaseIOS? {
+        try await module.openRedeemOfferCode()
+    }
+
     // tvOS: presentCodeRedemptionSheet explicitly unavailable on tvOS
     // tvOS: showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
     // tvOS: deepLinkToSubscriptions not available on tvOS (no window scene UI)
     #if !os(tvOS)
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     public func presentCodeRedemptionSheetIOS() async throws {
-        _ = try await presentCodeRedemptionSheetResultIOS()
+        _ = try await module.openRedeemOfferCode()
     }
 
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
     public func presentCodeRedemptionSheetResultIOS() async throws -> PurchaseIOS? {
-        try await module.presentCodeRedemptionSheetIOS()
+        try await module.openRedeemOfferCode()
     }
 
     public func showManageSubscriptionsIOS() async throws {

@@ -253,6 +253,9 @@ export const getPromotedProductIOS: QueryField<
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
+/**
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in OpenIAP 4.0.
+ */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => null;
@@ -263,6 +266,14 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 export const deepLinkToSubscriptions: MutationField<
   'deepLinkToSubscriptions'
 > = async () => unsupported('deepLinkToSubscriptions');
+// Vega has no offer-code redemption surface; resolve null without launching.
+export const openRedeemOfferCode: MutationField<
+  'openRedeemOfferCode'
+> = async () => null;
+/**
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
+ * OpenIAP 4.0.
+ */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
 > = async () => false;

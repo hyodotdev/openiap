@@ -75,6 +75,8 @@ final class VerifyPurchaseTests: XCTestCase {
     }
 
     @MainActor
+    // Covers the deprecated sheet wrappers on purpose; silence their warnings here.
+    @available(*, deprecated)
     func testStoreForwardsTransactionAndSubscriptionManagementResults() async throws {
         let purchase = makePurchase(id: "transaction-1")
         let module = FakeOpenIapModule(
@@ -92,10 +94,13 @@ final class VerifyPurchaseTests: XCTestCase {
         let changedTransactions = try await store.showManageSubscriptionsResultIOS()
         XCTAssertEqual(changedTransactions.map(\.id), ["transaction-1"])
 
-        let redeemedPurchase = try await store.presentCodeRedemptionSheetResultIOS()
+        let redeemedPurchase = try await store.openRedeemOfferCode()
         let clearedTransactions = try await store.clearTransactionResultIOS()
         XCTAssertNil(redeemedPurchase)
         XCTAssertFalse(clearedTransactions)
+
+        let redeemedViaDeprecated = try await store.presentCodeRedemptionSheetResultIOS()
+        XCTAssertNil(redeemedViaDeprecated)
 
         try await store.showManageSubscriptionsIOS()
         try await store.presentCodeRedemptionSheetIOS()
@@ -374,6 +379,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Misc
     func syncIOS() async throws -> Bool { true }
+    func openRedeemOfferCode() async throws -> PurchaseIOS? { presentCodeResult }
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? { presentCodeResult }
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { manageSubscriptionsResult }
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {

@@ -5,10 +5,7 @@ import * as RNIap from 'react-native-iap';
 
 const mockGetActiveSubscriptions = jest.fn();
 const mockGetAvailablePurchases = jest.fn();
-const mockPresentCodeRedemptionSheetIOS =
-  RNIap.presentCodeRedemptionSheetIOS as jest.Mock;
-const mockOpenRedeemOfferCodeAndroid =
-  RNIap.openRedeemOfferCodeAndroid as jest.Mock;
+const mockOpenRedeemOfferCode = RNIap.openRedeemOfferCode as jest.Mock;
 
 // Override the useIAP hook for this test
 (RNIap.useIAP as jest.Mock).mockReturnValue({
@@ -26,6 +23,7 @@ describe('OfferCode Screen', () => {
     jest.clearAllMocks();
     mockGetActiveSubscriptions.mockResolvedValue([]);
     mockGetAvailablePurchases.mockResolvedValue([]);
+    mockOpenRedeemOfferCode.mockResolvedValue(null);
   });
 
   it('renders the screen title and description', async () => {
@@ -49,9 +47,9 @@ describe('OfferCode Screen', () => {
     expect(redeemButton).toBeTruthy();
   });
 
-  it('handles iOS offer code redemption button press', async () => {
+  it('calls the unified API and reports the sheet on iOS null results', async () => {
     Platform.OS = 'ios';
-    mockPresentCodeRedemptionSheetIOS.mockResolvedValue(undefined);
+    mockOpenRedeemOfferCode.mockResolvedValue(null);
 
     const {getByText} = await render(<OfferCode />);
 
@@ -59,15 +57,37 @@ describe('OfferCode Screen', () => {
     await fireEvent.press(redeemButton);
 
     await waitFor(() => {
-      expect(mockPresentCodeRedemptionSheetIOS).toHaveBeenCalled();
+      expect(mockOpenRedeemOfferCode).toHaveBeenCalled();
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Redemption Sheet Presented',
+        expect.stringContaining('Refresh available purchases'),
+      );
+    });
+  });
+
+  it('shows the redeemed purchase when iOS returns it synchronously', async () => {
+    Platform.OS = 'ios';
+    mockOpenRedeemOfferCode.mockResolvedValue({
+      id: 'redeemed-transaction',
+      productId: 'premium',
+    });
+
+    const {getByText} = await render(<OfferCode />);
+
+    const redeemButton = getByText('🎁 Redeem Offer Code');
+    await fireEvent.press(redeemButton);
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Verified Redemption',
+        'Redeemed premium (redeemed-transaction).',
+      );
     });
   });
 
   it('shows error when iOS redemption fails', async () => {
     Platform.OS = 'ios';
-    mockPresentCodeRedemptionSheetIOS.mockRejectedValue(
-      new Error('Redemption failed'),
-    );
+    mockOpenRedeemOfferCode.mockRejectedValue(new Error('Redemption failed'));
 
     const {getByText} = await render(<OfferCode />);
 
@@ -91,7 +111,7 @@ describe('OfferCode Screen', () => {
 
   it('handles Android offer code redemption button press', async () => {
     Platform.OS = 'android';
-    mockOpenRedeemOfferCodeAndroid.mockResolvedValue(true);
+    mockOpenRedeemOfferCode.mockResolvedValue(null);
 
     const {getByText} = await render(<OfferCode />);
 
@@ -99,17 +119,17 @@ describe('OfferCode Screen', () => {
     await fireEvent.press(redeemButton);
 
     await waitFor(() => {
-      expect(mockOpenRedeemOfferCodeAndroid).toHaveBeenCalled();
+      expect(mockOpenRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Play Store Opened',
-        'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+        'Redemption Requested',
+        'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
       );
     });
   });
 
   it('shows error when Android redemption fails', async () => {
     Platform.OS = 'android';
-    mockOpenRedeemOfferCodeAndroid.mockRejectedValue(
+    mockOpenRedeemOfferCode.mockRejectedValue(
       new Error('Play Store unavailable'),
     );
 
@@ -126,14 +146,13 @@ describe('OfferCode Screen', () => {
     });
   });
 
-  it('shows Vega unsupported guidance without calling platform redemption APIs', async () => {
+  it('shows Vega unsupported guidance without calling the redemption API', async () => {
     (Platform as any).OS = 'kepler';
     const {getByText} = await render(<OfferCode />);
 
     await fireEvent.press(getByText('Amazon Vega IAP'));
 
-    expect(mockPresentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
-    expect(mockOpenRedeemOfferCodeAndroid).not.toHaveBeenCalled();
+    expect(mockOpenRedeemOfferCode).not.toHaveBeenCalled();
     expect(
       getByText(/Offer code redemption is not supported on Amazon Vega/),
     ).toBeTruthy();

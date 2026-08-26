@@ -605,7 +605,8 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
         </CodeBlock>
 
         <Callout kind="note">
-          <code>presentCodeRedemptionSheetIOS</code> is{' '}
+          Offer-code redemption (<code>openRedeemOfferCode</code> and the
+          deprecated <code>presentCodeRedemptionSheetIOS</code>) is{' '}
           <strong>not supported</strong> on tvOS. Direct users to redeem codes
           on their iPhone or through Apple TV settings instead.
         </Callout>

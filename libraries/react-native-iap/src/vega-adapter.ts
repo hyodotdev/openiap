@@ -783,6 +783,7 @@ function throwUnsupportedFeature(feature: string): never {
 type VegaRnIapModule = Partial<RnIap> & {
   acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
   consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
+  /** @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0. */
   openRedeemOfferCodeAndroid(): Promise<boolean>;
   restorePurchases(): Promise<void>;
 };
@@ -1595,6 +1596,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getPromotedProductIOS(): Promise<null> {
       return throwUnsupportedFeature('getPromotedProductIOS');
     },
+    // Deprecated: use openRedeemOfferCode (resolves null on Vega without reaching this adapter).
     async presentCodeRedemptionSheetIOS(): Promise<null> {
       return throwUnsupportedFeature('presentCodeRedemptionSheetIOS');
     },

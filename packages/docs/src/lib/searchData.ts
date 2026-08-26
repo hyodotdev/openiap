@@ -79,6 +79,16 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/restore-purchases',
   },
   {
+    id: 'open-redeem-offer-code',
+    title: 'openRedeemOfferCode',
+    category: 'Purchase',
+    description:
+      'Open the platform offer/promo code redemption flow; resolves the verified purchase only on Apple 27+ from Xcode 27+ builds, otherwise null',
+    parameters: '',
+    returns: 'Purchase | null',
+    path: '/docs/apis/open-redeem-offer-code',
+  },
+  {
     id: 'get-storefront',
     title: 'getStorefront',
     category: 'Purchase',
@@ -261,7 +271,7 @@ export const apiData: ApiItem[] = [
     title: 'presentCodeRedemptionSheetIOS',
     category: 'iOS Specific',
     description:
-      'Present the App Store code redemption sheet; Xcode 27+ builds return a verified transaction on Apple 27+, while other supported paths return null',
+      'Deprecated — use openRedeemOfferCode (removal in OpenIAP 4.0). Presents the App Store code redemption sheet',
     parameters: '',
     returns: 'PurchaseIOS | null',
     path: '/docs/apis/ios/present-code-redemption-sheet-ios',
@@ -447,7 +457,7 @@ export const apiData: ApiItem[] = [
     title: 'openRedeemOfferCodeAndroid',
     category: 'Android Specific',
     description:
-      'Open the Google Play offer-code redemption page (no billing client required)',
+      'Deprecated — use openRedeemOfferCode (removal in OpenIAP 4.0). Opens the Google Play offer-code redemption page',
     parameters: '',
     returns: 'Boolean!',
     path: '/docs/apis/android/open-redeem-offer-code-android',

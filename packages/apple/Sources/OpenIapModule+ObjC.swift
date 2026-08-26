@@ -718,13 +718,25 @@ import StoreKit
 
     // MARK: - UI
 
+    @objc func openRedeemOfferCodeWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
+        Task {
+            do {
+                let result = try await openRedeemOfferCode()
+                completion(result.map { OpenIapSerialization.encode($0) }, nil)
+            } catch {
+                completion(nil, error)
+            }
+        }
+    }
+
     // tvOS: presentCodeRedemptionSheet is unavailable on tvOS
     // tvOS: showManageSubscriptions requires window scene UI not available on tvOS (subscriptions managed in Settings)
     #if !os(tvOS)
+    @available(*, deprecated, message: "Use openRedeemOfferCodeWithCompletion. Scheduled for removal in OpenIAP 4.0.")
     @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {
-                let result = try await presentCodeRedemptionSheetIOS()
+                let result = try await openRedeemOfferCode()
                 completion(result.map { OpenIapSerialization.encode($0) }, nil)
             } catch {
                 completion(nil, error)

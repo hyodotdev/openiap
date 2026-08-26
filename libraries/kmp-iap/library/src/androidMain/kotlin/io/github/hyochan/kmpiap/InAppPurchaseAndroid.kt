@@ -1,3 +1,7 @@
+// This implementation overrides spec methods deprecated for openRedeemOfferCode.
+// Consumer call sites retain warnings; remove the overrides in OpenIAP 4.0.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
@@ -3449,10 +3453,23 @@ internal class InAppPurchaseAndroid(
     }
 
     /**
+     * Launch the Play Store redeem page (https://play.google.com/redeem) and resolve null.
+     * Redeemed purchases arrive through purchase listeners; reconcile available
+     * purchases when the app resumes.
+     *
+     * @see <a href="https://openiap.dev/docs/apis/open-redeem-offer-code">https://openiap.dev/docs/apis/open-redeem-offer-code</a>
+     */
+    override suspend fun openRedeemOfferCode(): Purchase? {
+        openRedeemOfferCodeAndroid()
+        return null
+    }
+
+    /**
      * Open the Google Play offer/promo code redemption flow (https://play.google.com/redeem).
      * A listener can receive the redeemed purchase while the app has an active billing
      * connection; reconcile available purchases when the app resumes.
      * Does not require the billing client to be initialized.
+     * Deprecated: use [openRedeemOfferCode].
      *
      * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
      */

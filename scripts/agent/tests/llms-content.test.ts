@@ -45,7 +45,19 @@ describe("generated LLM references", () => {
     );
     expect(quickReference).not.toContain("'restored'");
     expect(quickReference).toContain(
+      "const purchase = await openRedeemOfferCode();",
+    );
+    expect(quickReference).toContain(
+      "openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)",
+    );
+    expect(quickReference).toContain(
+      "presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)",
+    );
+    expect(quickReference).not.toContain(
       "openRedeemOfferCodeAndroid() - Open Play offer-code redemption page",
+    );
+    expect(fullReference).toContain(
+      "cross-platform `openRedeemOfferCode`",
     );
   });
 
