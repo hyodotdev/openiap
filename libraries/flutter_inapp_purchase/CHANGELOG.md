@@ -1,5 +1,16 @@
 # Changelog
 
+## 10.4.0 (2026-08-26)
+
+- chore(release): openiap-google@3.4.0
+- chore(release): openiap-apple@3.3.0
+- feat(gql): unify offer-code redemption behind openRedeemOfferCode (#384)
+- feat: add research-backed guards for conformance, schema, and docs (#380)
+- fix(docs): repair sponsor surface regressions
+- chore(docs): centralize sponsor surfaces
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.3.2 (2026-08-21)
 
 - chore(release): openiap-google@3.3.2
