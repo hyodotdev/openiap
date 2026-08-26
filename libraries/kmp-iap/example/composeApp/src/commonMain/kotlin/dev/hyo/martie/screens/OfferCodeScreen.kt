@@ -195,7 +195,7 @@ fun OfferCodeScreen(navController: NavController) {
                                 try {
                                     // Only Google Play has a redeem page; Amazon and Horizon resolve null.
                                     kmpIAP.openRedeemOfferCode()
-                                    result = "Redemption requested; Google Play opens its redeem page. Refresh purchases after redeeming"
+                                    result = "Redemption requested. Google Play opens its redeem page; stores without one open nothing. Refresh purchases after redeeming"
                                 } catch (e: Exception) {
                                     result = "Failed to open the redemption flow: ${e.message}"
                                 } finally {
