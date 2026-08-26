@@ -743,8 +743,9 @@ const purchases = await getAvailablePurchases();
 const purchase = await openRedeemOfferCode();
 // Verified purchase only on Apple 27+ from Xcode 27+ builds; every other
 // flow resolves null (pre-27 iOS sheet, Play redeem page, Horizon/Amazon
-// no-op). Redeemed purchases arrive via purchaseUpdatedListener; reconcile
-// with getAvailablePurchases on resume.
+// no-op). Throws when a redemption flow exists but cannot be opened.
+// Redeemed purchases arrive via purchaseUpdatedListener; reconcile with
+// getAvailablePurchases on resume.
 \`\`\`
 
 ## Events (React Native/Expo)

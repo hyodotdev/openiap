@@ -193,12 +193,11 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    // Unified op: Play launches the redeem page and resolves null;
-                                    // Amazon and Horizon resolve null without launching.
+                                    // Only Google Play has a redeem page; Amazon and Horizon resolve null.
                                     kmpIAP.openRedeemOfferCode()
-                                    result = "Redeem flow requested (Play opens the redeem page); refresh purchases after redeeming"
+                                    result = "Redemption requested; Google Play opens its redeem page. Refresh purchases after redeeming"
                                 } catch (e: Exception) {
-                                    result = "Failed to open Play Store redemption: ${e.message}"
+                                    result = "Failed to open the redemption flow: ${e.message}"
                                 } finally {
                                     isLoading = false
                                 }

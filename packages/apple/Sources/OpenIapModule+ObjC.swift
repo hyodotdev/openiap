@@ -732,6 +732,7 @@ import StoreKit
     // tvOS: presentCodeRedemptionSheet is unavailable on tvOS
     // tvOS: showManageSubscriptions requires window scene UI not available on tvOS (subscriptions managed in Settings)
     #if !os(tvOS)
+    @available(*, deprecated, message: "Use openRedeemOfferCodeWithCompletion. Scheduled for removal in OpenIAP 4.0.")
     @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {

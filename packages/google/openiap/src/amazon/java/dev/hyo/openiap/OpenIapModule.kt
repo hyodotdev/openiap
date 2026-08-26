@@ -893,8 +893,7 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
-        // Amazon has no Google Play redemption surface. Keep the generated
-        // handlers callable without requiring an Activity for these explicit no-ops.
+        // Amazon has no redemption surface; these no-ops must not require an Activity.
         openRedeemOfferCode = { null },
         openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,

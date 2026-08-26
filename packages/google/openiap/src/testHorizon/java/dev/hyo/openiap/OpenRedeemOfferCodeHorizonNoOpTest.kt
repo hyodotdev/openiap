@@ -6,12 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * Horizon flavor: Google Play offer-code redemption has no Meta Horizon
- * counterpart, so openRedeemOfferCode must stay an explicit no-op that
- * never launches an intent, while the mutation bundle still wires both
- * generated handlers (deprecated Boolean + unified Purchase?) for parity.
- */
+/** Horizon has no redemption surface: both handlers stay wired but never launch an intent. */
 class OpenRedeemOfferCodeHorizonNoOpTest {
 
     @Test

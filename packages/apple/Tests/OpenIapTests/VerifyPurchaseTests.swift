@@ -75,6 +75,8 @@ final class VerifyPurchaseTests: XCTestCase {
     }
 
     @MainActor
+    // Covers the deprecated sheet wrappers on purpose; silence their warnings here.
+    @available(*, deprecated)
     func testStoreForwardsTransactionAndSubscriptionManagementResults() async throws {
         let purchase = makePurchase(id: "transaction-1")
         let module = FakeOpenIapModule(

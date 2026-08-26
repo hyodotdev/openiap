@@ -121,8 +121,8 @@ describe('OfferCode Screen', () => {
     await waitFor(() => {
       expect(mockOpenRedeemOfferCode).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Play Store Opened',
-        'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+        'Redemption Requested',
+        'Google Play opens its redeem page; stores without one open nothing. Refresh available purchases after redeeming.',
       );
     });
   });

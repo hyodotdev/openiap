@@ -80,8 +80,9 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
               'Verified redemption: ${purchase.productId} (${purchase.id}).';
         } else if (isAndroid) {
           _statusMessage =
-              'Play redeem page opened. Complete the redemption in Google '
-              'Play, then reconcile purchases when the app resumes.';
+              'Redemption requested. Google Play opens its redeem page; '
+              'stores without one open nothing. Reconcile purchases when '
+              'the app resumes.';
         } else {
           _statusMessage =
               'The system sheet did not return a transaction directly. '
