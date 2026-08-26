@@ -1,0 +1,218 @@
+# Normalized commerce events
+
+How a store notification becomes something an analytics pipeline, a SaaS
+platform or a custom backend can consume without parsing Apple or Google
+payloads.
+
+## What IAPKit is, and is not
+
+IAPKit is one open-source implementation of the server side of OpenIAP. It
+validates receipts, keeps canonical subscription state, derives entitlement and
+publishes normalized commerce events.
+
+It is not a paywall builder, an experimentation platform, a CRM or an analytics
+product. Those consume IAPKit; they are not built inside it. OpenIAP does not
+require IAPKit, and IAPKit does not require any particular downstream vendor.
+
+## Architecture
+
+```text
+Apple ASN v2 / Google RTDN / Meta Graph / Amazon RVS
+        │
+        ▼
+  Store adapter            purchases/{ios,android,horizon,amazon}.ts
+        │                  webhooks/{apple,google}.ts
+        ▼
+  Validation / normalization   webhooks/shared.ts  →  webhookEvents
+        │
+        ▼
+  Lifecycle engine          subscriptions/stateMachine.ts   (pure)
+        │
+        ▼
+  Canonical subscription    subscriptions                    (+ entitlement gate)
+        │
+        ▼
+  Normalized commerce event commerce/contract.ts → commerceEvents
+        │
+        ▼
+  Outbound delivery         commerce/delivery.ts → developer HTTPS endpoint
+```
+
+## Four things that are not the same
+
+| Concept        | Table            | Meaning                                              |
+| -------------- | ---------------- | ---------------------------------------------------- |
+| Transaction    | `purchases`      | One validated receipt/token verification             |
+| Subscription   | `subscriptions`  | Canonical per-`purchaseToken` lifecycle record       |
+| Entitlement    | _computed_       | Whether access should be granted right now           |
+| Store event    | `webhookEvents`  | What a store said, in the store's own vocabulary     |
+| Commerce event | `commerceEvents` | What happened, in IAPKit's vocabulary, for consumers |
+
+Entitlement is derived, not stored: `stateMachine.ts` returns `active` alongside
+each transition and `/v1/subscriptions/status` applies the same rule. A single
+source avoids the classic drift between a cached flag and the record it came
+from. `commerceEvents.entitlementActive` denormalizes that answer onto the event
+so a consumer can act without joining back.
+
+## Event vocabulary
+
+The event types are the lifecycle transitions the state machine already
+produces, renamed to a dotted form. There is deliberately no second taxonomy.
+
+`subscription.started` · `renewed` · `recovered` · `entered_grace_period` ·
+`entered_billing_retry` · `expired` · `canceled` · `uncanceled` · `revoked` ·
+`refunded` · `product_changed` · `price_changed` · `paused` · `resumed`
+
+Plus the entitlement delta, emitted only when the gate actually flips:
+`entitlement.granted` · `entitlement.revoked`
+
+A no-op transition (a redelivery that changes nothing) emits nothing, so
+consumers never count retries as activity.
+
+### Versioning
+
+`eventVersion` is `"1.0"`. Additive optional fields keep the major; a field that
+changes meaning or disappears bumps it. Pin on the major.
+
+## Idempotency
+
+Emission runs inside the same Convex transaction as the lifecycle transition, so
+it inherits the guarantees already proven there rather than adding a second
+layer:
+
+- `webhookIdempotencyKeys` dedupes on `(projectId, source, sourceNotificationId)`
+- `webhookEvents.appliedAt` is a durable applied-marker, so a redelivery cannot
+  reapply a transition
+- a stale event is rejected by comparing `occurredAt`, with `_creationTime` as
+  the tie-break for same-millisecond store timestamps
+
+If the transition commits, its events commit. If it rolls back, so do they.
+
+Fan-out is separately idempotent: `outboundDeliveries` is unique per
+`(eventId, destinationId)`.
+
+### Ordering, per provider
+
+Apple `originalTransactionId` is stable for the entitlement's lifetime, so
+ordering within a subscription is well-defined. Google reissues `purchaseToken`
+across upgrade/downgrade and the `linkedPurchaseToken` chain is only readable
+through a follow-up Play Developer API call the receiver does not make, so one
+logical Google subscription can split across rows. That is a known limitation,
+not a bug in the event layer.
+
+## Outbound delivery
+
+Direction is store → IAPKit → developer backend. Server-to-server only; nothing
+here is reachable from a shipped app and no client-pullable stream exists.
+
+- `outboundDestinations` — project-owned HTTPS endpoints, optional event-type
+  allow list, per-destination secret plus a rotation slot
+- `outboundDeliveries` — one attempt chain per `(event, destination)`, and the
+  dead-letter store: a row that exhausts its budget stays `failed` and can be
+  replayed without re-deriving the event
+- the cron claims due rows under a lease, so overlapping ticks cannot
+  double-deliver
+
+### Registering a destination
+
+`commerce/destinations.ts` exposes `create`, `list`, `update`, `rotateSecret`
+and `remove`. All require organization admin: a destination holds a signing
+secret and names an endpoint IAPKit will POST to, so member access is not
+enough.
+
+`create` returns the secret exactly once. No query ever returns it again —
+`list` projects a fixed allow-list of fields that excludes both the secret and
+its rotation slot. `rotateSecret` issues a new one and keeps the old valid for
+24 hours so a receiver can roll without dropping in-flight deliveries.
+
+### Signing
+
+```text
+openiap-signature: v1=<hex hmac-sha256 of "<timestamp>.<body>">
+openiap-timestamp: <unix seconds>
+openiap-event-id:  <commerceEvents id>
+openiap-delivery-id: <outboundDeliveries id>
+```
+
+The timestamp is inside the signed material, so a captured body cannot be
+replayed with a fresh header. Reject signatures older than 300 seconds. During
+rotation the header carries both signatures comma-separated; accept if either
+matches.
+
+### Retries
+
+Exponential backoff from 30s, capped at 6h, 8 attempts. `408`, `429` and `5xx`
+retry; other `4xx` are permanent. Twenty consecutive failures park the
+destination for manual review rather than hammering a dead endpoint forever.
+
+### Safety
+
+Destination URLs must be public HTTPS. Loopback, RFC1918, link-local,
+`.internal`/`.local` and embedded credentials are rejected, redirects are not
+followed, and requests time out at 10s. This is a guard, not a substitute for
+egress policy: DNS can still resolve a public name to a private address, so a
+hardened deployment should also restrict egress.
+
+Payloads carry no raw store envelope, no receipt and no credentials.
+
+## Revenue data
+
+`amountProvenance` records where a number came from — `store`, `catalog` or
+`inferred` — and the three are never mixed silently. Today only
+store-authoritative amounts are emitted; when a store asserts no price, the
+amount fields are simply absent rather than being back-filled from the catalog.
+Downstream revenue math should treat a missing amount as unknown, not zero.
+
+## Provider capabilities
+
+`commerce/capabilities.ts` declares what is implemented, not what a store's API
+theoretically allows. Consumers branch on it instead of assuming Apple-shaped
+behavior everywhere.
+
+|                            | Apple | Google | Meta/Horizon     | Amazon |
+| -------------------------- | ----- | ------ | ---------------- | ------ |
+| Initial validation         | ✅    | ✅     | ✅               | ✅     |
+| Server notifications       | ✅    | ✅     | ❌               | ❌     |
+| Canonical subscription     | ✅    | ✅     | ❌               | ❌     |
+| Renewal events             | ✅    | ✅     | ❌               | ❌     |
+| Refund / revocation events | ✅    | ✅     | ❌               | ❌     |
+| Expiration                 | ✅    | ✅     | ❌               | ❌     |
+| Scheduled reconciliation   | ❌    | ❌     | ❌               | ✅     |
+| Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ❌     |
+| Store-authoritative amount | ✅    | ✅     | ❌               | ❌     |
+
+Meta integrates only the Graph `verify_entitlement` endpoint: a one-shot check
+that the viewer owns the SKU. There is no notification channel, so there is no
+renewal, expiration or refund signal and no canonical subscription record.
+Entitlement is answerable only at the moment it is asked.
+
+Amazon RVS validates receipts and a five-minute cron re-checks active ones,
+which catches cancellation after the fact. RVS alone does not carry enough
+lifecycle detail for a canonical subscription record.
+
+Apple and Google have no scheduled reconciliation pass. A notification lost past
+the store's retry window is not self-healing; re-verifying the receipt repairs
+it.
+
+## Integrating without touching IAPKit core
+
+Register a destination, verify the signature, switch on `eventType`. Nothing
+provider-specific is required, and no integration code belongs in this package:
+
+```ts
+const expected = hmacSha256(secret, `${timestamp}.${rawBody}`);
+if (!timingSafeEqual(expected, headerSignature)) return 401;
+if (Math.abs(nowSeconds - Number(timestamp)) > 300) return 401;
+
+switch (event.eventType) {
+  case "entitlement.granted":
+    grantAccess(event.userId, event.productId);
+    break;
+  case "entitlement.revoked":
+    revokeAccess(event.userId, event.productId);
+    break;
+}
+```
+
+A future `@openiap/integration-*` package would consume this contract from
+outside; the contract does not depend on any downstream consumer.

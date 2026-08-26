@@ -112,6 +112,8 @@ interface ApplySubscriptionEventResult {
 // the subscription and stats writes, so both retry gaps are safe: a crash
 // before this mutation can be repaired, while any event this mutation already
 // processed can never be replayed after a newer lastEventId replaces it.
+import { emitCommerceEvent } from "../commerce/internal";
+
 export const applySubscriptionEvent = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -148,6 +150,9 @@ export async function applySubscriptionEventHandler(
     args.projectId,
     storedEvent.purchaseToken,
   );
+  // Captured before any transition so entitlement deltas are emitted from the
+  // pre-event gate, not the post-event one.
+  const previouslyActive = existing ? isActive(existing) : false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
     active: existing ? isActive(existing) : false,
@@ -213,6 +218,22 @@ export async function applySubscriptionEventHandler(
 
   if (!transition.next) {
     await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    await emitCommerceEvent(ctx, {
+      projectId: args.projectId,
+      transition: transition.transition ?? null,
+      active: false,
+      previouslyActive,
+      sourceEvent: storedEvent,
+      ...(existing ? { subscriptionId: existing._id } : {}),
+      ...(existing
+        ? {
+            subscription: {
+              productId: existing.productId,
+              ...(existing.userId ? { userId: existing.userId } : {}),
+            },
+          }
+        : {}),
+    });
     return {
       transition: transition.transition ?? null,
       active: false,
@@ -230,6 +251,18 @@ export async function applySubscriptionEventHandler(
     lastEventId: args.eventId,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
+  await emitCommerceEvent(ctx, {
+    projectId: args.projectId,
+    transition: transition.transition ?? null,
+    active: transition.active,
+    previouslyActive,
+    sourceEvent: storedEvent,
+    subscriptionId,
+    subscription: {
+      productId: transition.next.productId,
+      ...(existing?.userId ? { userId: existing.userId } : {}),
+    },
+  });
 
   return {
     transition: transition.transition ?? null,

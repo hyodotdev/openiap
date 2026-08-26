@@ -1223,6 +1223,119 @@ const schema = defineSchema({
     // Reaper / pruner scans.
     .index("by_status_and_deadline", ["status", "expectedDeadline"])
     .index("by_status_and_completed", ["status", "completedAt"]),
+
+  // ── Normalized commerce events (outbound contract) ───────────────────────
+  //
+  // `webhookEvents` records what a *store* said. This records what *happened*,
+  // in IAPKit's own vocabulary, for consumers that must not parse store
+  // payloads. Rows are written in the same transaction as the subscription
+  // transition that produced them, so they inherit its dedup and staleness
+  // guarantees instead of needing a second idempotency layer.
+  //
+  // Deliberately carries no `rawSignedPayload` and no credentials: these rows
+  // are the body of an outbound HTTP request to a developer-controlled server.
+  commerceEvents: defineTable({
+    projectId: v.id("projects"),
+    eventType: v.string(),
+    // Schema version of the emitted body. Consumers pin on the major.
+    eventVersion: v.string(),
+    store: purchaseStoreValidator,
+    environment: v.union(
+      v.literal("production"),
+      v.literal("sandbox"),
+      v.literal("xcode"),
+    ),
+    applicationId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    productId: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    subscriptionId: v.optional(v.id("subscriptions")),
+    // Entitlement gate after this event, denormalized so a consumer can act on
+    // the row without joining the subscription.
+    entitlementActive: v.optional(v.boolean()),
+    currency: v.optional(v.string()),
+    amountMicros: v.optional(v.number()),
+    // Which of store / catalog / inferred produced `amountMicros`. Never mix.
+    amountProvenance: v.optional(
+      v.union(v.literal("store"), v.literal("catalog"), v.literal("inferred")),
+    ),
+    // Inbound store event this was derived from, for support triage.
+    sourceEventId: v.optional(v.id("webhookEvents")),
+    extensions: v.optional(v.record(v.string(), v.string())),
+    occurredAt: v.number(),
+    processedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_processed", ["projectId", "processedAt"])
+    .index("by_project_and_type", ["projectId", "eventType"])
+    .index("by_source_event", ["sourceEventId"])
+    // Fan-out scan: undelivered events per project in emission order.
+    .index("by_project_and_occurred", ["projectId", "occurredAt"]),
+
+  // Developer-configured destinations for outbound commerce events.
+  //
+  // Direction is strictly store → IAPKit → developer backend. These are
+  // server-to-server only; nothing here is reachable by a shipped app and no
+  // client-pullable stream exists (see the webhook direction guardrail).
+  outboundDestinations: defineTable({
+    projectId: v.id("projects"),
+    url: v.string(),
+    // HMAC key for the signature header. Stored server-side only and never
+    // echoed by any query that a dashboard or API client can reach.
+    secret: v.string(),
+    // Previous secret kept valid during rotation so a destination can roll
+    // its key without dropping in-flight deliveries.
+    previousSecret: v.optional(v.string()),
+    previousSecretExpiresAt: v.optional(v.number()),
+    enabled: v.boolean(),
+    // Empty/absent means "every event type".
+    eventTypes: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+    // Set when repeated failures trip the breaker; cleared on manual re-enable.
+    disabledReason: v.optional(v.string()),
+    consecutiveFailures: v.optional(v.number()),
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_enabled", ["projectId", "enabled"]),
+
+  // One row per (event, destination) attempt chain. Also the dead-letter
+  // store: a row that exhausts `maxAttempts` stays with status "failed" and
+  // can be replayed without re-deriving the event.
+  outboundDeliveries: defineTable({
+    projectId: v.id("projects"),
+    eventId: v.id("commerceEvents"),
+    destinationId: v.id("outboundDestinations"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("delivering"),
+      v.literal("delivered"),
+      v.literal("failed"),
+    ),
+    attempts: v.number(),
+    // Exponential backoff target. The worker claims rows at or past this.
+    nextAttemptAt: v.number(),
+    lastStatusCode: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    // Lease held while an attempt is in flight, so overlapping cron ticks
+    // cannot double-deliver the same row.
+    leaseExpiresAt: v.optional(v.number()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_event", ["eventId"])
+    .index("by_destination", ["destinationId"])
+    .index("by_destination_and_status", ["destinationId", "status"])
+    // Worker claim scan.
+    .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])
+    // Idempotent fan-out: one delivery row per (event, destination).
+    .index("by_event_and_destination", ["eventId", "destinationId"]),
 });
 
 export default schema;

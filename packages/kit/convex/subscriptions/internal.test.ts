@@ -31,6 +31,10 @@ class MemQuery {
     }
     return this.rows[0] ?? null;
   }
+
+  async collect(): Promise<Row[]> {
+    return [...this.rows];
+  }
 }
 
 class IndexBuilder {
