@@ -23,11 +23,7 @@ function OpenRedeemOfferCodeAndroid() {
       </h1>
       <p>
         Open the Google Play offer/promo code redemption flow so the user can
-        enter a code. Android counterpart of{' '}
-        <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
-          <code>presentCodeRedemptionSheetIOS</code>
-        </Link>
-        .
+        enter a code.
       </p>
 
       <Callout kind="warning">
@@ -37,9 +33,8 @@ function OpenRedeemOfferCodeAndroid() {
         </Link>{' '}
         instead — it launches the same Play redeem page and works on both
         platforms with one call. Scheduled for removal in OpenIAP 4.0. Generated
-        TypeScript declarations carry a <code>@deprecated</code> JSDoc tag and
-        Kotlin declarations carry <code>@Deprecated</code>, so builds surface
-        the migration.
+        TypeScript, Kotlin, and C# declarations carry a deprecation annotation,
+        so builds surface the migration.
       </Callout>
       <p>
         Available in OpenIAP Spec 2.4.2 / <code>openiap-google</code> 2.5.0.

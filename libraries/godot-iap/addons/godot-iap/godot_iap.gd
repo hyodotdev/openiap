@@ -2135,9 +2135,10 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 ##
 ## See: https://openiap.dev/docs/apis/open-redeem-offer-code
 func open_redeem_offer_code() -> Variant:
-	if _native_plugin and _platform == "Android":
-		# openiap-google 3.4.0 only launches the redeem page; map the launched envelope to null.
-		_native_plugin.call("openRedeemOfferCodeAndroid")
+	if _platform == "Android":
+		# The suffixed wrapper owns both Android dispatch paths (native plugin and
+		# the plugin-less shell_open fallback); its launched flag maps to null.
+		open_redeem_offer_code_android()
 		return null
 	# iOS reuses the released sheet dispatch and its purchase parsing; other surfaces resolve null.
 	return await present_code_redemption_sheet_ios()

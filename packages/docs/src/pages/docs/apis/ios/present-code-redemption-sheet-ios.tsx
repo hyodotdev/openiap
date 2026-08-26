@@ -21,13 +21,7 @@ function PresentCodeRedemptionSheetIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         presentCodeRedemptionSheetIOS
       </h1>
-      <p>
-        Present the App Store promo code redemption sheet. iOS counterpart of{' '}
-        <Link to="/docs/apis/android/open-redeem-offer-code-android">
-          <code>openRedeemOfferCodeAndroid</code>
-        </Link>
-        .
-      </p>
+      <p>Present the App Store promo code redemption sheet.</p>
 
       <Callout kind="warning">
         <strong>Deprecated.</strong> Use the cross-platform{' '}
@@ -35,9 +29,8 @@ function PresentCodeRedemptionSheetIOS() {
           <code>openRedeemOfferCode</code>
         </Link>{' '}
         instead — identical sheet behavior and result semantics on Apple
-        platforms. Scheduled for removal in OpenIAP 4.0. Generated TypeScript
-        declarations carry a <code>@deprecated</code> JSDoc tag, Kotlin
-        declarations carry <code>@Deprecated</code>, and{' '}
+        platforms. Scheduled for removal in OpenIAP 4.0. Generated TypeScript,
+        Kotlin, and C# declarations carry a deprecation annotation, and{' '}
         <code>openiap-apple</code> marks the Swift method{' '}
         <code>@available(*, deprecated)</code>, so builds surface the migration.
       </Callout>

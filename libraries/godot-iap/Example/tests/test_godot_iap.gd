@@ -16,6 +16,11 @@ class FakeAndroidPlugin:
 	var last_purchase: Dictionary = {}
 	var last_purchase_options: Dictionary = {}
 	var storefront_result := JSON.stringify({"success": true, "countryCode": "US"})
+	var redeem_calls := 0
+
+	func openRedeemOfferCodeAndroid() -> String:
+		redeem_calls += 1
+		return JSON.stringify({"launched": true})
 
 	func initConnectionWithConfig(config_json: String) -> bool:
 		last_config = JSON.parse_string(config_json)
@@ -135,6 +140,7 @@ func _run_all_tests() -> void:
 
 	# Purchase tests
 	await test_billing_choice_android_payloads()
+	await test_open_redeem_offer_code_android_dispatch()
 	test_android_purchase_lists_fail_closed()
 	await test_apple_async_result_cache()
 	await test_get_available_purchases_mock()
@@ -264,6 +270,20 @@ func test_billing_choice_android_payloads() -> void:
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false
+
+
+func test_open_redeem_offer_code_android_dispatch() -> void:
+	var fake = FakeAndroidPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+
+	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "The unified redeem API should resolve null on Android")
+	_assert_equal(fake.redeem_calls, 1, "The unified redeem API should dispatch through the suffixed Android wrapper")
+	_assert_true(GodotIapPlugin.open_redeem_offer_code_android(), "The suffixed wrapper should report the launched flag")
+	_assert_equal(fake.redeem_calls, 2, "Both redeem entry points should share one Android dispatch path")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
 
 
 func test_android_purchase_lists_fail_closed() -> void:
