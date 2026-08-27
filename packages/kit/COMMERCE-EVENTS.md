@@ -17,7 +17,7 @@ require IAPKit, and IAPKit does not require any particular downstream vendor.
 ## Architecture
 
 ```text
-Apple ASN v2 / Google RTDN / Meta Graph / Amazon RVS
+Apple ASN v2 / Google RTDN
         │
         ▼
   Store adapter            purchases/{ios,android,horizon,amazon}.ts
@@ -38,7 +38,7 @@ Apple ASN v2 / Google RTDN / Meta Graph / Amazon RVS
   Outbound delivery         commerce/delivery.ts → developer HTTPS endpoint
 ```
 
-## Four things that are not the same
+## Five things that are not the same
 
 | Concept        | Table            | Meaning                                              |
 | -------------- | ---------------- | ---------------------------------------------------- |
@@ -67,8 +67,19 @@ produces, renamed to a dotted form. There is deliberately no second taxonomy.
 Plus the entitlement delta, emitted only when the gate actually flips:
 `entitlement.granted` · `entitlement.revoked`
 
+For Apple's scheduled renewal-preference change, top-level `productId` is the
+next billing-period product while `subscription.productId` remains the currently
+active product until the renewal transaction arrives.
+
+Likewise, a scheduled price-change event carries the announced amount in
+`price`; the canonical subscription and its revenue metrics keep the current
+amount until a renewal applies the new price.
+
 A no-op transition (a redelivery that changes nothing) emits nothing, so
 consumers never count retries as activity.
+
+One-time purchase notifications remain in `webhookEvents` for operations, but
+this subscription vocabulary does not relabel them as subscription events.
 
 ### Versioning
 
@@ -81,25 +92,25 @@ Emission runs inside the same Convex transaction as the lifecycle transition, so
 it inherits the guarantees already proven there rather than adding a second
 layer:
 
-- `webhookIdempotencyKeys` dedupes on `(projectId, source, sourceNotificationId)`
+- `webhookEvents` dedupes on `(projectId, source, sourceNotificationId)`
 - `webhookEvents.appliedAt` is a durable applied-marker, so a redelivery cannot
   reapply a transition
-- a stale event is rejected by comparing `occurredAt`, with `_creationTime` as
-  the tie-break for same-millisecond store timestamps
+- each subscription retains the last store timestamp, ingestion tie-break and
+  notification id, so stale events remain rejected after source-row pruning
 
 If the transition commits, its events commit. If it rolls back, so do they.
 
-Fan-out is separately idempotent: `outboundDeliveries` is unique per
-`(eventId, destinationId)`.
+Fan-out runs once in the emission transaction and creates one
+`outboundDeliveries` row per `(eventId, destinationId)`.
 
 ### Ordering, per provider
 
 Apple `originalTransactionId` is stable for the entitlement's lifetime, so
 ordering within a subscription is well-defined. Google reissues `purchaseToken`
-across upgrade/downgrade and the `linkedPurchaseToken` chain is only readable
-through a follow-up Play Developer API call the receiver does not make, so one
-logical Google subscription can split across rows. That is a known limitation,
-not a bug in the event layer.
+across upgrade/downgrade. The receiver fetches `subscriptionsv2` for status
+enrichment but does not retain the `linkedPurchaseToken` chain, so one logical
+Google subscription can split across rows. That is a known limitation, not a
+bug in the event layer.
 
 ## Outbound delivery
 
@@ -111,9 +122,12 @@ here is reachable from a shipped app and no client-pullable stream exists.
 - `outboundDeliveries` — one attempt chain per `(event, destination)`, and the
   dead-letter store: a row that exhausts its budget stays `failed` and can be
   replayed without re-deriving the event
-- the cron claims due rows under a lease sized to cover a whole batch, and each
-  lease carries a fencing token so a reclaimed row ignores the superseded
-  attempt still in flight
+- the cron claims one row immediately before each send, so destination changes
+  and breaker trips fence later claims; an already in-flight request may still
+  complete. Each lease also carries a token so a reclaimed row ignores a
+  superseded result
+- delivered history expires after 30 days; failed rows and their event payloads
+  remain as dead letters until an operator replays or removes the destination
 
 ### Registering a destination
 
@@ -137,28 +151,33 @@ openiap-delivery-id: <outboundDeliveries id>
 ```
 
 The timestamp is inside the signed material, so a captured body cannot be
-replayed with a fresh header. Reject signatures older than 300 seconds. During
-rotation the header carries both signatures comma-separated; accept if either
-matches.
+replayed with a fresh header. Reject signatures older than 300 seconds, then
+atomically record `openiap-event-id` before side effects; timestamp freshness
+alone does not stop replay inside that window. During rotation the header
+carries both signatures comma-separated; accept if either matches.
 
 ### Retries
 
-Exponential backoff from 30s, capped at 6h, 8 attempts. `408`, `429` and `5xx`
+Exponential backoff from 30s, capped at 6h, 14 attempts. `408`, `429` and `5xx`
 retry; other `4xx` are permanent. Twenty consecutive failures park the
 destination for manual review rather than hammering a dead endpoint forever.
 
 ### Safety
 
-Destination URLs must be public HTTPS. Loopback, RFC1918, link-local,
-`.internal`/`.local` and embedded credentials are rejected, redirects are not
-followed, and requests time out at 10s. This is a guard, not a substitute for
-egress policy: DNS can still resolve a public name to a private address, so a
-hardened deployment should also restrict egress.
+Destination URLs must be public HTTPS. Loopback, private, shared, reserved and
+link-local ranges, `.internal`/`.local` names and embedded credentials are
+rejected. Every A/AAAA answer is validated and the accepted address is pinned
+through TLS so DNS rebinding cannot change the target. Redirects are not
+followed, requests time out at 10s, and deployment-level egress policy remains
+recommended as defense in depth.
 
-Payloads carry no raw store envelope, no receipt and no credentials, and no
-internal IAPKit row ids: `sourceStoreEventId` is the store's own notification id
+Payloads carry no raw store envelope, receipt, credentials, source-webhook id or
+subscription-row id. `sourceStoreEventId` is the store's own notification id
 (ASN `notificationUUID` / RTDN `messageId`), which is what a developer can
-cross-reference with the store.
+cross-reference with the store. The public `eventId` and `projectId` remain in
+the contract for receiver idempotency and routing. `transactionId` and
+`originalTransactionId` appear only when the provider supplies those
+identifiers; a Play purchase token is never mislabeled as a transaction id.
 
 ## Revenue data
 
@@ -183,7 +202,7 @@ behavior everywhere.
 | Refund / revocation events | ✅    | ✅     | ❌               | ❌     |
 | Expiration                 | ✅    | ✅     | ❌               | ❌     |
 | Scheduled reconciliation   | ❌    | ❌     | ❌               | ✅     |
-| Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ❌     |
+| Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ⚠️ point-in-time |
 | Store-authoritative amount | ✅    | ✅     | ❌               | ❌     |
 
 Meta integrates only the Graph `verify_entitlement` endpoint: a one-shot check
@@ -191,13 +210,14 @@ that the viewer owns the SKU. There is no notification channel, so there is no
 renewal, expiration or refund signal and no canonical subscription record.
 Entitlement is answerable only at the moment it is asked.
 
-Amazon RVS validates receipts and a five-minute cron re-checks active ones,
-which catches cancellation after the fact. RVS alone does not carry enough
-lifecycle detail for a canonical subscription record.
+Amazon RVS validates receipts and a five-minute worker processes rows that are
+due on a 48-hour cadence. Backlog and retries can extend that interval. RVS
+alone does not carry enough lifecycle detail for a canonical subscription
+record, but each verification still answers point-in-time entitlement.
 
 Apple and Google have no scheduled reconciliation pass. A notification lost past
-the store's retry window is not self-healing; re-verifying the receipt repairs
-it.
+the store's retry window is not self-healing. Re-verifying the receipt repairs
+canonical state but does not recreate the missing commerce event.
 
 ## Integrating without touching IAPKit core
 
@@ -212,14 +232,22 @@ const presented = headerSignature.split(",").map((part) => part.trim());
 if (!presented.some((sig) => timingSafeEqual(sig, expected))) return 401;
 if (Math.abs(nowSeconds - Number(timestamp)) > 300) return 401;
 
-switch (event.eventType) {
-  case "entitlement.granted":
-    grantAccess(event.userId, event.productId);
-    break;
-  case "entitlement.revoked":
-    revokeAccess(event.userId, event.productId);
-    break;
+if (!event.userId || !event.productId) {
+  await queueForAccountCorrelationOnce(event.eventId, event);
+  return 202;
 }
+
+// Enforce event-id uniqueness in the same database transaction as the effect.
+await applyEventOnce(event.eventId, () => {
+  switch (event.eventType) {
+    case "entitlement.granted":
+      grantAccess(event.userId, event.productId);
+      break;
+    case "entitlement.revoked":
+      revokeAccess(event.userId, event.productId);
+      break;
+  }
+});
 ```
 
 A future `@openiap/integration-*` package would consume this contract from

@@ -9,18 +9,22 @@ import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  internalMutation,
   mutation,
   query,
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { getWritableProject } from "../projects/writable";
 import { COMMERCE_EVENT_TYPES } from "./contract";
-import { checkDestinationUrl } from "./signing";
+import { COMMERCE_EVENT_RETENTION_MS, checkDestinationUrl } from "./signing";
 
 const SECRET_BYTES = 32;
 /** Window during which a rotated-out secret still signs alongside the new one. */
 const ROTATION_GRACE_MS = 24 * 60 * 60 * 1000;
 const MAX_DESTINATIONS_PER_PROJECT = 10;
+const DESTINATION_DELETION_PAGE = 100;
 
 function generateSecret(): string {
   const bytes = new Uint8Array(SECRET_BYTES);
@@ -34,7 +38,7 @@ async function assertProjectAdmin(
 ): Promise<void> {
   const userId = await getAuthUserId(ctx);
   if (!userId) throw new ConvexError("Not authenticated");
-  const project = await ctx.db.get(projectId);
+  const project = await getWritableProject(ctx, projectId);
   if (!project) throw new ConvexError("Project not found");
   const membership = await ctx.db
     .query("organizationMembers")
@@ -90,7 +94,7 @@ export async function listHandler(
       .query("outboundDestinations")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    return rows.map(publicView);
+    return rows.filter((row) => !row.pendingDeletion).map(publicView);
   }
 }
 
@@ -128,7 +132,10 @@ export async function createHandler(
       .query("outboundDestinations")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    if (existing.length >= MAX_DESTINATIONS_PER_PROJECT) {
+    if (
+      existing.filter((destination) => !destination.pendingDeletion).length >=
+      MAX_DESTINATIONS_PER_PROJECT
+    ) {
       throw new ConvexError(
         `A project may have at most ${MAX_DESTINATIONS_PER_PROJECT} destinations`,
       );
@@ -176,7 +183,9 @@ export async function updateHandler(
 ): Promise<null> {
   {
     const destination = await ctx.db.get(args.destinationId);
-    if (!destination) throw new ConvexError("Destination not found");
+    if (!destination || destination.pendingDeletion) {
+      throw new ConvexError("Destination not found");
+    }
     await assertProjectAdmin(ctx, destination.projectId);
     assertEventTypes(args.eventTypes);
 
@@ -219,7 +228,9 @@ export async function rotateSecretHandler(
   {
     const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
-    if (!destination) throw new ConvexError("Destination not found");
+    if (!destination || destination.pendingDeletion) {
+      throw new ConvexError("Destination not found");
+    }
     await assertProjectAdmin(ctx, destination.projectId);
 
     const secret = generateSecret();
@@ -246,19 +257,61 @@ export async function removeHandler(
   {
     const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
-    if (!destination) throw new ConvexError("Destination not found");
+    if (!destination || destination.pendingDeletion) {
+      throw new ConvexError("Destination not found");
+    }
     await assertProjectAdmin(ctx, destination.projectId);
-
-    // Drop queued work first so the worker cannot claim a row whose
-    // destination just disappeared.
-    const deliveries = await ctx.db
-      .query("outboundDeliveries")
-      .withIndex("by_destination", (q) =>
-        q.eq("destinationId", destination._id),
-      )
-      .collect();
-    for (const delivery of deliveries) await ctx.db.delete(delivery._id);
-    await ctx.db.delete(destination._id);
+    await ctx.db.patch(destination._id, {
+      enabled: false,
+      pendingDeletion: true,
+      updatedAt: Date.now(),
+    });
+    await continueDestinationRemovalHandler(ctx, destination._id);
     return null;
   }
+}
+
+export const continueDestinationRemoval = internalMutation({
+  args: { destinationId: v.id("outboundDestinations") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await continueDestinationRemovalHandler(ctx, args.destinationId);
+    return null;
+  },
+});
+
+export async function continueDestinationRemovalHandler(
+  ctx: MutationCtx,
+  destinationId: Id<"outboundDestinations">,
+): Promise<void> {
+  const destination = await ctx.db.get(destinationId);
+  if (!destination || !destination.pendingDeletion) return;
+  const deliveries = await ctx.db
+    .query("outboundDeliveries")
+    .withIndex("by_destination", (q) => q.eq("destinationId", destinationId))
+    .take(DESTINATION_DELETION_PAGE);
+  for (const delivery of deliveries) await ctx.db.delete(delivery._id);
+  for (const eventId of new Set(deliveries.map((row) => row.eventId))) {
+    const remaining = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_event", (q) => q.eq("eventId", eventId))
+      .collect();
+    if (remaining.every((row) => row.status === "delivered")) {
+      const event = await ctx.db.get(eventId);
+      if (event && event.prunableAt === undefined) {
+        await ctx.db.patch(event._id, {
+          prunableAt: Date.now() + COMMERCE_EVENT_RETENTION_MS,
+        });
+      }
+    }
+  }
+  if (deliveries.length === DESTINATION_DELETION_PAGE) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.commerce.destinations.continueDestinationRemoval,
+      { destinationId },
+    );
+    return;
+  }
+  await ctx.db.delete(destinationId);
 }

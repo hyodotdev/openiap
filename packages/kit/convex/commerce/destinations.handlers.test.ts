@@ -11,6 +11,7 @@ const {
   updateHandler,
   rotateSecretHandler,
   removeHandler,
+  continueDestinationRemovalHandler,
 } = await import("./destinations");
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -25,6 +26,9 @@ class Query {
   }
   async collect(): Promise<Row[]> {
     return [...this.rows];
+  }
+  async take(count: number): Promise<Row[]> {
+    return this.rows.slice(0, count);
   }
   async first(): Promise<Row | null> {
     return this.rows[0] ?? null;
@@ -76,9 +80,17 @@ class Db {
   }
 }
 
-const ctxOf = (db: Db) => ({ db }) as never;
+const ctxOf = (db: Db) =>
+  ({
+    db,
+    scheduler: { runAfter: vi.fn().mockResolvedValue(undefined) },
+  }) as never;
 
 function seedProject(db: Db, role = "admin") {
+  db.rows("organizations").push({
+    _id: "orgs_1",
+    _creationTime: Date.now(),
+  });
   db.rows("projects").push({
     _id: "projects_1",
     _creationTime: Date.now(),
@@ -132,6 +144,18 @@ describe("create", () => {
         url: "https://hooks.example.com/h",
       }),
     ).rejects.toThrow(/Insufficient permissions/);
+  });
+
+  it("refuses new destinations after project deletion begins", async () => {
+    const db = new Db();
+    seedProject(db);
+    await db.patch("projects_1", { pendingDeletion: true });
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/h",
+      }),
+    ).rejects.toThrow(/Project not found/);
   });
 
   it("refuses an SSRF-shaped url before it is ever stored", async () => {
@@ -284,6 +308,35 @@ describe("remove", () => {
       updatedAt: Date.now(),
     });
     await removeHandler(ctxOf(db), destinationId);
+    expect(db.rows("outboundDeliveries")).toHaveLength(0);
+    expect(db.rows("outboundDestinations")).toHaveLength(0);
+  });
+
+  it("drains large delivery history in bounded continuations", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    for (let index = 0; index < 101; index += 1) {
+      await db.insert("outboundDeliveries", {
+        destinationId,
+        status: "delivered",
+      });
+    }
+    const scheduler = { runAfter: vi.fn().mockResolvedValue(undefined) };
+    const ctx = { db, scheduler } as never;
+
+    await removeHandler(ctx, destinationId);
+    expect(db.rows("outboundDeliveries")).toHaveLength(1);
+    expect(db.rows("outboundDestinations")[0]).toMatchObject({
+      enabled: false,
+      pendingDeletion: true,
+    });
+    expect(scheduler.runAfter).toHaveBeenCalledTimes(1);
+
+    await continueDestinationRemovalHandler(ctx, destinationId);
     expect(db.rows("outboundDeliveries")).toHaveLength(0);
     expect(db.rows("outboundDestinations")).toHaveLength(0);
   });

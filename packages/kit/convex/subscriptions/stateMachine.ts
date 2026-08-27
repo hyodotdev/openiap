@@ -59,6 +59,10 @@ export type SubscriptionTransition = {
     | null;
 };
 
+export type SubscriptionTransitionKind = NonNullable<
+  SubscriptionTransition["transition"]
+>;
+
 const ENTITLED_STATES: ReadonlySet<SubscriptionState> = new Set([
   "Active",
   "InGracePeriod",
@@ -97,15 +101,19 @@ export function applySubscriptionTransition(
     };
   }
 
-  const carryForward = (overrides: Partial<NonNullable<CurrentSubscription>>) =>
+  const carryForward = (
+    overrides: Partial<NonNullable<CurrentSubscription>>,
+    options: { clearCancellationReason?: boolean } = {},
+  ) =>
     ({
       state: overrides.state ?? current?.state ?? "Unknown",
       productId,
       expiresAt: overrides.expiresAt ?? current?.expiresAt,
       renewsAt: overrides.renewsAt ?? current?.renewsAt,
       willRenew: overrides.willRenew ?? current?.willRenew,
-      cancellationReason:
-        overrides.cancellationReason ?? current?.cancellationReason,
+      cancellationReason: options.clearCancellationReason
+        ? undefined
+        : (overrides.cancellationReason ?? current?.cancellationReason),
       currency: overrides.currency ?? current?.currency,
       priceAmountMicros:
         overrides.priceAmountMicros ?? current?.priceAmountMicros,
@@ -113,59 +121,73 @@ export function applySubscriptionTransition(
 
   switch (event.type) {
     case "SubscriptionStarted": {
-      const next = carryForward({
-        state: "Active",
-        expiresAt: event.expiresAt,
-        renewsAt: event.renewsAt,
-        willRenew: true,
-        cancellationReason: undefined,
-        currency: event.currency,
-        priceAmountMicros: event.priceAmountMicros,
-      });
+      const next = carryForward(
+        {
+          state: "Active",
+          expiresAt: event.expiresAt,
+          renewsAt: event.renewsAt,
+          willRenew: true,
+          currency: event.currency,
+          priceAmountMicros: event.priceAmountMicros,
+        },
+        { clearCancellationReason: true },
+      );
       return {
         next,
-        active: true,
+        active: entitlementActive(next),
         transition: current ? "Recovered" : "Started",
       };
     }
-    case "SubscriptionRenewed":
-      return {
-        next: carryForward({
+    case "SubscriptionRenewed": {
+      const next = carryForward(
+        {
           state: "Active",
           expiresAt: event.expiresAt,
           renewsAt: event.renewsAt,
           willRenew: true,
-          cancellationReason: undefined,
           currency: event.currency ?? current?.currency,
           priceAmountMicros:
             event.priceAmountMicros ?? current?.priceAmountMicros,
-        }),
-        active: true,
+        },
+        { clearCancellationReason: true },
+      );
+      return {
+        next,
+        active: entitlementActive(next),
         transition: "Renewed",
       };
+    }
     case "SubscriptionRecovered":
-    case "SubscriptionResumed":
-      return {
-        next: carryForward({
+    case "SubscriptionResumed": {
+      const next = carryForward(
+        {
           state: "Active",
           expiresAt: event.expiresAt,
           renewsAt: event.renewsAt,
           willRenew: true,
-          cancellationReason: undefined,
-        }),
-        active: true,
-        transition:
-          event.type === "SubscriptionResumed" ? "Resumed" : "Recovered",
-      };
-    case "SubscriptionInGracePeriod":
+        },
+        { clearCancellationReason: true },
+      );
       return {
-        next: carryForward({
-          state: "InGracePeriod",
-          expiresAt: event.expiresAt ?? current?.expiresAt,
-        }),
-        active: true,
+        next,
+        active: entitlementActive(next),
+        transition:
+          event.type === "SubscriptionResumed" || current?.state === "Paused"
+            ? "Resumed"
+            : "Recovered",
+      };
+    }
+    case "SubscriptionInGracePeriod": {
+      const next = carryForward({
+        state: "InGracePeriod",
+        expiresAt: event.expiresAt ?? current?.expiresAt,
+      });
+      return {
+        next,
+        active: entitlementActive(next),
         transition: "EnteredGracePeriod",
       };
+    }
     case "SubscriptionInBillingRetry":
       return {
         next: carryForward({ state: "InBillingRetry" }),
@@ -183,33 +205,38 @@ export function applySubscriptionTransition(
         active: false,
         transition: "Expired",
       };
-    case "SubscriptionCanceled":
+    case "SubscriptionCanceled": {
       // User turned off auto-renew but access continues until expiry.
       // We keep `state: "Active"` (matches the inbound lifecycle mapping in
       // `knowledge/external/webhook-mapping.md`) and just flip willRenew.
+      const next = carryForward({
+        state:
+          current?.state === "Active"
+            ? "Active"
+            : (event.subscriptionState ?? current?.state),
+        willRenew: false,
+        cancellationReason: event.cancellationReason ?? "UserCanceled",
+      });
       return {
-        next: carryForward({
-          state:
-            current && current.state === "Active" ? "Active" : current?.state,
-          willRenew: false,
-          cancellationReason: event.cancellationReason ?? "UserCanceled",
-        }),
-        active: current
-          ? entitlementActive({ ...current, willRenew: false })
-          : false,
+        next,
+        active: entitlementActive(next),
         transition: "Canceled",
       };
-    case "SubscriptionUncanceled":
-      return {
-        next: carryForward({
+    }
+    case "SubscriptionUncanceled": {
+      const next = carryForward(
+        {
+          state: event.subscriptionState ?? current?.state,
           willRenew: true,
-          cancellationReason: undefined,
-        }),
-        active: current
-          ? entitlementActive({ ...current, willRenew: true })
-          : false,
+        },
+        { clearCancellationReason: true },
+      );
+      return {
+        next,
+        active: entitlementActive(next),
         transition: "Uncanceled",
       };
+    }
     case "SubscriptionRevoked":
       return {
         next: carryForward({
@@ -230,25 +257,51 @@ export function applySubscriptionTransition(
         active: false,
         transition: "Refunded",
       };
-    case "SubscriptionProductChanged":
+    case "SubscriptionProductChanged": {
+      const next = carryForward({
+        state: "Active",
+        expiresAt: event.expiresAt,
+        renewsAt: event.renewsAt,
+        currency: event.currency,
+        priceAmountMicros: event.priceAmountMicros,
+      });
       return {
-        next: carryForward({
-          // The event itself doesn't include the new productId in its
-          // typed surface; receivers will overwrite when they have it.
-          // Until then we keep the old productId but mark Active.
-          state: "Active",
-        }),
-        active: true,
+        next,
+        active: entitlementActive(next),
         transition: "ProductChanged",
       };
-    case "SubscriptionPriceChange":
+    }
+    case "SubscriptionPriceChange": {
+      if (!current) {
+        return { next: null, active: false, transition: "Ignored" };
+      }
       return {
-        next: carryForward({
-          currency: event.currency,
-          priceAmountMicros: event.priceAmountMicros,
-        }),
-        active: current ? entitlementActive(current) : true,
+        next: current,
+        active: entitlementActive(current),
         transition: "PriceChanged",
+      };
+    }
+    case "SubscriptionDeferred": {
+      if (!current) {
+        return { next: null, active: false, transition: "Ignored" };
+      }
+      const next = carryForward({
+        expiresAt: event.expiresAt,
+        renewsAt: event.renewsAt,
+      });
+      return {
+        next,
+        active: entitlementActive(next),
+        transition: "Ignored",
+      };
+    }
+    case "SubscriptionPauseScheduleChanged":
+    case "SubscriptionPendingPurchaseCanceled":
+    case "SubscriptionPriceStepUpConsentChanged":
+      return {
+        next: current,
+        active: current ? entitlementActive(current) : false,
+        transition: "Ignored",
       };
     case "SubscriptionPaused":
       return {

@@ -315,15 +315,7 @@ describe("webhook event-first dedup migration", () => {
     ).resolves.toEqual({
       eventId: "event_google",
       type: "SubscriptionRenewed",
-      platform: "Android",
       purchaseToken: "purchase_token",
-      productId: "premium_monthly",
-      subscriptionState: "Active",
-      expiresAt: undefined,
-      renewsAt: undefined,
-      cancellationReason: undefined,
-      currency: undefined,
-      priceAmountMicros: undefined,
     });
   });
 
@@ -364,7 +356,6 @@ describe("webhook event-first dedup migration", () => {
       expect.objectContaining({
         eventId: "event_from_key",
         type: "SubscriptionRenewed",
-        platform: "Android",
         purchaseToken: "purchase_token",
       }),
     );

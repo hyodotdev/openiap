@@ -11,6 +11,7 @@
 // Store-specific detail lives under `extensions`, never in the canonical fields.
 
 import type { SubscriptionState } from "../webhooks/shared";
+import type { SubscriptionTransitionKind } from "../subscriptions/stateMachine";
 
 /**
  * Bumped only when a field changes meaning or disappears. Additive optional
@@ -19,25 +20,7 @@ import type { SubscriptionState } from "../webhooks/shared";
  */
 export const COMMERCE_EVENT_SCHEMA_VERSION = "1.0" as const;
 
-export type CommerceEventType =
-  | "subscription.started"
-  | "subscription.renewed"
-  | "subscription.recovered"
-  | "subscription.entered_grace_period"
-  | "subscription.entered_billing_retry"
-  | "subscription.expired"
-  | "subscription.canceled"
-  | "subscription.uncanceled"
-  | "subscription.revoked"
-  | "subscription.refunded"
-  | "subscription.product_changed"
-  | "subscription.price_changed"
-  | "subscription.paused"
-  | "subscription.resumed"
-  | "entitlement.granted"
-  | "entitlement.revoked";
-
-export const COMMERCE_EVENT_TYPES: readonly CommerceEventType[] = [
+export const COMMERCE_EVENT_TYPES = [
   "subscription.started",
   "subscription.renewed",
   "subscription.recovered",
@@ -56,23 +39,10 @@ export const COMMERCE_EVENT_TYPES: readonly CommerceEventType[] = [
   "entitlement.revoked",
 ] as const;
 
+export type CommerceEventType = (typeof COMMERCE_EVENT_TYPES)[number];
+
 /** Lifecycle transition kinds emitted by the subscription state machine. */
-export type LifecycleTransition =
-  | "Started"
-  | "Renewed"
-  | "Recovered"
-  | "EnteredGracePeriod"
-  | "EnteredBillingRetry"
-  | "Expired"
-  | "Canceled"
-  | "Uncanceled"
-  | "Revoked"
-  | "Refunded"
-  | "ProductChanged"
-  | "PriceChanged"
-  | "Paused"
-  | "Resumed"
-  | "Ignored";
+export type LifecycleTransition = SubscriptionTransitionKind;
 
 const TRANSITION_TO_EVENT: Record<
   LifecycleTransition,
@@ -164,6 +134,7 @@ export type CommerceEvent = {
 
 /** Extensions are attacker-influenced in the limit; keep them small and flat. */
 export const MAX_EXTENSION_ENTRIES = 24;
+export const MAX_EXTENSION_KEY_LENGTH = 64;
 export const MAX_EXTENSION_VALUE_LENGTH = 512;
 
 export function sanitizeExtensions(
@@ -171,7 +142,12 @@ export function sanitizeExtensions(
 ): Record<string, string> | undefined {
   if (!input) return undefined;
   const entries = Object.entries(input)
-    .filter(([key, value]) => key.length > 0 && typeof value === "string")
+    .filter(
+      ([key, value]) =>
+        key.length > 0 &&
+        key.length <= MAX_EXTENSION_KEY_LENGTH &&
+        typeof value === "string",
+    )
     .slice(0, MAX_EXTENSION_ENTRIES)
     .map(
       ([key, value]) =>

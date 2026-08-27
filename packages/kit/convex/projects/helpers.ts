@@ -185,6 +185,42 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const outboundDeliveries = await ctx.db
+    .query("outboundDeliveries")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const delivery of outboundDeliveries) {
+    await ctx.db.delete(delivery._id);
+  }
+  if (outboundDeliveries.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const outboundDestinations = await ctx.db
+    .query("outboundDestinations")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const destination of outboundDestinations) {
+    await ctx.db.delete(destination._id);
+  }
+  if (outboundDestinations.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const commerceEvents = await ctx.db
+    .query("commerceEvents")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const event of commerceEvents) {
+    await ctx.db.delete(event._id);
+  }
+  if (commerceEvents.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const webhookIdempotencyKeys = await ctx.db
     .query("webhookIdempotencyKeys")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

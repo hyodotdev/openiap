@@ -183,6 +183,9 @@ export const ingestAppleAsnIOS = action({
           platform: normalized.platform,
           environment: normalized.environment,
           purchaseToken: normalized.purchaseToken,
+          transactionId: normalized.transactionId,
+          originalTransactionId: normalized.originalTransactionId,
+          productKind: normalized.productKind,
           productId: normalized.productId,
           subscriptionState: normalized.subscriptionState,
           expiresAt: normalized.expiresAt,
@@ -204,10 +207,9 @@ export const ingestAppleAsnIOS = action({
     // subscription row, since every Apple retry would dedup before
     // ever reaching the state mutation.
     //
-    // TestNotification is the one exception: it has no transaction
-    // and therefore no purchaseToken to key a subscription row off
-    // of. The webhookEvents row above is enough to confirm wiring;
-    // there's nothing to apply on the subscriptions side.
+    // TestNotification has no purchaseToken. Every purchase-bearing event goes
+    // through the single apply handler; it marks one-time rows applied without
+    // creating subscription state or commerce events.
     if (normalized.purchaseToken) {
       await ctx.runMutation(
         internal.subscriptions.internal.applySubscriptionEvent,
@@ -314,6 +316,7 @@ function toDecodedTransaction(
   return {
     originalTransactionId: transaction.originalTransactionId ?? null,
     transactionId: transaction.transactionId ?? null,
+    type: transaction.type ?? null,
     productId: transaction.productId ?? null,
     expiresDate: transaction.expiresDate ?? null,
     revocationReason: transaction.revocationReason ?? null,
@@ -335,6 +338,8 @@ function toDecodedRenewalInfo(
     gracePeriodExpiresDate: renewalInfo.gracePeriodExpiresDate ?? null,
     isInBillingRetryPeriod: renewalInfo.isInBillingRetryPeriod ?? null,
     renewalDate: renewalInfo.renewalDate ?? null,
+    currency: renewalInfo.currency ?? null,
+    renewalPrice: renewalInfo.renewalPrice ?? null,
     recentSubscriptionStartDate:
       renewalInfo.recentSubscriptionStartDate ?? null,
   };

@@ -359,7 +359,7 @@ async function handleGoogleNotification(
           version?: string;
           notificationType: number;
           purchaseToken: string;
-          subscriptionId: string;
+          subscriptionId?: string;
         },
     oneTimeProductNotification: decoded.oneTimeProductNotification as
       | undefined

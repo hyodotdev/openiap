@@ -353,7 +353,6 @@ describe("webhooksRoutes", () => {
         subscriptionNotification: {
           notificationType: 2,
           purchaseToken: "opaque",
-          subscriptionId: "premium",
         },
       }),
     ).toString("base64");

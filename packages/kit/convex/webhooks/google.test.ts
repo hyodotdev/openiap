@@ -1,9 +1,56 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ingestGoogleRtdn as registeredIngestGoogleRtdn } from "./google";
+import {
+  ingestGoogleRtdn as registeredIngestGoogleRtdn,
+  selectLongestDatedLineItem,
+  selectSubscriptionMoney,
+} from "./google";
 import { testableFunction } from "../test.setup";
 
 const ingestGoogleRtdn = testableFunction(registeredIngestGoogleRtdn);
+
+describe("selectLongestDatedLineItem", () => {
+  it("selects the line item whose product owns the latest entitlement", () => {
+    expect(
+      selectLongestDatedLineItem([
+        { productId: "base", expiryTime: "2026-09-01T00:00:00Z" },
+        { productId: "addon", expiryTime: "2026-10-01T00:00:00Z" },
+      ]),
+    ).toMatchObject({ productId: "addon" });
+  });
+
+  it("falls back to the first item when every expiry is absent or invalid", () => {
+    expect(
+      selectLongestDatedLineItem([
+        { productId: "first", expiryTime: "invalid" },
+        { productId: "second" },
+      ]),
+    ).toMatchObject({ productId: "first" });
+  });
+});
+
+describe("selectSubscriptionMoney", () => {
+  const plan = {
+    recurringPrice: { currencyCode: "USD", units: "9" },
+    priceChangeDetails: {
+      newPrice: { currencyCode: "USD", units: "12" },
+    },
+  };
+
+  it("uses the announced price for price-change notifications", () => {
+    expect(selectSubscriptionMoney(plan, 19)).toMatchObject({ units: "12" });
+  });
+
+  it("uses the current recurring price for lifecycle notifications", () => {
+    expect(selectSubscriptionMoney(plan, 2)).toMatchObject({ units: "9" });
+  });
+
+  it("does not mislabel the current price when change details are absent", () => {
+    expect(
+      selectSubscriptionMoney({ recurringPrice: plan.recurringPrice }, 19),
+    ).toBeUndefined();
+  });
+});
 
 describe("ingestGoogleRtdn preflight", () => {
   it("repairs subscription state after an event-first partial failure", async () => {
@@ -24,14 +71,7 @@ describe("ingestGoogleRtdn preflight", () => {
       .mockResolvedValueOnce({
         eventId: "event_existing",
         type: "SubscriptionRenewed",
-        platform: "Android",
         purchaseToken: "purchase_token",
-        productId: "premium_monthly",
-        subscriptionState: "Active",
-        expiresAt: 2_000,
-        renewsAt: 2_000,
-        currency: "USD",
-        priceAmountMicros: 9_990_000,
       });
     const runAction = vi.fn();
     const runMutation = vi
@@ -51,7 +91,6 @@ describe("ingestGoogleRtdn preflight", () => {
         subscriptionNotification: {
           notificationType: 2,
           purchaseToken: "purchase_token",
-          subscriptionId: "premium_monthly",
         },
       },
     };
@@ -67,7 +106,7 @@ describe("ingestGoogleRtdn preflight", () => {
 
     expect(result).toEqual({
       eventId: "event_existing",
-      type: "WebhookEvent",
+      type: "SubscriptionRenewed",
       deduped: true,
     });
     expect(runQuery).toHaveBeenCalledTimes(5);

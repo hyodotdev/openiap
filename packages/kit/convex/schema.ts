@@ -590,6 +590,10 @@ const schema = defineSchema({
       v.literal("SubscriptionProductChanged"),
       v.literal("SubscriptionPaused"),
       v.literal("SubscriptionResumed"),
+      v.literal("SubscriptionDeferred"),
+      v.literal("SubscriptionPauseScheduleChanged"),
+      v.literal("SubscriptionPendingPurchaseCanceled"),
+      v.literal("SubscriptionPriceStepUpConsentChanged"),
       v.literal("PurchaseRefunded"),
       v.literal("PurchaseConsumptionRequest"),
       v.literal("TestNotification"),
@@ -613,6 +617,11 @@ const schema = defineSchema({
     // populate this; the receiver guards apply the same nullability
     // (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    productKind: v.optional(
+      v.union(v.literal("subscription"), v.literal("one_time")),
+    ),
     // Original notification id from the store (ASN v2 `notificationUUID`
     // or RTDN Pub/Sub `messageId`). Used internally for source-aware
     // deduplication and pruning correlation.
@@ -704,14 +713,11 @@ const schema = defineSchema({
   // Known limitation (Google `linkedPurchaseToken` chain): Google reissues
   // `purchaseToken` across upgrade/downgrade/replace flows. The new token
   // arrives via RTDN with no `linkedPurchaseToken` field in the webhook
-  // payload itself — that field is only available via a follow-up
-  // `purchases.subscriptionsv2.get` Play Developer API call. The webhook
-  // receiver intentionally does NOT make that synchronous call (it would
-  // violate Pub/Sub's fast-ACK contract and burn Play API quota per
-  // webhook). The result is one logical Google subscription can split
-  // into multiple rows after a token reissue, fragmenting the per-token
-  // state until a background reconciliation pass resolves the chain
-  // via the Play API and merges the rows.
+  // payload itself. The receiver calls `purchases.subscriptionsv2.get` for
+  // status enrichment, but does not retain the returned linked-token chain.
+  // The result is one logical Google subscription can split into multiple
+  // rows after a token reissue, fragmenting the per-token state until a
+  // background reconciliation pass resolves the chain and merges the rows.
   //
   // Apple does not have this problem — `originalTransactionId` is stable
   // across the entire entitlement lifetime.
@@ -740,6 +746,9 @@ const schema = defineSchema({
     startedAt: v.number(),
     updatedAt: v.number(),
     lastEventId: v.optional(v.id("webhookEvents")),
+    lastEventOccurredAt: v.optional(v.number()),
+    lastEventCreationTime: v.optional(v.number()),
+    lastEventSourceNotificationId: v.optional(v.string()),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"])
@@ -1274,13 +1283,10 @@ const schema = defineSchema({
     extensions: v.optional(v.record(v.string(), v.string())),
     occurredAt: v.number(),
     processedAt: v.number(),
+    prunableAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
-    .index("by_project_and_processed", ["projectId", "processedAt"])
-    .index("by_project_and_type", ["projectId", "eventType"])
-    .index("by_source_event", ["sourceEventId"])
-    // Fan-out scan: undelivered events per project in emission order.
-    .index("by_project_and_occurred", ["projectId", "occurredAt"]),
+    .index("by_prunable_at", ["prunableAt"]),
 
   // Developer-configured destinations for outbound commerce events.
   //
@@ -1298,6 +1304,7 @@ const schema = defineSchema({
     previousSecret: v.optional(v.string()),
     previousSecretExpiresAt: v.optional(v.number()),
     enabled: v.boolean(),
+    pendingDeletion: v.optional(v.boolean()),
     // Empty/absent means "every event type".
     eventTypes: v.optional(v.array(v.string())),
     description: v.optional(v.string()),
@@ -1344,11 +1351,10 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_event", ["eventId"])
     .index("by_destination", ["destinationId"])
-    .index("by_destination_and_status", ["destinationId", "status"])
+    .index("by_status_and_updated", ["status", "updatedAt"])
     // Worker claim scan.
     .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])
-    // Idempotent fan-out: one delivery row per (event, destination).
-    .index("by_event_and_destination", ["eventId", "destinationId"]),
+    .index("by_status_and_lease_expiry", ["status", "leaseExpiresAt"]),
 });
 
 export default schema;

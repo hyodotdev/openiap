@@ -4,6 +4,7 @@ import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   COMMERCE_EVENT_TYPES,
   MAX_EXTENSION_ENTRIES,
+  MAX_EXTENSION_KEY_LENGTH,
   MAX_EXTENSION_VALUE_LENGTH,
   commerceEventTypeForTransition,
   sanitizeExtensions,
@@ -82,8 +83,13 @@ describe("sanitizeExtensions", () => {
     expect(result?.note).toHaveLength(MAX_EXTENSION_VALUE_LENGTH);
   });
 
-  it("drops non-string values that slipped past the type", () => {
-    const dirty = { good: "ok", bad: 42 } as unknown as Record<string, string>;
+  it("drops invalid entries that slipped past the type", () => {
+    const dirty = {
+      good: "ok",
+      "": "empty-key",
+      ["x".repeat(MAX_EXTENSION_KEY_LENGTH + 1)]: "oversized-key",
+      bad: 42,
+    } as unknown as Record<string, string>;
     expect(sanitizeExtensions(dirty)).toEqual({ good: "ok" });
   });
 });
@@ -114,6 +120,7 @@ describe("provider capabilities", () => {
     expect(amazon.supportsInitialValidation).toBe(true);
     expect(amazon.supportsReconciliation).toBe(true);
     expect(amazon.supportsSubscriptions).toBe(false);
+    expect(amazon.supportsEntitlements).toBe(true);
   });
 
   it("does not claim reconciliation for Apple or Google, which have no cron", () => {

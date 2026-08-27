@@ -50,7 +50,8 @@ export const PROVIDER_CAPABILITIES: Record<
     notes:
       "App Store Server Notifications V2 drive the lifecycle. No scheduled " +
       "reconciliation pass exists yet, so a notification lost past Apple's " +
-      "retry window is not self-healing; re-verifying the receipt repairs it.",
+      "retry window is not self-healing. Re-verifying the receipt repairs " +
+      "canonical state but does not recreate the missing commerce event.",
   },
   google: {
     supportsInitialValidation: true,
@@ -64,10 +65,11 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsRevenueAmount: true,
     notes:
       "RTDN drives the lifecycle. Google reissues purchaseToken across " +
-      "upgrade/downgrade, and the linkedPurchaseToken chain is only readable " +
-      "through a follow-up Play Developer API call the receiver deliberately " +
-      "does not make, so one logical subscription can split across rows until " +
-      "a reconciliation pass merges them. That pass is not implemented.",
+      "upgrade/downgrade. The receiver fetches subscriptionsv2 for status " +
+      "enrichment but does not retain the linkedPurchaseToken chain, so one " +
+      "logical subscription can split across rows until a reconciliation " +
+      "pass merges them. That pass is not implemented; receipt verification " +
+      "repairs state but does not recreate a missed commerce event.",
   },
   horizon: {
     supportsInitialValidation: true,
@@ -94,13 +96,14 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsRefundEvents: false,
     supportsExpiration: false,
     supportsReconciliation: true,
-    supportsEntitlements: false,
+    supportsEntitlements: true,
     supportsRevenueAmount: false,
     notes:
       "RVS validates receipts and a five-minute cron re-checks active ones, " +
       "which catches cancellation after the fact. RVS alone does not carry " +
       "enough lifecycle detail for a canonical subscription record, so no " +
-      "subscription rows or lifecycle events are produced.",
+      "subscription rows or lifecycle events are produced. A verification " +
+      "still answers point-in-time entitlement.",
   },
 };
 

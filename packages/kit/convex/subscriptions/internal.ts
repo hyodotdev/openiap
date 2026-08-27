@@ -5,6 +5,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import {
   applySubscriptionTransition,
+  entitlementActive,
   type CurrentSubscription,
   type SubscriptionEventInput,
 } from "./stateMachine";
@@ -93,7 +94,10 @@ interface PersistSubscriptionSnapshotArgs {
   existing: Doc<"subscriptions"> | null;
   next: NonNullable<CurrentSubscription>;
   now: number;
-  lastEventId?: Id<"webhookEvents">;
+  lastEvent?: Pick<
+    Doc<"webhookEvents">,
+    "_id" | "_creationTime" | "occurredAt" | "sourceNotificationId"
+  >;
 }
 
 interface ApplySubscriptionEventArgs {
@@ -138,6 +142,12 @@ export async function applySubscriptionEventHandler(
   }
 
   const now = Date.now();
+  if (storedEvent.productKind === "one_time") {
+    if (storedEvent.appliedAt === undefined) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    }
+    return { transition: null, active: false };
+  }
   if (!storedEvent.purchaseToken) {
     if (storedEvent.appliedAt === undefined) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
@@ -152,10 +162,10 @@ export async function applySubscriptionEventHandler(
   );
   // Captured before any transition so entitlement deltas are emitted from the
   // pre-event gate, not the post-event one.
-  const previouslyActive = existing ? isActive(existing) : false;
+  const previouslyActive = existing ? isActive(existing, now) : false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
-    active: existing ? isActive(existing) : false,
+    active: existing ? isActive(existing, now) : false,
     ...(existing ? { subscriptionId: existing._id } : {}),
   });
 
@@ -168,7 +178,22 @@ export async function applySubscriptionEventHandler(
   // order breaks ties between distinct same-timestamp events. A recorded-but-
   // unapplied newest event still falls through and repairs the original
   // action/mutation gap.
-  if (existing?.lastEventId) {
+  if (
+    existing?.lastEventSourceNotificationId === storedEvent.sourceNotificationId
+  ) {
+    await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    return noOpResult();
+  }
+  if (existing?.lastEventOccurredAt !== undefined) {
+    const stale =
+      existing.lastEventOccurredAt > storedEvent.occurredAt ||
+      (existing.lastEventOccurredAt === storedEvent.occurredAt &&
+        (existing.lastEventCreationTime ?? 0) > storedEvent._creationTime);
+    if (stale) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+      return noOpResult();
+    }
+  } else if (existing?.lastEventId) {
     if (existing.lastEventId === args.eventId) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
       return noOpResult();
@@ -218,35 +243,6 @@ export async function applySubscriptionEventHandler(
 
   if (!transition.next) {
     await ctx.db.patch(storedEvent._id, { appliedAt: now });
-    await emitCommerceEvent(ctx, {
-      projectId: args.projectId,
-      transition: transition.transition ?? null,
-      active: false,
-      previouslyActive,
-      sourceEvent: storedEvent,
-      ...(existing ? { subscriptionId: existing._id } : {}),
-      ...(existing
-        ? {
-            subscription: {
-              state: existing.state,
-              productId: existing.productId,
-              ...(existing.expiresAt !== undefined
-                ? { expiresAt: existing.expiresAt }
-                : {}),
-              ...(existing.renewsAt !== undefined
-                ? { renewsAt: existing.renewsAt }
-                : {}),
-              ...(existing.willRenew !== undefined
-                ? { willRenew: existing.willRenew }
-                : {}),
-              ...(existing.cancellationReason
-                ? { cancellationReason: existing.cancellationReason }
-                : {}),
-              ...(existing.userId ? { userId: existing.userId } : {}),
-            },
-          }
-        : {}),
-    });
     return {
       transition: transition.transition ?? null,
       active: false,
@@ -261,13 +257,14 @@ export async function applySubscriptionEventHandler(
     existing,
     next: transition.next,
     now,
-    lastEventId: args.eventId,
+    lastEvent: storedEvent,
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
+  const active = entitlementActive(transition.next, now);
   await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: transition.transition ?? null,
-    active: transition.active,
+    active,
     previouslyActive,
     sourceEvent: storedEvent,
     subscriptionId,
@@ -292,7 +289,7 @@ export async function applySubscriptionEventHandler(
 
   return {
     transition: transition.transition ?? null,
-    active: transition.active,
+    active,
     subscriptionId,
   };
 }
@@ -546,8 +543,13 @@ async function persistSubscriptionSnapshot(
     currency: args.next.currency,
     priceAmountMicros: args.next.priceAmountMicros,
     updatedAt: args.now,
-    ...(args.lastEventId !== undefined
-      ? { lastEventId: args.lastEventId }
+    ...(args.lastEvent
+      ? {
+          lastEventId: args.lastEvent._id,
+          lastEventOccurredAt: args.lastEvent.occurredAt,
+          lastEventCreationTime: args.lastEvent._creationTime,
+          lastEventSourceNotificationId: args.lastEvent.sourceNotificationId,
+        }
       : {}),
   };
 
@@ -623,15 +625,22 @@ async function fetchBillingPeriod(
 }
 
 function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {
+  const appleRenewalPreference =
+    raw.platform === "IOS" && raw.type === "SubscriptionProductChanged";
   return {
     type: raw.type,
-    productId: raw.productId,
+    // Apple's renewal preference is the product for the next billing period;
+    // the current transaction remains active until then. Keep the target on
+    // the source event, but do not replace the canonical subscription early.
+    productId: appleRenewalPreference ? undefined : raw.productId,
     subscriptionState: raw.subscriptionState,
     expiresAt: raw.expiresAt,
     renewsAt: raw.renewsAt,
     cancellationReason: raw.cancellationReason,
-    currency: raw.currency,
-    priceAmountMicros: raw.priceAmountMicros,
+    currency: appleRenewalPreference ? undefined : raw.currency,
+    priceAmountMicros: appleRenewalPreference
+      ? undefined
+      : raw.priceAmountMicros,
   };
 }
 
@@ -639,10 +648,7 @@ function isActive(
   sub: Doc<"subscriptions">,
   now: number = Date.now(),
 ): boolean {
-  const entitled = sub.state === "Active" || sub.state === "InGracePeriod";
-  if (!entitled) return false;
-  if (sub.expiresAt != null && sub.expiresAt <= now) return false;
-  return true;
+  return entitlementActive(sub, now);
 }
 
 function normalizeHarmonizedPurchaseState(

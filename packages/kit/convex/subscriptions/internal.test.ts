@@ -107,6 +107,12 @@ class MemDb {
     throw new Error(`patch: no doc with id ${id}`);
   }
 
+  async delete(id: string): Promise<void> {
+    for (const table of this.tables.values()) {
+      if (table.delete(id)) return;
+    }
+  }
+
   rows(tableName: string): Row[] {
     return [...this.table(tableName).values()];
   }
@@ -137,20 +143,29 @@ const TOKEN = "purchase_token_1";
 async function seedWebhookEvent(
   db: MemDb,
   args: {
-    type: "SubscriptionStarted" | "SubscriptionExpired";
+    type:
+      | "SubscriptionStarted"
+      | "SubscriptionExpired"
+      | "SubscriptionProductChanged";
     notificationId: string;
     occurredAt: number;
+    platform?: "IOS" | "Android";
+    productId?: string;
   },
 ): Promise<string> {
+  const platform = args.platform ?? "Android";
   return await db.insert("webhookEvents", {
     projectId: PROJECT_ID,
     type: args.type,
-    source: "GooglePlayRealTimeDeveloperNotifications",
-    platform: "Android",
+    source:
+      platform === "IOS"
+        ? "AppleAppStoreServerNotificationsV2"
+        : "GooglePlayRealTimeDeveloperNotifications",
+    platform,
     environment: "Sandbox",
     purchaseToken: TOKEN,
     sourceNotificationId: args.notificationId,
-    productId: "premium_monthly",
+    productId: args.productId ?? "premium_monthly",
     subscriptionState:
       args.type === "SubscriptionExpired" ? "Expired" : "Active",
     expiresAt: 1_800_000_000_000,
@@ -292,6 +307,126 @@ describe("applySubscriptionEventHandler", () => {
     expect(db.rows("subscriptionStats")).toMatchObject([
       { activeSubs: 0, mrrMicros: 0 },
     ]);
+  });
+
+  it("keeps durable ordering after the previous webhook row is pruned", async () => {
+    const db = new MemDb();
+    const startedId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "newer",
+      occurredAt: 2_000,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: startedId as never,
+    });
+    await db.delete(startedId);
+    const staleId = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "older",
+      occurredAt: 1_000,
+    });
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: staleId as never,
+      }),
+    ).resolves.toMatchObject({ transition: null, active: true });
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        state: "Active",
+        lastEventOccurredAt: 2_000,
+        lastEventSourceNotificationId: "newer",
+      },
+    ]);
+  });
+
+  it("does not grant entitlement for an already-expired start event", async () => {
+    const db = new MemDb();
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "expired-start",
+      occurredAt: 1_000,
+    });
+    await db.patch(eventId, { expiresAt: Date.now() - 1 });
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: eventId as never,
+      }),
+    ).resolves.toMatchObject({ transition: "Started", active: false });
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toEqual([
+      "subscription.started",
+    ]);
+  });
+
+  it("records one-time events without creating subscription commerce", async () => {
+    const db = new MemDb();
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "one-time",
+      occurredAt: 1_000,
+    });
+    await db.patch(eventId, { productKind: "one_time" });
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: eventId as never,
+      }),
+    ).resolves.toEqual({ transition: null, active: false });
+    expect(db.rows("subscriptions")).toHaveLength(0);
+    expect(db.rows("commerceEvents")).toHaveLength(0);
+  });
+
+  it("keeps an Apple renewal preference separate from the active product", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const startedId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "apple-started",
+      occurredAt: 1_000,
+      platform: "IOS",
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: startedId as never,
+    });
+    const changedId = await seedWebhookEvent(db, {
+      type: "SubscriptionProductChanged",
+      notificationId: "apple-next-product",
+      occurredAt: 2_000,
+      platform: "IOS",
+      productId: "premium_yearly",
+    });
+    await db.patch(changedId, { priceAmountMicros: 99_990_000 });
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: changedId as never,
+      }),
+    ).resolves.toMatchObject({ transition: "ProductChanged", active: true });
+    expect(db.rows("subscriptions")).toMatchObject([
+      {
+        productId: "premium_monthly",
+        platform: "IOS",
+        priceAmountMicros: 9_990_000,
+      },
+    ]);
+    expect(db.rows("commerceEvents").at(-1)).toMatchObject({
+      eventType: "subscription.product_changed",
+      productId: "premium_yearly",
+      amountMicros: 99_990_000,
+      subscription: { productId: "premium_monthly" },
+    });
   });
 });
 

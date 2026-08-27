@@ -45,10 +45,10 @@ async function findWebhookEventByDedupKey(
 
 // Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
 // burning Play Developer API quota on Pub/Sub retries. Returns the
-// recorded subscription fields if the (projectId, source,
+// recorded event id and purchase token if the (projectId, source,
 // sourceNotificationId) triple has already been ingested; null otherwise.
-// Returning the stored fields lets a retry repair subscription state if the
-// first attempt wrote the event and then failed before applying it. Distinct from
+// The action passes that id to the apply mutation, which reads the authoritative
+// stored event and repairs subscription state after a partial failure. Distinct from
 // `recordWebhookEvent` because it's a query (no DB writes) and runs
 // inside the Pub/Sub action's pre-Play-API path so a retry of an
 // already-processed messageId can short-circuit before
@@ -71,35 +71,7 @@ export const lookupExistingEvent = internalQuery({
     v.object({
       eventId: v.id("webhookEvents"),
       type: v.string(),
-      platform: v.union(v.literal("IOS"), v.literal("Android")),
       purchaseToken: v.optional(v.string()),
-      productId: v.optional(v.string()),
-      subscriptionState: v.optional(
-        v.union(
-          v.literal("Active"),
-          v.literal("InGracePeriod"),
-          v.literal("InBillingRetry"),
-          v.literal("Expired"),
-          v.literal("Revoked"),
-          v.literal("Refunded"),
-          v.literal("Paused"),
-          v.literal("Unknown"),
-        ),
-      ),
-      expiresAt: v.optional(v.number()),
-      renewsAt: v.optional(v.number()),
-      cancellationReason: v.optional(
-        v.union(
-          v.literal("UserCanceled"),
-          v.literal("BillingError"),
-          v.literal("PriceIncreaseDeclined"),
-          v.literal("ProductUnavailable"),
-          v.literal("Refunded"),
-          v.literal("Other"),
-        ),
-      ),
-      currency: v.optional(v.string()),
-      priceAmountMicros: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -134,15 +106,7 @@ export const lookupExistingEvent = internalQuery({
     return {
       eventId: existingEvent._id,
       type: existingEvent.type,
-      platform: existingEvent.platform,
       purchaseToken: existingEvent.purchaseToken,
-      productId: existingEvent.productId,
-      subscriptionState: existingEvent.subscriptionState,
-      expiresAt: existingEvent.expiresAt,
-      renewsAt: existingEvent.renewsAt,
-      cancellationReason: existingEvent.cancellationReason,
-      currency: existingEvent.currency,
-      priceAmountMicros: existingEvent.priceAmountMicros,
     };
   },
 });
@@ -175,6 +139,10 @@ export const recordWebhookEvent = internalMutation({
         v.literal("SubscriptionProductChanged"),
         v.literal("SubscriptionPaused"),
         v.literal("SubscriptionResumed"),
+        v.literal("SubscriptionDeferred"),
+        v.literal("SubscriptionPauseScheduleChanged"),
+        v.literal("SubscriptionPendingPurchaseCanceled"),
+        v.literal("SubscriptionPriceStepUpConsentChanged"),
         v.literal("PurchaseRefunded"),
         v.literal("PurchaseConsumptionRequest"),
         v.literal("TestNotification"),
@@ -192,6 +160,11 @@ export const recordWebhookEvent = internalMutation({
       // Optional because TestNotification payloads carry no transaction.
       // Real lifecycle event types always populate this.
       purchaseToken: v.optional(v.string()),
+      transactionId: v.optional(v.string()),
+      originalTransactionId: v.optional(v.string()),
+      productKind: v.optional(
+        v.union(v.literal("subscription"), v.literal("one_time")),
+      ),
       productId: v.optional(v.string()),
       subscriptionState: v.optional(
         v.union(
@@ -344,6 +317,9 @@ export const recordWebhookEvent = internalMutation({
       platform: args.event.platform,
       environment: args.event.environment,
       purchaseToken: args.event.purchaseToken,
+      transactionId: args.event.transactionId,
+      originalTransactionId: args.event.originalTransactionId,
+      productKind: args.event.productKind,
       sourceNotificationId: args.sourceNotificationId,
       productId: args.event.productId,
       subscriptionState: args.event.subscriptionState,

@@ -4,6 +4,7 @@ import { emitCommerceEvent, destinationAcceptsType } from "./internal";
 import {
   buildEventPayload,
   claimPendingDeliveriesHandler,
+  pruneCommerceHistoryHandler,
   recordDeliveryResultHandler,
   replayDeliveryHandler,
   type ClaimedDelivery,
@@ -27,6 +28,9 @@ class Query {
   async unique(): Promise<Row | null> {
     return this.rows[0] ?? null;
   }
+  async first(): Promise<Row | null> {
+    return this.rows[0] ?? null;
+  }
   async take(n: number): Promise<Row[]> {
     return this.rows.slice(0, n);
   }
@@ -40,6 +44,10 @@ class Builder {
   }
   lte(field: string, value: number): Builder {
     this.preds.push((r) => (r[field] as number) <= value);
+    return this;
+  }
+  lt(field: string, value: number): Builder {
+    this.preds.push((r) => (r[field] as number) < value);
     return this;
   }
 }
@@ -71,9 +79,32 @@ class Db {
     const row = await this.get(id);
     if (row) Object.assign(row, patch);
   }
+  async delete(id: string): Promise<void> {
+    for (const rows of this.tables.values()) {
+      const index = rows.findIndex((row) => row._id === id);
+      if (index >= 0) {
+        rows.splice(index, 1);
+        return;
+      }
+    }
+  }
 }
 
-const ctxOf = (db: Db) => ({ db }) as any;
+const ctxOf = (db: Db) =>
+  ({ db, scheduler: { runAfter: async () => undefined } }) as any;
+
+function seedWritableProject(db: Db): void {
+  if (db.rows("projects").some((row) => row._id === "projects_1")) return;
+  db.rows("organizations").push({
+    _id: "organizations_1",
+    _creationTime: Date.now(),
+  });
+  db.rows("projects").push({
+    _id: "projects_1",
+    _creationTime: Date.now(),
+    organizationId: "organizations_1",
+  });
+}
 
 function sourceEvent(overrides: Record<string, unknown> = {}) {
   return {
@@ -118,6 +149,51 @@ describe("emitCommerceEvent", () => {
     expect(event.store).toBe("apple");
     expect(event.environment).toBe("production");
     expect(event.sourceEventId).toBe("webhookEvents_1");
+    expect(event.transactionId).toBeUndefined();
+    expect(event.prunableAt as number).toBeGreaterThan(
+      event.processedAt as number,
+    );
+  });
+
+  it("publishes real provider transaction identifiers, never a purchase token", async () => {
+    const db = new Db();
+    await emitCommerceEvent(ctxOf(db), {
+      projectId: "projects_1" as never,
+      transition: "Renewed",
+      active: true,
+      previouslyActive: true,
+      sourceEvent: sourceEvent({
+        purchaseToken: "stable-purchase-token",
+        transactionId: "transaction-99",
+        originalTransactionId: "transaction-1",
+      }),
+    });
+    expect(db.rows("commerceEvents")[0]).toMatchObject({
+      transactionId: "transaction-99",
+      originalTransactionId: "transaction-1",
+    });
+    expect(JSON.stringify(db.rows("commerceEvents"))).not.toContain(
+      "stable-purchase-token",
+    );
+  });
+
+  it("falls back to the canonical product when a refund omits it", async () => {
+    const db = new Db();
+    await emitCommerceEvent(ctxOf(db), {
+      projectId: "projects_1" as never,
+      transition: "Refunded",
+      active: false,
+      previouslyActive: true,
+      sourceEvent: sourceEvent({ productId: undefined }),
+      subscription: {
+        state: "Refunded",
+        productId: "com.example.premium",
+      },
+    });
+    expect(db.rows("commerceEvents")[0]).toMatchObject({
+      eventType: "subscription.refunded",
+      productId: "com.example.premium",
+    });
   });
 
   it("emits nothing for a no-op transition with no entitlement change", async () => {
@@ -266,6 +342,7 @@ describe("destinationAcceptsType", () => {
 
 describe("claimPendingDeliveries", () => {
   async function seedDue(db: Db, overrides: Record<string, unknown> = {}) {
+    seedWritableProject(db);
     const destinationId = await seedDestination(db);
     const eventId = await db.insert("commerceEvents", {
       projectId: "projects_1",
@@ -323,6 +400,47 @@ describe("claimPendingDeliveries", () => {
     );
   });
 
+  it("fences an expired attempt when its destination is disabled", async () => {
+    const db = new Db();
+    const { destinationId } = await seedDue(db);
+    const [first] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    const row = db.rows("outboundDeliveries")[0];
+
+    await db.patch(row._id, { leaseExpiresAt: Date.now() - 1 });
+    await db.patch(destinationId, { enabled: false });
+    expect(await claimPendingDeliveriesHandler(ctxOf(db), 10)).toEqual([]);
+    expect(row).toMatchObject({
+      status: "failed",
+      lastError: "destination disabled",
+      leaseExpiresAt: undefined,
+      leaseToken: undefined,
+    });
+
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: row._id as never,
+      leaseToken: first.leaseToken,
+      ok: true,
+      statusCode: 200,
+      retryable: false,
+    });
+    expect(row.status).toBe("failed");
+    expect(row.attempts).toBe(0);
+  });
+
+  it("stops queued sends as soon as project deletion begins", async () => {
+    const db = new Db();
+    await seedDue(db);
+    await db.patch("projects_1", { pendingDeletion: true });
+
+    await expect(claimPendingDeliveriesHandler(ctxOf(db), 10)).resolves.toEqual(
+      [],
+    );
+    expect(db.rows("outboundDeliveries")[0]).toMatchObject({
+      status: "failed",
+      lastError: "project unavailable",
+    });
+  });
+
   it("reclaims a delivery whose lease expired after a crashed attempt", async () => {
     const db = new Db();
     await seedDue(db);
@@ -334,6 +452,18 @@ describe("claimPendingDeliveries", () => {
     await db.patch(row._id, { leaseExpiresAt: Date.now() - 1 });
     const reclaimed = await claimPendingDeliveriesHandler(ctxOf(db), 10);
     expect(reclaimed).toHaveLength(1);
+  });
+
+  it("reclaims an expired lease ahead of a full pending backlog", async () => {
+    const db = new Db();
+    await seedDue(db);
+    const [first] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    const stale = db.rows("outboundDeliveries")[0];
+    await db.patch(stale._id, { leaseExpiresAt: Date.now() - 1 });
+    for (let index = 0; index < 10; index += 1) await seedDue(db);
+
+    const [reclaimed] = await claimPendingDeliveriesHandler(ctxOf(db), 10, 1);
+    expect(reclaimed.deliveryId).toBe(first.deliveryId);
   });
 
   it("does not steal a delivery whose lease is still held", async () => {
@@ -368,6 +498,7 @@ const LEASE_TOKEN = "lease-token-1";
 
 describe("recordDeliveryResult", () => {
   async function seedClaimed(db: Db, attempts = 0) {
+    seedWritableProject(db);
     const destinationId = await seedDestination(db, {
       consecutiveFailures: 0,
     });
@@ -547,6 +678,10 @@ describe("replayDelivery", () => {
   it("requeues a dead-lettered delivery with a fresh attempt budget", async () => {
     const db = new Db();
     const deliveryId = await seedFailed(db);
+    await db.patch(deliveryId, {
+      leaseExpiresAt: Date.now() - 1,
+      leaseToken: "stale-token",
+    });
     expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
       true,
     );
@@ -554,6 +689,8 @@ describe("replayDelivery", () => {
     expect(delivery?.status).toBe("pending");
     expect(delivery?.attempts).toBe(0);
     expect(delivery?.lastError).toBeUndefined();
+    expect(delivery?.leaseExpiresAt).toBeUndefined();
+    expect(delivery?.leaseToken).toBeUndefined();
   });
 
   it("refuses to replay a delivery that is not dead-lettered", async () => {
@@ -563,6 +700,40 @@ describe("replayDelivery", () => {
     expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
       false,
     );
+  });
+});
+
+describe("pruneCommerceHistory", () => {
+  it("removes old successes while preserving dead letters and their events", async () => {
+    const db = new Db();
+    const old = Date.now() - 40 * 24 * 60 * 60 * 1000;
+    const deliveredEvent = await db.insert("commerceEvents", {
+      projectId: "projects_1",
+      processedAt: old,
+      prunableAt: Date.now() - 1,
+    });
+    const failedEvent = await db.insert("commerceEvents", {
+      projectId: "projects_1",
+      processedAt: old,
+    });
+    await db.insert("outboundDeliveries", {
+      eventId: deliveredEvent,
+      status: "delivered",
+      updatedAt: old,
+    });
+    await db.insert("outboundDeliveries", {
+      eventId: failedEvent,
+      status: "failed",
+      updatedAt: old,
+    });
+
+    await expect(
+      pruneCommerceHistoryHandler(ctxOf(db), 30 * 24 * 60 * 60 * 1000, 200),
+    ).resolves.toEqual({ deletedDeliveries: 1, deletedEvents: 1 });
+    expect(db.rows("outboundDeliveries")).toMatchObject([
+      { eventId: failedEvent, status: "failed" },
+    ]);
+    expect(db.rows("commerceEvents")).toMatchObject([{ _id: failedEvent }]);
   });
 });
 

@@ -18,6 +18,15 @@ describe("checkDestinationUrl", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("drops a fragment that HTTP can never transmit", () => {
+    const result = checkDestinationUrl(
+      "https://hooks.example.com/iapkit#local",
+    );
+    expect(result.ok).toBe(true);
+    if (result.ok)
+      expect(result.url.toString()).toBe("https://hooks.example.com/iapkit");
+  });
+
   it("rejects plaintext http", () => {
     expect(checkDestinationUrl("http://hooks.example.com")).toEqual({
       ok: false,
@@ -34,10 +43,19 @@ describe("checkDestinationUrl", () => {
     "https://169.254.169.254/latest/meta-data",
     "https://kube.internal/hook",
     "https://printer.local/hook",
+    "https://localhost./hook",
+    "https://printer.local./hook",
+    "https://service.internal./hook",
+    "https://100.64.0.1/hook",
+    "https://198.18.0.1/hook",
+    "https://192.0.2.1/hook",
+    "https://203.0.113.1/hook",
     "https://[::1]/hook",
     "https://[fd00::1]/hook",
     "https://[fe80::1]/hook",
-  ])("rejects private or link-local target %s", (url) => {
+    "https://[2001:1::1]/hook",
+    "https://[2001:3::1]/hook",
+  ])("rejects non-public target %s", (url) => {
     const result = checkDestinationUrl(url);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe("host-not-public");
@@ -95,6 +113,14 @@ describe("nextAttemptDelayMs", () => {
   it("starts at 30s and never exceeds the six-hour cap", () => {
     expect(nextAttemptDelayMs(1)).toBe(30_000);
     expect(nextAttemptDelayMs(100)).toBe(6 * 60 * 60 * 1000);
+  });
+
+  it("keeps retrying through an outage lasting more than a day", () => {
+    const timeToFinalAttempt = Array.from(
+      { length: MAX_DELIVERY_ATTEMPTS - 1 },
+      (_, index) => nextAttemptDelayMs(index + 1),
+    ).reduce((total, delay) => total + delay, 0);
+    expect(timeToFinalAttempt).toBeGreaterThan(24 * 60 * 60 * 1000);
   });
 });
 
@@ -161,10 +187,8 @@ describe("signPayload", () => {
 });
 
 describe("lease sizing", () => {
-  // The worker sends its batch sequentially. A lease shorter than the batch
-  // lets a later row expire while it is still in flight, which the next cron
-  // tick reclaims and re-sends.
-  it("covers a full batch of worst-case requests", () => {
-    expect(LEASE_MS).toBeGreaterThan(CLAIM_BATCH_LIMIT * REQUEST_TIMEOUT_MS);
+  it("covers a worst-case request plus persistence overhead", () => {
+    expect(LEASE_MS).toBeGreaterThan(REQUEST_TIMEOUT_MS);
+    expect(CLAIM_BATCH_LIMIT).toBeGreaterThan(1);
   });
 });

@@ -86,7 +86,7 @@ export const ingestGoogleRtdn = action({
           version: v.optional(v.string()),
           notificationType: v.number(),
           purchaseToken: v.string(),
-          subscriptionId: v.string(),
+          subscriptionId: v.optional(v.string()),
         }),
       ),
       oneTimeProductNotification: v.optional(
@@ -177,7 +177,7 @@ export const ingestGoogleRtdn = action({
       }
       return {
         eventId: preFlightEvent.eventId,
-        type: "WebhookEvent",
+        type: preFlightEvent.type,
         deduped: true,
       };
     }
@@ -241,6 +241,9 @@ export const ingestGoogleRtdn = action({
           platform: normalized.platform,
           environment: normalized.environment,
           purchaseToken: normalized.purchaseToken,
+          transactionId: normalized.transactionId,
+          originalTransactionId: normalized.originalTransactionId,
+          productKind: normalized.productKind,
           productId: normalized.productId,
           subscriptionState: normalized.subscriptionState,
           expiresAt: normalized.expiresAt,
@@ -261,9 +264,9 @@ export const ingestGoogleRtdn = action({
     // then crashed before patching the subscription row (every Google
     // RTDN retry would dedup before reaching the state mutation).
     //
-    // TestNotification is the one exception: it has no transaction
-    // and therefore no purchaseToken. Skip the subscription mutation
-    // for those — webhookEvents row alone confirms wiring.
+    // TestNotification has no purchaseToken. Every purchase-bearing event goes
+    // through the single apply handler; it marks one-time rows applied without
+    // creating subscription state or commerce events.
     if (normalized.purchaseToken) {
       await ctx.runMutation(
         internal.subscriptions.internal.applySubscriptionEvent,
@@ -302,6 +305,35 @@ function parseEpochMs(input: string | undefined | null): number | undefined {
   if (!input) return undefined;
   const ms = Date.parse(input);
   return Number.isFinite(ms) ? ms : undefined;
+}
+
+export function selectLongestDatedLineItem<
+  T extends { expiryTime?: string | null },
+>(lineItems: T[]): T | undefined {
+  return (
+    lineItems.reduce<T | undefined>((acc, item) => {
+      if (!item.expiryTime) return acc;
+      const score = Date.parse(item.expiryTime);
+      if (!Number.isFinite(score)) return acc;
+      const accScore = acc?.expiryTime ? Date.parse(acc.expiryTime) : -Infinity;
+      return score > accScore ? item : acc;
+    }, undefined) ?? lineItems[0]
+  );
+}
+
+export function selectSubscriptionMoney<T>(
+  plan:
+    | {
+        recurringPrice?: T;
+        priceChangeDetails?: { newPrice?: T } | null;
+      }
+    | null
+    | undefined,
+  notificationType: number,
+): T | undefined {
+  return notificationType === 8 || notificationType === 19
+    ? plan?.priceChangeDetails?.newPrice
+    : plan?.recurringPrice;
 }
 
 async function maybeFetchSubscriptionInfo(
@@ -407,17 +439,7 @@ async function maybeFetchSubscriptionInfo(
     // longest-dated line item is the user-relevant "subscription is
     // good through" date and matches what the dashboard surfaces.
     const lineItems = data.lineItems ?? [];
-    // `expiryTime` is an ISO string; max-by sorts by Date.parse order.
-    const matched =
-      lineItems.reduce<(typeof lineItems)[number] | undefined>((acc, li) => {
-        if (!li.expiryTime) return acc;
-        const score = Date.parse(li.expiryTime);
-        if (!Number.isFinite(score)) return acc;
-        const accScore = acc?.expiryTime
-          ? Date.parse(acc.expiryTime)
-          : -Infinity;
-        return score > accScore ? li : acc;
-      }, undefined) ?? lineItems[0];
+    const matched = selectLongestDatedLineItem(lineItems);
     const expiry = matched?.expiryTime ?? undefined;
     // `autoRenewingPlan` presence is the authoritative v2 indicator
     // that auto-renewal is scheduled. Gating `renews` on
@@ -428,9 +450,13 @@ async function maybeFetchSubscriptionInfo(
     const renews = matched?.autoRenewingPlan
       ? (expiry ?? undefined)
       : undefined;
-    const recurring = matched?.autoRenewingPlan?.recurringPrice;
+    const price = selectSubscriptionMoney(
+      matched?.autoRenewingPlan,
+      payload.subscriptionNotification.notificationType,
+    );
 
     return {
+      productId: matched?.productId ?? undefined,
       state: data.subscriptionState ?? undefined,
       cancelReason: data.canceledStateContext?.userInitiatedCancellation
         ? "USER_CANCELED"
@@ -444,14 +470,14 @@ async function maybeFetchSubscriptionInfo(
       // (https://github.com/hyodotdev/openiap/pull/124) review).
       expiryTimeMillis: parseEpochMs(expiry),
       autoRenewingPlanRenewsTimeMillis: parseEpochMs(renews),
-      currency: recurring?.currencyCode ?? undefined,
+      currency: price?.currencyCode ?? undefined,
       // Use the shared moneyToMicros helper from products/play.ts —
       // same Google `Money` proto, same BigInt overflow concerns.
       // The shared version also guards against
       // `Number.MAX_SAFE_INTEGER` overflow and wraps the BigInt
       // parse in try/catch (handles malformed `units` instead of
       // throwing into the surrounding subscriptionsv2-get path).
-      priceAmountMicros: moneyToMicros(recurring),
+      priceAmountMicros: moneyToMicros(price),
     };
   } catch (error) {
     // Re-throw structured ConvexErrors (e.g. INVALID_SERVICE_ACCOUNT_JSON)

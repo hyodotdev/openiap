@@ -10,7 +10,9 @@
 import { v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 import { internalMutation, type MutationCtx } from "../_generated/server";
+import { getWritableProject } from "../projects/writable";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   type CommerceEvent,
@@ -18,6 +20,7 @@ import {
 } from "./contract";
 import {
   CLAIM_BATCH_LIMIT,
+  COMMERCE_EVENT_RETENTION_MS,
   LEASE_MS,
   MAX_DELIVERY_ATTEMPTS,
   nextAttemptDelayMs,
@@ -25,6 +28,7 @@ import {
 
 /** Consecutive failures before a destination is parked for manual review. */
 const BREAKER_THRESHOLD = 20;
+const PRUNE_BATCH_LIMIT = 200;
 
 export type ClaimedDelivery = {
   deliveryId: Id<"outboundDeliveries">;
@@ -85,7 +89,10 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
 }
 
 export const claimPendingDeliveries = internalMutation({
-  args: { limit: v.optional(v.number()) },
+  args: {
+    limit: v.optional(v.number()),
+    maxClaims: v.optional(v.number()),
+  },
   returns: v.array(
     v.object({
       deliveryId: v.id("outboundDeliveries"),
@@ -99,46 +106,57 @@ export const claimPendingDeliveries = internalMutation({
     }),
   ),
   handler: async (ctx, args): Promise<ClaimedDelivery[]> =>
-    claimPendingDeliveriesHandler(ctx, args.limit ?? CLAIM_BATCH_LIMIT),
+    claimPendingDeliveriesHandler(
+      ctx,
+      args.limit ?? CLAIM_BATCH_LIMIT,
+      args.maxClaims ?? args.limit ?? CLAIM_BATCH_LIMIT,
+    ),
 });
 
 export async function claimPendingDeliveriesHandler(
   ctx: MutationCtx,
   limit: number,
+  maxClaims: number = limit,
 ): Promise<ClaimedDelivery[]> {
   const now = Date.now();
+  // Recover crashed attempts first so a continuous pending backlog cannot
+  // starve an expired lease forever.
+  const stale = await ctx.db
+    .query("outboundDeliveries")
+    .withIndex("by_status_and_lease_expiry", (q) =>
+      q.eq("status", "delivering").lte("leaseExpiresAt", now),
+    )
+    .take(limit);
   const due = await ctx.db
     .query("outboundDeliveries")
     .withIndex("by_status_and_next_attempt", (q) =>
       q.eq("status", "pending").lte("nextAttemptAt", now),
     )
-    .take(limit);
-
-  // An action that crashed or timed out mid-attempt leaves its row in
-  // "delivering" forever, because the pending scan above cannot see it.
-  // Reclaim once the lease has expired; the receiver is expected to be
-  // idempotent on `openiap-event-id`, so a re-send is safe.
-  if (due.length < limit) {
-    const stale = await ctx.db
-      .query("outboundDeliveries")
-      .withIndex("by_status_and_next_attempt", (q) =>
-        q.eq("status", "delivering"),
-      )
-      .take(limit - due.length);
-    for (const row of stale) {
-      if ((row.leaseExpiresAt ?? 0) <= now) due.push(row);
-    }
-  }
+    .take(limit - stale.length);
+  const candidates = [...stale, ...due];
 
   const claimed: ClaimedDelivery[] = [];
-  for (const delivery of due) {
+  for (const delivery of candidates) {
+    const project = await getWritableProject(ctx, delivery.projectId);
+    if (!project) {
+      await ctx.db.patch(delivery._id, {
+        status: "failed",
+        lastError: "project unavailable",
+        leaseExpiresAt: undefined,
+        leaseToken: undefined,
+        updatedAt: now,
+      });
+      continue;
+    }
     const destination = await ctx.db.get(delivery.destinationId);
-    if (!destination || !destination.enabled) {
+    if (!destination || !destination.enabled || destination.pendingDeletion) {
       // Destination was disabled after the event was queued; drop the attempt
       // rather than holding a row that can never succeed.
       await ctx.db.patch(delivery._id, {
         status: "failed",
         lastError: "destination disabled",
+        leaseExpiresAt: undefined,
+        leaseToken: undefined,
         updatedAt: now,
       });
       continue;
@@ -148,6 +166,8 @@ export async function claimPendingDeliveriesHandler(
       await ctx.db.patch(delivery._id, {
         status: "failed",
         lastError: "event missing",
+        leaseExpiresAt: undefined,
+        leaseToken: undefined,
         updatedAt: now,
       });
       continue;
@@ -176,6 +196,7 @@ export async function claimPendingDeliveriesHandler(
       body: JSON.stringify(buildEventPayload(event)),
       eventId: event._id,
     });
+    if (claimed.length >= maxClaims) break;
   }
   return claimed;
 }
@@ -211,7 +232,12 @@ export async function recordDeliveryResultHandler(
     if (!delivery) return null;
     // Lease was reclaimed and reissued while this attempt was in flight. Its
     // result describes a superseded send; the current holder owns the row.
-    if (delivery.leaseToken !== args.leaseToken) return null;
+    if (
+      delivery.status !== "delivering" ||
+      delivery.leaseToken !== args.leaseToken
+    ) {
+      return null;
+    }
     const now = Date.now();
     const attempts = delivery.attempts + 1;
     const destination = await ctx.db.get(delivery.destinationId);
@@ -232,6 +258,22 @@ export async function recordDeliveryResultHandler(
           lastSuccessAt: now,
           updatedAt: now,
         });
+      }
+      const eventDeliveries = await ctx.db
+        .query("outboundDeliveries")
+        .withIndex("by_event", (q) => q.eq("eventId", delivery.eventId))
+        .collect();
+      if (
+        eventDeliveries.every(
+          (row) => row._id === delivery._id || row.status === "delivered",
+        )
+      ) {
+        const event = await ctx.db.get(delivery.eventId);
+        if (event) {
+          await ctx.db.patch(event._id, {
+            prunableAt: now + COMMERCE_EVENT_RETENTION_MS,
+          });
+        }
       }
       return null;
     }
@@ -290,8 +332,71 @@ export async function replayDeliveryHandler(
       attempts: 0,
       nextAttemptAt: now,
       lastError: undefined,
+      leaseExpiresAt: undefined,
+      leaseToken: undefined,
       updatedAt: now,
     });
     return true;
   }
+}
+
+export const pruneCommerceHistory = internalMutation({
+  args: {
+    olderThanMs: v.number(),
+    batchSize: v.optional(v.number()),
+  },
+  returns: v.object({
+    deletedDeliveries: v.number(),
+    deletedEvents: v.number(),
+  }),
+  handler: async (ctx, args) =>
+    pruneCommerceHistoryHandler(
+      ctx,
+      args.olderThanMs,
+      args.batchSize ?? PRUNE_BATCH_LIMIT,
+    ),
+});
+
+export async function pruneCommerceHistoryHandler(
+  ctx: MutationCtx,
+  olderThanMs: number,
+  batchSize: number,
+): Promise<{ deletedDeliveries: number; deletedEvents: number }> {
+  const now = Date.now();
+  const cutoff = now - olderThanMs;
+  const delivered = await ctx.db
+    .query("outboundDeliveries")
+    .withIndex("by_status_and_updated", (q) =>
+      q.eq("status", "delivered").lt("updatedAt", cutoff),
+    )
+    .take(batchSize);
+  for (const delivery of delivered) await ctx.db.delete(delivery._id);
+
+  const oldEvents = await ctx.db
+    .query("commerceEvents")
+    .withIndex("by_prunable_at", (q) => q.lte("prunableAt", now))
+    .take(batchSize);
+  let deletedEvents = 0;
+  for (const event of oldEvents) {
+    const retainedDelivery = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_event", (q) => q.eq("eventId", event._id))
+      .first();
+    if (!retainedDelivery) {
+      await ctx.db.delete(event._id);
+      deletedEvents += 1;
+    }
+  }
+
+  if (
+    delivered.length === batchSize ||
+    (oldEvents.length === batchSize && deletedEvents > 0)
+  ) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.commerce.deliveryState.pruneCommerceHistory,
+      { olderThanMs, batchSize },
+    );
+  }
+  return { deletedDeliveries: delivered.length, deletedEvents };
 }

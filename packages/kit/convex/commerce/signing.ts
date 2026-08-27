@@ -4,7 +4,8 @@
 // action can share one set of numbers.
 
 /** Attempt budget before a delivery becomes dead-letter. */
-export const MAX_DELIVERY_ATTEMPTS = 8;
+export const MAX_DELIVERY_ATTEMPTS = 14;
+export const COMMERCE_EVENT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /** Rows one worker pass claims. */
 export const CLAIM_BATCH_LIMIT = 25;
@@ -13,14 +14,12 @@ export const CLAIM_BATCH_LIMIT = 25;
 export const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
- * The worker sends its batch sequentially, so the lease has to cover the whole
- * batch — not one request — or later rows expire mid-flight and the next tick
- * reclaims a delivery that is still running. The margin absorbs mutation
- * round-trips between sends.
+ * The worker claims one row immediately before each send. The margin absorbs
+ * DNS, TLS and result-recording round trips around the request timeout.
  */
-export const LEASE_MS = CLAIM_BATCH_LIMIT * REQUEST_TIMEOUT_MS + 60_000;
+export const LEASE_MS = REQUEST_TIMEOUT_MS + 60_000;
 
-/** Receivers must reject signatures older than this to blunt replay. */
+/** Receivers reject older signatures, then dedupe `openiap-event-id`. */
 export const SIGNATURE_TOLERANCE_SECONDS = 300;
 
 export const SIGNATURE_HEADER = "openiap-signature";
@@ -49,11 +48,67 @@ export type UrlCheck =
   | { ok: true; url: URL }
   | { ok: false; reason: UrlRejection };
 
-// Blocks the obvious SSRF shapes. This is a guard, not a substitute for
-// network egress policy: DNS can still resolve a public name to a private
-// address, so a hardened deployment should also restrict egress.
-const PRIVATE_V4 =
-  /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+function ipv4Number(address: string): number | null {
+  const parts = address.split(".");
+  if (parts.length !== 4) return null;
+  const octets = parts.map(Number);
+  if (
+    octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
+    return null;
+  }
+  return (
+    ((octets[0] << 24) >>> 0) + (octets[1] << 16) + (octets[2] << 8) + octets[3]
+  );
+}
+
+function inIpv4Range(value: number, base: number, bits: number): boolean {
+  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
+  return (value & mask) === (base & mask);
+}
+
+/** True only for globally routable IPv4/IPv6 literals. */
+export function isPublicIpAddress(rawAddress: string): boolean {
+  const address = rawAddress.toLowerCase().replace(/^\[|\]$/g, "");
+  const embedded = embeddedIpv4(address);
+  if (embedded) return isPublicIpAddress(embedded);
+
+  const v4 = ipv4Number(address);
+  if (v4 !== null) {
+    const blocked: Array<[string, number]> = [
+      ["0.0.0.0", 8],
+      ["10.0.0.0", 8],
+      ["100.64.0.0", 10],
+      ["127.0.0.0", 8],
+      ["169.254.0.0", 16],
+      ["172.16.0.0", 12],
+      ["192.0.0.0", 24],
+      ["192.0.2.0", 24],
+      ["192.88.99.0", 24],
+      ["192.168.0.0", 16],
+      ["198.18.0.0", 15],
+      ["198.51.100.0", 24],
+      ["203.0.113.0", 24],
+      ["224.0.0.0", 4],
+      ["240.0.0.0", 4],
+    ];
+    return !blocked.some(([base, bits]) =>
+      inIpv4Range(v4, ipv4Number(base)!, bits),
+    );
+  }
+
+  if (!address.includes(":")) return false;
+  const groups = address.split(":");
+  const first = Number.parseInt(groups[0] || "0", 16);
+  if (first < 0x2000 || first > 0x3fff) return false;
+  const second = Number.parseInt(groups[1] || "0", 16);
+  if (first === 0x2001 && (second <= 0x1ff || second === 0xdb8)) {
+    return false;
+  }
+  if (first === 0x2002) return false;
+  if (first === 0x3fff && second < 0x1000) return false;
+  return true;
+}
 
 /**
  * `URL` canonicalizes `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so a textual
@@ -75,13 +130,12 @@ function embeddedIpv4(hostname: string): string | null {
 }
 
 function isPrivateHost(rawHostname: string): boolean {
-  const host = rawHostname.toLowerCase();
+  const host = rawHostname.toLowerCase().replace(/\.$/, "");
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
     host.endsWith(".internal") ||
-    host.endsWith(".local") ||
-    PRIVATE_V4.test(host)
+    host.endsWith(".local")
   ) {
     return true;
   }
@@ -95,8 +149,10 @@ function isPrivateHost(rawHostname: string): boolean {
   ) {
     return true;
   }
-  const embedded = embeddedIpv4(v6);
-  return embedded !== null && PRIVATE_V4.test(embedded);
+  if (ipv4Number(host) !== null || host.includes(":")) {
+    return !isPublicIpAddress(v6);
+  }
+  return false;
 }
 
 export function checkDestinationUrl(raw: string): UrlCheck {
@@ -112,6 +168,12 @@ export function checkDestinationUrl(raw: string): UrlCheck {
   if (url.username || url.password) {
     return { ok: false, reason: "credentials-in-url" };
   }
+  if (url.hostname.endsWith(".")) {
+    url.hostname = url.hostname.slice(0, -1);
+  }
+  // Fragments are never part of an HTTP request target; do not store a value
+  // that the worker will silently send differently.
+  url.hash = "";
   if (isPrivateHost(url.hostname)) {
     return { ok: false, reason: "host-not-public" };
   }

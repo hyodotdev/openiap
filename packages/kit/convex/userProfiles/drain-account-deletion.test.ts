@@ -321,6 +321,17 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     // assertions verify account deletion actually delegates to the shared
     // project cascade instead of merely keeping a duplicate test port green.
     const webhookEventId = await ctx.db.insert("webhookEvents", { projectId });
+    const commerceEventId = await ctx.db.insert("commerceEvents", {
+      projectId,
+    });
+    const destinationId = await ctx.db.insert("outboundDestinations", {
+      projectId,
+    });
+    await ctx.db.insert("outboundDeliveries", {
+      projectId,
+      eventId: commerceEventId,
+      destinationId,
+    });
     await ctx.db.insert("webhookIdempotencyKeys", {
       eventId: webhookEventId,
     });
@@ -357,6 +368,9 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("productClientPayloads")).toBe(0);
     expect(ctx.db.countRows("productClientPayloadSummaries")).toBe(0);
     expect(ctx.db.countRows("webhookEvents")).toBe(0);
+    expect(ctx.db.countRows("commerceEvents")).toBe(0);
+    expect(ctx.db.countRows("outboundDestinations")).toBe(0);
+    expect(ctx.db.countRows("outboundDeliveries")).toBe(0);
     expect(ctx.db.countRows("webhookIdempotencyKeys")).toBe(0);
     expect(ctx.db.countRows("subscriptions")).toBe(0);
     expect(ctx.db.countRows("subscriptionStats")).toBe(0);

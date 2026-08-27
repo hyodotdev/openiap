@@ -9,6 +9,7 @@
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import type { SubscriptionState } from "../webhooks/shared";
+import { COMMERCE_EVENT_RETENTION_MS } from "./signing";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   commerceEventTypeForTransition,
@@ -89,6 +90,8 @@ export async function emitCommerceEvent(
   const source = args.sourceEvent;
   const now = Date.now();
   const written: Id<"commerceEvents">[] = [];
+  const extensions = sanitizeExtensions(args.extensions);
+  const productId = source.productId ?? args.subscription?.productId;
 
   for (const eventType of types) {
     const amountProvenance: DataProvenance | undefined =
@@ -102,8 +105,11 @@ export async function emitCommerceEvent(
       ...(args.subscription?.userId
         ? { userId: args.subscription.userId }
         : {}),
-      ...(source.productId ? { productId: source.productId } : {}),
-      ...(source.purchaseToken ? { transactionId: source.purchaseToken } : {}),
+      ...(productId ? { productId } : {}),
+      ...(source.transactionId ? { transactionId: source.transactionId } : {}),
+      ...(source.originalTransactionId
+        ? { originalTransactionId: source.originalTransactionId }
+        : {}),
       ...(args.subscriptionId ? { subscriptionId: args.subscriptionId } : {}),
       ...(args.subscription
         ? {
@@ -133,14 +139,23 @@ export async function emitCommerceEvent(
       ...(amountProvenance ? { amountProvenance } : {}),
       sourceEventId: source._id,
       sourceStoreNotificationId: source.sourceNotificationId,
-      ...(sanitizeExtensions(args.extensions)
-        ? { extensions: sanitizeExtensions(args.extensions) }
-        : {}),
+      ...(extensions ? { extensions } : {}),
       occurredAt: source.occurredAt,
       processedAt: now,
     });
     written.push(eventId);
-    await fanOutToDestinations(ctx, args.projectId, eventId, eventType, now);
+    const destinations = await fanOutToDestinations(
+      ctx,
+      args.projectId,
+      eventId,
+      eventType,
+      now,
+    );
+    if (destinations === 0) {
+      await ctx.db.patch(eventId, {
+        prunableAt: now + COMMERCE_EVENT_RETENTION_MS,
+      });
+    }
   }
 
   return written;
@@ -153,7 +168,7 @@ async function fanOutToDestinations(
   eventId: Id<"commerceEvents">,
   eventType: CommerceEventType,
   now: number,
-): Promise<void> {
+): Promise<number> {
   const destinations = await ctx.db
     .query("outboundDestinations")
     .withIndex("by_project_and_enabled", (q) =>
@@ -164,6 +179,7 @@ async function fanOutToDestinations(
   // `eventId` was inserted by the caller moments ago, so no delivery row can
   // reference it yet — one insert per destination is already exactly-once.
   // Emission itself is protected by the surrounding transaction.
+  let created = 0;
   for (const destination of destinations) {
     if (!destinationAcceptsType(destination, eventType)) continue;
     await ctx.db.insert("outboundDeliveries", {
@@ -176,7 +192,9 @@ async function fanOutToDestinations(
       createdAt: now,
       updatedAt: now,
     });
+    created += 1;
   }
+  return created;
 }
 
 export function destinationAcceptsType(

@@ -62,14 +62,34 @@ describe("applySubscriptionTransition", () => {
   });
 
   it("Uncanceled flips willRenew back to true", () => {
-    const canceled = { ...baseSub, willRenew: false };
+    const canceled = {
+      ...baseSub,
+      willRenew: false,
+      cancellationReason: "UserCanceled" as const,
+    };
     const result = applySubscriptionTransition(canceled, {
       type: "SubscriptionUncanceled",
       productId: baseSub.productId,
     });
     expect(result.next?.willRenew).toBe(true);
+    expect(result.next?.cancellationReason).toBeUndefined();
     expect(result.active).toBe(true);
     expect(result.transition).toBe("Uncanceled");
+  });
+
+  it("reconstructs active access when cancellation is the first event", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionCanceled",
+      productId: baseSub.productId,
+      subscriptionState: "Active",
+      expiresAt: 2_500_000_000_000,
+    });
+    expect(result.next).toMatchObject({
+      state: "Active",
+      willRenew: false,
+      cancellationReason: "UserCanceled",
+    });
+    expect(result.active).toBe(true);
   });
 
   it("InGracePeriod keeps the user entitled", () => {
@@ -137,12 +157,118 @@ describe("applySubscriptionTransition", () => {
     expect(paused.active).toBe(false);
 
     const resumed = applySubscriptionTransition(paused.next, {
-      type: "SubscriptionResumed",
+      // Google reports RECOVERED after a pause; prior state disambiguates it.
+      type: "SubscriptionRecovered",
       productId: baseSub.productId,
       expiresAt: 2_500_000_000_000,
     });
     expect(resumed.next?.state).toBe("Active");
     expect(resumed.active).toBe(true);
+    expect(resumed.transition).toBe("Resumed");
+  });
+
+  it("does not revoke access for a pause schedule change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionPauseScheduleChanged",
+      productId: baseSub.productId,
+    });
+    expect(result.next).toEqual(baseSub);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it.each([
+    "SubscriptionPendingPurchaseCanceled",
+    "SubscriptionPriceStepUpConsentChanged",
+  ] as const)("records %s without changing an existing entitlement", (type) => {
+    const result = applySubscriptionTransition(baseSub, {
+      type,
+      productId: baseSub.productId,
+    });
+    expect(result.next).toEqual(baseSub);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("does not create a subscription for a canceled pending purchase", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionPendingPurchaseCanceled",
+      productId: baseSub.productId,
+    });
+    expect(result.next).toBeNull();
+    expect(result.active).toBe(false);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("keeps a future price off the canonical row until renewal", () => {
+    const current = {
+      ...baseSub,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    };
+    const result = applySubscriptionTransition(current, {
+      type: "SubscriptionPriceChange",
+      productId: baseSub.productId,
+      currency: "USD",
+      priceAmountMicros: 12_990_000,
+    });
+    expect(result.next).toEqual(current);
+    expect(result.transition).toBe("PriceChanged");
+  });
+
+  it("applies a Google item change with its current price", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionProductChanged",
+      productId: "com.example.premium.yearly",
+      currency: "USD",
+      priceAmountMicros: 99_990_000,
+    });
+    expect(result.next).toMatchObject({
+      productId: "com.example.premium.yearly",
+      currency: "USD",
+      priceAmountMicros: 99_990_000,
+    });
+    expect(result.transition).toBe("ProductChanged");
+  });
+
+  it("does not create a subscription from an orphan price notice", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionPriceChange",
+      productId: baseSub.productId,
+      currency: "USD",
+      priceAmountMicros: 12_990_000,
+    });
+    expect(result.next).toBeNull();
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("updates a deferred renewal without calling it a product change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionDeferred",
+      productId: baseSub.productId,
+      expiresAt: 2_500_000_000_000,
+    });
+    expect(result.next?.expiresAt).toBe(2_500_000_000_000);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it.each([
+    "SubscriptionStarted",
+    "SubscriptionRenewed",
+    "SubscriptionRecovered",
+    "SubscriptionInGracePeriod",
+    "SubscriptionProductChanged",
+  ] as const)("does not mark an expired %s transition active", (type) => {
+    const result = applySubscriptionTransition(
+      type === "SubscriptionStarted" ? null : baseSub,
+      {
+        type,
+        productId: baseSub.productId,
+        expiresAt: Date.now() - 1,
+      },
+    );
+    expect(result.active).toBe(false);
   });
 
   it("TestNotification and PurchaseConsumptionRequest do not mutate state", () => {

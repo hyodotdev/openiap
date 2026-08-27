@@ -1,6 +1,7 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
+import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
 
 const crons = cronJobs();
 
@@ -66,9 +67,6 @@ crons.interval(
   { olderThanMs: WEBHOOK_RETENTION_MS },
 );
 
-// Amazon recommends checking every active RVS receipt within 72 hours.
-// Rows become due on a 48-hour cadence; the bounded worker processes at most
-// 20 per tick, so backlog and retries can delay completion beyond that target.
 // Outbound delivery of normalized commerce events to developer-registered
 // endpoints. One minute keeps first-attempt latency low; the per-row lease
 // stops overlapping ticks from double-delivering.
@@ -79,6 +77,16 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "prune delivered commerce events past retention",
+  { hours: 1 },
+  internal.commerce.deliveryState.pruneCommerceHistory,
+  { olderThanMs: COMMERCE_EVENT_RETENTION_MS },
+);
+
+// Amazon recommends checking every active RVS receipt within 72 hours.
+// Rows become due on a 48-hour cadence; the bounded worker processes at most
+// 20 per tick, so backlog and retries can delay completion beyond that target.
 crons.interval(
   "reconcile amazon purchases",
   { minutes: 5 },
