@@ -17,8 +17,6 @@ import {
   type LifecycleTransition,
 } from "./contract";
 
-const DELIVERY_FIRST_ATTEMPT_DELAY_MS = 0;
-
 type WebhookEnvironment = Doc<"webhookEvents">["environment"];
 type CommerceEnvironmentValue = "production" | "sandbox" | "xcode";
 
@@ -135,25 +133,18 @@ async function fanOutToDestinations(
     )
     .collect();
 
+  // `eventId` was inserted by the caller moments ago, so no delivery row can
+  // reference it yet — one insert per destination is already exactly-once.
+  // Emission itself is protected by the surrounding transaction.
   for (const destination of destinations) {
     if (!destinationAcceptsType(destination, eventType)) continue;
-    // The (event, destination) index makes a retried emission a no-op rather
-    // than a duplicate delivery.
-    const existing = await ctx.db
-      .query("outboundDeliveries")
-      .withIndex("by_event_and_destination", (q) =>
-        q.eq("eventId", eventId).eq("destinationId", destination._id),
-      )
-      .unique();
-    if (existing) continue;
-
     await ctx.db.insert("outboundDeliveries", {
       projectId,
       eventId,
       destinationId: destination._id,
       status: "pending",
       attempts: 0,
-      nextAttemptAt: now + DELIVERY_FIRST_ATTEMPT_DELAY_MS,
+      nextAttemptAt: now,
       createdAt: now,
       updatedAt: now,
     });

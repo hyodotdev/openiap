@@ -226,37 +226,21 @@ describe("emitCommerceEvent", () => {
     expect(db.rows("outboundDeliveries")).toHaveLength(0);
   });
 
-  it("does not double-fan-out when emission is retried for the same event", async () => {
+  it("writes exactly one delivery per destination per event", async () => {
     const db = new Db();
     await seedDestination(db);
-    const args = {
+    await emitCommerceEvent(ctxOf(db), {
       projectId: "projects_1" as never,
-      transition: "Renewed" as const,
+      transition: "Started",
       active: true,
-      previouslyActive: true,
+      previouslyActive: false,
       sourceEvent: sourceEvent(),
-    };
-    const first = await emitCommerceEvent(ctxOf(db), args);
-    // Re-running emission for an already-written event id must not duplicate
-    // its delivery rows.
-    await db.insert("outboundDeliveries", {
-      projectId: "projects_1",
-      eventId: first[0],
-      destinationId: db.rows("outboundDestinations")[0]._id,
-      status: "pending",
-      attempts: 0,
-      nextAttemptAt: Date.now(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
     });
-    const before = db.rows("outboundDeliveries").length;
-    await emitCommerceEvent(ctxOf(db), args);
-    // The second emit writes a new event row, but the pre-existing delivery
-    // for the first event is untouched.
-    expect(
-      db.rows("outboundDeliveries").filter((r) => r.eventId === first[0]),
-    ).toHaveLength(2);
-    expect(db.rows("outboundDeliveries").length).toBeGreaterThan(before);
+    // Started + entitlement.granted are two events, so two deliveries — one
+    // per event, not two per event.
+    const deliveries = db.rows("outboundDeliveries");
+    expect(deliveries).toHaveLength(2);
+    expect(new Set(deliveries.map((r) => r.eventId)).size).toBe(2);
   });
 });
 
@@ -332,6 +316,28 @@ describe("claimPendingDeliveries", () => {
     expect(db.rows("outboundDeliveries")[0].lastError).toBe(
       "destination disabled",
     );
+  });
+
+  it("reclaims a delivery whose lease expired after a crashed attempt", async () => {
+    const db = new Db();
+    await seedDue(db);
+    await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    const row = db.rows("outboundDeliveries")[0];
+    expect(row.status).toBe("delivering");
+
+    // Simulate the action dying before it could record a result.
+    await db.patch(row._id, { leaseExpiresAt: Date.now() - 1 });
+    const reclaimed = await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    expect(reclaimed).toHaveLength(1);
+  });
+
+  it("does not steal a delivery whose lease is still held", async () => {
+    const db = new Db();
+    await seedDue(db);
+    await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    const row = db.rows("outboundDeliveries")[0];
+    await db.patch(row._id, { leaseExpiresAt: Date.now() + 60_000 });
+    expect(await claimPendingDeliveriesHandler(ctxOf(db), 10)).toHaveLength(0);
   });
 
   it("only offers the previous secret while its rotation window is open", async () => {

@@ -92,6 +92,22 @@ export async function claimPendingDeliveriesHandler(
     )
     .take(limit);
 
+  // An action that crashed or timed out mid-attempt leaves its row in
+  // "delivering" forever, because the pending scan above cannot see it.
+  // Reclaim once the lease has expired; the receiver is expected to be
+  // idempotent on `openiap-event-id`, so a re-send is safe.
+  if (due.length < limit) {
+    const stale = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_status_and_next_attempt", (q) =>
+        q.eq("status", "delivering"),
+      )
+      .take(limit - due.length);
+    for (const row of stale) {
+      if ((row.leaseExpiresAt ?? 0) <= now) due.push(row);
+    }
+  }
+
   const claimed: ClaimedDelivery[] = [];
   for (const delivery of due) {
     const destination = await ctx.db.get(delivery.destinationId);
