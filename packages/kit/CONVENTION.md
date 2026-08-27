@@ -93,6 +93,12 @@ layout instead of recreating the flex constraints per card.
 
 ## Convex Backend (CQRS)
 
+Public state-changing Convex functions are security boundaries. They must
+verify source credentials themselves and must not trust Fly-only authentication,
+caller-supplied audiences, or another edge-layer claim. Fly checks may reject
+invalid traffic early, but Convex remains authoritative before any store call,
+mutation, or outbound event.
+
 Every domain folder under `convex/` follows the same split:
 
 ```

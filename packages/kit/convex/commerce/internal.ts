@@ -50,8 +50,22 @@ export type EmitCommerceEventArgs = {
   active: boolean;
   /** Entitlement gate before it, so we can emit entitlement deltas. */
   previouslyActive: boolean;
-  sourceEvent: Doc<"webhookEvents">;
+  sourceEvent: Pick<
+    Doc<"webhookEvents">,
+    | "_id"
+    | "platform"
+    | "environment"
+    | "productId"
+    | "applicationId"
+    | "transactionId"
+    | "originalTransactionId"
+    | "currency"
+    | "priceAmountMicros"
+    | "sourceNotificationId"
+    | "occurredAt"
+  >;
   subscriptionId?: Id<"subscriptions">;
+  previousProductId?: string;
   /** Subscription as it stands after the transition, snapshotted onto the event. */
   subscription?: {
     state: SubscriptionState;
@@ -91,9 +105,14 @@ export async function emitCommerceEvent(
   const now = Date.now();
   const written: Id<"commerceEvents">[] = [];
   const extensions = sanitizeExtensions(args.extensions);
-  const productId = source.productId ?? args.subscription?.productId;
 
   for (const eventType of types) {
+    // Entitlement deltas always refer to the canonical product after the
+    // transition. A scheduled Apple renewal preference can put the future SKU
+    // on the source event while the current entitlement remains unchanged.
+    const productId = eventType.startsWith("entitlement.")
+      ? (args.subscription?.productId ?? source.productId)
+      : (source.productId ?? args.subscription?.productId);
     const amountProvenance: DataProvenance | undefined =
       source.priceAmountMicros === undefined ? undefined : "store";
     const eventId = await ctx.db.insert("commerceEvents", {
@@ -106,6 +125,10 @@ export async function emitCommerceEvent(
         ? { userId: args.subscription.userId }
         : {}),
       ...(productId ? { productId } : {}),
+      ...(args.previousProductId && eventType.startsWith("subscription.")
+        ? { previousProductId: args.previousProductId }
+        : {}),
+      ...(source.applicationId ? { applicationId: source.applicationId } : {}),
       ...(source.transactionId ? { transactionId: source.transactionId } : {}),
       ...(source.originalTransactionId
         ? { originalTransactionId: source.originalTransactionId }
@@ -193,6 +216,23 @@ async function fanOutToDestinations(
       updatedAt: now,
     });
     created += 1;
+  }
+  if (created > 0) {
+    const queue = await ctx.db
+      .query("outboundDeliveryQueues")
+      .withIndex("by_project", (q) => q.eq("projectId", projectId))
+      .unique();
+    if (queue) {
+      if (queue.nextClaimAt > now) {
+        await ctx.db.patch(queue._id, { nextClaimAt: now, updatedAt: now });
+      }
+    } else {
+      await ctx.db.insert("outboundDeliveryQueues", {
+        projectId,
+        nextClaimAt: now,
+        updatedAt: now,
+      });
+    }
   }
   return created;
 }

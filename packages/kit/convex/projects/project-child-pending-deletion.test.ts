@@ -83,8 +83,25 @@ class TestQuery {
     );
   }
 
+  filter(
+    build: (q: {
+      field: (name: string) => string;
+      eq: (field: string, value: unknown) => (row: Row) => boolean;
+    }) => (row: Row) => boolean,
+  ): TestQuery {
+    const predicate = build({
+      field: (name) => name,
+      eq: (field, value) => (row) => row[field] === value,
+    });
+    return new TestQuery(this.rows.filter(predicate));
+  }
+
   async first(): Promise<Row | null> {
     return this.rows[0] ?? null;
+  }
+
+  async collect(): Promise<Row[]> {
+    return [...this.rows];
   }
 
   async take(count: number): Promise<Row[]> {
@@ -97,8 +114,12 @@ class TestDb {
   patchCount = 0;
   system = {
     get: vi.fn(
-      async (_table: string, id: string): Promise<{ _id: string } | null> => ({
+      async (
+        _table: string,
+        id: string,
+      ): Promise<{ _id: string; size: number } | null> => ({
         _id: id,
+        size: 1,
       }),
     ),
   };
@@ -184,6 +205,13 @@ function makeCtx(options: {
           createdBy: "users_a",
           expiresAt: Date.now() + 60_000,
           cleanupExpiresAt: Date.now() + 120_000,
+          validatedGoogleServiceAccount: {
+            storageId: "storage_a",
+            fileName: "credential.json",
+            fileType: "application/json",
+            fileSize: 1,
+            clientEmail: "service@project.iam.gserviceaccount.com",
+          },
           createdAt: Date.now(),
         },
       ],
@@ -605,7 +633,7 @@ describe("pending-deletion project child write guards", () => {
     const calls: string[] = [];
     ctx.db.system.get.mockImplementationOnce(async (_table, id) => {
       calls.push("storage-read");
-      return { _id: id };
+      return { _id: id, size: 1 };
     });
     const insert = ctx.db.insert.bind(ctx.db);
     ctx.db.insert = vi.fn(async (table, value) => {

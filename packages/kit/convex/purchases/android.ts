@@ -258,6 +258,7 @@ export async function recordGooglePlayVerifiedSubscription(
       subscriptionState: params.receiptData.subscriptionState,
       expiresAt: params.receiptData.expiryTime,
       renewsAt: params.receiptData.renewsAt,
+      willRenew: params.receiptData.willRenew,
       currency: params.receiptData.currency,
       priceAmountMicros: params.receiptData.priceAmountMicros,
     },
@@ -376,6 +377,11 @@ export function mapSubscriptionResponseToReceiptData(args: {
   const expiryTime = parseTimeToMillis(lineItem?.expiryTime);
   const productId = lineItem?.productId || "unknown";
   const recurringPrice = lineItem?.autoRenewingPlan?.recurringPrice;
+  const willRenew = lineItem?.autoRenewingPlan
+    ? lineItem.autoRenewingPlan.autoRenewEnabled === true
+    : lineItem?.prepaidPlan
+      ? false
+      : undefined;
 
   return {
     transactionId: args.purchaseToken,
@@ -393,7 +399,8 @@ export function mapSubscriptionResponseToReceiptData(args: {
     acknowledgementState:
       args.subscriptionResponse.acknowledgementState || undefined,
     expiryTime: expiryTime,
-    renewsAt: lineItem?.autoRenewingPlan ? expiryTime : undefined,
+    renewsAt: willRenew === true ? expiryTime : undefined,
+    willRenew,
     currency: recurringPrice?.currencyCode ?? undefined,
     priceAmountMicros: moneyToMicros(recurringPrice),
   };

@@ -22,6 +22,7 @@ import {
   readJsonBodyWithLimit,
 } from "./request-body";
 import { multiAxisRateLimitMiddleware } from "./rate-limit";
+import { isValidSubscriptionUserId } from "../../../convex/subscriptions/limits";
 
 // Subscription state, entitlements, metrics, and user-binding routes.
 // Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
@@ -34,7 +35,6 @@ const subscriptions = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
-const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
 const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
@@ -346,7 +346,7 @@ function parseLimit(raw: string | undefined): number | undefined | null {
 }
 
 function isValidUserIdLength(userId: string): boolean {
-  return userId.length <= MAX_USER_ID_LENGTH;
+  return isValidSubscriptionUserId(userId);
 }
 
 function isValidProductIdLength(productId: string): boolean {

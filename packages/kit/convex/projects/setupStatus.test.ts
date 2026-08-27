@@ -78,4 +78,32 @@ describe("getSetupStatus Amazon readiness", () => {
       missing: ["amazonSharedSecret"],
     });
   });
+
+  it("requires the Play service account before Android is ready", async () => {
+    projectMocks.byProjectId.mockResolvedValue({ project: project() });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+    expect(result.android).toEqual({
+      configured: false,
+      missing: ["googleServiceAccount"],
+    });
+  });
+
+  it("marks Android ready when package name and Play credentials exist", async () => {
+    projectMocks.byProjectId.mockResolvedValue({ project: project() });
+    ctx.db.query.mockReturnValueOnce({
+      withIndex: vi.fn(() => ({
+        collect: vi
+          .fn()
+          .mockResolvedValue([{ purpose: "android_service_account" }]),
+      })),
+    });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+    expect(result.android).toEqual({ configured: true, missing: [] });
+  });
 });

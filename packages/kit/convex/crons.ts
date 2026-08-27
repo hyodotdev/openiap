@@ -57,6 +57,13 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "resume Google service-account cleanup",
+  { minutes: 5 },
+  internal.files.mutation.resumeGoogleServiceAccountCleanup,
+  {},
+);
+
 // Prune webhook events older than the 30-day retention window. Runs hourly
 // with a small per-tick batch size so stored lifecycle history and analytics
 // reads remain bounded.
@@ -78,10 +85,24 @@ crons.interval(
 );
 
 crons.interval(
+  "resume pending commerce destination removal",
+  { minutes: 5 },
+  internal.commerce.destinations.resumePendingDestinationRemoval,
+  {},
+);
+
+crons.interval(
   "prune delivered commerce events past retention",
   { hours: 1 },
   internal.commerce.deliveryState.pruneCommerceHistory,
   { olderThanMs: COMMERCE_EVENT_RETENTION_MS },
+);
+
+crons.interval(
+  "erase expired commerce webhook secrets",
+  { hours: 1 },
+  internal.commerce.destinations.pruneExpiredPreviousSecrets,
+  {},
 );
 
 // Amazon recommends checking every active RVS receipt within 72 hours.

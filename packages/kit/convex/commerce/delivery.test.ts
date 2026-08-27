@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LookupFunction } from "node:net";
 
 import {
+  buildPinnedRequestOptions,
   deliverPendingEventsHandler,
+  MAX_FALLBACK_ADDRESSES,
+  postJsonPinned,
   resolvePublicAddresses,
   type DeliveryRequest,
 } from "./delivery";
@@ -32,7 +36,7 @@ describe("deliverPendingEventsHandler", () => {
     let claimCount = 0;
     const recorded: Array<Record<string, unknown>> = [];
     const runMutation = vi.fn(async (_reference, args) => {
-      if ("maxClaims" in args) {
+      if (Object.keys(args).length === 0) {
         claimCount += 1;
         return claimCount === 1 ? [claimed] : [];
       }
@@ -70,7 +74,7 @@ describe("deliverPendingEventsHandler", () => {
     let claimCount = 0;
     const recorded: Array<Record<string, unknown>> = [];
     const runMutation = vi.fn(async (_reference, args) => {
-      if ("maxClaims" in args) {
+      if (Object.keys(args).length === 0) {
         claimCount += 1;
         return claimCount === 1 ? [claimed] : [];
       }
@@ -95,7 +99,7 @@ describe("deliverPendingEventsHandler", () => {
     const recorded: Array<Record<string, unknown>> = [];
     const unsafeClaim = { ...claimed, url: "https://127.0.0.1/hook" };
     const runMutation = vi.fn(async (_reference, args) => {
-      if ("maxClaims" in args) {
+      if (Object.keys(args).length === 0) {
         claimCount += 1;
         return claimCount === 1 ? [unsafeClaim] : [];
       }
@@ -121,7 +125,7 @@ describe("deliverPendingEventsHandler", () => {
     let claimCount = 0;
     const recorded: Array<Record<string, unknown>> = [];
     const runMutation = vi.fn(async (_reference, args) => {
-      if ("maxClaims" in args) {
+      if (Object.keys(args).length === 0) {
         claimCount += 1;
         return claimCount === 1 ? [claimed] : [];
       }
@@ -176,5 +180,72 @@ describe("resolvePublicAddresses", () => {
         { address: "2606:4700:4700::1111", family: 6 },
       ]),
     ).resolves.toHaveLength(2);
+  });
+
+  it("caps a tenant-controlled DNS answer set", async () => {
+    const addresses = await resolvePublicAddresses(
+      "hooks.example.com",
+      async () =>
+        Array.from({ length: 20 }, (_, index) => ({
+          address: `93.184.216.${index + 1}`,
+          family: 4,
+        })),
+    );
+    expect(addresses).toHaveLength(MAX_FALLBACK_ADDRESSES);
+  });
+
+  it("falls back across validated addresses within one request deadline", async () => {
+    const attempted: string[] = [];
+    const request: DeliveryRequest = {
+      url: new URL("https://hooks.example.com/iapkit"),
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    };
+    const status = await postJsonPinned(
+      request,
+      async () => [
+        { address: "93.184.216.34", family: 4 },
+        { address: "2606:4700:4700::1111", family: 6 },
+      ],
+      async (_request, address, timeoutMs) => {
+        attempted.push(address.address);
+        expect(timeoutMs).toBeGreaterThan(0);
+        if (attempted.length === 1) throw new Error("network unreachable");
+        return 204;
+      },
+    );
+    expect(status).toBe(204);
+    expect(attempted).toEqual(["93.184.216.34", "2606:4700:4700::1111"]);
+  });
+
+  it("pins lookup while preserving TLS SNI and the full request path", () => {
+    const request: DeliveryRequest = {
+      url: new URL("https://hooks.example.com:8443/iapkit?source=test"),
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    };
+    const options = buildPinnedRequestOptions(request, {
+      address: "93.184.216.34",
+      family: 4,
+    });
+    expect(options).toMatchObject({
+      protocol: "https:",
+      hostname: "hooks.example.com",
+      servername: "hooks.example.com",
+      port: "8443",
+      path: "/iapkit?source=test",
+      method: "POST",
+      headers: request.headers,
+    });
+    let pinned: unknown;
+    (options.lookup as LookupFunction)(
+      "hooks.example.com",
+      { all: false },
+      (error, address, family) => {
+        expect(error).toBeNull();
+        pinned = { address, family };
+      },
+    );
+    expect(pinned).toEqual({ address: "93.184.216.34", family: 4 });
   });
 });

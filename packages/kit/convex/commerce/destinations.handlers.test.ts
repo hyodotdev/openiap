@@ -12,6 +12,8 @@ const {
   rotateSecretHandler,
   removeHandler,
   continueDestinationRemovalHandler,
+  pruneExpiredPreviousSecretsHandler,
+  resumePendingDestinationRemovalHandler,
 } = await import("./destinations");
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -38,6 +40,16 @@ class B {
   preds: Array<(r: Row) => boolean> = [];
   eq(f: string, v: unknown): B {
     this.preds.push((r) => r[f] === v);
+    return this;
+  }
+  gt(f: string, v: unknown): B {
+    this.preds.push((r) =>
+      v === undefined ? r[f] !== undefined : (r[f] as number) > (v as number),
+    );
+    return this;
+  }
+  lte(f: string, v: number): B {
+    this.preds.push((r) => (r[f] as number) <= v);
     return this;
   }
 }
@@ -212,6 +224,26 @@ describe("create", () => {
     });
     expect(a.secret).not.toBe(b.secret);
   });
+
+  it("bounds metadata and canonicalizes event filters", async () => {
+    const db = new Db();
+    seedProject(db);
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/h",
+        description: "x".repeat(513),
+      }),
+    ).rejects.toThrow(/at most 512/);
+    await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+      eventTypes: ["subscription.renewed", "subscription.renewed"],
+    });
+    expect(db.rows("outboundDestinations")[0].eventTypes).toEqual([
+      "subscription.renewed",
+    ]);
+  });
 });
 
 describe("list", () => {
@@ -234,6 +266,19 @@ describe("list", () => {
 });
 
 describe("update", () => {
+  it("clears an event filter when all events are selected", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+      eventTypes: ["subscription.renewed"],
+    });
+
+    await updateHandler(ctxOf(db), { destinationId, eventTypes: [] });
+    expect((await db.get(destinationId))?.eventTypes).toEqual([]);
+  });
+
   it("rejects an unsafe url without mutating the row", async () => {
     const db = new Db();
     seedProject(db);
@@ -286,6 +331,19 @@ describe("rotateSecret", () => {
     expect(row?.secret).toBe(rotated.secret);
     expect(row?.previousSecret).toBe(created.secret);
     expect(row?.previousSecretExpiresAt as number).toBeGreaterThan(Date.now());
+  });
+
+  it("rejects another rotation during the active grace window", async () => {
+    const db = new Db();
+    seedProject(db);
+    const created = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await rotateSecretHandler(ctxOf(db), created.destinationId);
+    await expect(
+      rotateSecretHandler(ctxOf(db), created.destinationId),
+    ).rejects.toThrow(/24-hour/);
   });
 });
 
@@ -341,6 +399,18 @@ describe("remove", () => {
     expect(db.rows("outboundDestinations")).toHaveLength(0);
   });
 
+  it("resumes a pending deletion when an earlier continuation was lost", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await db.patch(destinationId, { enabled: false, pendingDeletion: true });
+    await expect(removeHandler(ctxOf(db), destinationId)).resolves.toBeNull();
+    expect(db.rows("outboundDestinations")).toHaveLength(0);
+  });
+
   it("refuses to remove a destination the caller does not administer", async () => {
     const db = new Db();
     seedProject(db);
@@ -353,5 +423,44 @@ describe("remove", () => {
       /Insufficient permissions/,
     );
     expect(db.rows("outboundDestinations")).toHaveLength(1);
+  });
+});
+
+describe("rotation cleanup", () => {
+  it("erases rotated-out secrets after grace expires", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await db.patch(destinationId, {
+      previousSecret: "whsec_old",
+      previousSecretExpiresAt: Date.now() - 1,
+    });
+    await expect(pruneExpiredPreviousSecretsHandler(ctxOf(db))).resolves.toBe(
+      1,
+    );
+    expect(await db.get(destinationId)).toMatchObject({
+      previousSecret: undefined,
+      previousSecretExpiresAt: undefined,
+    });
+  });
+});
+
+describe("deletion recovery", () => {
+  it("resumes a destination left pending by a lost continuation", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await db.patch(destinationId, { enabled: false, pendingDeletion: true });
+
+    await expect(
+      resumePendingDestinationRemovalHandler(ctxOf(db)),
+    ).resolves.toBe(destinationId);
+    expect(db.rows("outboundDestinations")).toHaveLength(0);
   });
 });

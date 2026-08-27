@@ -1,5 +1,10 @@
-import { internalMutation, type MutationCtx } from "../_generated/server";
-import { v } from "convex/values";
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+  type QueryCtx,
+} from "../_generated/server";
+import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
@@ -11,6 +16,7 @@ import {
 } from "./stateMachine";
 import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
+import { isValidSubscriptionUserId } from "./limits";
 
 const subscriptionPlatformValidator = v.union(
   v.literal("IOS"),
@@ -24,10 +30,12 @@ type RawEventInput = Pick<
   | "subscriptionState"
   | "expiresAt"
   | "renewsAt"
+  | "willRenew"
   | "cancellationReason"
   | "currency"
   | "priceAmountMicros"
   | "platform"
+  | "effectiveImmediately"
 > & { purchaseToken: string };
 type SubscriptionState = Doc<"subscriptions">["state"];
 type SubscriptionCancellationReason = NonNullable<
@@ -42,6 +50,7 @@ export type VerifiedSubscriptionInput = {
   subscriptionState?: string;
   expiresAt?: number;
   renewsAt?: number;
+  willRenew?: boolean;
   currency?: string;
   priceAmountMicros?: number;
 };
@@ -77,6 +86,7 @@ type RecordVerifiedSubscriptionArgs = {
   subscriptionState?: string;
   expiresAt?: number;
   renewsAt?: number;
+  willRenew?: boolean;
   currency?: string;
   priceAmountMicros?: number;
 };
@@ -96,7 +106,18 @@ interface PersistSubscriptionSnapshotArgs {
   now: number;
   lastEvent?: Pick<
     Doc<"webhookEvents">,
-    "_id" | "_creationTime" | "occurredAt" | "sourceNotificationId"
+    | "_id"
+    | "_creationTime"
+    | "type"
+    | "occurredAt"
+    | "sourceNotificationId"
+    | "environment"
+    | "productId"
+    | "applicationId"
+    | "transactionId"
+    | "originalTransactionId"
+    | "currency"
+    | "priceAmountMicros"
   >;
 }
 
@@ -155,21 +176,192 @@ export async function applySubscriptionEventHandler(
     return { transition: null, active: false };
   }
 
-  const existing = await findSubscriptionByToken(
+  const supersedingResolution = await findSupersedingSubscription(
     ctx,
     args.projectId,
     storedEvent.purchaseToken,
   );
+  const existingByCurrentToken = supersedingResolution.aliased
+    ? null
+    : await findSubscriptionByToken(
+        ctx,
+        args.projectId,
+        storedEvent.purchaseToken,
+      );
+  if (supersedingResolution.aliased) {
+    const supersedingSubscription = supersedingResolution.subscription;
+    const aliasedTransition =
+      storedEvent.type === "PurchaseRefunded"
+        ? ("Refunded" as const)
+        : storedEvent.type === "SubscriptionRevoked"
+          ? ("Revoked" as const)
+          : null;
+    const active = supersedingSubscription
+      ? isActive(supersedingSubscription, now)
+      : false;
+    const firstApplication = storedEvent.appliedAt === undefined;
+    if (firstApplication) {
+      if (supersedingSubscription && aliasedTransition) {
+        await emitCommerceEvent(ctx, {
+          projectId: args.projectId,
+          transition: aliasedTransition,
+          active,
+          previouslyActive: active,
+          sourceEvent: {
+            ...storedEvent,
+            productId: storedEvent.productId ?? supersedingResolution.productId,
+          },
+          subscriptionId: supersedingSubscription._id,
+          subscription: {
+            state: supersedingSubscription.state,
+            productId: supersedingSubscription.productId,
+            ...(supersedingSubscription.expiresAt !== undefined
+              ? { expiresAt: supersedingSubscription.expiresAt }
+              : {}),
+            ...(supersedingSubscription.renewsAt !== undefined
+              ? { renewsAt: supersedingSubscription.renewsAt }
+              : {}),
+            ...(supersedingSubscription.willRenew !== undefined
+              ? { willRenew: supersedingSubscription.willRenew }
+              : {}),
+            ...(supersedingSubscription.cancellationReason
+              ? {
+                  cancellationReason:
+                    supersedingSubscription.cancellationReason,
+                }
+              : {}),
+            ...(supersedingSubscription.userId
+              ? { userId: supersedingSubscription.userId }
+              : {}),
+          },
+        });
+      }
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    }
+    return {
+      transition: firstApplication ? aliasedTransition : null,
+      active,
+      ...(supersedingSubscription
+        ? { subscriptionId: supersedingSubscription._id }
+        : {}),
+    };
+  }
+  const linkedResolution = storedEvent.linkedPurchaseToken
+    ? await findSupersedingSubscription(
+        ctx,
+        args.projectId,
+        storedEvent.linkedPurchaseToken,
+      )
+    : ({ aliased: false } as const);
+  const linkedExact =
+    storedEvent.linkedPurchaseToken && !linkedResolution.aliased
+      ? await findSubscriptionByToken(
+          ctx,
+          args.projectId,
+          storedEvent.linkedPurchaseToken,
+        )
+      : null;
+  if (linkedResolution.aliased && !linkedResolution.subscription) {
+    if (storedEvent.appliedAt === undefined) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    }
+    return { transition: null, active: false };
+  }
+  const linkedExisting =
+    linkedExact ??
+    (linkedResolution.aliased ? linkedResolution.subscription : null);
+  let existing = preferredReplacementSnapshot(
+    existingByCurrentToken,
+    linkedExisting,
+  );
+  const priorStoreSnapshot = existingByCurrentToken?.lastEventId
+    ? existingByCurrentToken
+    : linkedExisting?.lastEventId
+      ? linkedExisting
+      : null;
+  if (storedEvent.appliedAt !== undefined) {
+    return {
+      transition: null,
+      active: existing ? isActive(existing, now) : false,
+      ...(existing ? { subscriptionId: existing._id } : {}),
+    };
+  }
+
+  // A linked-token event can arrive after both tokens already have rows. Keep
+  // current-token state, merge predecessor identity/history, and remove the
+  // duplicate contribution before applying same-token ordering.
+  if (
+    existingByCurrentToken &&
+    linkedExisting &&
+    existingByCurrentToken._id !== linkedExisting._id
+  ) {
+    if (
+      existingByCurrentToken.userId &&
+      linkedExisting.userId &&
+      existingByCurrentToken.userId !== linkedExisting.userId
+    ) {
+      throw new ConvexError({
+        code: "SUBSCRIPTION_USER_CONFLICT",
+        message: "Linked Google purchase tokens belong to different users.",
+      });
+    }
+    const survivor = preferredReplacementSnapshot(
+      existingByCurrentToken,
+      linkedExisting,
+    )!;
+    const removed =
+      survivor._id === existingByCurrentToken._id
+        ? linkedExisting
+        : existingByCurrentToken;
+    const removedPeriod = await fetchBillingPeriod(
+      ctx,
+      args.projectId,
+      removed.platform,
+      removed.productId,
+    );
+    await applyStatsTransition(
+      ctx,
+      args.projectId,
+      statsContributionFor(removed, removedPeriod, now),
+      null,
+    );
+    await ctx.db.delete(removed._id);
+    existing = {
+      ...survivor,
+      purchaseToken: storedEvent.purchaseToken,
+      userId: survivor.userId ?? removed.userId,
+      startedAt: Math.min(survivor.startedAt, removed.startedAt),
+    };
+    await ctx.db.patch(survivor._id, {
+      purchaseToken: existing.purchaseToken,
+      userId: existing.userId,
+      startedAt: existing.startedAt,
+      updatedAt: now,
+    });
+    await recordSubscriptionTokenAlias(ctx, {
+      projectId: args.projectId,
+      purchaseToken: removed.purchaseToken,
+      successorPurchaseToken: existing.purchaseToken,
+      predecessorProductId: removed.productId,
+      now,
+    });
+  }
+
   // Captured before any transition so entitlement deltas are emitted from the
-  // pre-event gate, not the post-event one.
-  const previouslyActive = existing ? isActive(existing, now) : false;
+  // pre-event gate, not the post-event one. A verification-only snapshot has
+  // not produced an outbound entitlement event yet.
+  const previouslyActive = priorStoreSnapshot
+    ? isActive(priorStoreSnapshot, now)
+    : false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
     active: existing ? isActive(existing, now) : false,
     ...(existing ? { subscriptionId: existing._id } : {}),
   });
 
-  if (storedEvent.appliedAt !== undefined) return noOpResult();
+  // Store timestamps only order events for the same purchase token. A linked
+  // predecessor can expire after its replacement became active.
+  const orderingExisting = existingByCurrentToken;
 
   // Rollout compatibility for events written before appliedAt existed. The
   // current last event proves itself applied; an event older than the current
@@ -179,26 +371,28 @@ export async function applySubscriptionEventHandler(
   // unapplied newest event still falls through and repairs the original
   // action/mutation gap.
   if (
-    existing?.lastEventSourceNotificationId === storedEvent.sourceNotificationId
+    orderingExisting?.lastEventSourceNotificationId ===
+    storedEvent.sourceNotificationId
   ) {
     await ctx.db.patch(storedEvent._id, { appliedAt: now });
     return noOpResult();
   }
-  if (existing?.lastEventOccurredAt !== undefined) {
+  if (orderingExisting?.lastEventOccurredAt !== undefined) {
     const stale =
-      existing.lastEventOccurredAt > storedEvent.occurredAt ||
-      (existing.lastEventOccurredAt === storedEvent.occurredAt &&
-        (existing.lastEventCreationTime ?? 0) > storedEvent._creationTime);
+      orderingExisting.lastEventOccurredAt > storedEvent.occurredAt ||
+      (orderingExisting.lastEventOccurredAt === storedEvent.occurredAt &&
+        (orderingExisting.lastEventCreationTime ?? 0) >
+          storedEvent._creationTime);
     if (stale) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
       return noOpResult();
     }
-  } else if (existing?.lastEventId) {
-    if (existing.lastEventId === args.eventId) {
+  } else if (orderingExisting?.lastEventId) {
+    if (orderingExisting.lastEventId === args.eventId) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
       return noOpResult();
     }
-    const lastEvent = await ctx.db.get(existing.lastEventId);
+    const lastEvent = await ctx.db.get(orderingExisting.lastEventId);
     if (
       lastEvent?.projectId === args.projectId &&
       lastEvent.purchaseToken === storedEvent.purchaseToken &&
@@ -210,6 +404,92 @@ export async function applySubscriptionEventHandler(
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
       return noOpResult();
     }
+  }
+
+  // Google subscription bundles can report ITEMS_CHANGED without identifying
+  // which line item changed. Keep the raw event for operations, but never
+  // overwrite the singular canonical product with an arbitrary bundle item.
+  // Linked replacements still move the canonical row after the ordering guard.
+  if (
+    storedEvent.type === "SubscriptionProductChanged" &&
+    !storedEvent.productId
+  ) {
+    if (existing) {
+      const verifiedReplacementProductChanged =
+        existingByCurrentToken?.lastEventId === undefined &&
+        priorStoreSnapshot !== null &&
+        priorStoreSnapshot.productId !== existing.productId;
+      const subscriptionId = await persistSubscriptionSnapshot(ctx, {
+        projectId: args.projectId,
+        platform: existing.platform,
+        purchaseToken: storedEvent.purchaseToken,
+        existing,
+        next: {
+          state: existing.state,
+          productId: existing.productId,
+          expiresAt: existing.expiresAt,
+          renewsAt: existing.renewsAt,
+          willRenew: existing.willRenew,
+          cancellationReason: existing.cancellationReason,
+          currency: existing.currency,
+          priceAmountMicros: existing.priceAmountMicros,
+        },
+        now,
+        lastEvent: storedEvent,
+      });
+      await recordSubscriptionTokenAlias(ctx, {
+        projectId: args.projectId,
+        purchaseToken: existing.purchaseToken,
+        successorPurchaseToken: storedEvent.purchaseToken,
+        predecessorProductId: existing.productId,
+        now,
+      });
+      await recordSubscriptionTokenAlias(ctx, {
+        projectId: args.projectId,
+        purchaseToken: storedEvent.linkedPurchaseToken,
+        successorPurchaseToken: storedEvent.purchaseToken,
+        predecessorProductId:
+          priorStoreSnapshot?.productId ?? existing.productId,
+        now,
+      });
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+      const active = isActive(existing, now);
+      if (verifiedReplacementProductChanged) {
+        await emitCommerceEvent(ctx, {
+          projectId: args.projectId,
+          transition: "ProductChanged",
+          active,
+          previouslyActive: active,
+          sourceEvent: storedEvent,
+          subscriptionId,
+          previousProductId: priorStoreSnapshot.productId,
+          subscription: {
+            state: existing.state,
+            productId: existing.productId,
+            ...(existing.expiresAt !== undefined
+              ? { expiresAt: existing.expiresAt }
+              : {}),
+            ...(existing.renewsAt !== undefined
+              ? { renewsAt: existing.renewsAt }
+              : {}),
+            ...(existing.willRenew !== undefined
+              ? { willRenew: existing.willRenew }
+              : {}),
+            ...(existing.cancellationReason
+              ? { cancellationReason: existing.cancellationReason }
+              : {}),
+            ...(existing.userId ? { userId: existing.userId } : {}),
+          },
+        });
+      }
+      return {
+        transition: verifiedReplacementProductChanged ? "ProductChanged" : null,
+        active,
+        subscriptionId,
+      };
+    }
+    await ctx.db.patch(storedEvent._id, { appliedAt: now });
+    return noOpResult();
   }
 
   const current: CurrentSubscription = existing
@@ -230,16 +510,42 @@ export async function applySubscriptionEventHandler(
     subscriptionState: storedEvent.subscriptionState,
     expiresAt: storedEvent.expiresAt,
     renewsAt: storedEvent.renewsAt,
+    willRenew: storedEvent.willRenew,
     cancellationReason: storedEvent.cancellationReason,
     currency: storedEvent.currency,
     priceAmountMicros: storedEvent.priceAmountMicros,
     platform: storedEvent.platform,
+    effectiveImmediately: storedEvent.effectiveImmediately,
     purchaseToken: storedEvent.purchaseToken,
   };
   const transition = applySubscriptionTransition(
     current,
     coerceEventInput(event),
   );
+  const linkedStartedOnActivePredecessor =
+    storedEvent.type === "SubscriptionStarted" &&
+    storedEvent.linkedPurchaseToken !== undefined &&
+    priorStoreSnapshot !== null &&
+    previouslyActive;
+  const effectiveTransition = linkedStartedOnActivePredecessor
+    ? transition.next?.productId !== priorStoreSnapshot.productId
+      ? "ProductChanged"
+      : priorStoreSnapshot.willRenew === false &&
+          transition.next?.willRenew === true
+        ? "Uncanceled"
+        : transition.next?.expiresAt !== undefined &&
+            priorStoreSnapshot.expiresAt !== undefined &&
+            transition.next.expiresAt > priorStoreSnapshot.expiresAt
+          ? "Renewed"
+          : null
+    : transition.transition;
+  const firstStoreEventAfterVerification =
+    storedEvent.type === "SubscriptionStarted" &&
+    existing !== null &&
+    existing.lastEventId === undefined &&
+    priorStoreSnapshot === null;
+  const previousProductId =
+    priorStoreSnapshot?.productId ?? existing?.productId;
 
   if (!transition.next) {
     await ctx.db.patch(storedEvent._id, { appliedAt: now });
@@ -259,15 +565,37 @@ export async function applySubscriptionEventHandler(
     now,
     lastEvent: storedEvent,
   });
+  await recordSubscriptionTokenAlias(ctx, {
+    projectId: args.projectId,
+    purchaseToken: existing?.purchaseToken,
+    successorPurchaseToken: storedEvent.purchaseToken,
+    predecessorProductId: existing?.productId,
+    now,
+  });
+  await recordSubscriptionTokenAlias(ctx, {
+    projectId: args.projectId,
+    purchaseToken: storedEvent.linkedPurchaseToken,
+    successorPurchaseToken: storedEvent.purchaseToken,
+    predecessorProductId: priorStoreSnapshot?.productId ?? existing?.productId,
+    now,
+  });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
   const active = entitlementActive(transition.next, now);
+  const commerceTransition = linkedStartedOnActivePredecessor
+    ? effectiveTransition
+    : firstStoreEventAfterVerification
+      ? "Started"
+      : effectiveTransition;
   await emitCommerceEvent(ctx, {
     projectId: args.projectId,
-    transition: transition.transition ?? null,
+    transition: commerceTransition ?? null,
     active,
     previouslyActive,
     sourceEvent: storedEvent,
     subscriptionId,
+    ...(previousProductId && previousProductId !== transition.next.productId
+      ? { previousProductId }
+      : {}),
     subscription: {
       state: transition.next.state,
       productId: transition.next.productId,
@@ -288,7 +616,7 @@ export async function applySubscriptionEventHandler(
   });
 
   return {
-    transition: transition.transition ?? null,
+    transition: effectiveTransition ?? null,
     active,
     subscriptionId,
   };
@@ -304,11 +632,17 @@ export function buildVerifiedSubscriptionSnapshot(
 
   const base: Pick<
     VerifiedSubscriptionSnapshot,
-    "productId" | "expiresAt" | "renewsAt" | "currency" | "priceAmountMicros"
+    | "productId"
+    | "expiresAt"
+    | "renewsAt"
+    | "willRenew"
+    | "currency"
+    | "priceAmountMicros"
   > = {
     productId: input.productId,
     expiresAt: input.expiresAt,
     renewsAt: input.renewsAt,
+    willRenew: input.willRenew,
     currency: input.currency,
     priceAmountMicros: input.priceAmountMicros,
   };
@@ -373,7 +707,7 @@ export function buildVerifiedSubscriptionSnapshot(
       return {
         ...base,
         state: "Active",
-        willRenew: true,
+        willRenew: input.willRenew ?? true,
         cancellationReason: undefined,
         clearCancellationReason: true,
       };
@@ -388,7 +722,7 @@ export function buildVerifiedSubscriptionSnapshot(
       return {
         ...base,
         state: "InGracePeriod",
-        willRenew: true,
+        willRenew: input.willRenew ?? true,
         cancellationReason: undefined,
         clearCancellationReason: true,
       };
@@ -436,7 +770,10 @@ export function mergeVerifiedSubscriptionSnapshot(
   return {
     ...snapshot,
     expiresAt: snapshot.expiresAt ?? existing.expiresAt,
-    renewsAt: snapshot.renewsAt ?? existing.renewsAt,
+    renewsAt:
+      snapshot.willRenew === false
+        ? undefined
+        : (snapshot.renewsAt ?? existing.renewsAt),
     willRenew: snapshot.willRenew ?? existing.willRenew,
     cancellationReason:
       snapshot.cancellationReason !== undefined ||
@@ -462,6 +799,7 @@ export const recordVerifiedSubscription = internalMutation({
     subscriptionState: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
   },
@@ -481,16 +819,30 @@ export async function recordVerifiedSubscriptionHandler(
     subscriptionState: args.subscriptionState,
     expiresAt: args.expiresAt,
     renewsAt: args.renewsAt,
+    willRenew: args.willRenew,
     currency: args.currency,
     priceAmountMicros: args.priceAmountMicros,
   });
   if (!snapshot) return null;
 
+  const supersedingResolution = await findSupersedingSubscription(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  if (supersedingResolution.aliased) {
+    return supersedingResolution.subscription?._id ?? null;
+  }
   const existing = await findSubscriptionByToken(
     ctx,
     args.projectId,
     args.purchaseToken,
   );
+  // Verification bootstraps a token before server notifications arrive. Once
+  // a store event governs the row, a client can replay an older but still-valid
+  // transaction; without comparable ordering metadata that snapshot must not
+  // roll canonical product, state, or expiry backward.
+  if (existing?.lastEventId) return existing._id;
   const now = Date.now();
 
   const next = mergeVerifiedSubscriptionSnapshot(existing, snapshot);
@@ -533,6 +885,9 @@ async function persistSubscriptionSnapshot(
     : null;
 
   const row = {
+    purchaseToken: args.purchaseToken,
+    productKind: "subscription" as const,
+    ...(args.existing?.userId ? { userId: args.existing.userId } : {}),
     productId: args.next.productId,
     platform: args.platform,
     state: args.next.state,
@@ -549,6 +904,16 @@ async function persistSubscriptionSnapshot(
           lastEventOccurredAt: args.lastEvent.occurredAt,
           lastEventCreationTime: args.lastEvent._creationTime,
           lastEventSourceNotificationId: args.lastEvent.sourceNotificationId,
+          lastEventSource: {
+            type: args.lastEvent.type,
+            environment: args.lastEvent.environment,
+            productId: args.lastEvent.productId,
+            applicationId: args.lastEvent.applicationId,
+            transactionId: args.lastEvent.transactionId,
+            originalTransactionId: args.lastEvent.originalTransactionId,
+            currency: args.lastEvent.currency,
+            priceAmountMicros: args.lastEvent.priceAmountMicros,
+          },
         }
       : {}),
   };
@@ -557,7 +922,6 @@ async function persistSubscriptionSnapshot(
     ? args.existing._id
     : await ctx.db.insert("subscriptions", {
         projectId: args.projectId,
-        purchaseToken: args.purchaseToken,
         startedAt: args.now,
         ...row,
       });
@@ -583,7 +947,7 @@ async function persistSubscriptionSnapshot(
 }
 
 function findSubscriptionByToken(
-  ctx: MutationCtx,
+  ctx: Pick<QueryCtx, "db">,
   projectId: Id<"projects">,
   purchaseToken: string,
 ): Promise<Doc<"subscriptions"> | null> {
@@ -593,6 +957,164 @@ function findSubscriptionByToken(
       q.eq("projectId", projectId).eq("purchaseToken", purchaseToken),
     )
     .unique();
+}
+
+const MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS = 64;
+
+type SupersedingSubscriptionResolution =
+  | { aliased: false }
+  | {
+      aliased: true;
+      subscription: Doc<"subscriptions"> | null;
+      productId?: string;
+    };
+
+async function findSupersedingSubscription(
+  ctx: Pick<QueryCtx, "db">,
+  projectId: Id<"projects">,
+  purchaseToken: string,
+): Promise<SupersedingSubscriptionResolution> {
+  let token = purchaseToken;
+  let productId: string | undefined;
+  const seen = new Set<string>([token]);
+  for (let hop = 0; hop <= MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS; hop += 1) {
+    const alias = await ctx.db
+      .query("subscriptionTokenAliases")
+      .withIndex("by_project_and_token", (q) =>
+        q.eq("projectId", projectId).eq("purchaseToken", token),
+      )
+      .unique();
+    if (!alias) {
+      return hop === 0
+        ? { aliased: false }
+        : {
+            aliased: true,
+            subscription: await findSubscriptionByToken(ctx, projectId, token),
+            productId,
+          };
+    }
+    if (hop === 0) productId = alias.predecessorProductId;
+    if (hop === MAX_SUBSCRIPTION_TOKEN_ALIAS_HOPS) {
+      return { aliased: true, subscription: null, productId };
+    }
+    if (seen.has(alias.successorPurchaseToken)) {
+      return { aliased: true, subscription: null, productId };
+    }
+    token = alias.successorPurchaseToken;
+    seen.add(token);
+  }
+  return { aliased: true, subscription: null, productId };
+}
+
+async function recordSubscriptionTokenAlias(
+  ctx: MutationCtx,
+  args: {
+    projectId: Id<"projects">;
+    purchaseToken?: string;
+    successorPurchaseToken: string;
+    predecessorProductId?: string;
+    now: number;
+  },
+): Promise<void> {
+  if (
+    !args.purchaseToken ||
+    args.purchaseToken === args.successorPurchaseToken
+  ) {
+    return;
+  }
+  const existing = await ctx.db
+    .query("subscriptionTokenAliases")
+    .withIndex("by_project_and_token", (q) =>
+      q
+        .eq("projectId", args.projectId)
+        .eq("purchaseToken", args.purchaseToken as string),
+    )
+    .unique();
+  if (existing) {
+    if (existing.successorPurchaseToken !== args.successorPurchaseToken) {
+      await ctx.db.patch(existing._id, {
+        successorPurchaseToken: args.successorPurchaseToken,
+        predecessorProductId:
+          existing.predecessorProductId ?? args.predecessorProductId,
+        updatedAt: args.now,
+      });
+    }
+    return;
+  }
+  await ctx.db.insert("subscriptionTokenAliases", {
+    projectId: args.projectId,
+    purchaseToken: args.purchaseToken,
+    successorPurchaseToken: args.successorPurchaseToken,
+    predecessorProductId: args.predecessorProductId,
+    createdAt: args.now,
+    updatedAt: args.now,
+  });
+}
+
+function preferredReplacementSnapshot(
+  current: Doc<"subscriptions"> | null,
+  linked: Doc<"subscriptions"> | null,
+): Doc<"subscriptions"> | null {
+  if (!current) return linked;
+  // Store timestamps from predecessor and replacement tokens are not a total
+  // order: the predecessor can expire after the replacement becomes active.
+  // Current-token state therefore wins even when it came from verification;
+  // user identity and start history are merged separately during reconciliation.
+  return current;
+}
+
+export const getSourceProductIdByToken = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    purchaseToken: v.string(),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => getSourceProductIdByTokenHandler(ctx, args),
+});
+
+export async function getSourceProductIdByTokenHandler(
+  ctx: Pick<QueryCtx, "db">,
+  args: { projectId: Id<"projects">; purchaseToken: string },
+): Promise<string | null> {
+  const resolution = await findSupersedingSubscription(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  if (resolution.aliased) return resolution.productId ?? null;
+  const subscription = await findSubscriptionByToken(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  return subscription?.productId ?? null;
+}
+
+export const getCurrentProductIdByToken = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    purchaseToken: v.string(),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => getCurrentProductIdByTokenHandler(ctx, args),
+});
+
+export async function getCurrentProductIdByTokenHandler(
+  ctx: Pick<QueryCtx, "db">,
+  args: { projectId: Id<"projects">; purchaseToken: string },
+): Promise<string | null> {
+  const resolution = await findSupersedingSubscription(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  if (resolution.aliased) return resolution.subscription?.productId ?? null;
+  const subscription = await findSubscriptionByToken(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  return subscription?.productId ?? null;
 }
 
 // Look up a product's billing period from the kit-side catalog. We
@@ -626,7 +1148,9 @@ async function fetchBillingPeriod(
 
 function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {
   const appleRenewalPreference =
-    raw.platform === "IOS" && raw.type === "SubscriptionProductChanged";
+    raw.platform === "IOS" &&
+    raw.type === "SubscriptionProductChanged" &&
+    raw.effectiveImmediately !== true;
   return {
     type: raw.type,
     // Apple's renewal preference is the product for the next billing period;
@@ -636,6 +1160,7 @@ function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {
     subscriptionState: raw.subscriptionState,
     expiresAt: raw.expiresAt,
     renewsAt: raw.renewsAt,
+    willRenew: raw.willRenew,
     cancellationReason: raw.cancellationReason,
     currency: appleRenewalPreference ? undefined : raw.currency,
     priceAmountMicros: appleRenewalPreference
@@ -679,17 +1204,87 @@ export async function bindSubscriptionToUserHandler(
   ctx: MutationCtx,
   args: BindSubscriptionToUserArgs,
 ): Promise<Id<"subscriptions"> | null> {
+  if (!isValidSubscriptionUserId(args.userId)) {
+    throw new ConvexError("userId must be nonblank and at most 256 characters");
+  }
   await assertProjectWritable(ctx, args.projectId);
-  const sub = await findSubscriptionByToken(
+  const supersedingResolution = await findSupersedingSubscription(
     ctx,
     args.projectId,
     args.purchaseToken,
   );
+  const sub = supersedingResolution.aliased
+    ? supersedingResolution.subscription
+    : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
   if (!sub) return null;
   if (sub.userId === args.userId) return sub._id;
+  if (sub.userId) {
+    throw new ConvexError("Subscription is already bound to another user");
+  }
+  const now = Date.now();
   await ctx.db.patch(sub._id, {
     userId: args.userId,
-    updatedAt: Date.now(),
+    updatedAt: now,
   });
+
+  // If the store webhook won the race against verify/bind, its initial event
+  // had no account identity. Emit one correlated entitlement grant after the
+  // binding so a developer backend never has to recover a purchase token from
+  // the public payload. The normal verify -> bind -> webhook path has no
+  // lastEventId yet and emits its grant when that first webhook arrives.
+  if (sub.lastEventId && isActive(sub, now)) {
+    const retainedSource = await ctx.db.get(sub.lastEventId);
+    const sourceEvent =
+      retainedSource?.projectId === args.projectId
+        ? retainedSource
+        : sub.lastEventSource &&
+            sub.lastEventOccurredAt !== undefined &&
+            sub.lastEventSourceNotificationId
+          ? {
+              _id: sub.lastEventId,
+              type: sub.lastEventSource.type,
+              platform: sub.platform,
+              environment: sub.lastEventSource.environment,
+              productId: sub.lastEventSource.productId,
+              applicationId: sub.lastEventSource.applicationId,
+              transactionId: sub.lastEventSource.transactionId,
+              originalTransactionId: sub.lastEventSource.originalTransactionId,
+              currency: sub.lastEventSource.currency,
+              priceAmountMicros: sub.lastEventSource.priceAmountMicros,
+              sourceNotificationId: sub.lastEventSourceNotificationId,
+              occurredAt: sub.lastEventOccurredAt,
+            }
+          : null;
+    if (sourceEvent) {
+      const entitlementSource =
+        sourceEvent.type === "SubscriptionPriceChange" ||
+        (sourceEvent.productId && sourceEvent.productId !== sub.productId)
+          ? {
+              ...sourceEvent,
+              currency: undefined,
+              priceAmountMicros: undefined,
+            }
+          : sourceEvent;
+      await emitCommerceEvent(ctx, {
+        projectId: args.projectId,
+        transition: null,
+        active: true,
+        previouslyActive: false,
+        sourceEvent: entitlementSource,
+        subscriptionId: sub._id,
+        subscription: {
+          state: sub.state,
+          productId: sub.productId,
+          ...(sub.expiresAt !== undefined ? { expiresAt: sub.expiresAt } : {}),
+          ...(sub.renewsAt !== undefined ? { renewsAt: sub.renewsAt } : {}),
+          ...(sub.willRenew !== undefined ? { willRenew: sub.willRenew } : {}),
+          ...(sub.cancellationReason
+            ? { cancellationReason: sub.cancellationReason }
+            : {}),
+          userId: args.userId,
+        },
+      });
+    }
+  }
   return sub._id;
 }

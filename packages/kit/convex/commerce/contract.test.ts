@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
@@ -14,8 +15,48 @@ import {
   PROVIDER_CAPABILITIES,
   storesWithLifecycleEvents,
 } from "./capabilities";
+import { SIGNATURE_TOLERANCE_SECONDS } from "./signing";
 
 describe("commerceEventTypeForTransition", () => {
+  it("keeps every public receiver vocabulary in sync", () => {
+    const contractSections = [
+      sectionBetween(
+        readFileSync(
+          new URL("../../COMMERCE-EVENTS.md", import.meta.url),
+          "utf8",
+        ),
+        "The event types are",
+        "For an Apple",
+      ),
+      sectionBetween(
+        readFileSync(
+          new URL(
+            "../../src/pages/docs/sections/webhooks.tsx",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+        "Supported event types are:",
+        "See the",
+      ),
+      sectionBetween(
+        readFileSync(
+          new URL("../../../docs/src/pages/docs/webhooks.tsx", import.meta.url),
+          "utf8",
+        ),
+        "Event types are:",
+        "Read the",
+      ),
+    ];
+
+    for (const section of contractSections) {
+      const eventTypes =
+        section.match(/\b(?:subscription|entitlement)\.[a-z_]+\b/g) ?? [];
+      expect(new Set(eventTypes).size).toBe(eventTypes.length);
+      expect([...eventTypes].sort()).toEqual([...COMMERCE_EVENT_TYPES].sort());
+    }
+  });
+
   it("maps every state-machine transition except Ignored", () => {
     const transitions: LifecycleTransition[] = [
       "Started",
@@ -30,6 +71,7 @@ describe("commerceEventTypeForTransition", () => {
       "Refunded",
       "ProductChanged",
       "PriceChanged",
+      "Deferred",
       "Paused",
       "Resumed",
     ];
@@ -51,7 +93,31 @@ describe("commerceEventTypeForTransition", () => {
   it("pins the schema version so consumers can pin on the major", () => {
     expect(COMMERCE_EVENT_SCHEMA_VERSION).toBe("1.0");
   });
+
+  it("keeps the receiver timestamp window aligned with signing policy", () => {
+    const publicContracts = [
+      new URL("../../COMMERCE-EVENTS.md", import.meta.url),
+      new URL("../../src/pages/docs/sections/webhooks.tsx", import.meta.url),
+      new URL("../../../docs/src/pages/docs/webhooks.tsx", import.meta.url),
+    ].map((url) => readFileSync(url, "utf8"));
+    const tolerance = new RegExp(
+      `(?:<=|&lt;=|>)\\s*${SIGNATURE_TOLERANCE_SECONDS}\\b`,
+    );
+
+    for (const contract of publicContracts) {
+      expect(contract).toMatch(tolerance);
+    }
+  });
 });
+
+function sectionBetween(source: string, start: string, end: string): string {
+  const startIndex = source.indexOf(start);
+  const endIndex = source.indexOf(end, startIndex + start.length);
+  if (startIndex < 0 || endIndex < 0) {
+    throw new Error(`Missing public contract markers: ${start} -> ${end}`);
+  }
+  return source.slice(startIndex, endIndex);
+}
 
 describe("sanitizeExtensions", () => {
   it("passes through a small flat map", () => {
@@ -121,6 +187,8 @@ describe("provider capabilities", () => {
     expect(amazon.supportsReconciliation).toBe(true);
     expect(amazon.supportsSubscriptions).toBe(false);
     expect(amazon.supportsEntitlements).toBe(true);
+    expect(amazon.notes).toContain("48 hours");
+    expect(amazon.notes).toContain("every five minutes");
   });
 
   it("does not claim reconciliation for Apple or Google, which have no cron", () => {

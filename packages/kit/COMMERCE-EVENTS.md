@@ -60,16 +60,37 @@ can act without joining back.
 The event types are the lifecycle transitions the state machine already
 produces, renamed to a dotted form. There is deliberately no second taxonomy.
 
-`subscription.started` · `renewed` · `recovered` · `entered_grace_period` ·
-`entered_billing_retry` · `expired` · `canceled` · `uncanceled` · `revoked` ·
-`refunded` · `product_changed` · `price_changed` · `paused` · `resumed`
+`subscription.started` · `subscription.renewed` ·
+`subscription.recovered` · `subscription.entered_grace_period` ·
+`subscription.entered_billing_retry` · `subscription.expired` ·
+`subscription.canceled` · `subscription.uncanceled` ·
+`subscription.revoked` · `subscription.refunded` ·
+`subscription.product_changed` · `subscription.price_changed` ·
+`subscription.deferred` · `subscription.paused` · `subscription.resumed`
 
 Plus the entitlement delta, emitted only when the gate actually flips:
 `entitlement.granted` · `entitlement.revoked`
 
-For Apple's scheduled renewal-preference change, top-level `productId` is the
-next billing-period product while `subscription.productId` remains the currently
-active product until the renewal transaction arrives.
+For an Apple downgrade or scheduled crossgrade, top-level `productId` is the
+next billing-period product while `subscription.productId` remains current until
+renewal. An Apple `UPGRADE` applies the new product immediately.
+
+When a lifecycle event applies a product switch, `previousProductId` names the
+old product and `productId` names the new one. This includes an immediate Google
+change and the Apple renewal where an earlier scheduled preference takes effect.
+For a multi-item Google renewal, IAPKit matches the existing canonical product's
+line item. When that item expires, IAPKit first selects the future line whose
+`itemReplacement.productId` names the canonical product, then falls back to an
+exactly-one future item. A multi-item product change or linked purchase uses the
+same replacement metadata only for one active successor whose mode is neither
+`DEFERRED` nor `KEEP_EXISTING`; otherwise it preserves the canonical product
+instead of selecting an arbitrary item. A linked-token replacement still moves
+the canonical row to the new token. An unlinked ambiguous multi-item purchase
+is rejected before deduplication and retried until device receipt verification
+establishes the canonical product; the retry then selects that product's line
+item and applies the event once.
+Google prepaid purchases and top-ups remain active with `willRenew: false` and
+no `renewsAt`; a later top-up extends `expiresAt` without claiming auto-renewal.
 
 Likewise, a scheduled price-change event carries the announced amount in
 `price`; the canonical subscription and its revenue metrics keep the current
@@ -106,11 +127,12 @@ Fan-out runs once in the emission transaction and creates one
 ### Ordering, per provider
 
 Apple `originalTransactionId` is stable for the entitlement's lifetime, so
-ordering within a subscription is well-defined. Google reissues `purchaseToken`
-across upgrade/downgrade. The receiver fetches `subscriptionsv2` for status
-enrichment but does not retain the `linkedPurchaseToken` chain, so one logical
-Google subscription can split across rows. That is a known limitation, not a
-bug in the event layer.
+ordering within a subscription is well-defined. Google can reissue
+`purchaseToken` across upgrade/downgrade; subscriptionsv2 enrichment supplies
+the linked predecessor so IAPKit moves the canonical row to the new token and
+retains a bounded successor chain. Late predecessor status events cannot create
+a second logical subscription; refunds and revocations remain visible without
+deactivating an active successor.
 
 ## Outbound delivery
 
@@ -131,15 +153,16 @@ here is reachable from a shipped app and no client-pullable stream exists.
 
 ### Registering a destination
 
-`commerce/destinations.ts` exposes `create`, `list`, `update`, `rotateSecret`
-and `remove`. All require organization admin: a destination holds a signing
-secret and names an endpoint IAPKit will POST to, so member access is not
-enough.
+Open the project's **Webhooks** tab to create, disable, rotate, or remove a
+destination and to replay dead letters. All actions require organization admin:
+a destination holds a signing secret and names an endpoint IAPKit will POST to,
+so member access is not enough.
 
 `create` returns the secret exactly once. No query ever returns it again —
 `list` projects a fixed allow-list of fields that excludes both the secret and
 its rotation slot. `rotateSecret` issues a new one and keeps the old valid for
-24 hours so a receiver can roll without dropping in-flight deliveries.
+24 hours so a receiver can roll without dropping in-flight deliveries. Another
+rotation is rejected until that overlap ends.
 
 ### Signing
 
@@ -151,10 +174,12 @@ openiap-delivery-id: <outboundDeliveries id>
 ```
 
 The timestamp is inside the signed material, so a captured body cannot be
-replayed with a fresh header. Reject signatures older than 300 seconds, then
-atomically record `openiap-event-id` before side effects; timestamp freshness
-alone does not stop replay inside that window. During rotation the header
-carries both signatures comma-separated; accept if either matches.
+replayed with a fresh header. Parse it as a finite Unix-seconds number and
+require `Math.abs(nowSeconds - timestamp) <= 300` to reject stale and future
+signatures. Require the event-id header to equal the signed body's `eventId`,
+then atomically record the body's `eventId` before side effects. The header
+alone is not signed and is never the idempotency authority. During rotation the
+signature header carries both values comma-separated; accept if either matches.
 
 ### Retries
 
@@ -193,17 +218,17 @@ Downstream revenue math should treat a missing amount as unknown, not zero.
 theoretically allows. Consumers branch on it instead of assuming Apple-shaped
 behavior everywhere.
 
-|                            | Apple | Google | Meta/Horizon     | Amazon |
-| -------------------------- | ----- | ------ | ---------------- | ------ |
-| Initial validation         | ✅    | ✅     | ✅               | ✅     |
-| Server notifications       | ✅    | ✅     | ❌               | ❌     |
-| Canonical subscription     | ✅    | ✅     | ❌               | ❌     |
-| Renewal events             | ✅    | ✅     | ❌               | ❌     |
-| Refund / revocation events | ✅    | ✅     | ❌               | ❌     |
-| Expiration                 | ✅    | ✅     | ❌               | ❌     |
-| Scheduled reconciliation   | ❌    | ❌     | ❌               | ✅     |
+|                            | Apple | Google | Meta/Horizon     | Amazon           |
+| -------------------------- | ----- | ------ | ---------------- | ---------------- |
+| Initial validation         | ✅    | ✅     | ✅               | ✅               |
+| Server notifications       | ✅    | ✅     | ❌               | ❌               |
+| Canonical subscription     | ✅    | ✅     | ❌               | ❌               |
+| Renewal events             | ✅    | ✅     | ❌               | ❌               |
+| Refund / revocation events | ✅    | ✅     | ❌               | ❌               |
+| Expiration                 | ✅    | ✅     | ❌               | ❌               |
+| Scheduled reconciliation   | ❌    | ❌     | ❌               | ✅               |
 | Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ⚠️ point-in-time |
-| Store-authoritative amount | ✅    | ✅     | ❌               | ❌     |
+| Store-authoritative amount | ✅    | ✅     | ❌               | ❌               |
 
 Meta integrates only the Graph `verify_entitlement` endpoint: a one-shot check
 that the viewer owns the SKU. There is no notification channel, so there is no
@@ -216,8 +241,9 @@ alone does not carry enough lifecycle detail for a canonical subscription
 record, but each verification still answers point-in-time entitlement.
 
 Apple and Google have no scheduled reconciliation pass. A notification lost past
-the store's retry window is not self-healing. Re-verifying the receipt repairs
-canonical state but does not recreate the missing commerce event.
+the store's retry window is not self-healing. Receipt verification bootstraps a
+token before its first store event, but never overwrites webhook-governed state
+because a client can replay an older valid transaction.
 
 ## Integrating without touching IAPKit core
 
@@ -241,7 +267,14 @@ const signatureMatches = presented.some((signature) => {
   );
 });
 if (!signatureMatches) return 401;
-if (Math.abs(nowSeconds - Number(timestamp)) > 300) return 401;
+const timestampSeconds = Number(timestamp);
+if (
+  !Number.isFinite(timestampSeconds) ||
+  Math.abs(nowSeconds - timestampSeconds) > 300
+) {
+  return 401;
+}
+if (headerEventId !== event.eventId) return 401;
 
 if (!event.userId || !event.productId) {
   await queueForAccountCorrelationOnce(event.eventId, event);
@@ -250,6 +283,10 @@ if (!event.userId || !event.productId) {
 
 // Enforce event-id uniqueness in the same database transaction as the effect.
 await applyEventOnce(event.eventId, () => {
+  if (event.previousProductId) {
+    revokeAccess(event.userId, event.previousProductId);
+    grantAccess(event.userId, event.productId);
+  }
   switch (event.eventType) {
     case "entitlement.granted":
       grantAccess(event.userId, event.productId);
@@ -260,6 +297,15 @@ await applyEventOnce(event.eventId, () => {
   }
 });
 ```
+
+Call bind-user promptly after verification. If a store webhook arrives first,
+IAPKit emits a correlated `entitlement.granted` after binding so the receiver
+does not need a purchase token in the public payload.
+
+This correlation uses a compact source snapshot retained with the subscription.
+For subscriptions whose final source event was already pruned before that
+snapshot existed, IAPKit cannot reconstruct the old event safely; bind promptly
+or wait for the next store lifecycle event rather than inventing source fields.
 
 A future `@openiap/integration-*` package would consume this contract from
 outside; the contract does not depend on any downstream consumer.

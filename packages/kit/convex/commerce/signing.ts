@@ -19,7 +19,7 @@ export const REQUEST_TIMEOUT_MS = 10_000;
  */
 export const LEASE_MS = REQUEST_TIMEOUT_MS + 60_000;
 
-/** Receivers reject older signatures, then dedupe `openiap-event-id`. */
+/** Receivers reject stale signatures, match the header, then dedupe body.eventId. */
 export const SIGNATURE_TOLERANCE_SECONDS = 300;
 
 export const SIGNATURE_HEADER = "openiap-signature";

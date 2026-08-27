@@ -221,6 +221,13 @@ const schema = defineSchema({
       ),
     ),
     androidPackageName: v.optional(v.string()),
+    // `undefined` keeps the legacy newest-file fallback, an ID pins the active
+    // credential, and `null` revokes the slot while old duplicates drain.
+    googlePlayServiceAccountFileId: v.optional(
+      v.union(v.id("files"), v.null()),
+    ),
+    googlePlayServiceAccountCleanupPending: v.optional(v.boolean()),
+    googlePlayServiceAccountCleanupRecoveryAt: v.optional(v.number()),
     iosBundleId: v.optional(v.string()),
     iosAppAppleId: v.optional(v.number()),
     // App Store Server API credentials — issued under "Users and
@@ -296,6 +303,10 @@ const schema = defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
     .index("by_org_and_slug", ["organizationId", "slug"])
+    .index("by_google_service_account_cleanup", [
+      "googlePlayServiceAccountCleanupPending",
+      "googlePlayServiceAccountCleanupRecoveryAt",
+    ])
     .index("by_pending_deletion", ["pendingDeletion"]),
 
   // API Keys table - Multiple API keys per project
@@ -380,6 +391,7 @@ const schema = defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_project", ["projectId"])
+    .index("by_project_and_purpose", ["projectId", "purpose"])
     .index("by_uploader", ["uploadedBy"])
     .index("by_org_and_purpose", ["organizationId", "purpose"])
     .index("by_storage_id", ["storageId"])
@@ -410,10 +422,20 @@ const schema = defineSchema({
         fileSize: v.number(),
       }),
     ),
+    validatedGoogleServiceAccount: v.optional(
+      v.object({
+        storageId: v.id("_storage"),
+        fileName: v.string(),
+        fileType: v.string(),
+        fileSize: v.number(),
+        clientEmail: v.string(),
+      }),
+    ),
     // Claimed before the Node action downloads the private blob. This closes
     // the action-crash gap: the expiry pruner can still reclaim an uploaded
     // object even if validation never reaches its terminal mutation.
     pendingAppleReviewScreenshotStorageId: v.optional(v.id("_storage")),
+    pendingGoogleServiceAccountStorageId: v.optional(v.id("_storage")),
     createdAt: v.number(),
   })
     .index("by_cleanup_expires_at", ["cleanupExpiresAt"])
@@ -617,8 +639,10 @@ const schema = defineSchema({
     // populate this; the receiver guards apply the same nullability
     // (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
+    linkedPurchaseToken: v.optional(v.string()),
     transactionId: v.optional(v.string()),
     originalTransactionId: v.optional(v.string()),
+    applicationId: v.optional(v.string()),
     productKind: v.optional(
       v.union(v.literal("subscription"), v.literal("one_time")),
     ),
@@ -627,9 +651,11 @@ const schema = defineSchema({
     // deduplication and pruning correlation.
     sourceNotificationId: v.string(),
     productId: v.optional(v.string()),
+    effectiveImmediately: v.optional(v.boolean()),
     subscriptionState: v.optional(subscriptionStateValidator),
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
     cancellationReason: v.optional(
       v.union(
         v.literal("UserCanceled"),
@@ -710,14 +736,9 @@ const schema = defineSchema({
   // store-issued purchase id is the only stable handle that survives all
   // transitions. Entitlement evaluation aggregates by user as needed.
   //
-  // Known limitation (Google `linkedPurchaseToken` chain): Google reissues
-  // `purchaseToken` across upgrade/downgrade/replace flows. The new token
-  // arrives via RTDN with no `linkedPurchaseToken` field in the webhook
-  // payload itself. The receiver calls `purchases.subscriptionsv2.get` for
-  // status enrichment, but does not retain the returned linked-token chain.
-  // The result is one logical Google subscription can split into multiple
-  // rows after a token reissue, fragmenting the per-token state until a
-  // background reconciliation pass resolves the chain and merges the rows.
+  // Google can reissue `purchaseToken` across replacement flows. RTDN omits the
+  // predecessor, so subscriptionsv2 enrichment supplies `linkedPurchaseToken`;
+  // the transition moves that canonical row onto the new token atomically.
   //
   // Apple does not have this problem — `originalTransactionId` is stable
   // across the entire entitlement lifetime.
@@ -725,6 +746,7 @@ const schema = defineSchema({
     projectId: v.id("projects"),
     purchaseToken: v.string(),
     userId: v.optional(v.string()),
+    productKind: v.optional(v.literal("subscription")),
     productId: v.string(),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
     state: subscriptionStateValidator,
@@ -749,6 +771,24 @@ const schema = defineSchema({
     lastEventOccurredAt: v.optional(v.number()),
     lastEventCreationTime: v.optional(v.number()),
     lastEventSourceNotificationId: v.optional(v.string()),
+    // Compact source snapshot lets a late user binding emit its correlated
+    // entitlement grant after the full webhook event reaches retention.
+    lastEventSource: v.optional(
+      v.object({
+        type: v.optional(v.string()),
+        environment: v.union(
+          v.literal("Production"),
+          v.literal("Sandbox"),
+          v.literal("Xcode"),
+        ),
+        productId: v.optional(v.string()),
+        applicationId: v.optional(v.string()),
+        transactionId: v.optional(v.string()),
+        originalTransactionId: v.optional(v.string()),
+        currency: v.optional(v.string()),
+        priceAmountMicros: v.optional(v.number()),
+      }),
+    ),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"])
@@ -761,6 +801,7 @@ const schema = defineSchema({
     .index("by_project_and_state", ["projectId", "state"])
     .index("by_project_and_updated", ["projectId", "updatedAt"])
     .index("by_project_and_product", ["projectId", "productId"])
+    .index("by_last_event", ["lastEventId"])
     // Composite index for the (state + productId) filter combination
     // in listSubscriptions. Without it, the prior over-fetch heuristic
     // could miss matching rows past the take() boundary on projects
@@ -778,6 +819,20 @@ const schema = defineSchema({
       "state",
       "updatedAt",
     ]),
+
+  // Google replacement tokens form a successor chain. Keeping the chain
+  // separate from canonical subscriptions lets late predecessor notifications
+  // remain auditable without creating a second logical subscription row.
+  subscriptionTokenAliases: defineTable({
+    projectId: v.id("projects"),
+    purchaseToken: v.string(),
+    successorPurchaseToken: v.string(),
+    predecessorProductId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_token", ["projectId", "purchaseToken"]),
 
   // Incrementally-maintained per-(project, currency) subscription
   // counters + MRR. Updated by `applySubscriptionEvent` so the
@@ -1248,6 +1303,7 @@ const schema = defineSchema({
     applicationId: v.optional(v.string()),
     userId: v.optional(v.string()),
     productId: v.optional(v.string()),
+    previousProductId: v.optional(v.string()),
     transactionId: v.optional(v.string()),
     originalTransactionId: v.optional(v.string()),
     subscriptionId: v.optional(v.id("subscriptions")),
@@ -1317,7 +1373,20 @@ const schema = defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
-    .index("by_project_and_enabled", ["projectId", "enabled"]),
+    .index("by_project_and_enabled", ["projectId", "enabled"])
+    .index("by_pending_deletion", ["pendingDeletion"])
+    .index("by_previous_secret_expiry", ["previousSecretExpiresAt"]),
+
+  // One small row per project with queued delivery work. Ordering this table
+  // by nextClaimAt gives the global worker round-robin tenant fairness without
+  // scanning one high-volume project's entire backlog on every claim.
+  outboundDeliveryQueues: defineTable({
+    projectId: v.id("projects"),
+    nextClaimAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_next_claim", ["nextClaimAt"]),
 
   // One row per (event, destination) attempt chain. Also the dead-letter
   // store: a row that exhausts `maxAttempts` stays with status "failed" and
@@ -1351,6 +1420,21 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_event", ["eventId"])
     .index("by_destination", ["destinationId"])
+    .index("by_project_and_status_and_next_attempt", [
+      "projectId",
+      "status",
+      "nextAttemptAt",
+    ])
+    .index("by_project_and_status_and_lease_expiry", [
+      "projectId",
+      "status",
+      "leaseExpiresAt",
+    ])
+    .index("by_project_and_status_and_updated", [
+      "projectId",
+      "status",
+      "updatedAt",
+    ])
     .index("by_status_and_updated", ["status", "updatedAt"])
     // Worker claim scan.
     .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])

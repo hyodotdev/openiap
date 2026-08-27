@@ -185,6 +185,18 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const outboundDeliveryQueues = await ctx.db
+    .query("outboundDeliveryQueues")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const queue of outboundDeliveryQueues) {
+    await ctx.db.delete(queue._id);
+  }
+  if (outboundDeliveryQueues.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const outboundDeliveries = await ctx.db
     .query("outboundDeliveries")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))
@@ -251,6 +263,18 @@ export async function deleteProjectWithData(
     if (legacyKeys.length < PROJECT_DELETION_PAGE) {
       await ctx.db.delete(webhookEvent._id);
     }
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
+  const subscriptionTokenAliases = await ctx.db
+    .query("subscriptionTokenAliases")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const alias of subscriptionTokenAliases) {
+    await ctx.db.delete(alias._id);
+  }
+  if (subscriptionTokenAliases.length > 0) {
     await scheduleProjectDeletionContinuation(ctx, projectId);
     return false;
   }

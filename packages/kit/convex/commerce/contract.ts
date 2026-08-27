@@ -33,6 +33,7 @@ export const COMMERCE_EVENT_TYPES = [
   "subscription.refunded",
   "subscription.product_changed",
   "subscription.price_changed",
+  "subscription.deferred",
   "subscription.paused",
   "subscription.resumed",
   "entitlement.granted",
@@ -60,6 +61,7 @@ const TRANSITION_TO_EVENT: Record<
   Refunded: "subscription.refunded",
   ProductChanged: "subscription.product_changed",
   PriceChanged: "subscription.price_changed",
+  Deferred: "subscription.deferred",
   Paused: "subscription.paused",
   Resumed: "subscription.resumed",
   // Recorded for audit but semantically a no-op; emitting it would make
@@ -116,6 +118,8 @@ export type CommerceEvent = {
   userId?: string;
 
   productId?: string;
+  /** Previous canonical product when this lifecycle event applies a SKU switch. */
+  previousProductId?: string;
   transactionId?: string;
   originalTransactionId?: string;
 

@@ -72,6 +72,7 @@ export const lookupExistingEvent = internalQuery({
       eventId: v.id("webhookEvents"),
       type: v.string(),
       purchaseToken: v.optional(v.string()),
+      linkedPurchaseToken: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -107,6 +108,7 @@ export const lookupExistingEvent = internalQuery({
       eventId: existingEvent._id,
       type: existingEvent.type,
       purchaseToken: existingEvent.purchaseToken,
+      linkedPurchaseToken: existingEvent.linkedPurchaseToken,
     };
   },
 });
@@ -160,12 +162,15 @@ export const recordWebhookEvent = internalMutation({
       // Optional because TestNotification payloads carry no transaction.
       // Real lifecycle event types always populate this.
       purchaseToken: v.optional(v.string()),
+      linkedPurchaseToken: v.optional(v.string()),
       transactionId: v.optional(v.string()),
       originalTransactionId: v.optional(v.string()),
+      applicationId: v.optional(v.string()),
       productKind: v.optional(
         v.union(v.literal("subscription"), v.literal("one_time")),
       ),
       productId: v.optional(v.string()),
+      effectiveImmediately: v.optional(v.boolean()),
       subscriptionState: v.optional(
         v.union(
           v.literal("Active"),
@@ -180,6 +185,7 @@ export const recordWebhookEvent = internalMutation({
       ),
       expiresAt: v.optional(v.number()),
       renewsAt: v.optional(v.number()),
+      willRenew: v.optional(v.boolean()),
       cancellationReason: v.optional(
         v.union(
           v.literal("UserCanceled"),
@@ -317,14 +323,18 @@ export const recordWebhookEvent = internalMutation({
       platform: args.event.platform,
       environment: args.event.environment,
       purchaseToken: args.event.purchaseToken,
+      linkedPurchaseToken: args.event.linkedPurchaseToken,
       transactionId: args.event.transactionId,
       originalTransactionId: args.event.originalTransactionId,
+      applicationId: args.event.applicationId,
       productKind: args.event.productKind,
       sourceNotificationId: args.sourceNotificationId,
       productId: args.event.productId,
+      effectiveImmediately: args.event.effectiveImmediately,
       subscriptionState: args.event.subscriptionState,
       expiresAt: args.event.expiresAt,
       renewsAt: args.event.renewsAt,
+      willRenew: args.event.willRenew,
       cancellationReason: args.event.cancellationReason,
       currency: args.event.currency,
       priceAmountMicros: args.event.priceAmountMicros,
@@ -372,6 +382,38 @@ export const pruneWebhookEvents = internalMutation({
       .query("webhookEvents")
       .withIndex("by_received_at", (q) => q.lt("receivedAt", cutoff))
       .take(limit);
+
+    // Preserve the compact source needed for a late bind before removing the
+    // full event. This also upgrades subscriptions created before the compact
+    // snapshot field existed.
+    const referencingSubscriptions = await Promise.all(
+      oldEvents.map((event) =>
+        ctx.db
+          .query("subscriptions")
+          .withIndex("by_last_event", (q) => q.eq("lastEventId", event._id))
+          .unique(),
+      ),
+    );
+    for (let index = 0; index < oldEvents.length; index += 1) {
+      const subscription = referencingSubscriptions[index];
+      if (!subscription || subscription.lastEventSource) continue;
+      const event = oldEvents[index];
+      await ctx.db.patch(subscription._id, {
+        lastEventOccurredAt: event.occurredAt,
+        lastEventCreationTime: event._creationTime,
+        lastEventSourceNotificationId: event.sourceNotificationId,
+        lastEventSource: {
+          type: event.type,
+          environment: event.environment,
+          productId: event.productId,
+          applicationId: event.applicationId,
+          transactionId: event.transactionId,
+          originalTransactionId: event.originalTransactionId,
+          currency: event.currency,
+          priceAmountMicros: event.priceAmountMicros,
+        },
+      });
+    }
 
     // Resolve every matching idempotency key in parallel before
     // touching the DB writer. The previous loop did one .unique()

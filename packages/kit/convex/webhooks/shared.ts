@@ -76,14 +76,18 @@ export type NormalizedWebhookEvent = {
   // platform-specific normalizers (normalizeAppleEvent /
   // normalizeGoogleEvent).
   purchaseToken: string | undefined;
+  linkedPurchaseToken?: string;
   /** Store transaction/order id. Never use a purchase token as this value. */
   transactionId?: string;
   originalTransactionId?: string;
+  applicationId?: string;
   productKind?: "subscription" | "one_time";
   productId?: string;
+  effectiveImmediately?: boolean;
   subscriptionState?: SubscriptionState;
   expiresAt?: number;
   renewsAt?: number;
+  willRenew?: boolean;
   cancellationReason?: WebhookCancellationReason;
   currency?: string;
   priceAmountMicros?: number;
@@ -92,6 +96,40 @@ export type NormalizedWebhookEvent = {
   // `notificationUUID` or RTDN `messageId`.
   sourceNotificationId: string;
 };
+
+export function resolvePubSubOidcAudiences(
+  requestUrl: string,
+  configuredAudience: string,
+): string[] {
+  const audiences = new Set(
+    configuredAudience
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  let request: URL;
+  try {
+    request = new URL(requestUrl);
+  } catch {
+    return Array.from(audiences);
+  }
+
+  for (const raw of Array.from(audiences)) {
+    let configured: URL;
+    try {
+      configured = new URL(raw);
+    } catch {
+      continue;
+    }
+    const configuredIsOriginOnly =
+      configured.pathname === "/" && !configured.search && !configured.hash;
+    if (!configuredIsOriginOnly || configured.host !== request.host) continue;
+    audiences.add(configured.origin);
+    audiences.add(`${configured.origin}/`);
+    audiences.add(`${configured.origin}${request.pathname}`);
+  }
+  return Array.from(audiences);
+}
 
 // ---------------------------------------------------------------------------
 // Apple ASN v2
@@ -359,8 +397,11 @@ export function normalizeAppleAsn(
   // exposes micros (1/1_000_000) to match Google's
   // `priceAmountMicros` convention, so milliunits → micros is a 1000×
   // multiplier (e.g. $9.99 → 9990 milliunits → 9_990_000 micros).
+  const immediateUpgrade =
+    type === "SubscriptionProductChanged" && payload.subtype === "UPGRADE";
   const usesNextBillingTerms =
-    type === "SubscriptionProductChanged" || type === "SubscriptionPriceChange";
+    (type === "SubscriptionProductChanged" && !immediateUpgrade) ||
+    type === "SubscriptionPriceChange";
   const priceMilliunits = usesNextBillingTerms
     ? renewalInfo?.renewalPrice
     : transaction?.price;
@@ -369,6 +410,12 @@ export function normalizeAppleAsn(
     : transaction?.currency;
   const priceAmountMicros =
     typeof priceMilliunits === "number" ? priceMilliunits * 1000 : undefined;
+  const willRenew =
+    renewalInfo?.autoRenewStatus === 1
+      ? true
+      : renewalInfo?.autoRenewStatus === 0
+        ? false
+        : undefined;
 
   return {
     type,
@@ -378,6 +425,7 @@ export function normalizeAppleAsn(
     purchaseToken,
     transactionId: transaction?.transactionId ?? undefined,
     originalTransactionId: transaction?.originalTransactionId ?? undefined,
+    applicationId: payload.data?.bundleId ?? undefined,
     productKind:
       transaction?.type === "Auto-Renewable Subscription"
         ? "subscription"
@@ -386,13 +434,19 @@ export function normalizeAppleAsn(
           : undefined,
     productId:
       type === "SubscriptionProductChanged"
-        ? (renewalInfo?.autoRenewProductId ??
-          transaction?.productId ??
-          undefined)
+        ? immediateUpgrade
+          ? (transaction?.productId ??
+            renewalInfo?.autoRenewProductId ??
+            undefined)
+          : (renewalInfo?.autoRenewProductId ??
+            transaction?.productId ??
+            undefined)
         : (transaction?.productId ?? undefined),
+    ...(immediateUpgrade ? { effectiveImmediately: true } : {}),
     subscriptionState: deriveAppleSubscriptionState(type),
     expiresAt: transaction?.expiresDate ?? undefined,
     renewsAt: renewalInfo?.renewalDate ?? undefined,
+    willRenew,
     cancellationReason: mapAppleCancellationReason(
       payload.notificationType,
       payload.subtype ?? null,
@@ -460,10 +514,14 @@ export type GoogleTestNotification = {
 // not embed expiry / price information.
 export type GoogleSubscriptionInfo = {
   productId?: string;
+  /** subscriptionsv2 returned a bundle that the singular canonical model cannot split. */
+  ambiguousLineItems?: boolean;
+  linkedPurchaseToken?: string;
   expiryTimeMillis?: number;
   // Auto-renewing plans expose the next renewal time inline; one-off
   // prepaid plans don't carry one.
   autoRenewingPlanRenewsTimeMillis?: number;
+  willRenew?: boolean;
   state?: string;
   cancelReason?: string;
   currency?: string;
@@ -685,7 +743,9 @@ export function normalizeGoogleRtdn(
     platform: "Android",
     environment,
     purchaseToken: purchaseToken ?? undefined,
+    linkedPurchaseToken: subscriptionInfo?.linkedPurchaseToken,
     transactionId,
+    applicationId: payload.packageName,
     productKind,
     productId,
     subscriptionState: deriveGoogleSubscriptionState(
@@ -694,6 +754,7 @@ export function normalizeGoogleRtdn(
     ),
     expiresAt: subscriptionInfo?.expiryTimeMillis,
     renewsAt: subscriptionInfo?.autoRenewingPlanRenewsTimeMillis,
+    willRenew: subscriptionInfo?.willRenew,
     cancellationReason: mapGoogleCancellationReason(
       type,
       subscriptionInfo ?? null,

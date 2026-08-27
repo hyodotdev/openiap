@@ -50,6 +50,25 @@ describe("applySubscriptionTransition", () => {
     expect(result.transition).toBe("Renewed");
   });
 
+  it("honors a disabled auto-renew status on a successful renewal", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, renewsAt: 2_000_000_000_000 },
+      {
+        type: "SubscriptionRenewed",
+        productId: baseSub.productId,
+        expiresAt: 2_100_000_000_000,
+        renewsAt: 2_100_000_000_000,
+        willRenew: false,
+      },
+    );
+    expect(result.next).toMatchObject({
+      state: "Active",
+      expiresAt: 2_100_000_000_000,
+      willRenew: false,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
   it("Canceled keeps state Active until expiry but flips willRenew", () => {
     const result = applySubscriptionTransition(baseSub, {
       type: "SubscriptionCanceled",
@@ -77,6 +96,23 @@ describe("applySubscriptionTransition", () => {
     expect(result.transition).toBe("Uncanceled");
   });
 
+  it("keeps prepaid purchases active without claiming auto-renewal", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionStarted",
+      productId: "prepaid_monthly",
+      expiresAt: 1_900_000_000_000,
+      willRenew: false,
+    });
+
+    expect(result.transition).toBe("Started");
+    expect(result.next).toMatchObject({
+      state: "Active",
+      willRenew: false,
+      expiresAt: 1_900_000_000_000,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
   it("reconstructs active access when cancellation is the first event", () => {
     const result = applySubscriptionTransition(null, {
       type: "SubscriptionCanceled",
@@ -86,10 +122,26 @@ describe("applySubscriptionTransition", () => {
     });
     expect(result.next).toMatchObject({
       state: "Active",
+      expiresAt: 2_500_000_000_000,
       willRenew: false,
       cancellationReason: "UserCanceled",
     });
     expect(result.active).toBe(true);
+  });
+
+  it("does not reactivate billing retry when renewal is canceled", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, state: "InBillingRetry" },
+      {
+        type: "SubscriptionCanceled",
+        productId: baseSub.productId,
+        subscriptionState: "Active",
+        expiresAt: 2_500_000_000_000,
+      },
+    );
+    expect(result.next?.state).toBe("InBillingRetry");
+    expect(result.next?.expiresAt).toBe(2_500_000_000_000);
+    expect(result.active).toBe(false);
   });
 
   it("InGracePeriod keeps the user entitled", () => {
@@ -98,6 +150,23 @@ describe("applySubscriptionTransition", () => {
       productId: baseSub.productId,
     });
     expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.active).toBe(true);
+  });
+
+  it("persists renewal metadata when grace period is the first event", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionInGracePeriod",
+      productId: baseSub.productId,
+      expiresAt: 2_000_000_000_000,
+      renewsAt: 2_000_000_000_000,
+      willRenew: true,
+    });
+    expect(result.next).toMatchObject({
+      state: "InGracePeriod",
+      expiresAt: 2_000_000_000_000,
+      renewsAt: 2_000_000_000_000,
+      willRenew: true,
+    });
     expect(result.active).toBe(true);
   });
 
@@ -231,6 +300,44 @@ describe("applySubscriptionTransition", () => {
     expect(result.transition).toBe("ProductChanged");
   });
 
+  it("clears renewal metadata when a product change becomes prepaid", () => {
+    const result = applySubscriptionTransition(
+      {
+        ...baseSub,
+        renewsAt: 2_000_000_000_000,
+      },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.prepaid.yearly",
+        expiresAt: 2_100_000_000_000,
+        willRenew: false,
+      },
+    );
+    expect(result.next).toMatchObject({
+      productId: "com.example.prepaid.yearly",
+      expiresAt: 2_100_000_000_000,
+      willRenew: false,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
+  it("clears a stale cancellation reason when a product change will renew", () => {
+    const result = applySubscriptionTransition(
+      {
+        ...baseSub,
+        willRenew: false,
+        cancellationReason: "UserCanceled",
+      },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.premium.yearly",
+        willRenew: true,
+      },
+    );
+    expect(result.next?.willRenew).toBe(true);
+    expect(result.next?.cancellationReason).toBeUndefined();
+  });
+
   it("does not reactivate a non-entitled product change", () => {
     const result = applySubscriptionTransition(
       { ...baseSub, state: "InBillingRetry" },
@@ -273,7 +380,7 @@ describe("applySubscriptionTransition", () => {
     });
     expect(result.next?.expiresAt).toBe(2_500_000_000_000);
     expect(result.active).toBe(true);
-    expect(result.transition).toBe("Ignored");
+    expect(result.transition).toBe("Deferred");
   });
 
   it.each([

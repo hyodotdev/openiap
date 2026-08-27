@@ -5,7 +5,7 @@
 // store behaves like Apple, and support can answer "why is there no renewal
 // event for Meta" without reading provider code.
 //
-// Keep in sync with the provider modules; `capabilities.test.ts` pins the
+// Keep in sync with the provider modules; `contract.test.ts` pins the
 // claims that have a concrete implementation behind them.
 
 import type { CommerceStore } from "./contract";
@@ -50,8 +50,9 @@ export const PROVIDER_CAPABILITIES: Record<
     notes:
       "App Store Server Notifications V2 drive the lifecycle. No scheduled " +
       "reconciliation pass exists yet, so a notification lost past Apple's " +
-      "retry window is not self-healing. Re-verifying the receipt repairs " +
-      "canonical state but does not recreate the missing commerce event.",
+      "retry window is not self-healing. Receipt verification bootstraps a " +
+      "token only before its first store event and cannot recreate a missed " +
+      "commerce event.",
   },
   google: {
     supportsInitialValidation: true,
@@ -65,11 +66,11 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsRevenueAmount: true,
     notes:
       "RTDN drives the lifecycle. Google reissues purchaseToken across " +
-      "upgrade/downgrade. The receiver fetches subscriptionsv2 for status " +
-      "enrichment but does not retain the linkedPurchaseToken chain, so one " +
-      "logical subscription can split across rows until a reconciliation " +
-      "pass merges them. That pass is not implemented; receipt verification " +
-      "repairs state but does not recreate a missed commerce event.",
+      "upgrade/downgrade. The receiver requires subscriptionsv2 enrichment " +
+      "for non-terminal lifecycle events and uses linkedPurchaseToken to move " +
+      "the canonical row onto the replacement token. No scheduled " +
+      "reconciliation pass exists, and receipt verification cannot recreate " +
+      "a missed commerce event.",
   },
   horizon: {
     supportsInitialValidation: true,
@@ -99,8 +100,9 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsEntitlements: true,
     supportsRevenueAmount: false,
     notes:
-      "RVS validates receipts and a five-minute cron re-checks active ones, " +
-      "which catches cancellation after the fact. RVS alone does not carry " +
+      "RVS validates receipts. Rows become due every 48 hours and a bounded " +
+      "worker checks due work every five minutes, so backlog and retries can " +
+      "extend that interval. RVS alone does not carry " +
       "enough lifecycle detail for a canonical subscription record, so no " +
       "subscription rows or lifecycle events are produced. A verification " +
       "still answers point-in-time entitlement.",

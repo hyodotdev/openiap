@@ -16,11 +16,17 @@ type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 
 class Query {
   constructor(private rows: Row[]) {}
-  withIndex(_name: string, cb?: (q: Builder) => Builder): Query {
+  withIndex(name: string, cb?: (q: Builder) => Builder): Query {
     if (!cb) return this;
     const b = new Builder();
     cb(b);
-    return new Query(this.rows.filter((r) => b.preds.every((p) => p(r))));
+    const rows = this.rows.filter((r) => b.preds.every((p) => p(r)));
+    if (name === "by_next_claim") {
+      rows.sort(
+        (a, b) => (a.nextClaimAt as number) - (b.nextClaimAt as number),
+      );
+    }
+    return new Query(rows);
   }
   async collect(): Promise<Row[]> {
     return [...this.rows];
@@ -185,6 +191,26 @@ describe("emitCommerceEvent", () => {
     expect(JSON.stringify(db.rows("commerceEvents"))).not.toContain(
       "stable-purchase-token",
     );
+  });
+
+  it("publishes application and previous-product identity when available", async () => {
+    const db = new Db();
+    await emitCommerceEvent(ctxOf(db), {
+      projectId: "projects_1" as never,
+      transition: "ProductChanged",
+      active: true,
+      previouslyActive: true,
+      previousProductId: "premium.monthly",
+      sourceEvent: sourceEvent({
+        applicationId: "com.example.app",
+        productId: "premium.yearly",
+      }),
+    });
+    expect(db.rows("commerceEvents")[0]).toMatchObject({
+      applicationId: "com.example.app",
+      previousProductId: "premium.monthly",
+      productId: "premium.yearly",
+    });
   });
 
   it("falls back to the canonical product when a refund omits it", async () => {
@@ -353,6 +379,18 @@ describe("destinationAcceptsType", () => {
 describe("claimPendingDeliveries", () => {
   async function seedDue(db: Db, overrides: Record<string, unknown> = {}) {
     seedWritableProject(db);
+    const queue = db
+      .rows("outboundDeliveryQueues")
+      .find((row) => row.projectId === "projects_1");
+    if (!queue) {
+      await db.insert("outboundDeliveryQueues", {
+        projectId: "projects_1",
+        nextClaimAt: Date.now() - 1_000,
+        updatedAt: Date.now(),
+      });
+    } else {
+      queue.nextClaimAt = Date.now() - 1_000;
+    }
     const destinationId = await seedDestination(db);
     const eventId = await db.insert("commerceEvents", {
       projectId: "projects_1",
@@ -410,6 +448,35 @@ describe("claimPendingDeliveries", () => {
     );
   });
 
+  it("suppresses a queued event removed from the destination filter", async () => {
+    const db = new Db();
+    const { destinationId } = await seedDue(db);
+    await db.patch(destinationId, { eventTypes: ["subscription.expired"] });
+
+    await expect(claimPendingDeliveriesHandler(ctxOf(db), 10)).resolves.toEqual(
+      [],
+    );
+    expect(db.rows("outboundDeliveries")).toHaveLength(0);
+    expect(db.rows("commerceEvents")[0].prunableAt).toBeGreaterThan(Date.now());
+  });
+
+  it("preserves the attempted response when the breaker disables a destination", async () => {
+    const db = new Db();
+    const { destinationId } = await seedDue(db, {
+      attempts: 1,
+      lastStatusCode: 503,
+      lastError: "upstream unavailable",
+    });
+    await db.patch(destinationId, { enabled: false });
+
+    await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    expect(db.rows("outboundDeliveries")[0]).toMatchObject({
+      status: "failed",
+      lastStatusCode: 503,
+      lastError: "upstream unavailable",
+    });
+  });
+
   it("fences an expired attempt when its destination is disabled", async () => {
     const db = new Db();
     const { destinationId } = await seedDue(db);
@@ -418,6 +485,7 @@ describe("claimPendingDeliveries", () => {
 
     await db.patch(row._id, { leaseExpiresAt: Date.now() - 1 });
     await db.patch(destinationId, { enabled: false });
+    db.rows("outboundDeliveryQueues")[0].nextClaimAt = Date.now() - 1;
     expect(await claimPendingDeliveriesHandler(ctxOf(db), 10)).toEqual([]);
     expect(row).toMatchObject({
       status: "failed",
@@ -460,6 +528,7 @@ describe("claimPendingDeliveries", () => {
 
     // Simulate the action dying before it could record a result.
     await db.patch(row._id, { leaseExpiresAt: Date.now() - 1 });
+    db.rows("outboundDeliveryQueues")[0].nextClaimAt = Date.now() - 1;
     const reclaimed = await claimPendingDeliveriesHandler(ctxOf(db), 10);
     expect(reclaimed).toHaveLength(1);
   });
@@ -472,8 +541,83 @@ describe("claimPendingDeliveries", () => {
     await db.patch(stale._id, { leaseExpiresAt: Date.now() - 1 });
     for (let index = 0; index < 10; index += 1) await seedDue(db);
 
-    const [reclaimed] = await claimPendingDeliveriesHandler(ctxOf(db), 10, 1);
+    const [reclaimed] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
     expect(reclaimed.deliveryId).toBe(first.deliveryId);
+  });
+
+  it("rotates claims across projects instead of draining one tenant first", async () => {
+    const db = new Db();
+    const firstSeed = await seedDue(db);
+    db.rows("projects").push({
+      _id: "projects_2",
+      _creationTime: Date.now(),
+      organizationId: "organizations_1",
+    });
+    const destinationId = await db.insert("outboundDestinations", {
+      projectId: "projects_2",
+      url: "https://second.example.com/iapkit",
+      secret: "second-secret",
+      enabled: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const eventId = await db.insert("commerceEvents", {
+      projectId: "projects_2",
+      eventType: "subscription.renewed",
+      eventVersion: "1.0",
+      store: "google",
+      environment: "production",
+      occurredAt: 1,
+      processedAt: 1,
+    });
+    await db.insert("outboundDeliveries", {
+      projectId: "projects_2",
+      eventId,
+      destinationId,
+      status: "pending",
+      attempts: 0,
+      nextAttemptAt: Date.now() - 1_000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await db.insert("outboundDeliveryQueues", {
+      projectId: "projects_2",
+      nextClaimAt: Date.now() - 1_000,
+      updatedAt: Date.now(),
+    });
+
+    const [first] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    const [second] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
+    expect(new Set([first.eventId, second.eventId])).toEqual(
+      new Set([firstSeed.eventId, eventId]),
+    );
+  });
+
+  it("deletes idle queues so they cannot starve newly awakened work", async () => {
+    const db = new Db();
+    const { eventId } = await seedDue(db);
+    const activeQueue = db.rows("outboundDeliveryQueues")[0];
+    activeQueue.nextClaimAt = Date.now() - 1;
+    for (let index = 0; index < 26; index += 1) {
+      await db.insert("outboundDeliveryQueues", {
+        projectId: `idle_project_${index}`,
+        nextClaimAt: Date.now() - 10_000 + index,
+        updatedAt: Date.now(),
+      });
+    }
+
+    await expect(claimPendingDeliveriesHandler(ctxOf(db), 25)).resolves.toEqual(
+      [],
+    );
+    expect(db.rows("outboundDeliveryQueues")).toHaveLength(2);
+
+    const [claimed] = await claimPendingDeliveriesHandler(ctxOf(db), 25);
+    expect(claimed.eventId).toBe(eventId);
+    expect(
+      db
+        .rows("outboundDeliveryQueues")
+        .some((row) => String(row.projectId).startsWith("idle_project_")),
+    ).toBe(false);
   });
 
   it("does not steal a delivery whose lease is still held", async () => {
@@ -496,7 +640,9 @@ describe("claimPendingDeliveries", () => {
     expect(expired.previousSecret).toBeUndefined();
 
     await db.patch(db.rows("outboundDeliveries")[0]._id, { status: "pending" });
+    db.rows("outboundDeliveryQueues")[0].nextClaimAt = Date.now() - 1;
     await db.patch(destinationId, {
+      previousSecret: "old",
       previousSecretExpiresAt: Date.now() + 60_000,
     });
     const [live] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
@@ -583,6 +729,23 @@ describe("recordDeliveryResult", () => {
       retryable: false,
     });
     expect((await db.get(deliveryId))?.status).toBe("failed");
+  });
+
+  it("keeps only the latest mutually-exclusive failure diagnostic", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db);
+    await db.patch(deliveryId, { lastError: "old transport failure" });
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
+      ok: false,
+      statusCode: 400,
+      retryable: false,
+    });
+    expect(await db.get(deliveryId)).toMatchObject({
+      lastStatusCode: 400,
+      lastError: undefined,
+    });
   });
 
   it("dead-letters once the attempt budget is exhausted", async () => {
@@ -691,6 +854,7 @@ describe("replayDelivery", () => {
     await db.patch(deliveryId, {
       leaseExpiresAt: Date.now() - 1,
       leaseToken: "stale-token",
+      lastStatusCode: 503,
     });
     expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
       true,
@@ -699,6 +863,7 @@ describe("replayDelivery", () => {
     expect(delivery?.status).toBe("pending");
     expect(delivery?.attempts).toBe(0);
     expect(delivery?.lastError).toBeUndefined();
+    expect(delivery?.lastStatusCode).toBeUndefined();
     expect(delivery?.leaseExpiresAt).toBeUndefined();
     expect(delivery?.leaseToken).toBeUndefined();
   });
@@ -764,7 +929,9 @@ describe("buildEventPayload", () => {
     store: "apple",
     environment: "production",
     userId: "user_1",
+    applicationId: "com.example.app",
     productId: "premium.monthly",
+    previousProductId: "premium.weekly",
     transactionId: "txn_1",
     subscriptionId: "subscriptions_1",
     subscription: {
@@ -796,7 +963,9 @@ describe("buildEventPayload", () => {
       environment: "production",
       projectId: "projects_1",
       userId: "user_1",
+      applicationId: "com.example.app",
       productId: "premium.monthly",
+      previousProductId: "premium.weekly",
       transactionId: "txn_1",
       subscription: {
         state: "Active",

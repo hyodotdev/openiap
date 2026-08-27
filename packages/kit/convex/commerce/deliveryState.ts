@@ -11,7 +11,12 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
-import { internalMutation, type MutationCtx } from "../_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+} from "../_generated/server";
 import { getWritableProject } from "../projects/writable";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
@@ -25,6 +30,8 @@ import {
   MAX_DELIVERY_ATTEMPTS,
   nextAttemptDelayMs,
 } from "./signing";
+import { assertProjectAdmin } from "./destinations";
+import { destinationAcceptsType } from "./internal";
 
 /** Consecutive failures before a destination is parked for manual review. */
 const BREAKER_THRESHOLD = 20;
@@ -60,6 +67,9 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
     ...(event.applicationId ? { applicationId: event.applicationId } : {}),
     ...(event.userId ? { userId: event.userId } : {}),
     ...(event.productId ? { productId: event.productId } : {}),
+    ...(event.previousProductId
+      ? { previousProductId: event.previousProductId }
+      : {}),
     ...(event.transactionId ? { transactionId: event.transactionId } : {}),
     ...(event.originalTransactionId
       ? { originalTransactionId: event.originalTransactionId }
@@ -102,10 +112,7 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
 }
 
 export const claimPendingDeliveries = internalMutation({
-  args: {
-    limit: v.optional(v.number()),
-    maxClaims: v.optional(v.number()),
-  },
+  args: {},
   returns: v.array(
     v.object({
       deliveryId: v.id("outboundDeliveries"),
@@ -118,38 +125,76 @@ export const claimPendingDeliveries = internalMutation({
       eventId: v.id("commerceEvents"),
     }),
   ),
-  handler: async (ctx, args): Promise<ClaimedDelivery[]> =>
-    claimPendingDeliveriesHandler(
-      ctx,
-      args.limit ?? CLAIM_BATCH_LIMIT,
-      args.maxClaims ?? args.limit ?? CLAIM_BATCH_LIMIT,
-    ),
+  handler: async (ctx): Promise<ClaimedDelivery[]> =>
+    claimPendingDeliveriesHandler(ctx, CLAIM_BATCH_LIMIT),
 });
 
 export async function claimPendingDeliveriesHandler(
   ctx: MutationCtx,
-  limit: number,
-  maxClaims: number = limit,
+  scanLimit: number = CLAIM_BATCH_LIMIT,
 ): Promise<ClaimedDelivery[]> {
   const now = Date.now();
-  // Recover crashed attempts first so a continuous pending backlog cannot
-  // starve an expired lease forever.
-  const stale = await ctx.db
-    .query("outboundDeliveries")
-    .withIndex("by_status_and_lease_expiry", (q) =>
-      q.eq("status", "delivering").lte("leaseExpiresAt", now),
-    )
-    .take(limit);
-  const due = await ctx.db
-    .query("outboundDeliveries")
-    .withIndex("by_status_and_next_attempt", (q) =>
-      q.eq("status", "pending").lte("nextAttemptAt", now),
-    )
-    .take(limit - stale.length);
-  const candidates = [...stale, ...due];
+  for (let scanned = 0; scanned < scanLimit; scanned += 1) {
+    const queue = await ctx.db
+      .query("outboundDeliveryQueues")
+      .withIndex("by_next_claim", (q) => q.lte("nextClaimAt", now))
+      .first();
+    if (!queue) return [];
 
-  const claimed: ClaimedDelivery[] = [];
-  for (const delivery of candidates) {
+    // Recover an expired lease before ordinary pending work for this project.
+    const stale = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_project_and_status_and_lease_expiry", (q) =>
+        q
+          .eq("projectId", queue.projectId)
+          .eq("status", "delivering")
+          .lte("leaseExpiresAt", now),
+      )
+      .first();
+    const due = stale
+      ? null
+      : await ctx.db
+          .query("outboundDeliveries")
+          .withIndex("by_project_and_status_and_next_attempt", (q) =>
+            q
+              .eq("projectId", queue.projectId)
+              .eq("status", "pending")
+              .lte("nextAttemptAt", now),
+          )
+          .first();
+    const delivery = stale ?? due;
+    if (!delivery) {
+      const [nextPending, nextLease] = await Promise.all([
+        ctx.db
+          .query("outboundDeliveries")
+          .withIndex("by_project_and_status_and_next_attempt", (q) =>
+            q.eq("projectId", queue.projectId).eq("status", "pending"),
+          )
+          .first(),
+        ctx.db
+          .query("outboundDeliveries")
+          .withIndex("by_project_and_status_and_lease_expiry", (q) =>
+            q.eq("projectId", queue.projectId).eq("status", "delivering"),
+          )
+          .first(),
+      ]);
+      const future = [nextPending?.nextAttemptAt, nextLease?.leaseExpiresAt]
+        .filter((value): value is number => value !== undefined)
+        .sort((a, b) => a - b)[0];
+      if (future === undefined) {
+        // Fan-out and replay recreate this row when work appears. Keeping an
+        // idle tenant in the global index forever would let old empty queues
+        // consume every bounded scan ahead of newly awakened projects.
+        await ctx.db.delete(queue._id);
+      } else {
+        await ctx.db.patch(queue._id, {
+          nextClaimAt: future,
+          updatedAt: now,
+        });
+      }
+      continue;
+    }
+
     const project = await getWritableProject(ctx, delivery.projectId);
     if (!project) {
       await ctx.db.patch(delivery._id, {
@@ -159,6 +204,7 @@ export async function claimPendingDeliveriesHandler(
         leaseToken: undefined,
         updatedAt: now,
       });
+      await ctx.db.patch(queue._id, { nextClaimAt: now + 1, updatedAt: now });
       continue;
     }
     const destination = await ctx.db.get(delivery.destinationId);
@@ -167,11 +213,13 @@ export async function claimPendingDeliveriesHandler(
       // rather than holding a row that can never succeed.
       await ctx.db.patch(delivery._id, {
         status: "failed",
-        lastError: "destination disabled",
+        lastError:
+          delivery.attempts > 0 ? delivery.lastError : "destination disabled",
         leaseExpiresAt: undefined,
         leaseToken: undefined,
         updatedAt: now,
       });
+      await ctx.db.patch(queue._id, { nextClaimAt: now + 1, updatedAt: now });
       continue;
     }
     const event = await ctx.db.get(delivery.eventId);
@@ -183,6 +231,24 @@ export async function claimPendingDeliveriesHandler(
         leaseToken: undefined,
         updatedAt: now,
       });
+      await ctx.db.patch(queue._id, { nextClaimAt: now + 1, updatedAt: now });
+      continue;
+    }
+    if (!destinationAcceptsType(destination, event.eventType)) {
+      // This is an intentional administrative suppression, not a dead letter.
+      // Remove the unsent row so narrowing a filter cannot create permanent
+      // failed history or pin the immutable event outside retention.
+      await ctx.db.delete(delivery._id);
+      const remaining = await ctx.db
+        .query("outboundDeliveries")
+        .withIndex("by_event", (q) => q.eq("eventId", event._id))
+        .collect();
+      if (remaining.every((row) => row.status === "delivered")) {
+        await ctx.db.patch(event._id, {
+          prunableAt: now + COMMERCE_EVENT_RETENTION_MS,
+        });
+      }
+      await ctx.db.patch(queue._id, { nextClaimAt: now + 1, updatedAt: now });
       continue;
     }
 
@@ -196,22 +262,29 @@ export async function claimPendingDeliveriesHandler(
       leaseToken,
       updatedAt: now,
     });
-    claimed.push({
-      deliveryId: delivery._id,
-      leaseToken,
-      attempts: delivery.attempts,
-      url: destination.url,
-      secret: destination.secret,
-      ...(destination.previousSecret &&
-      (destination.previousSecretExpiresAt ?? 0) > now
-        ? { previousSecret: destination.previousSecret }
-        : {}),
-      body: JSON.stringify(buildEventPayload(event)),
-      eventId: event._id,
+    await ctx.db.patch(queue._id, {
+      // Move this project behind every currently-due tenant. A single-project
+      // queue becomes eligible again on the next mutation round trip.
+      nextClaimAt: now + 1,
+      updatedAt: now,
     });
-    if (claimed.length >= maxClaims) break;
+    return [
+      {
+        deliveryId: delivery._id,
+        leaseToken,
+        attempts: delivery.attempts,
+        url: destination.url,
+        secret: destination.secret,
+        ...(destination.previousSecret &&
+        (destination.previousSecretExpiresAt ?? 0) > now
+          ? { previousSecret: destination.previousSecret }
+          : {}),
+        body: JSON.stringify(buildEventPayload(event)),
+        eventId: event._id,
+      },
+    ];
   }
-  return claimed;
+  return [];
 }
 
 export type RecordDeliveryResultArgs = {
@@ -262,7 +335,8 @@ export async function recordDeliveryResultHandler(
         deliveredAt: now,
         leaseExpiresAt: undefined,
         leaseToken: undefined,
-        ...(args.statusCode ? { lastStatusCode: args.statusCode } : {}),
+        lastStatusCode: args.statusCode,
+        lastError: undefined,
         updatedAt: now,
       });
       if (destination) {
@@ -300,8 +374,8 @@ export async function recordDeliveryResultHandler(
       nextAttemptAt: now + nextAttemptDelayMs(attempts),
       leaseExpiresAt: undefined,
       leaseToken: undefined,
-      ...(args.statusCode ? { lastStatusCode: args.statusCode } : {}),
-      ...(args.error ? { lastError: args.error.slice(0, 500) } : {}),
+      lastStatusCode: args.statusCode,
+      lastError: args.error ? args.error.slice(0, 500) : undefined,
       updatedAt: now,
     });
 
@@ -331,6 +405,52 @@ export const replayDelivery = internalMutation({
   handler: async (ctx, args) => replayDeliveryHandler(ctx, args.deliveryId),
 });
 
+/** Admin-safe dead-letter list; never returns signing secrets or raw bodies. */
+export const listFailed = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await assertProjectAdmin(ctx, args.projectId);
+    const deliveries = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_project_and_status_and_updated", (q) =>
+        q.eq("projectId", args.projectId).eq("status", "failed"),
+      )
+      .order("desc")
+      .take(100);
+    return await Promise.all(
+      deliveries.map(async (delivery) => {
+        const [event, destination] = await Promise.all([
+          ctx.db.get(delivery.eventId),
+          ctx.db.get(delivery.destinationId),
+        ]);
+        return {
+          _id: delivery._id,
+          eventId: delivery.eventId,
+          eventType: event?.eventType ?? "event unavailable",
+          destinationId: delivery.destinationId,
+          destinationUrl: destination?.url ?? "destination unavailable",
+          attempts: delivery.attempts,
+          lastStatusCode: delivery.lastStatusCode,
+          lastError: delivery.lastError,
+          updatedAt: delivery.updatedAt,
+        };
+      }),
+    );
+  },
+});
+
+/** Project-admin replay for one dead letter. */
+export const replay = mutation({
+  args: { deliveryId: v.id("outboundDeliveries") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const delivery = await ctx.db.get(args.deliveryId);
+    if (!delivery) return false;
+    await assertProjectAdmin(ctx, delivery.projectId);
+    return replayDeliveryHandler(ctx, args.deliveryId);
+  },
+});
+
 export async function replayDeliveryHandler(
   ctx: MutationCtx,
   deliveryId: Id<"outboundDeliveries">,
@@ -344,11 +464,25 @@ export async function replayDeliveryHandler(
       status: "pending",
       attempts: 0,
       nextAttemptAt: now,
+      lastStatusCode: undefined,
       lastError: undefined,
       leaseExpiresAt: undefined,
       leaseToken: undefined,
       updatedAt: now,
     });
+    const queue = await ctx.db
+      .query("outboundDeliveryQueues")
+      .withIndex("by_project", (q) => q.eq("projectId", delivery.projectId))
+      .unique();
+    if (queue) {
+      await ctx.db.patch(queue._id, { nextClaimAt: now, updatedAt: now });
+    } else {
+      await ctx.db.insert("outboundDeliveryQueues", {
+        projectId: delivery.projectId,
+        nextClaimAt: now,
+        updatedAt: now,
+      });
+    }
     return true;
   }
 }

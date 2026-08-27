@@ -121,7 +121,7 @@ const FILE_SAVE_TARGET_PENDING_MESSAGE =
 const FILE_SAVE_AUTHORIZATION_LOST_MESSAGE =
   "The file was not saved because your access changed during the upload. Please sign in and try again.";
 const FILE_SAVE_INSUFFICIENT_PERMISSIONS_MESSAGE =
-  "Only an organization admin or owner can configure the App Review screenshot.";
+  "Only an organization admin or owner can configure private project files.";
 const FILE_SAVE_RESERVATION_EXPIRED_MESSAGE =
   "The upload took too long to finish. Please select the file and try again.";
 const FILE_SAVE_ALREADY_REGISTERED_MESSAGE =
@@ -165,6 +165,7 @@ interface ProjectData {
   slug: string;
   platform?: string;
   androidPackageName?: string;
+  googlePlayServiceAccountFileId?: Id<"files"> | null;
   iosBundleId?: string;
   iosAppAppleId?: number;
   iosAppStoreIssuerId?: string;
@@ -270,6 +271,9 @@ export default function ProjectSettings() {
   const downloadFile = useAction(api.files.action.downloadFile);
   const validateAppleReviewScreenshotUpload = useAction(
     api.files.action.validateAppleReviewScreenshotUpload,
+  );
+  const validateGoogleServiceAccountUpload = useAction(
+    api.files.action.validateGoogleServiceAccountUpload,
   );
 
   // Download a previously-uploaded credential file. Useful when an
@@ -389,11 +393,19 @@ export default function ProjectSettings() {
       file.purpose === "apple_iap_review_screenshot" &&
       file.projectId === project?._id,
   );
-  const androidFile = files?.find(
+  const androidFiles = files?.filter(
     (file) =>
       file.purpose === "android_service_account" &&
       file.projectId === project?._id,
   );
+  const androidFile =
+    project?.googlePlayServiceAccountFileId === null
+      ? undefined
+      : project?.googlePlayServiceAccountFileId
+        ? androidFiles?.find(
+            (file) => file._id === project.googlePlayServiceAccountFileId,
+          )
+        : androidFiles?.sort((a, b) => b.createdAt - a.createdAt)[0];
 
   const hasIosFile = !!iosFile;
   const hasIosAscFile = !!iosAscFile;
@@ -953,6 +965,16 @@ export default function ProjectSettings() {
       }
 
       const { storageId } = await result.json();
+
+      await validateGoogleServiceAccountUpload({
+        organizationId: project.organizationId,
+        projectId: project._id,
+        uploadReservationId,
+        storageId,
+        fileName: file.name,
+        fileType: file.type || "application/json",
+        fileSize: file.size,
+      });
 
       // Step 3: Save file record to database
       const savedFile = await saveFile({
@@ -1909,6 +1931,14 @@ export default function ProjectSettings() {
                     <label className="block text-sm font-medium mb-2">
                       {"Google Service Account (JSON)"}
                     </label>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={(event) => void handleAndroidFileUpload(event)}
+                      className="peer sr-only"
+                      id="android-file-upload"
+                      disabled={uploadingAndroid}
+                    />
 
                     {androidFileUploaded || hasAndroidFile ? (
                       <div className="space-y-2">
@@ -1943,6 +1973,21 @@ export default function ProjectSettings() {
                                 <Download className="w-4 h-4" />
                               </button>
                             )}
+                            <label
+                              htmlFor="android-file-upload"
+                              className={`flex cursor-pointer items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 peer-focus-visible:ring-2 peer-focus-visible:ring-primary dark:text-green-400 dark:hover:bg-green-900/20 ${
+                                uploadingAndroid
+                                  ? "cursor-not-allowed opacity-60"
+                                  : ""
+                              }`}
+                              title={"Replace JSON file"}
+                              aria-disabled={uploadingAndroid}
+                            >
+                              <Upload className="w-4 h-4" />
+                              <span className="sr-only">
+                                {"Replace service account JSON"}
+                              </span>
+                            </label>
                             <button
                               type="button"
                               onClick={() => void handleAndroidFileDelete()}
@@ -1957,17 +2002,9 @@ export default function ProjectSettings() {
                     ) : (
                       <>
                         <div className="relative">
-                          <input
-                            type="file"
-                            accept=".json"
-                            onChange={(e) => void handleAndroidFileUpload(e)}
-                            className="hidden"
-                            id="android-file-upload"
-                            disabled={uploadingAndroid}
-                          />
                           <label
                             htmlFor="android-file-upload"
-                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer peer-focus-visible:ring-2 peer-focus-visible:ring-primary ${
                               uploadingAndroid
                                 ? "border-muted bg-muted/20 cursor-not-allowed"
                                 : "border-border hover:border-primary hover:bg-primary/5"

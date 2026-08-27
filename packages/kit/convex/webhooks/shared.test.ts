@@ -118,7 +118,10 @@ describe("normalizeAppleAsn", () => {
     const event = normalizeAppleAsn({
       payload: baseApplePayload,
       transaction: baseTransaction,
-      renewalInfo: { renewalDate: 1_713_592_000_000 },
+      renewalInfo: {
+        autoRenewStatus: 1,
+        renewalDate: 1_713_592_000_000,
+      },
     });
 
     expect(event.type).toBe("SubscriptionRenewed");
@@ -133,11 +136,29 @@ describe("normalizeAppleAsn", () => {
     expect(event.subscriptionState).toBe("Active");
     expect(event.expiresAt).toBe(1_713_592_000_000);
     expect(event.renewsAt).toBe(1_713_592_000_000);
+    expect(event.willRenew).toBe(true);
     expect(event.currency).toBe("USD");
     // 9_990 milliunits × 1000 = 9_990_000 micros ($9.99)
     expect(event.priceAmountMicros).toBe(9_990_000);
     expect(event.occurredAt).toBe(1_711_000_000_000);
     expect(event.sourceNotificationId).toBe("uuid-renew-1");
+  });
+
+  it("preserves an authoritative disabled auto-renew status on DID_RENEW", () => {
+    const event = normalizeAppleAsn({
+      payload: baseApplePayload,
+      transaction: baseTransaction,
+      renewalInfo: {
+        autoRenewStatus: 0,
+        renewalDate: 1_713_592_000_000,
+      },
+    });
+
+    expect(event).toMatchObject({
+      type: "SubscriptionRenewed",
+      renewsAt: 1_713_592_000_000,
+      willRenew: false,
+    });
   });
 
   it("derives Sandbox/Xcode environments and falls back to Production on missing data", () => {
@@ -190,6 +211,46 @@ describe("normalizeAppleAsn", () => {
     expect(event.productId).toBe("com.example.premium_yearly");
     expect(event.currency).toBe("USD");
     expect(event.priceAmountMicros).toBe(99_990_000);
+  });
+
+  it("marks Apple upgrades as immediately effective", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_CHANGE_RENEWAL_PREF",
+        subtype: "UPGRADE",
+      },
+      transaction: {
+        ...baseTransaction,
+        productId: "com.example.premium_yearly",
+        price: 99_990,
+      },
+      renewalInfo: {
+        autoRenewProductId: "com.example.premium_yearly",
+        renewalPrice: 99_990,
+      },
+    });
+
+    expect(event).toMatchObject({
+      productId: "com.example.premium_yearly",
+      effectiveImmediately: true,
+      priceAmountMicros: 99_990_000,
+    });
+  });
+
+  it("keeps Apple downgrades scheduled", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_CHANGE_RENEWAL_PREF",
+        subtype: "DOWNGRADE",
+      },
+      transaction: baseTransaction,
+      renewalInfo: { autoRenewProductId: "com.example.basic_monthly" },
+    });
+
+    expect(event.productId).toBe("com.example.basic_monthly");
+    expect(event.effectiveImmediately).toBeUndefined();
   });
 
   it("does not attach the current transaction price to future Apple terms", () => {

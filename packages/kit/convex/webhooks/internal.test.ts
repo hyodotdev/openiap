@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   lookupExistingEvent as registeredLookupExistingEvent,
+  pruneWebhookEvents as registeredPruneWebhookEvents,
   recordWebhookEvent as registeredRecordWebhookEvent,
 } from "./internal";
 import { testableFunction } from "../test.setup";
 
 const lookupExistingEvent = testableFunction(registeredLookupExistingEvent);
+const pruneWebhookEvents = testableFunction(registeredPruneWebhookEvents);
 const recordWebhookEvent = testableFunction(registeredRecordWebhookEvent);
 
 interface TestRow {
@@ -17,16 +19,23 @@ interface TestRow {
 class TestIndexBuilder {
   constructor(
     private readonly filters: Array<[field: string, value: unknown]>,
+    private readonly upperBounds: Array<[field: string, value: number]>,
   ) {}
 
   eq(field: string, value: unknown): this {
     this.filters.push([field, value]);
     return this;
   }
+
+  lt(field: string, value: number): this {
+    this.upperBounds.push([field, value]);
+    return this;
+  }
 }
 
 class TestQuery {
   private readonly filters: Array<[field: string, value: unknown]> = [];
+  private readonly upperBounds: Array<[field: string, value: number]> = [];
 
   constructor(private readonly rows: TestRow[]) {}
 
@@ -34,7 +43,7 @@ class TestQuery {
     _indexName: string,
     configure: (builder: TestIndexBuilder) => unknown,
   ): this {
-    configure(new TestIndexBuilder(this.filters));
+    configure(new TestIndexBuilder(this.filters, this.upperBounds));
     return this;
   }
 
@@ -50,9 +59,18 @@ class TestQuery {
     return this.matchingRows();
   }
 
+  async take(limit: number): Promise<TestRow[]> {
+    return this.matchingRows().slice(0, limit);
+  }
+
   private matchingRows(): TestRow[] {
-    return this.rows.filter((row) =>
-      this.filters.every(([field, value]) => row[field] === value),
+    return this.rows.filter(
+      (row) =>
+        this.filters.every(([field, value]) => row[field] === value) &&
+        this.upperBounds.every(
+          ([field, value]) =>
+            typeof row[field] === "number" && row[field] < value,
+        ),
     );
   }
 }
@@ -92,6 +110,16 @@ class TestDb {
     const row = await this.get(id);
     if (!row) throw new Error(`Unknown row: ${id}`);
     Object.assign(row, value);
+  }
+
+  async delete(id: string): Promise<void> {
+    for (const rows of this.tables.values()) {
+      const index = rows.findIndex((row) => row._id === id);
+      if (index >= 0) {
+        rows.splice(index, 1);
+        return;
+      }
+    }
   }
 
   rows(table: string): TestRow[] {
@@ -277,6 +305,35 @@ describe("webhook event-first dedup migration", () => {
     ]);
   });
 
+  it("persists the Google plan renewal flag for lifecycle application", async () => {
+    const db = createWritableDb();
+    const args = webhookArgs("project_a", "google", "prepaid_top_up");
+
+    const result = await recordWebhookEvent._handler(
+      { db },
+      {
+        ...args,
+        event: {
+          ...args.event,
+          purchaseToken: "prepaid_token",
+          productKind: "subscription" as const,
+          productId: "prepaid_monthly",
+          subscriptionState: "Active" as const,
+          expiresAt: 1_900_000_000_000,
+          willRenew: false,
+        },
+      },
+    );
+
+    expect(db.rows("webhookEvents")).toEqual([
+      expect.objectContaining({
+        _id: result.eventId,
+        purchaseToken: "prepaid_token",
+        willRenew: false,
+      }),
+    ]);
+  });
+
   it("uses the event row for the Google preflight before the key fallback", async () => {
     const db = createWritableDb({
       webhookEvents: [
@@ -409,5 +466,62 @@ describe("webhook event-first dedup migration", () => {
     );
     expect(db.rows("webhookEvents")).toHaveLength(0);
     expect(db.rows("webhookIdempotencyKeys")).toHaveLength(0);
+  });
+});
+
+describe("pruneWebhookEvents", () => {
+  it("preserves a compact source before deleting a referenced event", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(10_000));
+    const db = createWritableDb({
+      webhookEvents: [
+        {
+          _id: "event_old",
+          _creationTime: 900,
+          projectId: "project_a",
+          type: "SubscriptionPriceChange",
+          source: "AppleAppStoreServerNotificationsV2",
+          platform: "IOS",
+          environment: "Sandbox",
+          productId: "premium_monthly",
+          currency: "USD",
+          priceAmountMicros: 19_990_000,
+          sourceNotificationId: "apple_price_change",
+          occurredAt: 1_000,
+          receivedAt: 1_000,
+        },
+      ],
+      subscriptions: [
+        {
+          _id: "subscription_a",
+          projectId: "project_a",
+          lastEventId: "event_old",
+        },
+      ],
+    });
+
+    await expect(
+      pruneWebhookEvents._handler(
+        { db },
+        {
+          olderThanMs: 5_000,
+          batchSize: 10,
+        },
+      ),
+    ).resolves.toEqual({ deletedEvents: 1, deletedKeys: 0 });
+    expect(db.rows("webhookEvents")).toHaveLength(0);
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      lastEventOccurredAt: 1_000,
+      lastEventCreationTime: 900,
+      lastEventSourceNotificationId: "apple_price_change",
+      lastEventSource: {
+        type: "SubscriptionPriceChange",
+        environment: "Sandbox",
+        productId: "premium_monthly",
+        currency: "USD",
+        priceAmountMicros: 19_990_000,
+      },
+    });
+    vi.useRealTimers();
   });
 });

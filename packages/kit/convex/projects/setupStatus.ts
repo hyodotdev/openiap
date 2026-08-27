@@ -65,6 +65,9 @@ export const getSetupStatus = query({
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .collect();
+    const googleServiceAccountUploaded = projectFiles.some(
+      (file) => file.purpose === "android_service_account",
+    );
 
     const iosMissing: string[] = [];
     if (!project.iosBundleId) iosMissing.push("iosBundleId");
@@ -74,6 +77,9 @@ export const getSetupStatus = query({
 
     const androidMissing: string[] = [];
     if (!project.androidPackageName) androidMissing.push("androidPackageName");
+    if (!googleServiceAccountUploaded) {
+      androidMissing.push("googleServiceAccount");
+    }
 
     const horizonMissing: string[] = [];
     if (!project.horizonEnabled) horizonMissing.push("horizonEnabled");
@@ -116,9 +122,7 @@ export const getSetupStatus = query({
         (f) =>
           f.purpose === "apple_p8_key" || f.purpose === "apple_p8_asc_api_key",
       ),
-      googleServiceAccountUploaded: projectFiles.some(
-        (f) => f.purpose === "android_service_account",
-      ),
+      googleServiceAccountUploaded,
     };
   },
 });

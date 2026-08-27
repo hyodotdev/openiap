@@ -1,4 +1,5 @@
 "use node";
+import { createPrivateKey } from "node:crypto";
 import { action } from "../_generated/server";
 import { v, ConvexError } from "convex/values";
 import { internal } from "../_generated/api";
@@ -8,10 +9,23 @@ import type { Id } from "../_generated/dataModel";
 import {
   validateAppleReviewScreenshotContent,
   validateFileUpload,
+  validateGoogleServiceAccountContent,
 } from "./validation";
 
 const SCREENSHOT_FETCH_TIMEOUT_MS = 30_000;
 const SCREENSHOT_MAX_INPUT_PIXELS = 25_000_000;
+
+export function validateGoogleServiceAccountPrivateKey(
+  privateKey: string,
+): void {
+  try {
+    createPrivateKey(privateKey);
+  } catch {
+    throw new ConvexError(
+      "Google service-account JSON contains an invalid private key",
+    );
+  }
+}
 
 /** Force a real image decode before a blob can receive the validation marker. */
 export async function decodeAppleReviewScreenshot(
@@ -70,7 +84,7 @@ export const validateAppleReviewScreenshotUpload = action({
   handler: async (ctx, args): Promise<{ valid: true }> => {
     const userId = await getAuthUserId(ctx);
     const { reservation, storage } = await ctx.runQuery(
-      internal.files.internal.getUploadReservationForScreenshotValidation,
+      internal.files.internal.getUploadReservationForValidation,
       {
         uploadReservationId: args.uploadReservationId,
         storageId: args.storageId,
@@ -164,6 +178,105 @@ export const validateAppleReviewScreenshotUpload = action({
     } catch (error) {
       await ctx.runMutation(
         internal.files.mutation.rejectAppleReviewScreenshotValidation,
+        {
+          uploadReservationId: args.uploadReservationId,
+          organizationId: args.organizationId,
+          projectId: args.projectId,
+          storageId: args.storageId,
+        },
+      );
+      throw error;
+    }
+  },
+});
+
+export const validateGoogleServiceAccountUpload = action({
+  args: {
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    uploadReservationId: v.id("fileUploadReservations"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+  },
+  returns: v.object({ valid: v.literal(true) }),
+  handler: async (ctx, args): Promise<{ valid: true }> => {
+    const userId = await getAuthUserId(ctx);
+    const { reservation, storage } = await ctx.runQuery(
+      internal.files.internal.getUploadReservationForValidation,
+      {
+        uploadReservationId: args.uploadReservationId,
+        storageId: args.storageId,
+      },
+    );
+    if (
+      !reservation ||
+      reservation.organizationId !== args.organizationId ||
+      reservation.projectId !== args.projectId ||
+      (userId && reservation.createdBy !== userId)
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    try {
+      if (!userId) throw new ConvexError("Not authenticated");
+      if (reservation.expiresAt <= Date.now()) {
+        throw new ConvexError("Upload reservation expired");
+      }
+      const membership = await ctx.runQuery(
+        internal.organizations.internal.getMembership,
+        { userId, organizationId: args.organizationId },
+      );
+      if (!membership || membership.role === "member") {
+        throw new ConvexError("Insufficient permissions");
+      }
+      validateFileUpload(
+        args.fileName,
+        args.fileType,
+        args.fileSize,
+        "credential",
+      );
+      if (!args.fileName.toLowerCase().endsWith(".json")) {
+        throw new ConvexError("Google service-account file must be JSON");
+      }
+      if (!storage || storage.size !== args.fileSize) {
+        throw new ConvexError(
+          "Google service-account size does not match the uploaded blob",
+        );
+      }
+      await ctx.runMutation(
+        internal.files.mutation.markGoogleServiceAccountValidationPending,
+        {
+          uploadReservationId: args.uploadReservationId,
+          userId,
+          storageId: args.storageId,
+          fileSize: args.fileSize,
+        },
+      );
+      const blob = await ctx.storage.get(args.storageId);
+      if (!blob || blob.size !== args.fileSize) {
+        throw new ConvexError("Google service-account content not found");
+      }
+      const { clientEmail, privateKey } = validateGoogleServiceAccountContent(
+        await blob.text(),
+      );
+      validateGoogleServiceAccountPrivateKey(privateKey);
+      await ctx.runMutation(
+        internal.files.mutation.markGoogleServiceAccountValidated,
+        {
+          uploadReservationId: args.uploadReservationId,
+          userId,
+          storageId: args.storageId,
+          fileName: args.fileName,
+          fileType: args.fileType,
+          fileSize: args.fileSize,
+          clientEmail,
+        },
+      );
+      return { valid: true };
+    } catch (error) {
+      await ctx.runMutation(
+        internal.files.mutation.rejectGoogleServiceAccountValidation,
         {
           uploadReservationId: args.uploadReservationId,
           organizationId: args.organizationId,

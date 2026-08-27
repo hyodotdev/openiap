@@ -9,7 +9,7 @@
 
 import { v } from "convex/values";
 import { lookup as dnsLookup } from "node:dns/promises";
-import { request as httpsRequest } from "node:https";
+import { request as httpsRequest, type RequestOptions } from "node:https";
 import { isIP, type LookupFunction } from "node:net";
 
 import { internal } from "../_generated/api";
@@ -29,6 +29,7 @@ import {
 } from "./signing";
 
 export type ResolvedAddress = { address: string; family: number };
+export const MAX_FALLBACK_ADDRESSES = 4;
 type Resolver = (
   hostname: string,
   options: { all: true; verbatim: true },
@@ -49,7 +50,11 @@ export async function resolvePublicAddresses(
   ) {
     throw new Error("destination resolved to a non-public address");
   }
-  return addresses;
+  return [
+    ...new Map(
+      addresses.map((entry) => [`${entry.family}:${entry.address}`, entry]),
+    ).values(),
+  ].slice(0, MAX_FALLBACK_ADDRESSES);
 }
 
 export type DeliveryRequest = {
@@ -57,6 +62,12 @@ export type DeliveryRequest = {
   headers: Record<string, string>;
   body: string;
 };
+
+type AddressPoster = (
+  request: DeliveryRequest,
+  selected: ResolvedAddress,
+  timeoutMs: number,
+) => Promise<number>;
 
 async function withinTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -72,41 +83,14 @@ async function withinTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   }
 }
 
-export async function postJsonPinned(
+async function postJsonToAddress(
   request: DeliveryRequest,
+  selected: ResolvedAddress,
+  timeoutMs: number,
 ): Promise<number> {
-  const startedAt = Date.now();
-  const hostname = request.url.hostname
-    .replace(/^\[|\]$/g, "")
-    .replace(/\.$/, "");
-  const [selected] = await withinTimeout(
-    resolvePublicAddresses(hostname),
-    REQUEST_TIMEOUT_MS,
-  );
-  const remainingMs = Math.max(
-    1,
-    REQUEST_TIMEOUT_MS - (Date.now() - startedAt),
-  );
-  const pinnedLookup: LookupFunction = (_hostname, _options, callback) => {
-    if (_options.all) {
-      callback(null, [selected]);
-    } else {
-      callback(null, selected.address, selected.family);
-    }
-  };
-
   return await new Promise<number>((resolve, reject) => {
     const outgoing = httpsRequest(
-      {
-        protocol: "https:",
-        hostname,
-        port: request.url.port || undefined,
-        path: `${request.url.pathname}${request.url.search}`,
-        method: "POST",
-        headers: request.headers,
-        lookup: pinnedLookup,
-        ...(isIP(hostname) === 0 ? { servername: hostname } : {}),
-      },
+      buildPinnedRequestOptions(request, selected),
       (response) => {
         clearTimeout(timer);
         const status = response.statusCode ?? 0;
@@ -116,13 +100,73 @@ export async function postJsonPinned(
     );
     const timer = setTimeout(() => {
       outgoing.destroy(new Error("request timed out"));
-    }, remainingMs);
+    }, timeoutMs);
     outgoing.once("error", (error) => {
       clearTimeout(timer);
       reject(error);
     });
     outgoing.end(request.body);
   });
+}
+
+export function buildPinnedRequestOptions(
+  request: DeliveryRequest,
+  selected: ResolvedAddress,
+): RequestOptions {
+  const hostname = request.url.hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  const pinnedLookup: LookupFunction = (_hostname, _options, callback) => {
+    if (_options.all) {
+      callback(null, [selected]);
+    } else {
+      callback(null, selected.address, selected.family);
+    }
+  };
+
+  return {
+    protocol: "https:",
+    hostname,
+    port: request.url.port || undefined,
+    path: `${request.url.pathname}${request.url.search}`,
+    method: "POST",
+    headers: request.headers,
+    lookup: pinnedLookup,
+    ...(isIP(hostname) === 0 ? { servername: hostname } : {}),
+  };
+}
+
+export async function postJsonPinned(
+  request: DeliveryRequest,
+  resolver: Resolver = dnsLookup,
+  postToAddress: AddressPoster = postJsonToAddress,
+): Promise<number> {
+  const startedAt = Date.now();
+  const hostname = request.url.hostname
+    .replace(/^\[|\]$/g, "")
+    .replace(/\.$/, "");
+  const addresses = await withinTimeout(
+    resolvePublicAddresses(hostname, resolver),
+    REQUEST_TIMEOUT_MS,
+  );
+  let lastError: unknown;
+  for (let index = 0; index < addresses.length; index += 1) {
+    const remaining = REQUEST_TIMEOUT_MS - (Date.now() - startedAt);
+    if (remaining <= 0) break;
+    const addressesLeft = addresses.length - index;
+    const attemptBudget =
+      addressesLeft === 1
+        ? remaining
+        : Math.max(1, Math.min(3_000, Math.floor(remaining / addressesLeft)));
+    try {
+      return await postToAddress(request, addresses[index], attemptBudget);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("all destination addresses failed");
 }
 
 export async function deliverPendingEventsHandler(
@@ -135,7 +179,7 @@ export async function deliverPendingEventsHandler(
   for (let index = 0; index < CLAIM_BATCH_LIMIT; index += 1) {
     const claimed: ClaimedDelivery[] = await ctx.runMutation(
       internal.commerce.deliveryState.claimPendingDeliveries,
-      { limit: CLAIM_BATCH_LIMIT, maxClaims: 1 },
+      {},
     );
     const [item] = claimed;
     if (!item) break;

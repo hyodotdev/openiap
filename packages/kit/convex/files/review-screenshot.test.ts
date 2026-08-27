@@ -8,25 +8,41 @@ vi.mock("@convex-dev/auth/server", () => ({
 
 import {
   getAppleReviewScreenshotByProjectInternal as registeredGetScreenshot,
+  getGooglePlayFileByProjectInternal as registeredGetGooglePlayFile,
   readFileAsBase64 as registeredReadFileAsBase64,
 } from "./internal";
 import {
+  drainGoogleServiceAccountFiles as registeredDrainGoogleServiceAccountFiles,
+  GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE,
+  GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE,
+  resumeGoogleServiceAccountCleanup as registeredResumeGoogleServiceAccountCleanup,
   rejectAppleReviewScreenshotValidation as registeredRejectValidation,
+  remove as registeredRemove,
   saveFile as registeredSaveFile,
 } from "./mutation";
 import {
   decodeAppleReviewScreenshot,
+  validateGoogleServiceAccountPrivateKey,
   validateAppleReviewScreenshotUpload as registeredValidateUpload,
 } from "./action";
+import { validateGoogleServiceAccountContent } from "./validation";
 import { testableFunction } from "../test.setup";
 
 const getScreenshot = testableFunction(registeredGetScreenshot);
+const getGooglePlayFile = testableFunction(registeredGetGooglePlayFile);
 const readFileAsBase64 = testableFunction(
   registeredReadFileAsBase64,
 ) as unknown as {
   _handler: (ctx: unknown, args: unknown) => Promise<Record<string, unknown>>;
 };
 const saveFile = testableFunction(registeredSaveFile);
+const drainGoogleServiceAccountFiles = testableFunction(
+  registeredDrainGoogleServiceAccountFiles,
+);
+const resumeGoogleServiceAccountCleanup = testableFunction(
+  registeredResumeGoogleServiceAccountCleanup,
+);
+const removeFile = testableFunction(registeredRemove);
 const rejectValidation = testableFunction(registeredRejectValidation);
 const validateUpload = testableFunction(
   registeredValidateUpload,
@@ -57,6 +73,13 @@ class IndexBuilder {
     this.predicates.push((row) => row[field] === value);
     return this;
   }
+
+  lte(field: string, value: number): this {
+    this.predicates.push(
+      (row) => typeof row[field] === "number" && row[field] <= value,
+    );
+    return this;
+  }
 }
 
 class FilterBuilder {
@@ -70,28 +93,34 @@ class FilterBuilder {
 }
 
 class TestQuery {
-  constructor(private readonly rows: Row[]) {}
+  constructor(
+    private readonly rows: Row[],
+    private readonly usedIndexes: string[],
+  ) {}
 
   withIndex(
-    _name: string,
+    name: string,
     build: (builder: IndexBuilder) => IndexBuilder,
   ): TestQuery {
+    this.usedIndexes.push(name);
     const builder = build(new IndexBuilder());
     return new TestQuery(
       this.rows.filter((row) =>
         builder.predicates.every((predicate) => predicate(row)),
       ),
+      this.usedIndexes,
     );
   }
 
   filter(build: (builder: FilterBuilder) => RowPredicate): TestQuery {
     const predicate = build(new FilterBuilder());
-    return new TestQuery(this.rows.filter(predicate));
+    return new TestQuery(this.rows.filter(predicate), this.usedIndexes);
   }
 
   order(direction: "asc" | "desc"): TestQuery {
     return new TestQuery(
       direction === "desc" ? [...this.rows].reverse() : [...this.rows],
+      this.usedIndexes,
     );
   }
 
@@ -102,9 +131,14 @@ class TestQuery {
   async collect(): Promise<Row[]> {
     return [...this.rows];
   }
+
+  async take(count: number): Promise<Row[]> {
+    return this.rows.slice(0, count);
+  }
 }
 
 class TestDb {
+  readonly usedIndexes: string[] = [];
   readonly system: {
     get: ReturnType<typeof vi.fn>;
   };
@@ -131,7 +165,7 @@ class TestDb {
   }
 
   query(table: string): TestQuery {
-    return new TestQuery(this.tables[table] ?? []);
+    return new TestQuery(this.tables[table] ?? [], this.usedIndexes);
   }
 
   async insert(table: string, value: Record<string, unknown>): Promise<string> {
@@ -139,6 +173,12 @@ class TestDb {
     const id = `${table}_new_${this.insertCounter}`;
     (this.tables[table] ??= []).push({ _id: id, ...value });
     return id;
+  }
+
+  async patch(id: string, value: Record<string, unknown>): Promise<void> {
+    const row = await this.get(id);
+    if (!row) throw new Error(`Unknown row: ${id}`);
+    Object.assign(row, value);
   }
 
   async delete(id: string): Promise<void> {
@@ -208,9 +248,11 @@ function makeSaveCtx(args: {
     storage_new: args.newSize ?? declaredSize,
   });
   const storage = { delete: vi.fn(async () => undefined) };
+  const scheduler = { runAfter: vi.fn(async () => undefined) };
   return {
-    ctx: { db, storage },
+    ctx: { db, scheduler, storage },
     db,
+    scheduler,
     storage,
     tables,
     saveArgs: {
@@ -234,6 +276,7 @@ describe("App Review screenshot private storage", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -259,6 +302,36 @@ describe("App Review screenshot private storage", () => {
         "image/jpeg",
       ),
     ).rejects.toThrow(/truncated|corrupt|decode/);
+  });
+
+  it("rejects incomplete Google service-account JSON and invalid PKCS#8 keys", () => {
+    expect(() =>
+      validateGoogleServiceAccountContent(
+        JSON.stringify({
+          type: "service_account",
+          client_email: "service@project.iam.gserviceaccount.com",
+          private_key:
+            "-----BEGIN PRIVATE KEY-----\ngarbage\n-----END PRIVATE KEY-----",
+          token_uri: "https://oauth2.googleapis.com/token",
+        }),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateGoogleServiceAccountPrivateKey(
+        "-----BEGIN PRIVATE KEY-----\ngarbage\n-----END PRIVATE KEY-----",
+      ),
+    ).toThrow("invalid private key");
+    expect(() =>
+      validateGoogleServiceAccountContent(
+        JSON.stringify({
+          type: "service_account",
+          client_email: "project.iam.gserviceaccount.com",
+          private_key:
+            "-----BEGIN PRIVATE KEY-----\ngarbage\n-----END PRIVATE KEY-----",
+          token_uri: "https://oauth2.googleapis.com/token",
+        }),
+      ),
+    ).toThrow("complete service-account JSON");
   });
 
   it("marks a server-decoded upload pending and then validated", async () => {
@@ -456,6 +529,408 @@ describe("App Review screenshot private storage", () => {
     });
     expect(storage.delete).toHaveBeenCalledWith("storage_old");
     expect(tables.fileUploadReservations).toHaveLength(0);
+  });
+
+  it("atomically replaces the private Google service-account slot", async () => {
+    const { ctx, storage, tables, saveArgs } = makeSaveCtx({});
+    Object.assign(tables.files?.[0] ?? {}, {
+      storageId: "storage_old",
+      fileName: "old.json",
+      fileType: "application/json",
+      purpose: "android_service_account",
+    });
+    Object.assign(tables.fileUploadReservations?.[0] ?? {}, {
+      validatedGoogleServiceAccount: {
+        storageId: "storage_new",
+        fileName: "new.json",
+        fileType: "application/json",
+        fileSize: 256,
+        clientEmail: "service@project.iam.gserviceaccount.com",
+      },
+    });
+
+    const result = await saveFile._handler(ctx, {
+      ...saveArgs,
+      fileName: "new.json",
+      fileType: "application/json",
+      purpose: "android_service_account",
+      isInternal: false,
+    } as never);
+    expect(result).toMatchObject({
+      success: true,
+      purpose: "android_service_account",
+    });
+    if (!result.success) throw new Error("replacement fixture failed");
+
+    expect(tables.projects?.[0]).toMatchObject({
+      googlePlayServiceAccountFileId: result._id,
+    });
+    expect(tables.files).toHaveLength(2);
+    await drainGoogleServiceAccountFiles._handler(ctx, {
+      projectId: "projects_a" as never,
+      activeFileId: result._id,
+    });
+    expect(tables.files).toHaveLength(1);
+    expect(tables.files?.[0]).toMatchObject({
+      storageId: "storage_new",
+      fileName: "new.json",
+      isInternal: true,
+    });
+    expect(storage.delete).toHaveBeenCalledWith("storage_old");
+  });
+
+  it("does not let a member replace the Google service-account slot", async () => {
+    const { ctx, storage, tables, saveArgs } = makeSaveCtx({});
+    Object.assign(tables.files?.[0] ?? {}, {
+      fileName: "old.json",
+      fileType: "application/json",
+      purpose: "android_service_account",
+    });
+    const membership = tables.organizationMembers?.[0];
+    if (!membership) throw new Error("membership fixture missing");
+    membership.role = "member";
+
+    await expect(
+      saveFile._handler(
+        ctx as never,
+        {
+          ...saveArgs,
+          fileName: "new.json",
+          fileType: "application/json",
+          purpose: "android_service_account",
+        } as never,
+      ),
+    ).resolves.toMatchObject({
+      success: false,
+      code: "INSUFFICIENT_PERMISSIONS",
+    });
+
+    expect(tables.files).toHaveLength(1);
+    expect(tables.files?.[0]).toMatchObject({
+      _id: "files_old",
+      purpose: "android_service_account",
+    });
+    expect(storage.delete).toHaveBeenCalledWith("storage_new");
+  });
+
+  it("preserves the current Google credential when replacement validation is absent", async () => {
+    const { ctx, storage, tables, saveArgs } = makeSaveCtx({});
+    Object.assign(tables.projects?.[0] ?? {}, {
+      googlePlayServiceAccountFileId: "files_old",
+    });
+    Object.assign(tables.files?.[0] ?? {}, {
+      fileName: "old.json",
+      fileType: "application/json",
+      purpose: "android_service_account",
+    });
+
+    await expect(
+      saveFile._handler(
+        ctx as never,
+        {
+          ...saveArgs,
+          fileName: "invalid.json",
+          fileType: "application/json",
+          purpose: "android_service_account",
+        } as never,
+      ),
+    ).resolves.toMatchObject({ success: false, code: "INVALID_FILE" });
+
+    expect(tables.projects?.[0]).toMatchObject({
+      googlePlayServiceAccountFileId: "files_old",
+    });
+    expect(tables.files).toHaveLength(1);
+    expect(tables.files?.[0]?._id).toBe("files_old");
+    expect(storage.delete).toHaveBeenCalledWith("storage_new");
+  });
+
+  it("uses the newest Google service-account row while legacy duplicates exist", async () => {
+    const db = new TestDb(
+      {
+        projects: [{ _id: "projects_a" }],
+        files: [
+          {
+            _id: "google_old",
+            projectId: "projects_a",
+            purpose: "android_service_account",
+            createdAt: 1,
+          },
+          {
+            _id: "google_other",
+            projectId: "projects_b",
+            purpose: "android_service_account",
+            createdAt: 2,
+          },
+          {
+            _id: "google_new",
+            projectId: "projects_a",
+            purpose: "android_service_account",
+            createdAt: 3,
+          },
+        ],
+      },
+      {},
+    );
+
+    await expect(
+      getGooglePlayFile._handler(
+        { db },
+        {
+          projectId: "projects_a" as never,
+        },
+      ),
+    ).resolves.toMatchObject({ _id: "google_new" });
+  });
+
+  it("deletes every legacy Google service-account row in the project slot", async () => {
+    const tables: Record<string, Row[]> = {
+      organizations: [{ _id: "organizations_a" }],
+      projects: [{ _id: "projects_a", organizationId: "organizations_a" }],
+      organizationMembers: [
+        {
+          _id: "members_a",
+          organizationId: "organizations_a",
+          userId: "users_a",
+          role: "admin",
+        },
+      ],
+      files: [
+        {
+          _id: "google_old",
+          organizationId: "organizations_a",
+          projectId: "projects_a",
+          purpose: "android_service_account",
+          storageId: "storage_old",
+        },
+        {
+          _id: "google_new",
+          organizationId: "organizations_a",
+          projectId: "projects_a",
+          purpose: "android_service_account",
+          storageId: "storage_new",
+        },
+      ],
+    };
+    const db = new TestDb(tables, { storage_old: 10, storage_new: 20 });
+    const storage = { delete: vi.fn(async () => undefined) };
+    const scheduler = { runAfter: vi.fn(async () => undefined) };
+
+    await expect(
+      removeFile._handler(
+        { db, scheduler, storage },
+        { fileId: "google_new" as never },
+      ),
+    ).resolves.toEqual({ success: true });
+
+    expect(tables.projects?.[0]).toMatchObject({
+      googlePlayServiceAccountFileId: null,
+    });
+    expect(tables.files).toHaveLength(1);
+    await expect(
+      getGooglePlayFile._handler({ db }, { projectId: "projects_a" as never }),
+    ).resolves.toBeNull();
+    await drainGoogleServiceAccountFiles._handler(
+      { db, scheduler, storage },
+      { projectId: "projects_a" as never, activeFileId: null },
+    );
+    expect(tables.files).toEqual([]);
+    expect(storage.delete).toHaveBeenCalledWith("storage_old");
+    expect(storage.delete).toHaveBeenCalledWith("storage_new");
+    await expect(
+      getGooglePlayFile._handler({ db }, { projectId: "projects_a" as never }),
+    ).resolves.toBeNull();
+  });
+
+  it("drains legacy Google credentials in bounded pages after revocation", async () => {
+    const staleCount = GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE + 3;
+    const googleFiles = Array.from({ length: staleCount }, (_, index) => ({
+      _id: `google_${index}`,
+      organizationId: "organizations_a",
+      projectId: "projects_a",
+      purpose: "android_service_account",
+      storageId: `storage_${index}`,
+    }));
+    const unrelatedFiles = Array.from({ length: 5_000 }, (_, index) => ({
+      _id: `apple_${index}`,
+      organizationId: "organizations_a",
+      projectId: "projects_a",
+      purpose: "apple_p8_key",
+      storageId: `apple_storage_${index}`,
+    }));
+    const files = [...unrelatedFiles, ...googleFiles];
+    const tables: Record<string, Row[]> = {
+      organizations: [{ _id: "organizations_a" }],
+      projects: [{ _id: "projects_a", organizationId: "organizations_a" }],
+      organizationMembers: [
+        {
+          _id: "members_a",
+          organizationId: "organizations_a",
+          userId: "users_a",
+          role: "admin",
+        },
+      ],
+      files,
+    };
+    const db = new TestDb(
+      tables,
+      Object.fromEntries(
+        googleFiles.map((file, index) => [file.storageId, index + 1]),
+      ),
+    );
+    const storage = { delete: vi.fn(async () => undefined) };
+    const scheduler = { runAfter: vi.fn(async () => undefined) };
+
+    await removeFile._handler(
+      { db, scheduler, storage },
+      { fileId: `google_${staleCount - 1}` as never },
+    );
+    await drainGoogleServiceAccountFiles._handler(
+      { db, scheduler, storage },
+      { projectId: "projects_a" as never, activeFileId: null },
+    );
+
+    expect(
+      tables.files?.filter(
+        (file) => file.purpose === "android_service_account",
+      ),
+    ).toHaveLength(2);
+    expect(
+      tables.files?.filter((file) => file.purpose === "apple_p8_key"),
+    ).toHaveLength(unrelatedFiles.length);
+    expect(db.usedIndexes).toContain("by_project_and_purpose");
+    expect(storage.delete).toHaveBeenCalledTimes(
+      GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE + 1,
+    );
+    expect(scheduler.runAfter).toHaveBeenCalledTimes(2);
+    await expect(
+      getGooglePlayFile._handler({ db }, { projectId: "projects_a" as never }),
+    ).resolves.toBeNull();
+  });
+
+  it("recovers a missed Google credential cleanup schedule", async () => {
+    const tables: Record<string, Row[]> = {
+      projects: [
+        {
+          _id: "projects_a",
+          googlePlayServiceAccountFileId: null,
+          googlePlayServiceAccountCleanupPending: true,
+          googlePlayServiceAccountCleanupRecoveryAt: 0,
+        },
+      ],
+      files: [
+        {
+          _id: "google_stale",
+          projectId: "projects_a",
+          purpose: "android_service_account",
+          storageId: "storage_stale",
+        },
+      ],
+    };
+    const db = new TestDb(tables, { storage_stale: 10 });
+    const scheduler = { runAfter: vi.fn(async () => undefined) };
+    const storage = { delete: vi.fn(async () => undefined) };
+
+    await resumeGoogleServiceAccountCleanup._handler({ db, scheduler }, {});
+
+    expect(scheduler.runAfter).toHaveBeenCalledWith(0, expect.anything(), {
+      projectId: "projects_a",
+      activeFileId: null,
+    });
+    expect(db.usedIndexes).toContain("by_google_service_account_cleanup");
+
+    await drainGoogleServiceAccountFiles._handler(
+      { db, scheduler, storage },
+      { projectId: "projects_a" as never, activeFileId: null },
+    );
+    expect(tables.files).toEqual([]);
+    expect(tables.projects?.[0]).toMatchObject({
+      googlePlayServiceAccountCleanupPending: false,
+    });
+  });
+
+  it("rotates cleanup recovery so a failing head batch cannot starve the tail", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1_000));
+    const projectCount = GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE + 1;
+    const projects = Array.from({ length: projectCount }, (_, index) => ({
+      _id: `projects_${index}`,
+      googlePlayServiceAccountFileId: `google_${index}`,
+      googlePlayServiceAccountCleanupPending: true,
+      googlePlayServiceAccountCleanupRecoveryAt: 0,
+    }));
+    const db = new TestDb({ projects }, {});
+    const scheduler = { runAfter: vi.fn(async () => undefined) };
+
+    await resumeGoogleServiceAccountCleanup._handler({ db, scheduler }, {});
+    expect(scheduler.runAfter).toHaveBeenCalledTimes(
+      GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE,
+    );
+
+    await resumeGoogleServiceAccountCleanup._handler({ db, scheduler }, {});
+    expect(scheduler.runAfter).toHaveBeenCalledTimes(projectCount);
+    expect(scheduler.runAfter).toHaveBeenLastCalledWith(0, expect.anything(), {
+      projectId: `projects_${projectCount - 1}`,
+      activeFileId: `google_${projectCount - 1}`,
+    });
+  });
+
+  it("removes a stale Google credential without revoking the active pointer", async () => {
+    const tables: Record<string, Row[]> = {
+      organizations: [{ _id: "organizations_a" }],
+      projects: [
+        {
+          _id: "projects_a",
+          organizationId: "organizations_a",
+          googlePlayServiceAccountFileId: "google_active",
+        },
+      ],
+      organizationMembers: [
+        {
+          _id: "members_a",
+          organizationId: "organizations_a",
+          userId: "users_a",
+          role: "admin",
+        },
+      ],
+      files: [
+        {
+          _id: "google_stale",
+          organizationId: "organizations_a",
+          projectId: "projects_a",
+          purpose: "android_service_account",
+          storageId: "storage_stale",
+        },
+        {
+          _id: "google_active",
+          organizationId: "organizations_a",
+          projectId: "projects_a",
+          purpose: "android_service_account",
+          storageId: "storage_active",
+        },
+      ],
+    };
+    const db = new TestDb(tables, {
+      storage_stale: 10,
+      storage_active: 20,
+    });
+    const storage = { delete: vi.fn(async () => undefined) };
+    const scheduler = { runAfter: vi.fn(async () => undefined) };
+
+    await removeFile._handler(
+      { db, scheduler, storage },
+      { fileId: "google_stale" as never },
+    );
+
+    expect(tables.projects?.[0]).toMatchObject({
+      googlePlayServiceAccountFileId: "google_active",
+    });
+    expect(tables.files).toHaveLength(1);
+    expect(tables.files?.[0]?._id).toBe("google_active");
+    expect(storage.delete).toHaveBeenCalledWith("storage_stale");
+    expect(scheduler.runAfter).not.toHaveBeenCalled();
+    await expect(
+      getGooglePlayFile._handler({ db }, { projectId: "projects_a" as never }),
+    ).resolves.toMatchObject({ _id: "google_active" });
   });
 
   it("forces the screenshot slot to internal even when a caller sends false", async () => {

@@ -28,7 +28,7 @@ export const getFileRecord = internalQuery({
   },
 });
 
-export const getUploadReservationForScreenshotValidation = internalQuery({
+export const getUploadReservationForValidation = internalQuery({
   args: {
     uploadReservationId: v.id("fileUploadReservations"),
     storageId: v.id("_storage"),
@@ -322,10 +322,26 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return null;
+    if (project.googlePlayServiceAccountFileId === null) return null;
+    if (project.googlePlayServiceAccountFileId !== undefined) {
+      const activeFile = await ctx.db.get(
+        project.googlePlayServiceAccountFileId,
+      );
+      return activeFile?.projectId === args.projectId &&
+        activeFile.purpose === "android_service_account"
+        ? activeFile
+        : null;
+    }
     return await ctx.db
       .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .filter((q) => q.eq(q.field("purpose"), "android_service_account"))
+      .withIndex("by_project_and_purpose", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("purpose", "android_service_account"),
+      )
+      .order("desc")
       .first();
   },
 });
@@ -480,7 +496,7 @@ export const cleanupOldFiles = internalMutation({
 // Most expired upload reservations carry no storageId because the storage
 // service assigns it only after the client POSTs to the signed URL. Screenshot
 // validation deliberately claims that id before its Node action downloads the
-// blob, so the bounded sweep must also reclaim a claimed-but-unsaved object.
+// blob, so the bounded sweep must also reclaim claimed-but-unsaved objects.
 export const pruneUploadReservations = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -502,11 +518,18 @@ export const pruneUploadReservations = internalMutation({
       .take(batchSize);
 
     for (const reservation of expired) {
-      const screenshotStorageId =
-        reservation.pendingAppleReviewScreenshotStorageId ??
-        reservation.validatedAppleReviewScreenshot?.storageId;
-      if (screenshotStorageId) {
-        await deleteStorageIfUnreferenced(ctx, screenshotStorageId);
+      const claimedStorageIds = new Set(
+        [
+          reservation.pendingAppleReviewScreenshotStorageId ??
+            reservation.validatedAppleReviewScreenshot?.storageId,
+          reservation.pendingGoogleServiceAccountStorageId ??
+            reservation.validatedGoogleServiceAccount?.storageId,
+        ].filter((storageId): storageId is Id<"_storage"> =>
+          Boolean(storageId),
+        ),
+      );
+      for (const storageId of claimedStorageIds) {
+        await deleteStorageIfUnreferenced(ctx, storageId);
       }
       await ctx.db.delete(reservation._id);
     }

@@ -17,6 +17,7 @@ import {
 } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getWritableProject } from "../projects/writable";
+import { resolveProjectByIdForCurrentUserFromDb } from "../projects/helpers";
 import { COMMERCE_EVENT_TYPES } from "./contract";
 import { COMMERCE_EVENT_RETENTION_MS, checkDestinationUrl } from "./signing";
 
@@ -25,6 +26,8 @@ const SECRET_BYTES = 32;
 const ROTATION_GRACE_MS = 24 * 60 * 60 * 1000;
 const MAX_DESTINATIONS_PER_PROJECT = 10;
 const DESTINATION_DELETION_PAGE = 100;
+export const MAX_DESTINATION_URL_LENGTH = 2_048;
+export const MAX_DESTINATION_DESCRIPTION_LENGTH = 512;
 
 function generateSecret(): string {
   const bytes = new Uint8Array(SECRET_BYTES);
@@ -32,7 +35,7 @@ function generateSecret(): string {
   return `whsec_${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 
-async function assertProjectAdmin(
+export async function assertProjectAdmin(
   ctx: QueryCtx,
   projectId: Id<"projects">,
 ): Promise<void> {
@@ -51,13 +54,32 @@ async function assertProjectAdmin(
   }
 }
 
-function assertEventTypes(eventTypes: string[] | undefined): void {
-  if (!eventTypes) return;
+function normalizeEventTypes(
+  eventTypes: string[] | undefined,
+): string[] | undefined {
+  if (!eventTypes) return undefined;
   const unknown = eventTypes.filter(
     (type) => !(COMMERCE_EVENT_TYPES as readonly string[]).includes(type),
   );
   if (unknown.length > 0) {
     throw new ConvexError(`Unknown event types: ${unknown.join(", ")}`);
+  }
+  return [...new Set(eventTypes)];
+}
+
+function assertDestinationMetadata(url: string, description?: string): void {
+  if (url.length > MAX_DESTINATION_URL_LENGTH) {
+    throw new ConvexError(
+      `Destination URL must be at most ${MAX_DESTINATION_URL_LENGTH} characters`,
+    );
+  }
+  if (
+    description !== undefined &&
+    description.length > MAX_DESTINATION_DESCRIPTION_LENGTH
+  ) {
+    throw new ConvexError(
+      `Description must be at most ${MAX_DESTINATION_DESCRIPTION_LENGTH} characters`,
+    );
   }
 }
 
@@ -81,6 +103,18 @@ function publicView(destination: Doc<"outboundDestinations">) {
 export const list = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => listHandler(ctx, args.projectId),
+});
+
+export const canManage = query({
+  args: { projectId: v.id("projects") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByIdForCurrentUserFromDb(
+      ctx,
+      args.projectId,
+    );
+    return resolved !== null && resolved.role !== "member";
+  },
 });
 
 export async function listHandler(
@@ -122,11 +156,12 @@ export async function createHandler(
 ): Promise<{ destinationId: Id<"outboundDestinations">; secret: string }> {
   {
     await assertProjectAdmin(ctx, args.projectId);
+    assertDestinationMetadata(args.url, args.description);
     const check = checkDestinationUrl(args.url);
     if (!check.ok) {
       throw new ConvexError(`Destination URL rejected: ${check.reason}`);
     }
-    assertEventTypes(args.eventTypes);
+    const eventTypes = normalizeEventTypes(args.eventTypes);
 
     const existing = await ctx.db
       .query("outboundDestinations")
@@ -148,7 +183,7 @@ export async function createHandler(
       url: check.url.toString(),
       secret,
       enabled: true,
-      ...(args.eventTypes ? { eventTypes: args.eventTypes } : {}),
+      ...(eventTypes ? { eventTypes } : {}),
       ...(args.description ? { description: args.description } : {}),
       consecutiveFailures: 0,
       createdAt: now,
@@ -187,7 +222,8 @@ export async function updateHandler(
       throw new ConvexError("Destination not found");
     }
     await assertProjectAdmin(ctx, destination.projectId);
-    assertEventTypes(args.eventTypes);
+    assertDestinationMetadata(args.url ?? destination.url, args.description);
+    const eventTypes = normalizeEventTypes(args.eventTypes);
 
     let url: string | undefined;
     if (args.url !== undefined) {
@@ -201,7 +237,7 @@ export async function updateHandler(
     await ctx.db.patch(destination._id, {
       ...(url ? { url } : {}),
       ...(args.enabled !== undefined ? { enabled: args.enabled } : {}),
-      ...(args.eventTypes ? { eventTypes: args.eventTypes } : {}),
+      ...(args.eventTypes !== undefined ? { eventTypes } : {}),
       ...(args.description !== undefined
         ? { description: args.description }
         : {}),
@@ -232,9 +268,17 @@ export async function rotateSecretHandler(
       throw new ConvexError("Destination not found");
     }
     await assertProjectAdmin(ctx, destination.projectId);
+    const now = Date.now();
+    if (
+      destination.previousSecret &&
+      (destination.previousSecretExpiresAt ?? 0) > now
+    ) {
+      throw new ConvexError(
+        "Wait for the current 24-hour secret rotation window to end.",
+      );
+    }
 
     const secret = generateSecret();
-    const now = Date.now();
     await ctx.db.patch(destination._id, {
       secret,
       previousSecret: destination.secret,
@@ -257,10 +301,14 @@ export async function removeHandler(
   {
     const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
-    if (!destination || destination.pendingDeletion) {
+    if (!destination) {
       throw new ConvexError("Destination not found");
     }
     await assertProjectAdmin(ctx, destination.projectId);
+    if (destination.pendingDeletion) {
+      await continueDestinationRemovalHandler(ctx, destination._id);
+      return null;
+    }
     await ctx.db.patch(destination._id, {
       enabled: false,
       pendingDeletion: true,
@@ -314,4 +362,59 @@ export async function continueDestinationRemovalHandler(
     return;
   }
   await ctx.db.delete(destinationId);
+}
+
+/** Resumes one deletion whose scheduled continuation was lost. */
+export const resumePendingDestinationRemoval = internalMutation({
+  args: {},
+  returns: v.union(v.id("outboundDestinations"), v.null()),
+  handler: async (ctx) => resumePendingDestinationRemovalHandler(ctx),
+});
+
+export async function resumePendingDestinationRemovalHandler(
+  ctx: MutationCtx,
+): Promise<Id<"outboundDestinations"> | null> {
+  const destination = await ctx.db
+    .query("outboundDestinations")
+    .withIndex("by_pending_deletion", (q) => q.eq("pendingDeletion", true))
+    .first();
+  if (!destination) return null;
+  await continueDestinationRemovalHandler(ctx, destination._id);
+  return destination._id;
+}
+
+/** Erases rotated-out credentials after their overlap window closes. */
+export const pruneExpiredPreviousSecrets = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => pruneExpiredPreviousSecretsHandler(ctx),
+});
+
+export async function pruneExpiredPreviousSecretsHandler(
+  ctx: MutationCtx,
+): Promise<number> {
+  const now = Date.now();
+  const expired = await ctx.db
+    .query("outboundDestinations")
+    .withIndex("by_previous_secret_expiry", (q) =>
+      q
+        .gt("previousSecretExpiresAt", undefined)
+        .lte("previousSecretExpiresAt", now),
+    )
+    .take(DESTINATION_DELETION_PAGE);
+  for (const destination of expired) {
+    await ctx.db.patch(destination._id, {
+      previousSecret: undefined,
+      previousSecretExpiresAt: undefined,
+      updatedAt: now,
+    });
+  }
+  if (expired.length === DESTINATION_DELETION_PAGE) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.commerce.destinations.pruneExpiredPreviousSecrets,
+      {},
+    );
+  }
+  return expired.length;
 }

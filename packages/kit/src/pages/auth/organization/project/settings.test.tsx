@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   saveFile: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
+  validateGoogleServiceAccount: vi.fn(),
   validateScreenshot: vi.fn(),
   files: [] as Array<Record<string, unknown>>,
 }));
@@ -69,10 +70,15 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useAction: (reference: string) =>
-    reference === "files.validateAppleReviewScreenshotUpload"
-      ? mocks.validateScreenshot
-      : mocks.downloadFile,
+  useAction: (reference: string) => {
+    if (reference === "files.validateAppleReviewScreenshotUpload") {
+      return mocks.validateScreenshot;
+    }
+    if (reference === "files.validateGoogleServiceAccountUpload") {
+      return mocks.validateGoogleServiceAccount;
+    }
+    return mocks.downloadFile;
+  },
   useMutation: (reference: string) => {
     if (reference === "files.generateUploadUrl") {
       return mocks.generateUploadUrl;
@@ -90,6 +96,8 @@ vi.mock("@/convex", () => ({
         downloadFile: "files.downloadFile",
         validateAppleReviewScreenshotUpload:
           "files.validateAppleReviewScreenshotUpload",
+        validateGoogleServiceAccountUpload:
+          "files.validateGoogleServiceAccountUpload",
       },
       mutation: {
         generateUploadUrl: "files.generateUploadUrl",
@@ -126,6 +134,7 @@ describe("ProjectSettings", () => {
     mocks.saveFile.mockReset();
     mocks.toastError.mockReset();
     mocks.toastSuccess.mockReset();
+    mocks.validateGoogleServiceAccount.mockReset();
     mocks.validateScreenshot.mockReset();
     mocks.files = [];
     mocks.generateUploadUrl.mockResolvedValue({
@@ -142,6 +151,7 @@ describe("ProjectSettings", () => {
       code: "TARGET_PENDING_DELETION",
     });
     mocks.validateScreenshot.mockResolvedValue({ valid: true });
+    mocks.validateGoogleServiceAccount.mockResolvedValue({ valid: true });
     vi.stubGlobal("fetch", mocks.fetch);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
@@ -275,6 +285,126 @@ describe("ProjectSettings", () => {
     }
   });
 
+  it("replaces an existing Google service-account file without deleting first", async () => {
+    mocks.files = [
+      {
+        _id: "files_android",
+        projectId: "projects_test",
+        purpose: "android_service_account",
+        fileName: "old-service-account.json",
+        fileSize: 256,
+        createdAt: 1,
+      },
+    ];
+    mocks.saveFile.mockResolvedValueOnce({
+      success: true,
+      _id: "files_android_replacement",
+    });
+    render(<ProjectSettings />);
+
+    const replaceControl = screen.getByLabelText(
+      "Replace service account JSON",
+    );
+    expect(replaceControl.id).toBe("android-file-upload");
+    expect(replaceControl.className).toContain("sr-only");
+    expect(replaceControl.className).not.toContain("hidden");
+    expect(screen.getByTitle("Replace JSON file").getAttribute("for")).toBe(
+      "android-file-upload",
+    );
+    fireEvent.change(replaceControl, {
+      target: {
+        files: [
+          new File(["new private credential"], "replacement.json", {
+            type: "application/json",
+          }),
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.saveFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          fileName: "replacement.json",
+          purpose: "android_service_account",
+        }),
+      );
+    });
+    expect(mocks.otherMutation).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Android service account uploaded successfully",
+    );
+  });
+
+  it("reports the private-file permission when a member cannot replace Android credentials", async () => {
+    mocks.files = [
+      {
+        _id: "files_android",
+        projectId: "projects_test",
+        purpose: "android_service_account",
+        fileName: "old-service-account.json",
+        fileSize: 256,
+        createdAt: 1,
+      },
+    ];
+    mocks.saveFile.mockResolvedValueOnce({
+      success: false,
+      code: "INSUFFICIENT_PERMISSIONS",
+    });
+    render(<ProjectSettings />);
+
+    fireEvent.change(screen.getByLabelText("Replace service account JSON"), {
+      target: {
+        files: [
+          new File(["private credential"], "replacement.json", {
+            type: "application/json",
+          }),
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Only an organization admin or owner can configure private project files.",
+      );
+    });
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("keeps the current Android credential when server validation rejects a replacement", async () => {
+    mocks.files = [
+      {
+        _id: "files_android",
+        projectId: "projects_test",
+        purpose: "android_service_account",
+        fileName: "current.json",
+        fileSize: 256,
+        createdAt: 1,
+      },
+    ];
+    mocks.validateGoogleServiceAccount.mockRejectedValueOnce(
+      new Error("Google service-account JSON contains an invalid private key"),
+    );
+    render(<ProjectSettings />);
+
+    fireEvent.change(screen.getByLabelText("Replace service account JSON"), {
+      target: {
+        files: [
+          new File(["invalid"], "replacement.json", {
+            type: "application/json",
+          }),
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith(
+        "Google service-account JSON contains an invalid private key",
+      );
+    });
+    expect(mocks.saveFile).not.toHaveBeenCalled();
+    expect(screen.getByText("current.json", { exact: false })).toBeTruthy();
+  });
+
   it.each([
     {
       inputId: "ios-file-upload",
@@ -358,8 +488,24 @@ describe("ProjectSettings", () => {
         expect(
           mocks.validateScreenshot.mock.invocationCallOrder[0],
         ).toBeLessThan(mocks.saveFile.mock.invocationCallOrder[0]);
+        expect(mocks.validateGoogleServiceAccount).not.toHaveBeenCalled();
+      } else if (purpose === "android_service_account") {
+        expect(mocks.validateGoogleServiceAccount).toHaveBeenCalledWith({
+          organizationId: "organizations_test",
+          projectId: "projects_test",
+          uploadReservationId: "fileUploadReservations_test",
+          storageId: "storage_test",
+          fileName,
+          fileType: mimeType,
+          fileSize: expect.any(Number),
+        });
+        expect(
+          mocks.validateGoogleServiceAccount.mock.invocationCallOrder[0],
+        ).toBeLessThan(mocks.saveFile.mock.invocationCallOrder[0]);
+        expect(mocks.validateScreenshot).not.toHaveBeenCalled();
       } else {
         expect(mocks.validateScreenshot).not.toHaveBeenCalled();
+        expect(mocks.validateGoogleServiceAccount).not.toHaveBeenCalled();
       }
       expect(JSON.stringify(mocks.toastError.mock.calls)).not.toContain(
         "private credential",
