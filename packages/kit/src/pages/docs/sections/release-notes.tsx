@@ -27,6 +27,21 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-08-27",
+    date: "2026-08-27",
+    tagline: "One offer-code flow across current OpenIAP SDKs.",
+    items: [
+      {
+        kind: "docs",
+        text: "OpenIAP Spec 3.3.0 and the current SDK releases expose one openRedeemOfferCode call across Apple and Google. Keep purchase listeners active and verify redeemed transactions through the existing IAPKit flow.",
+      },
+      {
+        kind: "docs",
+        text: "Replace presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid with openRedeemOfferCode before the platform-specific methods are removed in OpenIAP 4.0.",
+      },
+    ],
+  },
+  {
     id: "hosted-2026-08-19",
     date: "2026-08-19",
     tagline: "Clearer product guidance and a complete operator reference.",
