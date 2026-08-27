@@ -17,7 +17,6 @@ vi.mock("googleapis", () => ({
 }));
 
 import {
-  assertProjectBoundPubSubOidc,
   ingestGoogleRtdn as registeredIngestGoogleRtdn,
   projectPubSubOidcAudiences,
   selectLongestDatedLineItem,
@@ -32,9 +31,11 @@ const serviceAccountContent = JSON.stringify({
 });
 const originalAllowUnauthenticatedPubSub =
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+const originalAppEnv = process.env.APP_ENV;
 
 beforeAll(() => {
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+  process.env.APP_ENV = "test";
 });
 
 afterAll(() => {
@@ -43,6 +44,11 @@ afterAll(() => {
   } else {
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB =
       originalAllowUnauthenticatedPubSub;
+  }
+  if (originalAppEnv === undefined) {
+    delete (process.env as Record<string, string | undefined>).APP_ENV;
+  } else {
+    process.env.APP_ENV = originalAppEnv;
   }
 });
 
@@ -126,30 +132,33 @@ describe("ingestGoogleRtdn preflight", () => {
     }
   });
 
-  it("binds Pub/Sub OIDC to the project's service account", async () => {
-    await expect(
-      assertProjectBoundPubSubOidc(
-        "signed-token",
-        ["https://kit.openiap.dev/v1/webhooks/iap_public"],
-        "expected@project.iam.gserviceaccount.com",
-        async () => ({
-          email: "attacker@other.iam.gserviceaccount.com",
-          email_verified: true,
-        }),
-      ),
-    ).rejects.toThrow("OIDC authentication failed");
+  it("ignores the unauthenticated bypass flag in production", async () => {
+    process.env.APP_ENV = "production";
+    const runQuery = vi.fn().mockResolvedValueOnce({
+      _id: "project_production",
+      androidPackageName: "dev.openiap.test",
+    });
 
-    await expect(
-      assertProjectBoundPubSubOidc(
-        "signed-token",
-        ["https://kit.openiap.dev/v1/webhooks/iap_public"],
-        "expected@project.iam.gserviceaccount.com",
-        async () => ({
-          email: "expected@project.iam.gserviceaccount.com",
-          email_verified: true,
-        }),
-      ),
-    ).resolves.toBeUndefined();
+    try {
+      await expect(
+        ingestGoogleRtdn._handler(
+          { runAction: vi.fn(), runMutation: vi.fn(), runQuery },
+          {
+            apiKey: "test_key",
+            rawMessage: "raw",
+            payload: {
+              messageId: "forged_production_event",
+              packageName: "dev.openiap.test",
+              eventTimeMillis: 1_000,
+              testNotification: { version: "1.0" },
+            },
+          },
+        ),
+      ).rejects.toThrow("OIDC authentication failed");
+      expect(runQuery).toHaveBeenCalledTimes(1);
+    } finally {
+      process.env.APP_ENV = "test";
+    }
   });
 
   it("rejects malformed Pub/Sub OIDC claims and bounded inputs", async () => {
@@ -1068,7 +1077,11 @@ describe("ingestGoogleRtdn preflight", () => {
         androidPackageName: "dev.openiap.test",
       })
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ _id: "files_service_account" });
+      .mockResolvedValueOnce({ _id: "files_service_account" })
+      .mockResolvedValueOnce({
+        currency: "USD",
+        priceAmountMicros: 4_990_000,
+      });
     const runMutation = vi
       .fn()
       .mockResolvedValueOnce({ eventId: "event_prepaid", deduped: false })
@@ -1101,6 +1114,9 @@ describe("ingestGoogleRtdn preflight", () => {
     expect(event).toMatchObject({
       productId: "prepaid_monthly",
       willRenew: false,
+      currency: "USD",
+      priceAmountMicros: 4_990_000,
+      amountProvenance: "catalog",
     });
     expect(event.renewsAt).toBeUndefined();
   });

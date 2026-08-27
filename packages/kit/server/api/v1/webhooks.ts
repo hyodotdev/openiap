@@ -3,7 +3,10 @@ import type { Context, Next } from "hono";
 import { OAuth2Client } from "google-auth-library";
 
 import { api } from "@/convex";
-import { resolvePubSubOidcAudiences } from "../../../convex/webhooks/shared";
+import {
+  isUnauthenticatedPubSubAllowed,
+  resolvePubSubOidcAudiences,
+} from "../../../convex/webhooks/shared";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyValidationError, isSecretApiKey } from "./middleware";
 import {
@@ -283,7 +286,7 @@ async function handleGoogleNotification(
   const authHeader = c.req.header("authorization");
   const oidcToken = extractBearerToken(authHeader) ?? undefined;
   const audience = process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
-  const allowUnauth = process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB === "1";
+  const allowUnauth = isUnauthenticatedPubSubAllowed(process.env);
   let oidcAudiences: string[] | undefined;
   if (!audience) {
     if (!allowUnauth) {

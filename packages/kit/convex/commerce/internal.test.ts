@@ -288,6 +288,25 @@ describe("emitCommerceEvent", () => {
     expect(event.amountMicros).toBe(9_990_000);
   });
 
+  it("preserves catalog provenance for prepaid subscription pricing", async () => {
+    const db = new Db();
+    await emitCommerceEvent(ctxOf(db), {
+      projectId: "projects_1" as never,
+      transition: "Started",
+      active: true,
+      previouslyActive: false,
+      sourceEvent: sourceEvent({
+        currency: "USD",
+        priceAmountMicros: 4_990_000,
+        amountProvenance: "catalog",
+      }),
+    });
+    expect(db.rows("commerceEvents")[0]).toMatchObject({
+      amountMicros: 4_990_000,
+      amountProvenance: "catalog",
+    });
+  });
+
   it("leaves provenance unset when the store asserted no amount", async () => {
     const db = new Db();
     await emitCommerceEvent(ctxOf(db), {

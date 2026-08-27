@@ -22,6 +22,7 @@ const originalGooglePubsubPushAudience =
   process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
 const originalAllowUnauthenticatedPubsub =
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+const originalAppEnv = process.env.APP_ENV;
 let client: typeof import("../../convex").client;
 let helpers: typeof import("./webhooks");
 
@@ -51,6 +52,11 @@ afterEach(() => {
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB =
       originalAllowUnauthenticatedPubsub;
   }
+  if (originalAppEnv === undefined) {
+    delete (process.env as Record<string, string | undefined>).APP_ENV;
+  } else {
+    process.env.APP_ENV = originalAppEnv;
+  }
   vi.restoreAllMocks();
 });
 
@@ -77,7 +83,7 @@ describe("pubSubOidcAudiences", () => {
     expect(audiences).toEqual(["https://example.com/"]);
   });
 
-  it("does not add query strings to derived endpoint audiences", () => {
+  it("accepts a concrete push endpoint audience with its query string", () => {
     const audiences = helpers.pubSubOidcAudiences(
       "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?admin=1",
       "https://kit.openiap.dev/",
@@ -86,7 +92,7 @@ describe("pubSubOidcAudiences", () => {
     expect(audiences).toContain(
       "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
     );
-    expect(audiences).not.toContain(
+    expect(audiences).toContain(
       "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?admin=1",
     );
   });
@@ -336,6 +342,7 @@ describe("webhooksRoutes", () => {
   it("rejects malformed Google Pub/Sub message data in local dev mode", async () => {
     delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const response = await createApp().request(
@@ -363,6 +370,7 @@ describe("webhooksRoutes", () => {
   it("accepts Google Pub/Sub lifecycle events in explicit local dev mode", async () => {
     delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(client, "action").mockResolvedValueOnce({
       type: "SUBSCRIPTION_RENEWED",
@@ -442,6 +450,7 @@ describe("webhooksRoutes", () => {
   it("maps authoritative Convex OIDC rejection to 401", async () => {
     delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(client, "action").mockRejectedValueOnce(
       new ConvexError({

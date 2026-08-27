@@ -936,12 +936,14 @@ export default function ProjectSettings() {
   const handleAndroidFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = e.target.files?.[0];
+    const input = e.currentTarget;
+    const file = input.files?.[0];
     if (!file) return;
 
     // Validate file extension
     if (!file.name.endsWith(".json")) {
       toast.error("Please upload a valid JSON file");
+      input.value = "";
       return;
     }
 
@@ -998,6 +1000,7 @@ export default function ProjectSettings() {
       toast.error(error.message || "Failed to upload Android service account");
     } finally {
       setUploadingAndroid(false);
+      input.value = "";
     }
   };
 
@@ -1939,92 +1942,94 @@ export default function ProjectSettings() {
                       id="android-file-upload"
                       disabled={uploadingAndroid}
                     />
-
-                    {androidFileUploaded || hasAndroidFile ? (
-                      <div className="space-y-2">
-                        <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                          <div className="contained-action-card__content">
-                            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                            <div className="contained-action-card__text">
-                              <span className="text-sm text-green-700 dark:text-green-400">
-                                {"Service account file uploaded successfully"}
-                              </span>
-                              {androidFile && (
-                                <p className="text-sm text-green-600 dark:text-green-500 mt-1">
-                                  {androidFile.fileName} •{" "}
-                                  {(androidFile.fileSize / 1024).toFixed(2)} KB
-                                </p>
-                              )}
+                    <div className="rounded-lg peer-focus-visible:ring-2 peer-focus-visible:ring-primary">
+                      {androidFileUploaded || hasAndroidFile ? (
+                        <div className="space-y-2">
+                          <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="contained-action-card__content">
+                              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                              <div className="contained-action-card__text">
+                                <span className="text-sm text-green-700 dark:text-green-400">
+                                  {"Service account file uploaded successfully"}
+                                </span>
+                                {androidFile && (
+                                  <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                                    {androidFile.fileName} •{" "}
+                                    {(androidFile.fileSize / 1024).toFixed(2)}{" "}
+                                    KB
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                          <div className="contained-action-card__actions">
-                            {androidFile && (
+                            <div className="contained-action-card__actions">
+                              {androidFile && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleFileDownload(
+                                      androidFile._id,
+                                      "Service account JSON",
+                                    )
+                                  }
+                                  className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                                  title={"Download file"}
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                              )}
+                              <label
+                                htmlFor="android-file-upload"
+                                className={`flex cursor-pointer items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 dark:text-green-400 dark:hover:bg-green-900/20 ${
+                                  uploadingAndroid
+                                    ? "cursor-not-allowed opacity-60"
+                                    : ""
+                                }`}
+                                title={"Replace JSON file"}
+                                aria-disabled={uploadingAndroid}
+                              >
+                                <Upload className="w-4 h-4" />
+                                <span className="sr-only">
+                                  {"Replace service account JSON"}
+                                </span>
+                              </label>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  void handleFileDownload(
-                                    androidFile._id,
-                                    "Service account JSON",
-                                  )
-                                }
-                                className="p-2 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
-                                title={"Download file"}
+                                onClick={() => void handleAndroidFileDelete()}
+                                className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+                                title={"Delete file"}
                               >
-                                <Download className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
-                            )}
-                            <label
-                              htmlFor="android-file-upload"
-                              className={`flex cursor-pointer items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 peer-focus-visible:ring-2 peer-focus-visible:ring-primary dark:text-green-400 dark:hover:bg-green-900/20 ${
-                                uploadingAndroid
-                                  ? "cursor-not-allowed opacity-60"
-                                  : ""
-                              }`}
-                              title={"Replace JSON file"}
-                              aria-disabled={uploadingAndroid}
-                            >
-                              <Upload className="w-4 h-4" />
-                              <span className="sr-only">
-                                {"Replace service account JSON"}
-                              </span>
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => void handleAndroidFileDelete()}
-                              className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
-                              title={"Delete file"}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <label
-                            htmlFor="android-file-upload"
-                            className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer peer-focus-visible:ring-2 peer-focus-visible:ring-primary ${
-                              uploadingAndroid
-                                ? "border-muted bg-muted/20 cursor-not-allowed"
-                                : "border-border hover:border-primary hover:bg-primary/5"
-                            }`}
-                          >
-                            <Upload className="w-5 h-5" />
-                            <span className="text-sm font-medium">
-                              {uploadingAndroid
-                                ? "Uploading..."
-                                : "Click to upload JSON file"}
-                            </span>
-                          </label>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          {
-                            "Required for validating Google Play purchases. Use minimum permissions principle."
-                          }
-                        </p>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <div className="relative">
+                            <label
+                              htmlFor="android-file-upload"
+                              className={`flex items-center justify-center gap-2 w-full p-4 border-2 border-dashed rounded-lg transition-colors cursor-pointer ${
+                                uploadingAndroid
+                                  ? "border-muted bg-muted/20 cursor-not-allowed"
+                                  : "border-border hover:border-primary hover:bg-primary/5"
+                              }`}
+                            >
+                              <Upload className="w-5 h-5" />
+                              <span className="text-sm font-medium">
+                                {uploadingAndroid
+                                  ? "Uploading..."
+                                  : "Click to upload JSON file"}
+                              </span>
+                            </label>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {
+                              "Required for validating Google Play purchases. Use minimum permissions principle."
+                            }
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Android Setup Guide */}

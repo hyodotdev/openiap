@@ -5,6 +5,7 @@ import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "./helpers";
+import { getGooglePlayFileByProjectFromDb } from "../files/internal";
 
 // Public query — surfaces which platforms a project has configured so
 // the dashboard, the SDK, and the MCP server can return a precise
@@ -56,17 +57,14 @@ export const getSetupStatus = query({
       };
     }
 
-    // Pull the project's uploaded files once so we can both report
-    // field-level config AND surface .p8 / service-account presence
-    // in the same response — the dashboard's setup card was always
-    // rendering "missing" because the previous shape hardcoded both
-    // flags to false.
+    // Apple has two accepted key purposes, while Google resolves one active
+    // credential through the project's revocable pointer.
     const projectFiles = await ctx.db
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", project._id))
       .collect();
-    const googleServiceAccountUploaded = projectFiles.some(
-      (file) => file.purpose === "android_service_account",
+    const googleServiceAccountUploaded = Boolean(
+      await getGooglePlayFileByProjectFromDb(ctx, project),
     );
 
     const iosMissing: string[] = [];
@@ -114,10 +112,7 @@ export const getSetupStatus = query({
         configured: amazonConfigured,
         missing: amazonMissing,
       },
-      // The webhook receivers ALSO need the .p8 / service-account JSON
-      // file uploaded to the project; check the `files` table directly
-      // so the setup card reflects what the operator has actually
-      // uploaded instead of always reporting "missing".
+      // The webhook receivers ALSO need the .p8 file uploaded to the project.
       appleP8Uploaded: projectFiles.some(
         (f) =>
           f.purpose === "apple_p8_key" || f.purpose === "apple_p8_asc_api_key",

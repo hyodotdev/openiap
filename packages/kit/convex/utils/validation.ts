@@ -1,5 +1,22 @@
 import { v } from "convex/values";
 
+export const subscriptionStateValidator = v.union(
+  v.literal("Active"),
+  v.literal("InGracePeriod"),
+  v.literal("InBillingRetry"),
+  v.literal("Expired"),
+  v.literal("Revoked"),
+  v.literal("Refunded"),
+  v.literal("Paused"),
+  v.literal("Unknown"),
+);
+
+export const dataProvenanceValidator = v.union(
+  v.literal("store"),
+  v.literal("catalog"),
+  v.literal("inferred"),
+);
+
 export const userSchema = {
   email: v.string(),
   name: v.string(),

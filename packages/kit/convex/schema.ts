@@ -2,6 +2,10 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
+import {
+  dataProvenanceValidator,
+  subscriptionStateValidator,
+} from "./utils/validation";
 
 // Redefine the `users` table (same shape as @convex-dev/auth's authTables.users)
 // but re-declare indexes so the TypeScript data model surfaces them. Spreading
@@ -18,17 +22,6 @@ const usersTable = defineTable({
 })
   .index("email", ["email"])
   .index("phone", ["phone"]);
-
-export const subscriptionStateValidator = v.union(
-  v.literal("Active"),
-  v.literal("InGracePeriod"),
-  v.literal("InBillingRetry"),
-  v.literal("Expired"),
-  v.literal("Revoked"),
-  v.literal("Refunded"),
-  v.literal("Paused"),
-  v.literal("Unknown"),
-);
 
 export const purchaseStoreValidator = v.union(
   v.literal("apple"),
@@ -668,6 +661,7 @@ const schema = defineSchema({
     ),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
+    amountProvenance: v.optional(dataProvenanceValidator),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -1327,9 +1321,7 @@ const schema = defineSchema({
     currency: v.optional(v.string()),
     amountMicros: v.optional(v.number()),
     // Which of store / catalog / inferred produced `amountMicros`. Never mix.
-    amountProvenance: v.optional(
-      v.union(v.literal("store"), v.literal("catalog"), v.literal("inferred")),
-    ),
+    amountProvenance: v.optional(dataProvenanceValidator),
     // Inbound store event this was derived from, for support triage. The
     // Convex id stays internal; the store's own notification id is what goes
     // out, since it is what a developer can cross-reference with the store and

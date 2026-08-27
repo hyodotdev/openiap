@@ -12,17 +12,7 @@ import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrencyOrDefault,
 } from "../utils/currency";
-
-const subscriptionStateValidator = v.union(
-  v.literal("Active"),
-  v.literal("InGracePeriod"),
-  v.literal("InBillingRetry"),
-  v.literal("Expired"),
-  v.literal("Revoked"),
-  v.literal("Refunded"),
-  v.literal("Paused"),
-  v.literal("Unknown"),
-);
+import { subscriptionStateValidator } from "../utils/validation";
 
 const subscriptionFields = {
   id: v.id("subscriptions"),

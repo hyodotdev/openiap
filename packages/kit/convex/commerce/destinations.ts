@@ -251,16 +251,21 @@ export async function updateHandler(
   }
 }
 
-/** Issues a new secret and keeps the old one valid for the grace window. */
+/** Issues a new secret with an optional emergency revocation of both old keys. */
 export const rotateSecret = mutation({
-  args: { destinationId: v.id("outboundDestinations") },
-  handler: async (ctx, args) => rotateSecretHandler(ctx, args.destinationId),
+  args: {
+    destinationId: v.id("outboundDestinations"),
+    revokePrevious: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) =>
+    rotateSecretHandler(ctx, args.destinationId, args.revokePrevious ?? false),
 });
 
 export async function rotateSecretHandler(
   ctx: MutationCtx,
   destinationId: Id<"outboundDestinations">,
-): Promise<{ secret: string; previousSecretExpiresAt: number }> {
+  revokePrevious = false,
+): Promise<{ secret: string; previousSecretExpiresAt: number | null }> {
   {
     const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
@@ -270,6 +275,7 @@ export async function rotateSecretHandler(
     await assertProjectAdmin(ctx, destination.projectId);
     const now = Date.now();
     if (
+      !revokePrevious &&
       destination.previousSecret &&
       (destination.previousSecretExpiresAt ?? 0) > now
     ) {
@@ -279,13 +285,16 @@ export async function rotateSecretHandler(
     }
 
     const secret = generateSecret();
+    const previousSecretExpiresAt = revokePrevious
+      ? null
+      : now + ROTATION_GRACE_MS;
     await ctx.db.patch(destination._id, {
       secret,
-      previousSecret: destination.secret,
-      previousSecretExpiresAt: now + ROTATION_GRACE_MS,
+      previousSecret: revokePrevious ? undefined : destination.secret,
+      previousSecretExpiresAt: previousSecretExpiresAt ?? undefined,
       updatedAt: now,
     });
-    return { secret, previousSecretExpiresAt: now + ROTATION_GRACE_MS };
+    return { secret, previousSecretExpiresAt };
   }
 }
 

@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { assertProjectWritable } from "../projects/writable";
+import {
+  dataProvenanceValidator,
+  subscriptionStateValidator,
+} from "../utils/validation";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
 // Keep the units literal (ms) so the cron scheduler call reads naturally.
@@ -171,18 +175,7 @@ export const recordWebhookEvent = internalMutation({
       ),
       productId: v.optional(v.string()),
       effectiveImmediately: v.optional(v.boolean()),
-      subscriptionState: v.optional(
-        v.union(
-          v.literal("Active"),
-          v.literal("InGracePeriod"),
-          v.literal("InBillingRetry"),
-          v.literal("Expired"),
-          v.literal("Revoked"),
-          v.literal("Refunded"),
-          v.literal("Paused"),
-          v.literal("Unknown"),
-        ),
-      ),
+      subscriptionState: v.optional(subscriptionStateValidator),
       expiresAt: v.optional(v.number()),
       renewsAt: v.optional(v.number()),
       willRenew: v.optional(v.boolean()),
@@ -198,6 +191,7 @@ export const recordWebhookEvent = internalMutation({
       ),
       currency: v.optional(v.string()),
       priceAmountMicros: v.optional(v.number()),
+      amountProvenance: v.optional(dataProvenanceValidator),
       occurredAt: v.number(),
       rawSignedPayload: v.optional(v.string()),
     }),
@@ -338,6 +332,7 @@ export const recordWebhookEvent = internalMutation({
       cancellationReason: args.event.cancellationReason,
       currency: args.event.currency,
       priceAmountMicros: args.event.priceAmountMicros,
+      amountProvenance: args.event.amountProvenance,
       rawSignedPayload: args.event.rawSignedPayload,
       occurredAt: args.event.occurredAt,
       receivedAt: now,

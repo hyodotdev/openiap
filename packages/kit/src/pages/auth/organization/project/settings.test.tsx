@@ -308,9 +308,17 @@ describe("ProjectSettings", () => {
     expect(replaceControl.id).toBe("android-file-upload");
     expect(replaceControl.className).toContain("sr-only");
     expect(replaceControl.className).not.toContain("hidden");
+    expect(replaceControl.nextElementSibling?.className).toContain(
+      "peer-focus-visible:ring-2",
+    );
     expect(screen.getByTitle("Replace JSON file").getAttribute("for")).toBe(
       "android-file-upload",
     );
+    Object.defineProperty(replaceControl, "value", {
+      configurable: true,
+      value: "C:\\fakepath\\replacement.json",
+      writable: true,
+    });
     fireEvent.change(replaceControl, {
       target: {
         files: [
@@ -333,6 +341,7 @@ describe("ProjectSettings", () => {
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       "Android service account uploaded successfully",
     );
+    expect((replaceControl as HTMLInputElement).value).toBe("");
   });
 
   it("reports the private-file permission when a member cannot replace Android credentials", async () => {

@@ -15,6 +15,7 @@ const {
   pruneExpiredPreviousSecretsHandler,
   resumePendingDestinationRemovalHandler,
 } = await import("./destinations");
+const { signPayloadWithRotation } = await import("./signing");
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 
@@ -344,6 +345,30 @@ describe("rotateSecret", () => {
     await expect(
       rotateSecretHandler(ctxOf(db), created.destinationId),
     ).rejects.toThrow(/24-hour/);
+  });
+
+  it("can revoke every prior signing secret during an emergency rotation", async () => {
+    const db = new Db();
+    seedProject(db);
+    const created = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await rotateSecretHandler(ctxOf(db), created.destinationId);
+
+    const rotated = await rotateSecretHandler(
+      ctxOf(db),
+      created.destinationId,
+      true,
+    );
+    const row = await db.get(created.destinationId);
+    expect(rotated.previousSecretExpiresAt).toBeNull();
+    expect(row?.secret).toBe(rotated.secret);
+    expect(row?.previousSecret).toBeUndefined();
+    expect(row?.previousSecretExpiresAt).toBeUndefined();
+    await expect(
+      signPayloadWithRotation({ current: row?.secret as string }, 1_000, "{}"),
+    ).resolves.not.toContain(",");
   });
 });
 

@@ -3,6 +3,7 @@ import {
   internalMutation,
   internalAction,
 } from "../_generated/server";
+import type { QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
@@ -313,10 +314,28 @@ export const getAppleReviewScreenshotByProjectInternal = internalQuery({
   },
 });
 
-// Internal query to get Google Play service account file by project.
-// Uses the `by_project` index on `files` and filters by purpose through
-// the query builder so we only read rows that could match — no full
-// org scan into memory.
+export async function getGooglePlayFileByProjectFromDb(
+  ctx: Pick<QueryCtx, "db">,
+  project: Doc<"projects">,
+): Promise<Doc<"files"> | null> {
+  if (project.googlePlayServiceAccountFileId === null) return null;
+  if (project.googlePlayServiceAccountFileId !== undefined) {
+    const activeFile = await ctx.db.get(project.googlePlayServiceAccountFileId);
+    return activeFile?.projectId === project._id &&
+      activeFile.purpose === "android_service_account"
+      ? activeFile
+      : null;
+  }
+  return await ctx.db
+    .query("files")
+    .withIndex("by_project_and_purpose", (q) =>
+      q.eq("projectId", project._id).eq("purpose", "android_service_account"),
+    )
+    .order("desc")
+    .first();
+}
+
+// Internal query to get the active Google Play service account file.
 export const getGooglePlayFileByProjectInternal = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -324,25 +343,7 @@ export const getGooglePlayFileByProjectInternal = internalQuery({
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
     if (!project) return null;
-    if (project.googlePlayServiceAccountFileId === null) return null;
-    if (project.googlePlayServiceAccountFileId !== undefined) {
-      const activeFile = await ctx.db.get(
-        project.googlePlayServiceAccountFileId,
-      );
-      return activeFile?.projectId === args.projectId &&
-        activeFile.purpose === "android_service_account"
-        ? activeFile
-        : null;
-    }
-    return await ctx.db
-      .query("files")
-      .withIndex("by_project_and_purpose", (q) =>
-        q
-          .eq("projectId", args.projectId)
-          .eq("purpose", "android_service_account"),
-      )
-      .order("desc")
-      .first();
+    return await getGooglePlayFileByProjectFromDb(ctx, project);
   },
 });
 

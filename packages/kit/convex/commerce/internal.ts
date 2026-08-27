@@ -61,6 +61,7 @@ export type EmitCommerceEventArgs = {
     | "originalTransactionId"
     | "currency"
     | "priceAmountMicros"
+    | "amountProvenance"
     | "sourceNotificationId"
     | "occurredAt"
   >;
@@ -114,7 +115,9 @@ export async function emitCommerceEvent(
       ? (args.subscription?.productId ?? source.productId)
       : (source.productId ?? args.subscription?.productId);
     const amountProvenance: DataProvenance | undefined =
-      source.priceAmountMicros === undefined ? undefined : "store";
+      source.priceAmountMicros === undefined
+        ? undefined
+        : (source.amountProvenance ?? "store");
     const eventId = await ctx.db.insert("commerceEvents", {
       projectId: args.projectId,
       eventType,

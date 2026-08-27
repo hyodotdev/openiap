@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isUnauthenticatedPubSubAllowed,
   mapAppleNotificationType,
   mapGoogleSubscriptionNotificationType,
   mapGoogleOneTimeNotificationType,
@@ -11,6 +12,28 @@ import {
   type GoogleRtdnPayload,
   type GoogleSubscriptionInfo,
 } from "./shared";
+
+describe("isUnauthenticatedPubSubAllowed", () => {
+  it("requires both the explicit flag and a non-production environment", () => {
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+        APP_ENV: "development",
+      }),
+    ).toBe(true);
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+        APP_ENV: "production",
+      }),
+    ).toBe(false);
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+      }),
+    ).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Apple ASN v2 mapping

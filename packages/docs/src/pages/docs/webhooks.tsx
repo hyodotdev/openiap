@@ -92,7 +92,11 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</code>
         </pre>
         <p>
           Read the{' '}
-          <a href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COMMERCE-EVENTS.md">
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COMMERCE-EVENTS.md"
+            target="_blank"
+            rel="noreferrer"
+          >
             complete receiver contract
           </a>
           .

@@ -10,6 +10,8 @@
 //
 // SSOT for the mapping is `knowledge/external/webhook-mapping.md`.
 
+import type { DataProvenance } from "../commerce/contract";
+
 // ---------------------------------------------------------------------------
 // Private IAPKit lifecycle literals. These are not part of the OpenIAP
 // native or framework SDK contract.
@@ -91,6 +93,7 @@ export type NormalizedWebhookEvent = {
   cancellationReason?: WebhookCancellationReason;
   currency?: string;
   priceAmountMicros?: number;
+  amountProvenance?: DataProvenance;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
@@ -127,8 +130,20 @@ export function resolvePubSubOidcAudiences(
     audiences.add(configured.origin);
     audiences.add(`${configured.origin}/`);
     audiences.add(`${configured.origin}${request.pathname}`);
+    if (request.search) {
+      audiences.add(`${configured.origin}${request.pathname}${request.search}`);
+    }
   }
   return Array.from(audiences);
+}
+
+export function isUnauthenticatedPubSubAllowed(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return (
+    env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB === "1" &&
+    (env.APP_ENV === "development" || env.APP_ENV === "test")
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -454,6 +469,8 @@ export function normalizeAppleAsn(
     ),
     currency: currency ?? undefined,
     priceAmountMicros,
+    amountProvenance:
+      priceAmountMicros === undefined ? undefined : ("store" as const),
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,
   };
@@ -526,6 +543,7 @@ export type GoogleSubscriptionInfo = {
   cancelReason?: string;
   currency?: string;
   priceAmountMicros?: number;
+  amountProvenance?: DataProvenance;
 };
 
 // RTDN numeric codes per
@@ -761,6 +779,7 @@ export function normalizeGoogleRtdn(
     ),
     currency: subscriptionInfo?.currency,
     priceAmountMicros: subscriptionInfo?.priceAmountMicros,
+    amountProvenance: subscriptionInfo?.amountProvenance,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

@@ -162,7 +162,9 @@ so member access is not enough.
 `list` projects a fixed allow-list of fields that excludes both the secret and
 its rotation slot. `rotateSecret` issues a new one and keeps the old valid for
 24 hours so a receiver can roll without dropping in-flight deliveries. Another
-rotation is rejected until that overlap ends.
+rotation is rejected until that overlap ends. If a secret is compromised, an
+admin can set `revokePrevious: true` during rotation to invalidate every prior
+secret immediately instead of keeping the overlap.
 
 ### Signing
 
@@ -207,10 +209,11 @@ identifiers; a Play purchase token is never mislabeled as a transaction id.
 ## Revenue data
 
 `amountProvenance` records where a number came from — `store`, `catalog` or
-`inferred` — and the three are never mixed silently. Today only
-store-authoritative amounts are emitted; when a store asserts no price, the
-amount fields are simply absent rather than being back-filled from the catalog.
-Downstream revenue math should treat a missing amount as unknown, not zero.
+`inferred` — and the three are never mixed silently. Store-authoritative prices
+are preferred. Google prepaid subscriptions, whose lifecycle response omits a
+price, use the matching Android catalog row and report `catalog`; other missing
+amounts remain absent. Downstream revenue math should treat a missing amount as
+unknown, not zero.
 
 ## Provider capabilities
 

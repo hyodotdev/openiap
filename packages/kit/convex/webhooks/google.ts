@@ -9,6 +9,7 @@ import type { Id } from "../_generated/dataModel";
 import { moneyToMicros } from "../products/play";
 import { getProjectByApiKey } from "../purchases/shared";
 import {
+  isUnauthenticatedPubSubAllowed,
   normalizeGoogleRtdn,
   mapGoogleSubscriptionNotificationType,
   WebhookNormalizationError,
@@ -183,16 +184,6 @@ export async function verifyPubSubOidcPrincipal(
   }
 }
 
-export async function assertProjectBoundPubSubOidc(
-  token: string | undefined,
-  audiences: string[] | undefined,
-  expectedPrincipal: string,
-  verify?: VerifyPubSubOidc,
-): Promise<void> {
-  const principal = await verifyPubSubOidcPrincipal(token, audiences, verify);
-  assertProjectBoundPrincipal(principal, expectedPrincipal);
-}
-
 function assertProjectBoundPrincipal(
   principal: string,
   expectedPrincipal: string,
@@ -302,13 +293,7 @@ export const ingestGoogleRtdn = action({
   handler: async (ctx, args): Promise<IngestResult> => {
     const project = await getProjectByApiKey(ctx, args.apiKey);
     let authenticatedPlayAuth: PlayProjectAuth | undefined;
-    if (process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB !== "1") {
-      if (!args.oidcToken) {
-        throw new ConvexError({
-          code: "UNAUTHORIZED",
-          message: "Google Pub/Sub OIDC authentication failed.",
-        });
-      }
+    if (!isUnauthenticatedPubSubAllowed(process.env)) {
       const oidcPrincipal = await verifyPubSubOidcPrincipal(
         args.oidcToken,
         projectPubSubOidcAudiences(args.apiKey),
@@ -520,6 +505,7 @@ export const ingestGoogleRtdn = action({
           cancellationReason: normalized.cancellationReason,
           currency: normalized.currency,
           priceAmountMicros: normalized.priceAmountMicros,
+          amountProvenance: normalized.amountProvenance,
           occurredAt: normalized.occurredAt,
           rawSignedPayload: args.rawMessage,
         },
@@ -770,6 +756,18 @@ async function maybeFetchSubscriptionInfo(
       matched?.autoRenewingPlan,
       payload.subscriptionNotification.notificationType,
     );
+    const storePriceAmountMicros = moneyToMicros(price);
+    const catalogPrice =
+      storePriceAmountMicros === undefined &&
+      matched?.prepaidPlan &&
+      matched.productId
+        ? await ctx.runQuery(internal.products.query.getCatalogPriceInternal, {
+            projectId,
+            platform: "Android",
+            productId: matched.productId,
+          })
+        : null;
+    const usesStorePrice = storePriceAmountMicros !== undefined;
 
     return {
       productId: matched?.productId ?? undefined,
@@ -789,14 +787,16 @@ async function maybeFetchSubscriptionInfo(
       expiryTimeMillis: parseEpochMs(expiry),
       autoRenewingPlanRenewsTimeMillis: parseEpochMs(renews),
       willRenew,
-      currency: price?.currencyCode ?? undefined,
-      // Use the shared moneyToMicros helper from products/play.ts —
-      // same Google `Money` proto, same BigInt overflow concerns.
-      // The shared version also guards against
-      // `Number.MAX_SAFE_INTEGER` overflow and wraps the BigInt
-      // parse in try/catch (handles malformed `units` instead of
-      // throwing into the surrounding subscriptionsv2-get path).
-      priceAmountMicros: moneyToMicros(price),
+      currency: usesStorePrice ? price?.currencyCode : catalogPrice?.currency,
+      priceAmountMicros: usesStorePrice
+        ? storePriceAmountMicros
+        : catalogPrice?.priceAmountMicros,
+      amountProvenance:
+        storePriceAmountMicros === undefined && !catalogPrice
+          ? undefined
+          : usesStorePrice
+            ? "store"
+            : "catalog",
     };
   } catch (error) {
     // Re-throw structured configuration errors so the route layer can map them
