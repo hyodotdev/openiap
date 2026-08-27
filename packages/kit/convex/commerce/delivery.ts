@@ -109,8 +109,9 @@ export async function postJsonPinned(
       },
       (response) => {
         clearTimeout(timer);
-        response.resume();
-        resolve(response.statusCode ?? 0);
+        const status = response.statusCode ?? 0;
+        response.destroy();
+        resolve(status);
       },
     );
     const timer = setTimeout(() => {

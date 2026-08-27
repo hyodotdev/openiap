@@ -43,7 +43,17 @@ class Builder {
     return this;
   }
   lte(field: string, value: number): Builder {
-    this.preds.push((r) => (r[field] as number) <= value);
+    this.preds.push(
+      (r) => r[field] === undefined || (r[field] as number) <= value,
+    );
+    return this;
+  }
+  gt(field: string, value: unknown): Builder {
+    this.preds.push((r) =>
+      value === undefined
+        ? r[field] !== undefined
+        : (r[field] as number) > (value as number),
+    );
     return this;
   }
   lt(field: string, value: number): Builder {
@@ -716,6 +726,10 @@ describe("pruneCommerceHistory", () => {
       projectId: "projects_1",
       processedAt: old,
     });
+    const unassignedEvent = await db.insert("commerceEvents", {
+      projectId: "projects_1",
+      processedAt: old,
+    });
     await db.insert("outboundDeliveries", {
       eventId: deliveredEvent,
       status: "delivered",
@@ -733,7 +747,10 @@ describe("pruneCommerceHistory", () => {
     expect(db.rows("outboundDeliveries")).toMatchObject([
       { eventId: failedEvent, status: "failed" },
     ]);
-    expect(db.rows("commerceEvents")).toMatchObject([{ _id: failedEvent }]);
+    expect(db.rows("commerceEvents")).toMatchObject([
+      { _id: failedEvent },
+      { _id: unassignedEvent },
+    ]);
   });
 });
 
@@ -756,6 +773,7 @@ describe("buildEventPayload", () => {
       expiresAt: 2_000,
       renewsAt: 2_000,
       willRenew: true,
+      storageOnly: "must-not-leak",
     },
     entitlementActive: true,
     currency: "USD",

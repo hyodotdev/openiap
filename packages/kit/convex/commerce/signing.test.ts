@@ -6,6 +6,7 @@ import {
   MAX_DELIVERY_ATTEMPTS,
   REQUEST_TIMEOUT_MS,
   checkDestinationUrl,
+  isPublicIpAddress,
   isRetryableStatus,
   nextAttemptDelayMs,
   signPayload,
@@ -16,6 +17,13 @@ describe("checkDestinationUrl", () => {
   it("accepts a public https endpoint", () => {
     const result = checkDestinationUrl("https://hooks.example.com/iapkit");
     expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    "https://fcm.googleapis.com/hook",
+    "https://fd-hooks.example.com/hook",
+  ])("accepts a public hostname beginning with an IPv6 prefix: %s", (url) => {
+    expect(checkDestinationUrl(url).ok).toBe(true);
   });
 
   it("drops a fragment that HTTP can never transmit", () => {
@@ -97,6 +105,11 @@ describe("checkDestinationUrl", () => {
       ok: false,
       reason: "not-a-url",
     });
+  });
+
+  it("does not parse malformed IPv4 octets as numbers", () => {
+    expect(isPublicIpAddress("127..0.1")).toBe(false);
+    expect(isPublicIpAddress("127. 0.0.1")).toBe(false);
   });
 });
 

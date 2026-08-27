@@ -259,7 +259,7 @@ export function applySubscriptionTransition(
       };
     case "SubscriptionProductChanged": {
       const next = carryForward({
-        state: "Active",
+        state: event.subscriptionState ?? current?.state ?? "Active",
         expiresAt: event.expiresAt,
         renewsAt: event.renewsAt,
         currency: event.currency,

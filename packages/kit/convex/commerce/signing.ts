@@ -50,7 +50,9 @@ export type UrlCheck =
 
 function ipv4Number(address: string): number | null {
   const parts = address.split(".");
-  if (parts.length !== 4) return null;
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part))) {
+    return null;
+  }
   const octets = parts.map(Number);
   if (
     octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
@@ -140,6 +142,8 @@ function isPrivateHost(rawHostname: string): boolean {
     return true;
   }
   const v6 = host.replace(/^\[|\]$/g, "");
+  const isIpLiteral = ipv4Number(host) !== null || host.includes(":");
+  if (!isIpLiteral) return false;
   if (
     v6 === "::1" ||
     v6 === "::" ||
@@ -149,10 +153,7 @@ function isPrivateHost(rawHostname: string): boolean {
   ) {
     return true;
   }
-  if (ipv4Number(host) !== null || host.includes(":")) {
-    return !isPublicIpAddress(v6);
-  }
-  return false;
+  return !isPublicIpAddress(v6);
 }
 
 export function checkDestinationUrl(raw: string): UrlCheck {

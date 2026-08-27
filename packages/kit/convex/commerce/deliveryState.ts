@@ -67,7 +67,20 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
     ...(event.subscription
       ? {
           subscription: {
-            ...event.subscription,
+            state: event.subscription.state,
+            productId: event.subscription.productId,
+            ...(event.subscription.expiresAt !== undefined
+              ? { expiresAt: event.subscription.expiresAt }
+              : {}),
+            ...(event.subscription.renewsAt !== undefined
+              ? { renewsAt: event.subscription.renewsAt }
+              : {}),
+            ...(event.subscription.willRenew !== undefined
+              ? { willRenew: event.subscription.willRenew }
+              : {}),
+            ...(event.subscription.cancellationReason
+              ? { cancellationReason: event.subscription.cancellationReason }
+              : {}),
             active: event.entitlementActive ?? false,
           },
         }
@@ -374,7 +387,9 @@ export async function pruneCommerceHistoryHandler(
 
   const oldEvents = await ctx.db
     .query("commerceEvents")
-    .withIndex("by_prunable_at", (q) => q.lte("prunableAt", now))
+    .withIndex("by_prunable_at", (q) =>
+      q.gt("prunableAt", undefined).lte("prunableAt", now),
+    )
     .take(batchSize);
   let deletedEvents = 0;
   for (const event of oldEvents) {

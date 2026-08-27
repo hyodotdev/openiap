@@ -227,9 +227,17 @@ provider-specific is required, and no integration code belongs in this package:
 ```ts
 // The header carries one `v1=` value normally and two during rotation, so
 // compare against each rather than against the header as a whole.
-const expected = `v1=${hmacSha256(secret, `${timestamp}.${rawBody}`)}`;
+const expected = Buffer.from(
+  `v1=${hmacSha256(secret, `${timestamp}.${rawBody}`)}`,
+);
 const presented = headerSignature.split(",").map((part) => part.trim());
-if (!presented.some((sig) => timingSafeEqual(sig, expected))) return 401;
+const signatureMatches = presented.some((signature) => {
+  const candidate = Buffer.from(signature);
+  return (
+    candidate.length === expected.length && timingSafeEqual(candidate, expected)
+  );
+});
+if (!signatureMatches) return 401;
 if (Math.abs(nowSeconds - Number(timestamp)) > 300) return 401;
 
 if (!event.userId || !event.productId) {

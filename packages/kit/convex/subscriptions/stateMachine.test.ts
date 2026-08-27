@@ -231,6 +231,29 @@ describe("applySubscriptionTransition", () => {
     expect(result.transition).toBe("ProductChanged");
   });
 
+  it("does not reactivate a non-entitled product change", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, state: "InBillingRetry" },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.premium.yearly",
+      },
+    );
+    expect(result.next?.state).toBe("InBillingRetry");
+    expect(result.active).toBe(false);
+    expect(result.transition).toBe("ProductChanged");
+  });
+
+  it("uses the store state on a product change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionProductChanged",
+      productId: "com.example.premium.yearly",
+      subscriptionState: "Paused",
+    });
+    expect(result.next?.state).toBe("Paused");
+    expect(result.active).toBe(false);
+  });
+
   it("does not create a subscription from an orphan price notice", () => {
     const result = applySubscriptionTransition(null, {
       type: "SubscriptionPriceChange",
