@@ -230,7 +230,10 @@ provider-specific is required, and no integration code belongs in this package:
 const expected = Buffer.from(
   `v1=${hmacSha256(secret, `${timestamp}.${rawBody}`)}`,
 );
-const presented = headerSignature.split(",").map((part) => part.trim());
+const presented =
+  typeof headerSignature === "string"
+    ? headerSignature.split(",").map((part) => part.trim())
+    : [];
 const signatureMatches = presented.some((signature) => {
   const candidate = Buffer.from(signature);
   return (
