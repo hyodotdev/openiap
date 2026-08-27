@@ -133,7 +133,9 @@ describe("ProjectWebhooks setup badges", () => {
     expect(
       screen.getByText(/owner or admin can manage signed HTTPS destinations/),
     ).toBeTruthy();
-    expect(screen.queryByPlaceholderText(/api\.example\.com/)).toBeNull();
+    expect(
+      screen.queryByPlaceholderText("https://api.example.com/webhooks/openiap"),
+    ).toBeNull();
   });
 
   it("creates a filtered destination and reveals its one-time secret", async () => {
@@ -143,9 +145,10 @@ describe("ProjectWebhooks setup badges", () => {
     });
     render(<ProjectWebhooks />);
 
-    fireEvent.change(screen.getByPlaceholderText(/api\.example\.com/), {
-      target: { value: "https://hooks.example.com/openiap" },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText("https://api.example.com/webhooks/openiap"),
+      { target: { value: "https://hooks.example.com/openiap" } },
+    );
     for (const checkbox of screen.getAllByRole("checkbox")) {
       if (
         checkbox.getAttribute("aria-label") !== "Receive subscription.renewed"
