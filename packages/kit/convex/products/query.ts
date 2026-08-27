@@ -1,6 +1,6 @@
 import { productLocalizationsValidator } from "./localizations";
 import { productRegionsValidator } from "./regions";
-import { query, type QueryCtx } from "../_generated/server";
+import { internalQuery, query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -58,6 +58,44 @@ type ClientPayloadEditorState = Infer<typeof clientPayloadEditorStateShape>;
 export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 export const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
 const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
+
+export const getCatalogPriceInternal = internalQuery({
+  args: {
+    projectId: v.id("projects"),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(
+    v.object({
+      currency: v.string(),
+      priceAmountMicros: v.number(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", args.projectId)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (
+      !product ||
+      product.state === "Removed" ||
+      product.currency === undefined ||
+      product.priceAmountMicros === undefined
+    ) {
+      return null;
+    }
+    return {
+      currency: product.currency,
+      priceAmountMicros: product.priceAmountMicros,
+    };
+  },
+});
 
 const productShape = v.object({
   productId: v.string(),

@@ -659,8 +659,9 @@ app.post("/verify-purchase", ...verifyMiddleware);
 //   - Apple: project apiKey is in the path; the action verifies the
 //     signedPayload against Apple's root certificates so a leaked URL
 //     can't be used to inject forged events.
-//   - Google: OIDC bearer JWT (when GOOGLE_PUBSUB_PUSH_AUDIENCE is
-//     configured) plus the path apiKey.
+//   - Google: OIDC bearer JWT plus the path apiKey. Fly verifies signature and
+//     audience; Convex repeats both checks and binds the email to the project's
+//     uploaded Google service account.
 app.route("/webhooks", webhooksRoutes);
 
 // Subscription state, entitlements, metrics, and SDK user-binding.

@@ -22,6 +22,10 @@ import {
   readJsonBodyWithLimit,
 } from "./request-body";
 import { multiAxisRateLimitMiddleware } from "./rate-limit";
+import {
+  isValidSubscriptionUserId,
+  MAX_SUBSCRIPTION_USER_ID_LENGTH,
+} from "../../../convex/subscriptions/limits";
 
 // Subscription state, entitlements, metrics, and user-binding routes.
 // Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
@@ -34,9 +38,9 @@ const subscriptions = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
-const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
+const SUBSCRIPTION_USER_ID_LIMIT_MESSAGE = `userId must be ≤ ${MAX_SUBSCRIPTION_USER_ID_LENGTH} chars`;
 const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
   "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId";
 type SubscriptionEvaluationSnapshot = FunctionReturnType<
@@ -74,8 +78,8 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
   if (!isNonBlankString(userId)) {
     return invalidInput(c, "userId is required");
   }
-  if (!isValidUserIdLength(userId)) {
-    return invalidInput(c, "userId must be ≤ 256 chars");
+  if (!isValidSubscriptionUserId(userId)) {
+    return invalidInput(c, SUBSCRIPTION_USER_ID_LIMIT_MESSAGE);
   }
   try {
     const snapshot = await client.query(
@@ -111,8 +115,8 @@ async function handleEntitlements(c: Context, apiKey: string) {
   if (!isNonBlankString(userId)) {
     return invalidInput(c, "userId is required");
   }
-  if (!isValidUserIdLength(userId)) {
-    return invalidInput(c, "userId must be ≤ 256 chars");
+  if (!isValidSubscriptionUserId(userId)) {
+    return invalidInput(c, SUBSCRIPTION_USER_ID_LIMIT_MESSAGE);
   }
   try {
     const snapshot = await client.query(
@@ -161,8 +165,8 @@ async function handleListSubscriptions(c: Context, apiKey: string) {
   if (productId !== undefined && !isNonBlankString(productId)) {
     return invalidInput(c, "productId must not be empty");
   }
-  if (userId !== undefined && !isValidUserIdLength(userId)) {
-    return invalidInput(c, "userId must be ≤ 256 chars");
+  if (userId !== undefined && !isValidSubscriptionUserId(userId)) {
+    return invalidInput(c, SUBSCRIPTION_USER_ID_LIMIT_MESSAGE);
   }
   if (productId !== undefined && !isValidProductIdLength(productId)) {
     return invalidInput(c, "productId must be ≤ 256 chars");
@@ -310,8 +314,8 @@ async function handleBindUser(c: Context, apiKey: string) {
   if (!normalizedPurchaseToken.ok) {
     return invalidInput(c, normalizedPurchaseToken.message);
   }
-  if (!isValidUserIdLength(payload.userId)) {
-    return invalidInput(c, "userId must be ≤ 256 chars");
+  if (!isValidSubscriptionUserId(payload.userId)) {
+    return invalidInput(c, SUBSCRIPTION_USER_ID_LIMIT_MESSAGE);
   }
   try {
     const result = await client.mutation(api.subscriptions.mutation.bindUser, {
@@ -343,10 +347,6 @@ function parseLimit(raw: string | undefined): number | undefined | null {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return null;
   return Math.min(n, 200);
-}
-
-function isValidUserIdLength(userId: string): boolean {
-  return userId.length <= MAX_USER_ID_LENGTH;
 }
 
 function isValidProductIdLength(productId: string): boolean {

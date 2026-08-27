@@ -4,6 +4,7 @@ import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "../_generated/api";
 import { getOrganizationById, getProjectById } from "../projects/helpers";
 import {
   deleteFileAndStorageIfUnreferenced,
@@ -22,6 +23,93 @@ export const FILE_UPLOAD_RESERVATION_CLEANUP_TTL_MS = 75 * 60 * 1000;
 // target. The indexed range read makes concurrent issuance respect the cap via
 // Convex OCC.
 export const MAX_ACTIVE_FILE_UPLOAD_RESERVATIONS_PER_TARGET = 8;
+export const GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE = 16;
+export const GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE = 20;
+export const GOOGLE_SERVICE_ACCOUNT_RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
+
+async function drainGoogleServiceAccountFilesBatch(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  activeFileId: Id<"files"> | null,
+): Promise<void> {
+  const project = await ctx.db.get(projectId);
+  if (!project || project.googlePlayServiceAccountFileId !== activeFileId) {
+    return;
+  }
+  const page = await ctx.db
+    .query("files")
+    .withIndex("by_project_and_purpose", (q) =>
+      q.eq("projectId", projectId).eq("purpose", "android_service_account"),
+    )
+    .take(GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE + 1);
+  const staleFiles = page
+    .filter((file) => file._id !== activeFileId)
+    .slice(0, GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE);
+  for (const staleFile of staleFiles) {
+    await deleteFileAndStorageIfUnreferenced(ctx, staleFile);
+  }
+  if (staleFiles.length === GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.files.mutation.drainGoogleServiceAccountFiles,
+      { projectId, activeFileId },
+    );
+  } else {
+    await ctx.db.patch(projectId, {
+      googlePlayServiceAccountCleanupPending: false,
+      googlePlayServiceAccountCleanupRecoveryAt: undefined,
+    });
+  }
+}
+
+export const drainGoogleServiceAccountFiles = internalMutation({
+  args: {
+    projectId: v.id("projects"),
+    activeFileId: v.union(v.id("files"), v.null()),
+  },
+  handler: async (ctx, args) => {
+    await drainGoogleServiceAccountFilesBatch(
+      ctx,
+      args.projectId,
+      args.activeFileId,
+    );
+  },
+});
+
+export const resumeGoogleServiceAccountCleanup = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_google_service_account_cleanup", (q) =>
+        q
+          .eq("googlePlayServiceAccountCleanupPending", true)
+          .lte("googlePlayServiceAccountCleanupRecoveryAt", now),
+      )
+      .take(GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE);
+
+    for (const project of projects) {
+      const activeFileId = project.googlePlayServiceAccountFileId;
+      if (activeFileId === undefined) {
+        await ctx.db.patch(project._id, {
+          googlePlayServiceAccountCleanupPending: false,
+          googlePlayServiceAccountCleanupRecoveryAt: undefined,
+        });
+        continue;
+      }
+      await ctx.db.patch(project._id, {
+        googlePlayServiceAccountCleanupRecoveryAt:
+          now + GOOGLE_SERVICE_ACCOUNT_RECOVERY_INTERVAL_MS,
+      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.files.mutation.drainGoogleServiceAccountFiles,
+        { projectId: project._id, activeFileId },
+      );
+    }
+  },
+});
 
 async function deleteUnclaimedUpload(
   ctx: MutationCtx,
@@ -151,10 +239,10 @@ export const saveFile = mutation({
       };
     }
 
-    if (
-      args.purpose === "apple_iap_review_screenshot" &&
-      membership.role === "member"
-    ) {
+    const isPrivateProjectSlot =
+      args.purpose === "apple_iap_review_screenshot" ||
+      args.purpose === "android_service_account";
+    if (isPrivateProjectSlot && membership.role === "member") {
       await deleteUnclaimedUpload(ctx, args.storageId);
       await ctx.db.delete(reservation._id);
       return {
@@ -231,18 +319,55 @@ export const saveFile = mutation({
         };
       }
     }
+    if (args.purpose === "android_service_account") {
+      try {
+        validateFileUpload(
+          args.fileName,
+          args.fileType,
+          args.fileSize,
+          "credential",
+        );
+        if (!args.projectId || !args.fileName.toLowerCase().endsWith(".json")) {
+          throw new ConvexError(
+            "Google service-account files must be project JSON files",
+          );
+        }
+        if (uploadedFile.size !== args.fileSize) {
+          throw new ConvexError(
+            "Google service-account size does not match the uploaded blob",
+          );
+        }
+        const validated = reservation.validatedGoogleServiceAccount;
+        if (
+          !validated ||
+          validated.storageId !== args.storageId ||
+          validated.fileName !== args.fileName ||
+          validated.fileType !== args.fileType ||
+          validated.fileSize !== args.fileSize
+        ) {
+          throw new ConvexError(
+            "Google service-account JSON was not validated by the server",
+          );
+        }
+      } catch (error) {
+        await deleteUnclaimedUpload(ctx, args.storageId);
+        await ctx.db.delete(reservation._id);
+        return {
+          success: false as const,
+          code: "INVALID_FILE" as const,
+          message: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
 
-    // The screenshot is a single project-level slot. Reading the indexed
-    // range before the insert makes concurrent uploads conflict under Convex
-    // OCC; after retry, the later successful save atomically replaces the
-    // earlier row and reclaims its private blob.
-    const screenshotsToReplace =
+    // App Review screenshots remain a single project slot. Google credentials
+    // use an active-file pointer and bounded background cleanup below.
+    const filesToReplace =
       args.purpose === "apple_iap_review_screenshot" && args.projectId
         ? await ctx.db
             .query("files")
-            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-            .filter((q) =>
-              q.eq(q.field("purpose"), "apple_iap_review_screenshot"),
+            .withIndex("by_project_and_purpose", (q) =>
+              q.eq("projectId", args.projectId).eq("purpose", args.purpose),
             )
             .collect()
         : [];
@@ -258,20 +383,27 @@ export const saveFile = mutation({
       purpose: args.purpose,
       description: args.description,
       metadata: args.metadata,
-      // App Review screenshots are private project data regardless of what a
-      // public caller sends. Other purposes retain the existing opt-out for
-      // backwards compatibility.
-      isInternal:
-        args.purpose === "apple_iap_review_screenshot"
-          ? true
-          : (args.isInternal ?? true),
+      isInternal: isPrivateProjectSlot ? true : (args.isInternal ?? true),
       accessCount: 0,
       createdAt: now,
       updatedAt: now,
     });
 
-    for (const priorScreenshot of screenshotsToReplace) {
-      await deleteFileAndStorageIfUnreferenced(ctx, priorScreenshot);
+    for (const priorFile of filesToReplace) {
+      await deleteFileAndStorageIfUnreferenced(ctx, priorFile);
+    }
+    if (args.purpose === "android_service_account" && args.projectId) {
+      await ctx.db.patch(args.projectId, {
+        googlePlayServiceAccountFileId: fileId,
+        googlePlayServiceAccountCleanupPending: true,
+        googlePlayServiceAccountCleanupRecoveryAt:
+          now + GOOGLE_SERVICE_ACCOUNT_RECOVERY_INTERVAL_MS,
+      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.files.mutation.drainGoogleServiceAccountFiles,
+        { projectId: args.projectId, activeFileId: fileId },
+      );
     }
 
     // Consume the capability in the same transaction as the file insert so a
@@ -335,6 +467,106 @@ export const markAppleReviewScreenshotValidated = internalMutation({
         fileSize: args.fileSize,
       },
     });
+  },
+});
+
+export const markGoogleServiceAccountValidated = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    clientEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    if (
+      !reservation ||
+      reservation.createdBy !== args.userId ||
+      reservation.expiresAt <= Date.now() ||
+      reservation.pendingGoogleServiceAccountStorageId !== args.storageId
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    const uploadedFile = await ctx.db.system.get("_storage", args.storageId);
+    if (!uploadedFile || uploadedFile.size !== args.fileSize) {
+      throw new ConvexError("Uploaded credential size does not match storage");
+    }
+    await ctx.db.patch(reservation._id, {
+      pendingGoogleServiceAccountStorageId: undefined,
+      validatedGoogleServiceAccount: {
+        storageId: args.storageId,
+        fileName: args.fileName,
+        fileType: args.fileType,
+        fileSize: args.fileSize,
+        clientEmail: args.clientEmail,
+      },
+    });
+  },
+});
+
+export const markGoogleServiceAccountValidationPending = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    if (
+      !reservation ||
+      reservation.createdBy !== args.userId ||
+      reservation.expiresAt <= Date.now()
+    ) {
+      throw new ConvexError("Invalid upload reservation");
+    }
+    const existingStorageId =
+      reservation.pendingGoogleServiceAccountStorageId ??
+      reservation.validatedGoogleServiceAccount?.storageId;
+    if (existingStorageId && existingStorageId !== args.storageId) {
+      throw new ConvexError("Upload reservation is already bound to a file");
+    }
+    const uploadedFile = await ctx.db.system.get("_storage", args.storageId);
+    if (!uploadedFile || uploadedFile.size !== args.fileSize) {
+      throw new ConvexError("Uploaded credential size does not match storage");
+    }
+    await ctx.db.patch(reservation._id, {
+      pendingGoogleServiceAccountStorageId: args.storageId,
+    });
+  },
+});
+
+export const rejectGoogleServiceAccountValidation = internalMutation({
+  args: {
+    uploadReservationId: v.id("fileUploadReservations"),
+    organizationId: v.id("organizations"),
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+  },
+  handler: async (ctx, args) => {
+    const reservation = await ctx.db.get(args.uploadReservationId);
+    if (
+      !reservation ||
+      reservation.organizationId !== args.organizationId ||
+      reservation.projectId !== args.projectId
+    ) {
+      return;
+    }
+    if (
+      reservation.validatedGoogleServiceAccount?.storageId === args.storageId
+    ) {
+      return;
+    }
+    await deleteUnclaimedUpload(ctx, args.storageId);
+    const boundStorageId =
+      reservation.pendingGoogleServiceAccountStorageId ??
+      reservation.validatedGoogleServiceAccount?.storageId;
+    if (!boundStorageId || boundStorageId === args.storageId) {
+      await ctx.db.delete(reservation._id);
+    }
   },
 });
 
@@ -441,7 +673,43 @@ export const remove = mutation({
       throw new ConvexError("Insufficient permissions");
     }
 
-    await deleteFileAndStorageIfUnreferenced(ctx, file);
+    let revokesGoogleServiceAccount = false;
+    if (
+      file.purpose === "android_service_account" &&
+      file.projectId &&
+      project
+    ) {
+      if (project.googlePlayServiceAccountFileId === file._id) {
+        revokesGoogleServiceAccount = true;
+      } else if (project.googlePlayServiceAccountFileId === undefined) {
+        const legacyActiveFile = await ctx.db
+          .query("files")
+          .withIndex("by_project_and_purpose", (q) =>
+            q
+              .eq("projectId", file.projectId as Id<"projects">)
+              .eq("purpose", "android_service_account"),
+          )
+          .order("desc")
+          .first();
+        revokesGoogleServiceAccount = legacyActiveFile?._id === file._id;
+      }
+    }
+    if (revokesGoogleServiceAccount && file.projectId) {
+      await ctx.db.patch(file.projectId, {
+        googlePlayServiceAccountFileId: null,
+        googlePlayServiceAccountCleanupPending: true,
+        googlePlayServiceAccountCleanupRecoveryAt:
+          Date.now() + GOOGLE_SERVICE_ACCOUNT_RECOVERY_INTERVAL_MS,
+      });
+      await deleteFileAndStorageIfUnreferenced(ctx, file);
+      await ctx.scheduler.runAfter(
+        0,
+        internal.files.mutation.drainGoogleServiceAccountFiles,
+        { projectId: file.projectId, activeFileId: null },
+      );
+    } else {
+      await deleteFileAndStorageIfUnreferenced(ctx, file);
+    }
 
     return { success: true };
   },

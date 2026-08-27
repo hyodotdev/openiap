@@ -43,6 +43,7 @@ export const googlePlayReceiptDataValidator = v.object({
   consumptionState: v.optional(v.string()),
   expiryTime: v.optional(v.number()),
   renewsAt: v.optional(v.number()),
+  willRenew: v.optional(v.boolean()),
   currency: v.optional(v.string()),
   priceAmountMicros: v.optional(v.number()),
 });

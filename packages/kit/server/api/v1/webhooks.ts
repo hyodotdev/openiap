@@ -3,6 +3,10 @@ import type { Context, Next } from "hono";
 import { OAuth2Client } from "google-auth-library";
 
 import { api } from "@/convex";
+import {
+  isUnauthenticatedPubSubAllowed,
+  resolvePubSubOidcAudiences,
+} from "../../../convex/webhooks/shared";
 import { client, handleConvexError } from "../../convex";
 import { apiKeyValidationError, isSecretApiKey } from "./middleware";
 import {
@@ -53,10 +57,10 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
 //   Apple-signed payloads are accepted.
 //
 // - Google Pub/Sub push delivers a Bearer JWT from Google in the
-//   Authorization header that we verify against
-//   https://www.googleapis.com/oauth2/v1/certs (via OAuth2Client). The
-//   project's API key is also in the path so kit can resolve which
-//   project a notification belongs to. Both checks must pass.
+//   Authorization header. The Fly edge verifies its signature and audience;
+//   the public Convex action repeats that verification and requires the token
+//   email to match this project's uploaded Google service account. The path
+//   API key resolves the project but is not treated as source authentication.
 
 const webhooks = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
@@ -280,8 +284,10 @@ async function handleGoogleNotification(
   // a Google-shaped path. In development / sandbox, the operator can
   // opt out by setting `KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1`.
   const authHeader = c.req.header("authorization");
+  const oidcToken = extractBearerToken(authHeader) ?? undefined;
   const audience = process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
-  const allowUnauth = process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB === "1";
+  const allowUnauth = isUnauthenticatedPubSubAllowed(process.env);
+  let oidcAudiences: string[] | undefined;
   if (!audience) {
     if (!allowUnauth) {
       console.error(
@@ -304,10 +310,8 @@ async function handleGoogleNotification(
       "[webhooks/google] GOOGLE_PUBSUB_PUSH_AUDIENCE unset and KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1 — accepting unauthenticated Pub/Sub body (dev mode only).",
     );
   } else {
-    const ok = await verifyPubSubOidcToken(
-      authHeader,
-      pubSubOidcAudiences(c.req.url, audience),
-    );
+    oidcAudiences = pubSubOidcAudiences(c.req.url, audience);
+    const ok = await verifyPubSubOidcToken(authHeader, oidcAudiences);
     if (!ok) {
       return c.json(
         {
@@ -359,7 +363,7 @@ async function handleGoogleNotification(
           version?: string;
           notificationType: number;
           purchaseToken: string;
-          subscriptionId: string;
+          subscriptionId?: string;
         },
     oneTimeProductNotification: decoded.oneTimeProductNotification as
       | undefined
@@ -386,6 +390,7 @@ async function handleGoogleNotification(
   try {
     const result = await client.action(api.webhooks.google.ingestGoogleRtdn, {
       apiKey,
+      ...(oidcToken ? { oidcToken } : {}),
       rawMessage: decodedRaw,
       payload,
     });
@@ -431,19 +436,12 @@ async function verifyPubSubOidcToken(
       });
       return false;
     }
-    // Bind to a specific service-account principal when configured.
-    // Without GOOGLE_PUBSUB_PUSH_PRINCIPAL set, accept verified Google
-    // service-account identities. Pub/Sub signs push OIDC tokens as the
-    // subscription's configured service account (for example
-    // `pubsub-rtdn-push@project.iam.gserviceaccount.com`), not the
-    // Google-managed Pub/Sub service agent that has Token Creator access.
-    const configuredPrincipal = process.env.GOOGLE_PUBSUB_PUSH_PRINCIPAL;
-    if (!isAllowedPubSubServiceAccount(email, configuredPrincipal)) {
+    // This edge check rejects user identities early. The Convex action repeats
+    // signature/audience verification and requires this email to equal the
+    // current project's uploaded Google service-account `client_email`.
+    if (!isAllowedPubSubServiceAccount(email)) {
       console.warn("[webhooks/google] OIDC principal rejected", {
         audience: sanitizePubSubAudienceForLog(payload.aud),
-        configuredPrincipal: configuredPrincipal
-          ? sanitizeEmailForLog(configuredPrincipal)
-          : "(any service account)",
         email: sanitizeEmailForLog(email),
         expectedAudiences: expectedAudiences.map(sanitizePubSubAudienceForLog),
         issuer: payload.iss,
@@ -474,11 +472,7 @@ export function extractBearerToken(
   return parts[1] || null;
 }
 
-export function isAllowedPubSubServiceAccount(
-  email: string,
-  configuredPrincipal?: string,
-): boolean {
-  if (configuredPrincipal) return email === configuredPrincipal;
+export function isAllowedPubSubServiceAccount(email: string): boolean {
   return email.endsWith(".gserviceaccount.com");
 }
 
@@ -538,27 +532,7 @@ export function pubSubOidcAudiences(
   requestUrl: string,
   configuredAudience: string,
 ): string[] {
-  const audiences = new Set(
-    configuredAudience
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  );
-  const request = safeUrl(requestUrl);
-  if (!request) return Array.from(audiences);
-
-  for (const raw of Array.from(audiences)) {
-    const configured = safeUrl(raw);
-    if (!configured) continue;
-    const configuredIsOriginOnly =
-      configured.pathname === "/" && !configured.search && !configured.hash;
-    if (!configuredIsOriginOnly || configured.host !== request.host) continue;
-
-    audiences.add(configured.origin);
-    audiences.add(`${configured.origin}/`);
-    audiences.add(`${configured.origin}${request.pathname}${request.search}`);
-  }
-  return Array.from(audiences);
+  return resolvePubSubOidcAudiences(requestUrl, configuredAudience);
 }
 
 function safeUrl(value: string): URL | null {
@@ -607,7 +581,10 @@ function mapWebhookError(
     }
     // Bad / unrecognized API key: 401 with a stable code the dashboard
     // and SDK can branch on without parsing the message.
-    if (convexError.code === "INVALID_API_KEY") {
+    if (
+      convexError.code === "INVALID_API_KEY" ||
+      convexError.code === "UNAUTHORIZED"
+    ) {
       return c.json({ errors: [convexError] }, 401);
     }
     // Per-platform setup-status gates (the action throws these when
@@ -617,7 +594,8 @@ function mapWebhookError(
     // codes don't have to change.
     if (
       convexError.code === "IOS_NOT_CONFIGURED" ||
-      convexError.code === "ANDROID_NOT_CONFIGURED"
+      convexError.code === "ANDROID_NOT_CONFIGURED" ||
+      convexError.code === "GOOGLE_SERVICE_ACCOUNT_REQUIRED"
     ) {
       return c.json({ errors: [convexError] }, 412);
     }

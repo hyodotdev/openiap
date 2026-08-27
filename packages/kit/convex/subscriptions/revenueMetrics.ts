@@ -477,6 +477,7 @@ async function processEventsPage(
         .lte("receivedAt", windowEnd),
     )
     .paginate({ numItems: EVENTS_PAGE_SIZE, cursor: args.paginationCursor });
+  const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
   for (const event of result.page) {
     // Legacy events from the removed Horizon reconciler were synthetic guesses
@@ -484,6 +485,12 @@ async function processEventsPage(
     // rows remain readable, but never fold those rows into revenue metrics.
     if (event.source === "MetaHorizonReconciler") continue;
     if (!event.productId) continue;
+    const catalogType = productTypes.get(
+      productTypeKey(event.platform, event.productId),
+    );
+    if (!isSubscriptionAnalyticsEvent(event, catalogType)) {
+      continue;
+    }
     const day = utcDayKey(event.occurredAt);
     // Skip events whose store-side day falls outside the bucket
     // window. Their bucket row (if any) lives outside the
@@ -504,7 +511,7 @@ async function processEventsPage(
       currency,
       platform,
     );
-    applyEventToBucket(bucket, event);
+    applyEventToBucket(bucket, event, catalogType);
   }
 
   if (result.isDone) {
@@ -570,8 +577,16 @@ async function processSubsPage(
     )
     .order("desc")
     .paginate({ numItems: SUBS_PAGE_SIZE, cursor: paginationCursor });
+  const productTypes = await productTypesForRows(ctx, projectId, result.page);
 
   for (const sub of result.page) {
+    if (
+      sub.productKind !== "subscription" &&
+      productTypes.get(productTypeKey(sub.platform, sub.productId)) !==
+        "Subscription"
+    ) {
+      continue;
+    }
     for (let i = 0; i < days.length; i++) {
       if (!isActiveAt(sub, dayEnds[i])) continue;
       const currency = sub.currency ?? "";
@@ -930,7 +945,12 @@ function getOrCreateBucket(
 export function applyEventToBucket(
   bucket: RollupBucket,
   event: Doc<"webhookEvents">,
+  catalogType?: Doc<"products">["type"],
 ): void {
+  // One-time notifications share legacy internal event names with subscription
+  // events, but they are operational-only and must not enter subscription
+  // revenue, new-subscription, or refund counters.
+  if (!isSubscriptionAnalyticsEvent(event, catalogType)) return;
   const price = event.priceAmountMicros ?? 0;
   switch (event.type) {
     case "SubscriptionStarted":
@@ -975,6 +995,66 @@ export function applyEventToBucket(
   // be dead code; if a future event type ever subtracts revenue,
   // the same cross-period reasoning applies and a clamp would hide
   // the offset.
+}
+
+export function isSubscriptionAnalyticsEvent(
+  event: Pick<Doc<"webhookEvents">, "productKind">,
+  catalogType?: Doc<"products">["type"],
+): boolean {
+  if (event.productKind === "one_time") return false;
+  if (event.productKind === "subscription") return true;
+  return catalogType === "Subscription";
+}
+
+function productTypeKey(platform: string, productId: string): string {
+  return `${platform}\u0000${productId}`;
+}
+
+async function productTypesForRows(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  rows: Array<{
+    platform: Doc<"products">["platform"];
+    productId?: string;
+    productKind?: string;
+  }>,
+): Promise<Map<string, Doc<"products">["type"]>> {
+  const keys = [
+    ...new Map(
+      rows
+        .filter(
+          (
+            row,
+          ): row is {
+            platform: Doc<"products">["platform"];
+            productId: string;
+            productKind?: string;
+          } => row.productKind === undefined && Boolean(row.productId),
+        )
+        .map((row) => [productTypeKey(row.platform, row.productId), row]),
+    ).entries(),
+  ];
+  const products = await Promise.all(
+    keys.map(([, row]) =>
+      ctx.db
+        .query("products")
+        .withIndex("by_project_and_platform_and_product", (q) =>
+          q
+            .eq("projectId", projectId)
+            .eq("platform", row.platform)
+            .eq("productId", row.productId),
+        )
+        .unique(),
+    ),
+  );
+  return new Map(
+    products
+      .filter((product): product is Doc<"products"> => product !== null)
+      .map((product) => [
+        productTypeKey(product.platform, product.productId),
+        product.type,
+      ]),
+  );
 }
 
 export function isActiveAt(sub: Doc<"subscriptions">, dayEnd: number): boolean {

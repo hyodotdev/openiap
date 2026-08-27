@@ -161,6 +161,7 @@ describe("Google Play v2 mappings", () => {
           expiryTime: soon,
           latestSuccessfulOrderId: "GPA.1111-1111-1111-11111",
           autoRenewingPlan: {
+            autoRenewEnabled: true,
             recurringPrice: {
               currencyCode: "USD",
               units: "4",
@@ -173,6 +174,7 @@ describe("Google Play v2 mappings", () => {
           expiryTime: later,
           latestSuccessfulOrderId: "GPA.2222-2222-2222-22222",
           autoRenewingPlan: {
+            autoRenewEnabled: true,
             recurringPrice: {
               currencyCode: "USD",
               units: "49",
@@ -193,8 +195,29 @@ describe("Google Play v2 mappings", () => {
     expect(receipt.orderId).toBe("GPA.2222-2222-2222-22222");
     expect(receipt.expiryTime).toBe(Date.parse(later));
     expect(receipt.renewsAt).toBe(Date.parse(later));
+    expect(receipt.willRenew).toBe(true);
     expect(receipt.currency).toBe("USD");
     expect(receipt.priceAmountMicros).toBe(49_990_000);
+  });
+
+  it("does not infer renewal when an auto-renewing plan omits its flag", () => {
+    const receipt = mapSubscriptionResponseToReceiptData({
+      packageName,
+      purchaseToken: "sub-token",
+      subscriptionResponse: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: "2026-02-01T00:00:00.000Z",
+            autoRenewingPlan: {},
+          },
+        ],
+      },
+    });
+
+    expect(receipt.willRenew).toBe(false);
+    expect(receipt.renewsAt).toBeUndefined();
   });
 
   it("selects the expected subscription before expiry ranking", () => {
@@ -298,6 +321,9 @@ describe("Google Play v2 mappings", () => {
     });
 
     const response = mapToGooglePlayReceiptResponse(receipt);
+
+    expect(receipt.willRenew).toBe(false);
+    expect(receipt.renewsAt).toBeUndefined();
 
     expect(response).toEqual({
       isValid: false,
@@ -487,6 +513,7 @@ describe("recordGooglePlayVerifiedSubscription", () => {
         subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
         expiryTime: 1_769_904_000_000,
         renewsAt: 1_769_904_000_000,
+        willRenew: true,
         currency: "USD",
         priceAmountMicros: 9_990_000,
       },
@@ -502,9 +529,39 @@ describe("recordGooglePlayVerifiedSubscription", () => {
       subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
       expiresAt: 1_769_904_000_000,
       renewsAt: 1_769_904_000_000,
+      willRenew: true,
       currency: "USD",
       priceAmountMicros: 9_990_000,
     });
+  });
+
+  it("passes prepaid renewal semantics into canonical verification", async () => {
+    const { ctx, calls } = makeRunMutationRecorder();
+
+    await recordGooglePlayVerifiedSubscription(ctx, {
+      projectId: "projects_1" as never,
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      receiptData: {
+        transactionId: "GPA.prepaid",
+        packageName,
+        productId: "prepaid_monthly",
+        purchaseToken: "prepaid-token",
+        purchaseDate: 1_700_000_000_000,
+        quantity: 1,
+        type: "Subscription",
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        expiryTime: 1_769_904_000_000,
+        willRenew: false,
+      },
+    });
+
+    expect(calls).toEqual([
+      expect.objectContaining({
+        purchaseToken: "prepaid-token",
+        willRenew: false,
+        renewsAt: undefined,
+      }),
+    ]);
   });
 
   it("persists pending-acknowledgment subscriptions as bindable rows", async () => {

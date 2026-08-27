@@ -132,6 +132,10 @@ describe("deleteProjectWithData", () => {
             ? "apple_iap_review_screenshot"
             : "android_service_account",
       })),
+      outboundDeliveryQueues: rows("outbound_queue"),
+      outboundDeliveries: rows("outbound_delivery"),
+      outboundDestinations: rows("outbound_destination"),
+      commerceEvents: rows("commerce_event"),
       webhookIdempotencyKeys: [
         ...rows("webhook_key"),
         ...webhookEvents.map((event, index) => ({
@@ -140,6 +144,7 @@ describe("deleteProjectWithData", () => {
         })),
       ],
       webhookEvents,
+      subscriptionTokenAliases: rows("subscription_alias"),
       subscriptions: rows("subscription"),
       subscriptionStats: rows("subscription_stats"),
       revenueMetricsDaily: rows("revenue_daily"),
@@ -160,7 +165,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(30);
+    expect(calls).toBe(40);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

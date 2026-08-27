@@ -1,6 +1,7 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 import { WEBHOOK_RETENTION_MS } from "./webhooks/internal";
+import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
 
 const crons = cronJobs();
 
@@ -56,6 +57,13 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "resume Google service-account cleanup",
+  { minutes: 5 },
+  internal.files.mutation.resumeGoogleServiceAccountCleanup,
+  {},
+);
+
 // Prune webhook events older than the 30-day retention window. Runs hourly
 // with a small per-tick batch size so stored lifecycle history and analytics
 // reads remain bounded.
@@ -64,6 +72,37 @@ crons.interval(
   { hours: 1 },
   internal.webhooks.internal.pruneWebhookEvents,
   { olderThanMs: WEBHOOK_RETENTION_MS },
+);
+
+// Outbound delivery of normalized commerce events to developer-registered
+// endpoints. One minute keeps first-attempt latency low; the per-row lease
+// stops overlapping ticks from double-delivering.
+crons.interval(
+  "deliver commerce events",
+  { minutes: 1 },
+  internal.commerce.delivery.deliverPendingEvents,
+  {},
+);
+
+crons.interval(
+  "resume pending commerce destination removal",
+  { minutes: 5 },
+  internal.commerce.destinations.resumePendingDestinationRemoval,
+  {},
+);
+
+crons.interval(
+  "prune delivered commerce events past retention",
+  { hours: 1 },
+  internal.commerce.deliveryState.pruneCommerceHistory,
+  { olderThanMs: COMMERCE_EVENT_RETENTION_MS },
+);
+
+crons.interval(
+  "erase expired commerce webhook secrets",
+  { hours: 1 },
+  internal.commerce.destinations.pruneExpiredPreviousSecrets,
+  {},
 );
 
 // Amazon recommends checking every active RVS receipt within 72 hours.

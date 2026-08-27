@@ -9,14 +9,16 @@ export default function WebhooksPage() {
     <DocsPage
       slug="webhooks"
       title="Store webhooks"
-      description="Send Apple App Store Server Notifications v2 and Google Play RTDN into IAPKit."
+      description="Receive store lifecycle notifications and forward signed normalized events to your backend."
     >
       <p>
         IAPKit accepts store lifecycle notifications, verifies and deduplicates
         them, then updates purchase, subscription, and analytics state. The
-        supported direction is store to IAPKit:
+        supported server-to-server path is:
       </p>
-      <CodeBlock language="text">Apple / Google → IAPKit</CodeBlock>
+      <CodeBlock language="text">
+        Apple / Google → IAPKit → your HTTPS backend
+      </CodeBlock>
 
       <Callout kind="warning" title="No outbound mobile event stream">
         <p>
@@ -27,7 +29,90 @@ export default function WebhooksPage() {
         </p>
       </Callout>
 
+      <h2 className="mt-10 text-2xl font-semibold">
+        Developer backend destination
+      </h2>
+      <ol className="my-3 list-decimal space-y-2 pl-6">
+        <li>Open the project&apos;s Webhooks tab.</li>
+        <li>Enter a public HTTPS endpoint and create the destination.</li>
+        <li>
+          Copy the signing secret immediately; IAPKit never shows it again.
+        </li>
+        <li>
+          Verify <code>openiap-signature</code> over the raw body, require the
+          event-id header to match the signed body&apos;s <code>eventId</code>,
+          and deduplicate on that body field before applying an effect.
+        </li>
+      </ol>
+      <p>
+        Delivery runs in a bounded Convex worker outside the Fly request path.
+        Retries use exponential backoff, permanent failures remain visible as
+        dead letters, and project admins can replay them from the same tab.
+      </p>
+      <CodeBlock language="text">{`openiap-signature: v1=<hmac-sha256>
+openiap-timestamp: <unix-seconds>
+openiap-event-id: <must equal body.eventId>`}</CodeBlock>
+      <p>
+        Compute lowercase hex with{" "}
+        <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,
+        then prefix it with <code>v1=</code>. During the 24-hour rotation
+        window, the header contains the new and previous values comma-separated;
+        accept either valid value. Parse the timestamp as a finite Unix-seconds
+        number and require{" "}
+        <code>Math.abs(Date.now() / 1000 - timestamp) &lt;= 300</code> to reject
+        both stale and future values. Never reserialize JSON before
+        verification.
+      </p>
+      <CodeBlock language="json">{`{
+  "eventId": "commerceEvents_...",
+  "eventType": "subscription.renewed",
+  "eventVersion": "1.0",
+  "occurredAt": 1787788800000,
+  "processedAt": 1787788800123,
+  "store": "google",
+  "environment": "production",
+  "projectId": "projects_...",
+  "applicationId": "dev.example.app",
+  "userId": "account_123",
+  "productId": "premium.monthly",
+  "subscription": { "state": "Active", "productId": "premium.monthly", "active": true }
+}`}</CodeBlock>
+      <p>
+        Optional fields include <code>previousProductId</code>, transaction ids,
+        price, and bounded provider extensions. Supported event types are:
+      </p>
+      <CodeBlock language="text">{`subscription.started, subscription.renewed, subscription.recovered,
+subscription.entered_grace_period, subscription.entered_billing_retry,
+subscription.expired, subscription.canceled, subscription.uncanceled,
+subscription.revoked, subscription.refunded, subscription.product_changed,
+subscription.price_changed, subscription.deferred, subscription.paused,
+subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
+      <p>
+        See the{" "}
+        <a
+          href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COMMERCE-EVENTS.md"
+          target="_blank"
+          rel="noreferrer"
+          className="underline"
+        >
+          complete receiver contract
+        </a>
+        .
+      </p>
+
       <h2 className="mt-10 text-2xl font-semibold">Lifecycle URL</h2>
+      <Callout kind="note" title="Google subscription enrichment required">
+        <p>
+          Upload the Google Play service-account JSON in project settings. RTDN
+          omits authoritative expiry and pricing, so IAPKit enriches every
+          non-terminal subscription notification with the Android Publisher API
+          before recording it. Use that same service account as the Pub/Sub push
+          authentication identity; IAPKit requires its OIDC email to equal the
+          uploaded JSON&apos;s <code>client_email</code> and its audience to
+          equal the exact lifecycle URL. Existing subscriptions that use a
+          separate push identity must be updated.
+        </p>
+      </Callout>
       <p>
         Open the project&apos;s <strong>Webhooks</strong> tab and copy its
         unified lifecycle URL:
@@ -59,7 +144,18 @@ export default function WebhooksPage() {
         <li>Create a Google Cloud Pub/Sub topic and push subscription.</li>
         <li>
           Use the IAPKit lifecycle URL as the push endpoint and configure
-          authenticated delivery.
+          authenticated delivery with the same service account whose JSON is
+          uploaded in IAPKit project settings. Keep the OIDC audience equal to
+          that exact lifecycle URL.
+        </li>
+        <li>
+          On that account, grant the Pub/Sub service agent{" "}
+          <code>
+            service-$&#123;PROJECT_NUMBER&#125;@gcp-sa-pubsub.iam.gserviceaccount.com
+          </code>{" "}
+          <code>roles/iam.serviceAccountTokenCreator</code>. The operator who
+          creates or updates the subscription also needs{" "}
+          <code>roles/iam.serviceAccountUser</code> on the account.
         </li>
         <li>
           Grant{" "}
@@ -83,7 +179,8 @@ export default function WebhooksPage() {
         </li>
         <li>
           The normalized transition updates stored purchase or subscription
-          state and feeds the analytics rollup.
+          state, feeds the analytics rollup, and fans out a signed normalized
+          event to enabled backend destinations.
         </li>
       </ul>
       <p>

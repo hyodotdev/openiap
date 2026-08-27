@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import { assertProjectWritable } from "../projects/writable";
+import {
+  dataProvenanceValidator,
+  subscriptionStateValidator,
+} from "../utils/validation";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
 // Keep the units literal (ms) so the cron scheduler call reads naturally.
@@ -45,10 +49,10 @@ async function findWebhookEventByDedupKey(
 
 // Cheap pre-flight dedup probe used by webhooks/google.ts to avoid
 // burning Play Developer API quota on Pub/Sub retries. Returns the
-// recorded subscription fields if the (projectId, source,
+// recorded event id and purchase token if the (projectId, source,
 // sourceNotificationId) triple has already been ingested; null otherwise.
-// Returning the stored fields lets a retry repair subscription state if the
-// first attempt wrote the event and then failed before applying it. Distinct from
+// The action passes that id to the apply mutation, which reads the authoritative
+// stored event and repairs subscription state after a partial failure. Distinct from
 // `recordWebhookEvent` because it's a query (no DB writes) and runs
 // inside the Pub/Sub action's pre-Play-API path so a retry of an
 // already-processed messageId can short-circuit before
@@ -71,35 +75,8 @@ export const lookupExistingEvent = internalQuery({
     v.object({
       eventId: v.id("webhookEvents"),
       type: v.string(),
-      platform: v.union(v.literal("IOS"), v.literal("Android")),
       purchaseToken: v.optional(v.string()),
-      productId: v.optional(v.string()),
-      subscriptionState: v.optional(
-        v.union(
-          v.literal("Active"),
-          v.literal("InGracePeriod"),
-          v.literal("InBillingRetry"),
-          v.literal("Expired"),
-          v.literal("Revoked"),
-          v.literal("Refunded"),
-          v.literal("Paused"),
-          v.literal("Unknown"),
-        ),
-      ),
-      expiresAt: v.optional(v.number()),
-      renewsAt: v.optional(v.number()),
-      cancellationReason: v.optional(
-        v.union(
-          v.literal("UserCanceled"),
-          v.literal("BillingError"),
-          v.literal("PriceIncreaseDeclined"),
-          v.literal("ProductUnavailable"),
-          v.literal("Refunded"),
-          v.literal("Other"),
-        ),
-      ),
-      currency: v.optional(v.string()),
-      priceAmountMicros: v.optional(v.number()),
+      linkedPurchaseToken: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -134,15 +111,8 @@ export const lookupExistingEvent = internalQuery({
     return {
       eventId: existingEvent._id,
       type: existingEvent.type,
-      platform: existingEvent.platform,
       purchaseToken: existingEvent.purchaseToken,
-      productId: existingEvent.productId,
-      subscriptionState: existingEvent.subscriptionState,
-      expiresAt: existingEvent.expiresAt,
-      renewsAt: existingEvent.renewsAt,
-      cancellationReason: existingEvent.cancellationReason,
-      currency: existingEvent.currency,
-      priceAmountMicros: existingEvent.priceAmountMicros,
+      linkedPurchaseToken: existingEvent.linkedPurchaseToken,
     };
   },
 });
@@ -175,6 +145,10 @@ export const recordWebhookEvent = internalMutation({
         v.literal("SubscriptionProductChanged"),
         v.literal("SubscriptionPaused"),
         v.literal("SubscriptionResumed"),
+        v.literal("SubscriptionDeferred"),
+        v.literal("SubscriptionPauseScheduleChanged"),
+        v.literal("SubscriptionPendingPurchaseCanceled"),
+        v.literal("SubscriptionPriceStepUpConsentChanged"),
         v.literal("PurchaseRefunded"),
         v.literal("PurchaseConsumptionRequest"),
         v.literal("TestNotification"),
@@ -192,21 +166,19 @@ export const recordWebhookEvent = internalMutation({
       // Optional because TestNotification payloads carry no transaction.
       // Real lifecycle event types always populate this.
       purchaseToken: v.optional(v.string()),
-      productId: v.optional(v.string()),
-      subscriptionState: v.optional(
-        v.union(
-          v.literal("Active"),
-          v.literal("InGracePeriod"),
-          v.literal("InBillingRetry"),
-          v.literal("Expired"),
-          v.literal("Revoked"),
-          v.literal("Refunded"),
-          v.literal("Paused"),
-          v.literal("Unknown"),
-        ),
+      linkedPurchaseToken: v.optional(v.string()),
+      transactionId: v.optional(v.string()),
+      originalTransactionId: v.optional(v.string()),
+      applicationId: v.optional(v.string()),
+      productKind: v.optional(
+        v.union(v.literal("subscription"), v.literal("one_time")),
       ),
+      productId: v.optional(v.string()),
+      effectiveImmediately: v.optional(v.boolean()),
+      subscriptionState: v.optional(subscriptionStateValidator),
       expiresAt: v.optional(v.number()),
       renewsAt: v.optional(v.number()),
+      willRenew: v.optional(v.boolean()),
       cancellationReason: v.optional(
         v.union(
           v.literal("UserCanceled"),
@@ -219,6 +191,7 @@ export const recordWebhookEvent = internalMutation({
       ),
       currency: v.optional(v.string()),
       priceAmountMicros: v.optional(v.number()),
+      amountProvenance: v.optional(dataProvenanceValidator),
       occurredAt: v.number(),
       rawSignedPayload: v.optional(v.string()),
     }),
@@ -344,14 +317,22 @@ export const recordWebhookEvent = internalMutation({
       platform: args.event.platform,
       environment: args.event.environment,
       purchaseToken: args.event.purchaseToken,
+      linkedPurchaseToken: args.event.linkedPurchaseToken,
+      transactionId: args.event.transactionId,
+      originalTransactionId: args.event.originalTransactionId,
+      applicationId: args.event.applicationId,
+      productKind: args.event.productKind,
       sourceNotificationId: args.sourceNotificationId,
       productId: args.event.productId,
+      effectiveImmediately: args.event.effectiveImmediately,
       subscriptionState: args.event.subscriptionState,
       expiresAt: args.event.expiresAt,
       renewsAt: args.event.renewsAt,
+      willRenew: args.event.willRenew,
       cancellationReason: args.event.cancellationReason,
       currency: args.event.currency,
       priceAmountMicros: args.event.priceAmountMicros,
+      amountProvenance: args.event.amountProvenance,
       rawSignedPayload: args.event.rawSignedPayload,
       occurredAt: args.event.occurredAt,
       receivedAt: now,
@@ -396,6 +377,38 @@ export const pruneWebhookEvents = internalMutation({
       .query("webhookEvents")
       .withIndex("by_received_at", (q) => q.lt("receivedAt", cutoff))
       .take(limit);
+
+    // Preserve the compact source needed for a late bind before removing the
+    // full event. This also upgrades subscriptions created before the compact
+    // snapshot field existed.
+    const referencingSubscriptions = await Promise.all(
+      oldEvents.map((event) =>
+        ctx.db
+          .query("subscriptions")
+          .withIndex("by_last_event", (q) => q.eq("lastEventId", event._id))
+          .unique(),
+      ),
+    );
+    for (let index = 0; index < oldEvents.length; index += 1) {
+      const subscription = referencingSubscriptions[index];
+      if (!subscription || subscription.lastEventSource) continue;
+      const event = oldEvents[index];
+      await ctx.db.patch(subscription._id, {
+        lastEventOccurredAt: event.occurredAt,
+        lastEventCreationTime: event._creationTime,
+        lastEventSourceNotificationId: event.sourceNotificationId,
+        lastEventSource: {
+          type: event.type,
+          environment: event.environment,
+          productId: event.productId,
+          applicationId: event.applicationId,
+          transactionId: event.transactionId,
+          originalTransactionId: event.originalTransactionId,
+          currency: event.currency,
+          priceAmountMicros: event.priceAmountMicros,
+        },
+      });
+    }
 
     // Resolve every matching idempotency key in parallel before
     // touching the DB writer. The previous loop did one .unique()

@@ -2,6 +2,10 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import { authTables } from "@convex-dev/auth/server";
 import { harmonizedPurchaseStateValidator } from "./purchases/purchaseState";
+import {
+  dataProvenanceValidator,
+  subscriptionStateValidator,
+} from "./utils/validation";
 
 // Redefine the `users` table (same shape as @convex-dev/auth's authTables.users)
 // but re-declare indexes so the TypeScript data model surfaces them. Spreading
@@ -210,6 +214,13 @@ const schema = defineSchema({
       ),
     ),
     androidPackageName: v.optional(v.string()),
+    // `undefined` keeps the legacy newest-file fallback, an ID pins the active
+    // credential, and `null` revokes the slot while old duplicates drain.
+    googlePlayServiceAccountFileId: v.optional(
+      v.union(v.id("files"), v.null()),
+    ),
+    googlePlayServiceAccountCleanupPending: v.optional(v.boolean()),
+    googlePlayServiceAccountCleanupRecoveryAt: v.optional(v.number()),
     iosBundleId: v.optional(v.string()),
     iosAppAppleId: v.optional(v.number()),
     // App Store Server API credentials — issued under "Users and
@@ -285,6 +296,10 @@ const schema = defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
     .index("by_org_and_slug", ["organizationId", "slug"])
+    .index("by_google_service_account_cleanup", [
+      "googlePlayServiceAccountCleanupPending",
+      "googlePlayServiceAccountCleanupRecoveryAt",
+    ])
     .index("by_pending_deletion", ["pendingDeletion"]),
 
   // API Keys table - Multiple API keys per project
@@ -369,6 +384,7 @@ const schema = defineSchema({
   })
     .index("by_organization", ["organizationId"])
     .index("by_project", ["projectId"])
+    .index("by_project_and_purpose", ["projectId", "purpose"])
     .index("by_uploader", ["uploadedBy"])
     .index("by_org_and_purpose", ["organizationId", "purpose"])
     .index("by_storage_id", ["storageId"])
@@ -399,10 +415,20 @@ const schema = defineSchema({
         fileSize: v.number(),
       }),
     ),
+    validatedGoogleServiceAccount: v.optional(
+      v.object({
+        storageId: v.id("_storage"),
+        fileName: v.string(),
+        fileType: v.string(),
+        fileSize: v.number(),
+        clientEmail: v.string(),
+      }),
+    ),
     // Claimed before the Node action downloads the private blob. This closes
     // the action-crash gap: the expiry pruner can still reclaim an uploaded
     // object even if validation never reaches its terminal mutation.
     pendingAppleReviewScreenshotStorageId: v.optional(v.id("_storage")),
+    pendingGoogleServiceAccountStorageId: v.optional(v.id("_storage")),
     createdAt: v.number(),
   })
     .index("by_cleanup_expires_at", ["cleanupExpiresAt"])
@@ -579,6 +605,10 @@ const schema = defineSchema({
       v.literal("SubscriptionProductChanged"),
       v.literal("SubscriptionPaused"),
       v.literal("SubscriptionResumed"),
+      v.literal("SubscriptionDeferred"),
+      v.literal("SubscriptionPauseScheduleChanged"),
+      v.literal("SubscriptionPendingPurchaseCanceled"),
+      v.literal("SubscriptionPriceStepUpConsentChanged"),
       v.literal("PurchaseRefunded"),
       v.literal("PurchaseConsumptionRequest"),
       v.literal("TestNotification"),
@@ -602,25 +632,23 @@ const schema = defineSchema({
     // populate this; the receiver guards apply the same nullability
     // (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
+    linkedPurchaseToken: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    applicationId: v.optional(v.string()),
+    productKind: v.optional(
+      v.union(v.literal("subscription"), v.literal("one_time")),
+    ),
     // Original notification id from the store (ASN v2 `notificationUUID`
     // or RTDN Pub/Sub `messageId`). Used internally for source-aware
     // deduplication and pruning correlation.
     sourceNotificationId: v.string(),
     productId: v.optional(v.string()),
-    subscriptionState: v.optional(
-      v.union(
-        v.literal("Active"),
-        v.literal("InGracePeriod"),
-        v.literal("InBillingRetry"),
-        v.literal("Expired"),
-        v.literal("Revoked"),
-        v.literal("Refunded"),
-        v.literal("Paused"),
-        v.literal("Unknown"),
-      ),
-    ),
+    effectiveImmediately: v.optional(v.boolean()),
+    subscriptionState: v.optional(subscriptionStateValidator),
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
+    willRenew: v.optional(v.boolean()),
     cancellationReason: v.optional(
       v.union(
         v.literal("UserCanceled"),
@@ -633,6 +661,7 @@ const schema = defineSchema({
     ),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
+    amountProvenance: v.optional(dataProvenanceValidator),
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
@@ -701,17 +730,9 @@ const schema = defineSchema({
   // store-issued purchase id is the only stable handle that survives all
   // transitions. Entitlement evaluation aggregates by user as needed.
   //
-  // Known limitation (Google `linkedPurchaseToken` chain): Google reissues
-  // `purchaseToken` across upgrade/downgrade/replace flows. The new token
-  // arrives via RTDN with no `linkedPurchaseToken` field in the webhook
-  // payload itself — that field is only available via a follow-up
-  // `purchases.subscriptionsv2.get` Play Developer API call. The webhook
-  // receiver intentionally does NOT make that synchronous call (it would
-  // violate Pub/Sub's fast-ACK contract and burn Play API quota per
-  // webhook). The result is one logical Google subscription can split
-  // into multiple rows after a token reissue, fragmenting the per-token
-  // state until a background reconciliation pass resolves the chain
-  // via the Play API and merges the rows.
+  // Google can reissue `purchaseToken` across replacement flows. RTDN omits the
+  // predecessor, so subscriptionsv2 enrichment supplies `linkedPurchaseToken`;
+  // the transition moves that canonical row onto the new token atomically.
   //
   // Apple does not have this problem — `originalTransactionId` is stable
   // across the entire entitlement lifetime.
@@ -719,18 +740,10 @@ const schema = defineSchema({
     projectId: v.id("projects"),
     purchaseToken: v.string(),
     userId: v.optional(v.string()),
+    productKind: v.optional(v.literal("subscription")),
     productId: v.string(),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
-    state: v.union(
-      v.literal("Active"),
-      v.literal("InGracePeriod"),
-      v.literal("InBillingRetry"),
-      v.literal("Expired"),
-      v.literal("Revoked"),
-      v.literal("Refunded"),
-      v.literal("Paused"),
-      v.literal("Unknown"),
-    ),
+    state: subscriptionStateValidator,
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
@@ -749,6 +762,27 @@ const schema = defineSchema({
     startedAt: v.number(),
     updatedAt: v.number(),
     lastEventId: v.optional(v.id("webhookEvents")),
+    lastEventOccurredAt: v.optional(v.number()),
+    lastEventCreationTime: v.optional(v.number()),
+    lastEventSourceNotificationId: v.optional(v.string()),
+    // Compact source snapshot lets a late user binding emit its correlated
+    // entitlement grant after the full webhook event reaches retention.
+    lastEventSource: v.optional(
+      v.object({
+        type: v.optional(v.string()),
+        environment: v.union(
+          v.literal("Production"),
+          v.literal("Sandbox"),
+          v.literal("Xcode"),
+        ),
+        productId: v.optional(v.string()),
+        applicationId: v.optional(v.string()),
+        transactionId: v.optional(v.string()),
+        originalTransactionId: v.optional(v.string()),
+        currency: v.optional(v.string()),
+        priceAmountMicros: v.optional(v.number()),
+      }),
+    ),
   })
     .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"])
@@ -761,6 +795,7 @@ const schema = defineSchema({
     .index("by_project_and_state", ["projectId", "state"])
     .index("by_project_and_updated", ["projectId", "updatedAt"])
     .index("by_project_and_product", ["projectId", "productId"])
+    .index("by_last_event", ["lastEventId"])
     // Composite index for the (state + productId) filter combination
     // in listSubscriptions. Without it, the prior over-fetch heuristic
     // could miss matching rows past the take() boundary on projects
@@ -778,6 +813,20 @@ const schema = defineSchema({
       "state",
       "updatedAt",
     ]),
+
+  // Google replacement tokens form a successor chain. Keeping the chain
+  // separate from canonical subscriptions lets late predecessor notifications
+  // remain auditable without creating a second logical subscription row.
+  subscriptionTokenAliases: defineTable({
+    projectId: v.id("projects"),
+    purchaseToken: v.string(),
+    successorPurchaseToken: v.string(),
+    predecessorProductId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_token", ["projectId", "purchaseToken"]),
 
   // Incrementally-maintained per-(project, currency) subscription
   // counters + MRR. Updated by `applySubscriptionEvent` so the
@@ -1223,6 +1272,165 @@ const schema = defineSchema({
     // Reaper / pruner scans.
     .index("by_status_and_deadline", ["status", "expectedDeadline"])
     .index("by_status_and_completed", ["status", "completedAt"]),
+
+  // ── Normalized commerce events (outbound contract) ───────────────────────
+  //
+  // `webhookEvents` records what a *store* said. This records what *happened*,
+  // in IAPKit's own vocabulary, for consumers that must not parse store
+  // payloads. Rows are written in the same transaction as the subscription
+  // transition that produced them, so they inherit its dedup and staleness
+  // guarantees instead of needing a second idempotency layer.
+  //
+  // Deliberately carries no `rawSignedPayload` and no credentials: these rows
+  // are the body of an outbound HTTP request to a developer-controlled server.
+  commerceEvents: defineTable({
+    projectId: v.id("projects"),
+    eventType: v.string(),
+    // Schema version of the emitted body. Consumers pin on the major.
+    eventVersion: v.string(),
+    store: purchaseStoreValidator,
+    environment: v.union(
+      v.literal("production"),
+      v.literal("sandbox"),
+      v.literal("xcode"),
+    ),
+    applicationId: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    productId: v.optional(v.string()),
+    previousProductId: v.optional(v.string()),
+    transactionId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    subscriptionId: v.optional(v.id("subscriptions")),
+    // Subscription as it stood immediately after this event. Stored rather
+    // than joined at read time: an event is an immutable fact, and the live
+    // row has already moved on by the time a consumer reads it. `active` is
+    // not repeated here — it is `entitlementActive` below.
+    subscription: v.optional(
+      v.object({
+        state: subscriptionStateValidator,
+        productId: v.string(),
+        expiresAt: v.optional(v.number()),
+        renewsAt: v.optional(v.number()),
+        willRenew: v.optional(v.boolean()),
+        cancellationReason: v.optional(v.string()),
+      }),
+    ),
+    // Entitlement gate after this event, denormalized so a consumer can act on
+    // the row without joining the subscription.
+    entitlementActive: v.optional(v.boolean()),
+    currency: v.optional(v.string()),
+    amountMicros: v.optional(v.number()),
+    // Which of store / catalog / inferred produced `amountMicros`. Never mix.
+    amountProvenance: v.optional(dataProvenanceValidator),
+    // Inbound store event this was derived from, for support triage. The
+    // Convex id stays internal; the store's own notification id is what goes
+    // out, since it is what a developer can cross-reference with the store and
+    // it survives pruning of the inbound row.
+    sourceEventId: v.optional(v.id("webhookEvents")),
+    sourceStoreNotificationId: v.optional(v.string()),
+    extensions: v.optional(v.record(v.string(), v.string())),
+    occurredAt: v.number(),
+    processedAt: v.number(),
+    prunableAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_prunable_at", ["prunableAt"]),
+
+  // Developer-configured destinations for outbound commerce events.
+  //
+  // Direction is strictly store → IAPKit → developer backend. These are
+  // server-to-server only; nothing here is reachable by a shipped app and no
+  // client-pullable stream exists (see the webhook direction guardrail).
+  outboundDestinations: defineTable({
+    projectId: v.id("projects"),
+    url: v.string(),
+    // HMAC key for the signature header. Stored server-side only and never
+    // echoed by any query that a dashboard or API client can reach.
+    secret: v.string(),
+    // Previous secret kept valid during rotation so a destination can roll
+    // its key without dropping in-flight deliveries.
+    previousSecret: v.optional(v.string()),
+    previousSecretExpiresAt: v.optional(v.number()),
+    enabled: v.boolean(),
+    pendingDeletion: v.optional(v.boolean()),
+    // Empty/absent means "every event type".
+    eventTypes: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+    // Set when repeated failures trip the breaker; cleared on manual re-enable.
+    disabledReason: v.optional(v.string()),
+    consecutiveFailures: v.optional(v.number()),
+    lastSuccessAt: v.optional(v.number()),
+    lastFailureAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_enabled", ["projectId", "enabled"])
+    .index("by_pending_deletion", ["pendingDeletion"])
+    .index("by_previous_secret_expiry", ["previousSecretExpiresAt"]),
+
+  // One small row per project with queued delivery work. Ordering this table
+  // by nextClaimAt gives the global worker round-robin tenant fairness without
+  // scanning one high-volume project's entire backlog on every claim.
+  outboundDeliveryQueues: defineTable({
+    projectId: v.id("projects"),
+    nextClaimAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_next_claim", ["nextClaimAt"]),
+
+  // One row per (event, destination) attempt chain. Also the dead-letter
+  // store: a row that exhausts `maxAttempts` stays with status "failed" and
+  // can be replayed without re-deriving the event.
+  outboundDeliveries: defineTable({
+    projectId: v.id("projects"),
+    eventId: v.id("commerceEvents"),
+    destinationId: v.id("outboundDestinations"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("delivering"),
+      v.literal("delivered"),
+      v.literal("failed"),
+    ),
+    attempts: v.number(),
+    // Exponential backoff target. The worker claims rows at or past this.
+    nextAttemptAt: v.number(),
+    lastStatusCode: v.optional(v.number()),
+    lastError: v.optional(v.string()),
+    // Lease held while an attempt is in flight, so overlapping cron ticks
+    // cannot double-deliver the same row.
+    leaseExpiresAt: v.optional(v.number()),
+    // Fencing token issued with the lease. A result is only recorded when it
+    // carries the current token, so a reclaimed row cannot be overwritten by
+    // the superseded attempt that is still in flight.
+    leaseToken: v.optional(v.string()),
+    deliveredAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_event", ["eventId"])
+    .index("by_destination", ["destinationId"])
+    .index("by_project_and_status_and_next_attempt", [
+      "projectId",
+      "status",
+      "nextAttemptAt",
+    ])
+    .index("by_project_and_status_and_lease_expiry", [
+      "projectId",
+      "status",
+      "leaseExpiresAt",
+    ])
+    .index("by_project_and_status_and_updated", [
+      "projectId",
+      "status",
+      "updatedAt",
+    ])
+    .index("by_status_and_updated", ["status", "updatedAt"])
+    // Worker claim scan.
+    .index("by_status_and_next_attempt", ["status", "nextAttemptAt"])
+    .index("by_status_and_lease_expiry", ["status", "leaseExpiresAt"]),
 });
 
 export default schema;

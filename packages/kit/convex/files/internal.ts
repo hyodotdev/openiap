@@ -3,6 +3,7 @@ import {
   internalMutation,
   internalAction,
 } from "../_generated/server";
+import type { QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
@@ -28,7 +29,7 @@ export const getFileRecord = internalQuery({
   },
 });
 
-export const getUploadReservationForScreenshotValidation = internalQuery({
+export const getUploadReservationForValidation = internalQuery({
   args: {
     uploadReservationId: v.id("fileUploadReservations"),
     storageId: v.id("_storage"),
@@ -313,20 +314,36 @@ export const getAppleReviewScreenshotByProjectInternal = internalQuery({
   },
 });
 
-// Internal query to get Google Play service account file by project.
-// Uses the `by_project` index on `files` and filters by purpose through
-// the query builder so we only read rows that could match — no full
-// org scan into memory.
+export async function getGooglePlayFileByProjectFromDb(
+  ctx: Pick<QueryCtx, "db">,
+  project: Doc<"projects">,
+): Promise<Doc<"files"> | null> {
+  if (project.googlePlayServiceAccountFileId === null) return null;
+  if (project.googlePlayServiceAccountFileId !== undefined) {
+    const activeFile = await ctx.db.get(project.googlePlayServiceAccountFileId);
+    return activeFile?.projectId === project._id &&
+      activeFile.purpose === "android_service_account"
+      ? activeFile
+      : null;
+  }
+  return await ctx.db
+    .query("files")
+    .withIndex("by_project_and_purpose", (q) =>
+      q.eq("projectId", project._id).eq("purpose", "android_service_account"),
+    )
+    .order("desc")
+    .first();
+}
+
+// Internal query to get the active Google Play service account file.
 export const getGooglePlayFileByProjectInternal = internalQuery({
   args: {
     projectId: v.id("projects"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db
-      .query("files")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .filter((q) => q.eq(q.field("purpose"), "android_service_account"))
-      .first();
+    const project = await ctx.db.get(args.projectId);
+    if (!project) return null;
+    return await getGooglePlayFileByProjectFromDb(ctx, project);
   },
 });
 
@@ -480,7 +497,7 @@ export const cleanupOldFiles = internalMutation({
 // Most expired upload reservations carry no storageId because the storage
 // service assigns it only after the client POSTs to the signed URL. Screenshot
 // validation deliberately claims that id before its Node action downloads the
-// blob, so the bounded sweep must also reclaim a claimed-but-unsaved object.
+// blob, so the bounded sweep must also reclaim claimed-but-unsaved objects.
 export const pruneUploadReservations = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -502,11 +519,18 @@ export const pruneUploadReservations = internalMutation({
       .take(batchSize);
 
     for (const reservation of expired) {
-      const screenshotStorageId =
-        reservation.pendingAppleReviewScreenshotStorageId ??
-        reservation.validatedAppleReviewScreenshot?.storageId;
-      if (screenshotStorageId) {
-        await deleteStorageIfUnreferenced(ctx, screenshotStorageId);
+      const claimedStorageIds = new Set(
+        [
+          reservation.pendingAppleReviewScreenshotStorageId ??
+            reservation.validatedAppleReviewScreenshot?.storageId,
+          reservation.pendingGoogleServiceAccountStorageId ??
+            reservation.validatedGoogleServiceAccount?.storageId,
+        ].filter((storageId): storageId is Id<"_storage"> =>
+          Boolean(storageId),
+        ),
+      );
+      for (const storageId of claimedStorageIds) {
+        await deleteStorageIfUnreferenced(ctx, storageId);
       }
       await ctx.db.delete(reservation._id);
     }

@@ -10,6 +10,8 @@
 //
 // SSOT for the mapping is `knowledge/external/webhook-mapping.md`.
 
+import type { DataProvenance } from "../commerce/contract";
+
 // ---------------------------------------------------------------------------
 // Private IAPKit lifecycle literals. These are not part of the OpenIAP
 // native or framework SDK contract.
@@ -29,6 +31,10 @@ export type WebhookEventType =
   | "SubscriptionProductChanged"
   | "SubscriptionPaused"
   | "SubscriptionResumed"
+  | "SubscriptionDeferred"
+  | "SubscriptionPauseScheduleChanged"
+  | "SubscriptionPendingPurchaseCanceled"
+  | "SubscriptionPriceStepUpConsentChanged"
   | "PurchaseRefunded"
   | "PurchaseConsumptionRequest"
   | "TestNotification";
@@ -72,18 +78,73 @@ export type NormalizedWebhookEvent = {
   // platform-specific normalizers (normalizeAppleEvent /
   // normalizeGoogleEvent).
   purchaseToken: string | undefined;
+  linkedPurchaseToken?: string;
+  /** Store transaction/order id. Never use a purchase token as this value. */
+  transactionId?: string;
+  originalTransactionId?: string;
+  applicationId?: string;
+  productKind?: "subscription" | "one_time";
   productId?: string;
+  effectiveImmediately?: boolean;
   subscriptionState?: SubscriptionState;
   expiresAt?: number;
   renewsAt?: number;
+  willRenew?: boolean;
   cancellationReason?: WebhookCancellationReason;
   currency?: string;
   priceAmountMicros?: number;
+  amountProvenance?: DataProvenance;
   occurredAt: number;
   // Stable per-notification identifier used for idempotency. ASN v2
   // `notificationUUID` or RTDN `messageId`.
   sourceNotificationId: string;
 };
+
+export function resolvePubSubOidcAudiences(
+  requestUrl: string,
+  configuredAudience: string,
+): string[] {
+  const audiences = new Set(
+    configuredAudience
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  let request: URL;
+  try {
+    request = new URL(requestUrl);
+  } catch {
+    return Array.from(audiences);
+  }
+
+  for (const raw of Array.from(audiences)) {
+    let configured: URL;
+    try {
+      configured = new URL(raw);
+    } catch {
+      continue;
+    }
+    const configuredIsOriginOnly =
+      configured.pathname === "/" && !configured.search && !configured.hash;
+    if (!configuredIsOriginOnly || configured.host !== request.host) continue;
+    audiences.add(configured.origin);
+    audiences.add(`${configured.origin}/`);
+    audiences.add(`${configured.origin}${request.pathname}`);
+    if (request.search) {
+      audiences.add(`${configured.origin}${request.pathname}${request.search}`);
+    }
+  }
+  return Array.from(audiences);
+}
+
+export function isUnauthenticatedPubSubAllowed(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return (
+    env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB === "1" &&
+    (env.APP_ENV === "development" || env.APP_ENV === "test")
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Apple ASN v2
@@ -114,6 +175,7 @@ export type AppleAsnData = {
 export type AppleDecodedTransaction = {
   originalTransactionId?: string | null;
   transactionId?: string | null;
+  type?: string | null;
   productId?: string | null;
   expiresDate?: number | null;
   revocationReason?: number | null;
@@ -133,6 +195,8 @@ export type AppleDecodedRenewalInfo = {
   gracePeriodExpiresDate?: number | null;
   isInBillingRetryPeriod?: boolean | null;
   renewalDate?: number | null;
+  currency?: string | null;
+  renewalPrice?: number | null;
   recentSubscriptionStartDate?: number | null;
 };
 
@@ -348,10 +412,25 @@ export function normalizeAppleAsn(
   // exposes micros (1/1_000_000) to match Google's
   // `priceAmountMicros` convention, so milliunits → micros is a 1000×
   // multiplier (e.g. $9.99 → 9990 milliunits → 9_990_000 micros).
+  const immediateUpgrade =
+    type === "SubscriptionProductChanged" && payload.subtype === "UPGRADE";
+  const usesNextBillingTerms =
+    (type === "SubscriptionProductChanged" && !immediateUpgrade) ||
+    type === "SubscriptionPriceChange";
+  const priceMilliunits = usesNextBillingTerms
+    ? renewalInfo?.renewalPrice
+    : transaction?.price;
+  const currency = usesNextBillingTerms
+    ? renewalInfo?.currency
+    : transaction?.currency;
   const priceAmountMicros =
-    typeof transaction?.price === "number"
-      ? transaction.price * 1000
-      : undefined;
+    typeof priceMilliunits === "number" ? priceMilliunits * 1000 : undefined;
+  const willRenew =
+    renewalInfo?.autoRenewStatus === 1
+      ? true
+      : renewalInfo?.autoRenewStatus === 0
+        ? false
+        : undefined;
 
   return {
     type,
@@ -359,17 +438,39 @@ export function normalizeAppleAsn(
     platform: "IOS",
     environment: mapAppleEnvironment(payload.data?.environment ?? null),
     purchaseToken,
-    productId: transaction?.productId ?? undefined,
+    transactionId: transaction?.transactionId ?? undefined,
+    originalTransactionId: transaction?.originalTransactionId ?? undefined,
+    applicationId: payload.data?.bundleId ?? undefined,
+    productKind:
+      transaction?.type === "Auto-Renewable Subscription"
+        ? "subscription"
+        : transaction?.type
+          ? "one_time"
+          : undefined,
+    productId:
+      type === "SubscriptionProductChanged"
+        ? immediateUpgrade
+          ? (transaction?.productId ??
+            renewalInfo?.autoRenewProductId ??
+            undefined)
+          : (renewalInfo?.autoRenewProductId ??
+            transaction?.productId ??
+            undefined)
+        : (transaction?.productId ?? undefined),
+    ...(immediateUpgrade ? { effectiveImmediately: true } : {}),
     subscriptionState: deriveAppleSubscriptionState(type),
     expiresAt: transaction?.expiresDate ?? undefined,
     renewsAt: renewalInfo?.renewalDate ?? undefined,
+    willRenew,
     cancellationReason: mapAppleCancellationReason(
       payload.notificationType,
       payload.subtype ?? null,
       renewalInfo ?? null,
     ),
-    currency: transaction?.currency ?? undefined,
+    currency: currency ?? undefined,
     priceAmountMicros,
+    amountProvenance:
+      priceAmountMicros === undefined ? undefined : ("store" as const),
     occurredAt: payload.signedDate,
     sourceNotificationId: payload.notificationUUID,
   };
@@ -402,7 +503,8 @@ export type GoogleSubscriptionNotification = {
   // mapping doc.
   notificationType: number;
   purchaseToken: string;
-  subscriptionId: string;
+  /** Legacy field; current RTDN resolves product identity through the API. */
+  subscriptionId?: string;
 };
 
 export type GoogleOneTimeProductNotification = {
@@ -428,26 +530,26 @@ export type GoogleTestNotification = {
 // `androidpublisher.purchases.subscriptionsv2.get` because RTDN does
 // not embed expiry / price information.
 export type GoogleSubscriptionInfo = {
+  productId?: string;
+  /** subscriptionsv2 returned a bundle that the singular canonical model cannot split. */
+  ambiguousLineItems?: boolean;
+  linkedPurchaseToken?: string;
   expiryTimeMillis?: number;
   // Auto-renewing plans expose the next renewal time inline; one-off
   // prepaid plans don't carry one.
   autoRenewingPlanRenewsTimeMillis?: number;
+  willRenew?: boolean;
   state?: string;
   cancelReason?: string;
   currency?: string;
   priceAmountMicros?: number;
+  amountProvenance?: DataProvenance;
 };
 
 // RTDN numeric codes per
 // https://developer.android.com/google/play/billing/rtdn-reference#sub
-// Codes 1 and 4 were swapped in an earlier draft (caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123)
-// review) — `1 = RECOVERED` and `4 = PURCHASED`. Code 7 = RESTARTED
-// means the user re-enabled auto-renew while the subscription was
-// still in its active period, which matches the
-// `SubscriptionUncanceled` semantics, not `Started`. Code 11 =
-// PAUSE_SCHEDULE_CHANGED fires when a pause is scheduled / changed,
-// not on resume — collapsing it onto `Paused` keeps the event log
-// honest (the actual end-of-pause appears as RENEWED/RECOVERED).
+// Codes 9, 11, 20 and 22 carry scheduling or consent metadata. Code 18
+// schedules cancellation but leaves access active through the commitment.
 const GOOGLE_SUB_TYPE_MAP: Record<number, WebhookEventType | null> = {
   1: "SubscriptionRecovered", // SUBSCRIPTION_RECOVERED
   2: "SubscriptionRenewed", // SUBSCRIPTION_RENEWED
@@ -457,15 +559,17 @@ const GOOGLE_SUB_TYPE_MAP: Record<number, WebhookEventType | null> = {
   6: "SubscriptionInGracePeriod", // SUBSCRIPTION_IN_GRACE_PERIOD
   7: "SubscriptionUncanceled", // SUBSCRIPTION_RESTARTED — auto-renew re-enabled
   8: "SubscriptionPriceChange", // SUBSCRIPTION_PRICE_CHANGE_CONFIRMED
-  9: "SubscriptionProductChanged", // SUBSCRIPTION_DEFERRED
+  9: "SubscriptionDeferred", // SUBSCRIPTION_DEFERRED
   10: "SubscriptionPaused", // SUBSCRIPTION_PAUSED
-  11: "SubscriptionPaused", // SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED — schedule change, not resume
+  11: "SubscriptionPauseScheduleChanged", // SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED
   12: "SubscriptionRevoked", // SUBSCRIPTION_REVOKED
   13: "SubscriptionExpired", // SUBSCRIPTION_EXPIRED
+  17: "SubscriptionProductChanged", // SUBSCRIPTION_ITEMS_CHANGED
+  18: "SubscriptionCanceled", // SUBSCRIPTION_CANCELLATION_SCHEDULED
   // 19 = SUBSCRIPTION_PRICE_CHANGE_UPDATED — alias for code 8
   19: "SubscriptionPriceChange",
-  // 20 = SUBSCRIPTION_PENDING_PURCHASE_CANCELED
-  20: "SubscriptionCanceled",
+  20: "SubscriptionPendingPurchaseCanceled",
+  22: "SubscriptionPriceStepUpConsentChanged",
 };
 
 const GOOGLE_ONE_TIME_TYPE_MAP: Record<number, WebhookEventType | null> = {
@@ -594,6 +698,8 @@ export function normalizeGoogleRtdn(
   let type: WebhookEventType | null = null;
   let purchaseToken: string | null = null;
   let productId: string | undefined;
+  let transactionId: string | undefined;
+  let productKind: NormalizedWebhookEvent["productKind"];
 
   if (payload.testNotification) {
     type = "TestNotification";
@@ -605,18 +711,29 @@ export function normalizeGoogleRtdn(
       payload.subscriptionNotification.notificationType,
     );
     purchaseToken = payload.subscriptionNotification.purchaseToken;
-    productId = payload.subscriptionNotification.subscriptionId;
+    productId =
+      subscriptionInfo?.productId ??
+      payload.subscriptionNotification.subscriptionId;
+    productKind = "subscription";
   } else if (payload.oneTimeProductNotification) {
     type = mapGoogleOneTimeNotificationType(
       payload.oneTimeProductNotification.notificationType,
     );
     purchaseToken = payload.oneTimeProductNotification.purchaseToken;
     productId = payload.oneTimeProductNotification.sku;
+    productKind = "one_time";
   } else if (payload.voidedPurchaseNotification) {
     // VOIDED_PURCHASE always means the purchase was refunded /
     // chargebacked — collapse to PurchaseRefunded regardless of code.
     type = "PurchaseRefunded";
     purchaseToken = payload.voidedPurchaseNotification.purchaseToken;
+    transactionId = payload.voidedPurchaseNotification.orderId;
+    productKind =
+      payload.voidedPurchaseNotification.productType === 1
+        ? "subscription"
+        : payload.voidedPurchaseNotification.productType === 2
+          ? "one_time"
+          : undefined;
   }
 
   if (type === null) {
@@ -644,6 +761,10 @@ export function normalizeGoogleRtdn(
     platform: "Android",
     environment,
     purchaseToken: purchaseToken ?? undefined,
+    linkedPurchaseToken: subscriptionInfo?.linkedPurchaseToken,
+    transactionId,
+    applicationId: payload.packageName,
+    productKind,
     productId,
     subscriptionState: deriveGoogleSubscriptionState(
       type,
@@ -651,12 +772,14 @@ export function normalizeGoogleRtdn(
     ),
     expiresAt: subscriptionInfo?.expiryTimeMillis,
     renewsAt: subscriptionInfo?.autoRenewingPlanRenewsTimeMillis,
+    willRenew: subscriptionInfo?.willRenew,
     cancellationReason: mapGoogleCancellationReason(
       type,
       subscriptionInfo ?? null,
     ),
     currency: subscriptionInfo?.currency,
     priceAmountMicros: subscriptionInfo?.priceAmountMicros,
+    amountProvenance: subscriptionInfo?.amountProvenance,
     occurredAt: payload.eventTimeMillis,
     sourceNotificationId: payload.messageId,
   };

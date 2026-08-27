@@ -1,6 +1,6 @@
 # IAPKit cost and abuse safety
 
-This document records the cost model for the public IAPKit API as of August 2, 2026 in the project's Asia/Seoul timezone. It is an operational estimate, not an invoice forecast: actual Convex
+This document records the cost model for the public IAPKit API as of August 27, 2026 in the project's Asia/Seoul timezone. It is an operational estimate, not an invoice forecast: actual Convex
 database I/O depends on each project's document sizes and should be measured
 from production function logs.
 
@@ -45,6 +45,19 @@ status and entitlement reads use
 201 rows: up to 200 are supported and the final row detects overflow. IAPKit
 fails closed instead of returning a partial entitlement set. Typical users have
 only one or a few rows.
+
+## Outbound commerce worker
+
+Developer-backend delivery runs in Convex, outside the Fly request path. The
+one-minute worker claims at most 25 rows per run, sends sequentially, gives each
+request a 10-second total DNS/connect/response budget, and has no separate
+worker-level deadline. A full pass can therefore run for roughly 250 seconds
+plus storage and scheduling overhead even though a new pass is scheduled every
+minute. Runs may overlap, but each row is claimed immediately before delivery;
+its active `LEASE_MS` lease prevents another run from reclaiming it. The queue
+rotates projects, and each project can register at most 10 destinations. Retries
+back off to six hours, stop after 14 attempts, and a 20-failure circuit breaker
+disables a destination, bounding load when a receiver is unavailable.
 
 ## Edge protection
 

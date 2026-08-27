@@ -17,6 +17,7 @@ const getSetupStatus = testableFunction(registeredGetSetupStatus);
 
 const ctx = {
   db: {
+    get: vi.fn(),
     query: vi.fn(() => ({
       withIndex: vi.fn(() => ({
         collect: vi.fn().mockResolvedValue([]),
@@ -34,6 +35,7 @@ function project(overrides: Record<string, unknown> = {}) {
     iosAppStoreIssuerId: "issuer_test",
     iosAppStoreKeyId: "key_test",
     androidPackageName: "com.example.app",
+    googlePlayServiceAccountFileId: null,
     horizonEnabled: true,
     horizonAppId: "horizon_app",
     horizonAppSecret: "horizon_secret",
@@ -44,6 +46,7 @@ function project(overrides: Record<string, unknown> = {}) {
 describe("getSetupStatus Amazon readiness", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ctx.db.get.mockResolvedValue(null);
   });
 
   it("treats an explicit sandbox-only project as configured", async () => {
@@ -77,5 +80,55 @@ describe("getSetupStatus Amazon readiness", () => {
       configured: false,
       missing: ["amazonSharedSecret"],
     });
+  });
+
+  it("requires the Play service account before Android is ready", async () => {
+    projectMocks.byProjectId.mockResolvedValue({ project: project() });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+    expect(result.android).toEqual({
+      configured: false,
+      missing: ["googleServiceAccount"],
+    });
+  });
+
+  it("marks Android ready when package name and Play credentials exist", async () => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: project({ googlePlayServiceAccountFileId: "files_google" }),
+    });
+    ctx.db.get.mockResolvedValueOnce({
+      _id: "files_google",
+      projectId: "projects_test",
+      purpose: "android_service_account",
+    });
+    ctx.db.query.mockReturnValueOnce({
+      withIndex: vi.fn(() => ({
+        collect: vi.fn().mockResolvedValue([]),
+      })),
+    });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+    expect(result.android).toEqual({ configured: true, missing: [] });
+  });
+
+  it("ignores stale credential rows after the active pointer is revoked", async () => {
+    projectMocks.byProjectId.mockResolvedValue({ project: project() });
+    ctx.db.query.mockReturnValueOnce({
+      withIndex: vi.fn(() => ({
+        collect: vi
+          .fn()
+          .mockResolvedValue([{ purpose: "android_service_account" }]),
+      })),
+    });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+    expect(result.googleServiceAccountUploaded).toBe(false);
+    expect(result.android.configured).toBe(false);
   });
 });

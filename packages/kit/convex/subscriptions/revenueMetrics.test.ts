@@ -104,6 +104,7 @@ function makeEvent(
     platform: "IOS",
     environment: "Production",
     sourceNotificationId: "notif_1",
+    productKind: "subscription",
     occurredAt: 0,
     receivedAt: 0,
     ...partial,
@@ -208,6 +209,47 @@ describe("applyEventToBucket", () => {
     expect(bucket).toEqual(emptyBucket());
   });
 
+  it("keeps one-time events out of subscription revenue metrics", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        productKind: "one_time",
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket.newSubs).toBe(0);
+    expect(bucket.revenueMicros).toBe(0);
+  });
+
+  it("uses catalog type to exclude legacy one-time rows", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        productKind: undefined,
+        priceAmountMicros: 9_990_000,
+      }),
+      "Consumable",
+    );
+    expect(bucket).toEqual(emptyBucket());
+  });
+
+  it("conservatively excludes an unclassified legacy row after catalog deletion", () => {
+    const bucket = emptyBucket();
+    applyEventToBucket(
+      bucket,
+      makeEvent({
+        type: "SubscriptionStarted",
+        productKind: undefined,
+        priceAmountMicros: 9_990_000,
+      }),
+    );
+    expect(bucket).toEqual(emptyBucket());
+  });
+
   it("multiple renewals accumulate priceAmountMicros", () => {
     const bucket = emptyBucket();
     applyEventToBucket(
@@ -235,6 +277,7 @@ function makeSub(
     _creationTime: 0,
     projectId: "p_1" as never,
     purchaseToken: "tok_1",
+    productKind: "subscription",
     productId: "sub.monthly",
     platform: "IOS",
     startedAt: Date.UTC(2026, 2, 1),
@@ -586,6 +629,7 @@ async function seedEvent(
     platform: "IOS",
     environment: "Production",
     sourceNotificationId: `notif_${Math.random()}`,
+    productKind: "subscription",
     productId: "sub.monthly",
     currency: "USD",
     ...partial,
@@ -601,6 +645,7 @@ async function seedSub(
   await db.insert("subscriptions", {
     projectId: PROJECT_ID,
     purchaseToken: `tok_${Math.random()}`,
+    productKind: "subscription",
     productId: "sub.monthly",
     platform: "IOS",
     currency: "USD",
@@ -758,6 +803,27 @@ describe("runRecompute — round-trip integration", () => {
       revenueMicros: 9_990_000,
       activeSubs: 0,
     });
+  });
+
+  it("retains legacy subscription events while their catalog type is known", async () => {
+    await db.insert("products", {
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "sub.monthly",
+      type: "Subscription",
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      productKind: undefined,
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    expect(await rollupRows(db)).toMatchObject([
+      { newSubs: 1, revenueMicros: 9_990_000 },
+    ]);
   });
 
   it("excludes legacy Meta Horizon reconciler events from rollups", async () => {

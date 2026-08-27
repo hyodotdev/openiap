@@ -138,9 +138,10 @@ including its stricter release-note limits.
 
 ### Webhook Direction Guardrail
 
-- The only supported webhook direction is **store → IAPKit**: Apple App Store
-  Server Notifications and Google Play RTDN enter IAPKit and update its backend
-  state.
+- Supported webhook directions are **store → IAPKit** (Apple App Store Server
+  Notifications and Google Play RTDN enter IAPKit and update its backend state)
+  and **IAPKit → developer backend** (normalized commerce events pushed to an
+  HTTPS endpoint a project owner registered). Both are server-to-server.
 - Never add an **IAPKit → SDK/mobile** webhook stream, SSE endpoint, WebSocket,
   push relay, or long-poll event feed. Mobile SDKs use bounded request/response
   verification and scoped status or entitlement reads.

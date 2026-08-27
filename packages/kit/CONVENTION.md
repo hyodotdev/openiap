@@ -93,6 +93,12 @@ layout instead of recreating the flex constraints per card.
 
 ## Convex Backend (CQRS)
 
+Public state-changing Convex functions are security boundaries. They must
+verify source credentials themselves and must not trust Fly-only authentication,
+caller-supplied audiences, or another edge-layer claim. Fly checks may reject
+invalid traffic early, but Convex remains authoritative before any store call,
+mutation, or outbound event.
+
 Every domain folder under `convex/` follows the same split:
 
 ```
@@ -189,11 +195,15 @@ platforms.
 
 ## Webhook direction
 
-IAPKit supports inbound store lifecycle delivery only:
+Two directions are supported, both server-to-server:
 
 ```text
-Apple ASN v2 / Google RTDN → IAPKit
+Apple ASN v2 / Google RTDN → IAPKit → developer-registered HTTPS endpoint
 ```
+
+Inbound is store lifecycle delivery. Outbound is `convex/commerce/delivery.ts`
+pushing normalized commerce events to endpoints a project owner registered; the
+payload carries no raw store envelope and no credentials.
 
 Do not add an outbound IAPKit-to-SDK/mobile webhook stream, SSE route,
 WebSocket, push relay, or long-poll event feed. Mobile clients must use the
@@ -201,6 +211,13 @@ bounded request/response verification, status, entitlement, product, and
 client-payload endpoints. A developer backend may send APNs/FCM notifications
 for resources it protects, but IAPKit must not publish project-wide lifecycle
 events to shipped apps.
+
+Architecture, event vocabulary, signing and the provider capability matrix are
+documented in [`COMMERCE-EVENTS.md`](COMMERCE-EVENTS.md).
+
+The distinction is who holds the endpoint. An HTTPS URL a project owner
+configured is a developer backend; anything a shipped app can reach or poll is
+not, and stays forbidden.
 
 ## `/v1` response contract
 

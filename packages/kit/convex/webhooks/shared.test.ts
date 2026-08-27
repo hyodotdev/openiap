@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isUnauthenticatedPubSubAllowed,
   mapAppleNotificationType,
   mapGoogleSubscriptionNotificationType,
   mapGoogleOneTimeNotificationType,
@@ -11,6 +12,28 @@ import {
   type GoogleRtdnPayload,
   type GoogleSubscriptionInfo,
 } from "./shared";
+
+describe("isUnauthenticatedPubSubAllowed", () => {
+  it("requires both the explicit flag and a non-production environment", () => {
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+        APP_ENV: "development",
+      }),
+    ).toBe(true);
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+        APP_ENV: "production",
+      }),
+    ).toBe(false);
+    expect(
+      isUnauthenticatedPubSubAllowed({
+        KIT_ALLOW_UNAUTHENTICATED_PUBSUB: "1",
+      }),
+    ).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Apple ASN v2 mapping
@@ -103,6 +126,7 @@ const baseApplePayload: AppleAsnPayload = {
 const baseTransaction: AppleDecodedTransaction = {
   originalTransactionId: "1000000000000001",
   transactionId: "1000000000000099",
+  type: "Auto-Renewable Subscription",
   productId: "com.example.premium_monthly",
   expiresDate: 1_713_592_000_000,
   // ASN reports `price` in milliunits (1/1000 of a currency unit —
@@ -117,7 +141,10 @@ describe("normalizeAppleAsn", () => {
     const event = normalizeAppleAsn({
       payload: baseApplePayload,
       transaction: baseTransaction,
-      renewalInfo: { renewalDate: 1_713_592_000_000 },
+      renewalInfo: {
+        autoRenewStatus: 1,
+        renewalDate: 1_713_592_000_000,
+      },
     });
 
     expect(event.type).toBe("SubscriptionRenewed");
@@ -125,15 +152,36 @@ describe("normalizeAppleAsn", () => {
     expect(event.platform).toBe("IOS");
     expect(event.environment).toBe("Production");
     expect(event.purchaseToken).toBe("1000000000000001");
+    expect(event.transactionId).toBe("1000000000000099");
+    expect(event.originalTransactionId).toBe("1000000000000001");
+    expect(event.productKind).toBe("subscription");
     expect(event.productId).toBe("com.example.premium_monthly");
     expect(event.subscriptionState).toBe("Active");
     expect(event.expiresAt).toBe(1_713_592_000_000);
     expect(event.renewsAt).toBe(1_713_592_000_000);
+    expect(event.willRenew).toBe(true);
     expect(event.currency).toBe("USD");
     // 9_990 milliunits × 1000 = 9_990_000 micros ($9.99)
     expect(event.priceAmountMicros).toBe(9_990_000);
     expect(event.occurredAt).toBe(1_711_000_000_000);
     expect(event.sourceNotificationId).toBe("uuid-renew-1");
+  });
+
+  it("preserves an authoritative disabled auto-renew status on DID_RENEW", () => {
+    const event = normalizeAppleAsn({
+      payload: baseApplePayload,
+      transaction: baseTransaction,
+      renewalInfo: {
+        autoRenewStatus: 0,
+        renewalDate: 1_713_592_000_000,
+      },
+    });
+
+    expect(event).toMatchObject({
+      type: "SubscriptionRenewed",
+      renewsAt: 1_713_592_000_000,
+      willRenew: false,
+    });
   });
 
   it("derives Sandbox/Xcode environments and falls back to Production on missing data", () => {
@@ -168,6 +216,77 @@ describe("normalizeAppleAsn", () => {
     expect(event.type).toBe("SubscriptionCanceled");
     expect(event.subscriptionState).toBe("Active");
     expect(event.cancellationReason).toBe("UserCanceled");
+  });
+
+  it("uses the next Apple product for a renewal preference change", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_CHANGE_RENEWAL_PREF",
+      },
+      transaction: baseTransaction,
+      renewalInfo: {
+        autoRenewProductId: "com.example.premium_yearly",
+        currency: "USD",
+        renewalPrice: 99_990,
+      },
+    });
+    expect(event.productId).toBe("com.example.premium_yearly");
+    expect(event.currency).toBe("USD");
+    expect(event.priceAmountMicros).toBe(99_990_000);
+  });
+
+  it("marks Apple upgrades as immediately effective", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_CHANGE_RENEWAL_PREF",
+        subtype: "UPGRADE",
+      },
+      transaction: {
+        ...baseTransaction,
+        productId: "com.example.premium_yearly",
+        price: 99_990,
+      },
+      renewalInfo: {
+        autoRenewProductId: "com.example.premium_yearly",
+        renewalPrice: 99_990,
+      },
+    });
+
+    expect(event).toMatchObject({
+      productId: "com.example.premium_yearly",
+      effectiveImmediately: true,
+      priceAmountMicros: 99_990_000,
+    });
+  });
+
+  it("keeps Apple downgrades scheduled", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_CHANGE_RENEWAL_PREF",
+        subtype: "DOWNGRADE",
+      },
+      transaction: baseTransaction,
+      renewalInfo: { autoRenewProductId: "com.example.basic_monthly" },
+    });
+
+    expect(event.productId).toBe("com.example.basic_monthly");
+    expect(event.effectiveImmediately).toBeUndefined();
+  });
+
+  it("does not attach the current transaction price to future Apple terms", () => {
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "PRICE_INCREASE",
+      },
+      transaction: baseTransaction,
+      renewalInfo: {},
+    });
+    expect(event.currency).toBeUndefined();
+    expect(event.priceAmountMicros).toBeUndefined();
   });
 
   it("translates Apple expirationIntent codes 1..5 to cancellation reasons", () => {
@@ -290,10 +409,25 @@ describe("mapGoogleSubscriptionNotificationType", () => {
       "SubscriptionPriceChange",
     );
     expect(mapGoogleSubscriptionNotificationType(9)).toBe(
-      "SubscriptionProductChanged",
+      "SubscriptionDeferred",
     );
     expect(mapGoogleSubscriptionNotificationType(10)).toBe(
       "SubscriptionPaused",
+    );
+    expect(mapGoogleSubscriptionNotificationType(11)).toBe(
+      "SubscriptionPauseScheduleChanged",
+    );
+    expect(mapGoogleSubscriptionNotificationType(17)).toBe(
+      "SubscriptionProductChanged",
+    );
+    expect(mapGoogleSubscriptionNotificationType(18)).toBe(
+      "SubscriptionCanceled",
+    );
+    expect(mapGoogleSubscriptionNotificationType(20)).toBe(
+      "SubscriptionPendingPurchaseCanceled",
+    );
+    expect(mapGoogleSubscriptionNotificationType(22)).toBe(
+      "SubscriptionPriceStepUpConsentChanged",
     );
     expect(mapGoogleSubscriptionNotificationType(12)).toBe(
       "SubscriptionRevoked",
@@ -330,6 +464,7 @@ const baseRtdnSubscription: GoogleRtdnPayload = {
 describe("normalizeGoogleRtdn", () => {
   it("normalizes SUBSCRIPTION_RENEWED with active state from subscriptionsv2 fetch", () => {
     const info: GoogleSubscriptionInfo = {
+      productId: "premium_monthly",
       state: "SUBSCRIPTION_STATE_ACTIVE",
       expiryTimeMillis: 1_713_592_000_000,
       autoRenewingPlanRenewsTimeMillis: 1_713_592_000_000,
@@ -346,6 +481,7 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.platform).toBe("Android");
     expect(event.environment).toBe("Production");
     expect(event.purchaseToken).toBe("play-token-abc");
+    expect(event.productKind).toBe("subscription");
     expect(event.productId).toBe("premium_monthly");
     expect(event.subscriptionState).toBe("Active");
     expect(event.expiresAt).toBe(1_713_592_000_000);
@@ -354,6 +490,26 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.priceAmountMicros).toBe(12_900_000_000);
     expect(event.occurredAt).toBe(1_711_000_000_000);
     expect(event.sourceNotificationId).toBe("rtdn-msg-1");
+  });
+
+  it("uses subscriptionsv2 product identity for current RTDN payloads", () => {
+    const payload: GoogleRtdnPayload = {
+      ...baseRtdnSubscription,
+      subscriptionNotification: {
+        version: "1.0",
+        notificationType: 2,
+        purchaseToken: "play-token-abc",
+      },
+    };
+    const event = normalizeGoogleRtdn({
+      payload,
+      subscriptionInfo: {
+        productId: "premium_from_line_item",
+        state: "SUBSCRIPTION_STATE_ACTIVE",
+      },
+    });
+
+    expect(event.productId).toBe("premium_from_line_item");
   });
 
   it("derives state from subscriptionsv2 when present, otherwise from event type", () => {
@@ -434,6 +590,7 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.type).toBe("PurchaseRefunded");
     expect(event.purchaseToken).toBe("otp-token-xyz");
     expect(event.productId).toBe("coin_pack_100");
+    expect(event.productKind).toBe("one_time");
     expect(event.subscriptionState).toBe("Refunded");
     expect(event.cancellationReason).toBe("Refunded");
   });
@@ -455,6 +612,8 @@ describe("normalizeGoogleRtdn", () => {
     });
     expect(event.type).toBe("PurchaseRefunded");
     expect(event.purchaseToken).toBe("void-token-1");
+    expect(event.transactionId).toBe("GPA.1234-5678-9012-34567");
+    expect(event.productKind).toBe("subscription");
     expect(event.cancellationReason).toBe("Refunded");
   });
 

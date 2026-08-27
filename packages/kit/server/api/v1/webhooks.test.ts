@@ -8,12 +8,21 @@ import {
   vi,
 } from "vitest";
 import { Hono } from "hono";
+import { ConvexError } from "convex/values";
+
+const oidcMocks = vi.hoisted(() => ({ verifyIdToken: vi.fn() }));
+vi.mock("google-auth-library", () => ({
+  OAuth2Client: class OAuth2Client {
+    verifyIdToken = oidcMocks.verifyIdToken;
+  },
+}));
 
 const originalConvexUrl = process.env.VITE_KIT_CONVEX_URL;
 const originalGooglePubsubPushAudience =
   process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
 const originalAllowUnauthenticatedPubsub =
   process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+const originalAppEnv = process.env.APP_ENV;
 let client: typeof import("../../convex").client;
 let helpers: typeof import("./webhooks");
 
@@ -43,6 +52,11 @@ afterEach(() => {
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB =
       originalAllowUnauthenticatedPubsub;
   }
+  if (originalAppEnv === undefined) {
+    delete (process.env as Record<string, string | undefined>).APP_ENV;
+  } else {
+    process.env.APP_ENV = originalAppEnv;
+  }
   vi.restoreAllMocks();
 });
 
@@ -67,6 +81,20 @@ describe("pubSubOidcAudiences", () => {
     );
 
     expect(audiences).toEqual(["https://example.com/"]);
+  });
+
+  it("accepts a concrete push endpoint audience with its query string", () => {
+    const audiences = helpers.pubSubOidcAudiences(
+      "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?admin=1",
+      "https://kit.openiap.dev/",
+    );
+
+    expect(audiences).toContain(
+      "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
+    );
+    expect(audiences).toContain(
+      "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?admin=1",
+    );
   });
 });
 
@@ -314,6 +342,7 @@ describe("webhooksRoutes", () => {
   it("rejects malformed Google Pub/Sub message data in local dev mode", async () => {
     delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const response = await createApp().request(
@@ -341,6 +370,7 @@ describe("webhooksRoutes", () => {
   it("accepts Google Pub/Sub lifecycle events in explicit local dev mode", async () => {
     delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(client, "action").mockResolvedValueOnce({
       type: "SUBSCRIPTION_RENEWED",
@@ -353,7 +383,6 @@ describe("webhooksRoutes", () => {
         subscriptionNotification: {
           notificationType: 2,
           purchaseToken: "opaque",
-          subscriptionId: "premium",
         },
       }),
     ).toString("base64");
@@ -372,6 +401,87 @@ describe("webhooksRoutes", () => {
       ok: true,
       eventType: "SUBSCRIPTION_RENEWED",
       deduped: true,
+    });
+  });
+
+  it("forwards only the verified raw OIDC token to Convex", async () => {
+    process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE = "https://kit.openiap.dev/";
+    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+    oidcMocks.verifyIdToken.mockResolvedValueOnce({
+      getPayload: () => ({
+        email: "pubsub@project.iam.gserviceaccount.com",
+        email_verified: true,
+      }),
+    });
+    const action = vi.spyOn(client, "action").mockResolvedValueOnce({
+      type: "TEST_NOTIFICATION",
+      deduped: false,
+    });
+    const data = Buffer.from(
+      JSON.stringify({
+        packageName: "dev.hyo.app",
+        testNotification: { version: "1.0" },
+      }),
+    ).toString("base64");
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer signed-oidc-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ message: { data, messageId: "message" } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(action).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        apiKey: "openiap-kit_pk_mobile",
+        oidcToken: "signed-oidc-token",
+      }),
+    );
+    expect(action.mock.calls[0]?.[1]).not.toHaveProperty("oidcAudiences");
+  });
+
+  it("maps authoritative Convex OIDC rejection to 401", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+    process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    process.env.APP_ENV = "development";
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(client, "action").mockRejectedValueOnce(
+      new ConvexError({
+        code: "UNAUTHORIZED",
+        message: "Google Pub/Sub OIDC authentication failed.",
+      }),
+    );
+    const data = Buffer.from(
+      JSON.stringify({
+        packageName: "dev.hyo.app",
+        testNotification: { version: "1.0" },
+      }),
+    ).toString("base64");
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: { data, messageId: "message" } }),
+      },
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "UNAUTHORIZED",
+          message: "Google Pub/Sub OIDC authentication failed.",
+        },
+      ],
     });
   });
 });
@@ -425,21 +535,6 @@ describe("isAllowedPubSubServiceAccount", () => {
     expect(helpers.isAllowedPubSubServiceAccount("person@gmail.com")).toBe(
       false,
     );
-  });
-
-  it("requires an exact principal match when configured", () => {
-    expect(
-      helpers.isAllowedPubSubServiceAccount(
-        "pubsub-rtdn-push@rescuedogs-f3098.iam.gserviceaccount.com",
-        "pubsub-rtdn-push@rescuedogs-f3098.iam.gserviceaccount.com",
-      ),
-    ).toBe(true);
-    expect(
-      helpers.isAllowedPubSubServiceAccount(
-        "other@rescuedogs-f3098.iam.gserviceaccount.com",
-        "pubsub-rtdn-push@rescuedogs-f3098.iam.gserviceaccount.com",
-      ),
-    ).toBe(false);
   });
 });
 

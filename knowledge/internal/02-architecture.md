@@ -139,11 +139,16 @@ openiap/src/
 
 ### IAPKit webhook boundary
 
-The only allowed webhook direction is from a store into IAPKit:
+The supported directions are server-to-server only:
 
 ```text
-Apple ASN v2 / Google RTDN ──► IAPKit state
+Apple ASN v2 / Google RTDN ──► IAPKit state ──► developer backend HTTPS endpoint
 ```
+
+Outbound commerce delivery runs asynchronously in the bounded Convex worker,
+not on the Fly request path. A project owner registers each destination and
+chooses its event filter; IAPKit signs normalized payloads and applies bounded
+retries and circuit breaking.
 
 IAPKit must not expose a server-to-mobile webhook stream, SSE endpoint,
 WebSocket, push relay, or long-poll lifecycle feed. Mobile packages and

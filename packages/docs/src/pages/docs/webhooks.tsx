@@ -10,19 +10,19 @@ function Webhooks() {
     <div className="doc-page">
       <SEO
         title="Webhooks"
-        description="Configure Apple App Store Server Notifications v2 and Google Play Real-Time Developer Notifications as inbound IAPKit lifecycle webhooks."
+        description="Configure Apple and Google lifecycle webhooks, then deliver signed normalized subscription events from IAPKit to your HTTPS backend."
         path="/docs/webhooks"
-        keywords="IAPKit webhooks, App Store Server Notifications v2, Google RTDN, subscription lifecycle"
+        keywords="IAPKit webhooks, outbound webhooks, signed commerce events, App Store Server Notifications v2, Google RTDN, subscription lifecycle"
       />
       <h1>Webhooks</h1>
       <p>
         IAPKit accepts lifecycle notifications sent by Apple and Google,
         verifies them, deduplicates them, and updates its stored purchase and
-        subscription state. This is the only webhook direction supported by
-        IAPKit:
+        subscription state. IAPKit can then forward a signed normalized event to
+        a developer-controlled backend:
       </p>
       <pre>
-        <code>Apple / Google → IAPKit</code>
+        <code>Apple / Google → IAPKit → developer HTTPS backend</code>
       </pre>
       <Callout kind="important">
         IAPKit does not stream webhook events to mobile SDKs. There is no
@@ -32,6 +32,76 @@ function Webhooks() {
         backend remains responsible for its entitlement decision and any app
         push notification.
       </Callout>
+
+      <section>
+        <AnchorLink id="outbound" level="h2">
+          Deliver normalized events to your backend
+        </AnchorLink>
+        <p>
+          In the project&apos;s <strong>Webhooks</strong> tab, add a public
+          HTTPS destination and copy its one-time signing secret. IAPKit
+          delivers normalized subscription and entitlement events from a bounded
+          Convex worker outside the Fly request path. Failed attempts back off
+          and remain as replayable dead letters for project admins.
+        </p>
+        <p>
+          Verify <code>openiap-signature</code> against the timestamp and raw
+          body, parse <code>openiap-timestamp</code> as a finite Unix-seconds
+          number, and require{' '}
+          <code>Math.abs(Date.now() / 1000 - timestamp) &lt;= 300</code> to
+          reject both stale and future timestamps. Require the{' '}
+          <code>openiap-event-id</code> header to equal the signed body&apos;s{' '}
+          <code>eventId</code>, and atomically deduplicate on the body field
+          before side effects. The header by itself is not signed.
+        </p>
+        <p>
+          Compute lowercase hex with{' '}
+          <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,
+          then prefix it with <code>v1=</code>. During the 24-hour rotation
+          window, the header contains the new and previous values
+          comma-separated; accept either valid value. Never reserialize JSON
+          before verification.
+        </p>
+        <pre>
+          <code>{`{
+  "eventId": "commerceEvents_...",
+  "eventType": "subscription.renewed",
+  "eventVersion": "1.0",
+  "occurredAt": 1787788800000,
+  "processedAt": 1787788800123,
+  "store": "google",
+  "environment": "production",
+  "projectId": "projects_...",
+  "applicationId": "dev.example.app",
+  "userId": "account_123",
+  "productId": "premium.monthly",
+  "subscription": { "state": "Active", "productId": "premium.monthly", "active": true }
+}`}</code>
+        </pre>
+        <p>
+          Optional fields include <code>previousProductId</code>, transaction
+          ids, price, and bounded provider extensions. Event types are:
+        </p>
+        <pre>
+          <code>{`subscription.started, subscription.renewed, subscription.recovered,
+subscription.entered_grace_period, subscription.entered_billing_retry,
+subscription.expired, subscription.canceled, subscription.uncanceled,
+subscription.revoked, subscription.refunded, subscription.product_changed,
+subscription.price_changed, subscription.deferred, subscription.paused,
+subscription.resumed, entitlement.granted, entitlement.revoked`}</code>
+        </pre>
+        <p>
+          Read the{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COMMERCE-EVENTS.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            complete receiver contract
+          </a>
+          .
+        </p>
+      </section>
 
       <section>
         <AnchorLink id="setup" level="h2">
@@ -69,13 +139,36 @@ function Webhooks() {
         </ol>
 
         <h3>Google — Real-Time Developer Notifications</h3>
+        <Callout kind="important">
+          Upload the Google Play service-account JSON in IAPKit project
+          settings. RTDN omits authoritative expiry and pricing, so every
+          non-terminal subscription notification requires Android Publisher API
+          enrichment before IAPKit records it. Use that same service account as
+          the Pub/Sub push authentication identity; its OIDC email must equal
+          the uploaded JSON&apos;s <code>client_email</code> and its audience
+          must equal the exact lifecycle URL. Existing subscriptions that use a
+          separate push identity must be updated.
+        </Callout>
         <ol>
           <li>
             In Google Cloud, create a Pub/Sub topic and a push subscription
             whose endpoint is the IAPKit lifecycle URL.
           </li>
           <li>
-            Configure authenticated push delivery and grant{' '}
+            Configure authenticated push delivery with that uploaded service
+            account and use the exact lifecycle URL as its OIDC audience.
+          </li>
+          <li>
+            On that account, grant the Pub/Sub service agent{' '}
+            <code>
+              service-$&#123;PROJECT_NUMBER&#125;@gcp-sa-pubsub.iam.gserviceaccount.com
+            </code>{' '}
+            <code>roles/iam.serviceAccountTokenCreator</code>. The operator who
+            creates or updates the subscription also needs{' '}
+            <code>roles/iam.serviceAccountUser</code> on the account.
+          </li>
+          <li>
+            Separately grant{' '}
             <code>
               google-play-developer-notifications@system.gserviceaccount.com
             </code>{' '}
@@ -133,8 +226,9 @@ function Webhooks() {
         </p>
         <p>
           For immediate device notifications, your authenticated backend may
-          consume its own store lifecycle data and send APNs or FCM messages.
-          IAPKit does not expose a project-wide event feed to mobile clients.
+          consume IAPKit&apos;s signed outbound event and send APNs or FCM
+          messages. IAPKit does not expose a project-wide event feed to mobile
+          clients.
         </p>
       </section>
     </div>

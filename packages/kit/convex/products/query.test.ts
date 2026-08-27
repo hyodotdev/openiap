@@ -12,6 +12,7 @@ vi.mock("../projects/helpers", () => ({
 }));
 
 import {
+  getCatalogPriceInternal as registeredGetCatalogPriceInternal,
   getProductClientPayload as registeredGetProductClientPayload,
   getProductClientPayloadIfChanged as registeredGetProductClientPayloadIfChanged,
   getProductClientPayloadEditorState as registeredGetProductClientPayloadEditorState,
@@ -24,6 +25,9 @@ import { deletePlatformCatalog as registeredDeletePlatformCatalog } from "./sync
 import { testableFunction } from "../test.setup";
 
 const deletePlatformCatalog = testableFunction(registeredDeletePlatformCatalog);
+const getCatalogPriceInternal = testableFunction(
+  registeredGetCatalogPriceInternal,
+);
 const getProductClientPayload = testableFunction(
   registeredGetProductClientPayload,
 );
@@ -171,6 +175,45 @@ function summary(
     updatedAt: 20,
   };
 }
+
+describe("catalog pricing", () => {
+  it("returns only the exact active platform price", async () => {
+    const android: Row = {
+      ...product("products_android", "Android", "premium"),
+      currency: "USD",
+      priceAmountMicros: 4_990_000,
+    };
+    const ios: Row = {
+      ...product("products_ios", "IOS", "premium"),
+      currency: "EUR",
+      priceAmountMicros: 5_990_000,
+    };
+    const db = new TestDb({ products: [android, ios] });
+
+    await expect(
+      getCatalogPriceInternal._handler(
+        { db },
+        {
+          projectId: PROJECT_ID,
+          platform: "Android",
+          productId: "premium",
+        },
+      ),
+    ).resolves.toEqual({ currency: "USD", priceAmountMicros: 4_990_000 });
+
+    android.state = "Removed";
+    await expect(
+      getCatalogPriceInternal._handler(
+        { db },
+        {
+          projectId: PROJECT_ID,
+          platform: "Android",
+          productId: "premium",
+        },
+      ),
+    ).resolves.toBeNull();
+  });
+});
 
 describe("product client payload queries", () => {
   beforeEach(() => {

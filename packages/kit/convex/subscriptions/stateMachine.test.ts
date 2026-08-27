@@ -50,6 +50,25 @@ describe("applySubscriptionTransition", () => {
     expect(result.transition).toBe("Renewed");
   });
 
+  it("honors a disabled auto-renew status on a successful renewal", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, renewsAt: 2_000_000_000_000 },
+      {
+        type: "SubscriptionRenewed",
+        productId: baseSub.productId,
+        expiresAt: 2_100_000_000_000,
+        renewsAt: 2_100_000_000_000,
+        willRenew: false,
+      },
+    );
+    expect(result.next).toMatchObject({
+      state: "Active",
+      expiresAt: 2_100_000_000_000,
+      willRenew: false,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
   it("Canceled keeps state Active until expiry but flips willRenew", () => {
     const result = applySubscriptionTransition(baseSub, {
       type: "SubscriptionCanceled",
@@ -62,14 +81,67 @@ describe("applySubscriptionTransition", () => {
   });
 
   it("Uncanceled flips willRenew back to true", () => {
-    const canceled = { ...baseSub, willRenew: false };
+    const canceled = {
+      ...baseSub,
+      willRenew: false,
+      cancellationReason: "UserCanceled" as const,
+    };
     const result = applySubscriptionTransition(canceled, {
       type: "SubscriptionUncanceled",
       productId: baseSub.productId,
     });
     expect(result.next?.willRenew).toBe(true);
+    expect(result.next?.cancellationReason).toBeUndefined();
     expect(result.active).toBe(true);
     expect(result.transition).toBe("Uncanceled");
+  });
+
+  it("keeps prepaid purchases active without claiming auto-renewal", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionStarted",
+      productId: "prepaid_monthly",
+      expiresAt: 1_900_000_000_000,
+      willRenew: false,
+    });
+
+    expect(result.transition).toBe("Started");
+    expect(result.next).toMatchObject({
+      state: "Active",
+      willRenew: false,
+      expiresAt: 1_900_000_000_000,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
+  it("reconstructs active access when cancellation is the first event", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionCanceled",
+      productId: baseSub.productId,
+      subscriptionState: "Active",
+      expiresAt: 2_500_000_000_000,
+    });
+    expect(result.next).toMatchObject({
+      state: "Active",
+      expiresAt: 2_500_000_000_000,
+      willRenew: false,
+      cancellationReason: "UserCanceled",
+    });
+    expect(result.active).toBe(true);
+  });
+
+  it("does not reactivate billing retry when renewal is canceled", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, state: "InBillingRetry" },
+      {
+        type: "SubscriptionCanceled",
+        productId: baseSub.productId,
+        subscriptionState: "Active",
+        expiresAt: 2_500_000_000_000,
+      },
+    );
+    expect(result.next?.state).toBe("InBillingRetry");
+    expect(result.next?.expiresAt).toBe(2_500_000_000_000);
+    expect(result.active).toBe(false);
   });
 
   it("InGracePeriod keeps the user entitled", () => {
@@ -78,6 +150,23 @@ describe("applySubscriptionTransition", () => {
       productId: baseSub.productId,
     });
     expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.active).toBe(true);
+  });
+
+  it("persists renewal metadata when grace period is the first event", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionInGracePeriod",
+      productId: baseSub.productId,
+      expiresAt: 2_000_000_000_000,
+      renewsAt: 2_000_000_000_000,
+      willRenew: true,
+    });
+    expect(result.next).toMatchObject({
+      state: "InGracePeriod",
+      expiresAt: 2_000_000_000_000,
+      renewsAt: 2_000_000_000_000,
+      willRenew: true,
+    });
     expect(result.active).toBe(true);
   });
 
@@ -137,12 +226,179 @@ describe("applySubscriptionTransition", () => {
     expect(paused.active).toBe(false);
 
     const resumed = applySubscriptionTransition(paused.next, {
-      type: "SubscriptionResumed",
+      // Google reports RECOVERED after a pause; prior state disambiguates it.
+      type: "SubscriptionRecovered",
       productId: baseSub.productId,
       expiresAt: 2_500_000_000_000,
     });
     expect(resumed.next?.state).toBe("Active");
     expect(resumed.active).toBe(true);
+    expect(resumed.transition).toBe("Resumed");
+  });
+
+  it("does not revoke access for a pause schedule change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionPauseScheduleChanged",
+      productId: baseSub.productId,
+    });
+    expect(result.next).toEqual(baseSub);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it.each([
+    "SubscriptionPendingPurchaseCanceled",
+    "SubscriptionPriceStepUpConsentChanged",
+  ] as const)("records %s without changing an existing entitlement", (type) => {
+    const result = applySubscriptionTransition(baseSub, {
+      type,
+      productId: baseSub.productId,
+    });
+    expect(result.next).toEqual(baseSub);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("does not create a subscription for a canceled pending purchase", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionPendingPurchaseCanceled",
+      productId: baseSub.productId,
+    });
+    expect(result.next).toBeNull();
+    expect(result.active).toBe(false);
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("keeps a future price off the canonical row until renewal", () => {
+    const current = {
+      ...baseSub,
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+    };
+    const result = applySubscriptionTransition(current, {
+      type: "SubscriptionPriceChange",
+      productId: baseSub.productId,
+      currency: "USD",
+      priceAmountMicros: 12_990_000,
+    });
+    expect(result.next).toEqual(current);
+    expect(result.transition).toBe("PriceChanged");
+  });
+
+  it("applies a Google item change with its current price", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionProductChanged",
+      productId: "com.example.premium.yearly",
+      currency: "USD",
+      priceAmountMicros: 99_990_000,
+    });
+    expect(result.next).toMatchObject({
+      productId: "com.example.premium.yearly",
+      currency: "USD",
+      priceAmountMicros: 99_990_000,
+    });
+    expect(result.transition).toBe("ProductChanged");
+  });
+
+  it("clears renewal metadata when a product change becomes prepaid", () => {
+    const result = applySubscriptionTransition(
+      {
+        ...baseSub,
+        renewsAt: 2_000_000_000_000,
+      },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.prepaid.yearly",
+        expiresAt: 2_100_000_000_000,
+        willRenew: false,
+      },
+    );
+    expect(result.next).toMatchObject({
+      productId: "com.example.prepaid.yearly",
+      expiresAt: 2_100_000_000_000,
+      willRenew: false,
+    });
+    expect(result.next?.renewsAt).toBeUndefined();
+  });
+
+  it("clears a stale cancellation reason when a product change will renew", () => {
+    const result = applySubscriptionTransition(
+      {
+        ...baseSub,
+        willRenew: false,
+        cancellationReason: "UserCanceled",
+      },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.premium.yearly",
+        willRenew: true,
+      },
+    );
+    expect(result.next?.willRenew).toBe(true);
+    expect(result.next?.cancellationReason).toBeUndefined();
+  });
+
+  it("does not reactivate a non-entitled product change", () => {
+    const result = applySubscriptionTransition(
+      { ...baseSub, state: "InBillingRetry" },
+      {
+        type: "SubscriptionProductChanged",
+        productId: "com.example.premium.yearly",
+      },
+    );
+    expect(result.next?.state).toBe("InBillingRetry");
+    expect(result.active).toBe(false);
+    expect(result.transition).toBe("ProductChanged");
+  });
+
+  it("uses the store state on a product change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionProductChanged",
+      productId: "com.example.premium.yearly",
+      subscriptionState: "Paused",
+    });
+    expect(result.next?.state).toBe("Paused");
+    expect(result.active).toBe(false);
+  });
+
+  it("does not create a subscription from an orphan price notice", () => {
+    const result = applySubscriptionTransition(null, {
+      type: "SubscriptionPriceChange",
+      productId: baseSub.productId,
+      currency: "USD",
+      priceAmountMicros: 12_990_000,
+    });
+    expect(result.next).toBeNull();
+    expect(result.transition).toBe("Ignored");
+  });
+
+  it("updates a deferred renewal without calling it a product change", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionDeferred",
+      productId: baseSub.productId,
+      expiresAt: 2_500_000_000_000,
+    });
+    expect(result.next?.expiresAt).toBe(2_500_000_000_000);
+    expect(result.active).toBe(true);
+    expect(result.transition).toBe("Deferred");
+  });
+
+  it.each([
+    "SubscriptionStarted",
+    "SubscriptionRenewed",
+    "SubscriptionRecovered",
+    "SubscriptionInGracePeriod",
+    "SubscriptionProductChanged",
+  ] as const)("does not mark an expired %s transition active", (type) => {
+    const result = applySubscriptionTransition(
+      type === "SubscriptionStarted" ? null : baseSub,
+      {
+        type,
+        productId: baseSub.productId,
+        expiresAt: Date.now() - 1,
+      },
+    );
+    expect(result.active).toBe(false);
   });
 
   it("TestNotification and PurchaseConsumptionRequest do not mutate state", () => {
