@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLAIM_BATCH_LIMIT,
+  LEASE_MS,
   MAX_DELIVERY_ATTEMPTS,
+  REQUEST_TIMEOUT_MS,
   checkDestinationUrl,
   isRetryableStatus,
   nextAttemptDelayMs,
@@ -32,10 +35,36 @@ describe("checkDestinationUrl", () => {
     "https://kube.internal/hook",
     "https://printer.local/hook",
     "https://[::1]/hook",
+    "https://[fd00::1]/hook",
+    "https://[fe80::1]/hook",
   ])("rejects private or link-local target %s", (url) => {
     const result = checkDestinationUrl(url);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe("host-not-public");
+  });
+
+  // `URL` rewrites these to `[::ffff:7f00:1]` and friends, so a check that only
+  // looks at the textual host lets loopback and the cloud metadata endpoint
+  // straight through while `fetch` still reaches them.
+  it.each([
+    "https://[::ffff:127.0.0.1]/hook",
+    "https://[::ffff:169.254.169.254]/latest/meta-data",
+    "https://[::ffff:10.0.0.5]/hook",
+    "https://[::ffff:192.168.1.10]/hook",
+    "https://[::ffff:172.16.4.4]/hook",
+    "https://[::127.0.0.1]/hook",
+  ])("rejects the IPv4-mapped spelling of %s", (url) => {
+    const result = checkDestinationUrl(url);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("host-not-public");
+  });
+
+  it.each([
+    "https://[2606:4700:4700::1111]/hook",
+    "https://[::ffff:8.8.8.8]/hook",
+    "https://93.184.216.34/hook",
+  ])("still accepts public target %s", (url) => {
+    expect(checkDestinationUrl(url).ok).toBe(true);
   });
 
   it("rejects embedded credentials", () => {
@@ -128,5 +157,14 @@ describe("signPayload", () => {
       body,
     );
     expect(single.split(",")).toHaveLength(1);
+  });
+});
+
+describe("lease sizing", () => {
+  // The worker sends its batch sequentially. A lease shorter than the batch
+  // lets a later row expire while it is still in flight, which the next cron
+  // tick reclaims and re-sends.
+  it("covers a full batch of worst-case requests", () => {
+    expect(LEASE_MS).toBeGreaterThan(CLAIM_BATCH_LIMIT * REQUEST_TIMEOUT_MS);
   });
 });

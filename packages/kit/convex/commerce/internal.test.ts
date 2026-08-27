@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { emitCommerceEvent, destinationAcceptsType } from "./internal";
 import {
+  buildEventPayload,
   claimPendingDeliveriesHandler,
   recordDeliveryResultHandler,
   replayDeliveryHandler,
   type ClaimedDelivery,
 } from "./deliveryState";
-import { MAX_DELIVERY_ATTEMPTS } from "./signing";
+import { COMMERCE_EVENT_SCHEMA_VERSION } from "./contract";
+import { LEASE_MS, MAX_DELIVERY_ATTEMPTS } from "./signing";
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 
@@ -362,6 +364,8 @@ describe("claimPendingDeliveries", () => {
   });
 });
 
+const LEASE_TOKEN = "lease-token-1";
+
 describe("recordDeliveryResult", () => {
   async function seedClaimed(db: Db, attempts = 0) {
     const destinationId = await seedDestination(db, {
@@ -383,7 +387,8 @@ describe("recordDeliveryResult", () => {
       status: "delivering",
       attempts,
       nextAttemptAt: Date.now(),
-      leaseExpiresAt: Date.now() + 60_000,
+      leaseExpiresAt: Date.now() + LEASE_MS,
+      leaseToken: LEASE_TOKEN,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -396,6 +401,7 @@ describe("recordDeliveryResult", () => {
     await db.patch(destinationId, { consecutiveFailures: 5 });
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: true,
       statusCode: 200,
       retryable: false,
@@ -415,6 +421,7 @@ describe("recordDeliveryResult", () => {
     const before = Date.now();
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: false,
       statusCode: 503,
       retryable: true,
@@ -429,6 +436,7 @@ describe("recordDeliveryResult", () => {
     const { deliveryId } = await seedClaimed(db);
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: false,
       statusCode: 400,
       retryable: false,
@@ -441,6 +449,7 @@ describe("recordDeliveryResult", () => {
     const { deliveryId } = await seedClaimed(db, MAX_DELIVERY_ATTEMPTS - 1);
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: false,
       statusCode: 500,
       retryable: true,
@@ -455,6 +464,7 @@ describe("recordDeliveryResult", () => {
     const { deliveryId } = await seedClaimed(db);
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: false,
       error: "x".repeat(2000),
       retryable: true,
@@ -468,6 +478,7 @@ describe("recordDeliveryResult", () => {
     await db.patch(destinationId, { consecutiveFailures: 19 });
     await recordDeliveryResultHandler(ctxOf(db), {
       deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
       ok: false,
       statusCode: 500,
       retryable: true,
@@ -477,11 +488,30 @@ describe("recordDeliveryResult", () => {
     expect(destination?.disabledReason as string).toContain("auto-disabled");
   });
 
+  it("ignores a result from a lease that was already reclaimed", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db);
+    // The row was reclaimed and handed to a newer attempt.
+    await db.patch(deliveryId, { leaseToken: "lease-token-2" });
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      leaseToken: LEASE_TOKEN,
+      ok: true,
+      statusCode: 200,
+      retryable: false,
+    });
+    const delivery = await db.get(deliveryId);
+    expect(delivery?.status).toBe("delivering");
+    expect(delivery?.attempts).toBe(0);
+    expect(delivery?.leaseToken).toBe("lease-token-2");
+  });
+
   it("is a no-op for a delivery that no longer exists", async () => {
     const db = new Db();
     await expect(
       recordDeliveryResultHandler(ctxOf(db), {
         deliveryId: "outboundDeliveries_missing" as never,
+        leaseToken: LEASE_TOKEN,
         ok: true,
         retryable: false,
       }),
@@ -533,5 +563,73 @@ describe("replayDelivery", () => {
     expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
       false,
     );
+  });
+});
+
+describe("buildEventPayload", () => {
+  const row = {
+    _id: "commerceEvents_1",
+    _creationTime: 0,
+    projectId: "projects_1",
+    eventType: "subscription.renewed",
+    eventVersion: COMMERCE_EVENT_SCHEMA_VERSION,
+    store: "apple",
+    environment: "production",
+    userId: "user_1",
+    productId: "premium.monthly",
+    transactionId: "txn_1",
+    subscriptionId: "subscriptions_1",
+    subscription: {
+      state: "Active",
+      productId: "premium.monthly",
+      expiresAt: 2_000,
+      renewsAt: 2_000,
+      willRenew: true,
+    },
+    entitlementActive: true,
+    currency: "USD",
+    amountMicros: 9_990_000,
+    amountProvenance: "store",
+    sourceEventId: "webhookEvents_1",
+    sourceStoreNotificationId: "notif-uuid-1",
+    occurredAt: 1_000,
+    processedAt: 1_500,
+  } as never;
+
+  it("emits exactly the published contract shape", () => {
+    expect(buildEventPayload(row)).toEqual({
+      eventId: "commerceEvents_1",
+      eventType: "subscription.renewed",
+      eventVersion: COMMERCE_EVENT_SCHEMA_VERSION,
+      occurredAt: 1_000,
+      processedAt: 1_500,
+      store: "apple",
+      environment: "production",
+      projectId: "projects_1",
+      userId: "user_1",
+      productId: "premium.monthly",
+      transactionId: "txn_1",
+      subscription: {
+        state: "Active",
+        productId: "premium.monthly",
+        expiresAt: 2_000,
+        renewsAt: 2_000,
+        willRenew: true,
+        active: true,
+      },
+      price: {
+        currency: "USD",
+        amountMicros: 9_990_000,
+        provenance: "store",
+      },
+      sourceStoreEventId: "notif-uuid-1",
+    });
+  });
+
+  it("keeps internal identifiers off the wire", () => {
+    const payload = buildEventPayload(row) as Record<string, unknown>;
+    expect(payload.subscriptionId).toBeUndefined();
+    expect(payload.sourceEventId).toBeUndefined();
+    expect(payload.entitlementActive).toBeUndefined();
   });
 });

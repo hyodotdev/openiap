@@ -1,8 +1,24 @@
-// Pure helpers for outbound delivery: destination URL safety, retry schedule
-// and payload signing. Kept free of Convex types so they unit-test directly.
+// Pure helpers and shared tuning constants for outbound delivery: destination
+// URL safety, retry schedule and payload signing. Kept free of Convex types so
+// they unit-test directly, and so the claim mutation and the "use node" HTTP
+// action can share one set of numbers.
 
 /** Attempt budget before a delivery becomes dead-letter. */
 export const MAX_DELIVERY_ATTEMPTS = 8;
+
+/** Rows one worker pass claims. */
+export const CLAIM_BATCH_LIMIT = 25;
+
+/** Per-request ceiling in the HTTP half. */
+export const REQUEST_TIMEOUT_MS = 10_000;
+
+/**
+ * The worker sends its batch sequentially, so the lease has to cover the whole
+ * batch — not one request — or later rows expire mid-flight and the next tick
+ * reclaims a delivery that is still running. The margin absorbs mutation
+ * round-trips between sends.
+ */
+export const LEASE_MS = CLAIM_BATCH_LIMIT * REQUEST_TIMEOUT_MS + 60_000;
 
 /** Receivers must reject signatures older than this to blunt replay. */
 export const SIGNATURE_TOLERANCE_SECONDS = 300;
@@ -39,6 +55,50 @@ export type UrlCheck =
 const PRIVATE_V4 =
   /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 
+/**
+ * `URL` canonicalizes `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so a textual
+ * private-IPv4 check never fires on the mapped spelling even though `fetch`
+ * still reaches loopback. Recover the embedded IPv4 from the trailing hextets
+ * so one policy covers both spellings.
+ */
+function embeddedIpv4(hostname: string): string | null {
+  if (!hostname.includes(":")) return null;
+  const groups = hostname.split(":");
+  const tail = groups.slice(-2);
+  if (tail.length < 2) return null;
+  if (tail.some((group) => !/^[0-9a-f]{1,4}$/.test(group))) return null;
+  // Only ::ffff:x:y (mapped) and ::x:y (deprecated compatible) embed IPv4.
+  const prefix = groups.slice(0, -2).join(":").toLowerCase().replace(/^:+/, "");
+  if (prefix !== "" && prefix !== "ffff") return null;
+  const [high, low] = tail.map((group) => parseInt(group, 16));
+  return [high >> 8, high & 0xff, low >> 8, low & 0xff].join(".");
+}
+
+function isPrivateHost(rawHostname: string): boolean {
+  const host = rawHostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host.endsWith(".internal") ||
+    host.endsWith(".local") ||
+    PRIVATE_V4.test(host)
+  ) {
+    return true;
+  }
+  const v6 = host.replace(/^\[|\]$/g, "");
+  if (
+    v6 === "::1" ||
+    v6 === "::" ||
+    v6.startsWith("fc") ||
+    v6.startsWith("fd") ||
+    v6.startsWith("fe80:")
+  ) {
+    return true;
+  }
+  const embedded = embeddedIpv4(v6);
+  return embedded !== null && PRIVATE_V4.test(embedded);
+}
+
 export function checkDestinationUrl(raw: string): UrlCheck {
   let url: URL;
   try {
@@ -52,19 +112,7 @@ export function checkDestinationUrl(raw: string): UrlCheck {
   if (url.username || url.password) {
     return { ok: false, reason: "credentials-in-url" };
   }
-  const host = url.hostname.toLowerCase();
-  const bracketless = host.replace(/^\[|\]$/g, "");
-  if (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host.endsWith(".internal") ||
-    host.endsWith(".local") ||
-    PRIVATE_V4.test(host) ||
-    bracketless === "::1" ||
-    bracketless.startsWith("fc") ||
-    bracketless.startsWith("fd") ||
-    bracketless.startsWith("fe80:")
-  ) {
+  if (isPrivateHost(url.hostname)) {
     return { ok: false, reason: "host-not-public" };
   }
   return { ok: true, url };

@@ -8,6 +8,7 @@
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
+import type { SubscriptionState } from "../webhooks/shared";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   commerceEventTypeForTransition,
@@ -50,8 +51,14 @@ export type EmitCommerceEventArgs = {
   previouslyActive: boolean;
   sourceEvent: Doc<"webhookEvents">;
   subscriptionId?: Id<"subscriptions">;
+  /** Subscription as it stands after the transition, snapshotted onto the event. */
   subscription?: {
+    state: SubscriptionState;
     productId: string;
+    expiresAt?: number;
+    renewsAt?: number;
+    willRenew?: boolean;
+    cancellationReason?: string;
     userId?: string;
   };
   extensions?: Record<string, string>;
@@ -98,6 +105,26 @@ export async function emitCommerceEvent(
       ...(source.productId ? { productId: source.productId } : {}),
       ...(source.purchaseToken ? { transactionId: source.purchaseToken } : {}),
       ...(args.subscriptionId ? { subscriptionId: args.subscriptionId } : {}),
+      ...(args.subscription
+        ? {
+            subscription: {
+              state: args.subscription.state,
+              productId: args.subscription.productId,
+              ...(args.subscription.expiresAt !== undefined
+                ? { expiresAt: args.subscription.expiresAt }
+                : {}),
+              ...(args.subscription.renewsAt !== undefined
+                ? { renewsAt: args.subscription.renewsAt }
+                : {}),
+              ...(args.subscription.willRenew !== undefined
+                ? { willRenew: args.subscription.willRenew }
+                : {}),
+              ...(args.subscription.cancellationReason
+                ? { cancellationReason: args.subscription.cancellationReason }
+                : {}),
+            },
+          }
+        : {}),
       entitlementActive: args.active,
       ...(source.currency ? { currency: source.currency } : {}),
       ...(source.priceAmountMicros !== undefined
@@ -105,6 +132,7 @@ export async function emitCommerceEvent(
         : {}),
       ...(amountProvenance ? { amountProvenance } : {}),
       sourceEventId: source._id,
+      sourceStoreNotificationId: source.sourceNotificationId,
       ...(sanitizeExtensions(args.extensions)
         ? { extensions: sanitizeExtensions(args.extensions) }
         : {}),

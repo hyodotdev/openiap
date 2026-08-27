@@ -228,7 +228,20 @@ export async function applySubscriptionEventHandler(
       ...(existing
         ? {
             subscription: {
+              state: existing.state,
               productId: existing.productId,
+              ...(existing.expiresAt !== undefined
+                ? { expiresAt: existing.expiresAt }
+                : {}),
+              ...(existing.renewsAt !== undefined
+                ? { renewsAt: existing.renewsAt }
+                : {}),
+              ...(existing.willRenew !== undefined
+                ? { willRenew: existing.willRenew }
+                : {}),
+              ...(existing.cancellationReason
+                ? { cancellationReason: existing.cancellationReason }
+                : {}),
               ...(existing.userId ? { userId: existing.userId } : {}),
             },
           }
@@ -259,7 +272,20 @@ export async function applySubscriptionEventHandler(
     sourceEvent: storedEvent,
     subscriptionId,
     subscription: {
+      state: transition.next.state,
       productId: transition.next.productId,
+      ...(transition.next.expiresAt !== undefined
+        ? { expiresAt: transition.next.expiresAt }
+        : {}),
+      ...(transition.next.renewsAt !== undefined
+        ? { renewsAt: transition.next.renewsAt }
+        : {}),
+      ...(transition.next.willRenew !== undefined
+        ? { willRenew: transition.next.willRenew }
+        : {}),
+      ...(transition.next.cancellationReason
+        ? { cancellationReason: transition.next.cancellationReason }
+        : {}),
       ...(existing?.userId ? { userId: existing.userId } : {}),
     },
   });

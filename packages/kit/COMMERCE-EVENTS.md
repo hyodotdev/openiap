@@ -51,8 +51,9 @@ Apple ASN v2 / Google RTDN / Meta Graph / Amazon RVS
 Entitlement is derived, not stored: `stateMachine.ts` returns `active` alongside
 each transition and `/v1/subscriptions/status` applies the same rule. A single
 source avoids the classic drift between a cached flag and the record it came
-from. `commerceEvents.entitlementActive` denormalizes that answer onto the event
-so a consumer can act without joining back.
+from. `commerceEvents.entitlementActive` denormalizes that answer onto the
+event, and the delivered body carries it as `subscription.active`, so a consumer
+can act without joining back.
 
 ## Event vocabulary
 
@@ -110,8 +111,9 @@ here is reachable from a shipped app and no client-pullable stream exists.
 - `outboundDeliveries` — one attempt chain per `(event, destination)`, and the
   dead-letter store: a row that exhausts its budget stays `failed` and can be
   replayed without re-deriving the event
-- the cron claims due rows under a lease, so overlapping ticks cannot
-  double-deliver
+- the cron claims due rows under a lease sized to cover a whole batch, and each
+  lease carries a fencing token so a reclaimed row ignores the superseded
+  attempt still in flight
 
 ### Registering a destination
 
@@ -153,7 +155,10 @@ followed, and requests time out at 10s. This is a guard, not a substitute for
 egress policy: DNS can still resolve a public name to a private address, so a
 hardened deployment should also restrict egress.
 
-Payloads carry no raw store envelope, no receipt and no credentials.
+Payloads carry no raw store envelope, no receipt and no credentials, and no
+internal IAPKit row ids: `sourceStoreEventId` is the store's own notification id
+(ASN `notificationUUID` / RTDN `messageId`), which is what a developer can
+cross-reference with the store.
 
 ## Revenue data
 
@@ -200,8 +205,11 @@ Register a destination, verify the signature, switch on `eventType`. Nothing
 provider-specific is required, and no integration code belongs in this package:
 
 ```ts
-const expected = hmacSha256(secret, `${timestamp}.${rawBody}`);
-if (!timingSafeEqual(expected, headerSignature)) return 401;
+// The header carries one `v1=` value normally and two during rotation, so
+// compare against each rather than against the header as a whole.
+const expected = `v1=${hmacSha256(secret, `${timestamp}.${rawBody}`)}`;
+const presented = headerSignature.split(",").map((part) => part.trim());
+if (!presented.some((sig) => timingSafeEqual(sig, expected))) return 401;
 if (Math.abs(nowSeconds - Number(timestamp)) > 300) return 401;
 
 switch (event.eventType) {

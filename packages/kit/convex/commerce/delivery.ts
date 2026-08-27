@@ -15,14 +15,13 @@ import type { ClaimedDelivery } from "./deliveryState";
 import {
   DELIVERY_ID_HEADER,
   EVENT_ID_HEADER,
+  REQUEST_TIMEOUT_MS,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
   checkDestinationUrl,
   isRetryableStatus,
   signPayloadWithRotation,
 } from "./signing";
-
-const REQUEST_TIMEOUT_MS = 10_000;
 
 export const deliverPendingEvents = internalAction({
   args: {},
@@ -43,6 +42,7 @@ export const deliverPendingEvents = internalAction({
           internal.commerce.deliveryState.recordDeliveryResult,
           {
             deliveryId: item.deliveryId,
+            leaseToken: item.leaseToken,
             ok: false,
             error: `destination rejected: ${check.reason}`,
             retryable: false,
@@ -83,6 +83,7 @@ export const deliverPendingEvents = internalAction({
           internal.commerce.deliveryState.recordDeliveryResult,
           {
             deliveryId: item.deliveryId,
+            leaseToken: item.leaseToken,
             ok,
             statusCode: response.status,
             retryable: isRetryableStatus(response.status),
@@ -93,6 +94,7 @@ export const deliverPendingEvents = internalAction({
           internal.commerce.deliveryState.recordDeliveryResult,
           {
             deliveryId: item.deliveryId,
+            leaseToken: item.leaseToken,
             ok: false,
             error: error instanceof Error ? error.message : "request failed",
             retryable: true,

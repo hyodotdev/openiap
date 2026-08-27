@@ -11,15 +11,24 @@ import { v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { MAX_DELIVERY_ATTEMPTS, nextAttemptDelayMs } from "./signing";
+import {
+  COMMERCE_EVENT_SCHEMA_VERSION,
+  type CommerceEvent,
+  type CommerceEventType,
+} from "./contract";
+import {
+  CLAIM_BATCH_LIMIT,
+  LEASE_MS,
+  MAX_DELIVERY_ATTEMPTS,
+  nextAttemptDelayMs,
+} from "./signing";
 
-const CLAIM_BATCH_LIMIT = 25;
-const LEASE_MS = 60_000;
 /** Consecutive failures before a destination is parked for manual review. */
 const BREAKER_THRESHOLD = 20;
 
 export type ClaimedDelivery = {
   deliveryId: Id<"outboundDeliveries">;
+  leaseToken: string;
   attempts: number;
   url: string;
   secret: string;
@@ -28,12 +37,17 @@ export type ClaimedDelivery = {
   eventId: Id<"commerceEvents">;
 };
 
-/** Body sent to destinations. Deliberately free of raw store payloads. */
-function serializeEvent(event: Doc<"commerceEvents">): string {
-  return JSON.stringify({
+/**
+ * The wire body. Typed as `CommerceEvent` so the compiler, not a test, is what
+ * keeps the payload equal to the published contract: storage-only columns
+ * (`subscriptionId`, the internal `sourceEventId`) cannot leak in, and a
+ * contract field cannot silently go missing.
+ */
+export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
+  return {
     eventId: event._id,
-    eventType: event.eventType,
-    eventVersion: event.eventVersion,
+    eventType: event.eventType as CommerceEventType,
+    eventVersion: event.eventVersion as typeof COMMERCE_EVENT_SCHEMA_VERSION,
     occurredAt: event.occurredAt,
     processedAt: event.processedAt,
     store: event.store,
@@ -46,9 +60,13 @@ function serializeEvent(event: Doc<"commerceEvents">): string {
     ...(event.originalTransactionId
       ? { originalTransactionId: event.originalTransactionId }
       : {}),
-    ...(event.subscriptionId ? { subscriptionId: event.subscriptionId } : {}),
-    ...(event.entitlementActive !== undefined
-      ? { entitlementActive: event.entitlementActive }
+    ...(event.subscription
+      ? {
+          subscription: {
+            ...event.subscription,
+            active: event.entitlementActive ?? false,
+          },
+        }
       : {}),
     ...(event.currency && event.amountMicros !== undefined
       ? {
@@ -59,8 +77,11 @@ function serializeEvent(event: Doc<"commerceEvents">): string {
           },
         }
       : {}),
+    ...(event.sourceStoreNotificationId
+      ? { sourceStoreEventId: event.sourceStoreNotificationId }
+      : {}),
     ...(event.extensions ? { extensions: event.extensions } : {}),
-  });
+  };
 }
 
 export const claimPendingDeliveries = internalMutation({
@@ -68,6 +89,7 @@ export const claimPendingDeliveries = internalMutation({
   returns: v.array(
     v.object({
       deliveryId: v.id("outboundDeliveries"),
+      leaseToken: v.string(),
       attempts: v.number(),
       url: v.string(),
       secret: v.string(),
@@ -132,14 +154,18 @@ export async function claimPendingDeliveriesHandler(
     }
 
     // The lease is what makes overlapping cron ticks safe: a claimed row moves
-    // out of "pending" before the HTTP call starts.
+    // out of "pending" before the HTTP call starts. The token fences the write
+    // back, so a reclaimed row ignores whatever the superseded attempt reports.
+    const leaseToken = crypto.randomUUID();
     await ctx.db.patch(delivery._id, {
       status: "delivering",
       leaseExpiresAt: now + LEASE_MS,
+      leaseToken,
       updatedAt: now,
     });
     claimed.push({
       deliveryId: delivery._id,
+      leaseToken,
       attempts: delivery.attempts,
       url: destination.url,
       secret: destination.secret,
@@ -147,7 +173,7 @@ export async function claimPendingDeliveriesHandler(
       (destination.previousSecretExpiresAt ?? 0) > now
         ? { previousSecret: destination.previousSecret }
         : {}),
-      body: serializeEvent(event),
+      body: JSON.stringify(buildEventPayload(event)),
       eventId: event._id,
     });
   }
@@ -156,6 +182,7 @@ export async function claimPendingDeliveriesHandler(
 
 export type RecordDeliveryResultArgs = {
   deliveryId: Id<"outboundDeliveries">;
+  leaseToken: string;
   ok: boolean;
   statusCode?: number;
   error?: string;
@@ -165,6 +192,7 @@ export type RecordDeliveryResultArgs = {
 export const recordDeliveryResult = internalMutation({
   args: {
     deliveryId: v.id("outboundDeliveries"),
+    leaseToken: v.string(),
     ok: v.boolean(),
     statusCode: v.optional(v.number()),
     error: v.optional(v.string()),
@@ -181,6 +209,9 @@ export async function recordDeliveryResultHandler(
   {
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery) return null;
+    // Lease was reclaimed and reissued while this attempt was in flight. Its
+    // result describes a superseded send; the current holder owns the row.
+    if (delivery.leaseToken !== args.leaseToken) return null;
     const now = Date.now();
     const attempts = delivery.attempts + 1;
     const destination = await ctx.db.get(delivery.destinationId);
@@ -191,6 +222,7 @@ export async function recordDeliveryResultHandler(
         attempts,
         deliveredAt: now,
         leaseExpiresAt: undefined,
+        leaseToken: undefined,
         ...(args.statusCode ? { lastStatusCode: args.statusCode } : {}),
         updatedAt: now,
       });
@@ -212,6 +244,7 @@ export async function recordDeliveryResultHandler(
       attempts,
       nextAttemptAt: now + nextAttemptDelayMs(attempts),
       leaseExpiresAt: undefined,
+      leaseToken: undefined,
       ...(args.statusCode ? { lastStatusCode: args.statusCode } : {}),
       ...(args.error ? { lastError: args.error.slice(0, 500) } : {}),
       updatedAt: now,

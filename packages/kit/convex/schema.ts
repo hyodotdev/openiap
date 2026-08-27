@@ -19,6 +19,17 @@ const usersTable = defineTable({
   .index("email", ["email"])
   .index("phone", ["phone"]);
 
+export const subscriptionStateValidator = v.union(
+  v.literal("Active"),
+  v.literal("InGracePeriod"),
+  v.literal("InBillingRetry"),
+  v.literal("Expired"),
+  v.literal("Revoked"),
+  v.literal("Refunded"),
+  v.literal("Paused"),
+  v.literal("Unknown"),
+);
+
 export const purchaseStoreValidator = v.union(
   v.literal("apple"),
   v.literal("google"),
@@ -607,18 +618,7 @@ const schema = defineSchema({
     // deduplication and pruning correlation.
     sourceNotificationId: v.string(),
     productId: v.optional(v.string()),
-    subscriptionState: v.optional(
-      v.union(
-        v.literal("Active"),
-        v.literal("InGracePeriod"),
-        v.literal("InBillingRetry"),
-        v.literal("Expired"),
-        v.literal("Revoked"),
-        v.literal("Refunded"),
-        v.literal("Paused"),
-        v.literal("Unknown"),
-      ),
-    ),
+    subscriptionState: v.optional(subscriptionStateValidator),
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     cancellationReason: v.optional(
@@ -721,16 +721,7 @@ const schema = defineSchema({
     userId: v.optional(v.string()),
     productId: v.string(),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
-    state: v.union(
-      v.literal("Active"),
-      v.literal("InGracePeriod"),
-      v.literal("InBillingRetry"),
-      v.literal("Expired"),
-      v.literal("Revoked"),
-      v.literal("Refunded"),
-      v.literal("Paused"),
-      v.literal("Unknown"),
-    ),
+    state: subscriptionStateValidator,
     expiresAt: v.optional(v.number()),
     renewsAt: v.optional(v.number()),
     willRenew: v.optional(v.boolean()),
@@ -1251,6 +1242,20 @@ const schema = defineSchema({
     transactionId: v.optional(v.string()),
     originalTransactionId: v.optional(v.string()),
     subscriptionId: v.optional(v.id("subscriptions")),
+    // Subscription as it stood immediately after this event. Stored rather
+    // than joined at read time: an event is an immutable fact, and the live
+    // row has already moved on by the time a consumer reads it. `active` is
+    // not repeated here — it is `entitlementActive` below.
+    subscription: v.optional(
+      v.object({
+        state: subscriptionStateValidator,
+        productId: v.string(),
+        expiresAt: v.optional(v.number()),
+        renewsAt: v.optional(v.number()),
+        willRenew: v.optional(v.boolean()),
+        cancellationReason: v.optional(v.string()),
+      }),
+    ),
     // Entitlement gate after this event, denormalized so a consumer can act on
     // the row without joining the subscription.
     entitlementActive: v.optional(v.boolean()),
@@ -1260,8 +1265,12 @@ const schema = defineSchema({
     amountProvenance: v.optional(
       v.union(v.literal("store"), v.literal("catalog"), v.literal("inferred")),
     ),
-    // Inbound store event this was derived from, for support triage.
+    // Inbound store event this was derived from, for support triage. The
+    // Convex id stays internal; the store's own notification id is what goes
+    // out, since it is what a developer can cross-reference with the store and
+    // it survives pruning of the inbound row.
     sourceEventId: v.optional(v.id("webhookEvents")),
+    sourceStoreNotificationId: v.optional(v.string()),
     extensions: v.optional(v.record(v.string(), v.string())),
     occurredAt: v.number(),
     processedAt: v.number(),
@@ -1324,6 +1333,10 @@ const schema = defineSchema({
     // Lease held while an attempt is in flight, so overlapping cron ticks
     // cannot double-deliver the same row.
     leaseExpiresAt: v.optional(v.number()),
+    // Fencing token issued with the lease. A result is only recorded when it
+    // carries the current token, so a reclaimed row cannot be overwritten by
+    // the superseded attempt that is still in flight.
+    leaseToken: v.optional(v.string()),
     deliveredAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
