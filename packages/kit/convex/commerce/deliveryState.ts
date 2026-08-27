@@ -154,6 +154,14 @@ export async function claimPendingDeliveriesHandler(
   return claimed;
 }
 
+export type RecordDeliveryResultArgs = {
+  deliveryId: Id<"outboundDeliveries">;
+  ok: boolean;
+  statusCode?: number;
+  error?: string;
+  retryable: boolean;
+};
+
 export const recordDeliveryResult = internalMutation({
   args: {
     deliveryId: v.id("outboundDeliveries"),
@@ -163,7 +171,14 @@ export const recordDeliveryResult = internalMutation({
     retryable: v.boolean(),
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => recordDeliveryResultHandler(ctx, args),
+});
+
+export async function recordDeliveryResultHandler(
+  ctx: MutationCtx,
+  args: RecordDeliveryResultArgs,
+): Promise<null> {
+  {
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery) return null;
     const now = Date.now();
@@ -218,14 +233,22 @@ export const recordDeliveryResult = internalMutation({
       });
     }
     return null;
-  },
-});
+  }
+}
 
 /** Requeue a dead-lettered delivery. Operator action, not automatic. */
 export const replayDelivery = internalMutation({
   args: { deliveryId: v.id("outboundDeliveries") },
   returns: v.boolean(),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => replayDeliveryHandler(ctx, args.deliveryId),
+});
+
+export async function replayDeliveryHandler(
+  ctx: MutationCtx,
+  deliveryId: Id<"outboundDeliveries">,
+): Promise<boolean> {
+  {
+    const args = { deliveryId };
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery || delivery.status !== "failed") return false;
     const now = Date.now();
@@ -237,5 +260,5 @@ export const replayDelivery = internalMutation({
       updatedAt: now,
     });
     return true;
-  },
-});
+  }
+}

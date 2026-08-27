@@ -8,7 +8,12 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 
 import type { Doc, Id } from "../_generated/dataModel";
-import { mutation, query, type QueryCtx } from "../_generated/server";
+import {
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "../_generated/server";
 import { COMMERCE_EVENT_TYPES } from "./contract";
 import { checkDestinationUrl } from "./signing";
 
@@ -71,15 +76,23 @@ function publicView(destination: Doc<"outboundDestinations">) {
 
 export const list = query({
   args: { projectId: v.id("projects") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => listHandler(ctx, args.projectId),
+});
+
+export async function listHandler(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+): Promise<ReturnType<typeof publicView>[]> {
+  {
+    const args = { projectId };
     await assertProjectAdmin(ctx, args.projectId);
     const rows = await ctx.db
       .query("outboundDestinations")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
     return rows.map(publicView);
-  },
-});
+  }
+}
 
 /** Returns the secret exactly once, at creation. It is never readable again. */
 export const create = mutation({
@@ -89,7 +102,21 @@ export const create = mutation({
     description: v.optional(v.string()),
     eventTypes: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => createHandler(ctx, args),
+});
+
+export type CreateDestinationArgs = {
+  projectId: Id<"projects">;
+  url: string;
+  description?: string;
+  eventTypes?: string[];
+};
+
+export async function createHandler(
+  ctx: MutationCtx,
+  args: CreateDestinationArgs,
+): Promise<{ destinationId: Id<"outboundDestinations">; secret: string }> {
+  {
     await assertProjectAdmin(ctx, args.projectId);
     const check = checkDestinationUrl(args.url);
     if (!check.ok) {
@@ -121,8 +148,8 @@ export const create = mutation({
       updatedAt: now,
     });
     return { destinationId, secret };
-  },
-});
+  }
+}
 
 export const update = mutation({
   args: {
@@ -132,7 +159,22 @@ export const update = mutation({
     eventTypes: v.optional(v.array(v.string())),
     description: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => updateHandler(ctx, args),
+});
+
+export type UpdateDestinationArgs = {
+  destinationId: Id<"outboundDestinations">;
+  url?: string;
+  enabled?: boolean;
+  eventTypes?: string[];
+  description?: string;
+};
+
+export async function updateHandler(
+  ctx: MutationCtx,
+  args: UpdateDestinationArgs,
+): Promise<null> {
+  {
     const destination = await ctx.db.get(args.destinationId);
     if (!destination) throw new ConvexError("Destination not found");
     await assertProjectAdmin(ctx, destination.projectId);
@@ -161,13 +203,21 @@ export const update = mutation({
       updatedAt: Date.now(),
     });
     return null;
-  },
-});
+  }
+}
 
 /** Issues a new secret and keeps the old one valid for the grace window. */
 export const rotateSecret = mutation({
   args: { destinationId: v.id("outboundDestinations") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => rotateSecretHandler(ctx, args.destinationId),
+});
+
+export async function rotateSecretHandler(
+  ctx: MutationCtx,
+  destinationId: Id<"outboundDestinations">,
+): Promise<{ secret: string; previousSecretExpiresAt: number }> {
+  {
+    const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
     if (!destination) throw new ConvexError("Destination not found");
     await assertProjectAdmin(ctx, destination.projectId);
@@ -181,12 +231,20 @@ export const rotateSecret = mutation({
       updatedAt: now,
     });
     return { secret, previousSecretExpiresAt: now + ROTATION_GRACE_MS };
-  },
-});
+  }
+}
 
 export const remove = mutation({
   args: { destinationId: v.id("outboundDestinations") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args) => removeHandler(ctx, args.destinationId),
+});
+
+export async function removeHandler(
+  ctx: MutationCtx,
+  destinationId: Id<"outboundDestinations">,
+): Promise<null> {
+  {
+    const args = { destinationId };
     const destination = await ctx.db.get(args.destinationId);
     if (!destination) throw new ConvexError("Destination not found");
     await assertProjectAdmin(ctx, destination.projectId);
@@ -202,5 +260,5 @@ export const remove = mutation({
     for (const delivery of deliveries) await ctx.db.delete(delivery._id);
     await ctx.db.delete(destination._id);
     return null;
-  },
-});
+  }
+}

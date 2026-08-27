@@ -1,0 +1,304 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const authUser = { id: "users_1" as string | null };
+vi.mock("@convex-dev/auth/server", () => ({
+  getAuthUserId: async () => authUser.id,
+}));
+
+const {
+  createHandler,
+  listHandler,
+  updateHandler,
+  rotateSecretHandler,
+  removeHandler,
+} = await import("./destinations");
+
+type Row = Record<string, unknown> & { _id: string; _creationTime: number };
+
+class Query {
+  constructor(private rows: Row[]) {}
+  withIndex(_n: string, cb?: (q: B) => B): Query {
+    if (!cb) return this;
+    const b = new B();
+    cb(b);
+    return new Query(this.rows.filter((r) => b.preds.every((p) => p(r))));
+  }
+  async collect(): Promise<Row[]> {
+    return [...this.rows];
+  }
+  async first(): Promise<Row | null> {
+    return this.rows[0] ?? null;
+  }
+}
+class B {
+  preds: Array<(r: Row) => boolean> = [];
+  eq(f: string, v: unknown): B {
+    this.preds.push((r) => r[f] === v);
+    return this;
+  }
+}
+class Db {
+  tables = new Map<string, Row[]>();
+  private n = 0;
+  rows(t: string): Row[] {
+    if (!this.tables.has(t)) this.tables.set(t, []);
+    return this.tables.get(t)!;
+  }
+  query(t: string) {
+    return new Query(this.rows(t));
+  }
+  async insert(t: string, d: Record<string, unknown>): Promise<string> {
+    this.n += 1;
+    const _id = `${t}_${this.n}`;
+    this.rows(t).push({ ...d, _id, _creationTime: Date.now() });
+    return _id;
+  }
+  async get(id: string): Promise<Row | null> {
+    for (const rows of this.tables.values()) {
+      const hit = rows.find((r) => r._id === id);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  async patch(id: string, p: Record<string, unknown>): Promise<void> {
+    const r = await this.get(id);
+    if (r) Object.assign(r, p);
+  }
+  async delete(id: string): Promise<void> {
+    for (const [t, rows] of this.tables) {
+      const i = rows.findIndex((r) => r._id === id);
+      if (i >= 0) {
+        rows.splice(i, 1);
+        this.tables.set(t, rows);
+        return;
+      }
+    }
+  }
+}
+
+const ctxOf = (db: Db) => ({ db }) as never;
+
+function seedProject(db: Db, role = "admin") {
+  db.rows("projects").push({
+    _id: "projects_1",
+    _creationTime: Date.now(),
+    organizationId: "orgs_1",
+  });
+  db.rows("organizationMembers").push({
+    _id: "members_1",
+    _creationTime: Date.now(),
+    organizationId: "orgs_1",
+    userId: "users_1",
+    role,
+  });
+}
+
+beforeEach(() => {
+  authUser.id = "users_1";
+});
+
+describe("create", () => {
+  it("stores a normalized url and returns the secret once", async () => {
+    const db = new Db();
+    seedProject(db);
+    const result = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://Hooks.Example.com/iapkit",
+    });
+    expect(result.secret.startsWith("whsec_")).toBe(true);
+    const row = db.rows("outboundDestinations")[0];
+    expect(row.url).toBe("https://hooks.example.com/iapkit");
+    expect(row.enabled).toBe(true);
+  });
+
+  it("refuses an unauthenticated caller", async () => {
+    const db = new Db();
+    seedProject(db);
+    authUser.id = null;
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/h",
+      }),
+    ).rejects.toThrow(/Not authenticated/);
+  });
+
+  it("refuses a member-role caller", async () => {
+    const db = new Db();
+    seedProject(db, "member");
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/h",
+      }),
+    ).rejects.toThrow(/Insufficient permissions/);
+  });
+
+  it("refuses an SSRF-shaped url before it is ever stored", async () => {
+    const db = new Db();
+    seedProject(db);
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://169.254.169.254/latest",
+      }),
+    ).rejects.toThrow(/Destination URL rejected/);
+    expect(db.rows("outboundDestinations")).toHaveLength(0);
+  });
+
+  it("refuses an event type outside the published contract", async () => {
+    const db = new Db();
+    seedProject(db);
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/h",
+        eventTypes: ["subscription.not_real"],
+      }),
+    ).rejects.toThrow(/Unknown event types/);
+  });
+
+  it("caps how many destinations a project may register", async () => {
+    const db = new Db();
+    seedProject(db);
+    for (let i = 0; i < 10; i += 1) {
+      await createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: `https://hooks.example.com/h${i}`,
+      });
+    }
+    await expect(
+      createHandler(ctxOf(db), {
+        projectId: "projects_1" as never,
+        url: "https://hooks.example.com/overflow",
+      }),
+    ).rejects.toThrow(/at most/);
+  });
+
+  it("gives each destination a distinct secret", async () => {
+    const db = new Db();
+    seedProject(db);
+    const a = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/a",
+    });
+    const b = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/b",
+    });
+    expect(a.secret).not.toBe(b.secret);
+  });
+});
+
+describe("list", () => {
+  it("never returns the secret or its rotation slot", async () => {
+    const db = new Db();
+    seedProject(db);
+    await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await rotateSecretHandler(
+      ctxOf(db),
+      db.rows("outboundDestinations")[0]._id as never,
+    );
+    const listed = await listHandler(ctxOf(db), "projects_1" as never);
+    expect(JSON.stringify(listed)).not.toContain("whsec_");
+    expect(Object.keys(listed[0])).not.toContain("secret");
+    expect(Object.keys(listed[0])).not.toContain("previousSecret");
+  });
+});
+
+describe("update", () => {
+  it("rejects an unsafe url without mutating the row", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await expect(
+      updateHandler(ctxOf(db), {
+        destinationId,
+        url: "http://10.0.0.1/h",
+      }),
+    ).rejects.toThrow(/Destination URL rejected/);
+    expect((await db.get(destinationId))?.url).toBe(
+      "https://hooks.example.com/h",
+    );
+  });
+
+  it("clears the breaker when a destination is re-enabled", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await db.patch(destinationId, {
+      enabled: false,
+      consecutiveFailures: 20,
+      disabledReason: "auto-disabled after 20 consecutive failures",
+    });
+    await updateHandler(ctxOf(db), { destinationId, enabled: true });
+    const row = await db.get(destinationId);
+    expect(row?.enabled).toBe(true);
+    expect(row?.consecutiveFailures).toBe(0);
+    expect(row?.disabledReason).toBeUndefined();
+  });
+});
+
+describe("rotateSecret", () => {
+  it("keeps the old secret valid for the grace window", async () => {
+    const db = new Db();
+    seedProject(db);
+    const created = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    const rotated = await rotateSecretHandler(ctxOf(db), created.destinationId);
+    const row = await db.get(created.destinationId);
+    expect(rotated.secret).not.toBe(created.secret);
+    expect(row?.secret).toBe(rotated.secret);
+    expect(row?.previousSecret).toBe(created.secret);
+    expect(row?.previousSecretExpiresAt as number).toBeGreaterThan(Date.now());
+  });
+});
+
+describe("remove", () => {
+  it("drops queued deliveries so the worker cannot claim an orphan", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    await db.insert("outboundDeliveries", {
+      projectId: "projects_1",
+      eventId: "commerceEvents_1",
+      destinationId,
+      status: "pending",
+      attempts: 0,
+      nextAttemptAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await removeHandler(ctxOf(db), destinationId);
+    expect(db.rows("outboundDeliveries")).toHaveLength(0);
+    expect(db.rows("outboundDestinations")).toHaveLength(0);
+  });
+
+  it("refuses to remove a destination the caller does not administer", async () => {
+    const db = new Db();
+    seedProject(db);
+    const { destinationId } = await createHandler(ctxOf(db), {
+      projectId: "projects_1" as never,
+      url: "https://hooks.example.com/h",
+    });
+    authUser.id = "users_intruder";
+    await expect(removeHandler(ctxOf(db), destinationId)).rejects.toThrow(
+      /Insufficient permissions/,
+    );
+    expect(db.rows("outboundDestinations")).toHaveLength(1);
+  });
+});

@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import { emitCommerceEvent, destinationAcceptsType } from "./internal";
 import {
   claimPendingDeliveriesHandler,
+  recordDeliveryResultHandler,
+  replayDeliveryHandler,
   type ClaimedDelivery,
 } from "./deliveryState";
+import { MAX_DELIVERY_ATTEMPTS } from "./signing";
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 
@@ -356,5 +359,179 @@ describe("claimPendingDeliveries", () => {
     });
     const [live] = await claimPendingDeliveriesHandler(ctxOf(db), 10);
     expect(live.previousSecret).toBe("old");
+  });
+});
+
+describe("recordDeliveryResult", () => {
+  async function seedClaimed(db: Db, attempts = 0) {
+    const destinationId = await seedDestination(db, {
+      consecutiveFailures: 0,
+    });
+    const eventId = await db.insert("commerceEvents", {
+      projectId: "projects_1",
+      eventType: "subscription.renewed",
+      eventVersion: "1.0",
+      store: "apple",
+      environment: "production",
+      occurredAt: 1,
+      processedAt: 1,
+    });
+    const deliveryId = await db.insert("outboundDeliveries", {
+      projectId: "projects_1",
+      eventId,
+      destinationId,
+      status: "delivering",
+      attempts,
+      nextAttemptAt: Date.now(),
+      leaseExpiresAt: Date.now() + 60_000,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return { deliveryId, destinationId };
+  }
+
+  it("marks a 2xx as delivered and clears the destination failure streak", async () => {
+    const db = new Db();
+    const { deliveryId, destinationId } = await seedClaimed(db);
+    await db.patch(destinationId, { consecutiveFailures: 5 });
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: true,
+      statusCode: 200,
+      retryable: false,
+    });
+    const delivery = await db.get(deliveryId);
+    expect(delivery?.status).toBe("delivered");
+    expect(delivery?.attempts).toBe(1);
+    expect(delivery?.leaseExpiresAt).toBeUndefined();
+    const destination = await db.get(destinationId);
+    expect(destination?.consecutiveFailures).toBe(0);
+    expect(destination?.lastSuccessAt).toBeDefined();
+  });
+
+  it("requeues a retryable failure with a later attempt time", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db);
+    const before = Date.now();
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: false,
+      statusCode: 503,
+      retryable: true,
+    });
+    const delivery = await db.get(deliveryId);
+    expect(delivery?.status).toBe("pending");
+    expect(delivery?.nextAttemptAt as number).toBeGreaterThan(before);
+  });
+
+  it("dead-letters a permanent failure immediately", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db);
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: false,
+      statusCode: 400,
+      retryable: false,
+    });
+    expect((await db.get(deliveryId))?.status).toBe("failed");
+  });
+
+  it("dead-letters once the attempt budget is exhausted", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db, MAX_DELIVERY_ATTEMPTS - 1);
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: false,
+      statusCode: 500,
+      retryable: true,
+    });
+    const delivery = await db.get(deliveryId);
+    expect(delivery?.attempts).toBe(MAX_DELIVERY_ATTEMPTS);
+    expect(delivery?.status).toBe("failed");
+  });
+
+  it("truncates a long error so one bad response cannot bloat the row", async () => {
+    const db = new Db();
+    const { deliveryId } = await seedClaimed(db);
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: false,
+      error: "x".repeat(2000),
+      retryable: true,
+    });
+    expect((await db.get(deliveryId))?.lastError as string).toHaveLength(500);
+  });
+
+  it("trips the breaker and disables the destination after repeated failures", async () => {
+    const db = new Db();
+    const { deliveryId, destinationId } = await seedClaimed(db);
+    await db.patch(destinationId, { consecutiveFailures: 19 });
+    await recordDeliveryResultHandler(ctxOf(db), {
+      deliveryId: deliveryId as never,
+      ok: false,
+      statusCode: 500,
+      retryable: true,
+    });
+    const destination = await db.get(destinationId);
+    expect(destination?.enabled).toBe(false);
+    expect(destination?.disabledReason as string).toContain("auto-disabled");
+  });
+
+  it("is a no-op for a delivery that no longer exists", async () => {
+    const db = new Db();
+    await expect(
+      recordDeliveryResultHandler(ctxOf(db), {
+        deliveryId: "outboundDeliveries_missing" as never,
+        ok: true,
+        retryable: false,
+      }),
+    ).resolves.toBeNull();
+  });
+});
+
+describe("replayDelivery", () => {
+  async function seedFailed(db: Db) {
+    const destinationId = await seedDestination(db);
+    const eventId = await db.insert("commerceEvents", {
+      projectId: "projects_1",
+      eventType: "subscription.renewed",
+      eventVersion: "1.0",
+      store: "apple",
+      environment: "production",
+      occurredAt: 1,
+      processedAt: 1,
+    });
+    return db.insert("outboundDeliveries", {
+      projectId: "projects_1",
+      eventId,
+      destinationId,
+      status: "failed",
+      attempts: MAX_DELIVERY_ATTEMPTS,
+      nextAttemptAt: Date.now(),
+      lastError: "boom",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+
+  it("requeues a dead-lettered delivery with a fresh attempt budget", async () => {
+    const db = new Db();
+    const deliveryId = await seedFailed(db);
+    expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
+      true,
+    );
+    const delivery = await db.get(deliveryId);
+    expect(delivery?.status).toBe("pending");
+    expect(delivery?.attempts).toBe(0);
+    expect(delivery?.lastError).toBeUndefined();
+  });
+
+  it("refuses to replay a delivery that is not dead-lettered", async () => {
+    const db = new Db();
+    const deliveryId = await seedFailed(db);
+    await db.patch(deliveryId, { status: "delivered" });
+    expect(await replayDeliveryHandler(ctxOf(db), deliveryId as never)).toBe(
+      false,
+    );
   });
 });
