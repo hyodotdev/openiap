@@ -15,7 +15,12 @@ const WORKFLOWS = ".github/workflows/*.{yml,yaml}";
 export const FACTS = Object.freeze([
   {
     key: "toolchain.xcode",
-    values: { pinned: "26.6" },
+    values: {
+      pinned: "26.6",
+      swift61Boundary: "16.3",
+      swift62Boundary: "26.0.1",
+      swift631Boundary: "26.4.1",
+    },
     scanners: [
       {
         files: [WORKFLOWS],
@@ -25,7 +30,7 @@ export const FACTS = Object.freeze([
   },
   {
     key: "runner.macos-image",
-    values: { hosted: "macos-26" },
+    values: { hosted: "macos-26", swift61Boundary: "macos-15" },
     scanners: [{ files: [WORKFLOWS], pattern: /\b(macos-\d+)\b/g }],
   },
   {

@@ -1161,7 +1161,7 @@ private extension StoreKitTypesBridge {
     }
 
     static func revocationTypeIOS(from transaction: StoreKit.Transaction) -> String? {
-        #if compiler(>=6.4)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return transaction.revocationType?.rawValue
         }
