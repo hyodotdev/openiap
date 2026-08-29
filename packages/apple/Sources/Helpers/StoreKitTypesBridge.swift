@@ -418,10 +418,9 @@ enum StoreKitTypesBridge {
 
         // Subscription-only options (only available on RequestSubscriptionIosProps)
         if let subscriptionProps = props as? RequestSubscriptionIosProps {
-            // Billing plan selection is available at runtime on iOS 26.4+, but
-            // compiling the StoreKit API requires the Xcode 26.5 SDK.
+            // Xcode 26.5 (Swift 6.3.2) is the first SDK with billing plan symbols.
             if let billingPlanType = subscriptionProps.billingPlanType {
-                #if compiler(>=6.3)
+                #if compiler(>=6.3.2)
                 if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
                     switch billingPlanType {
                     case .monthly:
@@ -446,7 +445,7 @@ enum StoreKitTypesBridge {
                 throw PurchaseError.make(
                     code: .featureNotSupported,
                     productId: props.sku,
-                    message: "billingPlanType requires Xcode 26.5+ / Swift 6.3 compiler+."
+                    message: "billingPlanType requires Xcode 26.5+ / Swift 6.3.2 compiler+."
                 )
                 #endif
             }
@@ -706,7 +705,7 @@ enum StoreKitTypesBridge {
     }
 
     static func renewalCommitmentInfoIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> RenewalCommitmentInfoIOS? {
-        #if compiler(>=6.3)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             guard let commitment = info.commitmentInfo else { return nil }
             return RenewalCommitmentInfoIOS(
@@ -730,7 +729,7 @@ enum StoreKitTypesBridge {
     }
 
     static func renewalBillingPlanTypeIOS(from info: StoreKit.Product.SubscriptionInfo.RenewalInfo) -> SubscriptionBillingPlanTypeIOS? {
-        #if compiler(>=6.3)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return info.renewalBillingPlanType.map { billingPlanTypeIOS(from: $0) }
         }
@@ -801,7 +800,7 @@ private extension StoreKitTypesBridge {
 
     static func makeSubscriptionPricingTerms(from info: StoreKit.Product.SubscriptionInfo?) -> [SubscriptionPricingTermsIOS]? {
         guard let info else { return nil }
-        #if compiler(>=6.3)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             let terms = info.pricingTerms.map { makeSubscriptionPricingTerm(from: $0) }
             return terms.isEmpty ? nil : terms
@@ -834,7 +833,7 @@ private extension StoreKitTypesBridge {
         return nil
     }
 
-    #if compiler(>=6.3)
+    #if compiler(>=6.3.2)
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func makeSubscriptionPricingTerm(from terms: StoreKit.Product.SubscriptionInfo.PricingTerms) -> SubscriptionPricingTermsIOS {
         let offers = terms.subscriptionOffers.compactMap { offer in
@@ -863,7 +862,7 @@ private extension StoreKitTypesBridge {
     }
     #endif
 
-    #if compiler(>=6.3)
+    #if compiler(>=6.3.2)
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func billingPlanTypeIOS(from type: StoreKit.Product.SubscriptionInfo.BillingPlanType) -> SubscriptionBillingPlanTypeIOS {
         if type == .monthly {
@@ -877,7 +876,7 @@ private extension StoreKitTypesBridge {
     #endif
 
     static func billingPlanTypeIOS(from transaction: StoreKit.Transaction) -> SubscriptionBillingPlanTypeIOS? {
-        #if compiler(>=6.3)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return transaction.billingPlanType.map { billingPlanTypeIOS(from: $0) }
         }
@@ -886,7 +885,7 @@ private extension StoreKitTypesBridge {
     }
 
     static func transactionCommitmentInfoIOS(from transaction: StoreKit.Transaction) -> TransactionCommitmentInfoIOS? {
-        #if compiler(>=6.3)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             guard let commitment = transaction.commitmentInfo else { return nil }
             return TransactionCommitmentInfoIOS(
@@ -1162,7 +1161,7 @@ private extension StoreKitTypesBridge {
     }
 
     static func revocationTypeIOS(from transaction: StoreKit.Transaction) -> String? {
-        #if compiler(>=6.4)
+        #if compiler(>=6.3.2)
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             return transaction.revocationType?.rawValue
         }

@@ -454,6 +454,36 @@ jobs:
         working-directory: packages/apple
         run: swift test
 
+  test-ios-compiler-boundaries:
+    name: Build iOS guard boundary (Xcode ${{ matrix.xcode-version }})
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            xcode-version: "16.3"
+          - runner: macos-26
+            xcode-version: "26.0.1"
+          - runner: macos-26
+            xcode-version: "26.4.1"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: ${{ matrix.xcode-version }}
+
+      - name: Build in Swift 5 language mode
+        working-directory: packages/apple
+        run: swift build -Xswiftc -swift-version -Xswiftc 5
+
   test-docs:
     name: Test Docs
     runs-on: ubuntu-latest

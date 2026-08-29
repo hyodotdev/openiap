@@ -17,16 +17,15 @@ test("the committed tree passes", () => {
 });
 
 test("catches a runner image left behind on a bump", () => {
-  // The exact drift shipped in release-godot.yml until 2026-08-20.
   const failures = auditFacts(
     overlaying(".github/workflows/release-godot.yml", (text) =>
-      text.replace("runs-on: macos-26", "runs-on: macos-15"),
+      text.replace("runs-on: macos-26", "runs-on: macos-14"),
     ),
   );
   assert.equal(failures.length, 1);
   assert.match(
     failures[0],
-    /runner\.macos-image: .*release-godot.*"macos-15"/u,
+    /runner\.macos-image: .*release-godot.*"macos-14"/u,
   );
 });
 
