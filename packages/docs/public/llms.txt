@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-29T00:46:54.192Z
+> Generated: 2026-08-29T02:15:44.201Z
 
 ## Installation
 
@@ -36,7 +36,7 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 3.4.0 to addons/godot-iap and enable the plugin
+# Install godot-iap 3.4.1 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
