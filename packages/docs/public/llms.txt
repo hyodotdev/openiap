@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-27T15:05:38.535Z
+> Generated: 2026-08-29T00:46:54.192Z
 
 ## Installation
 
@@ -19,7 +19,7 @@ npm install react-native-iap
 ### Native
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "3.3.0")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "3.3.1")
 ```
 
 ```kotlin
