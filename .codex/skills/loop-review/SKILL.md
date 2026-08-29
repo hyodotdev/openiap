@@ -1,13 +1,13 @@
 ---
 name: loop-review
-description: "Run OpenIAP's complete change-to-merge loop from the latest origin/main: create a semantic branch, implement and verify the requested change, run review-self until stable, commit and open a PR, poll CodeRabbit and CI every five minutes, fix and reverify findings, and merge only when the exact head is clean. Use when the user invokes $loop-review or explicitly asks for the recurring review-self, commit --pr, review-pr until clean, then merge workflow."
+description: "Run OpenIAP's complete change-to-production loop from the latest origin/main: implement and verify, stabilize with review-self, open and review a PR until its exact head is clean, merge, return to an exact clean main, release affected stable packages sequentially, publish the consolidated release note, and deploy production docs."
 ---
 
 # Loop Review
 
-Own one OpenIAP change from a fresh `main` baseline through a verified merge.
-Use the repository workflows as SSOT instead of duplicating their detailed
-commands.
+Own one OpenIAP change from a fresh `main` baseline through verified production
+delivery. Use the repository workflows as SSOT instead of duplicating their
+detailed commands.
 
 ## Load The Workflows
 
@@ -16,14 +16,20 @@ Read these before acting:
 - `AGENTS.md`
 - `.codex/skills/openiap-workflows/SKILL.md`
 - `.codex/skills/review-self/SKILL.md`
+- `.codex/skills/ship-release/SKILL.md`
+- `.codex/skills/generate-doc/SKILL.md`
 - `.claude/commands/commit.md`
 - `.claude/commands/review-pr.md`
+- `.claude/commands/release.md`
 
 Load package conventions and specialized skills required by the changed paths.
 An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
-thread resolution, and merge. It does not authorize deployment, publication,
-release, or unrelated cleanup.
+thread resolution, merge, affected stable package releases, release-note and
+workflow-documentation commits directly to `main`, production docs deployment,
+and a Docs release when the spec version advances. It does not authorize
+prereleases, unrelated cleanup, destructive recovery, or product-code commits
+directly to `main`.
 
 ## 1. Start From Current Main
 
@@ -31,7 +37,7 @@ Before editing task files:
 
 1. Snapshot `git status --short --branch`. Preserve every existing change.
 2. For a new task, require a clean worktree, then run `git fetch origin`, switch
-   to `main`, and run `git pull --ff-only origin main`.
+   to `main`, and run `git pull --ff-only --no-tags origin main`.
 3. Verify local `main` equals `origin/main`, then create a semantic branch named
    according to `.claude/commands/commit.md`.
 4. Record the starting main SHA. The implementation diff must descend from that
@@ -152,10 +158,46 @@ After merge:
 1. Confirm the PR state is `MERGED` and record the merge commit.
 2. Remove temporary review-trigger and terminal-unavailability comments as
    required by `review-pr`.
-3. Switch to `main` and fast-forward from `origin/main` only when doing so cannot
-   disturb other work.
-4. Report the PR, merge commit, final checks, review coverage, and any skipped
-   item. Do not deploy or release unless separately requested.
+3. Confirm the remote topic branch was deleted; if merge cleanup missed it,
+   delete only that exact merged PR branch. Delete the local topic branch after
+   proving its tip is merged or its tree is represented by the recorded squash
+   merge. A squash merge may require `git branch -D` after that proof; never use
+   it for an unverified branch or discard unrelated work.
+4. Switch to `main`, fetch `origin/main`, and run
+   `git pull --ff-only --no-tags origin main` only when doing so cannot disturb
+   other work.
+5. Verify `HEAD` equals `origin/main` and the worktree is clean before any
+   release action.
+
+## 8. Ship The Verified Change
+
+Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
+
+1. Determine the affected stable packages from the merged diff. Skip unchanged
+   packages and never infer a framework version from `openiap-versions.json`.
+2. Release affected packages and libraries one at a time in dependency order.
+   Before each release, require an exact clean `main`; after each release-bot
+   commit, fast-forward `main` again. Do not start the next release until the
+   GitHub Release and public registry or downloadable artifact are verified.
+3. Use `$generate-doc` to add one consolidated release note with the exact
+   published versions and GitHub Release links. Update the existing unreleased
+   train instead of creating a duplicate when one exists.
+4. Run `$review-self` over the complete docs and workflow diff until two
+   consecutive five-minute snapshots are clean. Any edit resets the count.
+5. Commit and push the reviewed release note and process-documentation changes
+   directly to `main`. If review finds a product-code fix, return it to the PR
+   loop instead of committing that fix directly to `main`.
+6. From a clean local `main` equal to `origin/main`, run `npm run deploy`, then
+   verify the production release page and generated documentation assets.
+7. If the native spec floor advanced, dispatch `.github/workflows/release.yml`
+   with `version=current` only after production docs verification, and verify
+   the resulting `docs-<spec-version>` GitHub Release.
+8. Finish on `main`, fast-forward once more if a release workflow changed it,
+   and verify `HEAD == origin/main` with a clean worktree.
+
+Report the PR, merge commit, final checks, review coverage, released and skipped
+packages, public registry evidence, docs commit and deployment, Docs release,
+and any remaining manual follow-up.
 
 ## Stop Conditions
 
@@ -164,3 +206,8 @@ survives two fix attempts, an access blocker repeats under the source workflow's
 threshold, the change requires device regression that has not been run, or the
 exact head cannot satisfy the clean gate. Report the concrete blocker; never
 describe a pending or partially reviewed PR as clean.
+
+After merge, stop the shipping phase when an affected release fails, its public
+artifact cannot be verified, production docs cannot be verified, or continuing
+would require a code change outside the reviewed PR. Preserve every successful
+release and report the exact resume point.

@@ -30,6 +30,17 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const storeKitToolchainReleases = [
+  ['OpenIAP Spec 3.3.1', 'docs-3.3.1'],
+  ['openiap-apple 3.3.1', '3.3.1'],
+  ['react-native-iap 16.4.1', 'react-native-iap-16.4.1'],
+  ['expo-iap 5.4.1', 'expo-iap-5.4.1'],
+  ['flutter_inapp_purchase 10.4.1', 'flutter-iap-10.4.1'],
+  ['godot-iap 3.4.1', 'godot-iap-3.4.1'],
+  ['kmp-iap 3.4.1', 'kmp-iap-3.4.1'],
+  ['OpenIap.Maui 2.4.1', 'maui-iap-2.4.1'],
+] as const;
+
 const unifiedOfferCodeReleases = [
   ['OpenIAP Spec 3.3.0', 'docs-3.3.0'],
   ['openiap-apple 3.3.0', '3.3.0'],
@@ -279,6 +290,128 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 29, 2026 - StoreKit toolchain compatibility
+    {
+      id: 'storekit-toolchain-compatibility-2026-08-29',
+      date: new Date('2026-08-29'),
+      element: (
+        <div
+          key="storekit-toolchain-compatibility-2026-08-29"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="storekit-toolchain-compatibility-2026-08-29"
+            level="h4"
+          >
+            August 29, 2026 - StoreKit toolchain compatibility
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Xcode 26.4 builds no longer reference StoreKit symbols introduced in
+            the Xcode 26.5 SDK. Purchase APIs and runtime behavior are unchanged
+            (
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/386"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              issue #386
+            </a>
+            ;{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/387"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #387
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Apple package</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 3.3.1</strong> - gates billing-plan,
+              commitment, pricing-term, and revocation symbols on Swift 6.3.2,
+              the compiler bundled with Xcode 26.5. The Xcode 26.4-compatible
+              JWS promotional-offer path remains available.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                react-native-iap 16.4.1, expo-iap 5.4.1, flutter_inapp_purchase
+                10.4.1, godot-iap 3.4.1, kmp-iap 3.4.1, and OpenIap.Maui 2.4.1
+              </strong>{' '}
+              - select or bundle openiap-apple 3.3.1 so each Apple integration
+              receives the corrected compiler guards.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Upgrade notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Upgrade the affected framework package when building with Xcode
+              26.4. No application code changes are required.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {storeKitToolchainReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 27, 2026 - Unified offer code redemption
     {
       id: 'unified-offer-code-redemption-2026-08-27',
