@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.4.1 (2026-08-29)
+
+- chore(release): openiap-apple@3.3.1
+- fix(apple): gate storekit 26.5 symbols (#387)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.4.0 (2026-08-26)
 
 - chore(release): openiap-google@3.4.0
