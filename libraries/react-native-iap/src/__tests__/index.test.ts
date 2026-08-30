@@ -3685,8 +3685,8 @@ describe('Public API (src/index.ts)', () => {
       replaceNativeMethod('initConnection', jest.fn().mockResolvedValue(true));
       expect(IAP.isNitroReady()).toBe(true);
       (Platform as any).OS = 'android';
-      const staleListener = jest.fn();
-      IAP.purchaseUpdatedListener(staleListener);
+      const existingListener = jest.fn();
+      IAP.purchaseUpdatedListener(existingListener);
       replaceNativeMethod(
         'endConnection',
         jest.fn().mockRejectedValueOnce(new Error('end failed')),
@@ -3698,9 +3698,9 @@ describe('Public API (src/index.ts)', () => {
       await IAP.initConnection();
       const currentListener = jest.fn();
       IAP.purchaseUpdatedListener(currentListener);
-      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
 
-      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[1][0];
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
       nativeHandler({
         id: 't1',
         transactionId: 't1',
@@ -3711,7 +3711,7 @@ describe('Public API (src/index.ts)', () => {
         purchaseState: 'purchased',
         isAutoRenewing: false,
       });
-      expect(staleListener).not.toHaveBeenCalled();
+      expect(existingListener).toHaveBeenCalledTimes(1);
       expect(currentListener).toHaveBeenCalledTimes(1);
     });
 

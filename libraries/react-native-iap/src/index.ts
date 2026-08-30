@@ -1626,8 +1626,9 @@ export const initConnection: MutationField<'initConnection'> = async (
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
-    if (!iapRef) return true;
-    return await IAP.instance.endConnection();
+    const result = iapRef ? await IAP.instance.endConnection() : true;
+    resetListenerState();
+    return result;
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to end IAP connection:',
@@ -1639,8 +1640,6 @@ export const endConnection: MutationField<'endConnection'> = async () => {
       responseCode: parsedError.responseCode,
       debugMessage: parsedError.debugMessage,
     });
-  } finally {
-    resetListenerState();
   }
 };
 
