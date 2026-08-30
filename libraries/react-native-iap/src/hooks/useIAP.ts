@@ -657,7 +657,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
     if (
       Platform.OS === 'android' &&
-      optionsRef.current?.onUserChoiceBillingAndroid &&
       !subscriptionsRef.current.userChoiceBillingAndroid
     ) {
       subscriptionsRef.current.userChoiceBillingAndroid =
@@ -670,7 +669,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
     if (
       Platform.OS === 'android' &&
-      optionsRef.current?.onDeveloperProvidedBillingAndroid &&
       !subscriptionsRef.current.developerProvidedBillingAndroid
     ) {
       subscriptionsRef.current.developerProvidedBillingAndroid =

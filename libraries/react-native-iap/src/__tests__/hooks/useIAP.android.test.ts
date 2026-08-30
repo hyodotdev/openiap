@@ -25,6 +25,10 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
+  addUserChoiceBillingListenerAndroid: jest.fn(),
+  removeUserChoiceBillingListenerAndroid: jest.fn(),
+  addDeveloperProvidedBillingListenerAndroid: jest.fn(),
+  removeDeveloperProvidedBillingListenerAndroid: jest.fn(),
   openRedeemOfferCodeAndroid: jest.fn(async () => true),
 };
 
@@ -163,6 +167,65 @@ describe('hooks/useIAP Android', () => {
     };
     listener?.(details);
 
+    expect(onDeveloperProvidedBillingAndroid).toHaveBeenCalledWith(details);
+  });
+
+  it('forwards alternative billing events to callbacks added after mount', async () => {
+    let userChoiceListener:
+      | Parameters<typeof IAP.userChoiceBillingListenerAndroid>[0]
+      | undefined;
+    let developerProvidedListener:
+      | Parameters<typeof IAP.developerProvidedBillingListenerAndroid>[0]
+      | undefined;
+    jest
+      .spyOn(IAP, 'userChoiceBillingListenerAndroid')
+      .mockImplementation((callback) => {
+        userChoiceListener = callback;
+        return {remove: jest.fn()};
+      });
+    jest
+      .spyOn(IAP, 'developerProvidedBillingListenerAndroid')
+      .mockImplementation((callback) => {
+        developerProvidedListener = callback;
+        return {remove: jest.fn()};
+      });
+
+    const onUserChoiceBillingAndroid = jest.fn();
+    const onDeveloperProvidedBillingAndroid = jest.fn();
+    let callbacks: Parameters<typeof useIAP>[0];
+    const Harness = () => {
+      useIAP(callbacks);
+      return null;
+    };
+
+    let root: Root;
+    await act(async () => {
+      root = TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    callbacks = {
+      onUserChoiceBillingAndroid,
+      onDeveloperProvidedBillingAndroid,
+    };
+    await act(async () => {
+      root.render(React.createElement(Harness));
+    });
+
+    const details: DeveloperProvidedBillingDetailsAndroid = {
+      externalTransactionToken: 'external-token',
+      products: [{id: 'premium', type: 'in-app'}],
+    };
+    userChoiceListener?.({
+      externalTransactionToken: 'choice-token',
+      products: ['premium'],
+    });
+    developerProvidedListener?.(details);
+
+    expect(onUserChoiceBillingAndroid).toHaveBeenCalledWith({
+      externalTransactionToken: 'choice-token',
+      products: ['premium'],
+    });
     expect(onDeveloperProvidedBillingAndroid).toHaveBeenCalledWith(details);
   });
 
