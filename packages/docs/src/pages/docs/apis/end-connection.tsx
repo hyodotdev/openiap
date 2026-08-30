@@ -11,14 +11,16 @@ function EndConnection() {
     <div className="doc-page">
       <SEO
         title="endConnection"
-        description="End the OpenIAP connection to the store service. Call when your app closes or the IAP component unmounts."
+        description="End the OpenIAP connection to the store service when the app-wide IAP session is no longer needed."
         path="/docs/apis/end-connection"
         keywords="endConnection, OpenIAP cleanup, billing client close"
       />
       <h1>endConnection</h1>
       <p>
-        End connection to the store service. Call this when your app closes or
-        the IAP component unmounts to clean up resources.
+        End connection to the store service. Call this when the owner of a
+        manually managed connection unmounts or when the app-wide IAP session is
+        no longer needed. Hook cleanup differs by framework; see the example
+        below.
       </p>
       <p>
         <strong>iOS:</strong> Cancels the StoreKit{' '}
