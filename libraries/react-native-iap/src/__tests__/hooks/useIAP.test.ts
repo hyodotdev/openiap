@@ -596,12 +596,17 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
-      // Call fetchProducts which should trigger onError
+      let thrown: unknown;
       await act(async () => {
-        await api.fetchProducts({skus: ['product1']});
+        try {
+          await api.fetchProducts({skus: ['product1']});
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(fetchError);
+      expect(thrown).toBe(fetchError);
     });
 
     it('calls onError when getAvailablePurchases fails', async () => {
@@ -845,12 +850,18 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        await api.fetchProducts({skus: ['product1']});
+        try {
+          await api.fetchProducts({skus: ['product1']});
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(expect.any(Error));
       expect(onError.mock.calls[0][0].message).toBe(stringError);
+      expect(thrown).toBe(stringError);
     });
 
     it('calls onError when initConnection fails', async () => {
