@@ -310,9 +310,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/end-connection">https://openiap.dev/docs/apis/end-connection</a>
      */
     val endConnection: MutationEndConnectionHandler = {
-        detachPurchaseListeners()
         try {
             val ok = module.endConnection()
+            detachPurchaseListeners()
             _isConnected.value = false
             pendingRequestProductId = null
             ok

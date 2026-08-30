@@ -21,6 +21,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -86,6 +87,32 @@ class OpenIapStoreConnectionLifecycleTest {
             Dispatchers.resetMain()
         }
     }
+
+    @Test
+    fun `failed disconnect keeps connection listeners`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+
+        try {
+            assertTrue(store.initConnection())
+            module.endConnectionError = IllegalStateException("disconnect failed")
+
+            try {
+                store.endConnection()
+                fail("Expected endConnection to throw")
+            } catch (error: IllegalStateException) {
+                assertEquals("disconnect failed", error.message)
+            }
+
+            assertTrue(store.isConnected.value)
+            assertEquals(1, module.purchaseUpdateListeners.size)
+            assertEquals(1, module.purchaseErrorListeners.size)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
 }
 
 private class FakeOpenIapProtocol {
@@ -94,9 +121,13 @@ private class FakeOpenIapProtocol {
     var availablePurchases: List<Purchase> = emptyList()
     var availablePurchaseRequests = 0
     var connectionResult = true
+    var endConnectionError: Exception? = null
 
     private val initConnection: MutationInitConnectionHandler = { connectionResult }
-    private val endConnection: MutationEndConnectionHandler = { true }
+    private val endConnection: MutationEndConnectionHandler = {
+        endConnectionError?.let { throw it }
+        true
+    }
     private val getAvailablePurchases: QueryGetAvailablePurchasesHandler = {
         availablePurchaseRequests += 1
         availablePurchases
