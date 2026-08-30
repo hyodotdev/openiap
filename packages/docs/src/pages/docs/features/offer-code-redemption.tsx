@@ -146,7 +146,8 @@ export async function redeemCode() {
 
 export async function stopIap() {
   subscription?.remove();
-  await endConnection();
+  const ended = await endConnection();
+  if (!ended) console.warn('Store teardown did not complete');
 }`}</CodeBlock>
                     ),
                     swift: (
@@ -173,7 +174,11 @@ final class RedemptionManager {
     }
 
     func stop() async {
-        try? await iapStore.endConnection()
+        do {
+            try await iapStore.endConnection()
+        } catch {
+            print("Store teardown failed: \(error.localizedDescription)")
+        }
     }
 }`}</CodeBlock>
                     ),
@@ -206,7 +211,8 @@ class RedemptionManager(private val scope: CoroutineScope) {
 
     suspend fun stop() {
         purchaseJob?.cancel()
-        iap.endConnection()
+        val ended = iap.endConnection()
+        if (!ended) println("Store teardown did not complete")
     }
 }`}</CodeBlock>
                     ),
@@ -230,7 +236,8 @@ class RedemptionManager {
 
   Future<void> stop() async {
     await subscription?.cancel();
-    await iap.endConnection();
+    final ended = await iap.endConnection();
+    if (!ended) print('Store teardown did not complete');
   }
 }`}</CodeBlock>
                     ),
@@ -258,7 +265,8 @@ public sealed class RedemptionManager : IDisposable
     {
         _purchaseSubscription?.Dispose();
         _purchaseSubscription = null;
-        await ((MutationResolver)_iap).EndConnectionAsync();
+        var ended = await ((MutationResolver)_iap).EndConnectionAsync();
+        if (!ended) Console.WriteLine("Store teardown did not complete");
     }
 
     public void Dispose() => _purchaseSubscription?.Dispose();
@@ -279,7 +287,9 @@ func redeem_code() -> Variant:
     return await GodotIapPlugin.open_redeem_offer_code()
 
 func _exit_tree() -> void:
-    await GodotIapPlugin.end_connection()`}</CodeBlock>
+    var ended = await GodotIapPlugin.end_connection()
+    if not ended:
+        push_warning("Store teardown did not complete")`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>

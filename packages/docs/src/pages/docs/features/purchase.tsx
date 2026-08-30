@@ -425,7 +425,9 @@ func _on_purchase_error(error: PurchaseError) -> void:
     handle_purchase_error(error)
 
 func _exit_tree() -> void:
-    await iap.end_connection()`}</CodeBlock>
+    var ended = await iap.end_connection()
+    if not ended:
+        push_warning("Store teardown did not complete")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>
@@ -2162,7 +2164,9 @@ func _on_purchase_error(error: PurchaseError) -> void:
     is_processing = false
 
 func _exit_tree() -> void:
-    await iap.end_connection()`}</CodeBlock>
+    var ended = await iap.end_connection()
+    if not ended:
+        push_warning("Store teardown did not complete")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

@@ -240,8 +240,9 @@ raw imports outside `packages/docs`.
 Fenced `CodeBlock` examples under active documentation must not reintroduce
 known cross-language mistakes such as Kotlin syntax in C#, obsolete Flutter
 listener names, legacy purchase request shapes, top-level Godot SKUs, obsolete
-Kotlin/KMP named arguments, unchecked connection results, or asynchronous
-listener callbacks whose returned promise, future, or task is not observed.
+Kotlin/KMP named arguments, unchecked connection or teardown results, or
+asynchronous listener callbacks whose returned promise, future, or task is not
+observed.
 Historical release notes are excluded because they describe APIs as shipped at
 that time.
 

@@ -338,6 +338,43 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
   },
   {
     language: "typescript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*endConnection\s*\(/m,
+    message:
+      "TypeScript examples must check the boolean returned by `endConnection` before treating teardown as complete.",
+  },
+  {
+    language: "swift",
+    pattern:
+      /(?:^|\n)\s*(?:try[!?]?\s+)?await\s+OpenIapModule\.shared\.endConnection\s*\(/m,
+    message:
+      "Swift module examples must check the boolean returned by `endConnection` before treating teardown as complete.",
+  },
+  {
+    language: "dart",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)+endConnection\s*\(/m,
+    message:
+      "Flutter examples must check the boolean returned by `endConnection` before treating teardown as complete.",
+  },
+  {
+    language: "kotlin",
+    pattern: /(?:^|\n)\s*(?:[A-Za-z_]\w*\.)+endConnection\s*\(/m,
+    message:
+      "Kotlin and KMP examples must check the boolean returned by `endConnection` before treating teardown as complete.",
+  },
+  {
+    language: "csharp",
+    pattern: /(?:^|\n)\s*await\s+[^;\n]*\.EndConnectionAsync\s*\(/m,
+    message:
+      "MAUI examples must check the boolean returned by `EndConnectionAsync` before treating teardown as complete.",
+  },
+  {
+    language: "gdscript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_]\w*\.)*end_connection\s*\(/m,
+    message:
+      "Godot examples must check the boolean returned by `end_connection` before treating teardown as complete.",
+  },
+  {
+    language: "typescript",
     pattern:
       /\b(?:purchaseUpdatedListener|purchaseErrorListener|userChoiceBillingListenerAndroid|developerProvidedBillingListenerAndroid|subscriptionBillingIssueListener)\s*\(\s*async\b/,
     message:

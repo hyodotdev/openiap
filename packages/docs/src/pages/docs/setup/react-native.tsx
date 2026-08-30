@@ -409,7 +409,8 @@ await requestPurchase({
 // Cleanup on unmount
 purchaseSub.remove();
 errorSub.remove();
-await endConnection();`}
+const ended = await endConnection();
+if (!ended) console.warn('Store teardown did not complete');`}
         </CodeBlock>
         <p>
           Each call here has a full reference — see{' '}
