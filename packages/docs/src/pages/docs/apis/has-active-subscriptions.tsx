@@ -85,9 +85,10 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <Link to="/docs/apis/init-connection">
             <code>initConnection()</code>
           </Link>{' '}
-          first. On Android this call fails with <code>not-prepared</code>{' '}
-          without it; iOS connects on demand. Gate on the <code>connected</code>{' '}
-          flag so the same code works on both.
+          first. This helper reports <code>false</code> for any failure, so
+          without a connection a premium gate silently locks the user out
+          instead of reporting a problem. Gate on the <code>connected</code>{' '}
+          flag rather than relying on the return value alone.
         </p>
       </Callout>
 

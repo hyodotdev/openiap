@@ -776,50 +776,52 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("subscriptionIds" to (subscriptionIds?.toList() ?: "all"))
             )
 
-            catchNonCancellation(
-                block = {
-                    RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
-                    val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
+            try {
+                RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
+                val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
 
-                    val nitroSubscriptions = activeSubscriptions.map { sub ->
-                        NitroActiveSubscription(
-                            productId = sub.productId,
-                            isActive = sub.isActive,
-                            transactionId = sub.transactionId,
-                            purchaseToken = sub.purchaseToken.wrapVariant(),
-                            transactionDate = sub.transactionDate,
-                            // Android specific fields
-                            autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
-                            basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
-                            currentPlanId = sub.currentPlanId.wrapVariant(),
-                            purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
-                            // iOS specific fields (null on Android)
-                            expirationDateIOS = null,
-                            environmentIOS = null,
-                            daysUntilExpirationIOS = null,
-                            renewalInfoIOS = null
-                        )
-                    }
-
-                    RnIapLog.result(
-                        "getActiveSubscriptions",
-                        nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
+                val nitroSubscriptions = activeSubscriptions.map { sub ->
+                    NitroActiveSubscription(
+                        productId = sub.productId,
+                        isActive = sub.isActive,
+                        transactionId = sub.transactionId,
+                        purchaseToken = sub.purchaseToken.wrapVariant(),
+                        transactionDate = sub.transactionDate,
+                        // Android specific fields
+                        autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
+                        basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
+                        currentPlanId = sub.currentPlanId.wrapVariant(),
+                        purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
+                        // iOS specific fields (null on Android)
+                        expirationDateIOS = null,
+                        environmentIOS = null,
+                        daysUntilExpirationIOS = null,
+                        renewalInfoIOS = null
                     )
+                }
 
-                    nitroSubscriptions.toTypedArray()
-                },
-                onFailure = { e ->
-                    RnIapLog.failure("getActiveSubscriptions", e)
-                    val error = OpenIapError.ServiceUnavailable()
-                    throw OpenIapException(
-                        toErrorJson(
-                            error = error,
-                            debugMessage = e.message,
-                            messageOverride = "Failed to get active subscriptions: ${e.message}"
-                        )
+                RnIapLog.result(
+                    "getActiveSubscriptions",
+                    nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
+                )
+
+                nitroSubscriptions.toTypedArray()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: OpenIapError) {
+                RnIapLog.failure("getActiveSubscriptions", e)
+                throw OpenIapException(toErrorJson(e))
+            } catch (e: Exception) {
+                RnIapLog.failure("getActiveSubscriptions", e)
+                val error = OpenIapError.ServiceUnavailable()
+                throw OpenIapException(
+                    toErrorJson(
+                        error = error,
+                        debugMessage = e.message,
+                        messageOverride = "Failed to get active subscriptions: ${e.message}"
                     )
-                },
-            )
+                )
+            }
         }
     }
 
@@ -837,6 +839,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 hasActive
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OpenIapError) {
+                RnIapLog.failure("hasActiveSubscriptions", e)
+                throw OpenIapException(toErrorJson(e))
             } catch (e: Exception) {
                 RnIapLog.failure("hasActiveSubscriptions", e)
                 val error = OpenIapError.ServiceUnavailable()
@@ -910,6 +915,22 @@ class HybridRnIap : HybridRnIapSpec() {
                 result
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OpenIapError) {
+                RnIapLog.failure("finishTransaction", e)
+                Variant_Boolean_NitroPurchaseResult.Second(
+                    NitroPurchaseResult(
+                        responseCode = -1.0,
+                        debugMessage = e.message,
+                        code = OpenIapError.toCode(e),
+                        message = e.message,
+                        purchaseToken = purchaseToken,
+                        productId = null,
+                        productIds = null,
+                        productType = null,
+                        isEmptyProductList = null,
+                        subResponseCodeAndroid = null
+                    )
+                )
             } catch (e: Exception) {
                 val err = OpenIapError.BillingError()
                 RnIapLog.failure("finishTransaction", e)
