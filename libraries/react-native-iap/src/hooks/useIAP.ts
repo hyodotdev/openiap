@@ -611,7 +611,11 @@ export function useIAP(options?: UseIapOptions): UseIap {
         async (purchase: Purchase) => {
           // Deliver first so store refresh latency cannot delay verification
           // and transaction finalization in the host app.
-          optionsRef.current?.onPurchaseSuccess?.(purchase);
+          try {
+            optionsRef.current?.onPurchaseSuccess?.(purchase);
+          } catch (e) {
+            RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
+          }
 
           try {
             await getActiveSubscriptionsInternal();

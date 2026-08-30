@@ -211,6 +211,42 @@ describe('hooks/useIAP (renderer)', () => {
     );
   });
 
+  it('refreshes purchase state when onPurchaseSuccess throws', async () => {
+    const callbackError = new Error('host callback failed');
+    const onPurchaseSuccess = jest.fn(() => {
+      throw callbackError;
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
+
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'p1'});
+    });
+
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      '[useIAP] onPurchaseSuccess failed:',
+      callbackError,
+    );
+    consoleError.mockRestore();
+  });
+
   it('requestPurchase calls root API and returns void', async () => {
     const mockRequestPurchase = jest
       .spyOn(IAP, 'requestPurchase')
