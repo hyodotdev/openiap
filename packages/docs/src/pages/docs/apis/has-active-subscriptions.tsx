@@ -85,11 +85,9 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <Link to="/docs/apis/init-connection">
             <code>initConnection()</code>
           </Link>{' '}
-          first. React Native's root helper and hook map failures to{' '}
-          <code>false</code>, so a disconnected premium gate silently locks the
-          user out. Expo and native promise APIs reject; Expo's hook calls{' '}
-          <code>onError</code> before rethrowing. Gate hook examples on the{' '}
-          <code>connected</code> flag.
+          first. React Native, Expo, and native promise APIs reject. The React
+          Native and Expo hooks call <code>onError</code> before rethrowing.
+          Gate hook examples on the <code>connected</code> flag.
         </p>
       </Callout>
 
@@ -119,13 +117,11 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         when you only need a yes/no answer.
       </p>
       <p>
-        Failure behavior depends on the SDK layer. React Native's root helper
-        and hook map failures to <code>false</code> without calling{' '}
-        <code>onError</code>. Expo and native promise APIs reject; Expo's hook
-        calls <code>onError</code> before rethrowing. Godot entitlement code
-        must use <code>has_active_subscriptions_result()</code>; the
-        compatibility boolean helper still maps failure to <code>false</code>{' '}
-        and is not safe for granting or revoking access.
+        React Native, Expo, and native promise APIs reject on failure. The React
+        Native and Expo hooks call <code>onError</code> before rethrowing. Godot
+        entitlement code must use <code>has_active_subscriptions_result()</code>
+        ; the compatibility boolean helper still maps failure to{' '}
+        <code>false</code> and is not safe for granting or revoking access.
       </p>
 
       <h2>Example</h2>

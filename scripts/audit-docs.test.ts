@@ -2,9 +2,28 @@ import { describe, expect, test } from "bun:test";
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
+  auditSubscriptionFailureDocs,
   auditVerifyPurchaseDocs,
   type CanonicalOfferDocsSources,
 } from "./audit-docs";
+
+describe("subscription failure docs", () => {
+  test("rejects obsolete React Native false-fallback guidance", () => {
+    const source = `React Native's root helper
+      and hook map failures to{' '}<code>false</code>`;
+
+    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([
+      expect.objectContaining({ rule: "R15" }),
+    ]);
+  });
+
+  test("accepts rejection guidance", () => {
+    const source =
+      "React Native and Expo hooks call <code>onError</code> before rethrowing.";
+
+    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([]);
+  });
+});
 
 describe("verify purchase type docs", () => {
   const valid = `

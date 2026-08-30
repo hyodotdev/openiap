@@ -81,6 +81,10 @@ const VERIFY_PURCHASE_DOC_FILE = resolve(
   REPO_ROOT,
   "packages/docs/src/pages/docs/types/verify-purchase.tsx",
 );
+const HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/apis/has-active-subscriptions.tsx",
+);
 const GENERATED_OFFER_TYPE_FILES = {
   typescript: TYPES_FILE,
   swift: resolve(REPO_ROOT, GENERATED_SYNC_MANIFEST.swift.source),
@@ -222,6 +226,26 @@ export function auditVerifyPurchaseDocs(
     });
   }
   return drifts;
+}
+
+export function auditSubscriptionFailureDocs(
+  file: string,
+  source: string,
+): Drift[] {
+  const obsoleteClaim =
+    /React Native's root helper\s+and hook map failures to(?:\{' '\})?\s*<code>false<\/code>/;
+  const match = obsoleteClaim.exec(source);
+  if (!match) return [];
+
+  return [
+    {
+      file,
+      line: source.slice(0, match.index).split("\n").length,
+      rule: "R15",
+      message:
+        "React Native subscription queries reject; the hook calls onError before rethrowing.",
+    },
+  ];
 }
 
 const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
@@ -1866,6 +1890,12 @@ async function main() {
       VERIFY_PURCHASE_DOC_FILE,
       readFileSync(VERIFY_PURCHASE_DOC_FILE, "utf8"),
       readFileSync(TYPES_FILE, "utf8"),
+    ),
+  );
+  drifts.push(
+    ...auditSubscriptionFailureDocs(
+      HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE,
+      readFileSync(HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE, "utf8"),
     ),
   );
   drifts.push(
