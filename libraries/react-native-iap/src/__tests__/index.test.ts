@@ -1386,6 +1386,24 @@ describe('Public API (src/index.ts)', () => {
       ).resolves.toBeUndefined();
     });
 
+    it('iOS: propagates native finish failures', async () => {
+      (Platform as any).OS = 'ios';
+      const error = new Error(
+        JSON.stringify({
+          code: 'service-error',
+          message: 'StoreKit network failure',
+        }),
+      );
+      mockIap.finishTransaction.mockRejectedValueOnce(error);
+
+      await expect(
+        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+      ).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+        message: 'StoreKit network failure',
+      });
+    });
+
     it('throws on unsupported platform', async () => {
       (Platform as any).OS = 'web';
       await expect(

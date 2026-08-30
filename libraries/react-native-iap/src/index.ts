@@ -1952,11 +1952,11 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     }
     return;
   } catch (error) {
+    const parsedError = parseErrorStringToJsonObj(error);
     // If iOS transaction has already been auto-finished natively, treat as success
     if (Platform.OS === 'ios') {
-      const err = parseErrorStringToJsonObj(error);
-      const msg = (err?.message || '').toString();
-      const code = (err?.code || '').toString();
+      const msg = (parsedError.message || '').toString();
+      const code = (parsedError.code || '').toString();
       if (
         msg.includes('Transaction not found') ||
         code === 'E_ITEM_UNAVAILABLE'
@@ -1965,8 +1965,15 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
         return;
       }
     }
-    RnIapConsole.error('Failed to finish transaction:', error);
-    throw error;
+    if (!isUserCancelledError(parsedError)) {
+      RnIapConsole.error('Failed to finish transaction:', error);
+    }
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
   }
 };
 
