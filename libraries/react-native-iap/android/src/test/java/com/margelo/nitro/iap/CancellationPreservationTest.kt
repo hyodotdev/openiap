@@ -39,4 +39,25 @@ class CancellationPreservationTest {
 
         assertFalse(handled)
     }
+
+    @Test
+    fun `product lookup fallback cannot replace cancellation with an empty result`() {
+        val cancellation = CancellationException("cancelled")
+        var usedFallback = false
+
+        try {
+            catchNonCancellation<List<String>>(
+                block = { throw cancellation },
+                onFailure = {
+                    usedFallback = true
+                    emptyList()
+                },
+            )
+            fail("Expected cancellation")
+        } catch (error: CancellationException) {
+            assertSame(cancellation, error)
+        }
+
+        assertFalse(usedFallback)
+    }
 }

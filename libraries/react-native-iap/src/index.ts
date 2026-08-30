@@ -170,6 +170,7 @@ export type {
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let iapRef: RnIap | null = null;
+let attachingPendingNativeListeners = false;
 
 /**
  * Check if Nitro runtime is ready for IAP operations.
@@ -220,39 +221,52 @@ const isAndroidStoreRuntime = (): boolean => {
   return Platform.OS === 'android' || isVegaOS();
 };
 
+function getRawIapInstance(): RnIap {
+  if (iapRef) return iapRef;
+
+  if (isVegaOS()) {
+    const vegaModule = getVegaIapModule();
+    if (!vegaModule) {
+      throw new Error(
+        'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
+      );
+    }
+    iapRef = vegaModule;
+    return iapRef;
+  }
+
+  // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
+  try {
+    iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    if (
+      msg.includes('Nitro') ||
+      msg.includes('JSI') ||
+      msg.includes('dispatcher') ||
+      msg.includes('HybridObject')
+    ) {
+      throw new Error(
+        'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
+      );
+    }
+    throw e;
+  }
+  return iapRef;
+}
+
 const IAP = {
   get instance(): RnIap {
-    if (iapRef) return iapRef;
-
-    if (isVegaOS()) {
-      const vegaModule = getVegaIapModule();
-      if (!vegaModule) {
-        throw new Error(
-          'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
-        );
+    const instance = getRawIapInstance();
+    if (!attachingPendingNativeListeners) {
+      attachingPendingNativeListeners = true;
+      try {
+        tryAttachPendingNativeListeners();
+      } finally {
+        attachingPendingNativeListeners = false;
       }
-      iapRef = vegaModule;
-      return iapRef;
     }
-
-    // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
-    try {
-      iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (
-        msg.includes('Nitro') ||
-        msg.includes('JSI') ||
-        msg.includes('dispatcher') ||
-        msg.includes('HybridObject')
-      ) {
-        throw new Error(
-          'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
-        );
-      }
-      throw e;
-    }
-    return iapRef;
+    return instance;
   },
 };
 
@@ -270,7 +284,7 @@ function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   } catch (error) {
     if (toErrorMessage(error).includes('Nitro runtime not installed')) {
       RnIapConsole.warn(
-        `[${label}] Nitro not ready yet; will retry after initConnection()`,
+        `[${label}] Nitro not ready yet; will retry on the next native operation`,
       );
       return;
     }
@@ -333,7 +347,7 @@ function tryAttachPurchaseUpdateNative(
       | undefined = receiveDuplicateTransactionUpdatesIOS
       ? {dedupeTransactionIOS: false}
       : undefined;
-    const token = IAP.instance.addPurchaseUpdatedListener(
+    const token = getRawIapInstance().addPurchaseUpdatedListener(
       receiveDuplicateTransactionUpdatesIOS
         ? purchaseUpdateDuplicateNativeHandler
         : purchaseUpdateNativeHandler,
@@ -383,7 +397,7 @@ const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
 function tryAttachPurchaseErrorNative(): void {
   if (purchaseErrorNativeAttached) return;
   attachNativeListenerOrDefer('purchaseErrorListener', () => {
-    IAP.instance.addPurchaseErrorListener(purchaseErrorNativeHandler);
+    getRawIapInstance().addPurchaseErrorListener(purchaseErrorNativeHandler);
     purchaseErrorNativeAttached = true;
   });
 }
@@ -413,7 +427,9 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
 function tryAttachPromotedProductNative(): void {
   if (promotedProductNativeAttached) return;
   attachNativeListenerOrDefer('promotedProductListenerIOS', () => {
-    IAP.instance.addPromotedProductListenerIOS(promotedProductNativeHandler);
+    getRawIapInstance().addPromotedProductListenerIOS(
+      promotedProductNativeHandler,
+    );
     promotedProductNativeAttached = true;
   });
 }
@@ -487,7 +503,7 @@ export const purchaseUpdatedListener = (
       }
 
       try {
-        IAP.instance.removePurchaseUpdatedListener(token);
+        getRawIapInstance().removePurchaseUpdatedListener(token);
         if (receiveDuplicateTransactionUpdatesIOS) {
           purchaseUpdateDuplicateNativeToken = null;
           purchaseUpdateDuplicateNativeAttached = false;
@@ -530,7 +546,9 @@ export const purchaseErrorListener = (
 
       if (purchaseErrorNativeAttached) {
         try {
-          IAP.instance.removePurchaseErrorListener(purchaseErrorNativeHandler);
+          getRawIapInstance().removePurchaseErrorListener(
+            purchaseErrorNativeHandler,
+          );
           purchaseErrorNativeAttached = false;
         } catch (e) {
           RnIapConsole.warn('[purchaseErrorListener] native remove failed:', e);
@@ -622,7 +640,7 @@ const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
 function tryAttachUserChoiceBillingNative(): void {
   if (userChoiceBillingNativeAttached) return;
   attachNativeListenerOrDefer('userChoiceBillingListenerAndroid', () => {
-    IAP.instance.addUserChoiceBillingListenerAndroid(
+    getRawIapInstance().addUserChoiceBillingListenerAndroid(
       userChoiceBillingNativeHandler,
     );
     userChoiceBillingNativeAttached = true;
@@ -660,7 +678,7 @@ export const userChoiceBillingListenerAndroid = (
         return;
       }
       try {
-        IAP.instance.removeUserChoiceBillingListenerAndroid(
+        getRawIapInstance().removeUserChoiceBillingListenerAndroid(
           userChoiceBillingNativeHandler,
         );
         userChoiceBillingNativeAttached = false;
@@ -724,7 +742,7 @@ const developerProvidedBillingNativeHandler: NitroDeveloperProvidedBillingListen
 function tryAttachDeveloperProvidedBillingNative(): void {
   if (developerProvidedBillingNativeAttached) return;
   attachNativeListenerOrDefer('developerProvidedBillingListenerAndroid', () => {
-    IAP.instance.addDeveloperProvidedBillingListenerAndroid(
+    getRawIapInstance().addDeveloperProvidedBillingListenerAndroid(
       developerProvidedBillingNativeHandler,
     );
     developerProvidedBillingNativeAttached = true;
@@ -812,7 +830,7 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
 function tryAttachSubscriptionBillingIssueNative(): void {
   if (subscriptionBillingIssueNativeAttached) return;
   attachNativeListenerOrDefer('subscriptionBillingIssueListener', () => {
-    IAP.instance.addSubscriptionBillingIssueListener(
+    getRawIapInstance().addSubscriptionBillingIssueListener(
       subscriptionBillingIssueNativeHandler,
     );
     subscriptionBillingIssueNativeAttached = true;

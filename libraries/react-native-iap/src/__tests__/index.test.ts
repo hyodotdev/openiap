@@ -703,6 +703,48 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
+    it('attaches a deferred purchase listener before an on-demand store call', async () => {
+      const callOrder: string[] = [];
+      const createHybridObject = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Nitro runtime not installed');
+        })
+        .mockImplementation(() => mockIap);
+      jest.resetModules();
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {createHybridObject},
+      }));
+      const freshIAP = require('../index');
+      const listener = jest.fn();
+      mockIap.addPurchaseUpdatedListener.mockImplementationOnce(() => {
+        callOrder.push('listener');
+        return 1;
+      });
+      mockIap.requestPurchase.mockImplementationOnce(async () => {
+        callOrder.push('purchase');
+      });
+
+      freshIAP.purchaseUpdatedListener(listener);
+      await freshIAP.requestPurchase({
+        request: {apple: {sku: 'p1'}},
+        type: 'in-app',
+      });
+
+      expect(callOrder).toEqual(['listener', 'purchase']);
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0]({
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
     it('does not attach a deferred listener removed before initConnection', async () => {
       mockIap.addPurchaseUpdatedListener.mockImplementationOnce(() => {
         throw new Error('Nitro runtime not installed');

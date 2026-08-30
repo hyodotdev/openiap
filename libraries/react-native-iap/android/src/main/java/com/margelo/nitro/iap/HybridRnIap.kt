@@ -615,16 +615,18 @@ class HybridRnIap : HybridRnIapSpec() {
                     val missingSkus = androidRequest.skus.filterNot { productTypeBySku.containsKey(it) }
                     missingSkus.forEach { sku ->
                         RnIapLog.warn("requestPurchase missing type hint for $sku; attempting fetch")
-                        val fetched = try {
-                            openIap.fetchProducts(
-                                ProductRequest(listOf(sku), ProductQueryType.All)
-                            ).productsOrEmpty()
-                        } catch (e: OpenIapError) {
-                            throw e
-                        } catch (e: Exception) {
-                            RnIapLog.failure("requestPurchase.fetchMissing", e)
-                            emptyList()
-                        }
+                        val fetched = catchNonCancellation(
+                            block = {
+                                openIap.fetchProducts(
+                                    ProductRequest(listOf(sku), ProductQueryType.All)
+                                ).productsOrEmpty()
+                            },
+                            onFailure = { error ->
+                                if (error is OpenIapError) throw error
+                                RnIapLog.failure("requestPurchase.fetchMissing", error)
+                                emptyList()
+                            },
+                        )
                         fetched.firstOrNull()?.let { productTypeBySku[it.id] = it.type.rawValue }
                         if (!productTypeBySku.containsKey(sku)) {
                             sendPurchaseError(toErrorResult(OpenIapError.SkuNotFound(sku)))
