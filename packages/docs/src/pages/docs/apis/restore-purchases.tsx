@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function RestorePurchases() {
@@ -48,6 +49,8 @@ function RestorePurchases() {
         </a>
         .
       </p>
+
+      <StoreConnectionCallout />
 
       <h2>Signature</h2>
       <LanguageTabs>

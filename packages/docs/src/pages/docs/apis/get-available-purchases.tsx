@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function GetAvailablePurchases() {
@@ -92,17 +92,7 @@ func get_available_purchases_result(options: PurchaseOptions = null) -> Dictiona
         }}
       </LanguageTabs>
 
-      <Callout kind="important" title="Requires an open connection">
-        <p>
-          Call{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection()</code>
-          </Link>{' '}
-          first. On Android this call fails with <code>not-prepared</code>{' '}
-          without it; iOS connects on demand. Gate on the <code>connected</code>{' '}
-          flag so the same code works on both.
-        </p>
-      </Callout>
+      <StoreConnectionCallout />
 
       <AnchorLink id="parameters" level="h2">
         Parameters

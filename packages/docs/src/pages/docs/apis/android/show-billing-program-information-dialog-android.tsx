@@ -3,6 +3,7 @@ import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
+import StoreConnectionCallout from '../../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
 function ShowBillingProgramInformationDialogAndroid() {
@@ -32,6 +33,8 @@ function ShowBillingProgramInformationDialogAndroid() {
         <code>IN_APP</code> reporting token and before showing your choice
         screen. Google-rendered and external-link flows do not use this step.
       </p>
+
+      <StoreConnectionCallout />
 
       <h2>Signature</h2>
       <LanguageTabs>

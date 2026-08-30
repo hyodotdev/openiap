@@ -4,6 +4,7 @@ import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
+import StoreConnectionCallout from '../../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
 function CreateBillingProgramReportingDetailsAndroid() {
@@ -59,6 +60,8 @@ function CreateBillingProgramReportingDetailsAndroid() {
         from an earlier launch attempt. See the complete{' '}
         <Link to="/docs/features/external-purchase">External Offer flow</Link>.
       </Callout>
+
+      <StoreConnectionCallout />
 
       <h2>Signature</h2>
       <LanguageTabs>

@@ -4,6 +4,7 @@ import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
+import StoreConnectionCallout from '../../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
 
 function AcknowledgePurchaseAndroid() {
@@ -52,6 +53,8 @@ function AcknowledgePurchaseAndroid() {
         API instead, which handles acknowledgment automatically and is the
         recommended path for new code.
       </Callout>
+
+      <StoreConnectionCallout />
 
       <h2>Signature</h2>
       <LanguageTabs>

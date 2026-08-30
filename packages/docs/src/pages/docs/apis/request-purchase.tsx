@@ -4,6 +4,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function RequestPurchase() {
@@ -119,18 +120,7 @@ type RequestPurchaseProps =
         }}
       </LanguageTabs>
 
-      <Callout kind="important" title="Requires an open connection">
-        <p>
-          Call{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection()</code>
-          </Link>{' '}
-          first. React Native reports an Android purchase started without it as
-          a <code>not-prepared</code> purchase-error event; iOS connects on
-          demand. Gate the buy control on the <code>connected</code> flag so the
-          same code works on both.
-        </p>
-      </Callout>
+      <StoreConnectionCallout purchaseErrorEvent />
 
       <AnchorLink id="parameters" level="h2">
         Parameters

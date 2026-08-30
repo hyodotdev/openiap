@@ -42,6 +42,12 @@ function EndConnection() {
         </a>
         .
       </p>
+      <p>
+        <strong>React Native / Expo:</strong> if native teardown fails, the
+        promise rejects without clearing the current connection or listener
+        state. Cleanup happens only after a successful teardown, so the app can
+        retry without silently losing purchase events.
+      </p>
 
       <h2>Signature</h2>
       <LanguageTabs>

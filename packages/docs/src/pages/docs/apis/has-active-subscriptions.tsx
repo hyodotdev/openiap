@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function HasActiveSubscriptions() {
@@ -79,18 +79,12 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         }}
       </LanguageTabs>
 
-      <Callout kind="important" title="Requires an open connection">
-        <p>
-          Call{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection()</code>
-          </Link>{' '}
-          first. React Native, Expo, and native promise APIs reject on failure.
-          React Native and Expo hooks call <code>onError</code> before
-          rethrowing. Gate hook examples on the <code>connected</code> flag and
-          handle failures separately from a valid <code>false</code> result.
-        </p>
-      </Callout>
+      <StoreConnectionCallout />
+      <p>
+        React Native, Expo, and native promise APIs reject on failure. React
+        Native and Expo hooks call <code>onError</code> before rethrowing.
+        Handle that rejection separately from a valid <code>false</code> result.
+      </p>
 
       <AnchorLink id="parameters" level="h2">
         Parameters

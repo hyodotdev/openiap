@@ -12,14 +12,14 @@ function InitConnection() {
     <div className="doc-page">
       <SEO
         title="initConnection"
-        description="Initialize the OpenIAP connection to the store service. Must be called before any other IAP operations."
+        description="Initialize the OpenIAP connection before store operations and wait for a successful result."
         path="/docs/apis/init-connection"
         keywords="initConnection, OpenIAP init, billing client, store connection"
       />
       <h1>initConnection</h1>
       <p>
-        Initialize connection to the store service. Must be called before any
-        other IAP operations.
+        Initialize the store connection and wait for a successful result before
+        starting store operations.
       </p>
       <p>
         <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
@@ -34,12 +34,15 @@ function InitConnection() {
         >
           Apple docs
         </a>
-        . <strong>Android:</strong> Starts <code>BillingClient</code> and waits
-        for <code>onBillingSetupFinished</code>. Required before any other Play
-        Billing call. Meta Horizon additionally requires a current foreground{' '}
-        <code>Activity</code>; initialization fails with{' '}
-        <code>MissingCurrentActivity</code> instead of falling back to an
-        application context.{' '}
+        . React Native and Expo can connect on demand on iOS, but an explicit
+        call keeps listener setup and cross-platform gating predictable.{' '}
+        <strong>Android:</strong> Starts <code>BillingClient</code> and waits
+        for <code>onBillingSetupFinished</code>. React Native and Expo do not
+        open it implicitly; wait for <code>true</code> or the hook&apos;s{' '}
+        <code>connected</code> flag before another Play Billing call. Meta
+        Horizon additionally requires a current foreground <code>Activity</code>
+        ; initialization fails with <code>MissingCurrentActivity</code> instead
+        of falling back to an application context.{' '}
         <a
           href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#startConnection(com.android.billingclient.api.BillingClientStateListener)"
           target="_blank"
@@ -147,18 +150,21 @@ import { initConnection } from 'expo-iap';
 // import { initConnection } from 'react-native-iap';
 
 // Standard connection
-await initConnection();
+const connected = await initConnection();
+if (!connected) throw new Error('Store connection failed');
 
 // Android with a billing program (preferred — see InitConnectionConfig)
-await initConnection({
+const externalOfferConnected = await initConnection({
   enableBillingProgramAndroid: 'external-offer',
 });
+if (!externalOfferConnected) throw new Error('Store connection failed');
 
 // Developer-rendered Billing Choice (must match Play Console)
-await initConnection({
+const billingChoiceConnected = await initConnection({
   enableBillingProgramAndroid: 'billing-choice',
   billingChoiceScreenTypeAndroid: 'developer-rendered',
 });
+if (!billingChoiceConnected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP auto-connects on mount and disconnects on unmount, so you almost
