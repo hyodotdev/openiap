@@ -33,9 +33,9 @@ const parseJsonPayload = (
       if (typeof parsed === 'object' && parsed !== null) {
         const parsedError = parsed as Partial<IapError>;
         return {
+          ...parsedError,
           code: parsedError.code || ErrorCode.Unknown,
           message: parsedError.message || fallbackMessage,
-          ...parsedError,
         };
       }
     } catch {
@@ -118,11 +118,15 @@ const parseStructuredError = (error: object): IapError | null => {
 
   if (errorWithCode.code != null) {
     const {code, message, ...extraFields} = errorWithCode;
+    const normalizedCode = String(code);
 
     return {
       ...extraFields,
-      code: String(code),
-      message: typeof message === 'string' ? message : 'Unknown error occurred',
+      code: normalizedCode || ErrorCode.Unknown,
+      message:
+        typeof message === 'string' && message
+          ? message
+          : 'Unknown error occurred',
     };
   }
 

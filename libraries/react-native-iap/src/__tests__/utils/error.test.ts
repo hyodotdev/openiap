@@ -24,6 +24,20 @@ describe('Error utilities', () => {
       });
     });
 
+    it('should replace empty JSON error fields with fallbacks', () => {
+      const errorString = JSON.stringify({
+        code: '',
+        message: '',
+        responseCode: -1,
+      });
+
+      expect(parseErrorStringToJsonObj(errorString)).toEqual({
+        code: ErrorCode.Unknown,
+        message: errorString,
+        responseCode: -1,
+      });
+    });
+
     it('should handle Error object with JSON message', () => {
       const errorObj = {
         code: ErrorCode.NetworkError,
@@ -221,6 +235,13 @@ describe('Error utilities', () => {
       const result = parseErrorStringToJsonObj(errorObj);
 
       expect(result).toEqual(errorObj);
+    });
+
+    it('should replace empty structured error fields with fallbacks', () => {
+      expect(parseErrorStringToJsonObj({code: '', message: ''})).toEqual({
+        code: ErrorCode.Unknown,
+        message: 'Unknown error occurred',
+      });
     });
 
     it('should parse error code format "CODE: message"', () => {
