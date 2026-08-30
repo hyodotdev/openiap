@@ -139,6 +139,17 @@ internal fun requireMatchingPurchaseOptions(
     }
 }
 
+internal inline fun <T> catchNonCancellation(
+    block: () -> T,
+    onFailure: (Exception) -> T,
+): T = try {
+    block()
+} catch (error: CancellationException) {
+    throw error
+} catch (error: Exception) {
+    onFailure(error)
+}
+
 /**
  * Bound for the pending purchase-event queues, matching expo-iap's
  * ExpoIapHelper.MAX_BUFFERED_EVENTS. Oldest entries are dropped on overflow.
@@ -236,7 +247,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 }
             } catch (err: CancellationException) {
                 throw err
-            } catch (err: Throwable) {
+            } catch (err: Exception) {
                 val error = OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
                 RnIapLog.failure("initConnection.setActivity", err)
@@ -337,7 +348,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 }
             } catch (err: CancellationException) {
                 throw err
-            } catch (err: Throwable) {
+            } catch (err: Exception) {
                 listenersAttached = false
                 val error = OpenIapError.InitConnection
                 val errorMessage = err.message ?: err.javaClass.name
@@ -374,7 +385,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     }
                 } catch (err: CancellationException) {
                     throw err
-                } catch (err: Throwable) {
+                } catch (err: Exception) {
                     val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", err)
                     throw OpenIapException(
@@ -773,48 +784,50 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("subscriptionIds" to (subscriptionIds?.toList() ?: "all"))
             )
 
-            try {
-                // Use OpenIapModule's native getActiveSubscriptions method
-                RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
-                val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
+            catchNonCancellation(
+                block = {
+                    RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
+                    val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
 
-                val nitroSubscriptions = activeSubscriptions.map { sub ->
-                    NitroActiveSubscription(
-                        productId = sub.productId,
-                        isActive = sub.isActive,
-                        transactionId = sub.transactionId,
-                        purchaseToken = sub.purchaseToken.wrapVariant(),
-                        transactionDate = sub.transactionDate,
-                        // Android specific fields
-                        autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
-                        basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
-                        currentPlanId = sub.currentPlanId.wrapVariant(),
-                        purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
-                        // iOS specific fields (null on Android)
-                        expirationDateIOS = null,
-                        environmentIOS = null,
-                        daysUntilExpirationIOS = null,
-                        renewalInfoIOS = null
+                    val nitroSubscriptions = activeSubscriptions.map { sub ->
+                        NitroActiveSubscription(
+                            productId = sub.productId,
+                            isActive = sub.isActive,
+                            transactionId = sub.transactionId,
+                            purchaseToken = sub.purchaseToken.wrapVariant(),
+                            transactionDate = sub.transactionDate,
+                            // Android specific fields
+                            autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
+                            basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
+                            currentPlanId = sub.currentPlanId.wrapVariant(),
+                            purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
+                            // iOS specific fields (null on Android)
+                            expirationDateIOS = null,
+                            environmentIOS = null,
+                            daysUntilExpirationIOS = null,
+                            renewalInfoIOS = null
+                        )
+                    }
+
+                    RnIapLog.result(
+                        "getActiveSubscriptions",
+                        nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
                     )
-                }
 
-                RnIapLog.result(
-                    "getActiveSubscriptions",
-                    nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
-                )
-
-                nitroSubscriptions.toTypedArray()
-            } catch (e: Exception) {
-                RnIapLog.failure("getActiveSubscriptions", e)
-                val error = OpenIapError.ServiceUnavailable()
-                throw OpenIapException(
-                    toErrorJson(
-                        error = error,
-                        debugMessage = e.message,
-                        messageOverride = "Failed to get active subscriptions: ${e.message}"
+                    nitroSubscriptions.toTypedArray()
+                },
+                onFailure = { e ->
+                    RnIapLog.failure("getActiveSubscriptions", e)
+                    val error = OpenIapError.ServiceUnavailable()
+                    throw OpenIapException(
+                        toErrorJson(
+                            error = error,
+                            debugMessage = e.message,
+                            messageOverride = "Failed to get active subscriptions: ${e.message}"
+                        )
                     )
-                )
-            }
+                },
+            )
         }
     }
 
@@ -831,6 +844,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 val hasActive = openIap.hasActiveSubscriptions(subscriptionIds?.toList())
                 RnIapLog.result("hasActiveSubscriptions", hasActive)
                 hasActive
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 RnIapLog.failure("hasActiveSubscriptions", e)
                 val error = OpenIapError.ServiceUnavailable()
@@ -883,6 +898,8 @@ class HybridRnIap : HybridRnIapSpec() {
             // Ensure connection; if it fails, return an error result instead of throwing
             try {
                 ensureConnection()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val err = OpenIapError.InitConnection
                 return@async Variant_Boolean_NitroPurchaseResult.Second(
@@ -923,6 +940,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
                 RnIapLog.result("finishTransaction", mapOf("success" to true))
                 result
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 val err = OpenIapError.BillingError()
                 RnIapLog.failure("finishTransaction", e)
@@ -957,6 +976,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 }
                 RnIapLog.result("getStorefront", value)
                 value
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: OpenIapException) {
                 RnIapLog.failure("getStorefront", e)
                 throw e
@@ -1571,6 +1592,8 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon.Second(result)
 
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: OpenIapException) {
                 RnIapLog.failure("verifyPurchase", e)
                 throw e
@@ -1676,6 +1699,8 @@ class HybridRnIap : HybridRnIapSpec() {
                     errors = nitroErrors?.let { Variant_NullType_Array_NitroVerifyPurchaseWithProviderError_.Second(it) },
                     provider = mapPurchaseVerificationProvider(result.provider.rawValue)
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 RnIapLog.failure("verifyPurchaseWithProvider", e)
                 val error = OpenIapError.VerificationFailed
@@ -1862,14 +1887,16 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun enableBillingProgramAndroid(program: BillingProgramAndroid) {
         RnIapLog.payload("enableBillingProgramAndroid", mapOf("program" to program.name))
-        try {
-            val openIapProgram = mapBillingProgram(program)
-            openIapStore.enableBillingProgram(openIapProgram)
-            RnIapLog.result("enableBillingProgramAndroid", true)
-        } catch (err: Throwable) {
-            RnIapLog.failure("enableBillingProgramAndroid", err)
-            // enableBillingProgram is void, so we just log the error
-        }
+        catchNonCancellation(
+            block = {
+                val openIapProgram = mapBillingProgram(program)
+                openIapStore.enableBillingProgram(openIapProgram)
+                RnIapLog.result("enableBillingProgramAndroid", true)
+            },
+            onFailure = { err ->
+                RnIapLog.failure("enableBillingProgramAndroid", err)
+            },
+        )
     }
 
     override fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): Promise<NitroBillingProgramAvailabilityResultAndroid> {
@@ -1887,7 +1914,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
                 RnIapLog.result("isBillingProgramAvailableAndroid", mapOf("isAvailable" to result.isAvailable))
                 nitroResult
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("isBillingProgramAvailableAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
@@ -1917,7 +1946,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
                 RnIapLog.result("getBillingChoiceInfoAndroid", mapOf("hasImageUrl" to result.playBillingChoiceImageUrl.isNotBlank()))
                 nitroResult
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("getBillingChoiceInfoAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
@@ -1947,7 +1978,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
                 RnIapLog.result("createBillingProgramReportingDetailsAndroid", mapOf("hasToken" to true))
                 nitroResult
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("createBillingProgramReportingDetailsAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
@@ -1980,7 +2013,9 @@ class HybridRnIap : HybridRnIapSpec() {
                     debugMessage = result.debugMessage.wrapVariant(),
                     subResponseCode = mapSubResponseCode(result.subResponseCode)
                 )
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("showBillingProgramInformationDialogAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
@@ -2015,7 +2050,9 @@ class HybridRnIap : HybridRnIapSpec() {
                     responseCode = mapInAppMessageResponseCode(result.responseCode),
                     purchaseToken = result.purchaseToken.wrapVariant()
                 )
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("showInAppMessagesAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
@@ -2051,7 +2088,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 }
                 RnIapLog.result("launchExternalLinkAndroid", result)
                 result
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("launchExternalLinkAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message))
@@ -2071,7 +2110,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 val result = handler()
                 RnIapLog.result("openRedeemOfferCodeAndroid", result)
                 result
-            } catch (err: Throwable) {
+            } catch (err: CancellationException) {
+                throw err
+            } catch (err: Exception) {
                 RnIapLog.failure("openRedeemOfferCodeAndroid", err)
                 val errorType = parseOpenIapError(err)
                 throw OpenIapException(toErrorJson(errorType, debugMessage = err.message), err)
