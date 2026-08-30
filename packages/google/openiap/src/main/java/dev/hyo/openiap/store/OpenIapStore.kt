@@ -131,6 +131,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
     // Keep listener references to support proper removal
     private var pendingRequestProductId: String? = null
+    private var purchaseListenersAttached = false
 
     private val purchaseUpdateListener = OpenIapPurchaseUpdateListener { purchase ->
         _currentPurchase.value = purchase
@@ -221,17 +222,29 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         activityBindings.set(owner, null)
     }
 
-    init {
+    private fun attachPurchaseListeners() {
+        if (purchaseListenersAttached) return
         module.addPurchaseUpdateListener(purchaseUpdateListener)
         module.addPurchaseErrorListener(purchaseErrorListener)
+        purchaseListenersAttached = true
+    }
+
+    private fun detachPurchaseListeners() {
+        if (!purchaseListenersAttached) return
+        module.removePurchaseUpdateListener(purchaseUpdateListener)
+        module.removePurchaseErrorListener(purchaseErrorListener)
+        purchaseListenersAttached = false
+    }
+
+    init {
+        attachPurchaseListeners()
     }
 
     /**
      * Clear listeners and transient state. Call when the screen is disposed.
      */
     fun clear() {
-        module.removePurchaseUpdateListener(purchaseUpdateListener)
-        module.removePurchaseErrorListener(purchaseErrorListener)
+        detachPurchaseListeners()
         activityBindings.clear()
         processedPurchaseTokens.clear()
         pendingRequestProductId = null
@@ -262,6 +275,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             val ok = module.initConnection(config)
             OpenIapLog.info("OpenIapStore.initConnection: module.initConnection returned: $ok", "OpenIapStore")
             _isConnected.value = ok
+            attachPurchaseListeners()
             ok
         } catch (e: Exception) {
             OpenIapLog.error("OpenIapStore.initConnection: Exception", e, "OpenIapStore")
@@ -296,12 +310,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/end-connection">https://openiap.dev/docs/apis/end-connection</a>
      */
     val endConnection: MutationEndConnectionHandler = {
-        removePurchaseUpdateListener(purchaseUpdateListener)
-        removePurchaseErrorListener(purchaseErrorListener)
+        detachPurchaseListeners()
         try {
             val ok = module.endConnection()
             _isConnected.value = false
-            clear()
+            pendingRequestProductId = null
             ok
         } catch (e: Exception) {
             setError(e.message)
