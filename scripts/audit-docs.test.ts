@@ -348,15 +348,45 @@ describe("active docs code-example audit", () => {
     ]);
   });
 
+  test("flags inline unchecked teardown results", () => {
+    const source = [
+      '<CodeBlock language="typescript">{`if (disposing) await endConnection();`}</CodeBlock>',
+      '<CodeBlock language="swift">{`if disposing { try? await OpenIapModule.shared.endConnection() }`}</CodeBlock>',
+      '<CodeBlock language="dart">{`if (disposing) await iap.endConnection();`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`if (disposing) store.endConnection()`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`if (disposing) await mutation.EndConnectionAsync();`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`if disposing: await iap.end_connection()`}</CodeBlock>',
+    ].join("\n");
+
+    expect(
+      auditActiveCodeExampleSource("/tmp/active.tsx", source).map(
+        (drift) => drift.message,
+      ),
+    ).toEqual([
+      expect.stringContaining("TypeScript examples must check"),
+      expect.stringContaining("Swift module examples must check"),
+      expect.stringContaining("Flutter examples must check"),
+      expect.stringContaining("Kotlin and KMP examples must check"),
+      expect.stringContaining("MAUI examples must check"),
+      expect.stringContaining("Godot examples must check"),
+    ]);
+  });
+
   test("accepts checked teardown results", () => {
     const source = [
       '<CodeBlock language="typescript">{`const ended = await endConnection(); if (!ended) warn();`}</CodeBlock>',
+      '<CodeBlock language="typescript">{`if (!(await endConnection())) warn();`}</CodeBlock>',
       '<CodeBlock language="swift">{`let ended = try await OpenIapModule.shared.endConnection(); if !ended { warn() }`}</CodeBlock>',
+      '<CodeBlock language="swift">{`if !(try await OpenIapModule.shared.endConnection()) { warn() }`}</CodeBlock>',
       '<CodeBlock language="swift">{`try await store.endConnection()`}</CodeBlock>',
       '<CodeBlock language="dart">{`final ended = await iap.endConnection(); if (!ended) warn();`}</CodeBlock>',
+      '<CodeBlock language="dart">{`if (!await iap.endConnection()) warn();`}</CodeBlock>',
       '<CodeBlock language="kotlin">{`val ended = store.endConnection(); if (!ended) warn()`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`if (!store.endConnection()) warn()`}</CodeBlock>',
       '<CodeBlock language="csharp">{`var ended = await mutation.EndConnectionAsync(); if (!ended) Warn();`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`if (!await mutation.EndConnectionAsync()) Warn();`}</CodeBlock>',
       '<CodeBlock language="gdscript">{`var ended = await iap.end_connection(); if not ended: warn()`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`if not await iap.end_connection(): warn()`}</CodeBlock>',
     ].join("\n");
 
     expect(auditActiveCodeExampleSource("/tmp/active.tsx", source)).toEqual([]);

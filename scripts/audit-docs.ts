@@ -338,38 +338,43 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
   },
   {
     language: "typescript",
-    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*endConnection\s*\(/m,
+    pattern:
+      /(?:^|[;{}]|\)\s*|\belse\s+)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*endConnection\s*\(/,
     message:
       "TypeScript examples must check the boolean returned by `endConnection` before treating teardown as complete.",
   },
   {
     language: "swift",
     pattern:
-      /(?:^|\n)\s*(?:try[!?]?\s+)?await\s+OpenIapModule\.shared\.endConnection\s*\(/m,
+      /(?:^|[;{}]|\)\s*|\belse\s+)\s*(?:try[!?]?\s+)?await\s+OpenIapModule\.shared\.endConnection\s*\(/,
     message:
       "Swift module examples must check the boolean returned by `endConnection` before treating teardown as complete.",
   },
   {
     language: "dart",
-    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)+endConnection\s*\(/m,
+    pattern:
+      /(?:^|[;{}]|\)\s*|\belse\s+)\s*await\s+(?:[A-Za-z_$][\w$]*\.)+endConnection\s*\(/,
     message:
       "Flutter examples must check the boolean returned by `endConnection` before treating teardown as complete.",
   },
   {
     language: "kotlin",
-    pattern: /(?:^|\n)\s*(?:[A-Za-z_]\w*\.)+endConnection\s*\(/m,
+    pattern:
+      /(?:^|[;{}]|\)\s*|\belse\s+)\s*(?:[A-Za-z_]\w*\.)+endConnection\s*\(/,
     message:
       "Kotlin and KMP examples must check the boolean returned by `endConnection` before treating teardown as complete.",
   },
   {
     language: "csharp",
-    pattern: /(?:^|\n)\s*await\s+[^;\n]*\.EndConnectionAsync\s*\(/m,
+    pattern:
+      /(?:^|[;{}]|\)\s*|\belse\s+)\s*await\s+[^;\n]*\.EndConnectionAsync\s*\(/,
     message:
       "MAUI examples must check the boolean returned by `EndConnectionAsync` before treating teardown as complete.",
   },
   {
     language: "gdscript",
-    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_]\w*\.)*end_connection\s*\(/m,
+    pattern:
+      /(?:^|[:;{}]|\)\s*|\belse\s+)\s*await\s+(?:[A-Za-z_]\w*\.)*end_connection\s*\(/,
     message:
       "Godot examples must check the boolean returned by `end_connection` before treating teardown as complete.",
   },
