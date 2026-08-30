@@ -97,64 +97,81 @@ function RestorePurchases() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
+            <CodeBlock language="typescript">{`import { useEffect } from 'react';
+import { Button } from 'react-native';
+
+// expo-iap
 import {
   restorePurchases,
   getAvailablePurchases,
   finishTransaction,
+  useIAP,
 } from 'expo-iap';
 // Same API in react-native-iap:
 // import {
 //   restorePurchases,
 //   getAvailablePurchases,
 //   finishTransaction,
+//   useIAP,
 // } from 'react-native-iap';
 
-const handleRestore = async () => {
-  await restorePurchases();
-  const purchases = await getAvailablePurchases();
+const handleRestore = () => {
+  void (async () => {
+    await restorePurchases();
+    const purchases = await getAvailablePurchases();
 
-  for (const purchase of purchases) {
-    // Always verify before granting — restored purchases can include
-    // refunded or revoked transactions that must not re-grant entitlement.
-    // yourBackend is your authenticated verification client.
-    if (!(await yourBackend.verifyPurchase(purchase))) continue;
+    for (const purchase of purchases) {
+      // Always verify before granting — restored purchases can include
+      // refunded or revoked transactions that must not re-grant entitlement.
+      // yourBackend is your authenticated verification client.
+      if (!(await yourBackend.verifyPurchase(purchase))) continue;
 
-    await grantProduct(purchase.productId);
-    await finishTransaction({ purchase, isConsumable: false });
-  }
+      await grantProduct(purchase.productId);
+      await finishTransaction({ purchase, isConsumable: false });
+    }
+  })().catch((error) => {
+    console.warn('Purchase restore failed:', error);
+  });
 };
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP's restorePurchases() and getAvailablePurchases() both return
 // Promise<void> and update the reactive availablePurchases array — react
 // to it inside an effect.
-import { useIAP } from 'expo-iap';
 
 function RestoreButton() {
   const {
+    connected,
     availablePurchases,
     restorePurchases,
-    getAvailablePurchases,
     finishTransaction,
   } = useIAP();
 
-  const handleRestore = async () => {
-    await restorePurchases();
-    await getAvailablePurchases();
+  const handleRestore = () => {
+    void restorePurchases().catch((error) => {
+      console.warn('Purchase restore failed:', error);
+    });
   };
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       for (const purchase of availablePurchases) {
         if (!(await yourBackend.verifyPurchase(purchase))) continue;
         await grantProduct(purchase.productId);
         await finishTransaction({ purchase, isConsumable: false });
       }
-    })();
+    })().catch((error) => {
+      console.warn('Restored purchase processing failed:', error);
+    });
   }, [availablePurchases, finishTransaction]);
 
-  return <Button title="Restore Purchases" onPress={handleRestore} />;
+  return (
+    <Button
+      title="Restore Purchases"
+      disabled={!connected}
+      onPress={handleRestore}
+    />
+  );
 }`}</CodeBlock>
           ),
           swift: (

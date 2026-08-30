@@ -119,11 +119,15 @@ type UseIap = {
    * }, [connected, getAvailablePurchases]);
    *
    * useEffect(() => {
-   *   for (const p of availablePurchases) {
-   *     void verifyOnServer(p).then((ok) => {
-   *       if (ok) finishTransaction({ purchase: p, isConsumable: false });
-   *     });
-   *   }
+   *   void (async () => {
+   *     for (const p of availablePurchases) {
+   *       if (await verifyOnServer(p)) {
+   *         await finishTransaction({ purchase: p, isConsumable: false });
+   *       }
+   *     }
+   *   })().catch((error) => {
+   *     console.warn('Restored purchase processing failed', error);
+   *   });
    * }, [availablePurchases, finishTransaction]);
    * ```
    *

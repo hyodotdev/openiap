@@ -88,17 +88,28 @@ function EndConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
-import { endConnection } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { useEffect } from 'react';
+import { Text } from 'react-native';
+
+// expo-iap
+import { endConnection, initConnection } from 'expo-iap';
 // Same API in react-native-iap:
-// import { endConnection } from 'react-native-iap';
+// import { endConnection, initConnection } from 'react-native-iap';
 
 // In React useEffect cleanup
 useEffect(() => {
-  void initConnection();
+  void initConnection()
+    .then((connected) => {
+      if (!connected) throw new Error('Store connection failed');
+    })
+    .catch((error) => {
+      console.warn('Store connection failed:', error);
+    });
 
   return () => {
-    void endConnection();
+    void endConnection().catch((error) => {
+      console.warn('Store teardown failed:', error);
+    });
   };
 }, []);
 
