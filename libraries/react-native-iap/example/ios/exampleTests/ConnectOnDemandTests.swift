@@ -53,10 +53,6 @@ final class ConnectOnDemandTests: XCTestCase {
     func testPurchaseCallbackDuringInitIsDeliveredAfterConnectionSucceeds() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()
-        _ = try hybrid.addPurchaseUpdatedListener(
-            listener: { purchase in probe.record(purchase.id) },
-            options: nil
-        )
         let purchase = try makePurchase(id: "during-init")
         let holder = DeliveryTaskHolder()
 
@@ -79,6 +75,13 @@ final class ConnectOnDemandTests: XCTestCase {
         let heldDelivery = await holder.task
         let delivery = try XCTUnwrap(heldDelivery)
         _ = try await delivery.value
+        XCTAssertTrue(probe.events.isEmpty)
+
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: nil
+        )
+        _ = try await hybrid.enqueueLifecycleBarrier().value
         XCTAssertEqual(probe.events, ["during-init"])
 
         _ = try await hybrid.endConnection().await()
@@ -87,9 +90,6 @@ final class ConnectOnDemandTests: XCTestCase {
     func testPurchaseErrorCallbackDuringFailedInitIsDelivered() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()
-        try hybrid.addPurchaseErrorListener { error in
-            probe.record(error.code)
-        }
         let purchaseError = PurchaseError.make(
             code: .iapNotAvailable,
             message: "Store unavailable"
@@ -114,7 +114,154 @@ final class ConnectOnDemandTests: XCTestCase {
         let heldDelivery = await holder.task
         let delivery = try XCTUnwrap(heldDelivery)
         _ = try await delivery.value
+        XCTAssertTrue(probe.events.isEmpty)
+
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+        _ = try await hybrid.enqueueLifecycleBarrier().value
         XCTAssertEqual(probe.events, [ErrorCode.iapNotAvailable.rawValue])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testOnDemandInitErrorIsOwnedByTheCallingOperation() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+        let purchaseError = PurchaseError.make(
+            code: .iapNotAvailable,
+            message: "Store unavailable"
+        )
+
+        let connection = hybrid.enqueueOnDemandConnectOperation { false }
+
+        let connected = try await connection.value
+        XCTAssertFalse(connected)
+        let delivery = hybrid.enqueuePurchaseErrorDelivery(
+            purchaseError,
+            expectedEpoch: hybrid.currentConnectionEpoch()
+        )
+        _ = try await delivery.value
+        XCTAssertTrue(
+            probe.events.isEmpty,
+            "on-demand initialization failures belong to the calling operation"
+        )
+
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testPendingPurchaseUpdatesAreBoundedAndFlushInOrder() async throws {
+        let hybrid = HybridRnIap()
+        let connected = try await hybrid.enqueueConnectOperation { true }.value
+        XCTAssertTrue(connected)
+        let epoch = hybrid.currentConnectionEpoch()
+
+        for index in 0...200 {
+            let purchase = try makePurchase(id: "buffered-\(index)")
+            _ = try await hybrid.enqueuePurchaseUpdateDelivery(
+                purchase,
+                expectedEpoch: epoch,
+                includeDuplicateListeners: false
+            ).value
+        }
+
+        let probe = EventProbe()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: nil
+        )
+        _ = try await hybrid.enqueueLifecycleBarrier().value
+        XCTAssertEqual(probe.events.count, 200)
+        XCTAssertEqual(probe.events.first, "buffered-1")
+        XCTAssertEqual(probe.events.last, "buffered-200")
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testBufferedReplayFinishesBeforeCallbackTriggeredTeardown() async throws {
+        let hybrid = HybridRnIap()
+        let connected = try await hybrid.enqueueConnectOperation { true }.value
+        XCTAssertTrue(connected)
+        let epoch = hybrid.currentConnectionEpoch()
+
+        for id in ["replay-first", "replay-second"] {
+            _ = try await hybrid.enqueuePurchaseUpdateDelivery(
+                try makePurchase(id: id),
+                expectedEpoch: epoch,
+                includeDuplicateListeners: false
+            ).value
+        }
+
+        let probe = EventProbe()
+        let endHolder = EndTaskHolder()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in
+                probe.record(purchase.id)
+                if purchase.id == "replay-first" {
+                    endHolder.set(hybrid.enqueueEndOperation { true })
+                }
+            },
+            options: nil
+        )
+        _ = try await hybrid.enqueueLifecycleBarrier().value
+        let endTask = try XCTUnwrap(endHolder.task)
+        _ = try await endTask.value
+        probe.record("end")
+
+        XCTAssertEqual(probe.events, ["replay-first", "replay-second", "end"])
+    }
+
+    func testListenerRegisteredDuringReplayOnlyReceivesLaterEvents() async throws {
+        let hybrid = HybridRnIap()
+        let connected = try await hybrid.enqueueConnectOperation { true }.value
+        XCTAssertTrue(connected)
+        let epoch = hybrid.currentConnectionEpoch()
+        let livePurchase = try makePurchase(id: "live")
+
+        for id in ["buffered-first", "buffered-second"] {
+            _ = try await hybrid.enqueuePurchaseUpdateDelivery(
+                try makePurchase(id: id),
+                expectedEpoch: epoch,
+                includeDuplicateListeners: false
+            ).value
+        }
+
+        let firstProbe = EventProbe()
+        let reentrantProbe = EventProbe()
+        let liveDeliveryHolder = VoidTaskHolder()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in
+                firstProbe.record(purchase.id)
+                if purchase.id == "buffered-first" {
+                    do {
+                        _ = try hybrid.addPurchaseUpdatedListener(
+                            listener: { laterPurchase in
+                                reentrantProbe.record(laterPurchase.id)
+                            },
+                            options: nil
+                        )
+                    } catch {
+                        reentrantProbe.record("listener-registration-failed")
+                    }
+                    liveDeliveryHolder.set(
+                        hybrid.enqueuePurchaseUpdateDelivery(
+                            livePurchase,
+                            expectedEpoch: epoch,
+                            includeDuplicateListeners: false
+                        )
+                    )
+                }
+            },
+            options: nil
+        )
+        _ = try await hybrid.enqueueLifecycleBarrier().value
+        let liveDelivery = try XCTUnwrap(liveDeliveryHolder.task)
+        _ = try await liveDelivery.value
+        XCTAssertEqual(firstProbe.events, ["buffered-first", "buffered-second", "live"])
+        XCTAssertEqual(reentrantProbe.events, ["live"])
 
         _ = try await hybrid.endConnection().await()
     }
@@ -579,6 +726,40 @@ final class ConnectOnDemandTests: XCTestCase {
 
         func set(_ task: Task<Void, Error>) {
             self.task = task
+        }
+    }
+
+    private final class EndTaskHolder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storedTask: Task<Bool, Error>?
+
+        var task: Task<Bool, Error>? {
+            lock.lock()
+            defer { lock.unlock() }
+            return storedTask
+        }
+
+        func set(_ task: Task<Bool, Error>) {
+            lock.lock()
+            storedTask = task
+            lock.unlock()
+        }
+    }
+
+    private final class VoidTaskHolder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var storedTask: Task<Void, Error>?
+
+        var task: Task<Void, Error>? {
+            lock.lock()
+            defer { lock.unlock() }
+            return storedTask
+        }
+
+        func set(_ task: Task<Void, Error>) {
+            lock.lock()
+            storedTask = task
+            lock.unlock()
         }
     }
 

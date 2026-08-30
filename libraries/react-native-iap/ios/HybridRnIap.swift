@@ -2,8 +2,54 @@ import Foundation
 import NitroModules
 import OpenIAP
 
+private final class PendingEventBuffer<Event> {
+    private let capacity: Int
+    private let label: String
+    private var events: [Event] = []
+    private var isFlushing = false
+
+    init(capacity: Int, label: String) {
+        precondition(capacity > 0)
+        self.capacity = capacity
+        self.label = label
+    }
+
+    func enqueueIfNeeded(hasListeners: Bool, event: Event) -> Bool {
+        guard !hasListeners || isFlushing else { return false }
+        if events.count >= capacity {
+            events.removeFirst()
+            RnIapLog.warn("\(label) overflow; dropping oldest")
+        }
+        events.append(event)
+        return true
+    }
+
+    func beginFlushIfNeeded() -> Bool {
+        guard !isFlushing, !events.isEmpty else { return false }
+        isFlushing = true
+        return true
+    }
+
+    func takeBatchOrFinish(hasListeners: Bool) -> [Event]? {
+        guard hasListeners, !events.isEmpty else {
+            isFlushing = false
+            return nil
+        }
+        let batch = events
+        events.removeAll()
+        return batch
+    }
+
+    func clear() {
+        events.removeAll()
+        isFlushing = false
+    }
+}
+
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 class HybridRnIap: HybridRnIapSpec {
+    private static let maxPendingEvents = 200
+
     private enum PurchaseUpdatedListenerBucket {
         case deduping
         case nonDeduping
@@ -38,6 +84,19 @@ class HybridRnIap: HybridRnIapSpec {
     private var deliveredPurchaseUpdateIds = Set<String>()
     private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
     private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
+    private var pendingOnDemandInitErrorSuppressions: [String: Int] = [:]
+    private let pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(
+        capacity: HybridRnIap.maxPendingEvents,
+        label: "pendingPurchaseUpdates"
+    )
+    private let pendingDuplicatePurchaseUpdates = PendingEventBuffer<NitroPurchase>(
+        capacity: HybridRnIap.maxPendingEvents,
+        label: "pendingDuplicatePurchaseUpdates"
+    )
+    private let pendingPurchaseErrors = PendingEventBuffer<NitroPurchaseResult>(
+        capacity: HybridRnIap.maxPendingEvents,
+        label: "pendingPurchaseErrors"
+    )
     // Thread safety lock for listener arrays and error dedup state
     private let listenerLock = NSLock()
     private let lifecycleLock = NSLock()
@@ -96,6 +155,12 @@ class HybridRnIap: HybridRnIapSpec {
                 let isCurrent = self.listenerLock.withLock {
                     guard self.connectionEpoch == epoch else { return false }
                     self.isInitialized = ok
+                    if reuseExistingConnection, !ok {
+                        self.pendingOnDemandInitErrorSuppressions[
+                            ErrorCode.iapNotAvailable.rawValue,
+                            default: 0
+                        ] += 1
+                    }
                     return true
                 }
                 guard isCurrent else { return false }
@@ -126,6 +191,12 @@ class HybridRnIap: HybridRnIapSpec {
         _ connect: @escaping () async throws -> Bool
     ) -> Task<Bool, Error> {
         enqueueConnect(nil, connect: connect)
+    }
+
+    func enqueueOnDemandConnectOperation(
+        _ connect: @escaping () async throws -> Bool
+    ) -> Task<Bool, Error> {
+        enqueueConnect(nil, reuseExistingConnection: true, connect: connect)
     }
 
     func endConnection() throws -> Promise<Bool> {
@@ -1175,7 +1246,7 @@ class HybridRnIap: HybridRnIapSpec {
     ) throws -> Double {
         let dedupeTransactionIOS = purchaseUpdatedDedupeTransactionIOS(from: options)
         let receiveDuplicateTransactionUpdatesIOS = !dedupeTransactionIOS
-        let (token, epoch) = listenerLock.withLock {
+        let (token, epoch, shouldFlush, flushEpoch) = listenerLock.withLock {
             let token = nextPurchaseUpdatedListenerToken
             nextPurchaseUpdatedListenerToken += 1
 
@@ -1189,9 +1260,26 @@ class HybridRnIap: HybridRnIapSpec {
                 purchaseUpdatedListeners.append((token: token, listener: listener))
             }
             purchaseUpdatedListenerRegistrations.append(registration)
-            return (token, isInitialized ? connectionEpoch : nil)
+            let shouldFlush: Bool
+            if receiveDuplicateTransactionUpdatesIOS {
+                shouldFlush = pendingDuplicatePurchaseUpdates.beginFlushIfNeeded()
+            } else {
+                shouldFlush = pendingPurchaseUpdates.beginFlushIfNeeded()
+            }
+            return (
+                token,
+                isInitialized ? connectionEpoch : nil,
+                shouldFlush,
+                connectionEpoch
+            )
         }
 
+        if shouldFlush {
+            schedulePendingPurchaseUpdateFlush(
+                includeDuplicateListeners: receiveDuplicateTransactionUpdatesIOS,
+                expectedEpoch: flushEpoch
+            )
+        }
         if let epoch {
             if receiveDuplicateTransactionUpdatesIOS {
                 attachDuplicatePurchaseUpdatedSubIfNeeded(expectedEpoch: epoch)
@@ -1213,9 +1301,13 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     func addPurchaseErrorListener(listener: @escaping (NitroPurchaseResult) -> Void) throws {
-        let epoch = listenerLock.withLock {
+        let (epoch, shouldFlush, flushEpoch) = listenerLock.withLock {
             purchaseErrorListeners.append(listener)
-            return isInitialized ? connectionEpoch : nil
+            let shouldFlush = pendingPurchaseErrors.beginFlushIfNeeded()
+            return (isInitialized ? connectionEpoch : nil, shouldFlush, connectionEpoch)
+        }
+        if shouldFlush {
+            schedulePendingPurchaseErrorFlush(expectedEpoch: flushEpoch)
         }
         if let epoch {
             attachPurchaseErrorSubIfNeeded(expectedEpoch: epoch)
@@ -1533,8 +1625,9 @@ class HybridRnIap: HybridRnIapSpec {
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
-        enqueueLifecycleOperation {
+        return enqueueLifecycleOperation {
             guard self.isCurrentEpoch(expectedEpoch),
+                  !self.consumeOnDemandInitErrorSuppression(error),
                   !self.consumeRequestPurchaseErrorSuppression(error) else {
                 return
             }
@@ -1550,6 +1643,21 @@ class HybridRnIap: HybridRnIapSpec {
                 RnIapLog.result("purchaseErrorListener", payload)
                 self.sendPurchaseError(nitroError, productId: error.productId)
             }
+        }
+    }
+
+    private func consumeOnDemandInitErrorSuppression(_ error: PurchaseError) -> Bool {
+        listenerLock.withLock {
+            let key = error.code.rawValue
+            guard let count = pendingOnDemandInitErrorSuppressions[key] else {
+                return false
+            }
+            if count == 1 {
+                pendingOnDemandInitErrorSuppressions.removeValue(forKey: key)
+            } else {
+                pendingOnDemandInitErrorSuppressions[key] = count - 1
+            }
+            return true
         }
     }
 
@@ -1724,9 +1832,21 @@ class HybridRnIap: HybridRnIapSpec {
     private func sendPurchaseUpdate(_ purchase: NitroPurchase, includeDuplicateListeners: Bool) {
         let snapshot: [(NitroPurchase) -> Void] = listenerLock.withLock {
             if includeDuplicateListeners {
+                if pendingDuplicatePurchaseUpdates.enqueueIfNeeded(
+                    hasListeners: !purchaseUpdatedDuplicateListeners.isEmpty,
+                    event: purchase
+                ) {
+                    return []
+                }
                 return purchaseUpdatedDuplicateListeners.map(\.listener)
             }
 
+            if pendingPurchaseUpdates.enqueueIfNeeded(
+                hasListeners: !purchaseUpdatedListeners.isEmpty,
+                event: purchase
+            ) {
+                return []
+            }
             return purchaseUpdatedListeners.map(\.listener)
         }
 
@@ -1744,21 +1864,6 @@ class HybridRnIap: HybridRnIapSpec {
             ?? (error.purchaseToken?.isEmpty == false ? error.purchaseToken : nil)
             ?? (error.message.isEmpty ? nil : error.message)
         let currentKey = RnIapHelper.makeErrorDedupKey(code: error.code, productId: dedupIdentifier)
-
-        // Protect error dedup state since sendPurchaseError is called from multiple threads
-        let snapshot: [(NitroPurchaseResult) -> Void]? = listenerLock.withLock {
-            if dedupe {
-                let now = Date().timeIntervalSince1970
-                let withinWindow = (now - lastPurchaseErrorTimestamp) < 0.15
-                if currentKey == lastPurchaseErrorKey && withinWindow {
-                    return nil
-                }
-                lastPurchaseErrorKey = currentKey
-                lastPurchaseErrorTimestamp = now
-            }
-            return Array(purchaseErrorListeners)
-        }
-        guard let snapshot else { return }
 
         // Ensure we never leak SKU via purchaseToken
         let sanitized: NitroPurchaseResult
@@ -1778,9 +1883,102 @@ class HybridRnIap: HybridRnIapSpec {
         } else {
             sanitized = error
         }
+
+        // Protect error dedup state since sendPurchaseError is called from multiple threads
+        let snapshot: [(NitroPurchaseResult) -> Void]? = listenerLock.withLock {
+            if dedupe {
+                let now = Date().timeIntervalSince1970
+                let withinWindow = (now - lastPurchaseErrorTimestamp) < 0.15
+                if currentKey == lastPurchaseErrorKey && withinWindow {
+                    return nil
+                }
+                lastPurchaseErrorKey = currentKey
+                lastPurchaseErrorTimestamp = now
+            }
+            if pendingPurchaseErrors.enqueueIfNeeded(
+                hasListeners: !purchaseErrorListeners.isEmpty,
+                event: sanitized
+            ) {
+                return []
+            }
+            return Array(purchaseErrorListeners)
+        }
+        guard let snapshot else { return }
         for listener in snapshot {
             listener(sanitized)
         }
+    }
+
+    private func schedulePendingPurchaseUpdateFlush(
+        includeDuplicateListeners: Bool,
+        expectedEpoch: UInt64
+    ) {
+        let operation: Task<Void, Error> = enqueueLifecycleOperation {
+            await self.flushPendingPurchaseUpdates(
+                includeDuplicateListeners: includeDuplicateListeners,
+                expectedEpoch: expectedEpoch
+            )
+        }
+        Task { _ = try? await operation.value }
+    }
+
+    private func flushPendingPurchaseUpdates(
+        includeDuplicateListeners: Bool,
+        expectedEpoch: UInt64
+    ) async {
+        while true {
+            let delivery: (events: [NitroPurchase], listeners: [(NitroPurchase) -> Void])? = listenerLock.withLock {
+                guard connectionEpoch == expectedEpoch else { return nil }
+                let listeners = includeDuplicateListeners
+                    ? purchaseUpdatedDuplicateListeners.map(\.listener)
+                    : purchaseUpdatedListeners.map(\.listener)
+                let buffer = includeDuplicateListeners
+                    ? pendingDuplicatePurchaseUpdates
+                    : pendingPurchaseUpdates
+                guard let events = buffer.takeBatchOrFinish(
+                    hasListeners: !listeners.isEmpty
+                ) else { return nil }
+                return (events, listeners)
+            }
+            guard let delivery else { return }
+            for event in delivery.events {
+                for listener in delivery.listeners {
+                    guard isCurrentEpoch(expectedEpoch) else { return }
+                    await MainActor.run { listener(event) }
+                }
+            }
+        }
+    }
+
+    private func schedulePendingPurchaseErrorFlush(expectedEpoch: UInt64) {
+        let operation: Task<Void, Error> = enqueueLifecycleOperation {
+            await self.flushPendingPurchaseErrors(expectedEpoch: expectedEpoch)
+        }
+        Task { _ = try? await operation.value }
+    }
+
+    private func flushPendingPurchaseErrors(expectedEpoch: UInt64) async {
+        while true {
+            let delivery: (events: [NitroPurchaseResult], listeners: [(NitroPurchaseResult) -> Void])? = listenerLock.withLock {
+                guard connectionEpoch == expectedEpoch else { return nil }
+                let listeners = Array(purchaseErrorListeners)
+                guard let events = pendingPurchaseErrors.takeBatchOrFinish(
+                    hasListeners: !listeners.isEmpty
+                ) else { return nil }
+                return (events, listeners)
+            }
+            guard let delivery else { return }
+            for event in delivery.events {
+                for listener in delivery.listeners {
+                    guard isCurrentEpoch(expectedEpoch) else { return }
+                    await MainActor.run { listener(event) }
+                }
+            }
+        }
+    }
+
+    func enqueueLifecycleBarrier() -> Task<Void, Error> {
+        enqueueLifecycleOperation {}
     }
 
     private func sendPurchaseErrorDedup(_ error: NitroPurchaseResult, productId: String? = nil) {
@@ -1825,6 +2023,10 @@ class HybridRnIap: HybridRnIapSpec {
             deliveredPurchaseUpdateIds.removeAll()
             pendingDuplicatePurchaseUpdateSuppressions.removeAll()
             pendingRequestPurchaseErrorSuppressions.removeAll()
+            pendingOnDemandInitErrorSuppressions.removeAll()
+            pendingPurchaseUpdates.clear()
+            pendingDuplicatePurchaseUpdates.clear()
+            pendingPurchaseErrors.clear()
             return subscriptions
         }
     }
