@@ -247,6 +247,42 @@ describe('hooks/useIAP (renderer)', () => {
     consoleError.mockRestore();
   });
 
+  it('refreshes purchase state when onPurchaseSuccess rejects', async () => {
+    const callbackError = new Error('async host callback failed');
+    const onPurchaseSuccess = jest.fn(async () => {
+      throw callbackError;
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
+
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'p1'});
+    });
+
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      '[useIAP] onPurchaseSuccess failed:',
+      callbackError,
+    );
+    consoleError.mockRestore();
+  });
+
   it('reports a post-purchase refresh failure after delivering success', async () => {
     const refreshError = new Error('refresh failed');
     const onPurchaseSuccess = jest.fn();
@@ -260,6 +296,8 @@ describe('hooks/useIAP (renderer)', () => {
       TestRenderer.create(React.createElement(Harness));
     });
     await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
     mockGetActiveSubscriptions.mockRejectedValueOnce(refreshError);
 
     if (!capturedPurchaseListener) {
@@ -270,6 +308,8 @@ describe('hooks/useIAP (renderer)', () => {
     });
 
     expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
     expect(consoleWarn).toHaveBeenCalledWith(
       '[RN-IAP]',
       '[useIAP] post-purchase refresh failed:',

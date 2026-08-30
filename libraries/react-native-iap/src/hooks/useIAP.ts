@@ -612,13 +612,21 @@ export function useIAP(options?: UseIapOptions): UseIap {
           // Deliver first so store refresh latency cannot delay verification
           // and transaction finalization in the host app.
           try {
-            optionsRef.current?.onPurchaseSuccess?.(purchase);
+            const callbackResult =
+              optionsRef.current?.onPurchaseSuccess?.(purchase);
+            void Promise.resolve(callbackResult).catch((e) => {
+              RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
+            });
           } catch (e) {
             RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
           }
 
           try {
             await getActiveSubscriptionsInternal();
+          } catch (e) {
+            RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
+          }
+          try {
             await getAvailablePurchasesInternal();
           } catch (e) {
             RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
