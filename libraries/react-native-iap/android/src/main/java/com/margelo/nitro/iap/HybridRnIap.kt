@@ -139,6 +139,17 @@ internal fun requireMatchingPurchaseOptions(
     }
 }
 
+internal inline fun <T> catchNonCancellation(
+    block: () -> T,
+    onFailure: (Exception) -> T,
+): T = try {
+    block()
+} catch (error: CancellationException) {
+    throw error
+} catch (error: Exception) {
+    onFailure(error)
+}
+
 /**
  * Bound for the pending purchase-event queues, matching expo-iap's
  * ExpoIapHelper.MAX_BUFFERED_EVENTS. Oldest entries are dropped on overflow.
@@ -773,50 +784,50 @@ class HybridRnIap : HybridRnIapSpec() {
                 mapOf("subscriptionIds" to (subscriptionIds?.toList() ?: "all"))
             )
 
-            try {
-                // Use OpenIapModule's native getActiveSubscriptions method
-                RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
-                val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
+            catchNonCancellation(
+                block = {
+                    RnIapLog.payload("getActiveSubscriptions.native", mapOf("type" to "subs"))
+                    val activeSubscriptions = openIap.getActiveSubscriptions(subscriptionIds?.toList())
 
-                val nitroSubscriptions = activeSubscriptions.map { sub ->
-                    NitroActiveSubscription(
-                        productId = sub.productId,
-                        isActive = sub.isActive,
-                        transactionId = sub.transactionId,
-                        purchaseToken = sub.purchaseToken.wrapVariant(),
-                        transactionDate = sub.transactionDate,
-                        // Android specific fields
-                        autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
-                        basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
-                        currentPlanId = sub.currentPlanId.wrapVariant(),
-                        purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
-                        // iOS specific fields (null on Android)
-                        expirationDateIOS = null,
-                        environmentIOS = null,
-                        daysUntilExpirationIOS = null,
-                        renewalInfoIOS = null
+                    val nitroSubscriptions = activeSubscriptions.map { sub ->
+                        NitroActiveSubscription(
+                            productId = sub.productId,
+                            isActive = sub.isActive,
+                            transactionId = sub.transactionId,
+                            purchaseToken = sub.purchaseToken.wrapVariant(),
+                            transactionDate = sub.transactionDate,
+                            // Android specific fields
+                            autoRenewingAndroid = sub.autoRenewingAndroid.wrapVariant(),
+                            basePlanIdAndroid = sub.basePlanIdAndroid.wrapVariant(),
+                            currentPlanId = sub.currentPlanId.wrapVariant(),
+                            purchaseTokenAndroid = sub.purchaseTokenAndroid.wrapVariant(),
+                            // iOS specific fields (null on Android)
+                            expirationDateIOS = null,
+                            environmentIOS = null,
+                            daysUntilExpirationIOS = null,
+                            renewalInfoIOS = null
+                        )
+                    }
+
+                    RnIapLog.result(
+                        "getActiveSubscriptions",
+                        nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
                     )
-                }
 
-                RnIapLog.result(
-                    "getActiveSubscriptions",
-                    nitroSubscriptions.map { mapOf("productId" to it.productId, "isActive" to it.isActive) }
-                )
-
-                nitroSubscriptions.toTypedArray()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                RnIapLog.failure("getActiveSubscriptions", e)
-                val error = OpenIapError.ServiceUnavailable()
-                throw OpenIapException(
-                    toErrorJson(
-                        error = error,
-                        debugMessage = e.message,
-                        messageOverride = "Failed to get active subscriptions: ${e.message}"
+                    nitroSubscriptions.toTypedArray()
+                },
+                onFailure = { e ->
+                    RnIapLog.failure("getActiveSubscriptions", e)
+                    val error = OpenIapError.ServiceUnavailable()
+                    throw OpenIapException(
+                        toErrorJson(
+                            error = error,
+                            debugMessage = e.message,
+                            messageOverride = "Failed to get active subscriptions: ${e.message}"
+                        )
                     )
-                )
-            }
+                },
+            )
         }
     }
 
@@ -1876,14 +1887,16 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun enableBillingProgramAndroid(program: BillingProgramAndroid) {
         RnIapLog.payload("enableBillingProgramAndroid", mapOf("program" to program.name))
-        try {
-            val openIapProgram = mapBillingProgram(program)
-            openIapStore.enableBillingProgram(openIapProgram)
-            RnIapLog.result("enableBillingProgramAndroid", true)
-        } catch (err: Exception) {
-            RnIapLog.failure("enableBillingProgramAndroid", err)
-            // enableBillingProgram is void, so we just log the error
-        }
+        catchNonCancellation(
+            block = {
+                val openIapProgram = mapBillingProgram(program)
+                openIapStore.enableBillingProgram(openIapProgram)
+                RnIapLog.result("enableBillingProgramAndroid", true)
+            },
+            onFailure = { err ->
+                RnIapLog.failure("enableBillingProgramAndroid", err)
+            },
+        )
     }
 
     override fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): Promise<NitroBillingProgramAvailabilityResultAndroid> {
