@@ -67,6 +67,7 @@ describe('Amazon Vega public API', () => {
     await IAP.requestPurchase(request);
 
     expect(requestPurchaseNative).toHaveBeenLastCalledWith({
+      type: 'in-app',
       google: {skus: ['coins']},
     });
   });

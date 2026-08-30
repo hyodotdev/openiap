@@ -242,9 +242,14 @@ class HybridRnIap: HybridRnIapSpec {
                     iosPayload["winBackOffer"] = ["offerId": winBackOffer.offerId]
                 }
 
-                let cachedType = await MainActor.run { self.productTypeBySku[iosRequest.sku] }
-                let resolvedType = RnIapHelper.parseProductQueryType(cachedType)
-                let purchaseType: ProductQueryType = resolvedType == .all ? .inApp : resolvedType
+                let purchaseType: ProductQueryType
+                if let requestType = request.type {
+                    purchaseType = requestType == .subs ? .subs : .inApp
+                } else {
+                    let cachedType = await MainActor.run { self.productTypeBySku[iosRequest.sku] }
+                    let resolvedType = RnIapHelper.parseProductQueryType(cachedType)
+                    purchaseType = resolvedType == .all ? .inApp : resolvedType
+                }
                 await MainActor.run {
                     self.productTypeBySku[iosRequest.sku] = purchaseType.rawValue
                 }

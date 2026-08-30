@@ -849,6 +849,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
+      expect(passed.type).toBe('subs');
       expect(
         passed.apple.andDangerouslyFinishTransactionAutomatically,
       ).toBeUndefined();
@@ -3700,6 +3701,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+        type: 'in-app',
         apple: {
           sku: 'premium',
           andDangerouslyFinishTransactionAutomatically: false,
@@ -3725,6 +3727,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+        type: 'in-app',
         google: {
           skus: ['coins'],
           obfuscatedAccountId: 'account-alias',

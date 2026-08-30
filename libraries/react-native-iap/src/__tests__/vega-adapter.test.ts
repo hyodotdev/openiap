@@ -876,6 +876,33 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
+  it('uses the explicit request type when purchase metadata is unavailable', async () => {
+    const service = createService();
+    service.purchase.mockResolvedValueOnce({
+      responseCode: 0,
+      receipt: {
+        receiptId: 'sub-purchase',
+        sku: 'premium_monthly',
+      },
+    });
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.requestPurchase({
+        type: 'subs',
+        google: {skus: ['premium_monthly']},
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        productId: 'premium_monthly',
+        isAutoRenewing: true,
+        autoRenewingAndroid: true,
+      }),
+    ]);
+
+    expect(service.getProductData).not.toHaveBeenCalled();
+  });
+
   it('uses serialized subscription request context for direct Nitro calls', async () => {
     const service = createService();
     service.purchase.mockResolvedValueOnce({

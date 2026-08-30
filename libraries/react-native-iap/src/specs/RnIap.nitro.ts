@@ -260,7 +260,11 @@ export interface NitroRequestPurchaseAndroid {
   subscriptionProductReplacementParams?: SubscriptionProductReplacementParamsAndroid | null;
 }
 
+export type NitroPurchaseRequestType = 'in-app' | 'subs';
+
 export interface NitroPurchaseRequest {
+  /** Canonical product type selected by the public request. */
+  type?: NitroPurchaseRequestType | null;
   /** Apple-specific purchase parameters */
   apple?: NitroRequestPurchaseIos | null;
   /** Google-specific purchase parameters */

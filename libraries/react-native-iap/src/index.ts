@@ -1722,7 +1722,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       throw unsupportedPlatformError();
     }
 
-    const unifiedRequest: NitroPurchaseRequest = {};
+    const unifiedRequest: NitroPurchaseRequest = {type: normalizedType};
 
     if (Platform.OS === 'ios' && iosRequestSource) {
       const iosRequest = isSubs

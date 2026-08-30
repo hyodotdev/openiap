@@ -565,10 +565,15 @@ class HybridRnIap : HybridRnIapSpec() {
                     openIap.setActivity(activity)
                 }
 
-                val missingSkus = androidRequest.skus.filterNot { productTypeBySku.containsKey(it) }
-                if (missingSkus.isNotEmpty()) {
+                val queryType = request.type?.let { requestType ->
+                    when (requestType) {
+                        NitroPurchaseRequestType.SUBS -> ProductQueryType.Subs
+                        NitroPurchaseRequestType.IN_APP -> ProductQueryType.InApp
+                    }
+                } ?: run {
+                    val missingSkus = androidRequest.skus.filterNot { productTypeBySku.containsKey(it) }
                     missingSkus.forEach { sku ->
-                        RnIapLog.warn("requestPurchase missing cached type for $sku; attempting fetch")
+                        RnIapLog.warn("requestPurchase missing type hint for $sku; attempting fetch")
                         val fetched = runCatching {
                             openIap.fetchProducts(
                                 ProductRequest(listOf(sku), ProductQueryType.All)
@@ -583,10 +588,8 @@ class HybridRnIap : HybridRnIapSpec() {
                             return@async defaultResult
                         }
                     }
+                    parseProductQueryType(productTypeBySku[androidRequest.skus.first()] ?: "in-app")
                 }
-
-                val typeHint = androidRequest.skus.firstOrNull()?.let { productTypeBySku[it] } ?: "in-app"
-                val queryType = parseProductQueryType(typeHint)
 
                 try {
                     requireMatchingPurchaseOptions(

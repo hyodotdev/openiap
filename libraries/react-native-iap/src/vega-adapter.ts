@@ -1452,11 +1452,13 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       try {
         const androidRequest = selectGooglePurchaseRequest(request);
         sku = getSkuFromRequest(androidRequest);
-        const fallbackProductType = hasSubscriptionRequestContext(
-          androidRequest?.subscriptionOffers,
-        )
-          ? PRODUCT_TYPE_SUBSCRIPTION
-          : productTypesBySku.get(sku);
+        const explicitProductType =
+          request.type === 'subs' ? PRODUCT_TYPE_SUBSCRIPTION : request.type;
+        const fallbackProductType =
+          explicitProductType ??
+          (hasSubscriptionRequestContext(androidRequest?.subscriptionOffers)
+            ? PRODUCT_TYPE_SUBSCRIPTION
+            : productTypesBySku.get(sku));
         if (fallbackProductType != null) {
           productTypesBySku.set(sku, fallbackProductType);
         }

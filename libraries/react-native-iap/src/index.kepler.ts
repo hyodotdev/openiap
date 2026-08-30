@@ -157,6 +157,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   }
 
   const nitroRequest: NitroPurchaseRequest = {
+    type,
     google: androidRequest,
   };
   const result = await getModule().requestPurchase(nitroRequest);
