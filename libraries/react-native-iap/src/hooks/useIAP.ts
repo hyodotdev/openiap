@@ -767,12 +767,16 @@ export function useIAP(options?: UseIapOptions): UseIap {
   );
 
   const reconnect = useCallback(async (): Promise<boolean> => {
+    const generation = ++initializationGenerationRef.current;
     const config = buildAndroidConfig();
 
     try {
       const result = await initConnection(config);
 
-      if (!isMountedRef.current) {
+      if (
+        !isMountedRef.current ||
+        initializationGenerationRef.current !== generation
+      ) {
         return false;
       }
 
@@ -785,6 +789,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
       setConnected(false);
       return false;
     } catch (error) {
+      if (
+        !isMountedRef.current ||
+        initializationGenerationRef.current !== generation
+      ) {
+        return false;
+      }
       RnIapConsole.error('[useIAP] reconnect failed:', error);
       cleanupListeners();
       if (isMountedRef.current) {

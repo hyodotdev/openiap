@@ -1027,6 +1027,58 @@ describe('hooks/useIAP (renderer)', () => {
       expect(result).toBe(false);
     });
 
+    it('ignores an older reconnect failure after a newer success', async () => {
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      let rejectFirst: ((reason: Error) => void) | undefined;
+      let resolveSecond: ((value: boolean) => void) | undefined;
+      jest
+        .spyOn(IAP, 'initConnection')
+        .mockImplementationOnce(
+          () =>
+            new Promise((_, reject) => {
+              rejectFirst = reject;
+            }) as any,
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveSecond = resolve;
+            }) as any,
+        );
+
+      let firstReconnect: Promise<boolean>;
+      let secondReconnect: Promise<boolean>;
+      act(() => {
+        firstReconnect = api.reconnect();
+        secondReconnect = api.reconnect();
+      });
+
+      await act(async () => {
+        resolveSecond?.(true);
+        await secondReconnect!;
+      });
+      expect(api.connected).toBe(true);
+
+      await act(async () => {
+        rejectFirst?.(new Error('stale reconnect failed'));
+        expect(await firstReconnect!).toBe(false);
+      });
+
+      expect(api.connected).toBe(true);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
     it('reconnect re-registers listeners after successful reconnection', async () => {
       let api: any;
       const onPurchaseSuccess = jest.fn();
