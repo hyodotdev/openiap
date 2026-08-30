@@ -21,13 +21,20 @@ describe("subscription failure docs", () => {
   const valid = renderPage(validClaims);
 
   test("rejects obsolete React Native false-fallback guidance", () => {
-    const source = `${valid}
+    const source = renderPage(`${validClaims}
       React Native's root helper
-      and hook map failures to{' '}<code>false</code>`;
+      and hook map failures to{' '}<code>false</code>`);
 
     expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([
       expect.objectContaining({ rule: "R15" }),
     ]);
+  });
+
+  test("ignores obsolete guidance in JSX comments", () => {
+    const source = renderPage(`${validClaims}
+      {/* React Native's root helper and hook map failures to <code>false</code> */}`);
+
+    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([]);
   });
 
   test("accepts rejection guidance", () => {

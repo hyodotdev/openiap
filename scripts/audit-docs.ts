@@ -233,20 +233,23 @@ export function auditSubscriptionFailureDocs(
   source: string,
 ): Drift[] {
   const drifts: Drift[] = [];
+  const renderedProse = collectRenderedProse(source);
   const obsoleteClaim =
-    /React Native's root helper\s+and hook map failures to(?:\{' '\})?\s*<code>false<\/code>/;
-  const match = obsoleteClaim.exec(source);
+    /React\s+Native's\s+root\s+helper\s+and\s+hook\s+map\s+failures\s+to\s+false/;
+  const match = obsoleteClaim.exec(renderedProse.text);
   if (match) {
     drifts.push({
       file,
-      line: source.slice(0, match.index).split("\n").length,
+      line: lineNumberAt(
+        source,
+        renderedSourceOffset(renderedProse, match.index),
+      ),
       rule: "R15",
       message:
         "React Native subscription queries reject; the hook calls onError before rethrowing.",
     });
   }
 
-  const renderedProse = collectRenderedProse(source).text;
   const requiredClaims = [
     {
       pattern:
@@ -269,7 +272,7 @@ export function auditSubscriptionFailureDocs(
   ];
 
   for (const claim of requiredClaims) {
-    if (!claim.pattern.test(renderedProse)) {
+    if (!claim.pattern.test(renderedProse.text)) {
       drifts.push({ file, line: 1, rule: "R15", message: claim.message });
     }
   }
