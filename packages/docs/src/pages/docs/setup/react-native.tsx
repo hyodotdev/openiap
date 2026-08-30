@@ -252,7 +252,7 @@ function Store() {
       keyExtractor={(product) => product.id}
       renderItem={({ item }) => (
         <Button
-          title={\`\${item.title} - \${item.localizedPrice}\`}
+          title={\`\${item.title} - \${item.displayPrice}\`}
           onPress={() =>
             requestPurchase({
               request: {
