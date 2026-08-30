@@ -99,11 +99,9 @@ describe("generated LLM references", () => {
     )?.[1];
 
     expect(effectBody).toContain("void fetchProducts");
+    expect(reactNativeExpo?.match(/\bfetchProducts\s*\(/g)).toHaveLength(1);
     expect(reactNativeExpo).toContain("disabled={!connected}");
     expect(onPressBody).toContain("requestPurchase({");
-    expect(reactNativeExpo).not.toContain(
-      "if (connected) {\n  await fetchProducts",
-    );
   });
 
   test("documents every Android production source set", () => {
