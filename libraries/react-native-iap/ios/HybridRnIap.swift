@@ -65,7 +65,7 @@ class HybridRnIap: HybridRnIapSpec {
     // bridge's purchase listeners attach — otherwise events would be lost.
     private func ensureConnection() async throws {
         if isConnectionInitialized() { return }
-        _ = try await enqueueConnect(nil).value
+        _ = try await enqueueConnect(nil, reuseExistingConnection: true).value
         // Still refuse if the connect did not take: the listeners attach on the
         // same path, so proceeding here would run a purchase nothing observes.
         guard isConnectionInitialized() else {
@@ -73,8 +73,12 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    private func enqueueConnect(_ configValue: InitConnectionConfig?) -> Task<Bool, Error> {
+    private func enqueueConnect(
+        _ configValue: InitConnectionConfig?,
+        reuseExistingConnection: Bool = false
+    ) -> Task<Bool, Error> {
         enqueueLifecycleOperation {
+            if reuseExistingConnection, self.isConnectionInitialized() { return true }
             RnIapLog.payload("initConnection", configValue)
             let epoch = self.listenerLock.withLock { self.connectionEpoch }
 
@@ -661,6 +665,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func presentCodeRedemptionSheetIOS() throws -> Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("presentCodeRedemptionSheetIOS", nil)
                 guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {

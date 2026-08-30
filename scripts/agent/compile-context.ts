@@ -500,22 +500,34 @@ is selected at the runtime integration layer.
 
 ### React Native / Expo
 \`\`\`typescript
+import { useEffect } from 'react';
+import { Button } from 'react-native';
 import { useIAP } from 'expo-iap'; // or 'react-native-iap'
 
-const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
-  onPurchaseSuccess: async (purchase) => {
-    await finishTransaction({ purchase, isConsumable: true });
-  },
-});
-
-// useIAP opens the connection for you; wait for it before calling the store.
-// Android rejects store calls with \`not-prepared\` until it is open.
-if (connected) {
-  await fetchProducts({ skus: ['premium'], type: 'in-app' });
-  await requestPurchase({
-    request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
-    type: 'in-app',
+function PremiumButton() {
+  const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      await finishTransaction({ purchase, isConsumable: true });
+    },
   });
+
+  useEffect(() => {
+    if (!connected) return;
+    void fetchProducts({ skus: ['premium'], type: 'in-app' });
+  }, [connected, fetchProducts]);
+
+  return (
+    <Button
+      title="Buy premium"
+      disabled={!connected}
+      onPress={() =>
+        requestPurchase({
+          request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
+          type: 'in-app',
+        })
+      }
+    />
+  );
 }
 \`\`\`
 

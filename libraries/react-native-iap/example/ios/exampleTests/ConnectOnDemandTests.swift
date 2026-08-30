@@ -40,18 +40,20 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.endConnection().await()
     }
 
-    func testOnDemandConnectIsNotRepeatedOnEveryCall() async throws {
+    func testOnDemandConnectReusesAttachedListeners() async throws {
         let hybrid = HybridRnIap()
 
+        try hybrid.addSubscriptionBillingIssueListener { _ in }
         _ = try await hybrid.getAvailablePurchases(options: nil).await()
-        let epochAfterFirst = inspectEpoch(hybrid)
+        let subAfterFirst = try XCTUnwrap(inspectSub(hybrid))
 
         _ = try await hybrid.getAvailablePurchases(options: nil).await()
+        let subAfterSecond = try XCTUnwrap(inspectSub(hybrid))
 
         XCTAssertEqual(
-            inspectEpoch(hybrid),
-            epochAfterFirst,
-            "the second call must reuse the open connection, not reconnect"
+            ObjectIdentifier(subAfterSecond as AnyObject),
+            ObjectIdentifier(subAfterFirst as AnyObject),
+            "the second call must reuse the attached listener"
         )
 
         _ = try await hybrid.endConnection().await()
@@ -73,10 +75,6 @@ final class ConnectOnDemandTests: XCTestCase {
 
     private func inspectInitialized(_ hybrid: HybridRnIap) -> Bool {
         childValue(hybrid, label: "isInitialized") as? Bool ?? false
-    }
-
-    private func inspectEpoch(_ hybrid: HybridRnIap) -> UInt64 {
-        childValue(hybrid, label: "connectionEpoch") as? UInt64 ?? .max
     }
 
     private func childValue(_ object: Any, label: String) -> Any? {

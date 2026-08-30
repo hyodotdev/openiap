@@ -85,10 +85,11 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <Link to="/docs/apis/init-connection">
             <code>initConnection()</code>
           </Link>{' '}
-          first. This helper reports <code>false</code> for any failure, so
-          without a connection a premium gate silently locks the user out
-          instead of reporting a problem. Gate on the <code>connected</code>{' '}
-          flag rather than relying on the return value alone.
+          first. React Native's root helper and hook map failures to{' '}
+          <code>false</code>, so a disconnected premium gate silently locks the
+          user out. Expo and native promise APIs reject; Expo's hook calls{' '}
+          <code>onError</code> before rethrowing. Gate hook examples on the{' '}
+          <code>connected</code> flag.
         </p>
       </Callout>
 
@@ -118,12 +119,13 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         when you only need a yes/no answer.
       </p>
       <p>
-        A store or bridge failure is not <code>false</code>. Promise-based SDKs
-        reject, and their React Native/Expo hooks call <code>onError</code>{' '}
-        before rethrowing. Godot entitlement code must use{' '}
-        <code>has_active_subscriptions_result()</code>; the compatibility
-        boolean helper still maps failure to <code>false</code> and is not safe
-        for granting or revoking access.
+        Failure behavior depends on the SDK layer. React Native's root helper
+        and hook map failures to <code>false</code> without calling{' '}
+        <code>onError</code>. Expo and native promise APIs reject; Expo's hook
+        calls <code>onError</code> before rethrowing. Godot entitlement code
+        must use <code>has_active_subscriptions_result()</code>; the
+        compatibility boolean helper still maps failure to <code>false</code>{' '}
+        and is not safe for granting or revoking access.
       </p>
 
       <h2>Example</h2>

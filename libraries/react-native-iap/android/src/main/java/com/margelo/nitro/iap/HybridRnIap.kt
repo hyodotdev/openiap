@@ -78,6 +78,25 @@ class OpenIapException(private val errorJson: String, cause: Throwable? = null) 
     }
 }
 
+internal fun parseOpenIapError(err: Throwable): OpenIapError {
+    var cause: Throwable? = err
+    while (cause != null) {
+        if (cause is OpenIapError) return cause
+        val message = cause.message ?: ""
+        when {
+            message.contains("not prepared", ignoreCase = true) ||
+                message.contains("not initialized", ignoreCase = true) -> return OpenIapError.NotPrepared
+            message.contains("developer error", ignoreCase = true) ||
+                message.contains("activity not available", ignoreCase = true) -> return OpenIapError.DeveloperError()
+            message.contains("network", ignoreCase = true) -> return OpenIapError.NetworkError
+            message.contains("service unavailable", ignoreCase = true) ||
+                message.contains("billing unavailable", ignoreCase = true) -> return OpenIapError.ServiceUnavailable()
+        }
+        cause = cause.cause
+    }
+    return OpenIapError.ServiceUnavailable()
+}
+
 internal suspend fun endRnConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
@@ -579,12 +598,14 @@ class HybridRnIap : HybridRnIapSpec() {
                     val missingSkus = androidRequest.skus.filterNot { productTypeBySku.containsKey(it) }
                     missingSkus.forEach { sku ->
                         RnIapLog.warn("requestPurchase missing type hint for $sku; attempting fetch")
-                        val fetched = runCatching {
+                        val fetched = try {
                             openIap.fetchProducts(
                                 ProductRequest(listOf(sku), ProductQueryType.All)
                             ).productsOrEmpty()
-                        }.getOrElse { error ->
-                            RnIapLog.failure("requestPurchase.fetchMissing", error)
+                        } catch (e: OpenIapError) {
+                            throw e
+                        } catch (e: Exception) {
+                            RnIapLog.failure("requestPurchase.fetchMissing", e)
                             emptyList()
                         }
                         fetched.firstOrNull()?.let { productTypeBySku[it.id] = it.type.rawValue }
@@ -706,8 +727,6 @@ class HybridRnIap : HybridRnIapSpec() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: OpenIapError) {
-                // Report the store's own reason — a purchase attempted with no
-                // connection is not a purchase failure.
                 RnIapLog.failure("requestPurchase", e)
                 if (!reachedOpenIapRequest) {
                     sendPurchaseError(toErrorResult(error = e, debugMessage = e.message))
@@ -732,47 +751,52 @@ class HybridRnIap : HybridRnIapSpec() {
     // Purchase history methods (Unified)
     override fun getAvailablePurchases(options: NitroAvailablePurchasesOptions?): Promise<Array<NitroPurchase>> {
         return Promise.async {
-            val androidOptions = (options?.android as? Variant_NullType_NitroAvailablePurchasesAndroidOptions.Second)?.value
+            try {
+                val androidOptions = (options?.android as? Variant_NullType_NitroAvailablePurchasesAndroidOptions.Second)?.value
 
-            val includeSuspended = androidOptions?.includeSuspended.unwrapBool() ?: false
+                val includeSuspended = androidOptions?.includeSuspended.unwrapBool() ?: false
 
-            RnIapLog.payload(
-                "getAvailablePurchases",
-                mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
-            )
-
-            val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
-            val normalizedType = when (typeName) {
-                "in-app", "subs" -> typeName
-                else -> null
-            }
-
-            // Create PurchaseOptions with includeSuspendedAndroid
-            val purchaseOptions = dev.hyo.openiap.PurchaseOptions(
-                includeSuspendedAndroid = includeSuspended
-            )
-
-            val result: List<OpenIapPurchase> = if (normalizedType != null) {
-                val typeEnum = parseProductQueryType(normalizedType)
                 RnIapLog.payload(
-                    "getAvailablePurchases.native",
-                    mapOf("type" to typeEnum.rawValue, "includeSuspended" to includeSuspended)
+                    "getAvailablePurchases",
+                    mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
                 )
-                // Note: getAvailableItems doesn't accept PurchaseOptions
-                // includeSuspended only applies when fetching all types
-                openIap.getAvailableItems(typeEnum)
-            } else {
-                RnIapLog.payload("getAvailablePurchases.native", mapOf("type" to "all", "includeSuspended" to includeSuspended))
-                openIap.getAvailablePurchases(purchaseOptions)
+
+                val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
+                val normalizedType = when (typeName) {
+                    "in-app", "subs" -> typeName
+                    else -> null
+                }
+
+                // Create PurchaseOptions with includeSuspendedAndroid
+                val purchaseOptions = dev.hyo.openiap.PurchaseOptions(
+                    includeSuspendedAndroid = includeSuspended
+                )
+
+                val result: List<OpenIapPurchase> = if (normalizedType != null) {
+                    val typeEnum = parseProductQueryType(normalizedType)
+                    RnIapLog.payload(
+                        "getAvailablePurchases.native",
+                        mapOf("type" to typeEnum.rawValue, "includeSuspended" to includeSuspended)
+                    )
+                    // Note: getAvailableItems doesn't accept PurchaseOptions
+                    // includeSuspended only applies when fetching all types
+                    openIap.getAvailableItems(typeEnum)
+                } else {
+                    RnIapLog.payload("getAvailablePurchases.native", mapOf("type" to "all", "includeSuspended" to includeSuspended))
+                    openIap.getAvailablePurchases(purchaseOptions)
+                }
+                RnIapLog.result(
+                    "getAvailablePurchases",
+                    mapOf(
+                        "purchaseCount" to result.size,
+                        "productIds" to result.map { it.productId }
+                    )
+                )
+                result.map { convertToNitroPurchase(it) }.toTypedArray()
+            } catch (e: OpenIapError) {
+                RnIapLog.failure("getAvailablePurchases", e)
+                throw OpenIapException(toErrorJson(e), e)
             }
-            RnIapLog.result(
-                "getAvailablePurchases",
-                mapOf(
-                    "purchaseCount" to result.size,
-                    "productIds" to result.map { it.productId }
-                )
-            )
-            result.map { convertToNitroPurchase(it) }.toTypedArray()
         }
     }
 
@@ -2255,30 +2279,6 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             throw OpenIapException(toErrorJson(OpenIapError.FeatureNotSupported()))
         }
-    }
-
-    // ---------------------------------------------------------------------
-    // OpenIAP error helpers: unify error codes/messages from library
-    // ---------------------------------------------------------------------
-    private fun parseOpenIapError(err: Throwable): OpenIapError {
-        // Try to extract OpenIapError from the exception chain
-        var cause: Throwable? = err
-        while (cause != null) {
-            val message = cause.message ?: ""
-            // Check if message contains OpenIAP error patterns
-            when {
-                message.contains("not prepared", ignoreCase = true) ||
-                message.contains("not initialized", ignoreCase = true) -> return OpenIapError.NotPrepared
-                message.contains("developer error", ignoreCase = true) ||
-                message.contains("activity not available", ignoreCase = true) -> return OpenIapError.DeveloperError()
-                message.contains("network", ignoreCase = true) -> return OpenIapError.NetworkError
-                message.contains("service unavailable", ignoreCase = true) ||
-                message.contains("billing unavailable", ignoreCase = true) -> return OpenIapError.ServiceUnavailable()
-            }
-            cause = cause.cause
-        }
-        // Default to ServiceUnavailable if we can't determine the error type
-        return OpenIapError.ServiceUnavailable()
     }
 
     private fun toErrorJson(

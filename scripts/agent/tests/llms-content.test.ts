@@ -56,9 +56,7 @@ describe("generated LLM references", () => {
     expect(quickReference).not.toContain(
       "openRedeemOfferCodeAndroid() - Open Play offer-code redemption page",
     );
-    expect(fullReference).toContain(
-      "cross-platform `openRedeemOfferCode`",
-    );
+    expect(fullReference).toContain("cross-platform `openRedeemOfferCode`");
   });
 
   test("uses canonical platform keys and excludes legacy API references", () => {
@@ -86,6 +84,19 @@ describe("generated LLM references", () => {
       "await GodotIapPlugin.fetch_products(request)",
     );
     expect(fullReference).toContain("val products = iap.fetchProducts {");
+  });
+
+  test("keeps hook store calls in lifecycle and user-event boundaries", () => {
+    const reactNativeExpo = fullReference
+      .split("### React Native / Expo")[2]
+      ?.split("### Flutter")[0];
+
+    expect(reactNativeExpo).toContain("useEffect(() => {");
+    expect(reactNativeExpo).toContain("disabled={!connected}");
+    expect(reactNativeExpo).toContain("onPress={() =>");
+    expect(reactNativeExpo).not.toContain(
+      "if (connected) {\n  await fetchProducts",
+    );
   });
 
   test("documents every Android production source set", () => {
