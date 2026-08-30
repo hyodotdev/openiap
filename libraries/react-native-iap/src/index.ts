@@ -1170,8 +1170,16 @@ export const getAppTransactionIOS: QueryField<
 
     return null;
   } catch (error) {
-    RnIapConsole.error('Failed to get app transaction:', error);
-    throw error;
+    const parsedError = parseErrorAndLogIfNeeded(
+      'Failed to get app transaction:',
+      error,
+    );
+    throw createPurchaseError({
+      code: parsedError.code,
+      message: parsedError.message,
+      responseCode: parsedError.responseCode,
+      debugMessage: parsedError.debugMessage,
+    });
   }
 };
 
