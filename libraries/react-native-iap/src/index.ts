@@ -264,6 +264,24 @@ const IAP = {
 // hyodotdev/openiap#382.
 // ============================================================================
 
+function attachNativeListenerOrDefer(
+  label: string,
+  attach: () => void,
+): boolean {
+  try {
+    attach();
+    return true;
+  } catch (error) {
+    if (toErrorMessage(error).includes('Nitro runtime not installed')) {
+      RnIapConsole.warn(
+        `[${label}] Nitro not ready yet; will retry after initConnection()`,
+      );
+      return false;
+    }
+    throw error;
+  }
+}
+
 const purchaseUpdateJsListeners = new Set<(purchase: Purchase) => void>();
 const purchaseUpdateDuplicateJsListeners = new Set<
   (purchase: Purchase) => void
@@ -304,6 +322,38 @@ const purchaseUpdateDuplicateNativeHandler: NitroPurchaseListener = (
   );
 };
 
+function tryAttachPurchaseUpdateNative(
+  receiveDuplicateTransactionUpdatesIOS: boolean,
+): void {
+  const alreadyAttached = receiveDuplicateTransactionUpdatesIOS
+    ? purchaseUpdateDuplicateNativeAttached
+    : purchaseUpdateNativeAttached;
+  if (alreadyAttached) return;
+
+  attachNativeListenerOrDefer('purchaseUpdatedListener', () => {
+    const nativeOptions:
+      | (NitroPurchaseUpdatedListenerOptions &
+          NitroPurchaseUpdatedListenerOptionsParam)
+      | undefined = receiveDuplicateTransactionUpdatesIOS
+      ? {dedupeTransactionIOS: false}
+      : undefined;
+    const token = IAP.instance.addPurchaseUpdatedListener(
+      receiveDuplicateTransactionUpdatesIOS
+        ? purchaseUpdateDuplicateNativeHandler
+        : purchaseUpdateNativeHandler,
+      nativeOptions,
+    );
+    if (receiveDuplicateTransactionUpdatesIOS) {
+      purchaseUpdateDuplicateNativeToken =
+        typeof token === 'number' ? token : null;
+      purchaseUpdateDuplicateNativeAttached = true;
+    } else {
+      purchaseUpdateNativeToken = typeof token === 'number' ? token : null;
+      purchaseUpdateNativeAttached = true;
+    }
+  });
+}
+
 const purchaseErrorJsListeners = new Set<(error: PurchaseError) => void>();
 let purchaseErrorNativeAttached = false;
 const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
@@ -334,6 +384,14 @@ const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
   }
 };
 
+function tryAttachPurchaseErrorNative(): void {
+  if (purchaseErrorNativeAttached) return;
+  attachNativeListenerOrDefer('purchaseErrorListener', () => {
+    IAP.instance.addPurchaseErrorListener(purchaseErrorNativeHandler);
+    purchaseErrorNativeAttached = true;
+  });
+}
+
 const promotedProductJsListeners = new Set<(product: Product) => void>();
 let promotedProductNativeAttached = false;
 const promotedProductNativeHandler: NitroPromotedProductListener = (
@@ -355,6 +413,14 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
     );
   }
 };
+
+function tryAttachPromotedProductNative(): void {
+  if (promotedProductNativeAttached) return;
+  attachNativeListenerOrDefer('promotedProductListenerIOS', () => {
+    IAP.instance.addPromotedProductListenerIOS(promotedProductNativeHandler);
+    promotedProductNativeAttached = true;
+  });
+}
 
 /**
  * Reset all JS-level listener tracking state.
@@ -391,52 +457,11 @@ export const purchaseUpdatedListener = (
     : purchaseUpdateJsListeners;
 
   listeners.add(listener);
-
-  if (!purchaseUpdateNativeAttached && !receiveDuplicateTransactionUpdatesIOS) {
-    try {
-      const token = IAP.instance.addPurchaseUpdatedListener(
-        purchaseUpdateNativeHandler,
-      );
-      purchaseUpdateNativeToken = typeof token === 'number' ? token : null;
-      purchaseUpdateNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[purchaseUpdatedListener] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  if (
-    !purchaseUpdateDuplicateNativeAttached &&
-    receiveDuplicateTransactionUpdatesIOS
-  ) {
-    try {
-      const nativeOptions: NitroPurchaseUpdatedListenerOptions &
-        NitroPurchaseUpdatedListenerOptionsParam = {
-        dedupeTransactionIOS: false,
-      };
-      const token = IAP.instance.addPurchaseUpdatedListener(
-        purchaseUpdateDuplicateNativeHandler,
-        nativeOptions,
-      );
-      purchaseUpdateDuplicateNativeToken =
-        typeof token === 'number' ? token : null;
-      purchaseUpdateDuplicateNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[purchaseUpdatedListener] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
+  try {
+    tryAttachPurchaseUpdateNative(receiveDuplicateTransactionUpdatesIOS);
+  } catch (error) {
+    listeners.delete(listener);
+    throw error;
   }
 
   let removed = false;
@@ -485,21 +510,11 @@ export const purchaseErrorListener = (
   listener: (error: PurchaseError) => void,
 ): EventSubscription => {
   purchaseErrorJsListeners.add(listener);
-
-  if (!purchaseErrorNativeAttached) {
-    try {
-      IAP.instance.addPurchaseErrorListener(purchaseErrorNativeHandler);
-      purchaseErrorNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[purchaseErrorListener] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
+  try {
+    tryAttachPurchaseErrorNative();
+  } catch (error) {
+    purchaseErrorJsListeners.delete(listener);
+    throw error;
   }
 
   return {
@@ -548,21 +563,11 @@ export const promotedProductListenerIOS = (
   }
 
   promotedProductJsListeners.add(listener);
-
-  if (!promotedProductNativeAttached) {
-    try {
-      IAP.instance.addPromotedProductListenerIOS(promotedProductNativeHandler);
-      promotedProductNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[promotedProductListenerIOS] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
+  try {
+    tryAttachPromotedProductNative();
+  } catch (error) {
+    promotedProductJsListeners.delete(listener);
+    throw error;
   }
 
   return {
@@ -618,6 +623,16 @@ const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
   }
 };
 
+function tryAttachUserChoiceBillingNative(): void {
+  if (userChoiceBillingNativeAttached) return;
+  attachNativeListenerOrDefer('userChoiceBillingListenerAndroid', () => {
+    IAP.instance.addUserChoiceBillingListenerAndroid(
+      userChoiceBillingNativeHandler,
+    );
+    userChoiceBillingNativeAttached = true;
+  });
+}
+
 export const userChoiceBillingListenerAndroid = (
   listener: (details: UserChoiceBillingDetails) => void,
 ): EventSubscription => {
@@ -629,23 +644,11 @@ export const userChoiceBillingListenerAndroid = (
   }
 
   userChoiceBillingJsListeners.add(listener);
-
-  if (!userChoiceBillingNativeAttached) {
-    try {
-      IAP.instance.addUserChoiceBillingListenerAndroid(
-        userChoiceBillingNativeHandler,
-      );
-      userChoiceBillingNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[userChoiceBillingListenerAndroid] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
+  try {
+    tryAttachUserChoiceBillingNative();
+  } catch (error) {
+    userChoiceBillingJsListeners.delete(listener);
+    throw error;
   }
 
   let removed = false;
@@ -722,6 +725,16 @@ const developerProvidedBillingNativeHandler: NitroDeveloperProvidedBillingListen
     }
   };
 
+function tryAttachDeveloperProvidedBillingNative(): void {
+  if (developerProvidedBillingNativeAttached) return;
+  attachNativeListenerOrDefer('developerProvidedBillingListenerAndroid', () => {
+    IAP.instance.addDeveloperProvidedBillingListenerAndroid(
+      developerProvidedBillingNativeHandler,
+    );
+    developerProvidedBillingNativeAttached = true;
+  });
+}
+
 export const developerProvidedBillingListenerAndroid = (
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
 ): EventSubscription => {
@@ -733,23 +746,11 @@ export const developerProvidedBillingListenerAndroid = (
   }
 
   developerProvidedBillingJsListeners.add(listener);
-
-  if (!developerProvidedBillingNativeAttached) {
-    try {
-      IAP.instance.addDeveloperProvidedBillingListenerAndroid(
-        developerProvidedBillingNativeHandler,
-      );
-      developerProvidedBillingNativeAttached = true;
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (msg.includes('Nitro runtime not installed')) {
-        RnIapConsole.warn(
-          '[developerProvidedBillingListenerAndroid] Nitro not ready yet; listener inert until initConnection()',
-        );
-      } else {
-        throw e;
-      }
-    }
+  try {
+    tryAttachDeveloperProvidedBillingNative();
+  } catch (error) {
+    developerProvidedBillingJsListeners.delete(listener);
+    throw error;
   }
 
   return {
@@ -850,6 +851,30 @@ export const subscriptionBillingIssueListener = (
     },
   };
 };
+
+function tryAttachPendingNativeListeners(): void {
+  if (purchaseUpdateJsListeners.size > 0) {
+    tryAttachPurchaseUpdateNative(false);
+  }
+  if (purchaseUpdateDuplicateJsListeners.size > 0) {
+    tryAttachPurchaseUpdateNative(true);
+  }
+  if (purchaseErrorJsListeners.size > 0) {
+    tryAttachPurchaseErrorNative();
+  }
+  if (promotedProductJsListeners.size > 0) {
+    tryAttachPromotedProductNative();
+  }
+  if (userChoiceBillingJsListeners.size > 0) {
+    tryAttachUserChoiceBillingNative();
+  }
+  if (developerProvidedBillingJsListeners.size > 0) {
+    tryAttachDeveloperProvidedBillingNative();
+  }
+  if (subscriptionBillingIssueJsListeners.size > 0) {
+    tryAttachSubscriptionBillingIssueNative();
+  }
+}
 
 // ------------------------------
 // Query API
@@ -1573,9 +1598,7 @@ export const initConnection: MutationField<'initConnection'> = async (
     const result = await IAP.instance.initConnection(
       config as Record<string, unknown> | undefined,
     );
-    if (subscriptionBillingIssueJsListeners.size > 0) {
-      tryAttachSubscriptionBillingIssueNative();
-    }
+    tryAttachPendingNativeListeners();
     return result;
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
