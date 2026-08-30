@@ -59,7 +59,7 @@ class PendingEventBufferTest {
     }
 
     @Test
-    fun `error listener remount buffers gap event and delivers it once`() {
+    fun `singleton bridge listener removal ignores regenerated wrapper identity`() {
         val buffer = PendingEventBuffer<String>(capacity = 4, onOverflow = {})
         val registeredListeners = mutableListOf<(String) -> Unit>()
         val firstReceived = mutableListOf<String>()
