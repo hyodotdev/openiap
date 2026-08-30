@@ -151,22 +151,23 @@ import { initConnection } from 'expo-iap';
 // Same API in react-native-iap:
 // import { initConnection } from 'react-native-iap';
 
+// Choose exactly one connection call for the session.
+
 // Standard connection
 const connected = await initConnection();
+
+// Android external offer (replace the standard call above):
+// const connected = await initConnection({
+//   enableBillingProgramAndroid: 'external-offer',
+// });
+
+// Android developer-rendered Billing Choice (replace the standard call above):
+// const connected = await initConnection({
+//   enableBillingProgramAndroid: 'billing-choice',
+//   billingChoiceScreenTypeAndroid: 'developer-rendered',
+// });
+
 if (!connected) throw new Error('Store connection failed');
-
-// Android with a billing program (preferred — see InitConnectionConfig)
-const externalOfferConnected = await initConnection({
-  enableBillingProgramAndroid: 'external-offer',
-});
-if (!externalOfferConnected) throw new Error('Store connection failed');
-
-// Developer-rendered Billing Choice (must match Play Console)
-const billingChoiceConnected = await initConnection({
-  enableBillingProgramAndroid: 'billing-choice',
-  billingChoiceScreenTypeAndroid: 'developer-rendered',
-});
-if (!billingChoiceConnected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // Both hooks auto-connect on mount. Expo closes the connection on unmount;

@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-30T12:28:16.430Z
+> Generated: 2026-08-30T13:52:16.208Z
 
 ## Table of Contents
 1. Installation
@@ -241,8 +241,10 @@ import { useIAP } from 'expo-iap'; // or 'react-native-iap'
 
 function PremiumButton() {
   const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      await finishTransaction({ purchase, isConsumable: true });
+    onPurchaseSuccess: (purchase) => {
+      void finishTransaction({ purchase, isConsumable: true }).catch((error) => {
+        console.warn('Transaction finalization failed:', error);
+      });
     },
   });
 

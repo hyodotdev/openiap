@@ -1583,17 +1583,22 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *
  * @example
  * ```ts
- * await initConnection();
- * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
- * await initConnection({
- *   enableBillingProgramAndroid: 'billing-choice',
- *   billingChoiceScreenTypeAndroid: 'developer-rendered',
- * });
+ * // Choose exactly one connection call for the session.
+ * const connected = await initConnection();
+ * // Or replace the call above with one Android billing program:
+ * // const connected = await initConnection({
+ * //   enableBillingProgramAndroid: 'external-offer',
+ * // });
+ * // const connected = await initConnection({
+ * //   enableBillingProgramAndroid: 'billing-choice',
+ * //   billingChoiceScreenTypeAndroid: 'developer-rendered',
+ * // });
+ * if (!connected) throw new Error('Store connection failed');
  * ```
  *
- * @remarks Both `useIAP()` hooks initialize on mount. Expo closes the connection
- *   on unmount; React Native removes hook listeners and keeps the native connection
- *   open across screens. Pass options to the hook instead of calling this directly.
+ * @remarks When using `useIAP()`, the connection initializes on mount. On unmount,
+ *   React Native removes hook listeners but keeps the native connection open across
+ *   screens. Pass options to the hook instead of calling this directly.
  *
  * @see {@link https://openiap.dev/docs/apis/init-connection}
  */

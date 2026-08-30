@@ -506,8 +506,10 @@ import { useIAP } from 'expo-iap'; // or 'react-native-iap'
 
 function PremiumButton() {
   const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      await finishTransaction({ purchase, isConsumable: true });
+    onPurchaseSuccess: (purchase) => {
+      void finishTransaction({ purchase, isConsumable: true }).catch((error) => {
+        console.warn('Transaction finalization failed:', error);
+      });
     },
   });
 
