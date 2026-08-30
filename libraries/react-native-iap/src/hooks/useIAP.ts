@@ -457,6 +457,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error fetching products:', error);
         invokeOnError(error);
+        throw error;
       } finally {
         for (const sku of params.skus) {
           if (productRequestOwnersRef.current.get(sku) === generation) {
