@@ -330,17 +330,17 @@ cd ios && pod install`}
         </h2>
 
         <p>
-          Under the hood, the typical flow is{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection</code>
-          </Link>{' '}
-          → set up{' '}
+          Under the hood, the typical flow is set up{' '}
           <Link to="/docs/events/purchase-updated-listener">
             <code>purchaseUpdatedListener</code>
           </Link>{' '}
           and{' '}
           <Link to="/docs/events/purchase-error-listener">
             <code>purchaseErrorListener</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection</code>
           </Link>{' '}
           →{' '}
           <Link to="/docs/apis/fetch-products">

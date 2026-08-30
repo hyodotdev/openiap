@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-30T14:27:27.189Z
+> Generated: 2026-08-30T15:06:51.142Z
 
 ## Table of Contents
 1. Installation
@@ -275,17 +275,17 @@ function PremiumButton() {
 ### Flutter
 ```dart
 final iap = FlutterInappPurchase.instance;
+iap.purchaseUpdatedListener.listen((purchase) {
+  iap
+      .finishTransaction(purchase: purchase, isConsumable: true)
+      .catchError((Object error) => print('Transaction finalization failed: $error'));
+});
 final connected = await iap.initConnection();
 if (!connected) throw StateError('Store connection failed');
 final products = await iap.fetchProducts<Product>(
   skus: ['premium'],
   type: ProductQueryType.InApp,
 );
-iap.purchaseUpdatedListener.listen((purchase) {
-  iap
-      .finishTransaction(purchase: purchase, isConsumable: true)
-      .catchError((Object error) => print('Transaction finalization failed: $error'));
-});
 ```
 
 ### Godot
@@ -302,15 +302,20 @@ GodotIapPlugin.request_purchase(props)
 ### Kotlin Multiplatform
 ```kotlin
 val iap = KmpIAP()
+val purchaseJob = appScope.launch(
+    start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED
+) {
+    iap.purchaseUpdatedListener.collect { purchase ->
+        iap.finishTransaction(purchase = purchase, isConsumable = true)
+    }
+}
 val connected = iap.initConnection()
 check(connected) { "Store connection failed" }
 val products = iap.fetchProducts {
     skus = listOf("premium")
     type = ProductQueryType.InApp
 }
-iap.purchaseUpdatedListener.collect { purchase ->
-    iap.finishTransaction(purchase = purchase, isConsumable = true)
-}
+// purchaseJob.cancel() at the connection owner's teardown boundary.
 ```
 
 ### .NET MAUI

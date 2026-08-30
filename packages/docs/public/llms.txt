@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-30T14:27:27.189Z
+> Generated: 2026-08-30T15:06:51.142Z
 
 ## Installation
 
@@ -98,7 +98,8 @@ const connected = await initConnection({
 if (!connected) throw new Error('Store connection failed');
 
 // Cleanup at the connection owner's teardown boundary.
-await endConnection();
+const ended = await endConnection();
+if (!ended) console.warn('Store teardown did not complete');
 ```
 
 ### Fetch Products
@@ -263,9 +264,9 @@ interface PurchaseError {
 
 ## Purchase Flow Summary
 
-1. initConnection()
-2. fetchProducts({ skus: [...], type: 'in-app' })
-3. Set up purchaseUpdatedListener
+1. Set up purchaseUpdatedListener and purchaseErrorListener
+2. initConnection()
+3. fetchProducts({ skus: [...], type: 'in-app' })
 4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup

@@ -540,17 +540,17 @@ function PremiumButton() {
 ### Flutter
 \`\`\`dart
 final iap = FlutterInappPurchase.instance;
+iap.purchaseUpdatedListener.listen((purchase) {
+  iap
+      .finishTransaction(purchase: purchase, isConsumable: true)
+      .catchError((Object error) => print('Transaction finalization failed: $error'));
+});
 final connected = await iap.initConnection();
 if (!connected) throw StateError('Store connection failed');
 final products = await iap.fetchProducts<Product>(
   skus: ['premium'],
   type: ProductQueryType.InApp,
 );
-iap.purchaseUpdatedListener.listen((purchase) {
-  iap
-      .finishTransaction(purchase: purchase, isConsumable: true)
-      .catchError((Object error) => print('Transaction finalization failed: $error'));
-});
 \`\`\`
 
 ### Godot
@@ -567,15 +567,20 @@ GodotIapPlugin.request_purchase(props)
 ### Kotlin Multiplatform
 \`\`\`kotlin
 val iap = KmpIAP()
+val purchaseJob = appScope.launch(
+    start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED
+) {
+    iap.purchaseUpdatedListener.collect { purchase ->
+        iap.finishTransaction(purchase = purchase, isConsumable = true)
+    }
+}
 val connected = iap.initConnection()
 check(connected) { "Store connection failed" }
 val products = iap.fetchProducts {
     skus = listOf("premium")
     type = ProductQueryType.InApp
 }
-iap.purchaseUpdatedListener.collect { purchase ->
-    iap.finishTransaction(purchase = purchase, isConsumable = true)
-}
+// purchaseJob.cancel() at the connection owner's teardown boundary.
 \`\`\`
 
 ### .NET MAUI
@@ -733,7 +738,8 @@ const connected = await initConnection({
 if (!connected) throw new Error('Store connection failed');
 
 // Cleanup at the connection owner's teardown boundary.
-await endConnection();
+const ended = await endConnection();
+if (!ended) console.warn('Store teardown did not complete');
 \`\`\`
 
 ### Fetch Products
@@ -898,9 +904,9 @@ interface PurchaseError {
 
 ## Purchase Flow Summary
 
-1. initConnection()
-2. fetchProducts({ skus: [...], type: 'in-app' })
-3. Set up purchaseUpdatedListener
+1. Set up purchaseUpdatedListener and purchaseErrorListener
+2. initConnection()
+3. fetchProducts({ skus: [...], type: 'in-app' })
 4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup

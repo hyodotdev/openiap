@@ -73,9 +73,9 @@ function Purchase() {
           Setup Purchase Listeners
         </AnchorLink>
         <p>
-          Register purchase listeners <strong>before</strong> making any
-          purchase requests. These listeners handle successful purchases and
-          errors.
+          Register purchase listeners <strong>before</strong> initializing the
+          store connection or making purchase requests. These listeners handle
+          successful purchases and errors.
         </p>
 
         <LanguageTabs>
@@ -106,25 +106,25 @@ function App() {
     let purchaseUpdateSubscription: ReturnType<typeof purchaseUpdatedListener>;
     let purchaseErrorSubscription: ReturnType<typeof purchaseErrorListener>;
 
+    // 1. Subscribe before initialization can replay unfinished purchases.
+    purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
+      console.log('Purchase received:', purchase.productId);
+      // Handle the purchase (verify + finish)
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Purchase processing failed:', error);
+      });
+    });
+
+    // 2. Setup error listener
+    purchaseErrorSubscription = purchaseErrorListener((error) => {
+      console.warn('Purchase error:', error);
+      handlePurchaseError(error);
+    });
+
     const init = async () => {
-      // 1. Initialize connection first
+      // 3. Initialize after both listeners are ready.
       const connected = await initConnection();
       if (!connected) throw new Error('Store connection failed');
-
-      // 2. Setup purchase success listener
-      purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
-        console.log('Purchase received:', purchase.productId);
-        // Handle the purchase (verify + finish)
-        void handlePurchase(purchase).catch((error) => {
-          console.warn('Purchase processing failed:', error);
-        });
-      });
-
-      // 3. Setup error listener
-      purchaseErrorSubscription = purchaseErrorListener((error) => {
-        console.warn('Purchase error:', error);
-        handlePurchaseError(error);
-      });
     };
 
     void init().catch((error) => {
@@ -135,9 +135,13 @@ function App() {
     return () => {
       purchaseUpdateSubscription?.remove();
       purchaseErrorSubscription?.remove();
-      void endConnection().catch((error) => {
-        console.warn('Store teardown failed:', error);
-      });
+      void endConnection()
+        .then((ended) => {
+          if (!ended) console.warn('Store teardown did not complete');
+        })
+        .catch((error) => {
+          console.warn('Store teardown failed:', error);
+        });
     };
   }, []);
 
@@ -261,6 +265,7 @@ class PurchaseManager(
             kmp: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -276,7 +281,7 @@ class PurchaseManager(
 
     private fun setupListeners() {
         // 1. Collect purchase updates using Flow
-        lifecycleScope.launch {
+        lifecycleScope.launch(start = CoroutineStart.UNDISPATCHED) {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 println("Purchase received: \${purchase.productId}")
                 handlePurchase(purchase)
@@ -284,7 +289,7 @@ class PurchaseManager(
         }
 
         // 2. Collect error updates
-        lifecycleScope.launch {
+        lifecycleScope.launch(start = CoroutineStart.UNDISPATCHED) {
             kmpIAP.purchaseErrorListener.collect { error ->
                 println("Purchase error: \${error.message}")
                 handlePurchaseError(error)
@@ -315,11 +320,7 @@ class PurchaseManager {
   StreamSubscription<PurchaseError>? _errorSubscription;
 
   Future<void> initialize() async {
-    // 1. Initialize connection first
-    final connected = await _iap.initConnection();
-    if (!connected) throw StateError('Store connection failed');
-
-    // 2. Setup purchase success listener
+    // 1. Subscribe before initialization can replay unfinished purchases.
     _purchaseSubscription = _iap.purchaseUpdatedListener.listen((purchase) {
       print('Purchase received: \${purchase.productId}');
       unawaited(_handlePurchase(purchase).catchError((Object error) {
@@ -327,19 +328,27 @@ class PurchaseManager {
       }));
     });
 
-    // 3. Setup error listener
+    // 2. Setup error listener
     _errorSubscription = _iap.purchaseErrorListener.listen((error) {
       print('Purchase error: \${error.message}');
       _handlePurchaseError(error);
     });
+
+    // 3. Initialize after both stream subscriptions are ready.
+    final connected = await _iap.initConnection();
+    if (!connected) throw StateError('Store connection failed');
   }
 
   void dispose() {
     unawaited(_purchaseSubscription?.cancel());
     unawaited(_errorSubscription?.cancel());
-    unawaited(_iap.endConnection().then<void>((_) {}).catchError((Object error) {
-      print('Store teardown failed: \$error');
-    }));
+    unawaited(
+      _iap.endConnection().then<void>((ended) {
+        if (!ended) print('Store teardown did not complete');
+      }).catchError((Object error) {
+        print('Store teardown failed: \$error');
+      }),
+    );
   }
 }`}</CodeBlock>
             ),
@@ -1526,6 +1535,13 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
     let purchaseSub: ReturnType<typeof purchaseUpdatedListener>;
     let errorSub: ReturnType<typeof purchaseErrorListener>;
 
+    purchaseSub = purchaseUpdatedListener((purchase) => {
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Purchase processing failed:', error);
+      });
+    });
+    errorSub = purchaseErrorListener(handleError);
+
     const init = async () => {
       const connected = await initConnection();
       if (!connected) return;
@@ -1536,14 +1552,6 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
         type: 'in-app',
       });
       setProducts((items ?? []) as Product[]);
-
-      // Setup listeners
-      purchaseSub = purchaseUpdatedListener((purchase) => {
-        void handlePurchase(purchase).catch((error) => {
-          console.warn('Purchase processing failed:', error);
-        });
-      });
-      errorSub = purchaseErrorListener(handleError);
     };
 
     void init().catch((error) => {
@@ -1553,9 +1561,13 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
     return () => {
       purchaseSub?.remove();
       errorSub?.remove();
-      void endConnection().catch((error) => {
-        console.warn('Store teardown failed:', error);
-      });
+      void endConnection()
+        .then((ended) => {
+          if (!ended) console.warn('Store teardown did not complete');
+        })
+        .catch((error) => {
+          console.warn('Store teardown failed:', error);
+        });
     };
   }, [handlePurchase, handleError]);
 
@@ -1806,6 +1818,7 @@ class PurchaseManager(
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.*
 import io.github.hyochan.kmpiap.openiap.*
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.*
 
 class PurchaseManager(
@@ -1841,13 +1854,13 @@ class PurchaseManager(
     }
 
     private fun setupListeners() {
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             kmpIAP.purchaseUpdatedListener.collect { purchase ->
                 handlePurchase(purchase as PurchaseAndroid)
             }
         }
 
-        scope.launch {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
             kmpIAP.purchaseErrorListener.collect { error ->
                 _isProcessing.value = false
                 println("Purchase error: \${error.message}")
@@ -1913,6 +1926,7 @@ class PurchaseManager extends ChangeNotifier {
   StreamSubscription<PurchaseError>? _errorSub;
 
   Future<void> initialize() async {
+    _setupListeners();
     final connected = await _iap.initConnection();
     if (!connected) throw StateError('Store connection failed');
     products = await _iap.fetchProducts<Product>(
@@ -1920,7 +1934,6 @@ class PurchaseManager extends ChangeNotifier {
       type: ProductQueryType.InApp,
     );
     notifyListeners();
-    _setupListeners();
   }
 
   void _setupListeners() {
@@ -1983,7 +1996,9 @@ class PurchaseManager extends ChangeNotifier {
   void dispose() {
     unawaited(_purchaseSub?.cancel());
     unawaited(_errorSub?.cancel());
-    unawaited(_iap.endConnection().then<void>((_) {}).catchError(
+    unawaited(_iap.endConnection().then<void>((ended) {
+      if (!ended) print('Store teardown did not complete');
+    }).catchError(
       (Object error) => print('Store teardown failed: $error'),
     ));
     super.dispose();
@@ -2068,7 +2083,8 @@ sealed class PurchaseManager : IAsyncDisposable
     {
         purchaseSubscription.Dispose();
         errorSubscription.Dispose();
-        await mutate.EndConnectionAsync();
+        if (!await mutate.EndConnectionAsync())
+            Console.WriteLine("Store teardown did not complete");
     }
 }`}</CodeBlock>
             ),
@@ -2230,11 +2246,11 @@ const checkPendingPurchases = async () => {
 // Call on app launch after setting up listeners
 useEffect(() => {
   const init = async () => {
+    // Register purchase update/error listeners before this initialization.
     const connected = await initConnection();
     if (!connected) throw new Error('Store connection failed');
-    // Setup listeners first...
 
-    // Then check for pending purchases
+    // Then check for pending purchases.
     await checkPendingPurchases();
   };
 

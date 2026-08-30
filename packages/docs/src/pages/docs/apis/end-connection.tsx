@@ -110,9 +110,13 @@ function ManualStoreConnection() {
       });
 
     return () => {
-      void endConnection().catch((error) => {
-        console.warn('Store teardown failed:', error);
-      });
+      void endConnection()
+        .then((ended) => {
+          if (!ended) console.warn('Store teardown did not complete');
+        })
+        .catch((error) => {
+          console.warn('Store teardown failed:', error);
+        });
     };
   }, []);
 
@@ -132,27 +136,34 @@ function PurchaseScreen() {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.endConnection()`}</CodeBlock>
+            <CodeBlock language="swift">{`let ended = try await OpenIapModule.shared.endConnection()
+if !ended { print("Store teardown did not complete") }`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.endConnection()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val ended = openIapStore.endConnection()
+if (!ended) println("Store teardown did not complete")`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.endConnection()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val ended = kmpIAP.endConnection()
+if (!ended) println("Store teardown did not complete")`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.endConnection();`}</CodeBlock>
+            <CodeBlock language="dart">{`final ended = await FlutterInappPurchase.instance.endConnection();
+if (!ended) print('Store teardown did not complete');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();`}</CodeBlock>
+var ended = await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();
+if (!ended) Console.WriteLine("Store teardown did not complete");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# In _exit_tree or cleanup
 func _exit_tree():
-    await iap.end_connection()`}</CodeBlock>
+    var ended = await iap.end_connection()
+    if not ended:
+        push_warning("Store teardown did not complete")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
