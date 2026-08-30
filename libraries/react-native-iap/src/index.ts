@@ -1946,10 +1946,12 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  *
  * @example
  * ```ts
- * purchaseUpdatedListener(async (purchase) => {
- *   if (await verifyOnServer(purchase)) {
- *     await finishTransaction({ purchase, isConsumable: false });
- *   }
+ * purchaseUpdatedListener((purchase) => {
+ *   void verifyOnServer(purchase)
+ *     .then((verified) => verified
+ *       ? finishTransaction({ purchase, isConsumable: false })
+ *       : undefined)
+ *     .catch((error) => console.warn('Transaction finalization failed:', error));
  * });
  * ```
  *

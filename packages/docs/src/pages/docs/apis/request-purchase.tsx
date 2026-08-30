@@ -291,7 +291,7 @@ import { useIAP } from 'expo-iap';
 
 function BuyButton({ sku }: { sku: string }) {
   const { connected, requestPurchase } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
+    onPurchaseSuccess: (purchase) => {
       // verify + finishTransaction here
     },
     onPurchaseError: (error) => {

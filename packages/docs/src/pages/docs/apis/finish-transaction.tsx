@@ -136,14 +136,16 @@ import { finishTransaction, purchaseUpdatedListener } from 'expo-iap';
 // Same API in react-native-iap:
 // import { finishTransaction, purchaseUpdatedListener } from 'react-native-iap';
 
-purchaseUpdatedListener(async (purchase) => {
-  const verified = await verifyOnServer(purchase);
-  if (!verified) return;
+purchaseUpdatedListener((purchase) => {
+  void verifyOnServer(purchase)
+    .then(async (verified) => {
+      if (!verified) return;
 
-  await grantProduct(purchase.productId);
-
-  const isConsumable = purchase.productId.includes('coins');
-  await finishTransaction({ purchase, isConsumable });
+      await grantProduct(purchase.productId);
+      const isConsumable = purchase.productId.includes('coins');
+      await finishTransaction({ purchase, isConsumable });
+    })
+    .catch((error) => console.warn('Purchase finalization failed:', error));
 });
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
@@ -153,13 +155,18 @@ import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
   const { finishTransaction } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      const verified = await verifyOnServer(purchase);
-      if (!verified) return;
+    onPurchaseSuccess: (purchase) => {
+      void verifyOnServer(purchase)
+        .then(async (verified) => {
+          if (!verified) return;
 
-      await grantProduct(purchase.productId);
-      const isConsumable = purchase.productId.includes('coins');
-      await finishTransaction({ purchase, isConsumable });
+          await grantProduct(purchase.productId);
+          const isConsumable = purchase.productId.includes('coins');
+          await finishTransaction({ purchase, isConsumable });
+        })
+        .catch((error) =>
+          console.warn('Purchase finalization failed:', error),
+        );
     },
   });
 

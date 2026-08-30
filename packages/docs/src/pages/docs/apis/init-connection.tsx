@@ -187,67 +187,62 @@ function PurchaseScreen() {
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-try await OpenIapModule.shared.initConnection()`}</CodeBlock>
+let connected = try await OpenIapModule.shared.initConnection()
+precondition(connected, "Store connection failed")`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`// Standard connection
-openIapStore.initConnection()
-
-// Developer-rendered Billing Choice
-openIapStore.initConnection(
+            <CodeBlock language="kotlin">{`// Choose one call. Remove the config for a standard connection.
+val connected = openIapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
-)`}</CodeBlock>
+)
+check(connected) { "Store connection failed" }`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 
 val kmpIAP = KmpIAP()
 
-// Standard connection
-kmpIAP.initConnection()
-
-// Developer-rendered Billing Choice
-kmpIAP.initConnection(
+// Choose one call. Remove the config for a standard connection.
+val connected = kmpIAP.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
-)`}</CodeBlock>
+)
+check(connected) { "Store connection failed" }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection(
+            <CodeBlock language="dart">{`final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.BillingChoice,
   billingChoiceScreenTypeAndroid:
       BillingChoiceScreenTypeAndroid.DeveloperRendered,
-);`}</CodeBlock>
+);
+if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Standard connection
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
-
-// Developer-rendered Billing Choice
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+// Choose one call. Remove the config for a standard connection.
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
-    });`}</CodeBlock>
+    });
+if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`# Standard connection
-var success = await iap.init_connection()
-
-# Developer-rendered Billing Choice (Android)
+            <CodeBlock language="gdscript">{`# Choose one call. Omit the config for a standard connection.
 var config = InitConnectionConfig.new()
 config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
 config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
-var success = await iap.init_connection(config)`}</CodeBlock>
+var success = await iap.init_connection(config)
+if not success:
+    push_error("Store connection failed")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

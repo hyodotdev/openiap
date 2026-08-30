@@ -657,10 +657,12 @@ import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
   useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      if (!(await verifyOnServer(purchase))) {
-        console.error('Verification failed');
-      }
+    onPurchaseSuccess: (purchase) => {
+      void verifyOnServer(purchase)
+        .then((verified) => {
+          if (!verified) console.error('Verification failed');
+        })
+        .catch((error) => console.warn('Verification failed:', error));
     },
   });
 
@@ -909,25 +911,27 @@ import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
   const { verifyPurchaseWithProvider } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      const result = await verifyPurchaseWithProvider({
-        provider: 'iapkit',
-        iapkit: {
-          apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
-          ...(await iapkitPayloadFor(purchase)),
-        },
-      });
-      const verified = result.iapkit;
-      if (
-        verified?.isValid !== true ||
-        (verified.store === 'amazon' &&
-          verified.environment !==
-            (amazonSandbox ? 'Sandbox' : 'Production')) ||
-        verified.productId == null ||
-        verified.productId !== purchase.productId
-      ) {
-        console.error('IAPKit verification failed');
-      }
+    onPurchaseSuccess: (purchase) => {
+      void (async () => {
+        const result = await verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
+            ...(await iapkitPayloadFor(purchase)),
+          },
+        });
+        const verified = result.iapkit;
+        if (
+          verified?.isValid !== true ||
+          (verified.store === 'amazon' &&
+            verified.environment !==
+              (amazonSandbox ? 'Sandbox' : 'Production')) ||
+          verified.productId == null ||
+          verified.productId !== purchase.productId
+        ) {
+          console.error('IAPKit verification failed');
+        }
+      })().catch((error) => console.warn('IAPKit verification failed:', error));
     },
   });
 
@@ -1247,13 +1251,11 @@ const handlePurchase = async (purchase: Purchase) => {
 import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
-  const { finishTransaction } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      const isValid = await verifyPurchase(purchase);
-      if (!isValid) return;
-      await grantProductToUser(purchase.productId);
-      const isConsumable = purchase.productId.includes('consumable');
-      await finishTransaction({ purchase, isConsumable });
+  useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void handlePurchase(purchase).catch((error) =>
+        console.warn('Purchase processing failed:', error),
+      );
     },
   });
 
@@ -1533,19 +1535,25 @@ import { useIAP } from 'expo-iap';
 function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { connected, products, fetchProducts, finishTransaction } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      setIsProcessing(true);
-      try {
-        if (!(await verifyOnServer(purchase))) return;
+  const processPurchase = useCallback(async (purchase: Purchase) => {
+    setIsProcessing(true);
+    try {
+      if (!(await verifyOnServer(purchase))) return;
 
-        await grantProductToUser(purchase.productId);
+      await grantProductToUser(purchase.productId);
 
-        const isConsumable = purchase.productId.includes('coins');
-        await finishTransaction({ purchase, isConsumable });
-      } finally {
-        setIsProcessing(false);
-      }
+      const isConsumable = purchase.productId.includes('coins');
+      await finishTransaction({ purchase, isConsumable });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  const { connected, products, fetchProducts } = useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void processPurchase(purchase).catch((error) => {
+        console.warn('Purchase processing failed:', error);
+      });
     },
     onPurchaseError: (error) => {
       console.warn('Purchase error:', error.code, error.message);

@@ -780,11 +780,11 @@ import {
 } from 'expo-iap';
 
 // Set up before any purchase request
-const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
-  // 1. Verify purchase on server
-  // 2. Grant entitlement
-  // 3. Finish transaction
-  await finishTransaction({ purchase, isConsumable: false });
+const purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
+  // After server verification and entitlement grant, finish the transaction.
+  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+    console.warn('Transaction finalization failed:', error);
+  });
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {

@@ -116,97 +116,45 @@ function AlternativeBillingTypes() {
             typescript: (
               <CodeBlock language="typescript">{`// Choose one configuration. End the current connection before changing programs.
 
-// Initialize with user choice billing (7.0+)
-await initConnection({
-  enableBillingProgramAndroid: 'user-choice-billing'
-});
+const config = {
+  // Also supported: 'user-choice-billing', 'external-payments', or 'billing-choice'.
+  enableBillingProgramAndroid: 'external-offer',
+  // For developer-rendered Billing Choice, also set:
+  // billingChoiceScreenTypeAndroid: 'developer-rendered',
+} as const;
 
-// Initialize with external offer (alternative only)
-await initConnection({
-  enableBillingProgramAndroid: 'external-offer'
-});
-
-// Initialize with external payments (Japan only, 8.3.0+)
-await initConnection({
-  enableBillingProgramAndroid: 'external-payments'
-});
-
-// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
-await initConnection({
-  enableBillingProgramAndroid: 'billing-choice',
-  billingChoiceScreenTypeAndroid: 'developer-rendered'
-});
-
-// Standard billing (default)
-await initConnection();`}</CodeBlock>
+// Pass no config instead for standard billing.
+const connected = await initConnection(config);
+if (!connected) throw new Error('Store connection failed');`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`// iOS uses standard StoreKit billing
 // Alternative billing is Android-only
-let isConnected = try await OpenIapModule.shared.initConnection()`}</CodeBlock>
+let connected = try await OpenIapModule.shared.initConnection()
+precondition(connected, "Store connection failed")`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`// Choose one configuration. End the current connection before changing programs.
 
-// Initialize with user choice billing (7.0+)
-openIapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
-    )
+val config = InitConnectionConfig(
+    // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
+    enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
+    // For developer-rendered Billing Choice, also set billingChoiceScreenTypeAndroid.
 )
 
-// Initialize with external offer (alternative only)
-openIapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
-    )
-)
-
-// Initialize with external payments (Japan only, 8.3.0+)
-openIapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
-    )
-)
-
-// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
-openIapStore.initConnection(
-    InitConnectionConfig(
-        enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
-        billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
-    )
-)
-
-// Standard billing (default)
-openIapStore.initConnection()`}</CodeBlock>
+// Pass no config instead for standard billing.
+val connected = openIapStore.initConnection(config)
+check(connected) { "Store connection failed" }`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`// Choose one configuration. End the current connection before changing programs.
 
-// Initialize with user choice billing (7.0+)
-await FlutterInappPurchase.instance.initConnection(
-  enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
-);
-
-// Initialize with external offer (alternative only)
-await FlutterInappPurchase.instance.initConnection(
+// Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
+final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
-
-// Initialize with external payments (Japan only, 8.3.0+)
-await FlutterInappPurchase.instance.initConnection(
-  enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
-);
-
-// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
-await FlutterInappPurchase.instance.initConnection(
-  enableBillingProgramAndroid: BillingProgramAndroid.BillingChoice,
-  billingChoiceScreenTypeAndroid:
-      BillingChoiceScreenTypeAndroid.DeveloperRendered,
-);
-
-// Standard billing (default)
-await FlutterInappPurchase.instance.initConnection();`}</CodeBlock>
+// Omit the named arguments instead for standard billing.
+if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
             ),
             csharp: (
               <CodeBlock language="csharp">{`using OpenIap;
@@ -214,61 +162,29 @@ using OpenIap.Maui;
 
 // Choose one configuration. End the current connection before changing programs.
 
-// Initialize with user choice billing (7.0+)
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
-    new InitConnectionConfig
-    {
-        EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
-    });
+var config = new InitConnectionConfig
+{
+    // Also supported: UserChoiceBilling, ExternalPayments, or BillingChoice.
+    EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
+    // For developer-rendered Billing Choice, also set BillingChoiceScreenTypeAndroid.
+};
 
-// Initialize with external offer (alternative only)
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
-    new InitConnectionConfig
-    {
-        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
-    });
-
-// Initialize with external payments (Japan only, 8.3.0+)
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
-    new InitConnectionConfig
-    {
-        EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
-    });
-
-// Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
-    new InitConnectionConfig
-    {
-        EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
-        BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
-    });
-
-// Standard billing (default)
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();`}</CodeBlock>
+// Pass no config instead for standard billing.
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(config);
+if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# Choose one configuration. End the current connection before changing programs.
 
-# Initialize with user choice billing (7.0+)
 var config = InitConnectionConfig.new()
-config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
-await iap.init_connection(config)
-
-# Initialize with external offer (alternative only)
+# Also supported: USER_CHOICE_BILLING, EXTERNAL_PAYMENTS, or BILLING_CHOICE.
 config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-await iap.init_connection(config)
+# For developer-rendered Billing Choice, also set billing_choice_screen_type_android.
 
-# Initialize with external payments (Japan only, 8.3.0+)
-config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
-await iap.init_connection(config)
-
-# Developer-rendered Billing Choice (must match Play Console, 9.1.0+)
-config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
-config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
-await iap.init_connection(config)
-
-# Standard billing (default)
-await iap.init_connection()`}</CodeBlock>
+# Pass no config instead for standard billing.
+var success = await iap.init_connection(config)
+if not success:
+    push_error("Store connection failed")`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

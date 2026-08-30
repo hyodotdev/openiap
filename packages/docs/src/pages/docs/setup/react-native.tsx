@@ -230,12 +230,17 @@ function Store() {
     fetchProducts,
     requestPurchase,
   } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
+    onPurchaseSuccess: (purchase) => {
       // 1. Validate receipt with your backend or IAPKit
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
+      void finishTransaction({
+        purchase,
+        isConsumable: false, // true for consumables
+      }).catch((error) => {
+        console.warn('Transaction finalization failed:', error);
+      });
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -373,10 +378,13 @@ function Store() {
 await initConnection();
 
 // Listen for events BEFORE requesting purchases
-const purchaseSub = purchaseUpdatedListener(async (purchase) => {
-  // Validate on server, then finish transaction
+const purchaseSub = purchaseUpdatedListener((purchase) => {
+  // Validate on server, then finish transaction.
   // CRITICAL: Android auto-refunds after 3 days if not called!
-  await finishTransaction({ purchase, isConsumable: false }); // true for consumables
+  // Use isConsumable: true for consumables.
+  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+    console.warn('Transaction finalization failed:', error);
+  });
 });
 
 const errorSub = purchaseErrorListener((error) => {
