@@ -669,7 +669,8 @@ func handle_external_purchase_flow() -> void:
 } from 'expo-iap';
 
 // Step 0: Enable billing program BEFORE initConnection
-await initConnection({ enableBillingProgramAndroid: 'external-offer' });
+const connected = await initConnection({ enableBillingProgramAndroid: 'external-offer' });
+if (!connected) throw new Error('Store connection failed');
 
 // External Offer flow with Billing Programs API (8.2.1+)
 async function handleExternalPurchaseWithBillingPrograms(productId: string) {
@@ -722,11 +723,11 @@ import dev.hyo.openiap.*
 // Initialize store
 val iapStore = OpenIapStore(context = applicationContext)
 
-iapStore.initConnection(
+check(iapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
-)
+)) { "Store connection failed" }
 
 // External Offer flow with Billing Programs API (8.2.1+)
 suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
@@ -783,11 +784,11 @@ import io.github.hyochan.kmpiap.openiap.*
 // Initialize store
 val kmpIAP = KmpIAP()
 
-kmpIAP.initConnection(
+check(kmpIAP.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
-)
+)) { "Store connection failed" }
 
 // External Offer flow with Billing Programs API (8.2.1+)
 suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
@@ -839,9 +840,10 @@ suspend fun handleExternalPurchaseWithBillingPrograms(productId: String) {
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-await FlutterInappPurchase.instance.initConnection(
+final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
+if (!connected) throw StateError('Store connection failed');
 
 // External Offer flow with Billing Programs API (8.2.1+)
 Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
@@ -895,10 +897,11 @@ Future<void> handleExternalPurchaseWithBillingPrograms(String productId) async {
 using OpenIap.Maui;
 
 var mutate = (MutationResolver)OpenIapClient.Instance;
-await mutate.InitConnectionAsync(new InitConnectionConfig
+var connected = await mutate.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 async Task HandleExternalPurchaseWithBillingProgramsAsync(string productId)
 {
@@ -938,7 +941,10 @@ async Task HandleExternalPurchaseWithBillingProgramsAsync(string productId)
 func _ready() -> void:
     var config = InitConnectionConfig.new()
     config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-    await iap.init_connection(config)
+    var connected = await iap.init_connection(config)
+    if not connected:
+        push_error("Store connection failed")
+        return
 
 # External Offer flow with Billing Programs API (8.2.1+)
 func handle_external_purchase_with_billing_programs(product_id: String) -> void:
@@ -1039,7 +1045,8 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
   type DeveloperProvidedBillingDetailsAndroid,
 } from 'expo-iap';
 
-await initConnection({ enableBillingProgramAndroid: 'external-payments' });
+const connected = await initConnection({ enableBillingProgramAndroid: 'external-payments' });
+if (!connected) throw new Error('Store connection failed');
 
 // Step 1: Set up listener for when user selects developer billing
 const developerBillingSubscription = developerProvidedBillingListenerAndroid(
@@ -1116,11 +1123,11 @@ import dev.hyo.openiap.*
 // Initialize store
 val iapStore = OpenIapStore(context = applicationContext)
 
-iapStore.initConnection(
+check(iapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
     )
-)
+)) { "Store connection failed" }
 
 // Step 1: Set up listener for when user selects developer billing
 iapStore.addDeveloperProvidedBillingListener { details ->
@@ -1202,15 +1209,19 @@ import io.github.hyochan.kmpiap.openiap.*
 val kmpIAP = KmpIAP()
 
 scope.launch {
-    val details = kmpIAP.developerProvidedBillingAndroid()
-    yourBackend.handleDeveloperBilling(details)
+    try {
+        val details = kmpIAP.developerProvidedBillingAndroid()
+        yourBackend.handleDeveloperBilling(details)
+    } catch (e: Exception) {
+        Log.e("IAP", "Developer billing error: \${e.message}")
+    }
 }
 
-kmpIAP.initConnection(
+check(kmpIAP.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
     )
-)
+)) { "Store connection failed" }
 
 suspend fun handlePurchaseWithExternalPayments(productId: String) {
     val availability = kmpIAP.isBillingProgramAvailableAndroid(
@@ -1240,9 +1251,10 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-await FlutterInappPurchase.instance.initConnection(
+final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
 );
+if (!connected) throw StateError('Store connection failed');
 
 // Step 1: Set up listener for when user selects developer billing
 FlutterInappPurchase.instance.developerProvidedBillingAndroid.listen((details) async {
@@ -1314,13 +1326,27 @@ using OpenIap.Maui;
 
 var iap = OpenIapClient.Instance;
 var mutate = (MutationResolver)iap;
-using var developerBillingSubscription = iap.DeveloperProvidedBillingAndroid.Subscribe(
-    details => _ = YourBackend.HandleDeveloperBillingAsync(details));
 
-await mutate.InitConnectionAsync(new InitConnectionConfig
+async Task HandleDeveloperBillingSafelyAsync(DeveloperProvidedBillingDetailsAndroid details)
+{
+    try
+    {
+        await YourBackend.HandleDeveloperBillingAsync(details);
+    }
+    catch (Exception error)
+    {
+        System.Diagnostics.Debug.WriteLine($"Developer billing error: {error.Message}");
+    }
+}
+
+using var developerBillingSubscription = iap.DeveloperProvidedBillingAndroid.Subscribe(
+    details => _ = HandleDeveloperBillingSafelyAsync(details));
+
+var connected = await mutate.InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
 });
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 var availability = await mutate.IsBillingProgramAvailableAndroidAsync(
     BillingProgramAndroid.ExternalPayments);
@@ -1350,7 +1376,10 @@ if (availability.IsAvailable)
 func _ready() -> void:
     var config = InitConnectionConfig.new()
     config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
-    await iap.init_connection(config)
+    var connected = await iap.init_connection(config)
+    if not connected:
+        push_error("Store connection failed")
+        return
 
     # Step 1: Set up listener for when user selects developer billing
     iap.developer_provided_billing_android.connect(_on_developer_provided_billing)

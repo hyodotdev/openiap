@@ -245,6 +245,7 @@ type RequestPurchaseProps =
         {{
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap
+import { Button } from 'react-native';
 import { initConnection, requestPurchase } from 'expo-iap';
 // Same API in react-native-iap:
 // import { initConnection, requestPurchase } from 'react-native-iap';
@@ -420,14 +421,25 @@ await iap.request_purchase(props)`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
+async Task HandlePurchaseSafelyAsync(Purchase purchase)
+{
+    try
+    {
+        // 1. Validate on your server, 2. Grant entitlement,
+        // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
+        await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+            purchase: new PurchaseInput(purchase),
+            isConsumable: true);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Purchase processing failed: {error.Message}");
+    }
+}
+
 // Subscribe to results FIRST — requestPurchase is event-based.
-OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase => {
-    // 1. Validate on your server, 2. Grant entitlement,
-    // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
-    await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
-        purchase: new PurchaseInput(purchase),
-        isConsumable: true);
-});
+OpenIapClient.Instance.PurchaseUpdated.Subscribe(
+    purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 OpenIapClient.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");

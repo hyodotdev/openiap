@@ -272,13 +272,17 @@ val userChoiceListener = object : OpenIapUserChoiceBillingListener {
 
         // Process payment with your backend using the token
         lifecycleScope.launch {
-            val paymentResult = yourBackend.processPayment(
-                products = details.products,
-                token = details.externalTransactionToken
-            )
+            try {
+                val paymentResult = yourBackend.processPayment(
+                    products = details.products,
+                    token = details.externalTransactionToken
+                )
 
-            if (paymentResult.success) {
-                grantUserAccess()
+                if (paymentResult.success) {
+                    grantUserAccess()
+                }
+            } catch (e: Exception) {
+                Log.e("IAP", "Alternative billing failed: \${e.message}")
             }
         }
     }
@@ -325,18 +329,16 @@ fun disposeUserChoiceListener() {
 }`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+              <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// Step 1: Set up listener for when user selects alternative billing
-final userChoiceSubscription = FlutterInappPurchase.instance.userChoiceBillingAndroid
-    .listen((details) async {
+Future<void> handleUserChoiceBilling(UserChoiceBillingDetails details) async {
   print('User chose alternative billing');
   for (final productId in details.products) {
     print('Product: \$productId');
   }
   print('External transaction token received; send it to your backend without logging it.');
 
-  // Process payment with your backend using the token
   final paymentResult = await yourBackend.processPayment(
     products: details.products,
     token: details.externalTransactionToken,
@@ -345,6 +347,14 @@ final userChoiceSubscription = FlutterInappPurchase.instance.userChoiceBillingAn
   if (paymentResult.success) {
     grantUserAccess();
   }
+}
+
+// Step 1: Set up listener for when user selects alternative billing
+final userChoiceSubscription = FlutterInappPurchase.instance.userChoiceBillingAndroid
+    .listen((details) {
+  unawaited(handleUserChoiceBilling(details).catchError(
+    (Object error) => print('Alternative billing failed: \$error'),
+  ));
 });
 
 // Step 2: Initialize with user choice billing (recommended)
@@ -380,22 +390,32 @@ Future<void> disposeUserChoiceListener() => userChoiceSubscription.cancel();`}</
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Step 1: Set up listener for when user selects alternative billing.
-var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(async details =>
+async Task HandleUserChoiceBillingSafelyAsync(UserChoiceBillingDetails details)
 {
-    Console.WriteLine("User chose alternative billing");
-    Console.WriteLine($"Products: {string.Join(", ", details.Products)}");
-    Console.WriteLine("External transaction token received; send it to your backend without logging it.");
-
-    var paymentResult = await ProcessPaymentWithBackendAsync(
-        products: details.Products,
-        token: details.ExternalTransactionToken);
-
-    if (paymentResult.Success)
+    try
     {
-        await GrantUserAccessAsync();
+        Console.WriteLine("User chose alternative billing");
+        Console.WriteLine($"Products: {string.Join(", ", details.Products)}");
+        Console.WriteLine("External transaction token received; send it to your backend without logging it.");
+
+        var paymentResult = await ProcessPaymentWithBackendAsync(
+            products: details.Products,
+            token: details.ExternalTransactionToken);
+
+        if (paymentResult.Success)
+        {
+            await GrantUserAccessAsync();
+        }
     }
-});
+    catch (Exception error)
+    {
+        Console.WriteLine($"Alternative billing failed: {error.Message}");
+    }
+}
+
+// Step 1: Set up listener for when user selects alternative billing.
+var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(
+    details => _ = HandleUserChoiceBillingSafelyAsync(details));
 
 // Step 2: Initialize with user choice billing (recommended).
 var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig

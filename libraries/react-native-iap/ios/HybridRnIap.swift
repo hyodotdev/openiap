@@ -74,7 +74,8 @@ class HybridRnIap: HybridRnIapSpec {
 
     private func enqueueConnect(
         _ configValue: InitConnectionConfig?,
-        reuseExistingConnection: Bool = false
+        reuseExistingConnection: Bool = false,
+        connect: (() async throws -> Bool)? = nil
     ) -> Task<Bool, Error> {
         enqueueLifecycleOperation {
             if reuseExistingConnection, self.isConnectionInitialized() { return true }
@@ -84,7 +85,13 @@ class HybridRnIap: HybridRnIapSpec {
             do {
                 // Note: iOS doesn't support alternative billing config parameter
                 // Config is ignored on iOS platform
-                let ok = try await OpenIapModule.shared.initConnection()
+                self.attachCoreListenersIfNeeded(epoch: epoch)
+                let ok: Bool
+                if let connect {
+                    ok = try await connect()
+                } else {
+                    ok = try await OpenIapModule.shared.initConnection()
+                }
                 RnIapLog.result("initConnection", ok)
                 let isCurrent = self.listenerLock.withLock {
                     guard self.connectionEpoch == epoch else { return false }
@@ -113,6 +120,12 @@ class HybridRnIap: HybridRnIapSpec {
                 return false
             }
         }
+    }
+
+    func enqueueConnectOperation(
+        _ connect: @escaping () async throws -> Bool
+    ) -> Task<Bool, Error> {
+        enqueueConnect(nil, connect: connect)
     }
 
     func endConnection() throws -> Promise<Bool> {
@@ -1520,8 +1533,8 @@ class HybridRnIap: HybridRnIapSpec {
         _ error: PurchaseError,
         expectedEpoch: UInt64
     ) -> Task<Void, Error> {
-        enqueueConnectedOperation {
-            guard self.isCurrentConnection(expectedEpoch),
+        enqueueLifecycleOperation {
+            guard self.isCurrentEpoch(expectedEpoch),
                   !self.consumeRequestPurchaseErrorSuppression(error) else {
                 return
             }
@@ -1533,25 +1546,28 @@ class HybridRnIap: HybridRnIapSpec {
                 debugMessage: error.debugMessage
             )
             await MainActor.run {
-                guard self.isCurrentConnection(expectedEpoch) else { return }
+                guard self.isCurrentEpoch(expectedEpoch) else { return }
                 RnIapLog.result("purchaseErrorListener", payload)
                 self.sendPurchaseError(nitroError, productId: error.productId)
             }
         }
     }
 
-    private func attachListenersIfNeeded(epoch: UInt64) {
+    private func attachCoreListenersIfNeeded(epoch: UInt64) {
         attachPurchaseUpdatedSubIfNeeded(expectedEpoch: epoch)
         attachDuplicatePurchaseUpdatedSubIfNeeded(expectedEpoch: epoch)
         attachPurchaseErrorSubIfNeeded(expectedEpoch: epoch)
+    }
+
+    private func attachListenersIfNeeded(epoch: UInt64) {
+        attachCoreListenersIfNeeded(epoch: epoch)
         attachPromotedProductSubIfNeeded(expectedEpoch: epoch)
         attachSubscriptionBillingIssueSubIfNeeded(expectedEpoch: epoch)
     }
 
     private func attachPurchaseErrorSubIfNeeded(expectedEpoch: UInt64) {
         listenerLock.withLock {
-            guard isInitialized,
-                  connectionEpoch == expectedEpoch,
+            guard connectionEpoch == expectedEpoch,
                   purchaseErrorSub == nil else { return }
             RnIapLog.payload("purchaseErrorListener.register", nil)
             purchaseErrorSub = OpenIapModule.shared.purchaseErrorListener { [weak self] error in
@@ -1618,8 +1634,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     private func attachPurchaseUpdatedSubIfNeeded(expectedEpoch: UInt64) {
         listenerLock.withLock {
-            guard isInitialized,
-                  connectionEpoch == expectedEpoch,
+            guard connectionEpoch == expectedEpoch,
                   purchaseUpdatedSub == nil else { return }
             RnIapLog.payload("purchaseUpdatedListener.register", nil)
             purchaseUpdatedSub = OpenIapModule.shared.purchaseUpdatedListener { [weak self] openIapPurchase in
@@ -1642,8 +1657,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     private func attachDuplicatePurchaseUpdatedSubIfNeeded(expectedEpoch: UInt64) {
         listenerLock.withLock {
-            guard isInitialized,
-                  connectionEpoch == expectedEpoch,
+            guard connectionEpoch == expectedEpoch,
                   purchaseUpdatedDuplicateSub == nil,
                   !purchaseUpdatedDuplicateListeners.isEmpty else { return }
             RnIapLog.payload("purchaseUpdatedListener.register.duplicates", nil)
@@ -1701,6 +1715,10 @@ class HybridRnIap: HybridRnIapSpec {
 
     private func isCurrentConnection(_ epoch: UInt64) -> Bool {
         listenerLock.withLock { isInitialized && connectionEpoch == epoch }
+    }
+
+    private func isCurrentEpoch(_ epoch: UInt64) -> Bool {
+        listenerLock.withLock { connectionEpoch == epoch }
     }
     
     private func sendPurchaseUpdate(_ purchase: NitroPurchase, includeDuplicateListeners: Bool) {

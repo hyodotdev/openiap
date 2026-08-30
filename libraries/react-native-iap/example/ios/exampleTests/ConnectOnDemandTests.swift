@@ -50,6 +50,75 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.endConnection().await()
     }
 
+    func testPurchaseCallbackDuringInitIsDeliveredAfterConnectionSucceeds() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: nil
+        )
+        let purchase = try makePurchase(id: "during-init")
+        let holder = DeliveryTaskHolder()
+
+        let connection = hybrid.enqueueConnectOperation {
+            XCTAssertNotNil(
+                self.inspectPurchaseUpdatedSub(hybrid),
+                "the bridge listener must be attached before StoreKit initialization"
+            )
+            let delivery = hybrid.enqueuePurchaseUpdateDelivery(
+                purchase,
+                expectedEpoch: hybrid.currentConnectionEpoch(),
+                includeDuplicateListeners: false
+            )
+            await holder.set(delivery)
+            return true
+        }
+
+        let connected = try await connection.value
+        XCTAssertTrue(connected)
+        let heldDelivery = await holder.task
+        let delivery = try XCTUnwrap(heldDelivery)
+        _ = try await delivery.value
+        XCTAssertEqual(probe.events, ["during-init"])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testPurchaseErrorCallbackDuringFailedInitIsDelivered() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+        let purchaseError = PurchaseError.make(
+            code: .iapNotAvailable,
+            message: "Store unavailable"
+        )
+        let holder = DeliveryTaskHolder()
+
+        let connection = hybrid.enqueueConnectOperation {
+            XCTAssertNotNil(
+                self.inspectPurchaseErrorSub(hybrid),
+                "the error listener must be attached before StoreKit initialization"
+            )
+            let delivery = hybrid.enqueuePurchaseErrorDelivery(
+                purchaseError,
+                expectedEpoch: hybrid.currentConnectionEpoch()
+            )
+            await holder.set(delivery)
+            return false
+        }
+
+        let connected = try await connection.value
+        XCTAssertFalse(connected)
+        let heldDelivery = await holder.task
+        let delivery = try XCTUnwrap(heldDelivery)
+        _ = try await delivery.value
+        XCTAssertEqual(probe.events, [ErrorCode.iapNotAvailable.rawValue])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
     func testQueuedTeardownPreventsLateStoreDelegation() async throws {
         let hybrid = HybridRnIap()
         let connected = try await hybrid.initConnection(config: nil).await()
@@ -389,6 +458,18 @@ final class ConnectOnDemandTests: XCTestCase {
     private func inspectPurchaseUpdatedSub(_ hybrid: HybridRnIap) -> Any? {
         guard let child = childValue(hybrid, label: "purchaseUpdatedSub") else {
             XCTFail("HybridRnIap no longer exposes purchaseUpdatedSub — test needs update")
+            return nil
+        }
+        let mirror = Mirror(reflecting: child)
+        if mirror.displayStyle == .optional {
+            return mirror.children.first?.value
+        }
+        return child
+    }
+
+    private func inspectPurchaseErrorSub(_ hybrid: HybridRnIap) -> Any? {
+        guard let child = childValue(hybrid, label: "purchaseErrorSub") else {
+            XCTFail("HybridRnIap no longer exposes purchaseErrorSub — test needs update")
             return nil
         }
         let mirror = Mirror(reflecting: child)

@@ -201,8 +201,10 @@ npm install react-native-iap react-native-nitro-modules`}
           <a href="/docs/apis/end-connection">
             <code>endConnection</code>
           </a>{' '}
-          on teardown. The <code>useIAP</code> hook manages the connection and
-          listener steps for you. See the{' '}
+          only when the app-level owner shuts down or signs out. The{' '}
+          <code>useIAP</code> hook manages listener setup and removes its
+          listeners when the component unmounts, while keeping the native store
+          connection available across screens. See the{' '}
           <a href="/docs/features/purchase">Purchase Guide</a> for the complete
           flow.
         </p>
@@ -215,8 +217,9 @@ npm install react-native-iap react-native-nitro-modules`}
         </h3>
         <p>
           The <code>useIAP</code> hook is the recommended way to use
-          react-native-iap. It manages connection lifecycle, state, and error
-          normalization automatically.
+          react-native-iap. It manages listener lifecycle, connection state, and
+          error normalization automatically. Unmounting the hook removes its
+          listeners without ending the app-level native store connection.
         </p>
         <CodeBlock language="typescript">
           {`import React, { useEffect } from 'react';
@@ -375,7 +378,8 @@ function Store() {
 } from 'react-native-iap';
 
 // Initialize
-await initConnection();
+const connected = await initConnection();
+if (!connected) throw new Error('Store connection failed');
 
 // Listen for events BEFORE requesting purchases
 const purchaseSub = purchaseUpdatedListener((purchase) => {

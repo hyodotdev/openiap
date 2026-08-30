@@ -607,7 +607,9 @@ export const promotedProductListenerIOS = (
  *   console.log('External transaction token received; send it to your backend without logging it.');
  *
  *   // Send token to backend for Google Play reporting
- *   await reportToGooglePlay(details.externalTransactionToken);
+ *   void reportToGooglePlay(details.externalTransactionToken).catch((error) => {
+ *     console.warn('Alternative billing report failed', error);
+ *   });
  * });
  *
  * // Later, remove the listener
@@ -707,10 +709,11 @@ export const userChoiceBillingListenerAndroid = (
  * @example
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid((details) => {
- *   await processExternalPayment(details.products, details.linkUri);
- *   if (details.externalTransactionToken) {
- *     await reportToGooglePlay(details.externalTransactionToken);
- *   }
+ *   void processExternalPayment(details.products, details.linkUri)
+ *     .then(() => details.externalTransactionToken
+ *       ? reportToGooglePlay(details.externalTransactionToken)
+ *       : undefined)
+ *     .catch((error) => console.warn('Developer billing failed', error));
  * });
  *
  * // Later, remove the listener
@@ -2784,7 +2787,8 @@ const normalizeProductQueryType = (
  * ```typescript
  * // Enable external offers before connecting
  * enableBillingProgramAndroid('external-offer');
- * await initConnection();
+ * const connected = await initConnection();
+ * if (!connected) throw new Error('Store connection failed');
  * ```
  */
 export const enableBillingProgramAndroid = (

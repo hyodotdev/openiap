@@ -78,7 +78,7 @@ describe("generated LLM references", () => {
     expect(fullReference).toContain("type: ProductQueryType.InApp");
     expect(fullReference).toContain("iap.purchaseUpdatedListener.listen");
     expect(fullReference).toContain(
-      "iap.finishTransaction(purchase: purchase, isConsumable: true)",
+      ".finishTransaction(purchase: purchase, isConsumable: true)",
     );
     expect(fullReference).toContain(
       "await GodotIapPlugin.fetch_products(request)",

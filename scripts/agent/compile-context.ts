@@ -540,20 +540,26 @@ function PremiumButton() {
 ### Flutter
 \`\`\`dart
 final iap = FlutterInappPurchase.instance;
-await iap.initConnection();
+final connected = await iap.initConnection();
+if (!connected) throw StateError('Store connection failed');
 final products = await iap.fetchProducts<Product>(
   skus: ['premium'],
   type: ProductQueryType.InApp,
 );
-iap.purchaseUpdatedListener.listen((purchase) async {
-  await iap.finishTransaction(purchase: purchase, isConsumable: true);
+iap.purchaseUpdatedListener.listen((purchase) {
+  iap
+      .finishTransaction(purchase: purchase, isConsumable: true)
+      .catchError((Object error) => print('Transaction finalization failed: $error'));
 });
 \`\`\`
 
 ### Godot
 \`\`\`gdscript
 GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
-GodotIapPlugin.init_connection()
+var connected = await GodotIapPlugin.init_connection()
+if not connected:
+    push_error("Store connection failed")
+    return
 await GodotIapPlugin.fetch_products(request)
 GodotIapPlugin.request_purchase(props)
 \`\`\`
@@ -561,7 +567,8 @@ GodotIapPlugin.request_purchase(props)
 ### Kotlin Multiplatform
 \`\`\`kotlin
 val iap = KmpIAP()
-iap.initConnection()
+val connected = iap.initConnection()
+check(connected) { "Store connection failed" }
 val products = iap.fetchProducts {
     skus = listOf("premium")
     type = ProductQueryType.InApp
@@ -577,7 +584,8 @@ using OpenIap;
 using OpenIap.Maui;
 
 var iap = OpenIapClient.Instance;
-await ((MutationResolver)iap).InitConnectionAsync();
+var connected = await ((MutationResolver)iap).InitConnectionAsync();
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
 {
@@ -585,13 +593,23 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
     Type = ProductQueryType.InApp,
 });
 
-((IOpenIap)iap).PurchaseUpdated.Subscribe(async purchase =>
+async Task FinishPurchaseSafelyAsync(Purchase purchase)
 {
-    await ((MutationResolver)iap).FinishTransactionAsync(
-        new PurchaseInput(purchase),
-        isConsumable: true
-    );
-});
+    try
+    {
+        await ((MutationResolver)iap).FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            isConsumable: true
+        );
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Transaction finalization failed: {error.Message}");
+    }
+}
+
+((IOpenIap)iap).PurchaseUpdated.Subscribe(
+    purchase => _ = FinishPurchaseSafelyAsync(purchase));
 \`\`\`
 
 ---
