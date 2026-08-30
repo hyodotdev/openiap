@@ -755,11 +755,9 @@ describe('Public API (src/index.ts)', () => {
       },
     ])('retries deferred $name after initConnection', async (testCase) => {
       (Platform as any).OS = testCase.platform;
-      mockIap[testCase.nativeMethod] = jest
-        .fn()
-        .mockImplementationOnce(() => {
-          throw new Error('Nitro runtime not installed');
-        });
+      mockIap[testCase.nativeMethod] = jest.fn().mockImplementationOnce(() => {
+        throw new Error('Nitro runtime not installed');
+      });
 
       IAP[testCase.api](jest.fn(), testCase.options);
       expect(mockIap[testCase.nativeMethod]).toHaveBeenCalledTimes(1);
@@ -3790,6 +3788,65 @@ describe('Public API (src/index.ts)', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+      {
+        name: 'purchase updates',
+        platform: 'ios',
+        api: 'purchaseUpdatedListener',
+        nativeMethod: 'addPurchaseUpdatedListener',
+        payload: validPurchase,
+      },
+      {
+        name: 'purchase errors',
+        platform: 'ios',
+        api: 'purchaseErrorListener',
+        nativeMethod: 'addPurchaseErrorListener',
+        payload: {code: 'network-error', message: 'offline'},
+      },
+      {
+        name: 'promoted products',
+        platform: 'ios',
+        api: 'promotedProductListenerIOS',
+        nativeMethod: 'addPromotedProductListenerIOS',
+        payload: {
+          id: 'premium',
+          title: 'Premium',
+          description: 'Premium access',
+          displayName: 'Premium',
+          displayPrice: '$1.00',
+          currency: 'USD',
+          price: 1,
+          platform: 'ios',
+          type: 'in-app',
+        },
+      },
+      {
+        name: 'developer-provided billing',
+        platform: 'android',
+        api: 'developerProvidedBillingListenerAndroid',
+        nativeMethod: 'addDeveloperProvidedBillingListenerAndroid',
+        payload: {products: ['premium']},
+      },
+    ])(
+      'rolls back a failed $name registration',
+      ({platform, api, nativeMethod, payload}) => {
+        (Platform as any).OS = platform;
+        mockIap[nativeMethod].mockImplementationOnce(() => {
+          throw new Error('native listener failed');
+        });
+
+        const staleListener = jest.fn();
+        expect(() => IAP[api](staleListener)).toThrow('native listener failed');
+
+        const currentListener = jest.fn();
+        IAP[api](currentListener);
+        mockIap[nativeMethod].mock.calls[1][0](payload);
+
+        expect(staleListener).not.toHaveBeenCalled();
+        expect(currentListener).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it.each([
       {
