@@ -388,12 +388,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
       skus: string[];
       type?: ProductQueryType | null;
     }): Promise<void> => {
-      if (!connectedRef.current) {
-        RnIapConsole.warn(
-          '[useIAP] fetchProducts called before connection; skipping',
-        );
-        return;
-      }
       try {
         const requestType = params.type ?? 'in-app';
         RnIapConsole.debug('[useIAP] Calling fetchProducts with:', {
