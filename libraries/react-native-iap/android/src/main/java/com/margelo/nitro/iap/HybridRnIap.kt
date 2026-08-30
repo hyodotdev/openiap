@@ -1764,9 +1764,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     override fun removeUserChoiceBillingListenerAndroid(listener: (UserChoiceBillingDetails) -> Unit) {
-        synchronized(userChoiceBillingListenersAndroid) {
-            userChoiceBillingListenersAndroid.remove(listener)
-        }
+        removeSingletonBridgeListener(userChoiceBillingListenersAndroid, listener)
     }
 
     private fun sendUserChoiceBilling(details: UserChoiceBillingDetails) {
@@ -1782,9 +1780,7 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     override fun removeDeveloperProvidedBillingListenerAndroid(listener: (DeveloperProvidedBillingDetailsAndroid) -> Unit) {
-        synchronized(developerProvidedBillingListenersAndroid) {
-            developerProvidedBillingListenersAndroid.remove(listener)
-        }
+        removeSingletonBridgeListener(developerProvidedBillingListenersAndroid, listener)
     }
 
     private fun sendDeveloperProvidedBilling(details: DeveloperProvidedBillingDetailsAndroid) {
@@ -1813,9 +1809,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun removeSubscriptionBillingIssueListener(listener: (purchase: NitroPurchase) -> Unit) {
         synchronized(subscriptionBillingIssueAttachLock) {
-            synchronized(subscriptionBillingIssueListeners) {
-                subscriptionBillingIssueListeners.remove(listener)
-            }
+            removeSingletonBridgeListener(subscriptionBillingIssueListeners, listener)
         }
     }
 
