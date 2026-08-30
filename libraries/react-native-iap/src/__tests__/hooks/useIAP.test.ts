@@ -190,6 +190,11 @@ describe('hooks/useIAP (renderer)', () => {
     }
     const resolvePendingActiveSubscriptions = resolveActiveSubscriptions;
 
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(onPurchaseSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({id: 't1', productId: 'p1'}),
+    );
+
     await act(async () => {
       renderer.unmount();
     });
@@ -199,9 +204,7 @@ describe('hooks/useIAP (renderer)', () => {
       await purchaseUpdate;
     });
 
-    // The event entered while mounted, so the success callback still fires:
-    // it is where apps call finishTransaction, and a dropped event has no
-    // in-session redelivery.
+    // The pending state refresh does not redeliver the purchase callback.
     expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
     expect(onPurchaseSuccess).toHaveBeenCalledWith(
       expect.objectContaining({id: 't1', productId: 'p1'}),
