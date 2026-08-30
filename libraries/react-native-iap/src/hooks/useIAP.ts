@@ -169,7 +169,8 @@ type UseIap = {
    *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
    * @returns Promise that resolves when the request is dispatched; results land in the
    *   hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `not-prepared`, validation failure).
+   * @throws Invalid arguments or failures that prevent dispatch. Store outcomes are event-based;
+   *   on Android, `not-prepared` is delivered through `onPurchaseError`.
    *
    * @example
    * ```ts
@@ -781,6 +782,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (result) {
+        // endConnection invalidates these hook-owned subscription handles.
+        cleanupListeners();
         registerListeners();
         setConnected(true);
         return true;

@@ -59,6 +59,82 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.endConnection().await()
     }
 
+    func testQueuedTeardownPreventsLateStoreDelegation() async throws {
+        let hybrid = HybridRnIap()
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+
+        let endPromise = try hybrid.endConnection()
+        let probe = DelegationProbe()
+        let operation = hybrid.enqueueConnectedOperation {
+            probe.markDelegated()
+            return true
+        }
+
+        _ = try await endPromise.await()
+        do {
+            _ = try await operation.value
+            XCTFail("a store operation queued after teardown must not run")
+        } catch let error as OpenIapException {
+            XCTAssertEqual(error.domain, OpenIapException.domain)
+            XCTAssertTrue(error.localizedDescription.contains(ErrorCode.initConnection.rawValue))
+        }
+        XCTAssertFalse(probe.wasDelegated)
+    }
+
+    func testConnectionRequiringCallsUseBridgeOwnedOperations() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sourceURL = packageRoot.appendingPathComponent("ios/HybridRnIap.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let guardedMethods = [
+            "fetchProducts",
+            "requestPurchase",
+            "getAvailablePurchases",
+            "getActiveSubscriptions",
+            "hasActiveSubscriptions",
+            "finishTransaction",
+            "verifyPurchase",
+            "verifyPurchaseWithProvider",
+            "getStorefront",
+            "getAppTransactionIOS",
+            "getPromotedProductIOS",
+            "presentCodeRedemptionSheetIOS",
+            "clearTransactionIOS",
+            "subscriptionStatusIOS",
+            "currentEntitlementIOS",
+            "latestTransactionIOS",
+            "getPendingTransactionsIOS",
+            "getAllTransactionsIOS",
+            "syncIOS",
+            "showManageSubscriptionsIOS",
+            "deepLinkToSubscriptionsIOS",
+            "isEligibleForIntroOfferIOS",
+            "getReceiptDataIOS",
+            "requestReceiptRefreshIOS",
+            "isTransactionVerifiedIOS",
+            "getTransactionJwsIOS",
+            "beginRefundRequestIOS",
+            "canPresentExternalPurchaseNoticeIOS",
+            "presentExternalPurchaseNoticeSheetIOS",
+            "presentExternalPurchaseLinkIOS",
+            "isEligibleForExternalPurchaseCustomLinkIOS",
+            "getExternalPurchaseCustomLinkTokenIOS",
+            "showExternalPurchaseCustomLinkNoticeIOS"
+        ]
+
+        for method in guardedMethods {
+            let body = try methodBody(method, in: source)
+            XCTAssertTrue(
+                body.contains("runConnectedOperation"),
+                "\(method) must not delegate around the bridge lifecycle queue"
+            )
+        }
+    }
+
     // MARK: - Private reflection helpers
 
     private func inspectSub(_ hybrid: HybridRnIap) -> Any? {
@@ -82,5 +158,46 @@ final class ConnectOnDemandTests: XCTestCase {
             .children
             .first { $0.label == label }?
             .value
+    }
+
+    private func methodBody(_ name: String, in source: String) throws -> Substring {
+        let start = try XCTUnwrap(source.range(of: "    func \(name)"))
+        let openingBrace = try XCTUnwrap(
+            source.range(of: "{", range: start.upperBound..<source.endIndex)
+        )
+        var depth = 0
+        var index = openingBrace.lowerBound
+        while index < source.endIndex {
+            switch source[index] {
+            case "{":
+                depth += 1
+            case "}":
+                depth -= 1
+                if depth == 0 {
+                    return source[start.lowerBound...index]
+                }
+            default:
+                break
+            }
+            index = source.index(after: index)
+        }
+        throw NSError(domain: "ConnectOnDemandTests", code: 1)
+    }
+
+    private final class DelegationProbe: @unchecked Sendable {
+        private let lock = NSLock()
+        private var delegated = false
+
+        var wasDelegated: Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            return delegated
+        }
+
+        func markDelegated() {
+            lock.lock()
+            delegated = true
+            lock.unlock()
+        }
     }
 }

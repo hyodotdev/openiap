@@ -125,10 +125,10 @@ type RequestPurchaseProps =
           <Link to="/docs/apis/init-connection">
             <code>initConnection()</code>
           </Link>{' '}
-          first. On Android a purchase started without it is rejected with{' '}
-          <code>not-prepared</code>; iOS connects on demand. Gate the buy
-          control on the <code>connected</code> flag so the same code works on
-          both.
+          first. React Native reports an Android purchase started without it as
+          a <code>not-prepared</code> purchase-error event; iOS connects on
+          demand. Gate the buy control on the <code>connected</code> flag so the
+          same code works on both.
         </p>
       </Callout>
 
@@ -243,8 +243,11 @@ type RequestPurchaseProps =
         Throws
       </AnchorLink>
       <p>
-        Synchronous rejection from the store (<code>not-prepared</code>, missing
-        offerToken on subs, etc.).
+        Invalid arguments or failures that prevent dispatch can reject the
+        promise. Store outcomes are event-based in React Native; Android{' '}
+        <code>not-prepared</code> arrives through{' '}
+        <code>purchaseErrorListener</code> or the hook&apos;s{' '}
+        <code>onPurchaseError</code> callback.
       </p>
 
       <h2>Example</h2>

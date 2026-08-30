@@ -1178,7 +1178,7 @@ describe('hooks/useIAP (renderer)', () => {
       // purchaseUpdatedListener should have been called during init
       expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
 
-      // Clear and reconnect
+      await IAP.endConnection();
       (IAP.purchaseUpdatedListener as jest.Mock).mockClear();
       jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true as any);
 
@@ -1186,9 +1186,24 @@ describe('hooks/useIAP (renderer)', () => {
         await api.reconnect();
       });
 
-      // Listeners are already active from init, so reconnect skips re-registration
-      // (guarded by !subscriptionsRef.current.purchaseUpdate check)
       expect(api.connected).toBe(true);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+
+      const purchase = {
+        id: 'after-reconnect',
+        productId: 'premium',
+        transactionDate: Date.now(),
+        platform: 'ios',
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      act(() => {
+        capturedPurchaseListener?.(purchase);
+      });
+      await act(async () => {});
+      expect(onPurchaseSuccess).toHaveBeenCalledWith(purchase);
     });
   });
 
