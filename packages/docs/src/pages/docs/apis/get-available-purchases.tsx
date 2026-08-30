@@ -187,6 +187,7 @@ for (const purchase of purchases) {
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP's getAvailablePurchases() returns Promise<void> and updates the
 // reactive availablePurchases array — process new entries inside an effect.
+import { useEffect } from 'react';
 import { useIAP } from 'expo-iap';
 
 function PendingPurchases() {

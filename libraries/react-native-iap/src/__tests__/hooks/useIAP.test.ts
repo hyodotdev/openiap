@@ -43,6 +43,7 @@ jest.mock('react-native', () => ({
 // Import after mocks
 import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
+import {Platform} from 'react-native';
 
 describe('hooks/useIAP (renderer)', () => {
   afterEach(() => {
@@ -580,34 +581,40 @@ describe('hooks/useIAP (renderer)', () => {
   });
 
   it('surfaces the native error when fetching while disconnected', async () => {
+    const originalPlatform = Platform.OS;
+    (Platform as any).OS = 'android';
     const notConnected = new Error('Billing client not ready');
-    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
-    mockFetchProducts.mockRejectedValueOnce(notConnected);
+    try {
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+      mockFetchProducts.mockRejectedValueOnce(notConnected);
 
-    let api: any;
-    const onError = jest.fn();
-    const Harness = () => {
-      api = useIAP({onError});
-      return null;
-    };
-    await act(async () => {
-      TestRenderer.create(React.createElement(Harness));
-    });
-    await act(async () => {});
-    expect(api.connected).toBe(false);
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(api.connected).toBe(false);
 
-    let thrown: unknown;
-    await act(async () => {
-      try {
-        await api.fetchProducts({skus: ['product1']});
-      } catch (error) {
-        thrown = error;
-      }
-    });
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await api.fetchProducts({skus: ['product1']});
+        } catch (error) {
+          thrown = error;
+        }
+      });
 
-    expect(onError).toHaveBeenCalledWith(notConnected);
-    expect(thrown).toBe(notConnected);
-    expect(api.products).toEqual([]);
+      expect(onError).toHaveBeenCalledWith(notConnected);
+      expect(thrown).toBe(notConnected);
+      expect(api.products).toEqual([]);
+    } finally {
+      (Platform as any).OS = originalPlatform;
+    }
   });
 
   describe('onError callback', () => {

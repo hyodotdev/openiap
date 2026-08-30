@@ -82,6 +82,11 @@ internal fun parseOpenIapError(err: Throwable): OpenIapError {
     var cause: Throwable? = err
     while (cause != null) {
         if (cause is OpenIapError) return cause
+        cause = cause.cause
+    }
+
+    cause = err
+    while (cause != null) {
         val message = cause.message ?: ""
         when {
             message.contains("not prepared", ignoreCase = true) ||
@@ -96,6 +101,13 @@ internal fun parseOpenIapError(err: Throwable): OpenIapError {
     }
     return OpenIapError.ServiceUnavailable()
 }
+
+internal fun normalizeAvailablePurchasesType(type: NitroAvailablePurchasesAndroidType?): String? =
+    when (type) {
+        NitroAvailablePurchasesAndroidType.IN_APP -> "in-app"
+        NitroAvailablePurchasesAndroidType.SUBS -> "subs"
+        null -> null
+    }
 
 internal fun rejectDisconnectedPurchase(
     isInitialized: Boolean,
@@ -779,11 +791,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     mapOf("type" to androidOptions?.type?.name, "includeSuspended" to includeSuspended)
                 )
 
-                val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
-                val normalizedType = when (typeName) {
-                    "in-app", "subs" -> typeName
-                    else -> null
-                }
+                val normalizedType = normalizeAvailablePurchasesType(androidOptions?.type)
 
                 // Create PurchaseOptions with includeSuspendedAndroid
                 val purchaseOptions = dev.hyo.openiap.PurchaseOptions(

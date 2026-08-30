@@ -15,7 +15,7 @@ class OpenIapErrorMappingTest {
 
     @Test
     fun `preserves an OpenIapError in the cause chain`() {
-        val wrapped = IllegalStateException("Billing client not ready", OpenIapError.NotPrepared)
+        val wrapped = IllegalStateException("Service unavailable", OpenIapError.NotPrepared)
 
         assertSame(OpenIapError.NotPrepared, parseOpenIapError(wrapped))
     }
