@@ -250,7 +250,6 @@ class HybridRnIap : HybridRnIapSpec() {
         val configValue = (config as? Variant_NullType_InitConnectionConfig.Second)?.value
         val performInit: suspend () -> Boolean = initOperation@{
             RnIapLog.payload("initConnection", configValue)
-            if (isInitialized) return@initOperation true
 
             // CRITICAL: Set Activity BEFORE calling initConnection
             // Horizon SDK needs Activity to initialize OVRPlatform with proper returnComponent

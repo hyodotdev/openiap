@@ -123,6 +123,34 @@ class ConnectionLifecycleQueueTest {
         }
 
     @Test(timeout = 5_000)
+    fun `a later reconnect runs a fresh init operation`() =
+        runBlocking {
+            val queue = ConnectionLifecycleQueue()
+            val calls = AtomicInteger()
+            val operation: suspend () -> Boolean = {
+                calls.incrementAndGet()
+                true
+            }
+
+            val first =
+                queue.enqueueInit(
+                    operation = operation,
+                    onCommitted = {},
+                    onFailed = {},
+                )
+            assertTrue(first.await())
+
+            val reconnect =
+                queue.enqueueInit(
+                    operation = operation,
+                    onCommitted = {},
+                    onFailed = {},
+                )
+            assertTrue(reconnect.await())
+            assertEquals(2, calls.get())
+        }
+
+    @Test(timeout = 5_000)
     fun `end during native init prevents commit and runs after native returns`() =
         runBlocking {
             val queue = ConnectionLifecycleQueue()
