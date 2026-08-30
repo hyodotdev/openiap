@@ -1398,7 +1398,10 @@ describe('Public API (src/index.ts)', () => {
 
       await expect(
         IAP.finishTransaction({purchase: {id: 'tid'} as any}),
-      ).rejects.toBe(error);
+      ).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+        message: 'StoreKit network failure',
+      });
     });
 
     it('throws on unsupported platform', async () => {
