@@ -1157,6 +1157,8 @@ describe('hooks/useIAP (renderer)', () => {
         expect(await secondReconnect!).toBe(true);
       });
       expect(api.connected).toBe(true);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         resolveFirst?.(true);
@@ -1164,8 +1166,8 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(api.connected).toBe(true);
-      expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
-      expect(IAP.purchaseErrorListener).not.toHaveBeenCalled();
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
     });
 
     it('reconnect re-registers listeners after successful reconnection', async () => {
