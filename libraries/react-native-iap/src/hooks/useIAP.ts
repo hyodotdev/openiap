@@ -358,6 +358,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
   // Track if component is mounted to prevent listener leaks on early unmount
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
+  const productRequestGenerationRef = useRef(0);
+  const productRequestOwnersRef = useRef(new Map<string, number>());
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
 
@@ -379,6 +381,11 @@ export function useIAP(options?: UseIapOptions): UseIap {
       skus: string[];
       type?: ProductQueryType | null;
     }): Promise<void> => {
+      const generation = ++productRequestGenerationRef.current;
+      for (const sku of params.skus) {
+        productRequestOwnersRef.current.set(sku, generation);
+      }
+
       try {
         const requestType = params.type ?? 'in-app';
         RnIapConsole.debug('[useIAP] Calling fetchProducts with:', {
@@ -393,7 +400,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
           '[useIAP] fetchProducts count:',
           result?.length ?? 0,
         );
-        const items = (result ?? []) as (Product | ProductSubscription)[];
+        const items = (
+          (result ?? []) as (Product | ProductSubscription)[]
+        ).filter(
+          (item) => productRequestOwnersRef.current.get(item.id) === generation,
+        );
+        if (items.length === 0) return;
 
         // fetchProducts already returns properly filtered results based on type
         if (requestType === 'subs') {
@@ -445,6 +457,12 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error fetching products:', error);
         invokeOnError(error);
+      } finally {
+        for (const sku of params.skus) {
+          if (productRequestOwnersRef.current.get(sku) === generation) {
+            productRequestOwnersRef.current.delete(sku);
+          }
+        }
       }
     },
     [invokeOnError],
