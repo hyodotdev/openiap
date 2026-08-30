@@ -597,9 +597,12 @@ class HybridRnIap: HybridRnIapSpec {
                     RnIapLog.result("getAppTransactionIOS", nil)
                     return .first(.null)
                 }
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("getAppTransactionIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("getAppTransactionIOS", error: error)
-                return .first(.null)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -692,9 +695,12 @@ class HybridRnIap: HybridRnIapSpec {
                     return NitroSubscriptionStatus(state: stateValue, platform: platform, renewalInfo: renewalInfo)
                 }
                 return .second(result)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("subscriptionStatusIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("subscriptionStatusIOS", error: error)
-                return .second([])
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -718,9 +724,12 @@ class HybridRnIap: HybridRnIapSpec {
                 }
                 RnIapLog.result("currentEntitlementIOS", nil)
                 return .first(.null)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("currentEntitlementIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("currentEntitlementIOS", error: error)
-                throw OpenIapException.make(code: .skuNotFound, productId: sku)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -744,9 +753,12 @@ class HybridRnIap: HybridRnIapSpec {
                 }
                 RnIapLog.result("latestTransactionIOS", nil)
                 return .first(.null)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("latestTransactionIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("latestTransactionIOS", error: error)
-                throw OpenIapException.make(code: .skuNotFound, productId: sku)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -936,9 +948,12 @@ class HybridRnIap: HybridRnIapSpec {
                     return .second(jws)
                 }
                 return .first(.null)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("getTransactionJwsIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("getTransactionJwsIOS", error: error)
-                throw OpenIapException.make(code: .transactionValidationFailed, message: "Can't find transaction for sku \(sku)")
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -953,9 +968,12 @@ class HybridRnIap: HybridRnIapSpec {
                     return .second(result)
                 }
                 return .first(.null)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("beginRefundRequestIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("beginRefundRequestIOS", error: error)
-                return .first(.null)
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
