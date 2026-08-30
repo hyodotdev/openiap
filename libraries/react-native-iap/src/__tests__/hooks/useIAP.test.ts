@@ -190,6 +190,11 @@ describe('hooks/useIAP (renderer)', () => {
     }
     const resolvePendingActiveSubscriptions = resolveActiveSubscriptions;
 
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(onPurchaseSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({id: 't1', productId: 'p1'}),
+    );
+
     await act(async () => {
       renderer.unmount();
     });
@@ -199,13 +204,118 @@ describe('hooks/useIAP (renderer)', () => {
       await purchaseUpdate;
     });
 
-    // The event entered while mounted, so the success callback still fires:
-    // it is where apps call finishTransaction, and a dropped event has no
-    // in-session redelivery.
+    // The pending state refresh does not redeliver the purchase callback.
     expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
     expect(onPurchaseSuccess).toHaveBeenCalledWith(
       expect.objectContaining({id: 't1', productId: 'p1'}),
     );
+  });
+
+  it('refreshes purchase state when onPurchaseSuccess throws', async () => {
+    const callbackError = new Error('host callback failed');
+    const onPurchaseSuccess = jest.fn(() => {
+      throw callbackError;
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
+
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'p1'});
+    });
+
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      '[useIAP] onPurchaseSuccess failed:',
+      callbackError,
+    );
+    consoleError.mockRestore();
+  });
+
+  it('refreshes purchase state when onPurchaseSuccess rejects', async () => {
+    const callbackError = new Error('async host callback failed');
+    const onPurchaseSuccess = jest.fn(async () => {
+      throw callbackError;
+    });
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
+
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'p1'});
+    });
+
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      '[useIAP] onPurchaseSuccess failed:',
+      callbackError,
+    );
+    consoleError.mockRestore();
+  });
+
+  it('reports a post-purchase refresh failure after delivering success', async () => {
+    const refreshError = new Error('refresh failed');
+    const onPurchaseSuccess = jest.fn();
+    const consoleWarn = jest.spyOn(console, 'warn').mockImplementation();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    mockGetActiveSubscriptions.mockClear();
+    mockGetAvailablePurchases.mockClear();
+    mockGetActiveSubscriptions.mockRejectedValueOnce(refreshError);
+
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+    await act(async () => {
+      await capturedPurchaseListener({id: 't1', productId: 'p1'});
+    });
+
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(mockGetActiveSubscriptions).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    expect(consoleWarn).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      '[useIAP] post-purchase refresh failed:',
+      refreshError,
+    );
+    consoleWarn.mockRestore();
   });
 
   it('requestPurchase calls root API and returns void', async () => {

@@ -612,19 +612,27 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (!subscriptionsRef.current.purchaseUpdate) {
       subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
         async (purchase: Purchase) => {
+          // Deliver first so store refresh latency cannot delay verification
+          // and transaction finalization in the host app.
+          try {
+            const callbackResult =
+              optionsRef.current?.onPurchaseSuccess?.(purchase);
+            void Promise.resolve(callbackResult).catch((e) => {
+              RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
+            });
+          } catch (e) {
+            RnIapConsole.error('[useIAP] onPurchaseSuccess failed:', e);
+          }
+
           try {
             await getActiveSubscriptionsInternal();
-            await getAvailablePurchasesInternal();
           } catch (e) {
             RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
           }
-
-          // Deliver even if the hook unmounted while the refresh was pending:
-          // onPurchaseSuccess is where apps call finishTransaction, and a
-          // dropped event has no in-session redelivery. Internal setState is
-          // mount-guarded inside the refresh helpers.
-          if (optionsRef.current?.onPurchaseSuccess) {
-            optionsRef.current.onPurchaseSuccess(purchase);
+          try {
+            await getAvailablePurchasesInternal();
+          } catch (e) {
+            RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
           }
         },
         optionsRef.current?.purchaseUpdatedListenerOptions,
