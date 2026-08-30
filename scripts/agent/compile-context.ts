@@ -513,7 +513,9 @@ function PremiumButton() {
 
   useEffect(() => {
     if (!connected) return;
-    void fetchProducts({ skus: ['premium'], type: 'in-app' });
+    void fetchProducts({ skus: ['premium'], type: 'in-app' }).catch((error) =>
+      console.warn('Product fetch failed:', error),
+    );
   }, [connected, fetchProducts]);
 
   return (

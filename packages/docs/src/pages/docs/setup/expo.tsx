@@ -401,8 +401,11 @@ function Store() {
   });
 
   useEffect(() => {
-    fetchProducts({ skus: ['premium'] });
-  }, []);
+    if (!connected) return;
+    void fetchProducts({ skus: ['premium'] }).catch((error) => {
+      console.warn('Product fetch failed:', error);
+    });
+  }, [connected, fetchProducts]);
 
   return (
     <FlatList
@@ -410,7 +413,8 @@ function Store() {
       keyExtractor={(product) => product.id}
       renderItem={({ item }) => (
         <Button
-          title={\`\${item.title} - \${item.localizedPrice}\`}
+          title={\`\${item.title} - \${item.displayPrice}\`}
+          disabled={!connected}
           onPress={() =>
             requestPurchase({
               request: {

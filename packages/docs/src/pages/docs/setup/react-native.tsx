@@ -225,6 +225,7 @@ import { useIAP, ErrorCode, finishTransaction } from 'react-native-iap';
 
 function Store() {
   const {
+    connected,
     products,
     fetchProducts,
     requestPurchase,
@@ -243,8 +244,11 @@ function Store() {
   });
 
   useEffect(() => {
-    fetchProducts({ skus: ['premium', 'coins_100'] });
-  }, []);
+    if (!connected) return;
+    void fetchProducts({ skus: ['premium', 'coins_100'] }).catch((error) => {
+      console.warn('Product fetch failed:', error);
+    });
+  }, [connected, fetchProducts]);
 
   return (
     <FlatList
@@ -253,6 +257,7 @@ function Store() {
       renderItem={({ item }) => (
         <Button
           title={\`\${item.title} - \${item.displayPrice}\`}
+          disabled={!connected}
           onPress={() =>
             requestPurchase({
               request: {

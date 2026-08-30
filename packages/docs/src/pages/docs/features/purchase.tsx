@@ -1548,7 +1548,9 @@ function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!connected) return;
-    void fetchProducts({ skus: PRODUCT_IDS, type: 'in-app' });
+    void fetchProducts({ skus: PRODUCT_IDS, type: 'in-app' }).catch((error) =>
+      console.warn('Product fetch failed:', error),
+    );
   }, [connected, fetchProducts]);
 
   return (
@@ -2176,7 +2178,9 @@ function PendingPurchaseHandler() {
 
   useEffect(() => {
     if (!connected) return;
-    void getAvailablePurchases();
+    void getAvailablePurchases().catch((error) =>
+      console.warn('Pending purchase lookup failed:', error),
+    );
   }, [connected, getAvailablePurchases]);
 
   useEffect(() => {

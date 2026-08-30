@@ -217,7 +217,9 @@ function SubscriptionStatus() {
 
   useEffect(() => {
     if (!connected) return;
-    void getActiveSubscriptions();
+    void getActiveSubscriptions().catch((error) =>
+      console.warn('Subscription lookup failed:', error),
+    );
   }, [connected, getActiveSubscriptions]);
 
   return (

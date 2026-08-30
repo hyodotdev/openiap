@@ -141,18 +141,37 @@ const isPremium = await hasActiveSubscriptions();
 const hasProPlan = await hasActiveSubscriptions(['pro_monthly', 'pro_yearly']);
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useEffect, useState } from 'react';
+import { Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function PremiumGate({ children }: { children: React.ReactNode }) {
   const { connected, hasActiveSubscriptions } = useIAP();
-  const [isPremium, setIsPremium] = useState(false);
+  const [status, setStatus] = useState<'checking' | 'active' | 'inactive' | 'error'>('checking');
 
   useEffect(() => {
-    if (!connected) return;
-    void hasActiveSubscriptions().then(setIsPremium);
+    if (!connected) {
+      setStatus('checking');
+      return;
+    }
+
+    let cancelled = false;
+    setStatus('checking');
+    void hasActiveSubscriptions()
+      .then((active) => {
+        if (!cancelled) setStatus(active ? 'active' : 'inactive');
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [connected, hasActiveSubscriptions]);
 
-  return isPremium ? <>{children}</> : <Text>Subscribe to unlock</Text>;
+  if (status === 'checking') return <Text>Checking subscription…</Text>;
+  if (status === 'error') return <Text>Unable to check subscription</Text>;
+  return status === 'active' ? <>{children}</> : <Text>Subscribe to unlock</Text>;
 }`}</CodeBlock>
           ),
           swift: (

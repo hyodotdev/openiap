@@ -209,7 +209,9 @@ function PendingPurchases() {
 
   useEffect(() => {
     if (!connected) return;
-    void getAvailablePurchases();
+    void getAvailablePurchases().catch((error) =>
+      console.warn('Purchase restore failed:', error),
+    );
   }, [connected, getAvailablePurchases]);
 
   useEffect(() => {
