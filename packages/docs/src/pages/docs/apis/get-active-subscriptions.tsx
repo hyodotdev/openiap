@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -89,6 +90,18 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           ),
         }}
       </LanguageTabs>
+
+      <Callout kind="important" title="Requires an open connection">
+        <p>
+          Call{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection()</code>
+          </Link>{' '}
+          first. On Android this call fails with <code>not-prepared</code>{' '}
+          without it; iOS connects on demand. Gate on the <code>connected</code>{' '}
+          flag so the same code works on both.
+        </p>
+      </Callout>
 
       <AnchorLink id="parameters" level="h2">
         Parameters
@@ -200,11 +213,12 @@ import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function SubscriptionStatus() {
-  const { activeSubscriptions, getActiveSubscriptions } = useIAP();
+  const { connected, activeSubscriptions, getActiveSubscriptions } = useIAP();
 
   useEffect(() => {
+    if (!connected) return;
     void getActiveSubscriptions();
-  }, [getActiveSubscriptions]);
+  }, [connected, getActiveSubscriptions]);
 
   return (
     <FlatList

@@ -51,6 +51,18 @@ function FetchProducts() {
         variants.
       </p>
 
+      <Callout kind="important" title="Requires an open connection">
+        <p>
+          Call{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection()</code>
+          </Link>{' '}
+          first. On Android this call fails with <code>not-prepared</code>{' '}
+          without it; iOS connects on demand. Gate on the <code>connected</code>{' '}
+          flag so the same code works on both.
+        </p>
+      </Callout>
+
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
       </AnchorLink>
@@ -372,14 +384,15 @@ import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function ProductList() {
-  const { products, fetchProducts } = useIAP();
+  const { connected, products, fetchProducts } = useIAP();
 
   useEffect(() => {
+    if (!connected) return;
     void fetchProducts({
       skus: ['com.app.coins_100', 'com.app.premium'],
       type: 'in-app',
     });
-  }, [fetchProducts]);
+  }, [connected, fetchProducts]);
 
   return (
     <FlatList

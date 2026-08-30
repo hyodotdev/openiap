@@ -243,11 +243,15 @@ const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP(
   },
 });
 
-await fetchProducts({ skus: ['premium'], type: 'in-app' });
-await requestPurchase({
-  request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
-  type: 'in-app',
-});
+// useIAP opens the connection for you; wait for it before calling the store.
+// Android rejects store calls with `not-prepared` until it is open.
+if (connected) {
+  await fetchProducts({ skus: ['premium'], type: 'in-app' });
+  await requestPurchase({
+    request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
+    type: 'in-app',
+  });
+}
 ```
 
 ### Flutter

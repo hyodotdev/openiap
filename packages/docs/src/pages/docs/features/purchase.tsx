@@ -1525,7 +1525,7 @@ import { useIAP } from 'expo-iap';
 function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { products, fetchProducts, finishTransaction } = useIAP({
+  const { connected, products, fetchProducts, finishTransaction } = useIAP({
     onPurchaseSuccess: async (purchase) => {
       setIsProcessing(true);
       try {
@@ -1546,8 +1546,9 @@ function PurchaseProviderWithHook({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    if (!connected) return;
     void fetchProducts({ skus: PRODUCT_IDS, type: 'in-app' });
-  }, [fetchProducts]);
+  }, [connected, fetchProducts]);
 
   return (
     <PurchaseContext.Provider value={{ products, isProcessing }}>
@@ -2168,13 +2169,14 @@ useEffect(() => {
 import { useIAP } from 'expo-iap';
 
 function PendingPurchaseHandler() {
-  const { availablePurchases, getAvailablePurchases } = useIAP({
+  const { connected, availablePurchases, getAvailablePurchases } = useIAP({
     onPurchaseSuccess: (purchase) => void handlePurchase(purchase),
   });
 
   useEffect(() => {
+    if (!connected) return;
     void getAvailablePurchases();
-  }, [getAvailablePurchases]);
+  }, [connected, getAvailablePurchases]);
 
   useEffect(() => {
     availablePurchases.forEach((purchase) => void handlePurchase(purchase));

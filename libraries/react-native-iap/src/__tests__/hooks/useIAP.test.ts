@@ -579,6 +579,34 @@ describe('hooks/useIAP (renderer)', () => {
     expect(api.products).toEqual([expect.objectContaining({id: 'product1'})]);
   });
 
+  it('surfaces the native error when fetching while disconnected', async () => {
+    // Counterpart to the test above. Android rejects with not-prepared until
+    // initConnection has run; the caller must learn that rather than get a
+    // silently empty result.
+    const notConnected = new Error('Billing client not ready');
+    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+    mockFetchProducts.mockRejectedValueOnce(notConnected);
+
+    let api: any;
+    const onError = jest.fn();
+    const Harness = () => {
+      api = useIAP({onError});
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    expect(api.connected).toBe(false);
+
+    await act(async () => {
+      await api.fetchProducts({skus: ['product1']});
+    });
+
+    expect(onError).toHaveBeenCalledWith(notConnected);
+    expect(api.products).toEqual([]);
+  });
+
   describe('onError callback', () => {
     it('calls onError when fetchProducts fails', async () => {
       const fetchError = new Error('Network error fetching products');
