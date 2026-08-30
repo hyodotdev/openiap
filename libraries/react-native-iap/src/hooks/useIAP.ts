@@ -379,12 +379,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
       skus: string[];
       type?: ProductQueryType | null;
     }): Promise<void> => {
-      if (!connectedRef.current) {
-        RnIapConsole.warn(
-          '[useIAP] fetchProducts called before connection; skipping',
-        );
-        return;
-      }
       try {
         const requestType = params.type ?? 'in-app';
         RnIapConsole.debug('[useIAP] Calling fetchProducts with:', {
@@ -648,7 +642,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
     if (
       Platform.OS === 'android' &&
-      optionsRef.current?.onUserChoiceBillingAndroid &&
       !subscriptionsRef.current.userChoiceBillingAndroid
     ) {
       subscriptionsRef.current.userChoiceBillingAndroid =
@@ -661,7 +654,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
     if (
       Platform.OS === 'android' &&
-      optionsRef.current?.onDeveloperProvidedBillingAndroid &&
       !subscriptionsRef.current.developerProvidedBillingAndroid
     ) {
       subscriptionsRef.current.developerProvidedBillingAndroid =

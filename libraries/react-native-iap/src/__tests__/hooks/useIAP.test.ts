@@ -295,7 +295,6 @@ describe('hooks/useIAP (renderer)', () => {
       TestRenderer.create(React.createElement(Harness));
     });
     await act(async () => {});
-
     await act(async () => {
       await api.fetchProducts({skus: ['product1']});
     });
@@ -375,6 +374,36 @@ describe('hooks/useIAP (renderer)', () => {
     ]);
     expect(api.subscriptions).toEqual([
       expect.objectContaining({id: 'subscription1', displayPrice: '$4.00'}),
+    ]);
+  });
+
+  it('delegates product fetches while the hook is disconnected', async () => {
+    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+    mockFetchProducts.mockResolvedValueOnce([
+      {id: 'product1', type: 'in-app'},
+    ] as any);
+
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+    expect(api.connected).toBe(false);
+
+    await act(async () => {
+      await api.fetchProducts({skus: ['product1']});
+    });
+
+    expect(mockFetchProducts).toHaveBeenCalledWith({
+      skus: ['product1'],
+      type: 'in-app',
+    });
+    expect(api.products).toEqual([
+      expect.objectContaining({id: 'product1'}),
     ]);
   });
 
