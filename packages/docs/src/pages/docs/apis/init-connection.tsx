@@ -12,14 +12,14 @@ function InitConnection() {
     <div className="doc-page">
       <SEO
         title="initConnection"
-        description="Initialize the OpenIAP connection to the store service. Must be called before any other IAP operations."
+        description="Initialize the OpenIAP connection before store operations and wait for a successful result."
         path="/docs/apis/init-connection"
         keywords="initConnection, OpenIAP init, billing client, store connection"
       />
       <h1>initConnection</h1>
       <p>
-        Initialize connection to the store service. Must be called before any
-        other IAP operations.
+        Initialize the store connection and wait for a successful result before
+        starting store operations.
       </p>
       <p>
         <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
@@ -34,12 +34,15 @@ function InitConnection() {
         >
           Apple docs
         </a>
-        . <strong>Android:</strong> Starts <code>BillingClient</code> and waits
-        for <code>onBillingSetupFinished</code>. Required before any other Play
-        Billing call. Meta Horizon additionally requires a current foreground{' '}
-        <code>Activity</code>; initialization fails with{' '}
-        <code>MissingCurrentActivity</code> instead of falling back to an
-        application context.{' '}
+        . React Native and Expo can connect on demand on iOS, but an explicit
+        call keeps listener setup and cross-platform gating predictable.{' '}
+        <strong>Android:</strong> Starts <code>BillingClient</code> and waits
+        for <code>onBillingSetupFinished</code>. React Native and Expo do not
+        open it implicitly; wait for <code>true</code> or the hook&apos;s{' '}
+        <code>connected</code> flag before another Play Billing call. Meta
+        Horizon additionally requires a current foreground <code>Activity</code>
+        ; initialization fails with <code>MissingCurrentActivity</code> instead
+        of falling back to an application context.{' '}
         <a
           href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#startConnection(com.android.billingclient.api.BillingClientStateListener)"
           target="_blank"
@@ -141,30 +144,36 @@ function InitConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
+            <CodeBlock language="typescript">{`import { Text } from 'react-native';
+
+// expo-iap
 import { initConnection } from 'expo-iap';
 // Same API in react-native-iap:
 // import { initConnection } from 'react-native-iap';
 
+// Choose exactly one connection call for the session.
+
 // Standard connection
-await initConnection();
+const connected = await initConnection();
 
-// Android with a billing program (preferred — see InitConnectionConfig)
-await initConnection({
-  enableBillingProgramAndroid: 'external-offer',
-});
+// Android external offer (replace the standard call above):
+// const connected = await initConnection({
+//   enableBillingProgramAndroid: 'external-offer',
+// });
 
-// Developer-rendered Billing Choice (must match Play Console)
-await initConnection({
-  enableBillingProgramAndroid: 'billing-choice',
-  billingChoiceScreenTypeAndroid: 'developer-rendered',
-});
+// Android developer-rendered Billing Choice (replace the standard call above):
+// const connected = await initConnection({
+//   enableBillingProgramAndroid: 'billing-choice',
+//   billingChoiceScreenTypeAndroid: 'developer-rendered',
+// });
+
+if (!connected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// useIAP auto-connects on mount and disconnects on unmount, so you almost
-// never need to call initConnection() yourself. Pass connection options
-// (e.g. enableBillingProgramAndroid) to the hook directly, and read the
-// reactive "connected" flag from its return value.
+// Both hooks auto-connect on mount. Expo closes the connection on unmount;
+// React Native removes the screen's listeners but keeps the native connection
+// open across screens. Pass connection options to the hook and read its
+// reactive "connected" flag.
 import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
@@ -178,67 +187,62 @@ function PurchaseScreen() {
           swift: (
             <CodeBlock language="swift">{`import OpenIap
 
-try await OpenIapModule.shared.initConnection()`}</CodeBlock>
+let connected = try await OpenIapModule.shared.initConnection()
+precondition(connected, "Store connection failed")`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`// Standard connection
-openIapStore.initConnection()
-
-// Developer-rendered Billing Choice
-openIapStore.initConnection(
+            <CodeBlock language="kotlin">{`// Choose one call. Remove the config for a standard connection.
+val connected = openIapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
-)`}</CodeBlock>
+)
+check(connected) { "Store connection failed" }`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 
 val kmpIAP = KmpIAP()
 
-// Standard connection
-kmpIAP.initConnection()
-
-// Developer-rendered Billing Choice
-kmpIAP.initConnection(
+// Choose one call. Remove the config for a standard connection.
+val connected = kmpIAP.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         billingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered
     )
-)`}</CodeBlock>
+)
+check(connected) { "Store connection failed" }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection(
+            <CodeBlock language="dart">{`final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.BillingChoice,
   billingChoiceScreenTypeAndroid:
       BillingChoiceScreenTypeAndroid.DeveloperRendered,
-);`}</CodeBlock>
+);
+if (!connected) throw StateError('Store connection failed');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// Standard connection
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
-
-// Developer-rendered Billing Choice
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+// Choose one call. Remove the config for a standard connection.
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.BillingChoice,
         BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.DeveloperRendered,
-    });`}</CodeBlock>
+    });
+if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`# Standard connection
-var success = await iap.init_connection()
-
-# Developer-rendered Billing Choice (Android)
+            <CodeBlock language="gdscript">{`# Choose one call. Omit the config for a standard connection.
 var config = InitConnectionConfig.new()
 config.enable_billing_program_android = BillingProgramAndroid.BILLING_CHOICE
 config.billing_choice_screen_type_android = BillingChoiceScreenTypeAndroid.DEVELOPER_RENDERED
-var success = await iap.init_connection(config)`}</CodeBlock>
+var success = await iap.init_connection(config)
+if not success:
+    push_error("Store connection failed")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

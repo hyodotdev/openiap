@@ -2,6 +2,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function GetStorefront() {
@@ -40,6 +41,8 @@ function GetStorefront() {
         </a>
         .
       </p>
+
+      <StoreConnectionCallout />
 
       <h2>Signature</h2>
       <LanguageTabs>
@@ -86,13 +89,20 @@ function GetStorefront() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
+            <CodeBlock language="typescript">{`import { useEffect, useState } from 'react';
+import { Text } from 'react-native';
+
+// expo-iap
 import { getStorefront } from 'expo-iap';
 // Same API in react-native-iap:
 // import { getStorefront } from 'react-native-iap';
 
-const countryCode = await getStorefront();
-console.log(countryCode); // iOS: "USA"; Android/Amazon: "US"
+try {
+  const countryCode = await getStorefront();
+  console.log(countryCode); // iOS: "USA"; Android/Amazon: "US"
+} catch (error) {
+  console.warn('Storefront lookup failed:', error);
+}
 
 // --- Or alongside the useIAP() hook (also exported from react-native-iap) ---
 // getStorefront is a module-level helper; useIAP doesn't expose it on the
@@ -106,7 +116,11 @@ function StorefrontBadge() {
 
   useEffect(() => {
     if (!connected) return;
-    void getStorefront().then(setCountry);
+    void getStorefront()
+      .then(setCountry)
+      .catch((error) => {
+        console.warn('Storefront lookup failed:', error);
+      });
   }, [connected]);
 
   return <Text>Storefront: {country}</Text>;

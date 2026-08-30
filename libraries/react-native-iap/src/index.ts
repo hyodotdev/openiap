@@ -170,6 +170,7 @@ export type {
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let iapRef: RnIap | null = null;
+let attachingPendingNativeListeners = false;
 
 /**
  * Check if Nitro runtime is ready for IAP operations.
@@ -220,39 +221,52 @@ const isAndroidStoreRuntime = (): boolean => {
   return Platform.OS === 'android' || isVegaOS();
 };
 
+function getRawIapInstance(): RnIap {
+  if (iapRef) return iapRef;
+
+  if (isVegaOS()) {
+    const vegaModule = getVegaIapModule();
+    if (!vegaModule) {
+      throw new Error(
+        'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
+      );
+    }
+    iapRef = vegaModule;
+    return iapRef;
+  }
+
+  // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
+  try {
+    iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    if (
+      msg.includes('Nitro') ||
+      msg.includes('JSI') ||
+      msg.includes('dispatcher') ||
+      msg.includes('HybridObject')
+    ) {
+      throw new Error(
+        'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
+      );
+    }
+    throw e;
+  }
+  return iapRef;
+}
+
 const IAP = {
   get instance(): RnIap {
-    if (iapRef) return iapRef;
-
-    if (isVegaOS()) {
-      const vegaModule = getVegaIapModule();
-      if (!vegaModule) {
-        throw new Error(
-          'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',
-        );
+    const instance = getRawIapInstance();
+    if (!attachingPendingNativeListeners) {
+      attachingPendingNativeListeners = true;
+      try {
+        tryAttachPendingNativeListeners();
+      } finally {
+        attachingPendingNativeListeners = false;
       }
-      iapRef = vegaModule;
-      return iapRef;
     }
-
-    // Attempt to create the HybridObject and map common Nitro/JSI readiness errors
-    try {
-      iapRef = NitroModules.createHybridObject<RnIap>('RnIap');
-    } catch (e) {
-      const msg = toErrorMessage(e);
-      if (
-        msg.includes('Nitro') ||
-        msg.includes('JSI') ||
-        msg.includes('dispatcher') ||
-        msg.includes('HybridObject')
-      ) {
-        throw new Error(
-          'Nitro runtime not installed yet. Ensure react-native-nitro-modules is initialized before calling IAP.',
-        );
-      }
-      throw e;
-    }
-    return iapRef;
+    return instance;
   },
 };
 
@@ -270,7 +284,7 @@ function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   } catch (error) {
     if (toErrorMessage(error).includes('Nitro runtime not installed')) {
       RnIapConsole.warn(
-        `[${label}] Nitro not ready yet; will retry after initConnection()`,
+        `[${label}] Nitro not ready yet; will retry on the next native operation`,
       );
       return;
     }
@@ -333,7 +347,7 @@ function tryAttachPurchaseUpdateNative(
       | undefined = receiveDuplicateTransactionUpdatesIOS
       ? {dedupeTransactionIOS: false}
       : undefined;
-    const token = IAP.instance.addPurchaseUpdatedListener(
+    const token = getRawIapInstance().addPurchaseUpdatedListener(
       receiveDuplicateTransactionUpdatesIOS
         ? purchaseUpdateDuplicateNativeHandler
         : purchaseUpdateNativeHandler,
@@ -383,7 +397,7 @@ const purchaseErrorNativeHandler: NitroPurchaseErrorListener = (error) => {
 function tryAttachPurchaseErrorNative(): void {
   if (purchaseErrorNativeAttached) return;
   attachNativeListenerOrDefer('purchaseErrorListener', () => {
-    IAP.instance.addPurchaseErrorListener(purchaseErrorNativeHandler);
+    getRawIapInstance().addPurchaseErrorListener(purchaseErrorNativeHandler);
     purchaseErrorNativeAttached = true;
   });
 }
@@ -413,7 +427,9 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
 function tryAttachPromotedProductNative(): void {
   if (promotedProductNativeAttached) return;
   attachNativeListenerOrDefer('promotedProductListenerIOS', () => {
-    IAP.instance.addPromotedProductListenerIOS(promotedProductNativeHandler);
+    getRawIapInstance().addPromotedProductListenerIOS(
+      promotedProductNativeHandler,
+    );
     promotedProductNativeAttached = true;
   });
 }
@@ -487,7 +503,7 @@ export const purchaseUpdatedListener = (
       }
 
       try {
-        IAP.instance.removePurchaseUpdatedListener(token);
+        getRawIapInstance().removePurchaseUpdatedListener(token);
         if (receiveDuplicateTransactionUpdatesIOS) {
           purchaseUpdateDuplicateNativeToken = null;
           purchaseUpdateDuplicateNativeAttached = false;
@@ -530,7 +546,9 @@ export const purchaseErrorListener = (
 
       if (purchaseErrorNativeAttached) {
         try {
-          IAP.instance.removePurchaseErrorListener(purchaseErrorNativeHandler);
+          getRawIapInstance().removePurchaseErrorListener(
+            purchaseErrorNativeHandler,
+          );
           purchaseErrorNativeAttached = false;
         } catch (e) {
           RnIapConsole.warn('[purchaseErrorListener] native remove failed:', e);
@@ -589,7 +607,9 @@ export const promotedProductListenerIOS = (
  *   console.log('External transaction token received; send it to your backend without logging it.');
  *
  *   // Send token to backend for Google Play reporting
- *   await reportToGooglePlay(details.externalTransactionToken);
+ *   void reportToGooglePlay(details.externalTransactionToken).catch((error) => {
+ *     console.warn('Alternative billing report failed', error);
+ *   });
  * });
  *
  * // Later, remove the listener
@@ -622,7 +642,7 @@ const userChoiceBillingNativeHandler: NitroUserChoiceBillingListener = (
 function tryAttachUserChoiceBillingNative(): void {
   if (userChoiceBillingNativeAttached) return;
   attachNativeListenerOrDefer('userChoiceBillingListenerAndroid', () => {
-    IAP.instance.addUserChoiceBillingListenerAndroid(
+    getRawIapInstance().addUserChoiceBillingListenerAndroid(
       userChoiceBillingNativeHandler,
     );
     userChoiceBillingNativeAttached = true;
@@ -660,7 +680,7 @@ export const userChoiceBillingListenerAndroid = (
         return;
       }
       try {
-        IAP.instance.removeUserChoiceBillingListenerAndroid(
+        getRawIapInstance().removeUserChoiceBillingListenerAndroid(
           userChoiceBillingNativeHandler,
         );
         userChoiceBillingNativeAttached = false;
@@ -689,10 +709,11 @@ export const userChoiceBillingListenerAndroid = (
  * @example
  * ```typescript
  * const subscription = developerProvidedBillingListenerAndroid((details) => {
- *   await processExternalPayment(details.products, details.linkUri);
- *   if (details.externalTransactionToken) {
- *     await reportToGooglePlay(details.externalTransactionToken);
- *   }
+ *   void processExternalPayment(details.products, details.linkUri)
+ *     .then(() => details.externalTransactionToken
+ *       ? reportToGooglePlay(details.externalTransactionToken)
+ *       : undefined)
+ *     .catch((error) => console.warn('Developer billing failed', error));
  * });
  *
  * // Later, remove the listener
@@ -724,7 +745,7 @@ const developerProvidedBillingNativeHandler: NitroDeveloperProvidedBillingListen
 function tryAttachDeveloperProvidedBillingNative(): void {
   if (developerProvidedBillingNativeAttached) return;
   attachNativeListenerOrDefer('developerProvidedBillingListenerAndroid', () => {
-    IAP.instance.addDeveloperProvidedBillingListenerAndroid(
+    getRawIapInstance().addDeveloperProvidedBillingListenerAndroid(
       developerProvidedBillingNativeHandler,
     );
     developerProvidedBillingNativeAttached = true;
@@ -812,7 +833,7 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
 function tryAttachSubscriptionBillingIssueNative(): void {
   if (subscriptionBillingIssueNativeAttached) return;
   attachNativeListenerOrDefer('subscriptionBillingIssueListener', () => {
-    IAP.instance.addSubscriptionBillingIssueListener(
+    getRawIapInstance().addSubscriptionBillingIssueListener(
       subscriptionBillingIssueNativeHandler,
     );
     subscriptionBillingIssueNativeAttached = true;
@@ -1565,16 +1586,22 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *
  * @example
  * ```ts
- * await initConnection();
- * await initConnection({ enableBillingProgramAndroid: 'external-offer' });
- * await initConnection({
- *   enableBillingProgramAndroid: 'billing-choice',
- *   billingChoiceScreenTypeAndroid: 'developer-rendered',
- * });
+ * // Choose exactly one connection call for the session.
+ * const connected = await initConnection();
+ * // Or replace the call above with one Android billing program:
+ * // const connected = await initConnection({
+ * //   enableBillingProgramAndroid: 'external-offer',
+ * // });
+ * // const connected = await initConnection({
+ * //   enableBillingProgramAndroid: 'billing-choice',
+ * //   billingChoiceScreenTypeAndroid: 'developer-rendered',
+ * // });
+ * if (!connected) throw new Error('Store connection failed');
  * ```
  *
- * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
- *   pass options to the hook instead of calling this directly.
+ * @remarks When using `useIAP()`, the connection initializes on mount. On unmount,
+ *   React Native removes hook listeners but keeps the native connection open across
+ *   screens. Pass options to the hook instead of calling this directly.
  *
  * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
@@ -1608,8 +1635,9 @@ export const initConnection: MutationField<'initConnection'> = async (
  */
 export const endConnection: MutationField<'endConnection'> = async () => {
   try {
-    if (!iapRef) return true;
-    return await IAP.instance.endConnection();
+    const result = iapRef ? await IAP.instance.endConnection() : true;
+    resetListenerState();
+    return result;
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       'Failed to end IAP connection:',
@@ -1621,8 +1649,6 @@ export const endConnection: MutationField<'endConnection'> = async () => {
       responseCode: parsedError.responseCode,
       debugMessage: parsedError.debugMessage,
     });
-  } finally {
-    resetListenerState();
   }
 };
 
@@ -1670,10 +1696,14 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
  *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
  * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.
- * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+ * @throws Invalid arguments or failures that prevent dispatch. Store outcomes are event-based;
+ *   on Android, `not-prepared` is delivered through `purchaseErrorListener`.
  *
  * @example
  * ```ts
+ * const connected = await initConnection();
+ * if (!connected) return;
+ *
  * await requestPurchase({
  *   request: {
  *     apple: { sku: 'com.app.premium' },
@@ -1919,10 +1949,12 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  *
  * @example
  * ```ts
- * purchaseUpdatedListener(async (purchase) => {
- *   if (await verifyOnServer(purchase)) {
- *     await finishTransaction({ purchase, isConsumable: false });
- *   }
+ * purchaseUpdatedListener((purchase) => {
+ *   void verifyOnServer(purchase)
+ *     .then((verified) => verified
+ *       ? finishTransaction({ purchase, isConsumable: false })
+ *       : undefined)
+ *     .catch((error) => console.warn('Transaction finalization failed:', error));
  * });
  * ```
  *
@@ -2755,7 +2787,8 @@ const normalizeProductQueryType = (
  * ```typescript
  * // Enable external offers before connecting
  * enableBillingProgramAndroid('external-offer');
- * await initConnection();
+ * const connected = await initConnection();
+ * if (!connected) throw new Error('Store connection failed');
  * ```
  */
 export const enableBillingProgramAndroid = (

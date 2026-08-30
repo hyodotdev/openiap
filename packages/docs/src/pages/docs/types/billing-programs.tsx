@@ -1063,9 +1063,10 @@ function BillingPrograms() {
 } from 'expo-iap';
 
 // Enable External Payments via InitConnectionConfig
-await initConnection({
+const connected = await initConnection({
   enableBillingProgramAndroid: 'external-payments',
 });
+if (!connected) throw new Error('Store connection failed');
 
 // Listen for developer billing selection
 developerProvidedBillingListenerAndroid((details) => {
@@ -1099,11 +1100,11 @@ import dev.hyo.openiap.*
 val iapStore = OpenIapStore(context)
 
 // Enable External Payments via InitConnectionConfig
-iapStore.initConnection(
+check(iapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments
     )
-)
+)) { "Store connection failed" }
 
 // Listen for developer billing selection
 iapStore.addDeveloperProvidedBillingListener { details ->
@@ -1139,9 +1140,10 @@ if (result.isAvailable) {
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // Enable External Payments via InitConnectionConfig
-await FlutterInappPurchase.instance.initConnection(
+final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
 );
+if (!connected) throw StateError('Store connection failed');
 
 // Listen for developer billing selection
 final developerBillingSubscription = FlutterInappPurchase.instance
@@ -1179,10 +1181,11 @@ using OpenIap.Maui;
 using System;
 
 // Enable External Payments via InitConnectionConfig.
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalPayments,
 });
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // Listen for developer billing selection.
 using var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(details =>
@@ -1221,7 +1224,10 @@ if (result.IsAvailable)
               <CodeBlock language="gdscript">{`# Enable External Payments via InitConnectionConfig
 var config = InitConnectionConfig.new()
 config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_PAYMENTS
-await iap.init_connection(config)
+var connected = await iap.init_connection(config)
+if not connected:
+    push_error("Store connection failed")
+    return
 
 # Listen for developer billing selection
 func _on_developer_provided_billing(details: DeveloperProvidedBillingDetailsAndroid):

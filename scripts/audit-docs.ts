@@ -81,6 +81,10 @@ const VERIFY_PURCHASE_DOC_FILE = resolve(
   REPO_ROOT,
   "packages/docs/src/pages/docs/types/verify-purchase.tsx",
 );
+const HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/apis/has-active-subscriptions.tsx",
+);
 const GENERATED_OFFER_TYPE_FILES = {
   typescript: TYPES_FILE,
   swift: resolve(REPO_ROOT, GENERATED_SYNC_MANIFEST.swift.source),
@@ -224,6 +228,58 @@ export function auditVerifyPurchaseDocs(
   return drifts;
 }
 
+export function auditSubscriptionFailureDocs(
+  file: string,
+  source: string,
+): Drift[] {
+  const drifts: Drift[] = [];
+  const renderedProse = collectRenderedProse(source);
+  const obsoleteClaim =
+    /React\s+Native's\s+root\s+helper\s+and\s+hook\s+map\s+failures\s+to\s+false/;
+  const match = obsoleteClaim.exec(renderedProse.text);
+  if (match) {
+    drifts.push({
+      file,
+      line: lineNumberAt(
+        source,
+        renderedSourceOffset(renderedProse, match.index),
+      ),
+      rule: "R15",
+      message:
+        "React Native subscription queries reject; the hook calls onError before rethrowing.",
+    });
+  }
+
+  const requiredClaims = [
+    {
+      pattern:
+        /React\s+Native,\s*Expo,\s*and\s+native\s+promise\s+APIs\s+reject\s+on\s+failure/,
+      message:
+        "Subscription docs must state that React Native, Expo, and native promise APIs reject on failure.",
+    },
+    {
+      pattern:
+        /React\s+Native\s+and\s+Expo\s+hooks\s+call\s+onError\s+before\s+rethrowing/,
+      message:
+        "Subscription docs must state that React Native and Expo hooks call onError before rethrowing.",
+    },
+    {
+      pattern:
+        /Godot(?:'s)?\s+compatibility\s+boolean\s+helper\s+still\s+maps\s+failure\s+to\s+false/,
+      message:
+        "Subscription docs must identify Godot's compatibility boolean helper as the false fallback.",
+    },
+  ];
+
+  for (const claim of requiredClaims) {
+    if (!claim.pattern.test(renderedProse.text)) {
+      drifts.push({ file, line: 1, rule: "R15", message: claim.message });
+    }
+  }
+
+  return drifts;
+}
+
 const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
   {
     language: "csharp",
@@ -249,6 +305,62 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
     pattern: /\.finishTransaction\(\s*(?!purchase\s*:)[A-Za-z_]\w*\s*(?:,|\))/,
     message:
       "Flutter `finishTransaction` requires the named `purchase:` argument.",
+  },
+  {
+    language: "typescript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*initConnection\s*\(/m,
+    message:
+      "TypeScript examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "dart",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*initConnection\s*\(/m,
+    message:
+      "Flutter examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "kotlin",
+    pattern: /(?:^|\n)\s*(?:[A-Za-z_]\w*\.)+initConnection\s*\(/m,
+    message:
+      "Kotlin and KMP examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "csharp",
+    pattern: /(?:^|\n)\s*await\s+[^;\n]*\.InitConnectionAsync\s*\(/m,
+    message:
+      "MAUI examples must check the boolean returned by `InitConnectionAsync` before store calls.",
+  },
+  {
+    language: "gdscript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_]\w*\.)*init_connection\s*\(/m,
+    message:
+      "Godot examples must check the boolean returned by `init_connection` before store calls.",
+  },
+  {
+    language: "typescript",
+    pattern:
+      /\b(?:purchaseUpdatedListener|purchaseErrorListener|userChoiceBillingListenerAndroid|developerProvidedBillingListenerAndroid|subscriptionBillingIssueListener)\s*\(\s*async\b/,
+    message:
+      "TypeScript event listeners must handle asynchronous work explicitly because listener return promises are not observed.",
+  },
+  {
+    language: "typescript",
+    pattern:
+      /\b(?:onPurchaseSuccess|onPurchaseError|onError|onPromotedProductIOS|onUserChoiceBillingAndroid|onDeveloperProvidedBillingAndroid|onSubscriptionBillingIssue)\s*:\s*async\b/,
+    message:
+      "TypeScript hook callbacks must delegate asynchronous work to an explicitly handled promise.",
+  },
+  {
+    language: "dart",
+    pattern: /\.listen\s*\(\s*\([^)]*\)\s*async\b/,
+    message:
+      "Flutter stream listeners must handle asynchronous work explicitly because callback futures are not observed.",
+  },
+  {
+    language: "csharp",
+    pattern: /\.Subscribe\s*\(\s*async\b/,
+    message:
+      "MAUI observable listeners must delegate asynchronous work to a failure-handling task instead of using `async void`.",
   },
   {
     pattern: /OpenIapStore\.shared/,
@@ -1866,6 +1978,12 @@ async function main() {
       VERIFY_PURCHASE_DOC_FILE,
       readFileSync(VERIFY_PURCHASE_DOC_FILE, "utf8"),
       readFileSync(TYPES_FILE, "utf8"),
+    ),
+  );
+  drifts.push(
+    ...auditSubscriptionFailureDocs(
+      HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE,
+      readFileSync(HAS_ACTIVE_SUBSCRIPTIONS_DOC_FILE, "utf8"),
     ),
   );
   drifts.push(

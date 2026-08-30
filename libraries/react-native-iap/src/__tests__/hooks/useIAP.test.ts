@@ -43,6 +43,7 @@ jest.mock('react-native', () => ({
 // Import after mocks
 import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
+import {Platform} from 'react-native';
 
 describe('hooks/useIAP (renderer)', () => {
   afterEach(() => {
@@ -577,6 +578,43 @@ describe('hooks/useIAP (renderer)', () => {
       type: 'in-app',
     });
     expect(api.products).toEqual([expect.objectContaining({id: 'product1'})]);
+  });
+
+  it('surfaces the native error when fetching while disconnected', async () => {
+    const originalPlatform = Platform.OS;
+    (Platform as any).OS = 'android';
+    const notConnected = new Error('Billing client not ready');
+    try {
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+      mockFetchProducts.mockRejectedValueOnce(notConnected);
+
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+      expect(api.connected).toBe(false);
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await api.fetchProducts({skus: ['product1']});
+        } catch (error) {
+          thrown = error;
+        }
+      });
+
+      expect(onError).toHaveBeenCalledWith(notConnected);
+      expect(thrown).toBe(notConnected);
+      expect(api.products).toEqual([]);
+    } finally {
+      (Platform as any).OS = originalPlatform;
+    }
   });
 
   describe('onError callback', () => {
@@ -1123,6 +1161,8 @@ describe('hooks/useIAP (renderer)', () => {
         expect(await secondReconnect!).toBe(true);
       });
       expect(api.connected).toBe(true);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         resolveFirst?.(true);
@@ -1130,8 +1170,8 @@ describe('hooks/useIAP (renderer)', () => {
       });
 
       expect(api.connected).toBe(true);
-      expect(IAP.purchaseUpdatedListener).not.toHaveBeenCalled();
-      expect(IAP.purchaseErrorListener).not.toHaveBeenCalled();
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(IAP.purchaseErrorListener).toHaveBeenCalledTimes(1);
     });
 
     it('reconnect re-registers listeners after successful reconnection', async () => {
@@ -1150,7 +1190,7 @@ describe('hooks/useIAP (renderer)', () => {
       // purchaseUpdatedListener should have been called during init
       expect(IAP.purchaseUpdatedListener).toHaveBeenCalled();
 
-      // Clear and reconnect
+      await IAP.endConnection();
       (IAP.purchaseUpdatedListener as jest.Mock).mockClear();
       jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true as any);
 
@@ -1158,9 +1198,24 @@ describe('hooks/useIAP (renderer)', () => {
         await api.reconnect();
       });
 
-      // Listeners are already active from init, so reconnect skips re-registration
-      // (guarded by !subscriptionsRef.current.purchaseUpdate check)
       expect(api.connected).toBe(true);
+      expect(IAP.purchaseUpdatedListener).toHaveBeenCalledTimes(1);
+
+      const purchase = {
+        id: 'after-reconnect',
+        productId: 'premium',
+        transactionDate: Date.now(),
+        platform: 'ios',
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      act(() => {
+        capturedPurchaseListener?.(purchase);
+      });
+      await act(async () => {});
+      expect(onPurchaseSuccess).toHaveBeenCalledWith(purchase);
     });
   });
 

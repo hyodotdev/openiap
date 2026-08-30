@@ -196,27 +196,34 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = OpenIapClient.Instance.PurchaseError.Subscribe(async error =>
+async Task HandlePurchaseErrorSafelyAsync(PurchaseError error)
 {
-    Console.WriteLine($"Purchase error: {error.Code} - {error.Message}");
-
-    switch (error.Code)
+    try
     {
-        case ErrorCode.UserCancelled:
-            // User cancelled - no action needed.
-            break;
-        case ErrorCode.AlreadyOwned:
-            // Restore purchases instead.
-            await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();
-            break;
-        case ErrorCode.NetworkError:
-            ShowRetryDialog();
-            break;
-        default:
-            ShowErrorMessage(error.Message);
-            break;
+        Console.WriteLine($"Purchase error: {error.Code} - {error.Message}");
+        switch (error.Code)
+        {
+            case ErrorCode.UserCancelled:
+                break;
+            case ErrorCode.AlreadyOwned:
+                await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();
+                break;
+            case ErrorCode.NetworkError:
+                ShowRetryDialog();
+                break;
+            default:
+                ShowErrorMessage(error.Message);
+                break;
+        }
     }
-});
+    catch (Exception failure)
+    {
+        Console.WriteLine($"Purchase error recovery failed: {failure.Message}");
+    }
+}
+
+var subscription = OpenIapClient.Instance.PurchaseError.Subscribe(
+    error => _ = HandlePurchaseErrorSafelyAsync(error));
 
 // Cleanup when done.
 subscription.Dispose();`}</CodeBlock>

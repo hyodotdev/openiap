@@ -71,9 +71,12 @@ IObservable<UserChoiceBillingDetails> UserChoiceBillingAndroid { get; }`}</CodeB
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { userChoiceBillingListenerAndroid } from 'expo-iap';
+            <CodeBlock language="typescript">{`import {
+  userChoiceBillingListenerAndroid,
+  type UserChoiceBillingDetails,
+} from 'expo-iap';
 
-const subscription = userChoiceBillingListenerAndroid(async (details) => {
+async function handleUserChoiceBilling(details: UserChoiceBillingDetails) {
   console.log('User chose alternative billing');
   console.log('Products:', details.products);
   console.log('External transaction token received; send it to your backend without logging it.');
@@ -88,6 +91,12 @@ const subscription = userChoiceBillingListenerAndroid(async (details) => {
     // Backend should report token to Google Play within 24 hours
     grantUserAccess(details.products);
   }
+}
+
+const subscription = userChoiceBillingListenerAndroid((details) => {
+  void handleUserChoiceBilling(details).catch((error) => {
+    console.error('Alternative billing failed', error);
+  });
 });
 
 // Cleanup when done
@@ -144,10 +153,11 @@ lifecycleScope.launch {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+            <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // Android only - will not fire on iOS
-final subscription = FlutterInappPurchase.instance.userChoiceBillingAndroid.listen((details) async {
+Future<void> handleUserChoiceBilling(UserChoiceBillingDetails details) async {
   print('User chose alternative billing');
   print('Products: \${details.products}');
   print('External transaction token received; send it to your backend without logging it.');
@@ -162,6 +172,12 @@ final subscription = FlutterInappPurchase.instance.userChoiceBillingAndroid.list
     // Backend should report token to Google Play within 24 hours
     grantUserAccess(details.products);
   }
+}
+
+final subscription = FlutterInappPurchase.instance.userChoiceBillingAndroid.listen((details) {
+  unawaited(handleUserChoiceBilling(details).catchError(
+    (Object error) => print('Alternative billing failed: $error'),
+  ));
 });
 
 // Cleanup when done
@@ -172,6 +188,18 @@ subscription.cancel();`}</CodeBlock>
 using OpenIap.Maui;
 using System;
 
+async Task ProcessUserChoiceBillingSafelyAsync(UserChoiceBillingDetails details)
+{
+    try
+    {
+        await ProcessUserChoiceBillingAsync(details);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Alternative billing failed: {error.Message}");
+    }
+}
+
 using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscribe(details =>
 {
     Console.WriteLine("User chose alternative billing");
@@ -179,7 +207,7 @@ using var subscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Subscri
     Console.WriteLine("External transaction token received; send it to your backend without logging it.");
 
     // Process payment with your backend.
-    _ = ProcessUserChoiceBillingAsync(details);
+    _ = ProcessUserChoiceBillingSafelyAsync(details);
 });`}</CodeBlock>
           ),
         }}

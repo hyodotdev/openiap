@@ -500,38 +500,66 @@ is selected at the runtime integration layer.
 
 ### React Native / Expo
 \`\`\`typescript
+import { useEffect } from 'react';
+import { Button } from 'react-native';
 import { useIAP } from 'expo-iap'; // or 'react-native-iap'
 
-const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
-  onPurchaseSuccess: async (purchase) => {
-    await finishTransaction({ purchase, isConsumable: true });
-  },
-});
+function PremiumButton() {
+  const { connected, fetchProducts, requestPurchase, finishTransaction } = useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void finishTransaction({ purchase, isConsumable: true }).catch((error) => {
+        console.warn('Transaction finalization failed:', error);
+      });
+    },
+  });
 
-await fetchProducts({ skus: ['premium'], type: 'in-app' });
-await requestPurchase({
-  request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
-  type: 'in-app',
-});
+  useEffect(() => {
+    if (!connected) return;
+    void fetchProducts({ skus: ['premium'], type: 'in-app' }).catch((error) =>
+      console.warn('Product fetch failed:', error),
+    );
+  }, [connected, fetchProducts]);
+
+  return (
+    <Button
+      title="Buy premium"
+      disabled={!connected}
+      onPress={() => {
+        void requestPurchase({
+          request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
+          type: 'in-app',
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed:', error);
+        });
+      }}
+    />
+  );
+}
 \`\`\`
 
 ### Flutter
 \`\`\`dart
 final iap = FlutterInappPurchase.instance;
-await iap.initConnection();
+iap.purchaseUpdatedListener.listen((purchase) {
+  iap
+      .finishTransaction(purchase: purchase, isConsumable: true)
+      .catchError((Object error) => print('Transaction finalization failed: $error'));
+});
+final connected = await iap.initConnection();
+if (!connected) throw StateError('Store connection failed');
 final products = await iap.fetchProducts<Product>(
   skus: ['premium'],
   type: ProductQueryType.InApp,
 );
-iap.purchaseUpdatedListener.listen((purchase) async {
-  await iap.finishTransaction(purchase: purchase, isConsumable: true);
-});
 \`\`\`
 
 ### Godot
 \`\`\`gdscript
 GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
-GodotIapPlugin.init_connection()
+var connected = await GodotIapPlugin.init_connection()
+if not connected:
+    push_error("Store connection failed")
+    return
 await GodotIapPlugin.fetch_products(request)
 GodotIapPlugin.request_purchase(props)
 \`\`\`
@@ -539,14 +567,20 @@ GodotIapPlugin.request_purchase(props)
 ### Kotlin Multiplatform
 \`\`\`kotlin
 val iap = KmpIAP()
-iap.initConnection()
+val purchaseJob = appScope.launch(
+    start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED
+) {
+    iap.purchaseUpdatedListener.collect { purchase ->
+        iap.finishTransaction(purchase = purchase, isConsumable = true)
+    }
+}
+val connected = iap.initConnection()
+check(connected) { "Store connection failed" }
 val products = iap.fetchProducts {
     skus = listOf("premium")
     type = ProductQueryType.InApp
 }
-iap.purchaseUpdatedListener.collect { purchase ->
-    iap.finishTransaction(purchase = purchase, isConsumable = true)
-}
+// purchaseJob.cancel() at the connection owner's teardown boundary.
 \`\`\`
 
 ### .NET MAUI
@@ -555,7 +589,8 @@ using OpenIap;
 using OpenIap.Maui;
 
 var iap = OpenIapClient.Instance;
-await ((MutationResolver)iap).InitConnectionAsync();
+var connected = await ((MutationResolver)iap).InitConnectionAsync();
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
 {
@@ -563,13 +598,23 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
     Type = ProductQueryType.InApp,
 });
 
-((IOpenIap)iap).PurchaseUpdated.Subscribe(async purchase =>
+async Task FinishPurchaseSafelyAsync(Purchase purchase)
 {
-    await ((MutationResolver)iap).FinishTransactionAsync(
-        new PurchaseInput(purchase),
-        isConsumable: true
-    );
-});
+    try
+    {
+        await ((MutationResolver)iap).FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            isConsumable: true
+        );
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Transaction finalization failed: {error.Message}");
+    }
+}
+
+((IOpenIap)iap).PurchaseUpdated.Subscribe(
+    purchase => _ = FinishPurchaseSafelyAsync(purchase));
 \`\`\`
 
 ---
@@ -686,14 +731,15 @@ ${deprecationMigrationReference}
 
 ### Connection
 \`\`\`typescript
-// Initialize (required before any operation)
-await initConnection();
+// Choose one call: remove the config for a standard connection.
+const connected = await initConnection({
+  enableBillingProgramAndroid: 'user-choice-billing',
+});
+if (!connected) throw new Error('Store connection failed');
 
-// With a billing program (Android)
-await initConnection({ enableBillingProgramAndroid: 'user-choice-billing' });
-
-// Cleanup on unmount
-await endConnection();
+// Cleanup at the connection owner's teardown boundary.
+const ended = await endConnection();
+if (!ended) console.warn('Store teardown did not complete');
 \`\`\`
 
 ### Fetch Products
@@ -758,11 +804,11 @@ import {
 } from 'expo-iap';
 
 // Set up before any purchase request
-const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
-  // 1. Verify purchase on server
-  // 2. Grant entitlement
-  // 3. Finish transaction
-  await finishTransaction({ purchase, isConsumable: false });
+const purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
+  // After server verification and entitlement grant, finish the transaction.
+  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+    console.warn('Transaction finalization failed:', error);
+  });
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
@@ -858,9 +904,9 @@ interface PurchaseError {
 
 ## Purchase Flow Summary
 
-1. initConnection()
-2. fetchProducts({ skus: [...], type: 'in-app' })
-3. Set up purchaseUpdatedListener
+1. Set up purchaseUpdatedListener and purchaseErrorListener
+2. initConnection()
+3. fetchProducts({ skus: [...], type: 'in-app' })
 4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup

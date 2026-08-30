@@ -271,7 +271,8 @@ var iap = OpenIapClient.Instance;
 var query = (QueryResolver)iap;
 var mutate = (MutationResolver)iap;
 
-await mutate.InitConnectionAsync();
+var connected = await mutate.InitConnectionAsync();
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 var result = await query.FetchProductsAsync(new ProductRequest
 {
@@ -324,17 +325,27 @@ var products = result is FetchProductsResultProducts { Value: { } list }
           values.
         </p>
         <CodeBlock language="csharp">
-          {`IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(async purchase =>
+          {`async Task HandlePurchaseSafelyAsync(Purchase purchase)
 {
-    bool verified = await VerifyOnServerAsync(purchase);
-    if (!verified) return;
+    try
+    {
+        bool verified = await VerifyOnServerAsync(purchase);
+        if (!verified) return;
 
-    await mutate.FinishTransactionAsync(
-        purchase: new PurchaseInput(purchase),
-        isConsumable: true);
+        await mutate.FinishTransactionAsync(
+            purchase: new PurchaseInput(purchase),
+            isConsumable: true);
 
-    GrantEntitlement(purchase.ProductId);
-});
+        GrantEntitlement(purchase.ProductId);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Purchase processing failed: {error.Message}");
+    }
+}
+
+IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(
+    purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 IDisposable errorSub = iap.PurchaseError.Subscribe(error =>
 {

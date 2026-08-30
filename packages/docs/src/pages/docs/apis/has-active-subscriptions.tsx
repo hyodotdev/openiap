@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function HasActiveSubscriptions() {
@@ -78,6 +79,13 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         }}
       </LanguageTabs>
 
+      <StoreConnectionCallout />
+      <p>
+        React Native, Expo, and native promise APIs reject on failure. React
+        Native and Expo hooks call <code>onError</code> before rethrowing.
+        Handle that rejection separately from a valid <code>false</code> result.
+      </p>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -104,12 +112,10 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         when you only need a yes/no answer.
       </p>
       <p>
-        A store or bridge failure is not <code>false</code>. Promise-based SDKs
-        reject, and their React Native/Expo hooks call <code>onError</code>{' '}
-        before rethrowing. Godot entitlement code must use{' '}
-        <code>has_active_subscriptions_result()</code>; the compatibility
-        boolean helper still maps failure to <code>false</code> and is not safe
-        for granting or revoking access.
+        Only a successful empty query resolves <code>false</code>. Godot
+        entitlement code must use <code>has_active_subscriptions_result()</code>
+        ; Godot's compatibility boolean helper still maps failure to{' '}
+        <code>false</code> and is not safe for granting or revoking access.
       </p>
 
       <h2>Example</h2>
@@ -125,17 +131,37 @@ const isPremium = await hasActiveSubscriptions();
 const hasProPlan = await hasActiveSubscriptions(['pro_monthly', 'pro_yearly']);
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
+import { useEffect, useState } from 'react';
+import { Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function PremiumGate({ children }: { children: React.ReactNode }) {
-  const { hasActiveSubscriptions } = useIAP();
-  const [isPremium, setIsPremium] = useState(false);
+  const { connected, hasActiveSubscriptions } = useIAP();
+  const [status, setStatus] = useState<'checking' | 'active' | 'inactive' | 'error'>('checking');
 
   useEffect(() => {
-    void hasActiveSubscriptions().then(setIsPremium);
-  }, [hasActiveSubscriptions]);
+    if (!connected) {
+      setStatus('checking');
+      return;
+    }
 
-  return isPremium ? <>{children}</> : <Text>Subscribe to unlock</Text>;
+    let cancelled = false;
+    setStatus('checking');
+    void hasActiveSubscriptions()
+      .then((active) => {
+        if (!cancelled) setStatus(active ? 'active' : 'inactive');
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, hasActiveSubscriptions]);
+
+  if (status === 'checking') return <Text>Checking subscription…</Text>;
+  if (status === 'error') return <Text>Unable to check subscription</Text>;
+  return status === 'active' ? <>{children}</> : <Text>Subscribe to unlock</Text>;
 }`}</CodeBlock>
           ),
           swift: (

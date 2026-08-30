@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-29T02:53:33.696Z
+> Generated: 2026-08-30T15:06:51.142Z
 
 ## Installation
 
@@ -91,14 +91,15 @@ Current NuGet package version: 2.4.1
 
 ### Connection
 ```typescript
-// Initialize (required before any operation)
-await initConnection();
+// Choose one call: remove the config for a standard connection.
+const connected = await initConnection({
+  enableBillingProgramAndroid: 'user-choice-billing',
+});
+if (!connected) throw new Error('Store connection failed');
 
-// With a billing program (Android)
-await initConnection({ enableBillingProgramAndroid: 'user-choice-billing' });
-
-// Cleanup on unmount
-await endConnection();
+// Cleanup at the connection owner's teardown boundary.
+const ended = await endConnection();
+if (!ended) console.warn('Store teardown did not complete');
 ```
 
 ### Fetch Products
@@ -163,11 +164,11 @@ import {
 } from 'expo-iap';
 
 // Set up before any purchase request
-const purchaseUpdateSubscription = purchaseUpdatedListener(async (purchase) => {
-  // 1. Verify purchase on server
-  // 2. Grant entitlement
-  // 3. Finish transaction
-  await finishTransaction({ purchase, isConsumable: false });
+const purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
+  // After server verification and entitlement grant, finish the transaction.
+  void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+    console.warn('Transaction finalization failed:', error);
+  });
 });
 
 const purchaseErrorSubscription = purchaseErrorListener((error) => {
@@ -263,9 +264,9 @@ interface PurchaseError {
 
 ## Purchase Flow Summary
 
-1. initConnection()
-2. fetchProducts({ skus: [...], type: 'in-app' })
-3. Set up purchaseUpdatedListener
+1. Set up purchaseUpdatedListener and purchaseErrorListener
+2. initConnection()
+3. fetchProducts({ skus: [...], type: 'in-app' })
 4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup

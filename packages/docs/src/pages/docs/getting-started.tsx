@@ -107,10 +107,12 @@ function GettingStarted() {
   requestPurchase,
   finishTransaction,
   purchaseUpdatedListener,
+  type Purchase,
 } from 'expo-iap';
 
 // 1. Open the store connection on app start.
-await initConnection();
+const connected = await initConnection();
+if (!connected) throw new Error('Store connection failed');
 
 // 2. Fetch products by SKU.
 const products = await fetchProducts({
@@ -119,13 +121,19 @@ const products = await fetchProducts({
 });
 
 // 3. Listen for purchase results — requestPurchase is event-based.
-const purchaseSubscription = purchaseUpdatedListener(async (purchase) => {
+async function handlePurchase(purchase: Purchase) {
   // Your backend verifies the store token/JWS and returns an entitlement decision.
   const { isValid } = await yourBackend.verifyPurchase(purchase);
   if (!isValid) return;
 
   await grantEntitlement(purchase.productId);
   await finishTransaction({ purchase, isConsumable: false });
+}
+
+const purchaseSubscription = purchaseUpdatedListener((purchase) => {
+  void handlePurchase(purchase).catch((error) => {
+    console.error('Purchase processing failed', error);
+  });
 });
 
 // On app shutdown: purchaseSubscription.remove();
@@ -145,7 +153,8 @@ await requestPurchase({
 let store = OpenIapModule.shared
 
 // 1. Open the store connection on app start.
-try await store.initConnection()
+let connected = try await store.initConnection()
+precondition(connected, "Store connection failed")
 
 // 2. Fetch products by SKU.
 let products = try await store.fetchProducts(
@@ -189,7 +198,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 val store = OpenIapStore(context)
 
 // 1. Open the store connection on app start.
-store.initConnection(null)
+check(store.initConnection(null)) { "Store connection failed" }
 
 // 2. Fetch products by SKU.
 val products = store.fetchProducts(
@@ -232,7 +241,7 @@ import io.github.hyochan.kmpiap.openiap.*
 val kmpIAP = KmpIAP()
 
 // 1. Open the store connection on app start.
-kmpIAP.initConnection()
+check(kmpIAP.initConnection()) { "Store connection failed" }
 
 // 2. Fetch products by SKU.
 val products = kmpIAP.fetchProducts(
@@ -283,12 +292,14 @@ kmpIAP.finishTransaction(
 )`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+              <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 final iap = FlutterInappPurchase.instance;
 
 // 1. Open the store connection on app start.
-await iap.initConnection();
+final connected = await iap.initConnection();
+if (!connected) throw StateError('Store connection failed');
 
 // 2. Fetch products by SKU.
 final products = await iap.fetchProducts<Product>(
@@ -297,9 +308,15 @@ final products = await iap.fetchProducts<Product>(
 );
 
 // 3. Listen for purchase results.
-final purchaseSubscription = iap.purchaseUpdatedListener.listen((purchase) async {
+Future<void> handlePurchase(Purchase purchase) async {
   // Verify on your backend, grant entitlement, then finish.
   await iap.finishTransaction(purchase: purchase, isConsumable: false);
+}
+
+final purchaseSubscription = iap.purchaseUpdatedListener.listen((purchase) {
+  unawaited(handlePurchase(purchase).catchError(
+    (Object error) => print('Purchase processing failed: $error'),
+  ));
 });
 
 // 4. Initiate a purchase.
@@ -333,7 +350,8 @@ var query = (QueryResolver)OpenIapClient.Instance;
 var mutation = (MutationResolver)OpenIapClient.Instance;
 
 // 1. Open the store connection on app start.
-await mutation.InitConnectionAsync();
+var connected = await mutation.InitConnectionAsync();
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // 2. Fetch products by SKU.
 var products = await query.FetchProductsAsync(new ProductRequest
@@ -343,13 +361,22 @@ var products = await query.FetchProductsAsync(new ProductRequest
 });
 
 // 3. Listen for purchase results.
-var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase =>
+async Task HandlePurchaseSafelyAsync(Purchase purchase)
 {
-    // Verify on your backend, grant entitlement, then finish.
-    await mutation.FinishTransactionAsync(
-        new PurchaseInput(purchase),
-        isConsumable: false);
-});
+    try
+    {
+        await mutation.FinishTransactionAsync(
+            new PurchaseInput(purchase),
+            isConsumable: false);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Purchase processing failed: {error.Message}");
+    }
+}
+
+var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(
+    purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 // 4. Initiate a purchase.
 await mutation.RequestPurchaseAsync(new RequestPurchaseProps
@@ -369,7 +396,9 @@ void DisposePurchaseListener() => subscription.Dispose();`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.
-await iap.init_connection()
+if not await iap.init_connection():
+    push_error("Store connection failed")
+    return
 
 # 2. Fetch products by SKU.
 var request = ProductRequest.new()

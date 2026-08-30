@@ -25,6 +25,22 @@ class ConnectionLifecycleQueueTest {
     }
 
     @Test(timeout = 5_000)
+    fun `end failure preserves connection state`() = runBlocking {
+        val failure = IllegalStateException("teardown failed")
+        val cleanedUp = AtomicBoolean(false)
+
+        val result = runCatching {
+            endRnConnectionWithCleanup(
+                endConnection = { throw failure },
+                cleanup = { cleanedUp.set(true) },
+            )
+        }
+
+        assertEquals(failure, result.exceptionOrNull())
+        assertFalse(cleanedUp.get())
+    }
+
+    @Test(timeout = 5_000)
     fun `later end invalidates a pending init even when end awaits first`() =
         runBlocking {
             val queue = ConnectionLifecycleQueue()
@@ -120,6 +136,34 @@ class ConnectionLifecycleQueueTest {
             assertEquivalentFailure(failure, firstResult.await().exceptionOrNull())
             assertEquivalentFailure(failure, secondResult.await().exceptionOrNull())
             assertEquals(1, calls.get())
+        }
+
+    @Test(timeout = 5_000)
+    fun `a later reconnect runs a fresh init operation`() =
+        runBlocking {
+            val queue = ConnectionLifecycleQueue()
+            val calls = AtomicInteger()
+            val operation: suspend () -> Boolean = {
+                calls.incrementAndGet()
+                true
+            }
+
+            val first =
+                queue.enqueueInit(
+                    operation = operation,
+                    onCommitted = {},
+                    onFailed = {},
+                )
+            assertTrue(first.await())
+
+            val reconnect =
+                queue.enqueueInit(
+                    operation = operation,
+                    onCommitted = {},
+                    onFailed = {},
+                )
+            assertTrue(reconnect.await())
+            assertEquals(2, calls.get())
         }
 
     @Test(timeout = 5_000)

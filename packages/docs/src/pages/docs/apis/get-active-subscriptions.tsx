@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function GetActiveSubscriptions() {
@@ -89,6 +90,8 @@ func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           ),
         }}
       </LanguageTabs>
+
+      <StoreConnectionCallout />
 
       <AnchorLink id="parameters" level="h2">
         Parameters
@@ -200,11 +203,14 @@ import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function SubscriptionStatus() {
-  const { activeSubscriptions, getActiveSubscriptions } = useIAP();
+  const { connected, activeSubscriptions, getActiveSubscriptions } = useIAP();
 
   useEffect(() => {
-    void getActiveSubscriptions();
-  }, [getActiveSubscriptions]);
+    if (!connected) return;
+    void getActiveSubscriptions().catch((error) =>
+      console.warn('Subscription lookup failed:', error),
+    );
+  }, [connected, getActiveSubscriptions]);
 
   return (
     <FlatList

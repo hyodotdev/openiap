@@ -83,10 +83,12 @@ type UseIap = {
    *
    * @example
    * ```ts
-   * purchaseUpdatedListener(async (purchase) => {
-   *   if (await verifyOnServer(purchase)) {
-   *     await finishTransaction({ purchase, isConsumable: false });
-   *   }
+   * purchaseUpdatedListener((purchase) => {
+   *   void verifyOnServer(purchase)
+   *     .then((verified) => verified
+   *       ? finishTransaction({ purchase, isConsumable: false })
+   *       : undefined)
+   *     .catch((error) => console.warn('Transaction finalization failed:', error));
    * });
    * ```
    *
@@ -109,18 +111,25 @@ type UseIap = {
    *
    * @example
    * ```ts
-   * const { availablePurchases, getAvailablePurchases, finishTransaction } = useIAP();
+   * const { connected, availablePurchases, getAvailablePurchases, finishTransaction } = useIAP();
    *
    * useEffect(() => {
-   *   void getAvailablePurchases();
-   * }, [getAvailablePurchases]);
+   *   if (!connected) return;
+   *   void getAvailablePurchases().catch((error) => {
+   *     console.warn('Purchase restore failed', error);
+   *   });
+   * }, [connected, getAvailablePurchases]);
    *
    * useEffect(() => {
-   *   for (const p of availablePurchases) {
-   *     void verifyOnServer(p).then((ok) => {
-   *       if (ok) finishTransaction({ purchase: p, isConsumable: false });
-   *     });
-   *   }
+   *   void (async () => {
+   *     for (const p of availablePurchases) {
+   *       if (await verifyOnServer(p)) {
+   *         await finishTransaction({ purchase: p, isConsumable: false });
+   *       }
+   *     }
+   *   })().catch((error) => {
+   *     console.warn('Restored purchase processing failed', error);
+   *   });
    * }, [availablePurchases, finishTransaction]);
    * ```
    *
@@ -139,14 +148,17 @@ type UseIap = {
    *
    * @example
    * ```ts
-   * const { products, fetchProducts } = useIAP();
+   * const { connected, products, fetchProducts } = useIAP();
    *
    * useEffect(() => {
+   *   if (!connected) return;
    *   void fetchProducts({
    *     skus: ['com.app.coins_100', 'com.app.premium'],
    *     type: 'in-app',
+   *   }).catch((error) => {
+   *     console.warn('Product fetch failed', error);
    *   });
-   * }, [fetchProducts]);
+   * }, [connected, fetchProducts]);
    *
    * // Render `products` directly from hook state.
    * ```
@@ -169,10 +181,14 @@ type UseIap = {
    *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
    * @returns Promise that resolves when the request is dispatched; results land in the
    *   hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+   * @throws Invalid arguments or failures that prevent dispatch. Store outcomes are event-based;
+   *   on Android, `not-prepared` is delivered through `onPurchaseError`.
    *
    * @example
    * ```ts
+   * const { connected, requestPurchase } = useIAP();
+   * if (!connected) return;
+   *
    * await requestPurchase({
    *   request: {
    *     apple: { sku: 'com.app.premium' },
@@ -781,6 +797,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
       }
 
       if (result) {
+        // endConnection invalidates these hook-owned subscription handles.
+        cleanupListeners();
         registerListeners();
         setConnected(true);
         return true;

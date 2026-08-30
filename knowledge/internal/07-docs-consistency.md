@@ -239,9 +239,11 @@ raw imports outside `packages/docs`.
 
 Fenced `CodeBlock` examples under active documentation must not reintroduce
 known cross-language mistakes such as Kotlin syntax in C#, obsolete Flutter
-listener names, legacy purchase request shapes, top-level Godot SKUs, or
-obsolete Kotlin/KMP named arguments. Historical release notes are excluded
-because they describe APIs as shipped at that time.
+listener names, legacy purchase request shapes, top-level Godot SKUs, obsolete
+Kotlin/KMP named arguments, unchecked connection results, or asynchronous
+listener callbacks whose returned promise, future, or task is not observed.
+Historical release notes are excluded because they describe APIs as shipped at
+that time.
 
 Keep R11 focused. Every new pattern needs a failing fixture and a valid nearby
 shape so formatting, comments, or unrelated prose cannot trigger it.
@@ -315,6 +317,14 @@ maintaining a second list. While Horizon's `success` compatibility property
 exists, its table must also mark that property as a deprecated alias for
 `isValid`.
 
+### R15 — Subscription query failures stay observable
+
+React Native and Expo subscription-query helpers reject when the store query
+fails. The React Native hook calls `onError` before rethrowing; it must not map
+the failure to `false`. Godot's compatibility boolean helper is the only
+documented false fallback. Active docs must preserve this distinction so
+callers keep the required rejection handling.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
@@ -354,6 +364,7 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 - focused recurring phantom shapes from active fenced code examples
 - canonical offer semantics, generated enum snippets, and search entries
 - shared purchase-verification fields and the Horizon compatibility alias
+- subscription-query rejection semantics and the Godot compatibility fallback
 
 Field mentions are cross-referenced against generated TypeScript shapes.
 Canonical offer snippets are compared with the generated TypeScript, Swift,

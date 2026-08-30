@@ -3,6 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function GetAvailablePurchases() {
@@ -91,6 +92,8 @@ func get_available_purchases_result(options: PurchaseOptions = null) -> Dictiona
         }}
       </LanguageTabs>
 
+      <StoreConnectionCallout />
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -167,42 +170,64 @@ func get_available_purchases_result(options: PurchaseOptions = null) -> Dictiona
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
-import { getAvailablePurchases, finishTransaction } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { useEffect } from 'react';
+
+// expo-iap
+import {
+  getAvailablePurchases,
+  finishTransaction,
+  useIAP,
+} from 'expo-iap';
 // Same API in react-native-iap:
-// import { getAvailablePurchases, finishTransaction } from 'react-native-iap';
+// import {
+//   getAvailablePurchases,
+//   finishTransaction,
+//   useIAP,
+// } from 'react-native-iap';
 
-const purchases = await getAvailablePurchases();
+try {
+  const purchases = await getAvailablePurchases();
 
-for (const purchase of purchases) {
-  const verified = await verifyOnServer(purchase);
-  if (verified) {
-    await finishTransaction({ purchase, isConsumable: false });
+  for (const purchase of purchases) {
+    const verified = await verifyOnServer(purchase);
+    if (verified) {
+      await finishTransaction({ purchase, isConsumable: false });
+    }
   }
+} catch (error) {
+  console.warn('Purchase restore failed:', error);
 }
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP's getAvailablePurchases() returns Promise<void> and updates the
 // reactive availablePurchases array — process new entries inside an effect.
-import { useIAP } from 'expo-iap';
 
 function PendingPurchases() {
-  const { availablePurchases, getAvailablePurchases, finishTransaction } =
-    useIAP();
+  const {
+    connected,
+    availablePurchases,
+    getAvailablePurchases,
+    finishTransaction,
+  } = useIAP();
 
   useEffect(() => {
-    void getAvailablePurchases();
-  }, [getAvailablePurchases]);
+    if (!connected) return;
+    void getAvailablePurchases().catch((error) =>
+      console.warn('Purchase restore failed:', error),
+    );
+  }, [connected, getAvailablePurchases]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       for (const purchase of availablePurchases) {
         const verified = await verifyOnServer(purchase);
         if (verified) {
           await finishTransaction({ purchase, isConsumable: false });
         }
       }
-    })();
+    })().catch((error) => {
+      console.warn('Restored purchase processing failed:', error);
+    });
   }, [availablePurchases, finishTransaction]);
 
   return null;

@@ -176,9 +176,11 @@ import {
 
 const subscription = subscriptionBillingIssueListener((purchase) => {
   console.warn('Subscription needs attention:', purchase.productId);
-  deepLinkToSubscriptions({
+  void deepLinkToSubscriptions({
     skuAndroid: purchase.productId,
     packageNameAndroid: 'com.example.app',
+  }).catch((error) => {
+    console.error('Failed to open subscription settings', error);
   });
 });
 
@@ -186,14 +188,18 @@ const subscription = subscriptionBillingIssueListener((purchase) => {
 subscription.remove();`}</CodeBlock>
             ),
             dart: (
-              <CodeBlock language="dart">{`final iap = FlutterInappPurchase.instance;
+              <CodeBlock language="dart">{`import 'dart:async';
 
-final sub = iap.subscriptionBillingIssueListener.listen((purchase) async {
+final iap = FlutterInappPurchase.instance;
+
+final sub = iap.subscriptionBillingIssueListener.listen((purchase) {
   debugPrint('Needs attention: \${purchase.productId}');
-  await iap.deepLinkToSubscriptions(
+  unawaited(iap.deepLinkToSubscriptions(
     skuAndroid: purchase.productId,
     packageNameAndroid: 'com.example.app',
-  );
+  ).catchError(
+    (Object error) => debugPrint('Failed to open subscription settings: $error'),
+  ));
 });
 
 await sub.cancel();`}</CodeBlock>
@@ -203,16 +209,26 @@ await sub.cancel();`}</CodeBlock>
 using OpenIap.Maui;
 
 var mutate = (MutationResolver)OpenIapClient.Instance;
-using var subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscribe(
-    purchase =>
+
+async Task OpenSubscriptionSettingsSafelyAsync(Purchase purchase)
+{
+    if (purchase is not PurchaseCommon info) return;
+    try
     {
-        if (purchase is not PurchaseCommon info) return;
-        _ = mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
+        await mutate.DeepLinkToSubscriptionsAsync(new DeepLinkOptions
         {
             SkuAndroid = info.ProductId,
             PackageNameAndroid = "com.example.app",
         });
-    });`}</CodeBlock>
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Failed to open subscription settings: {error.Message}");
+    }
+}
+
+using var subscription = OpenIapClient.Instance.SubscriptionBillingIssue.Subscribe(
+    purchase => _ = OpenSubscriptionSettingsSafelyAsync(purchase));`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`# godot-iap signal

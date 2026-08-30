@@ -1813,15 +1813,17 @@ const handlePurchase = async (
 };
 
 // 2. Use YOUR tracked value in onPurchaseSuccess
-onPurchaseSuccess: async (purchase) => {
+onPurchaseSuccess: (purchase) => {
   // DON'T use purchase.currentPlanId - it may be wrong!
   const actualBasePlanId = purchasedBasePlanId;
 
-  // Save to your backend
-  await saveToBackend({
+  // Save to your backend; hook callback promises are not observed.
+  void saveToBackend({
     purchaseToken: purchase.purchaseToken,
     basePlanIdAndroid: actualBasePlanId,  // Use YOUR tracked value
     productId: purchase.productId,
+  }).catch((error) => {
+    console.error('Failed to save purchase metadata', error);
   });
 };`}</CodeBlock>
                     ),

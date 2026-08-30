@@ -56,9 +56,7 @@ describe("generated LLM references", () => {
     expect(quickReference).not.toContain(
       "openRedeemOfferCodeAndroid() - Open Play offer-code redemption page",
     );
-    expect(fullReference).toContain(
-      "cross-platform `openRedeemOfferCode`",
-    );
+    expect(fullReference).toContain("cross-platform `openRedeemOfferCode`");
   });
 
   test("uses canonical platform keys and excludes legacy API references", () => {
@@ -80,12 +78,32 @@ describe("generated LLM references", () => {
     expect(fullReference).toContain("type: ProductQueryType.InApp");
     expect(fullReference).toContain("iap.purchaseUpdatedListener.listen");
     expect(fullReference).toContain(
-      "iap.finishTransaction(purchase: purchase, isConsumable: true)",
+      ".finishTransaction(purchase: purchase, isConsumable: true)",
     );
     expect(fullReference).toContain(
       "await GodotIapPlugin.fetch_products(request)",
     );
     expect(fullReference).toContain("val products = iap.fetchProducts {");
+  });
+
+  test("keeps hook store calls in lifecycle and user-event boundaries", () => {
+    const reactNativeExpo = fullReference
+      .split("### React Native / Expo")[2]
+      ?.split("### Flutter")[0];
+
+    const effectBody = reactNativeExpo?.match(
+      /useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[connected, fetchProducts\]\);/,
+    )?.[1];
+    const onPressBody = reactNativeExpo?.match(
+      /onPress=\{\(\) => \{\n([\s\S]*?)\n      \}\}/,
+    )?.[1];
+
+    expect(effectBody).toContain("void fetchProducts");
+    expect(reactNativeExpo?.match(/\bfetchProducts\s*\(/g)).toHaveLength(1);
+    expect(reactNativeExpo).toContain("disabled={!connected}");
+    expect(onPressBody).toContain("void requestPurchase({");
+    expect(onPressBody).toContain("}).catch((error) => {");
+    expect(onPressBody).toContain("Purchase dispatch failed:");
   });
 
   test("documents every Android production source set", () => {

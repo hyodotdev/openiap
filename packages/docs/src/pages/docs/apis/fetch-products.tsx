@@ -4,6 +4,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function FetchProducts() {
@@ -50,6 +51,8 @@ function FetchProducts() {
         and returns a mixed result that preserves product and subscription
         variants.
       </p>
+
+      <StoreConnectionCallout />
 
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
@@ -372,14 +375,15 @@ import { FlatList, Text } from 'react-native';
 import { useIAP } from 'expo-iap';
 
 function ProductList() {
-  const { products, fetchProducts } = useIAP();
+  const { connected, products, fetchProducts } = useIAP();
 
   useEffect(() => {
+    if (!connected) return;
     void fetchProducts({
       skus: ['com.app.coins_100', 'com.app.premium'],
       type: 'in-app',
-    });
-  }, [fetchProducts]);
+    }).catch((error) => console.warn('Product fetch failed:', error));
+  }, [connected, fetchProducts]);
 
   return (
     <FlatList

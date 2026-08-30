@@ -330,17 +330,17 @@ cd ios && pod install`}
         </h2>
 
         <p>
-          Under the hood, the typical flow is{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection</code>
-          </Link>{' '}
-          → set up{' '}
+          Under the hood, the typical flow is set up{' '}
           <Link to="/docs/events/purchase-updated-listener">
             <code>purchaseUpdatedListener</code>
           </Link>{' '}
           and{' '}
           <Link to="/docs/events/purchase-error-listener">
             <code>purchaseErrorListener</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection</code>
           </Link>{' '}
           →{' '}
           <Link to="/docs/apis/fetch-products">
@@ -387,12 +387,17 @@ function Store() {
     fetchProducts,
     requestPurchase,
   } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
+    onPurchaseSuccess: (purchase) => {
       // 1. Validate receipt with your backend or IAPKit
       // 2. Grant entitlement
       // 3. CRITICAL: Finish the transaction
       //    (Android auto-refunds after 3 days if not called!)
-      await finishTransaction({ purchase, isConsumable: false }); // true for consumables
+      void finishTransaction({
+        purchase,
+        isConsumable: false, // true for consumables
+      }).catch((error) => {
+        console.warn('Transaction finalization failed:', error);
+      });
     },
     onPurchaseError: (error) => {
       if (error.code === ErrorCode.UserCancelled) return;
@@ -401,8 +406,11 @@ function Store() {
   });
 
   useEffect(() => {
-    fetchProducts({ skus: ['premium'] });
-  }, []);
+    if (!connected) return;
+    void fetchProducts({ skus: ['premium'] }).catch((error) => {
+      console.warn('Product fetch failed:', error);
+    });
+  }, [connected, fetchProducts]);
 
   return (
     <FlatList
@@ -410,16 +418,19 @@ function Store() {
       keyExtractor={(product) => product.id}
       renderItem={({ item }) => (
         <Button
-          title={\`\${item.title} - \${item.localizedPrice}\`}
-          onPress={() =>
-            requestPurchase({
+          title={\`\${item.title} - \${item.displayPrice}\`}
+          disabled={!connected}
+          onPress={() => {
+            void requestPurchase({
               request: {
                 apple: { sku: item.id },
                 google: { skus: [item.id] },
               },
               type: 'in-app',
-            })
-          }
+            }).catch((error) =>
+              console.warn('Purchase request failed:', error),
+            );
+          }}
         />
       )}
     />

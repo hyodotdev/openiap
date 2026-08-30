@@ -125,29 +125,30 @@ func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
       <LanguageTabs>
         {{
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.initConnection(
+            <CodeBlock language="kotlin">{`check(openIapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
-)`}</CodeBlock>
+)) { "Store connection failed" }`}</CodeBlock>
           ),
           kmp: (
             <CodeBlock language="kotlin">{`// kmp-iap (Android targets only)
-kmpIAP.initConnection(
+check(kmpIAP.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
-)`}</CodeBlock>
+)) { "Store connection failed" }`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap (also exported from react-native-iap)
 import { initConnection } from 'expo-iap';
 
-await initConnection({
+const connected = await initConnection({
   enableBillingProgramAndroid: 'external-offer',
   // 'user-choice-billing' | 'external-content-link' | 'external-offer'
   // | 'external-payments' | 'billing-choice'
 });
+if (!connected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
 // useIAP auto-connects on mount and accepts the same enableBillingProgramAndroid
@@ -163,26 +164,30 @@ function App() {
           ),
           dart: (
             <CodeBlock language="dart">{`if (Platform.isAndroid) {
-  await FlutterInappPurchase.instance.initConnection(
+  final connected = await FlutterInappPurchase.instance.initConnection(
     enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
   );
+  if (!connected) throw StateError('Store connection failed');
 }`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(
     new InitConnectionConfig
     {
         EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
-    });`}</CodeBlock>
+    });
+if (!connected) throw new InvalidOperationException("Store connection failed");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`if iap.get_platform() == "Android":
     var config = InitConnectionConfig.new()
     config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-    await iap.init_connection(config)`}</CodeBlock>
+    var connected = await iap.init_connection(config)
+    if not connected:
+        push_error("Store connection failed")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

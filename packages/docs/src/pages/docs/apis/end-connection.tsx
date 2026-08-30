@@ -11,14 +11,16 @@ function EndConnection() {
     <div className="doc-page">
       <SEO
         title="endConnection"
-        description="End the OpenIAP connection to the store service. Call when your app closes or the IAP component unmounts."
+        description="End the OpenIAP connection to the store service when the app-wide IAP session is no longer needed."
         path="/docs/apis/end-connection"
         keywords="endConnection, OpenIAP cleanup, billing client close"
       />
       <h1>endConnection</h1>
       <p>
-        End connection to the store service. Call this when your app closes or
-        the IAP component unmounts to clean up resources.
+        End connection to the store service. Call this when the owner of a
+        manually managed connection unmounts or when the app-wide IAP session is
+        no longer needed. Hook cleanup differs by framework; see the example
+        below.
       </p>
       <p>
         <strong>iOS:</strong> Cancels the StoreKit{' '}
@@ -41,6 +43,13 @@ function EndConnection() {
           Google docs
         </a>
         .
+      </p>
+      <p>
+        <strong>React Native / Expo:</strong> if native teardown throws, the
+        promise rejects without clearing the current connection or listener
+        state, so the app can retry. If teardown resolves <code>false</code>,
+        the bridge has already cleared its connection state and listeners;
+        reconnect and register fresh listeners before the next store call.
       </p>
 
       <h2>Signature</h2>
@@ -82,55 +91,79 @@ function EndConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
-import { endConnection } from 'expo-iap';
+            <CodeBlock language="typescript">{`import { useEffect } from 'react';
+import { Text } from 'react-native';
+
+// expo-iap
+import { endConnection, initConnection, useIAP } from 'expo-iap';
 // Same API in react-native-iap:
-// import { endConnection } from 'react-native-iap';
+// import { endConnection, initConnection, useIAP } from 'react-native-iap';
 
-// In React useEffect cleanup
-useEffect(() => {
-  void initConnection();
+function ManualStoreConnection() {
+  useEffect(() => {
+    void initConnection()
+      .then((connected) => {
+        if (!connected) throw new Error('Store connection failed');
+      })
+      .catch((error) => {
+        console.warn('Store connection failed:', error);
+      });
 
-  return () => {
-    void endConnection();
-  };
-}, []);
+    return () => {
+      void endConnection()
+        .then((ended) => {
+          if (!ended) console.warn('Store teardown did not complete');
+        })
+        .catch((error) => {
+          console.warn('Store teardown failed:', error);
+        });
+    };
+  }, []);
+
+  return <Text>Manual store connection</Text>;
+}
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// useIAP automatically calls endConnection() when the component unmounts,
-// so you only need the module-level call when you want to tear the
-// connection down outside of the hook's lifecycle (e.g. on sign-out).
-import { useIAP } from 'expo-iap';
+// Expo calls endConnection() when the component unmounts. React Native removes
+// the hook's listeners but keeps the native connection open across screens;
+// call the module-level endConnection() at an app-level teardown boundary such
+// as sign-out when the connection should actually close.
 
 function PurchaseScreen() {
   const { connected } = useIAP();
 
-  // No explicit endConnection() call needed — the hook handles cleanup.
   return <Text>Store ready: {String(connected)}</Text>;
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.endConnection()`}</CodeBlock>
+            <CodeBlock language="swift">{`let ended = try await OpenIapModule.shared.endConnection()
+if !ended { print("Store teardown did not complete") }`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.endConnection()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val ended = openIapStore.endConnection()
+if (!ended) println("Store teardown did not complete")`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.endConnection()`}</CodeBlock>
+            <CodeBlock language="kotlin">{`val ended = kmpIAP.endConnection()
+if (!ended) println("Store teardown did not complete")`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.endConnection();`}</CodeBlock>
+            <CodeBlock language="dart">{`final ended = await FlutterInappPurchase.instance.endConnection();
+if (!ended) print('Store teardown did not complete');`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();`}</CodeBlock>
+var ended = await ((MutationResolver)OpenIapClient.Instance).EndConnectionAsync();
+if (!ended) Console.WriteLine("Store teardown did not complete");`}</CodeBlock>
           ),
           gdscript: (
             <CodeBlock language="gdscript">{`# In _exit_tree or cleanup
 func _exit_tree():
-    await iap.end_connection()`}</CodeBlock>
+    var ended = await iap.end_connection()
+    if not ended:
+        push_warning("Store teardown did not complete")`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

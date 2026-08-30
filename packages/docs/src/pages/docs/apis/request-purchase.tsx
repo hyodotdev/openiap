@@ -4,6 +4,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
+import StoreConnectionCallout from '../../../components/StoreConnectionCallout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function RequestPurchase() {
@@ -119,6 +120,8 @@ type RequestPurchaseProps =
         }}
       </LanguageTabs>
 
+      <StoreConnectionCallout purchaseErrorEvent />
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -230,8 +233,11 @@ type RequestPurchaseProps =
         Throws
       </AnchorLink>
       <p>
-        Synchronous rejection from the store (<code>E_NOT_PREPARED</code>,
-        missing offerToken on subs, etc.).
+        Invalid arguments or failures that prevent dispatch can reject the
+        promise. Store outcomes are event-based in React Native; Android{' '}
+        <code>not-prepared</code> arrives through{' '}
+        <code>purchaseErrorListener</code> or the hook&apos;s{' '}
+        <code>onPurchaseError</code> callback.
       </p>
 
       <h2>Example</h2>
@@ -239,9 +245,13 @@ type RequestPurchaseProps =
         {{
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap
-import { requestPurchase } from 'expo-iap';
+import { Button } from 'react-native';
+import { initConnection, requestPurchase } from 'expo-iap';
 // Same API in react-native-iap:
-// import { requestPurchase } from 'react-native-iap';
+// import { initConnection, requestPurchase } from 'react-native-iap';
+
+const connected = await initConnection();
+if (!connected) throw new Error('Store connection failed');
 
 // One-time product
 await requestPurchase({
@@ -281,8 +291,8 @@ await requestPurchase({
 import { useIAP } from 'expo-iap';
 
 function BuyButton({ sku }: { sku: string }) {
-  const { requestPurchase } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
+  const { connected, requestPurchase } = useIAP({
+    onPurchaseSuccess: (purchase) => {
       // verify + finishTransaction here
     },
     onPurchaseError: (error) => {
@@ -293,18 +303,22 @@ function BuyButton({ sku }: { sku: string }) {
   return (
     <Button
       title="Buy"
-      onPress={() =>
-        requestPurchase({
+      disabled={!connected}
+      onPress={() => {
+        void requestPurchase({
           request: { apple: { sku }, google: { skus: [sku] } },
           type: 'in-app',
-        })
-      }
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed', error);
+        });
+      }}
     />
   );
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.requestPurchase(
+            <CodeBlock language="swift">{`guard try await OpenIapModule.shared.initConnection() else { return }
+try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
         request: .purchase(RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "com.app.premium")
@@ -314,7 +328,8 @@ function BuyButton({ sku }: { sku: string }) {
 )`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.requestPurchase(
+            <CodeBlock language="kotlin">{`check(openIapStore.initConnection()) { "Store connection failed" }
+openIapStore.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(
@@ -326,7 +341,8 @@ function BuyButton({ sku }: { sku: string }) {
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.requestPurchase(
+            <CodeBlock language="kotlin">{`check(kmpIAP.initConnection()) { "Store connection failed" }
+kmpIAP.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(
@@ -358,7 +374,9 @@ kmpIAP.requestPurchase {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase(
+            <CodeBlock language="dart">{`final connected = await FlutterInappPurchase.instance.initConnection();
+if (!connected) throw StateError('Store connection failed');
+await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
@@ -388,7 +406,11 @@ await iap.requestPurchaseWithBuilder(
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()
+            <CodeBlock language="gdscript">{`if not await iap.init_connection():
+    push_error("Store connection failed")
+    return
+
+var props = RequestPurchaseProps.new()
 props.request = RequestPurchasePropsByPlatforms.new()
 props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
@@ -399,18 +421,35 @@ await iap.request_purchase(props)`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
+async Task HandlePurchaseSafelyAsync(Purchase purchase)
+{
+    try
+    {
+        if (!await VerifyPurchaseOnServerAsync(purchase))
+            throw new InvalidOperationException("Purchase verification failed");
+        await GrantEntitlementAsync(purchase.ProductId);
+
+        // Finish last (Android auto-refunds after 3 days otherwise!).
+        await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+            purchase: new PurchaseInput(purchase),
+            isConsumable: true);
+    }
+    catch (Exception error)
+    {
+        Console.WriteLine($"Purchase processing failed: {error.Message}");
+    }
+}
+
 // Subscribe to results FIRST — requestPurchase is event-based.
-OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase => {
-    // 1. Validate on your server, 2. Grant entitlement,
-    // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
-    await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
-        purchase: new PurchaseInput(purchase),
-        isConsumable: true);
-});
+OpenIapClient.Instance.PurchaseUpdated.Subscribe(
+    purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 OpenIapClient.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
+
+if (!await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync())
+    return;
 
 // Then request the purchase
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps {

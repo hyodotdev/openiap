@@ -2,9 +2,92 @@ import { describe, expect, test } from "bun:test";
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
+  auditSubscriptionFailureDocs,
   auditVerifyPurchaseDocs,
   type CanonicalOfferDocsSources,
 } from "./audit-docs";
+
+describe("subscription failure docs", () => {
+  const validClaims = `
+    React Native, Expo, and native promise APIs reject on failure.
+    React Native and Expo hooks call <code>onError</code> before rethrowing.
+    Godot's compatibility boolean helper still maps failure to{' '}<code>false</code>.
+  `;
+  const renderPage = (body: string) => `
+    export default function Page() {
+      return <main>${body}</main>;
+    }
+  `;
+  const valid = renderPage(validClaims);
+
+  test("rejects obsolete React Native false-fallback guidance", () => {
+    const source = renderPage(`${validClaims}
+      React Native's root helper
+      and hook map failures to{' '}<code>false</code>`);
+
+    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([
+      expect.objectContaining({ rule: "R15" }),
+    ]);
+  });
+
+  test("ignores obsolete guidance in JSX comments", () => {
+    const source = renderPage(`${validClaims}
+      {/* React Native's root helper and hook map failures to <code>false</code> */}`);
+
+    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([]);
+  });
+
+  test("accepts rejection guidance", () => {
+    expect(auditSubscriptionFailureDocs("has-active.tsx", valid)).toEqual([]);
+  });
+
+  for (const [name, claim] of [
+    [
+      "promise rejection guidance",
+      "React Native, Expo, and native promise APIs reject on failure.",
+    ],
+    [
+      "hook rejection guidance",
+      "React Native and Expo hooks call <code>onError</code> before rethrowing.",
+    ],
+    [
+      "Godot false-fallback guidance",
+      "Godot's compatibility boolean helper still maps failure to{' '}<code>false</code>.",
+    ],
+  ] as const) {
+    test(`requires ${name}`, () => {
+      expect(
+        auditSubscriptionFailureDocs(
+          "has-active.tsx",
+          valid.replace(claim, ""),
+        ),
+      ).toEqual([expect.objectContaining({ rule: "R15" })]);
+    });
+  }
+
+  test("rejects the wrong false-fallback owner", () => {
+    expect(
+      auditSubscriptionFailureDocs(
+        "has-active.tsx",
+        valid.replace("Godot's compatibility", "React Native compatibility"),
+      ),
+    ).toEqual([expect.objectContaining({ rule: "R15" })]);
+  });
+
+  for (const [name, source] of [
+    ["JSX comments", renderPage(`{/* ${validClaims} */}`)],
+    [
+      "code blocks",
+      renderPage(`<CodeBlock language="text">{\`${validClaims}\`}</CodeBlock>`),
+    ],
+  ] as const) {
+    test(`${name} do not satisfy rendered guidance`, () => {
+      expect(
+        auditSubscriptionFailureDocs("has-active.tsx", source),
+      ).toHaveLength(3);
+    });
+  }
+});
 
 describe("verify purchase type docs", () => {
   const valid = `
@@ -198,6 +281,44 @@ describe("active docs code-example audit", () => {
     const source = [
       '<CodeBlock language="dart">{`iap.purchaseUpdatedListener.listen(onPurchase); await iap.finishTransaction(purchase: purchase);`}</CodeBlock>',
       '<CodeBlock language="typescript">{`await requestPurchase({ request: { apple: { sku: "x" } }, type: "in-app" });`}</CodeBlock>',
+    ].join("\n");
+
+    expect(auditActiveCodeExampleSource("/tmp/active.tsx", source)).toEqual([]);
+  });
+
+  test("flags unchecked connections and unobserved async listeners", () => {
+    const source = [
+      '<CodeBlock language="typescript">{`await initConnection(); purchaseUpdatedListener(async (purchase) => finish(purchase)); useIAP({ onPurchaseSuccess: async (purchase) => finish(purchase) });`}</CodeBlock>',
+      '<CodeBlock language="dart">{`await iap.initConnection(); iap.purchaseUpdatedListener.listen((purchase) async { await finish(purchase); });`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`store.initConnection(null)`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`await mutation.InitConnectionAsync(); stream.Subscribe(async purchase => await FinishAsync(purchase));`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`await iap.init_connection()`}</CodeBlock>',
+    ].join("\n");
+
+    expect(
+      auditActiveCodeExampleSource("/tmp/active.tsx", source).map(
+        (drift) => drift.message,
+      ),
+    ).toEqual([
+      expect.stringContaining("TypeScript examples must check"),
+      expect.stringContaining("TypeScript event listeners"),
+      expect.stringContaining("TypeScript hook callbacks"),
+      expect.stringContaining("Flutter examples must check"),
+      expect.stringContaining("Flutter stream listeners"),
+      expect.stringContaining("Kotlin and KMP examples must check"),
+      expect.stringContaining("MAUI examples must check"),
+      expect.stringContaining("MAUI observable listeners"),
+      expect.stringContaining("Godot examples must check"),
+    ]);
+  });
+
+  test("accepts checked connections and failure-handling listeners", () => {
+    const source = [
+      '<CodeBlock language="typescript">{`const connected = await initConnection(); purchaseUpdatedListener((purchase) => { void finish(purchase).catch(onError); }); useIAP({ onPurchaseSuccess: (purchase) => { void finish(purchase).catch(onError); } });`}</CodeBlock>',
+      '<CodeBlock language="dart">{`final connected = await iap.initConnection(); iap.purchaseUpdatedListener.listen((purchase) { unawaited(finish(purchase).catchError(onError)); });`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`check(store.initConnection(null))`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`var connected = await mutation.InitConnectionAsync(); stream.Subscribe(purchase => _ = FinishSafelyAsync(purchase));`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`if not await iap.init_connection(): return`}</CodeBlock>',
     ].join("\n");
 
     expect(auditActiveCodeExampleSource("/tmp/active.tsx", source)).toEqual([]);

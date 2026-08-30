@@ -512,7 +512,9 @@ func _ready():
     iap.purchase_error.connect(_on_purchase_error)
 
     # Initialize
-    await iap.init_connection()
+    if not await iap.init_connection():
+        push_error("Store connection failed")
+        return
 
 func _on_purchase_updated(purchase):
     # Validate receipt with your backend or IAPKit, then:
