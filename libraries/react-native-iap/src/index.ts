@@ -264,19 +264,15 @@ const IAP = {
 // hyodotdev/openiap#382.
 // ============================================================================
 
-function attachNativeListenerOrDefer(
-  label: string,
-  attach: () => void,
-): boolean {
+function attachNativeListenerOrDefer(label: string, attach: () => void): void {
   try {
     attach();
-    return true;
   } catch (error) {
     if (toErrorMessage(error).includes('Nitro runtime not installed')) {
       RnIapConsole.warn(
         `[${label}] Nitro not ready yet; will retry after initConnection()`,
       );
-      return false;
+      return;
     }
     throw error;
   }

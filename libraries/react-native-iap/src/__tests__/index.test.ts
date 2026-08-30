@@ -703,6 +703,18 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
+    it('does not attach a deferred listener removed before initConnection', async () => {
+      mockIap.addPurchaseUpdatedListener.mockImplementationOnce(() => {
+        throw new Error('Nitro runtime not installed');
+      });
+
+      const subscription = IAP.purchaseUpdatedListener(jest.fn());
+      subscription.remove();
+      await IAP.initConnection();
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
       {
         name: 'purchase updates',
