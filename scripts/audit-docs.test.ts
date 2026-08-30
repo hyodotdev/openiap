@@ -8,11 +8,17 @@ import {
 } from "./audit-docs";
 
 describe("subscription failure docs", () => {
-  const valid = `
+  const validClaims = `
     React Native, Expo, and native promise APIs reject on failure.
     React Native and Expo hooks call <code>onError</code> before rethrowing.
     Godot's compatibility boolean helper still maps failure to{' '}<code>false</code>.
   `;
+  const renderPage = (body: string) => `
+    export default function Page() {
+      return <main>${body}</main>;
+    }
+  `;
+  const valid = renderPage(validClaims);
 
   test("rejects obsolete React Native false-fallback guidance", () => {
     const source = `${valid}
@@ -49,6 +55,29 @@ describe("subscription failure docs", () => {
           valid.replace(claim, ""),
         ),
       ).toEqual([expect.objectContaining({ rule: "R15" })]);
+    });
+  }
+
+  test("rejects the wrong false-fallback owner", () => {
+    expect(
+      auditSubscriptionFailureDocs(
+        "has-active.tsx",
+        valid.replace("Godot's compatibility", "React Native compatibility"),
+      ),
+    ).toEqual([expect.objectContaining({ rule: "R15" })]);
+  });
+
+  for (const [name, source] of [
+    ["JSX comments", renderPage(`{/* ${validClaims} */}`)],
+    [
+      "code blocks",
+      renderPage(`<CodeBlock language="text">{\`${validClaims}\`}</CodeBlock>`),
+    ],
+  ] as const) {
+    test(`${name} do not satisfy rendered guidance`, () => {
+      expect(
+        auditSubscriptionFailureDocs("has-active.tsx", source),
+      ).toHaveLength(3);
     });
   }
 });

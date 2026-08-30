@@ -246,29 +246,30 @@ export function auditSubscriptionFailureDocs(
     });
   }
 
+  const renderedProse = collectRenderedProse(source).text;
   const requiredClaims = [
     {
       pattern:
-        /React Native,\s*Expo,\s*and native promise APIs reject on failure/,
+        /React\s+Native,\s*Expo,\s*and\s+native\s+promise\s+APIs\s+reject\s+on\s+failure/,
       message:
         "Subscription docs must state that React Native, Expo, and native promise APIs reject on failure.",
     },
     {
       pattern:
-        /React\s+Native\s+and\s+Expo\s+hooks\s+call\s*<code>onError<\/code>\s*before\s+rethrowing/,
+        /React\s+Native\s+and\s+Expo\s+hooks\s+call\s+onError\s+before\s+rethrowing/,
       message:
         "Subscription docs must state that React Native and Expo hooks call onError before rethrowing.",
     },
     {
       pattern:
-        /compatibility boolean helper still maps failure to(?:\s|\{' '\})*<code>false<\/code>/,
+        /Godot(?:'s)?\s+compatibility\s+boolean\s+helper\s+still\s+maps\s+failure\s+to\s+false/,
       message:
         "Subscription docs must identify Godot's compatibility boolean helper as the false fallback.",
     },
   ];
 
   for (const claim of requiredClaims) {
-    if (!claim.pattern.test(source)) {
+    if (!claim.pattern.test(renderedProse)) {
       drifts.push({ file, line: 1, rule: "R15", message: claim.message });
     }
   }
