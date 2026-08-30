@@ -35,6 +35,5 @@ internal class TokenizedListenerRegistry<T> {
     @Synchronized
     fun clear() {
         registrations.clear()
-        nextToken = 1.0
     }
 }
