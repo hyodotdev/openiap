@@ -397,7 +397,7 @@ enum RnIapHelper {
            let state = PurchaseState(fromString: purchaseStateString) {
             purchaseState = state
         } else {
-            purchaseState = .purchased
+            purchaseState = .unknown
         }
 
         // Handle offerIOS JSON serialization
