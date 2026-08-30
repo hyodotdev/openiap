@@ -425,8 +425,11 @@ async Task HandlePurchaseSafelyAsync(Purchase purchase)
 {
     try
     {
-        // 1. Validate on your server, 2. Grant entitlement,
-        // 3. Finish transaction (Android auto-refunds after 3 days otherwise!)
+        if (!await VerifyPurchaseOnServerAsync(purchase))
+            throw new InvalidOperationException("Purchase verification failed");
+        await GrantEntitlementAsync(purchase.ProductId);
+
+        // Finish last (Android auto-refunds after 3 days otherwise!).
         await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
             purchase: new PurchaseInput(purchase),
             isConsumable: true);
