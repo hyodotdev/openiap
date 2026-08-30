@@ -522,12 +522,12 @@ function PremiumButton() {
     <Button
       title="Buy premium"
       disabled={!connected}
-      onPress={() =>
-        requestPurchase({
+      onPress={() => {
+        void requestPurchase({
           request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
           type: 'in-app',
-        })
-      }
+        });
+      }}
     />
   );
 }

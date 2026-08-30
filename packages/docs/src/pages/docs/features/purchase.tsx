@@ -455,15 +455,15 @@ function BuyButton({ productId }: { productId: string }) {
     <Button
       title="Buy"
       disabled={!connected}
-      onPress={() =>
-        requestPurchase({
+      onPress={() => {
+        void requestPurchase({
           request: {
             apple: { sku: productId },
             google: { skus: [productId] },
           },
           type: 'in-app',
-        })
-      }
+        });
+      }}
     />
   );
 }`}</CodeBlock>

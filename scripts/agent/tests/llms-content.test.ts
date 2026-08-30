@@ -95,13 +95,13 @@ describe("generated LLM references", () => {
       /useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[connected, fetchProducts\]\);/,
     )?.[1];
     const onPressBody = reactNativeExpo?.match(
-      /onPress=\{\(\) =>\n([\s\S]*?)\n      \}/,
+      /onPress=\{\(\) => \{\n([\s\S]*?)\n      \}\}/,
     )?.[1];
 
     expect(effectBody).toContain("void fetchProducts");
     expect(reactNativeExpo?.match(/\bfetchProducts\s*\(/g)).toHaveLength(1);
     expect(reactNativeExpo).toContain("disabled={!connected}");
-    expect(onPressBody).toContain("requestPurchase({");
+    expect(onPressBody).toContain("void requestPurchase({");
   });
 
   test("documents every Android production source set", () => {

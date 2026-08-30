@@ -312,12 +312,12 @@ function BuyButton({ sku }: { sku: string }) {
     <Button
       title="Buy"
       disabled={!connected}
-      onPress={() =>
-        requestPurchase({
+      onPress={() => {
+        void requestPurchase({
           request: { apple: { sku }, google: { skus: [sku] } },
           type: 'in-app',
-        })
-      }
+        });
+      }}
     />
   );
 }`}</CodeBlock>
