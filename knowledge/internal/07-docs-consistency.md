@@ -315,6 +315,14 @@ maintaining a second list. While Horizon's `success` compatibility property
 exists, its table must also mark that property as a deprecated alias for
 `isValid`.
 
+### R15 — Subscription query failures stay observable
+
+React Native and Expo subscription-query helpers reject when the store query
+fails. The React Native hook calls `onError` before rethrowing; it must not map
+the failure to `false`. Godot's compatibility boolean helper is the only
+documented false fallback. Active docs must preserve this distinction so
+callers keep the required rejection handling.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
@@ -354,6 +362,7 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 - focused recurring phantom shapes from active fenced code examples
 - canonical offer semantics, generated enum snippets, and search entries
 - shared purchase-verification fields and the Horizon compatibility alias
+- subscription-query rejection semantics and the Godot compatibility fallback
 
 Field mentions are cross-referenced against generated TypeScript shapes.
 Canonical offer snippets are compared with the generated TypeScript, Swift,
