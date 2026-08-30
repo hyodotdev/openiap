@@ -2,16 +2,7 @@ import XCTest
 import OpenIAP
 @testable import NitroIap
 
-/// A store call made without `initConnection()` must still arrive with the
-/// bridge's listeners attached.
-///
-/// StoreKit has no connection to open, so the bridge connects on demand rather
-/// than refusing. That is only safe if the on-demand path is the same one
-/// `initConnection()` uses — otherwise a purchase would run with no subscription
-/// observing it, and the app would never call `finishTransaction`.
-///
-/// Reflection note: matches SubscriptionBillingIssueReconnectTests — the state is
-/// `private` in HybridRnIap, and `Mirror` reads it without widening the API.
+/// Verifies on-demand StoreKit operations use the bridge lifecycle and listeners.
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
@@ -57,6 +48,25 @@ final class ConnectOnDemandTests: XCTestCase {
         )
 
         _ = try await hybrid.endConnection().await()
+    }
+
+    func testEndFailureDoesNotRunConnectionCleanup() async {
+        enum TeardownFailure: Error {
+            case failed
+        }
+        var cleanedUp = false
+
+        do {
+            _ = try await endConnectionThenCleanup(
+                endConnection: { throw TeardownFailure.failed },
+                cleanup: { cleanedUp = true }
+            )
+            XCTFail("expected teardown failure")
+        } catch TeardownFailure.failed {
+            XCTAssertFalse(cleanedUp)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
     }
 
     func testQueuedTeardownPreventsLateStoreDelegation() async throws {

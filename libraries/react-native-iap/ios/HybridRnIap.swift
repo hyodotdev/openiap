@@ -2,6 +2,15 @@ import Foundation
 import NitroModules
 import OpenIAP
 
+func endConnectionThenCleanup(
+    endConnection: () async throws -> Bool,
+    cleanup: () async -> Void
+) async rethrows -> Bool {
+    let result = try await endConnection()
+    await cleanup()
+    return result
+}
+
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 class HybridRnIap: HybridRnIapSpec {
     private enum PurchaseUpdatedListenerBucket {
@@ -60,15 +69,11 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async { try await operation.value }
     }
 
-    // StoreKit has no connection to open: initConnection allocates the product
-    // cache and registers observers. A caller that skipped it gets that work
-    // done here instead of an error, and it runs through the same path so the
-    // bridge's purchase listeners attach — otherwise events would be lost.
+    // StoreKit initialization still owns caches and observers despite having no persistent connection.
     private func ensureConnection() async throws {
         if isConnectionInitialized() { return }
         _ = try await enqueueConnect(nil, reuseExistingConnection: true).value
-        // Still refuse if the connect did not take: the listeners attach on the
-        // same path, so proceeding here would run a purchase nothing observes.
+        // Never run a store operation without listeners installed by the same lifecycle path.
         guard isConnectionInitialized() else {
             throw OpenIapException.make(code: .initConnection, message: "Connection not initialized. Call initConnection() first.")
         }
@@ -119,14 +124,20 @@ class HybridRnIap: HybridRnIapSpec {
 
     func endConnection() throws -> Promise<Bool> {
         let operation = enqueueLifecycleOperation {
-            let subscriptions = self.detachConnectionState()
-            self.removeSubscriptions(subscriptions)
-            await MainActor.run {
-                self.productTypeBySku.removeAll()
-                self.purchasePayloadById.removeAll()
-            }
             RnIapLog.payload("endConnection", nil)
-            let result = try await OpenIapModule.shared.endConnection()
+            let result = try await endConnectionThenCleanup(
+                endConnection: {
+                    try await OpenIapModule.shared.endConnection()
+                },
+                cleanup: {
+                    let subscriptions = self.detachConnectionState()
+                    self.removeSubscriptions(subscriptions)
+                    await MainActor.run {
+                        self.productTypeBySku.removeAll()
+                        self.purchasePayloadById.removeAll()
+                    }
+                }
+            )
             RnIapLog.result("endConnection", result)
             return result
         }
