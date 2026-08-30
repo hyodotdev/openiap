@@ -309,6 +309,18 @@ export interface UseIapOptions {
   billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
+function mergeByKey<T>(
+  existingItems: T[],
+  newItems: T[],
+  getKey: (item: T) => string,
+): T[] {
+  const merged = new Map(
+    existingItems.map((item) => [getKey(item), item] as const),
+  );
+  newItems.forEach((item) => merged.set(getKey(item), item));
+  return Array.from(merged.values());
+}
+
 /**
  * React Hook for managing In-App Purchases.
  * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
@@ -325,27 +337,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const optionsRef = useRef<UseIapOptions | undefined>(options);
   const connectedRef = useRef<boolean>(false);
-
-  // Helper function to merge arrays with duplicate checking
-  const mergeWithDuplicateCheck = useCallback(
-    <T>(
-      existingItems: T[],
-      newItems: T[],
-      getKey: (item: T) => string,
-    ): T[] => {
-      const merged = [...existingItems];
-      newItems.forEach((newItem) => {
-        const isDuplicate = merged.some(
-          (existingItem) => getKey(existingItem) === getKey(newItem),
-        );
-        if (!isDuplicate) {
-          merged.push(newItem);
-        }
-      });
-      return merged;
-    },
-    [],
-  );
 
   useEffect(() => {
     optionsRef.current = options;
@@ -367,6 +358,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
   // Track if component is mounted to prevent listener leaks on early unmount
   const isMountedRef = useRef<boolean>(false);
   const initializationGenerationRef = useRef(0);
+  const productRequestGenerationRef = useRef(0);
+  const productRequestOwnersRef = useRef(new Map<string, number>());
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
 
@@ -388,6 +381,11 @@ export function useIAP(options?: UseIapOptions): UseIap {
       skus: string[];
       type?: ProductQueryType | null;
     }): Promise<void> => {
+      const generation = ++productRequestGenerationRef.current;
+      for (const sku of params.skus) {
+        productRequestOwnersRef.current.set(sku, generation);
+      }
+
       try {
         const requestType = params.type ?? 'in-app';
         RnIapConsole.debug('[useIAP] Calling fetchProducts with:', {
@@ -402,13 +400,18 @@ export function useIAP(options?: UseIapOptions): UseIap {
           '[useIAP] fetchProducts count:',
           result?.length ?? 0,
         );
-        const items = (result ?? []) as (Product | ProductSubscription)[];
+        const items = (
+          (result ?? []) as (Product | ProductSubscription)[]
+        ).filter(
+          (item) => productRequestOwnersRef.current.get(item.id) === generation,
+        );
+        if (items.length === 0) return;
 
         // fetchProducts already returns properly filtered results based on type
         if (requestType === 'subs') {
           // All items are already subscriptions
           setSubscriptions((prevSubscriptions: ProductSubscription[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               items as ProductSubscription[],
               (subscription: ProductSubscription) => subscription.id,
@@ -427,14 +430,14 @@ export function useIAP(options?: UseIapOptions): UseIap {
           );
 
           setProducts((prevProducts: Product[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevProducts,
               newProducts,
               (product: Product) => product.id,
             ),
           );
           setSubscriptions((prevSubscriptions: ProductSubscription[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               newSubscriptions,
               (subscription: ProductSubscription) => subscription.id,
@@ -445,7 +448,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
         // For 'in-app' type, all items are already products
         setProducts((prevProducts: Product[]) =>
-          mergeWithDuplicateCheck(
+          mergeByKey(
             prevProducts,
             items as Product[],
             (product: Product) => product.id,
@@ -454,9 +457,15 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error fetching products:', error);
         invokeOnError(error);
+      } finally {
+        for (const sku of params.skus) {
+          if (productRequestOwnersRef.current.get(sku) === generation) {
+            productRequestOwnersRef.current.delete(sku);
+          }
+        }
       }
     },
-    [mergeWithDuplicateCheck, invokeOnError],
+    [invokeOnError],
   );
 
   const getAvailablePurchasesInternal = useCallback(
