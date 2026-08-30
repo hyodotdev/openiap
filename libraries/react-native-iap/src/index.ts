@@ -815,21 +815,12 @@ const subscriptionBillingIssueNativeHandler: NitroSubscriptionBillingIssueListen
 
 function tryAttachSubscriptionBillingIssueNative(): void {
   if (subscriptionBillingIssueNativeAttached) return;
-  try {
+  attachNativeListenerOrDefer('subscriptionBillingIssueListener', () => {
     IAP.instance.addSubscriptionBillingIssueListener(
       subscriptionBillingIssueNativeHandler,
     );
     subscriptionBillingIssueNativeAttached = true;
-  } catch (e) {
-    const msg = toErrorMessage(e);
-    if (msg.includes('Nitro runtime not installed')) {
-      RnIapConsole.warn(
-        '[subscriptionBillingIssueListener] Nitro not ready yet; will retry after initConnection()',
-      );
-    } else {
-      throw e;
-    }
-  }
+  });
 }
 
 export const subscriptionBillingIssueListener = (
