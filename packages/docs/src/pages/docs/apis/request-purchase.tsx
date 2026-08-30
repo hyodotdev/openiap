@@ -259,7 +259,8 @@ import { initConnection, requestPurchase } from 'expo-iap';
 // Same API in react-native-iap:
 // import { initConnection, requestPurchase } from 'react-native-iap';
 
-await initConnection();
+const connected = await initConnection();
+if (!connected) throw new Error('Store connection failed');
 
 // One-time product
 await requestPurchase({
@@ -323,7 +324,7 @@ function BuyButton({ sku }: { sku: string }) {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`_ = try await OpenIapModule.shared.initConnection()
+            <CodeBlock language="swift">{`guard try await OpenIapModule.shared.initConnection() else { return }
 try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
         request: .purchase(RequestPurchasePropsByPlatforms(
@@ -334,7 +335,7 @@ try await OpenIapModule.shared.requestPurchase(
 )`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.initConnection()
+            <CodeBlock language="kotlin">{`check(openIapStore.initConnection()) { "Store connection failed" }
 openIapStore.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
@@ -347,7 +348,7 @@ openIapStore.requestPurchase(
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.initConnection()
+            <CodeBlock language="kotlin">{`check(kmpIAP.initConnection()) { "Store connection failed" }
 kmpIAP.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
@@ -380,7 +381,8 @@ kmpIAP.requestPurchase {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();
+            <CodeBlock language="dart">{`final connected = await FlutterInappPurchase.instance.initConnection();
+if (!connected) throw StateError('Store connection failed');
 await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
@@ -411,7 +413,9 @@ await iap.requestPurchaseWithBuilder(
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`await iap.init_connection()
+            <CodeBlock language="gdscript">{`if not await iap.init_connection():
+    push_error("Store connection failed")
+    return
 
 var props = RequestPurchaseProps.new()
 props.request = RequestPurchasePropsByPlatforms.new()
@@ -437,7 +441,8 @@ OpenIapClient.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
 
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
+if (!await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync())
+    return;
 
 // Then request the purchase
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps {
