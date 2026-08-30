@@ -1420,6 +1420,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       productTypesBySku.clear();
       subscriptionBasesBySku.clear();
       subscriptionParentsBySku.clear();
+      purchaseUpdateListeners.clear();
+      purchaseErrorListeners.clear();
       cachedUserData = null;
       return true;
     },

@@ -80,6 +80,38 @@ describe('Amazon Vega adapter', () => {
     expect(service.getUserData).not.toHaveBeenCalled();
   });
 
+  it('releases purchase listeners when the connection ends', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service);
+    const staleUpdateListener = jest.fn();
+    const staleErrorListener = jest.fn();
+
+    const staleUpdateToken = module.addPurchaseUpdatedListener(
+      staleUpdateListener,
+    );
+    module.addPurchaseErrorListener(staleErrorListener);
+    await module.endConnection();
+
+    const activeUpdateListener = jest.fn();
+    const activeErrorListener = jest.fn();
+    const activeUpdateToken = module.addPurchaseUpdatedListener(
+      activeUpdateListener,
+    );
+    expect(activeUpdateToken).toBeGreaterThan(staleUpdateToken);
+    module.addPurchaseErrorListener(activeErrorListener);
+    module.removePurchaseUpdatedListener(staleUpdateToken);
+    await module.requestPurchase({google: {skus: ['coins_100']}});
+    service.purchase.mockRejectedValueOnce(new Error('purchase failed'));
+    await expect(
+      module.requestPurchase({google: {skus: ['coins_100']}}),
+    ).rejects.toThrow('purchase failed');
+
+    expect(staleUpdateListener).not.toHaveBeenCalled();
+    expect(staleErrorListener).not.toHaveBeenCalled();
+    expect(activeUpdateListener).toHaveBeenCalledTimes(1);
+    expect(activeErrorListener).toHaveBeenCalledTimes(1);
+  });
+
   it('returns the store-authoritative Amazon marketplace', async () => {
     const service = createService();
     const module = createVegaIapModule(service);
