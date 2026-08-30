@@ -1591,8 +1591,9 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  * });
  * ```
  *
- * @remarks When using `useIAP()`, connection is auto-managed on mount/unmount —
- *   pass options to the hook instead of calling this directly.
+ * @remarks Both `useIAP()` hooks initialize on mount. Expo closes the connection
+ *   on unmount; React Native removes hook listeners and keeps the native connection
+ *   open across screens. Pass options to the hook instead of calling this directly.
  *
  * @see {@link https://openiap.dev/docs/apis/init-connection}
  */
