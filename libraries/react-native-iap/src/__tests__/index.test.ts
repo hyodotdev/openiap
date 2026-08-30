@@ -31,6 +31,8 @@ const mockIap: any = {
   removeSubscriptionBillingIssueListener: jest.fn(),
   addUserChoiceBillingListenerAndroid: jest.fn(),
   removeUserChoiceBillingListenerAndroid: jest.fn(),
+  addDeveloperProvidedBillingListenerAndroid: jest.fn(),
+  removeDeveloperProvidedBillingListenerAndroid: jest.fn(),
 
   // iOS-only
   getAppTransactionIOS: jest.fn(async () => null),
@@ -667,6 +669,114 @@ describe('Public API (src/index.ts)', () => {
 
       expect(staleListener).not.toHaveBeenCalled();
       expect(currentListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('attaches a pre-init purchase listener after initConnection', async () => {
+      const createHybridObject = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Nitro runtime not installed');
+        })
+        .mockImplementation(() => mockIap);
+      jest.resetModules();
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {createHybridObject},
+      }));
+      const freshIAP = require('../index');
+      const listener = jest.fn();
+
+      freshIAP.purchaseUpdatedListener(listener);
+      expect(mockIap.addPurchaseUpdatedListener).not.toHaveBeenCalled();
+
+      await freshIAP.initConnection();
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0]({
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not attach a deferred listener removed before initConnection', async () => {
+      mockIap.addPurchaseUpdatedListener.mockImplementationOnce(() => {
+        throw new Error('Nitro runtime not installed');
+      });
+
+      const subscription = IAP.purchaseUpdatedListener(jest.fn());
+      subscription.remove();
+      await IAP.initConnection();
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      {
+        name: 'purchase updates',
+        platform: 'ios',
+        api: 'purchaseUpdatedListener',
+        nativeMethod: 'addPurchaseUpdatedListener',
+        options: undefined,
+      },
+      {
+        name: 'duplicate purchase updates',
+        platform: 'ios',
+        api: 'purchaseUpdatedListener',
+        nativeMethod: 'addPurchaseUpdatedListener',
+        options: {dedupeTransactionIOS: false},
+      },
+      {
+        name: 'purchase errors',
+        platform: 'ios',
+        api: 'purchaseErrorListener',
+        nativeMethod: 'addPurchaseErrorListener',
+        options: undefined,
+      },
+      {
+        name: 'promoted products',
+        platform: 'ios',
+        api: 'promotedProductListenerIOS',
+        nativeMethod: 'addPromotedProductListenerIOS',
+        options: undefined,
+      },
+      {
+        name: 'user-choice billing',
+        platform: 'android',
+        api: 'userChoiceBillingListenerAndroid',
+        nativeMethod: 'addUserChoiceBillingListenerAndroid',
+        options: undefined,
+      },
+      {
+        name: 'developer-provided billing',
+        platform: 'android',
+        api: 'developerProvidedBillingListenerAndroid',
+        nativeMethod: 'addDeveloperProvidedBillingListenerAndroid',
+        options: undefined,
+      },
+      {
+        name: 'subscription billing issues',
+        platform: 'ios',
+        api: 'subscriptionBillingIssueListener',
+        nativeMethod: 'addSubscriptionBillingIssueListener',
+        options: undefined,
+      },
+    ])('retries deferred $name after initConnection', async (testCase) => {
+      (Platform as any).OS = testCase.platform;
+      mockIap[testCase.nativeMethod] = jest.fn().mockImplementationOnce(() => {
+        throw new Error('Nitro runtime not installed');
+      });
+
+      IAP[testCase.api](jest.fn(), testCase.options);
+      expect(mockIap[testCase.nativeMethod]).toHaveBeenCalledTimes(1);
+
+      await IAP.initConnection();
+
+      expect(mockIap[testCase.nativeMethod]).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1810,16 +1920,24 @@ describe('Public API (src/index.ts)', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('keeps the listener inert while Nitro initializes', () => {
+    it('reattaches the listener after Nitro initializes', async () => {
       (Platform as any).OS = 'android';
       mockIap.addUserChoiceBillingListenerAndroid.mockImplementationOnce(() => {
         throw new Error('Nitro runtime not installed');
       });
 
-      expect(() =>
-        IAP.userChoiceBillingListenerAndroid(jest.fn()),
-      ).not.toThrow();
+      const listener = jest.fn();
+      IAP.userChoiceBillingListenerAndroid(listener);
       expect(console.warn).toHaveBeenCalled();
+
+      await IAP.initConnection();
+      expect(mockIap.addUserChoiceBillingListenerAndroid).toHaveBeenCalledTimes(
+        2,
+      );
+      mockIap.addUserChoiceBillingListenerAndroid.mock.calls[1][0]({
+        products: ['premium'],
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
     });
 
     it('surfaces unexpected native listener failures', () => {
@@ -1828,9 +1946,18 @@ describe('Public API (src/index.ts)', () => {
         throw new Error('native listener failed');
       });
 
-      expect(() => IAP.userChoiceBillingListenerAndroid(jest.fn())).toThrow(
+      const staleListener = jest.fn();
+      expect(() => IAP.userChoiceBillingListenerAndroid(staleListener)).toThrow(
         'native listener failed',
       );
+
+      const currentListener = jest.fn();
+      IAP.userChoiceBillingListenerAndroid(currentListener);
+      mockIap.addUserChoiceBillingListenerAndroid.mock.calls[1][0]({
+        products: ['premium'],
+      });
+      expect(staleListener).not.toHaveBeenCalled();
+      expect(currentListener).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -3673,6 +3800,65 @@ describe('Public API (src/index.ts)', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+      {
+        name: 'purchase updates',
+        platform: 'ios',
+        api: 'purchaseUpdatedListener',
+        nativeMethod: 'addPurchaseUpdatedListener',
+        payload: validPurchase,
+      },
+      {
+        name: 'purchase errors',
+        platform: 'ios',
+        api: 'purchaseErrorListener',
+        nativeMethod: 'addPurchaseErrorListener',
+        payload: {code: 'network-error', message: 'offline'},
+      },
+      {
+        name: 'promoted products',
+        platform: 'ios',
+        api: 'promotedProductListenerIOS',
+        nativeMethod: 'addPromotedProductListenerIOS',
+        payload: {
+          id: 'premium',
+          title: 'Premium',
+          description: 'Premium access',
+          displayName: 'Premium',
+          displayPrice: '$1.00',
+          currency: 'USD',
+          price: 1,
+          platform: 'ios',
+          type: 'in-app',
+        },
+      },
+      {
+        name: 'developer-provided billing',
+        platform: 'android',
+        api: 'developerProvidedBillingListenerAndroid',
+        nativeMethod: 'addDeveloperProvidedBillingListenerAndroid',
+        payload: {products: ['premium']},
+      },
+    ])(
+      'rolls back a failed $name registration',
+      ({platform, api, nativeMethod, payload}) => {
+        (Platform as any).OS = platform;
+        mockIap[nativeMethod].mockImplementationOnce(() => {
+          throw new Error('native listener failed');
+        });
+
+        const staleListener = jest.fn();
+        expect(() => IAP[api](staleListener)).toThrow('native listener failed');
+
+        const currentListener = jest.fn();
+        IAP[api](currentListener);
+        mockIap[nativeMethod].mock.calls[1][0](payload);
+
+        expect(staleListener).not.toHaveBeenCalled();
+        expect(currentListener).toHaveBeenCalledTimes(1);
+      },
+    );
 
     it.each([
       {
