@@ -391,10 +391,15 @@ class HybridRnIap: HybridRnIapSpec {
                     self.purchasePayloadById.removeValue(forKey: iosParams.transactionId)
                 }
                 return .first(true)
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("finishTransaction", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
+            } catch let openIapException as OpenIapException {
+                RnIapLog.failure("finishTransaction", error: openIapException)
+                throw openIapException
             } catch {
                 RnIapLog.failure("finishTransaction", error: error)
-                let tid = iosParams.transactionId
-                throw OpenIapException.make(code: .purchaseError, message: "Transaction not found: \(tid)")
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
