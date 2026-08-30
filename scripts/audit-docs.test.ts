@@ -8,8 +8,15 @@ import {
 } from "./audit-docs";
 
 describe("subscription failure docs", () => {
+  const valid = `
+    React Native, Expo, and native promise APIs reject on failure.
+    React Native and Expo hooks call <code>onError</code> before rethrowing.
+    Godot's compatibility boolean helper still maps failure to{' '}<code>false</code>.
+  `;
+
   test("rejects obsolete React Native false-fallback guidance", () => {
-    const source = `React Native's root helper
+    const source = `${valid}
+      React Native's root helper
       and hook map failures to{' '}<code>false</code>`;
 
     expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([
@@ -18,11 +25,32 @@ describe("subscription failure docs", () => {
   });
 
   test("accepts rejection guidance", () => {
-    const source =
-      "React Native and Expo hooks call <code>onError</code> before rethrowing.";
-
-    expect(auditSubscriptionFailureDocs("has-active.tsx", source)).toEqual([]);
+    expect(auditSubscriptionFailureDocs("has-active.tsx", valid)).toEqual([]);
   });
+
+  for (const [name, claim] of [
+    [
+      "promise rejection guidance",
+      "React Native, Expo, and native promise APIs reject on failure.",
+    ],
+    [
+      "hook rejection guidance",
+      "React Native and Expo hooks call <code>onError</code> before rethrowing.",
+    ],
+    [
+      "Godot false-fallback guidance",
+      "Godot's compatibility boolean helper still maps failure to{' '}<code>false</code>.",
+    ],
+  ] as const) {
+    test(`requires ${name}`, () => {
+      expect(
+        auditSubscriptionFailureDocs(
+          "has-active.tsx",
+          valid.replace(claim, ""),
+        ),
+      ).toEqual([expect.objectContaining({ rule: "R15" })]);
+    });
+  }
 });
 
 describe("verify purchase type docs", () => {

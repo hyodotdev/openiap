@@ -232,20 +232,48 @@ export function auditSubscriptionFailureDocs(
   file: string,
   source: string,
 ): Drift[] {
+  const drifts: Drift[] = [];
   const obsoleteClaim =
     /React Native's root helper\s+and hook map failures to(?:\{' '\})?\s*<code>false<\/code>/;
   const match = obsoleteClaim.exec(source);
-  if (!match) return [];
-
-  return [
-    {
+  if (match) {
+    drifts.push({
       file,
       line: source.slice(0, match.index).split("\n").length,
       rule: "R15",
       message:
         "React Native subscription queries reject; the hook calls onError before rethrowing.",
+    });
+  }
+
+  const requiredClaims = [
+    {
+      pattern:
+        /React Native,\s*Expo,\s*and native promise APIs reject on failure/,
+      message:
+        "Subscription docs must state that React Native, Expo, and native promise APIs reject on failure.",
+    },
+    {
+      pattern:
+        /React\s+Native\s+and\s+Expo\s+hooks\s+call\s*<code>onError<\/code>\s*before\s+rethrowing/,
+      message:
+        "Subscription docs must state that React Native and Expo hooks call onError before rethrowing.",
+    },
+    {
+      pattern:
+        /compatibility boolean helper still maps failure to(?:\s|\{' '\})*<code>false<\/code>/,
+      message:
+        "Subscription docs must identify Godot's compatibility boolean helper as the false fallback.",
     },
   ];
+
+  for (const claim of requiredClaims) {
+    if (!claim.pattern.test(source)) {
+      drifts.push({ file, line: 1, rule: "R15", message: claim.message });
+    }
+  }
+
+  return drifts;
 }
 
 const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
