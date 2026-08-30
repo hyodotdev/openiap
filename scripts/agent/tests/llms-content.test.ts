@@ -91,9 +91,16 @@ describe("generated LLM references", () => {
       .split("### React Native / Expo")[2]
       ?.split("### Flutter")[0];
 
-    expect(reactNativeExpo).toContain("useEffect(() => {");
+    const effectBody = reactNativeExpo?.match(
+      /useEffect\(\(\) => \{([\s\S]*?)\n  \}, \[connected, fetchProducts\]\);/,
+    )?.[1];
+    const onPressBody = reactNativeExpo?.match(
+      /onPress=\{\(\) =>\n([\s\S]*?)\n      \}/,
+    )?.[1];
+
+    expect(effectBody).toContain("void fetchProducts");
     expect(reactNativeExpo).toContain("disabled={!connected}");
-    expect(reactNativeExpo).toContain("onPress={() =>");
+    expect(onPressBody).toContain("requestPurchase({");
     expect(reactNativeExpo).not.toContain(
       "if (connected) {\n  await fetchProducts",
     );

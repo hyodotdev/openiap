@@ -243,8 +243,8 @@ type RequestPurchaseProps =
         Throws
       </AnchorLink>
       <p>
-        Synchronous rejection from the store (<code>E_NOT_PREPARED</code>,
-        missing offerToken on subs, etc.).
+        Synchronous rejection from the store (<code>not-prepared</code>, missing
+        offerToken on subs, etc.).
       </p>
 
       <h2>Example</h2>
@@ -252,9 +252,11 @@ type RequestPurchaseProps =
         {{
           typescript: (
             <CodeBlock language="typescript">{`// expo-iap
-import { requestPurchase } from 'expo-iap';
+import { initConnection, requestPurchase } from 'expo-iap';
 // Same API in react-native-iap:
-// import { requestPurchase } from 'react-native-iap';
+// import { initConnection, requestPurchase } from 'react-native-iap';
+
+await initConnection();
 
 // One-time product
 await requestPurchase({
@@ -318,7 +320,8 @@ function BuyButton({ sku }: { sku: string }) {
 }`}</CodeBlock>
           ),
           swift: (
-            <CodeBlock language="swift">{`try await OpenIapModule.shared.requestPurchase(
+            <CodeBlock language="swift">{`_ = try await OpenIapModule.shared.initConnection()
+try await OpenIapModule.shared.requestPurchase(
     RequestPurchaseProps(
         request: .purchase(RequestPurchasePropsByPlatforms(
             apple: RequestPurchaseIosProps(sku: "com.app.premium")
@@ -328,7 +331,8 @@ function BuyButton({ sku }: { sku: string }) {
 )`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`openIapStore.requestPurchase(
+            <CodeBlock language="kotlin">{`openIapStore.initConnection()
+openIapStore.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(
@@ -340,7 +344,8 @@ function BuyButton({ sku }: { sku: string }) {
 )`}</CodeBlock>
           ),
           kmp: (
-            <CodeBlock language="kotlin">{`kmpIAP.requestPurchase(
+            <CodeBlock language="kotlin">{`kmpIAP.initConnection()
+kmpIAP.requestPurchase(
     RequestPurchaseProps(
         request = RequestPurchaseProps.Request.Purchase(
             RequestPurchasePropsByPlatforms(
@@ -372,7 +377,8 @@ kmpIAP.requestPurchase {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.requestPurchase(
+            <CodeBlock language="dart">{`await FlutterInappPurchase.instance.initConnection();
+await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
@@ -402,7 +408,9 @@ await iap.requestPurchaseWithBuilder(
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var props = RequestPurchaseProps.new()
+            <CodeBlock language="gdscript">{`await iap.init_connection()
+
+var props = RequestPurchaseProps.new()
 props.request = RequestPurchasePropsByPlatforms.new()
 props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
@@ -425,6 +433,8 @@ OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase => {
 OpenIapClient.Instance.PurchaseError.Subscribe(error => {
     Console.WriteLine($"{error.Code}: {error.Message}");
 });
+
+await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync();
 
 // Then request the purchase
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps {

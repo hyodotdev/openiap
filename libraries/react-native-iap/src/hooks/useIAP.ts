@@ -169,7 +169,7 @@ type UseIap = {
    *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
    * @returns Promise that resolves when the request is dispatched; results land in the
    *   hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+   * @throws Synchronous rejection from the store (e.g. `not-prepared`, validation failure).
    *
    * @example
    * ```ts

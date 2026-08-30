@@ -1670,7 +1670,7 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
  *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
  * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.
- * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+ * @throws Synchronous rejection from the store (e.g. `not-prepared`, validation failure).
  *
  * @example
  * ```ts
