@@ -85,11 +85,10 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
           <Link to="/docs/apis/init-connection">
             <code>initConnection()</code>
           </Link>{' '}
-          first. React Native, Expo, and the native promise APIs reject when the
-          store cannot determine subscription status; the framework hooks call{' '}
-          <code>onError</code> before rethrowing. Gate hook examples on the{' '}
-          <code>connected</code> flag and handle failures separately from a
-          valid <code>false</code> result.
+          first. React Native, Expo, and native promise APIs reject on failure.
+          React Native and Expo hooks call <code>onError</code> before
+          rethrowing. Gate hook examples on the <code>connected</code> flag and
+          handle failures separately from a valid <code>false</code> result.
         </p>
       </Callout>
 
@@ -119,12 +118,10 @@ func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Di
         when you only need a yes/no answer.
       </p>
       <p>
-        React Native, Expo, and the native promise APIs reject on store errors;
-        framework hooks call <code>onError</code> before rethrowing. Only a
-        successful empty query resolves <code>false</code>. Godot entitlement
-        code must use <code>has_active_subscriptions_result()</code>; the
-        compatibility boolean helper still maps failure to <code>false</code>{' '}
-        and is not safe for granting or revoking access.
+        Only a successful empty query resolves <code>false</code>. Godot
+        entitlement code must use <code>has_active_subscriptions_result()</code>
+        ; Godot's compatibility boolean helper still maps failure to{' '}
+        <code>false</code> and is not safe for granting or revoking access.
       </p>
 
       <h2>Example</h2>
