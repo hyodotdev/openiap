@@ -1693,6 +1693,9 @@ export const restorePurchases: MutationField<'restorePurchases'> = async () => {
  *
  * @example
  * ```ts
+ * const connected = await initConnection();
+ * if (!connected) return;
+ *
  * await requestPurchase({
  *   request: {
  *     apple: { sku: 'com.app.premium' },

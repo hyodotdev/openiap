@@ -109,11 +109,12 @@ type UseIap = {
    *
    * @example
    * ```ts
-   * const { availablePurchases, getAvailablePurchases, finishTransaction } = useIAP();
+   * const { connected, availablePurchases, getAvailablePurchases, finishTransaction } = useIAP();
    *
    * useEffect(() => {
+   *   if (!connected) return;
    *   void getAvailablePurchases();
-   * }, [getAvailablePurchases]);
+   * }, [connected, getAvailablePurchases]);
    *
    * useEffect(() => {
    *   for (const p of availablePurchases) {
@@ -139,14 +140,15 @@ type UseIap = {
    *
    * @example
    * ```ts
-   * const { products, fetchProducts } = useIAP();
+   * const { connected, products, fetchProducts } = useIAP();
    *
    * useEffect(() => {
+   *   if (!connected) return;
    *   void fetchProducts({
    *     skus: ['com.app.coins_100', 'com.app.premium'],
    *     type: 'in-app',
    *   });
-   * }, [fetchProducts]);
+   * }, [connected, fetchProducts]);
    *
    * // Render `products` directly from hook state.
    * ```
@@ -174,6 +176,9 @@ type UseIap = {
    *
    * @example
    * ```ts
+   * const { connected, requestPurchase } = useIAP();
+   * if (!connected) return;
+   *
    * await requestPurchase({
    *   request: {
    *     apple: { sku: 'com.app.premium' },
