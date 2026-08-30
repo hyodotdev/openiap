@@ -51,11 +51,30 @@ class HybridRnIap: HybridRnIapSpec {
     
     
     func initConnection(config: Variant_NullType_InitConnectionConfig?) throws -> Promise<Bool> {
-        let operation = enqueueLifecycleOperation {
-            let configValue: InitConnectionConfig? = {
-                if case .second(let c) = config { return c }
-                return nil
-            }()
+        let configValue: InitConnectionConfig? = {
+            if case .second(let c) = config { return c }
+            return nil
+        }()
+        let operation = enqueueConnect(configValue)
+        return Promise.async { try await operation.value }
+    }
+
+    // StoreKit has no connection to open: initConnection allocates the product
+    // cache and registers observers. A caller that skipped it gets that work
+    // done here instead of an error, and it runs through the same path so the
+    // bridge's purchase listeners attach — otherwise events would be lost.
+    private func ensureConnection() async throws {
+        if isConnectionInitialized() { return }
+        _ = try await enqueueConnect(nil).value
+        // Still refuse if the connect did not take: the listeners attach on the
+        // same path, so proceeding here would run a purchase nothing observes.
+        guard isConnectionInitialized() else {
+            throw OpenIapException.make(code: .initConnection, message: "Connection not initialized. Call initConnection() first.")
+        }
+    }
+
+    private func enqueueConnect(_ configValue: InitConnectionConfig?) -> Task<Bool, Error> {
+        enqueueLifecycleOperation {
             RnIapLog.payload("initConnection", configValue)
             let epoch = self.listenerLock.withLock { self.connectionEpoch }
 
@@ -91,9 +110,8 @@ class HybridRnIap: HybridRnIapSpec {
                 return false
             }
         }
-        return Promise.async { try await operation.value }
     }
-    
+
     func endConnection() throws -> Promise<Bool> {
         let operation = enqueueLifecycleOperation {
             let subscriptions = self.detachConnectionState()
@@ -112,7 +130,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func fetchProducts(skus: [String], type: String) throws -> Promise<[NitroProduct]> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             RnIapLog.payload("fetchProducts", [
                 "skus": skus,
                 "type": type
@@ -200,7 +218,9 @@ class HybridRnIap: HybridRnIapSpec {
                 return defaultResult
             }
 
-            guard self.isConnectionInitialized() else {
+            do {
+                try await self.ensureConnection()
+            } catch {
                 let err = RnIapHelper.makePurchaseErrorResult(
                     code: .initConnection,
                     message: "IAP store connection not initialized",
@@ -291,7 +311,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func getAvailablePurchases(options: NitroAvailablePurchasesOptions?) throws -> Promise<[NitroPurchase]> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 // Unwrap Variant ios options
                 let iosOpts: NitroAvailablePurchasesIosOptions?
@@ -331,7 +351,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func getActiveSubscriptions(subscriptionIds: [String]?) throws -> Promise<[NitroActiveSubscription]> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("getActiveSubscriptions", subscriptionIds ?? [])
                 // Call OpenIAP's native getActiveSubscriptions - includes renewalInfoIOS!
@@ -353,7 +373,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func hasActiveSubscriptions(subscriptionIds: [String]?) throws -> Promise<Bool> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("hasActiveSubscriptions", subscriptionIds ?? [])
                 let hasActive = try await OpenIapModule.shared.hasActiveSubscriptions(subscriptionIds)
@@ -372,7 +392,7 @@ class HybridRnIap: HybridRnIapSpec {
     func finishTransaction(params: NitroFinishTransactionParams) throws -> Promise<Variant_Bool_NitroPurchaseResult> {
         return Promise.async {
             guard case .second(let iosParams) = params.ios else { return .first(true) }
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload(
                     "finishTransaction", ["transactionId": iosParams.transactionId]
@@ -619,7 +639,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func getPromotedProductIOS() throws -> Promise<Variant_NullType_NitroProduct> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("getPromotedProductIOS", nil)
                 guard let product = try await OpenIapModule.shared.getPromotedProductIOS() else {
@@ -678,7 +698,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func subscriptionStatusIOS(sku: String) throws -> Promise<Variant_NullType__NitroSubscriptionStatus_> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("subscriptionStatusIOS", ["sku": sku])
                 let statuses = try await OpenIapModule.shared.subscriptionStatusIOS(sku: sku)
@@ -717,7 +737,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func currentEntitlementIOS(sku: String) throws -> Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("currentEntitlementIOS", ["sku": sku])
                 let purchase = try await OpenIapModule.shared.currentEntitlementIOS(sku: sku)
@@ -746,7 +766,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func latestTransactionIOS(sku: String) throws -> Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("latestTransactionIOS", ["sku": sku])
                 let purchase = try await OpenIapModule.shared.latestTransactionIOS(sku: sku)
@@ -855,7 +875,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func showManageSubscriptionsIOS() throws -> Promise<[NitroPurchase]> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("showManageSubscriptionsIOS", nil)
                 let changedPurchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
@@ -875,7 +895,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func deepLinkToSubscriptionsIOS() throws -> Promise<Bool> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("deepLinkToSubscriptionsIOS", nil)
                 try await OpenIapModule.shared.deepLinkToSubscriptions(nil)
@@ -902,7 +922,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func getReceiptDataIOS() throws -> Promise<String> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("getReceiptDataIOS", nil)
                 let receipt = try await RnIapHelper.loadReceiptData(refresh: false)
@@ -920,7 +940,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func requestReceiptRefreshIOS() throws -> Promise<String> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("requestReceiptRefreshIOS", nil)
                 let receipt = try await RnIapHelper.loadReceiptData(refresh: true)
@@ -938,7 +958,7 @@ class HybridRnIap: HybridRnIapSpec {
 
     func isTransactionVerifiedIOS(sku: String) throws -> Promise<Bool> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             RnIapLog.payload("isTransactionVerifiedIOS", ["sku": sku])
             let value = try await OpenIapModule.shared.isTransactionVerifiedIOS(sku: sku)
             RnIapLog.result("isTransactionVerifiedIOS", value)
@@ -948,7 +968,7 @@ class HybridRnIap: HybridRnIapSpec {
     
     func getTransactionJwsIOS(sku: String) throws -> Promise<Variant_NullType_String> {
         return Promise.async {
-            try self.ensureConnection()
+            try await self.ensureConnection()
             do {
                 RnIapLog.payload("getTransactionJwsIOS", ["sku": sku])
                 let jws = try await OpenIapModule.shared.getTransactionJwsIOS(sku: sku)
@@ -1312,12 +1332,6 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    private func ensureConnection() throws {
-        guard isConnectionInitialized() else {
-            throw OpenIapException.make(code: .initConnection, message: "Connection not initialized. Call initConnection() first.")
-        }
-    }
-
     private func isConnectionInitialized() -> Bool {
         listenerLock.withLock { isInitialized }
     }
@@ -1512,7 +1526,7 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("canPresentExternalPurchaseNoticeIOS", nil)
 
             if #available(iOS 16.0, *) {
-                try self.ensureConnection()
+                try await self.ensureConnection()
                 do {
                     let canPresent = try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
                     RnIapLog.result("canPresentExternalPurchaseNoticeIOS", canPresent)
@@ -1537,7 +1551,7 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("presentExternalPurchaseNoticeSheetIOS", nil)
 
             if #available(iOS 16.0, *) {
-                try self.ensureConnection()
+                try await self.ensureConnection()
                 do {
                     let result = try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
 
@@ -1578,7 +1592,7 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload("presentExternalPurchaseLinkIOS", ["url": url])
 
             if #available(iOS 16.0, *) {
-                try self.ensureConnection()
+                try await self.ensureConnection()
                 do {
                     let result = try await OpenIapModule.shared.presentExternalPurchaseLinkIOS(url)
                     let nitroResult = ExternalPurchaseLinkResultIOS(
