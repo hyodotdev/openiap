@@ -426,7 +426,8 @@ BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_1
           {`purchaseSub.Dispose();
 errorSub.Dispose();
 
-await mutate.EndConnectionAsync();`}
+var ended = await mutate.EndConnectionAsync();
+if (!ended) Console.WriteLine("Store teardown did not complete");`}
         </CodeBlock>
       </section>
 

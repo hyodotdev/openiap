@@ -323,7 +323,9 @@ class _StoreScreenState extends State<StoreScreen> {
     unawaited(errorSub?.cancel().catchError(
       (Object error) => print('Listener cleanup failed: $error'),
     ));
-    unawaited(iap.endConnection().then<void>((_) {}).catchError(
+    unawaited(iap.endConnection().then<void>((ended) {
+      if (!ended) print('Store teardown did not complete');
+    }).catchError(
       (Object error) => print('Store teardown failed: $error'),
     ));
     super.dispose();
