@@ -599,11 +599,17 @@ describe('hooks/useIAP (renderer)', () => {
     await act(async () => {});
     expect(api.connected).toBe(false);
 
+    let thrown: unknown;
     await act(async () => {
-      await api.fetchProducts({skus: ['product1']});
+      try {
+        await api.fetchProducts({skus: ['product1']});
+      } catch (error) {
+        thrown = error;
+      }
     });
 
     expect(onError).toHaveBeenCalledWith(notConnected);
+    expect(thrown).toBe(notConnected);
     expect(api.products).toEqual([]);
   });
 
