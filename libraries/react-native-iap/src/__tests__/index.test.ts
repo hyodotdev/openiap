@@ -1502,9 +1502,17 @@ describe('Public API (src/index.ts)', () => {
         /Unable to parse app transaction payload/,
       );
 
-      const nativeError = new Error('app transaction failed');
+      const nativeError = new Error(
+        JSON.stringify({
+          code: 'service-error',
+          message: 'App transaction failed',
+        }),
+      );
       mockIap.getAppTransactionIOS.mockRejectedValueOnce(nativeError);
-      await expect(IAP.getAppTransactionIOS()).rejects.toBe(nativeError);
+      await expect(IAP.getAppTransactionIOS()).rejects.toMatchObject({
+        code: ErrorCode.ServiceError,
+        message: 'App transaction failed',
+      });
     });
 
     it('presentCodeRedemptionSheetIOS returns the verified purchase', async () => {
