@@ -2663,20 +2663,15 @@ export const getActiveSubscriptions: QueryField<
  *
  * @param subscriptionIds - Optional array of subscription IDs to check
  * @returns Promise<boolean> - True if there are active subscriptions
+ * @throws When the store cannot determine subscription status
  *
  * @see {@link https://openiap.dev/docs/apis/has-active-subscriptions}
  */
 export const hasActiveSubscriptions: QueryField<
   'hasActiveSubscriptions'
 > = async (subscriptionIds) => {
-  try {
-    const activeSubscriptions = await getActiveSubscriptions(subscriptionIds);
-    return activeSubscriptions.length > 0;
-  } catch (error) {
-    // If there's an error getting subscriptions, return false
-    RnIapConsole.warn('Error checking active subscriptions:', error);
-    return false;
-  }
+  const activeSubscriptions = await getActiveSubscriptions(subscriptionIds);
+  return activeSubscriptions.length > 0;
 };
 
 // Type conversion utilities

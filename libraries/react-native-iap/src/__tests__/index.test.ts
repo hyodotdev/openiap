@@ -2500,15 +2500,18 @@ describe('Public API (src/index.ts)', () => {
         expect(result).toBe(false);
       });
 
-      it('should return false on error', async () => {
-        (Platform as any).OS = 'ios';
-        const error = new Error('Failed to fetch');
-        mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
+      it.each(['ios', 'android'] as const)(
+        'should reject when subscription status cannot be determined on %s',
+        async (platform) => {
+          (Platform as any).OS = platform;
+          const error = new Error('Failed to fetch');
+          mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
 
-        const result = await IAP.hasActiveSubscriptions();
-
-        expect(result).toBe(false);
-      });
+          await expect(IAP.hasActiveSubscriptions()).rejects.toThrow(
+            'Failed to fetch',
+          );
+        },
+      );
     });
   });
 
