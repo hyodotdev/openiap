@@ -309,6 +309,18 @@ export interface UseIapOptions {
   billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
 }
 
+function mergeByKey<T>(
+  existingItems: T[],
+  newItems: T[],
+  getKey: (item: T) => string,
+): T[] {
+  const merged = new Map(
+    existingItems.map((item) => [getKey(item), item] as const),
+  );
+  newItems.forEach((item) => merged.set(getKey(item), item));
+  return Array.from(merged.values());
+}
+
 /**
  * React Hook for managing In-App Purchases.
  * See documentation at https://react-native-iap.hyo.dev/docs/hooks/useIAP
@@ -325,27 +337,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const optionsRef = useRef<UseIapOptions | undefined>(options);
   const connectedRef = useRef<boolean>(false);
-
-  // Helper function to merge arrays with duplicate checking
-  const mergeWithDuplicateCheck = useCallback(
-    <T>(
-      existingItems: T[],
-      newItems: T[],
-      getKey: (item: T) => string,
-    ): T[] => {
-      const merged = [...existingItems];
-      newItems.forEach((newItem) => {
-        const isDuplicate = merged.some(
-          (existingItem) => getKey(existingItem) === getKey(newItem),
-        );
-        if (!isDuplicate) {
-          merged.push(newItem);
-        }
-      });
-      return merged;
-    },
-    [],
-  );
 
   useEffect(() => {
     optionsRef.current = options;
@@ -414,7 +405,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
         if (requestType === 'subs') {
           // All items are already subscriptions
           setSubscriptions((prevSubscriptions: ProductSubscription[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               items as ProductSubscription[],
               (subscription: ProductSubscription) => subscription.id,
@@ -433,14 +424,14 @@ export function useIAP(options?: UseIapOptions): UseIap {
           );
 
           setProducts((prevProducts: Product[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevProducts,
               newProducts,
               (product: Product) => product.id,
             ),
           );
           setSubscriptions((prevSubscriptions: ProductSubscription[]) =>
-            mergeWithDuplicateCheck(
+            mergeByKey(
               prevSubscriptions,
               newSubscriptions,
               (subscription: ProductSubscription) => subscription.id,
@@ -451,7 +442,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
         // For 'in-app' type, all items are already products
         setProducts((prevProducts: Product[]) =>
-          mergeWithDuplicateCheck(
+          mergeByKey(
             prevProducts,
             items as Product[],
             (product: Product) => product.id,
@@ -462,7 +453,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
         invokeOnError(error);
       }
     },
-    [mergeWithDuplicateCheck, invokeOnError],
+    [invokeOnError],
   );
 
   const getAvailablePurchasesInternal = useCallback(

@@ -277,6 +277,107 @@ describe('hooks/useIAP (renderer)', () => {
     debug.mockRestore();
   });
 
+  it('refreshes an existing product when it is fetched again', async () => {
+    mockFetchProducts
+      .mockResolvedValueOnce([
+        {id: 'product1', type: 'in-app', displayPrice: '$1.00'},
+      ] as any)
+      .mockResolvedValueOnce([
+        {id: 'product1', type: 'in-app', displayPrice: '$2.00'},
+      ] as any);
+
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    await act(async () => {
+      await api.fetchProducts({skus: ['product1']});
+    });
+    expect(api.products).toEqual([
+      expect.objectContaining({id: 'product1', displayPrice: '$1.00'}),
+    ]);
+
+    await act(async () => {
+      await api.fetchProducts({skus: ['product1']});
+    });
+    expect(api.products).toEqual([
+      expect.objectContaining({id: 'product1', displayPrice: '$2.00'}),
+    ]);
+  });
+
+  it('refreshes an existing subscription when it is fetched again', async () => {
+    mockFetchProducts
+      .mockResolvedValueOnce([
+        {id: 'subscription1', type: 'subs', displayPrice: '$1.00'},
+      ] as any)
+      .mockResolvedValueOnce([
+        {id: 'subscription1', type: 'subs', displayPrice: '$2.00'},
+      ] as any);
+
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+
+    await act(async () => {
+      await api.fetchProducts({skus: ['subscription1'], type: 'subs'});
+      await api.fetchProducts({skus: ['subscription1'], type: 'subs'});
+    });
+
+    expect(api.subscriptions).toEqual([
+      expect.objectContaining({id: 'subscription1', displayPrice: '$2.00'}),
+    ]);
+  });
+
+  it('refreshes products and subscriptions fetched together', async () => {
+    mockFetchProducts
+      .mockResolvedValueOnce([
+        {id: 'product1', type: 'in-app', displayPrice: '$1.00'},
+        {id: 'subscription1', type: 'subs', displayPrice: '$2.00'},
+      ] as any)
+      .mockResolvedValueOnce([
+        {id: 'product1', type: 'in-app', displayPrice: '$3.00'},
+        {id: 'subscription1', type: 'subs', displayPrice: '$4.00'},
+      ] as any);
+
+    let api: any;
+    const Harness = () => {
+      api = useIAP();
+      return null;
+    };
+    await act(async () => {
+      TestRenderer.create(React.createElement(Harness));
+    });
+
+    await act(async () => {
+      await api.fetchProducts({
+        skus: ['product1', 'subscription1'],
+        type: 'all',
+      });
+      await api.fetchProducts({
+        skus: ['product1', 'subscription1'],
+        type: 'all',
+      });
+    });
+
+    expect(api.products).toEqual([
+      expect.objectContaining({id: 'product1', displayPrice: '$3.00'}),
+    ]);
+    expect(api.subscriptions).toEqual([
+      expect.objectContaining({id: 'subscription1', displayPrice: '$4.00'}),
+    ]);
+  });
+
   describe('onError callback', () => {
     it('calls onError when fetchProducts fails', async () => {
       const fetchError = new Error('Network error fetching products');
