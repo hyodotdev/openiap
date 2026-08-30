@@ -357,6 +357,15 @@ final class ConnectOnDemandTests: XCTestCase {
             )
         )
         XCTAssertTrue(requestOperationBody.contains("deliverRequestPurchaseError"))
+
+        let enqueueConnectBody = try closureBody(
+            after: "    private func enqueueConnect",
+            in: source
+        )
+        XCTAssertTrue(
+            enqueueConnectBody.contains("if isCurrent, !reuseExistingConnection"),
+            "on-demand connection failure must be reported only by the calling operation"
+        )
     }
 
     // MARK: - Private reflection helpers

@@ -415,15 +415,17 @@ function Store() {
         <Button
           title={\`\${item.title} - \${item.displayPrice}\`}
           disabled={!connected}
-          onPress={() =>
-            requestPurchase({
+          onPress={() => {
+            void requestPurchase({
               request: {
                 apple: { sku: item.id },
                 google: { skus: [item.id] },
               },
               type: 'in-app',
-            })
-          }
+            }).catch((error) =>
+              console.warn('Purchase request failed:', error),
+            );
+          }}
         />
       )}
     />

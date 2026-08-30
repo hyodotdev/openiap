@@ -102,7 +102,7 @@ class HybridRnIap: HybridRnIapSpec {
                     self.isInitialized = false
                     return true
                 }
-                if isCurrent {
+                if isCurrent, !reuseExistingConnection {
                     RnIapLog.failure("initConnection", error: error)
                     let err = RnIapHelper.makePurchaseErrorResult(
                         code: .initConnection,
