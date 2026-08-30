@@ -289,15 +289,12 @@ class _StoreScreenState extends State<StoreScreen> {
 
   Future<void> _init() async {
     // Initialize connection
-    await iap.initConnection();
+    final connected = await iap.initConnection();
+    if (!connected) throw StateError('Store connection failed');
 
     // Setup listeners
-    purchaseSub = iap.purchaseUpdatedListener.listen((purchase) async {
-      // Verify the purchase (server-side), then finish it
-      await iap.finishTransaction(
-        purchase: purchase,
-        isConsumable: false, // true for consumables
-      );
+    purchaseSub = iap.purchaseUpdatedListener.listen((purchase) {
+      unawaited(_handlePurchase(purchase));
     });
 
     errorSub = iap.purchaseErrorListener.listen((error) {
@@ -306,11 +303,29 @@ class _StoreScreenState extends State<StoreScreen> {
     });
   }
 
+  Future<void> _handlePurchase(Purchase purchase) async {
+    try {
+      // Verify the purchase (server-side), then finish it
+      await iap.finishTransaction(
+        purchase: purchase,
+        isConsumable: false, // true for consumables
+      );
+    } catch (error) {
+      print('Purchase processing failed: $error');
+    }
+  }
+
   @override
   void dispose() {
-    purchaseSub?.cancel();
-    errorSub?.cancel();
-    unawaited(iap.endConnection());
+    unawaited(purchaseSub?.cancel().catchError(
+      (Object error) => print('Listener cleanup failed: $error'),
+    ));
+    unawaited(errorSub?.cancel().catchError(
+      (Object error) => print('Listener cleanup failed: $error'),
+    ));
+    unawaited(iap.endConnection().then<void>((_) {}).catchError(
+      (Object error) => print('Store teardown failed: $error'),
+    ));
     super.dispose();
   }
 

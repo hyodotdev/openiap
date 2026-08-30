@@ -45,11 +45,11 @@ function EndConnection() {
         .
       </p>
       <p>
-        <strong>React Native / Expo:</strong> cleanup after an unsuccessful
-        native teardown is platform-specific. Treat a rejection or{' '}
-        <code>false</code> as a failed teardown; when retrying, reconnect and
-        register fresh listeners instead of assuming existing listener handles
-        remain valid.
+        <strong>React Native / Expo:</strong> if native teardown throws, the
+        promise rejects without clearing the current connection or listener
+        state, so the app can retry. If teardown resolves <code>false</code>,
+        the bridge has already cleared its connection state and listeners;
+        reconnect and register fresh listeners before the next store call.
       </p>
 
       <h2>Signature</h2>

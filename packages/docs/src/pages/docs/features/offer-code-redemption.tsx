@@ -129,7 +129,8 @@ function OfferCodeRedemption() {
 let subscription: ReturnType<typeof purchaseUpdatedListener> | undefined;
 
 export async function startIap() {
-  await initConnection();
+  const connected = await initConnection();
+  if (!connected) throw new Error('Store connection failed');
   subscription = purchaseUpdatedListener((purchase) => {
     console.log('Redeemed product:', purchase.productId);
   });
@@ -153,6 +154,8 @@ export async function stopIap() {
 
 @MainActor
 final class RedemptionManager {
+    enum RedemptionError: Error { case storeConnectionFailed }
+
     private let iapStore = OpenIapStore()
 
     func start() async throws {
@@ -160,6 +163,9 @@ final class RedemptionManager {
             print("Redeemed product: \(purchase.productId)")
         }
         try await iapStore.initConnection()
+        guard iapStore.isConnected else {
+            throw RedemptionError.storeConnectionFailed
+        }
     }
 
     func redeemCode() async throws -> PurchaseIOS? {
@@ -187,7 +193,7 @@ class RedemptionManager(private val scope: CoroutineScope) {
     private var purchaseJob: Job? = null
 
     suspend fun start() {
-        iap.initConnection()
+        check(iap.initConnection()) { "Store connection failed" }
         purchaseJob = scope.launch {
             iap.purchaseUpdatedListener.collect { purchase ->
                 println("Redeemed product: " + purchase.productId)
@@ -213,7 +219,8 @@ class RedemptionManager {
   StreamSubscription<Purchase>? subscription;
 
   Future<void> start() async {
-    await iap.initConnection();
+    final connected = await iap.initConnection();
+    if (!connected) throw StateError('Store connection failed');
     subscription = iap.purchaseUpdatedListener.listen((purchase) {
       print('Redeemed product: ' + purchase.productId);
     });
@@ -240,7 +247,8 @@ public sealed class RedemptionManager : IDisposable
     {
         _purchaseSubscription = _iap.PurchaseUpdated.Subscribe(
             purchase => Console.WriteLine("Redeemed product: " + purchase.ProductId));
-        await ((MutationResolver)_iap).InitConnectionAsync();
+        var connected = await ((MutationResolver)_iap).InitConnectionAsync();
+        if (!connected) throw new InvalidOperationException("Store connection failed");
     }
 
     public Task<Purchase?> RedeemCodeAsync() =>
@@ -362,7 +370,8 @@ export async function openRedeemPage() {
 
 // Call this from the app's foreground/resume handler after the user returns.
 export async function reconcileAfterResume() {
-  await initConnection();
+  const connected = await initConnection();
+  if (!connected) throw new Error('Store connection failed');
   const purchases = await getAvailablePurchases();
 
   for (const purchase of purchases) {
@@ -441,7 +450,8 @@ Future<Purchase?> openRedeemPage() =>
 
 Future<void> reconcileAfterResume() async {
   final iap = FlutterInappPurchase.instance;
-  await iap.initConnection();
+  final connected = await iap.initConnection();
+  if (!connected) throw StateError('Store connection failed');
   final purchases = await iap.getAvailablePurchases();
 
   for (final purchase in purchases) {

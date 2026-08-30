@@ -307,6 +307,62 @@ const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
       "Flutter `finishTransaction` requires the named `purchase:` argument.",
   },
   {
+    language: "typescript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*initConnection\s*\(/m,
+    message:
+      "TypeScript examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "dart",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_$][\w$]*\.)*initConnection\s*\(/m,
+    message:
+      "Flutter examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "kotlin",
+    pattern: /(?:^|\n)\s*(?:[A-Za-z_]\w*\.)+initConnection\s*\(/m,
+    message:
+      "Kotlin and KMP examples must check the boolean returned by `initConnection` before store calls.",
+  },
+  {
+    language: "csharp",
+    pattern: /(?:^|\n)\s*await\s+[^;\n]*\.InitConnectionAsync\s*\(/m,
+    message:
+      "MAUI examples must check the boolean returned by `InitConnectionAsync` before store calls.",
+  },
+  {
+    language: "gdscript",
+    pattern: /(?:^|\n)\s*await\s+(?:[A-Za-z_]\w*\.)*init_connection\s*\(/m,
+    message:
+      "Godot examples must check the boolean returned by `init_connection` before store calls.",
+  },
+  {
+    language: "typescript",
+    pattern:
+      /\b(?:purchaseUpdatedListener|purchaseErrorListener|userChoiceBillingListenerAndroid|developerProvidedBillingListenerAndroid|subscriptionBillingIssueListener)\s*\(\s*async\b/,
+    message:
+      "TypeScript event listeners must handle asynchronous work explicitly because listener return promises are not observed.",
+  },
+  {
+    language: "typescript",
+    pattern:
+      /\b(?:onPurchaseSuccess|onPurchaseError|onError|onPromotedProductIOS|onUserChoiceBillingAndroid|onDeveloperProvidedBillingAndroid|onSubscriptionBillingIssue)\s*:\s*async\b/,
+    message:
+      "TypeScript hook callbacks must delegate asynchronous work to an explicitly handled promise.",
+  },
+  {
+    language: "dart",
+    pattern: /\.listen\s*\(\s*\([^)]*\)\s*async\b/,
+    message:
+      "Flutter stream listeners must handle asynchronous work explicitly because callback futures are not observed.",
+  },
+  {
+    language: "csharp",
+    pattern: /\.Subscribe\s*\(\s*async\b/,
+    message:
+      "MAUI observable listeners must delegate asynchronous work to a failure-handling task instead of using `async void`.",
+  },
+  {
     pattern: /OpenIapStore\.shared/,
     message:
       "Apple/native store examples must construct or inject `OpenIapStore`; no `shared` singleton exists.",

@@ -86,17 +86,22 @@ IDisposable subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroi
 } = useIAP({
   enableBillingProgramAndroid: 'billing-choice',
   billingChoiceScreenTypeAndroid: 'google-rendered',
-  onDeveloperProvidedBillingAndroid: async (details) => {
-    await processDeveloperBilling(details);
+  onDeveloperProvidedBillingAndroid: (details) => {
+    void processDeveloperBilling(details).catch((error) => {
+      console.error('Developer billing failed', error);
+    });
   },
 });`}</CodeBlock>
 
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { developerProvidedBillingListenerAndroid } from 'expo-iap';
+            <CodeBlock language="typescript">{`import {
+  developerProvidedBillingListenerAndroid,
+  type DeveloperProvidedBillingDetailsAndroid,
+} from 'expo-iap';
 
-const subscription = developerProvidedBillingListenerAndroid(async (details) => {
+async function handleDeveloperBilling(details: DeveloperProvidedBillingDetailsAndroid) {
   // Use products and linkUri to choose your in-app or external-link checkout.
   const paymentResult = await processPaymentWithYourGateway({
     products: details.products,
@@ -111,6 +116,12 @@ const subscription = developerProvidedBillingListenerAndroid(async (details) => 
     }
     grantUserAccess();
   }
+}
+
+const subscription = developerProvidedBillingListenerAndroid((details) => {
+  void handleDeveloperBilling(details).catch((error) => {
+    console.error('Developer billing failed', error);
+  });
 });
 
 // Cleanup when done
@@ -158,11 +169,11 @@ lifecycleScope.launch {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+            <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // Android only (8.3.0+) - will not fire on iOS or older Android
-final subscription = FlutterInappPurchase.instance.developerProvidedBillingAndroid
-    .listen((details) async {
+Future<void> handleDeveloperBilling(DeveloperProvidedBillingDetailsAndroid details) async {
   final paymentResult = await processPaymentWithYourGateway(
     products: details.products,
     linkUri: details.linkUri,
@@ -175,6 +186,13 @@ final subscription = FlutterInappPurchase.instance.developerProvidedBillingAndro
     }
     grantUserAccess();
   }
+}
+
+final subscription = FlutterInappPurchase.instance.developerProvidedBillingAndroid
+    .listen((details) {
+  unawaited(handleDeveloperBilling(details).catchError(
+    (Object error) => print('Developer billing failed: $error'),
+  ));
 });
 
 // Cleanup when done
@@ -184,21 +202,31 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(async details =>
+async Task HandleDeveloperBillingSafelyAsync(DeveloperProvidedBillingDetailsAndroid details)
 {
-    var paymentResult = await ProcessPaymentWithYourGatewayAsync(
-        details.Products,
-        details.LinkUri);
-
-    if (paymentResult.Success)
+    try
     {
-        if (details.ExternalTransactionToken is { Length: > 0 } token)
+        var paymentResult = await ProcessPaymentWithYourGatewayAsync(
+            details.Products,
+            details.LinkUri);
+
+        if (paymentResult.Success)
         {
-            await ReportExternalTransactionToGoogleAsync(token);
+            if (details.ExternalTransactionToken is { Length: > 0 } token)
+            {
+                await ReportExternalTransactionToGoogleAsync(token);
+            }
+            await GrantUserAccessAsync();
         }
-        await GrantUserAccessAsync();
     }
-});
+    catch (Exception error)
+    {
+        Console.WriteLine($"Developer billing failed: {error.Message}");
+    }
+}
+
+var subscription = OpenIapClient.Instance.DeveloperProvidedBillingAndroid.Subscribe(
+    details => _ = HandleDeveloperBillingSafelyAsync(details));
 
 // Cleanup when done.
 subscription.Dispose();`}</CodeBlock>

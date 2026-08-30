@@ -219,8 +219,10 @@ export default function App() {
 
 function StoreScreen() {
   const { products, fetchProducts, requestPurchase } = useIAP({
-    onPurchaseSuccess: async (purchase) => {
-      await finishTransaction({ purchase, isConsumable: false });
+    onPurchaseSuccess: (purchase) => {
+      void finishTransaction({ purchase, isConsumable: false }).catch((error) => {
+        reportPurchaseError(error);
+      });
     },
     onPurchaseError: (error) => {
       reportPurchaseError(error);

@@ -133,11 +133,15 @@ iap.set_purchase_updated_listener_options(options)`}</CodeBlock>
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`import { finishTransaction, purchaseUpdatedListener } from 'expo-iap';
+            <CodeBlock language="typescript">{`import {
+  finishTransaction,
+  purchaseUpdatedListener,
+  type Purchase,
+} from 'expo-iap';
 // Same API in react-native-iap:
 // import { finishTransaction, purchaseUpdatedListener } from 'react-native-iap';
 
-const subscription = purchaseUpdatedListener(async (purchase) => {
+async function handlePurchase(purchase: Purchase) {
   console.log('Purchase updated:', purchase.productId);
 
   // Verify with your backend or IAPKit before granting content.
@@ -150,6 +154,12 @@ const subscription = purchaseUpdatedListener(async (purchase) => {
     // Finish the transaction
     await finishTransaction({ purchase, isConsumable: false });
   }
+}
+
+const subscription = purchaseUpdatedListener((purchase) => {
+  void handlePurchase(purchase).catch((error) => {
+    console.error('Purchase processing failed', error);
+  });
 });
 
 // Cleanup when done
@@ -212,9 +222,10 @@ lifecycleScope.launch {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+            <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final subscription = FlutterInappPurchase.instance.purchaseUpdatedListener.listen((purchase) async {
+Future<void> handlePurchase(Purchase purchase) async {
   print('Purchase updated: \${purchase.productId}');
 
   // Verify with your backend or IAPKit before granting content.
@@ -227,6 +238,12 @@ final subscription = FlutterInappPurchase.instance.purchaseUpdatedListener.liste
     // Finish the transaction
     await FlutterInappPurchase.instance.finishTransaction(purchase: purchase);
   }
+}
+
+final subscription = FlutterInappPurchase.instance.purchaseUpdatedListener.listen((purchase) {
+  unawaited(handlePurchase(purchase).catchError(
+    (Object error) => print('Purchase processing failed: $error'),
+  ));
 });
 
 // Cleanup when done
@@ -236,26 +253,35 @@ subscription.cancel();`}</CodeBlock>
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purchase =>
+async Task HandlePurchaseSafelyAsync(Purchase purchase)
 {
-    if (purchase is PurchaseCommon purchaseInfo)
+    try
     {
-        Console.WriteLine($"Purchase updated: {purchaseInfo.ProductId}");
-    }
-
-    // Verify and deliver
-    if (await VerifyPurchaseOnServerAsync(purchase))
-    {
-        if (purchase is PurchaseCommon validPurchase)
+        if (purchase is PurchaseCommon purchaseInfo)
         {
-            await DeliverProductAsync(validPurchase.ProductId);
+            Console.WriteLine($"Purchase updated: {purchaseInfo.ProductId}");
         }
 
-        await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
-            new PurchaseInput(purchase),
-            isConsumable: false);
+        if (await VerifyPurchaseOnServerAsync(purchase))
+        {
+            if (purchase is PurchaseCommon validPurchase)
+            {
+                await DeliverProductAsync(validPurchase.ProductId);
+            }
+
+            await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
+                new PurchaseInput(purchase),
+                isConsumable: false);
+        }
     }
-});
+    catch (Exception error)
+    {
+        Console.WriteLine($"Purchase processing failed: {error.Message}");
+    }
+}
+
+var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(
+    purchase => _ = HandlePurchaseSafelyAsync(purchase));
 
 // Cleanup when done.
 subscription.Dispose();`}</CodeBlock>

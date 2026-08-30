@@ -216,11 +216,12 @@ scope.launch {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+            <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 // iOS only - will not fire on Android
 final iap = FlutterInappPurchase.instance;
-final subscription = iap.purchasePromoted.listen((productId) async {
+Future<void> handlePromotedProduct(String? productId) async {
   if (productId == null) return;
   try {
     print('Promoted product tapped: $productId');
@@ -254,6 +255,10 @@ final subscription = iap.purchasePromoted.listen((productId) async {
   } catch (error) {
     print('Promoted purchase failed: $error');
   }
+}
+
+final subscription = iap.purchasePromoted.listen((productId) {
+  unawaited(handlePromotedProduct(productId));
 });
 
 // Cleanup when done

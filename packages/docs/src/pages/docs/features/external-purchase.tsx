@@ -1049,8 +1049,7 @@ const connected = await initConnection({ enableBillingProgramAndroid: 'external-
 if (!connected) throw new Error('Store connection failed');
 
 // Step 1: Set up listener for when user selects developer billing
-const developerBillingSubscription = developerProvidedBillingListenerAndroid(
-  async (details: DeveloperProvidedBillingDetailsAndroid) => {
+async function handleDeveloperBilling(details: DeveloperProvidedBillingDetailsAndroid) {
     console.log('User selected developer billing');
     console.log('External transaction token received; send it to your backend without logging it.');
 
@@ -1076,6 +1075,11 @@ const developerBillingSubscription = developerProvidedBillingListenerAndroid(
     } catch (error) {
       console.error('External payment error:', error);
     }
+}
+
+const developerBillingSubscription = developerProvidedBillingListenerAndroid(
+  (details) => {
+    void handleDeveloperBilling(details);
   }
 );
 
@@ -1249,7 +1253,8 @@ suspend fun handlePurchaseWithExternalPayments(productId: String) {
 }`}</CodeBlock>
                     ),
                     dart: (
-                      <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
+                      <CodeBlock language="dart">{`import 'dart:async';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalPayments,
@@ -1257,7 +1262,7 @@ final connected = await FlutterInappPurchase.instance.initConnection(
 if (!connected) throw StateError('Store connection failed');
 
 // Step 1: Set up listener for when user selects developer billing
-FlutterInappPurchase.instance.developerProvidedBillingAndroid.listen((details) async {
+Future<void> handleDeveloperBilling(DeveloperProvidedBillingDetailsAndroid details) async {
   print('User selected developer billing');
   print('External transaction token received; send it to your backend without logging it.');
 
@@ -1283,6 +1288,10 @@ FlutterInappPurchase.instance.developerProvidedBillingAndroid.listen((details) a
   } catch (e) {
     print('External payment error: \$e');
   }
+}
+
+FlutterInappPurchase.instance.developerProvidedBillingAndroid.listen((details) {
+  unawaited(handleDeveloperBilling(details));
 });
 
 // Purchase flow with External Payments

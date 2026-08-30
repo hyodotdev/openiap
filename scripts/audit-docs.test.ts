@@ -286,6 +286,44 @@ describe("active docs code-example audit", () => {
     expect(auditActiveCodeExampleSource("/tmp/active.tsx", source)).toEqual([]);
   });
 
+  test("flags unchecked connections and unobserved async listeners", () => {
+    const source = [
+      '<CodeBlock language="typescript">{`await initConnection(); purchaseUpdatedListener(async (purchase) => finish(purchase)); useIAP({ onPurchaseSuccess: async (purchase) => finish(purchase) });`}</CodeBlock>',
+      '<CodeBlock language="dart">{`await iap.initConnection(); iap.purchaseUpdatedListener.listen((purchase) async { await finish(purchase); });`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`store.initConnection(null)`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`await mutation.InitConnectionAsync(); stream.Subscribe(async purchase => await FinishAsync(purchase));`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`await iap.init_connection()`}</CodeBlock>',
+    ].join("\n");
+
+    expect(
+      auditActiveCodeExampleSource("/tmp/active.tsx", source).map(
+        (drift) => drift.message,
+      ),
+    ).toEqual([
+      expect.stringContaining("TypeScript examples must check"),
+      expect.stringContaining("TypeScript event listeners"),
+      expect.stringContaining("TypeScript hook callbacks"),
+      expect.stringContaining("Flutter examples must check"),
+      expect.stringContaining("Flutter stream listeners"),
+      expect.stringContaining("Kotlin and KMP examples must check"),
+      expect.stringContaining("MAUI examples must check"),
+      expect.stringContaining("MAUI observable listeners"),
+      expect.stringContaining("Godot examples must check"),
+    ]);
+  });
+
+  test("accepts checked connections and failure-handling listeners", () => {
+    const source = [
+      '<CodeBlock language="typescript">{`const connected = await initConnection(); purchaseUpdatedListener((purchase) => { void finish(purchase).catch(onError); }); useIAP({ onPurchaseSuccess: (purchase) => { void finish(purchase).catch(onError); } });`}</CodeBlock>',
+      '<CodeBlock language="dart">{`final connected = await iap.initConnection(); iap.purchaseUpdatedListener.listen((purchase) { unawaited(finish(purchase).catchError(onError)); });`}</CodeBlock>',
+      '<CodeBlock language="kotlin">{`check(store.initConnection(null))`}</CodeBlock>',
+      '<CodeBlock language="csharp">{`var connected = await mutation.InitConnectionAsync(); stream.Subscribe(purchase => _ = FinishSafelyAsync(purchase));`}</CodeBlock>',
+      '<CodeBlock language="gdscript">{`if not await iap.init_connection(): return`}</CodeBlock>',
+    ].join("\n");
+
+    expect(auditActiveCodeExampleSource("/tmp/active.tsx", source)).toEqual([]);
+  });
+
   test("audits formatted multiline CodeBlock children", () => {
     const source = `<CodeBlock language="dart">
       {\`iap.purchaseUpdatedStream.listen(onPurchase);\`}
