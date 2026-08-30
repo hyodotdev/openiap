@@ -109,10 +109,10 @@ internal fun rejectDisconnectedPurchase(
 internal suspend fun endRnConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
-): Boolean = try {
-    endConnection()
-} finally {
+): Boolean {
+    val result = endConnection()
     cleanup()
+    return result
 }
 
 /**

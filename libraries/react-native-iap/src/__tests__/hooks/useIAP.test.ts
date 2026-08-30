@@ -580,9 +580,6 @@ describe('hooks/useIAP (renderer)', () => {
   });
 
   it('surfaces the native error when fetching while disconnected', async () => {
-    // Counterpart to the test above. Android rejects with not-prepared until
-    // initConnection has run; the caller must learn that rather than get a
-    // silently empty result.
     const notConnected = new Error('Billing client not ready');
     jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
     mockFetchProducts.mockRejectedValueOnce(notConnected);
