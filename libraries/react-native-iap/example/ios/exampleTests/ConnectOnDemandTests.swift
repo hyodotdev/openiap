@@ -50,25 +50,6 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.endConnection().await()
     }
 
-    func testEndFailureDoesNotRunConnectionCleanup() async {
-        enum TeardownFailure: Error {
-            case failed
-        }
-        var cleanedUp = false
-
-        do {
-            _ = try await endConnectionThenCleanup(
-                endConnection: { throw TeardownFailure.failed },
-                cleanup: { cleanedUp = true }
-            )
-            XCTFail("expected teardown failure")
-        } catch TeardownFailure.failed {
-            XCTAssertFalse(cleanedUp)
-        } catch {
-            XCTFail("unexpected error: \(error)")
-        }
-    }
-
     func testQueuedTeardownPreventsLateStoreDelegation() async throws {
         let hybrid = HybridRnIap()
         let connected = try await hybrid.initConnection(config: nil).await()
@@ -120,6 +101,156 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertEqual(probe.events, ["delivery", "end"])
     }
 
+    func testFailedTeardownPreservesListenerDeliveryAcrossReconnect() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: nil
+        )
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+        let subscriptionBeforeFailure = try XCTUnwrap(inspectPurchaseUpdatedSub(hybrid))
+        let teardownFailure = NSError(domain: "ConnectOnDemandTests", code: 1)
+
+        let failedEnd = hybrid.enqueueEndOperation { throw teardownFailure }
+        do {
+            _ = try await failedEnd.value
+            XCTFail("the injected teardown failure must be preserved")
+        } catch {
+            XCTAssertEqual((error as NSError).domain, teardownFailure.domain)
+            XCTAssertEqual((error as NSError).code, teardownFailure.code)
+        }
+
+        XCTAssertTrue(inspectInitialized(hybrid))
+        XCTAssertEqual(inspectPurchaseUpdatedListeners(hybrid).count, 1)
+        let reconnected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(reconnected)
+        let subscriptionAfterReconnect = try XCTUnwrap(inspectPurchaseUpdatedSub(hybrid))
+        XCTAssertEqual(
+            ObjectIdentifier(subscriptionAfterReconnect as AnyObject),
+            ObjectIdentifier(subscriptionBeforeFailure as AnyObject)
+        )
+
+        let purchase = RnIapHelper.convertPurchaseDictionary([
+            "id": "preserved-transaction",
+            "transactionId": "preserved-transaction",
+            "productId": "premium",
+            "transactionDate": 1,
+            "store": "apple",
+            "quantity": 1,
+            "purchaseState": "purchased",
+            "isAutoRenewing": false
+        ])
+        inspectPurchaseUpdatedListeners(hybrid).first?(purchase)
+        XCTAssertEqual(probe.events, ["preserved-transaction"])
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testReturnedPurchaseReachesNonDedupingListenerBeforeTeardown() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: PurchaseUpdatedListenerOptions(
+                dedupeTransactionIOS: .second(false)
+            )
+        )
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+        let purchase = try makePurchase(id: "returned-transaction")
+
+        _ = try await hybrid.runRequestPurchaseOperation {
+            .purchase(purchase)
+        }
+        XCTAssertEqual(probe.events, ["returned-transaction"])
+
+        let epoch = hybrid.currentConnectionEpoch()
+        let originalCallback = hybrid.enqueuePurchaseUpdateDelivery(
+            purchase,
+            expectedEpoch: epoch,
+            includeDuplicateListeners: true
+        )
+        _ = try await originalCallback.value
+        XCTAssertEqual(
+            probe.events,
+            ["returned-transaction"],
+            "the asynchronous callback for the returned purchase must be suppressed once"
+        )
+        let replay = hybrid.enqueuePurchaseUpdateDelivery(
+            purchase,
+            expectedEpoch: epoch,
+            includeDuplicateListeners: true
+        )
+        _ = try await replay.value
+        XCTAssertEqual(
+            probe.events,
+            ["returned-transaction", "returned-transaction"],
+            "later StoreKit replays must still reach non-deduping listeners"
+        )
+
+        _ = try await hybrid.endConnection().await()
+    }
+
+    func testNativeCallbackQueuedDuringRequestDoesNotDuplicateFallback() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        _ = try hybrid.addPurchaseUpdatedListener(
+            listener: { purchase in probe.record(purchase.id) },
+            options: nil
+        )
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+        let purchase = try makePurchase(id: "native-winner")
+        let epoch = hybrid.currentConnectionEpoch()
+        let holder = DeliveryTaskHolder()
+
+        _ = try await hybrid.runRequestPurchaseOperation {
+            let delivery = hybrid.enqueuePurchaseUpdateDelivery(
+                purchase,
+                expectedEpoch: epoch,
+                includeDuplicateListeners: false
+            )
+            await holder.set(delivery)
+            return .purchase(purchase)
+        }
+        let heldTask = await holder.task
+        let queuedDelivery = try XCTUnwrap(heldTask)
+        _ = try await queuedDelivery.value
+        let endPromise = try hybrid.endConnection()
+        _ = try await endPromise.await()
+        probe.record("end")
+        XCTAssertEqual(probe.events, ["native-winner", "end"])
+    }
+
+    func testPurchaseErrorReachesListenerBeforeTeardown() async throws {
+        let hybrid = HybridRnIap()
+        let probe = EventProbe()
+        try hybrid.addPurchaseErrorListener { error in
+            probe.record(error.code)
+        }
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+        let purchaseError = PurchaseError.make(
+            code: .userCancelled,
+            productId: "premium",
+            message: "cancelled"
+        )
+
+        do {
+            _ = try await hybrid.runRequestPurchaseOperation {
+                throw purchaseError
+            }
+            XCTFail("the injected purchase error must be preserved")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .userCancelled)
+        }
+
+        _ = try await hybrid.endConnection().await()
+        XCTAssertEqual(probe.events, [ErrorCode.userCancelled.rawValue])
+    }
+
     func testConnectionRequiringCallsUseBridgeOwnedOperations() throws {
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -130,7 +261,6 @@ final class ConnectOnDemandTests: XCTestCase {
         let source = try String(contentsOf: sourceURL, encoding: .utf8)
         let guardedMethods = [
             "fetchProducts",
-            "requestPurchase",
             "getAvailablePurchases",
             "getActiveSubscriptions",
             "hasActiveSubscriptions",
@@ -172,24 +302,33 @@ final class ConnectOnDemandTests: XCTestCase {
             )
         }
 
-        let requestPurchaseBody = String(try methodBody("requestPurchase", in: source))
-        let operationBody = try closureBody(
-            after: "runConnectedOperation",
-            in: requestPurchaseBody
+        let requestPurchaseBody = try methodBody("requestPurchase", in: source)
+        XCTAssertTrue(requestPurchaseBody.contains("runRequestPurchaseOperation"))
+        let requestOperationBody = try methodBody(
+            "runRequestPurchaseOperation",
+            in: source
         )
-        let nativeRequest = try XCTUnwrap(
-            operationBody.range(of: "OpenIapModule.shared.requestPurchase")
+        XCTAssertTrue(requestOperationBody.contains("runConnectedOperation"))
+        let nativeResult = try XCTUnwrap(
+            requestOperationBody.range(of: "let result = try await operation()")
         )
         let delivery = try XCTUnwrap(
-            operationBody.range(
+            requestOperationBody.range(
                 of: "deliverRequestPurchaseResultIfNeeded",
-                range: nativeRequest.upperBound..<operationBody.endIndex
+                range: nativeResult.upperBound..<requestOperationBody.endIndex
             )
         )
         XCTAssertLessThan(
-            operationBody.distance(from: operationBody.startIndex, to: nativeRequest.lowerBound),
-            operationBody.distance(from: operationBody.startIndex, to: delivery.lowerBound)
+            requestOperationBody.distance(
+                from: requestOperationBody.startIndex,
+                to: nativeResult.lowerBound
+            ),
+            requestOperationBody.distance(
+                from: requestOperationBody.startIndex,
+                to: delivery.lowerBound
+            )
         )
+        XCTAssertTrue(requestOperationBody.contains("deliverRequestPurchaseError"))
     }
 
     // MARK: - Private reflection helpers
@@ -210,11 +349,51 @@ final class ConnectOnDemandTests: XCTestCase {
         childValue(hybrid, label: "isInitialized") as? Bool ?? false
     }
 
+    private func inspectPurchaseUpdatedSub(_ hybrid: HybridRnIap) -> Any? {
+        guard let child = childValue(hybrid, label: "purchaseUpdatedSub") else {
+            XCTFail("HybridRnIap no longer exposes purchaseUpdatedSub — test needs update")
+            return nil
+        }
+        let mirror = Mirror(reflecting: child)
+        if mirror.displayStyle == .optional {
+            return mirror.children.first?.value
+        }
+        return child
+    }
+
+    private func inspectPurchaseUpdatedListeners(
+        _ hybrid: HybridRnIap
+    ) -> [(NitroPurchase) -> Void] {
+        guard let registrations = childValue(
+            hybrid,
+            label: "purchaseUpdatedListeners"
+        ) as? [(token: Double, listener: (NitroPurchase) -> Void)] else {
+            XCTFail("HybridRnIap no longer exposes purchaseUpdatedListeners — test needs update")
+            return []
+        }
+        return registrations.map { $0.listener }
+    }
+
     private func childValue(_ object: Any, label: String) -> Any? {
         Mirror(reflecting: object)
             .children
             .first { $0.label == label }?
             .value
+    }
+
+    private func makePurchase(id: String) throws -> OpenIAP.Purchase {
+        let data = try JSONSerialization.data(withJSONObject: [
+            "id": id,
+            "isAutoRenewing": false,
+            "productId": "premium",
+            "purchaseState": "purchased",
+            "quantity": 1,
+            "store": "apple",
+            "transactionDate": 1,
+            "transactionId": id
+        ])
+        let purchase = try JSONDecoder().decode(OpenIAP.PurchaseIOS.self, from: data)
+        return .purchaseIos(purchase)
     }
 
     private func methodBody(_ name: String, in source: String) throws -> Substring {
@@ -274,6 +453,14 @@ final class ConnectOnDemandTests: XCTestCase {
         func release() {
             continuation?.resume()
             continuation = nil
+        }
+    }
+
+    private actor DeliveryTaskHolder {
+        private(set) var task: Task<Void, Error>?
+
+        func set(_ task: Task<Void, Error>) {
+            self.task = task
         }
     }
 
