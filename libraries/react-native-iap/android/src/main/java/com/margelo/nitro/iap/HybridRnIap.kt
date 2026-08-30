@@ -705,6 +705,14 @@ class HybridRnIap : HybridRnIapSpec() {
                 defaultResult
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OpenIapError) {
+                // Report the store's own reason — a purchase attempted with no
+                // connection is not a purchase failure.
+                RnIapLog.failure("requestPurchase", e)
+                if (!reachedOpenIapRequest) {
+                    sendPurchaseError(toErrorResult(error = e, debugMessage = e.message))
+                }
+                defaultResult
             } catch (e: Exception) {
                 RnIapLog.failure("requestPurchase", e)
                 if (!reachedOpenIapRequest) {

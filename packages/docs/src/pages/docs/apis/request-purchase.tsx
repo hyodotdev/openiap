@@ -119,6 +119,19 @@ type RequestPurchaseProps =
         }}
       </LanguageTabs>
 
+      <Callout kind="important" title="Requires an open connection">
+        <p>
+          Call{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection()</code>
+          </Link>{' '}
+          first. On Android a purchase started without it is rejected with{' '}
+          <code>not-prepared</code>; iOS connects on demand. Gate the buy
+          control on the <code>connected</code> flag so the same code works on
+          both.
+        </p>
+      </Callout>
+
       <AnchorLink id="parameters" level="h2">
         Parameters
       </AnchorLink>
@@ -281,7 +294,7 @@ await requestPurchase({
 import { useIAP } from 'expo-iap';
 
 function BuyButton({ sku }: { sku: string }) {
-  const { requestPurchase } = useIAP({
+  const { connected, requestPurchase } = useIAP({
     onPurchaseSuccess: async (purchase) => {
       // verify + finishTransaction here
     },
@@ -293,6 +306,7 @@ function BuyButton({ sku }: { sku: string }) {
   return (
     <Button
       title="Buy"
+      disabled={!connected}
       onPress={() =>
         requestPurchase({
           request: { apple: { sku }, google: { skus: [sku] } },

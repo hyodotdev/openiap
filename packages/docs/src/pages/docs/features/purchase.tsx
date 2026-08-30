@@ -449,11 +449,12 @@ await purchaseProduct('com.app.coins_100');
 import { useIAP } from 'expo-iap';
 
 function BuyButton({ productId }: { productId: string }) {
-  const { requestPurchase } = useIAP();
+  const { connected, requestPurchase } = useIAP();
 
   return (
     <Button
       title="Buy"
+      disabled={!connected}
       onPress={() =>
         requestPurchase({
           request: {
