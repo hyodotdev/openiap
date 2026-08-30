@@ -32,14 +32,16 @@ class TokenizedListenerRegistryTest {
     }
 
     @Test
-    fun `clear removes all listeners and resets token allocation`() {
+    fun `stale remover cannot remove a listener added after clear`() {
         val registry = TokenizedListenerRegistry<() -> Unit>()
-        registry.add { }
+        val staleToken = registry.add { }
         registry.add { }
 
         registry.clear()
+        val activeToken = registry.add { }
 
-        assertFalse(registry.isNotEmpty())
-        assertEquals(1.0, registry.add { }, 0.0)
+        assertEquals(3.0, activeToken, 0.0)
+        assertFalse(registry.remove(staleToken))
+        assertTrue(registry.isNotEmpty())
     }
 }
