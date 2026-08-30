@@ -102,6 +102,8 @@ describe("generated LLM references", () => {
     expect(reactNativeExpo?.match(/\bfetchProducts\s*\(/g)).toHaveLength(1);
     expect(reactNativeExpo).toContain("disabled={!connected}");
     expect(onPressBody).toContain("void requestPurchase({");
+    expect(onPressBody).toContain("}).catch((error) => {");
+    expect(onPressBody).toContain("Purchase dispatch failed:");
   });
 
   test("documents every Android production source set", () => {

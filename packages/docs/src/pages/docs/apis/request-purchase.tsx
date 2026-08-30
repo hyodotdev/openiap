@@ -307,6 +307,8 @@ function BuyButton({ sku }: { sku: string }) {
         void requestPurchase({
           request: { apple: { sku }, google: { skus: [sku] } },
           type: 'in-app',
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed', error);
         });
       }}
     />

@@ -526,6 +526,8 @@ function PremiumButton() {
         void requestPurchase({
           request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
           type: 'in-app',
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed:', error);
         });
       }}
     />

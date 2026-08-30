@@ -113,7 +113,9 @@ type UseIap = {
    *
    * useEffect(() => {
    *   if (!connected) return;
-   *   void getAvailablePurchases();
+   *   void getAvailablePurchases().catch((error) => {
+   *     console.warn('Purchase restore failed', error);
+   *   });
    * }, [connected, getAvailablePurchases]);
    *
    * useEffect(() => {
@@ -147,6 +149,8 @@ type UseIap = {
    *   void fetchProducts({
    *     skus: ['com.app.coins_100', 'com.app.premium'],
    *     type: 'in-app',
+   *   }).catch((error) => {
+   *     console.warn('Product fetch failed', error);
    *   });
    * }, [connected, fetchProducts]);
    *

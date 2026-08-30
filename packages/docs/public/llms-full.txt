@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-30T11:49:44.645Z
+> Generated: 2026-08-30T12:28:16.430Z
 
 ## Table of Contents
 1. Installation
@@ -261,6 +261,8 @@ function PremiumButton() {
         void requestPurchase({
           request: { apple: { sku: 'premium' }, google: { skus: ['premium'] } },
           type: 'in-app',
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed:', error);
         });
       }}
     />

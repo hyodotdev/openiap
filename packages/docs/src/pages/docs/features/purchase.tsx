@@ -462,6 +462,8 @@ function BuyButton({ productId }: { productId: string }) {
             google: { skus: [productId] },
           },
           type: 'in-app',
+        }).catch((error) => {
+          console.warn('Purchase dispatch failed', error);
         });
       }}
     />
@@ -1488,7 +1490,8 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
     let errorSub: ReturnType<typeof purchaseErrorListener>;
 
     const init = async () => {
-      await initConnection();
+      const connected = await initConnection();
+      if (!connected) return;
 
       // Fetch products
       const items = await fetchProducts({
@@ -1502,12 +1505,16 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
       errorSub = purchaseErrorListener(handleError);
     };
 
-    void init();
+    void init().catch((error) => {
+      console.warn('Store initialization failed:', error);
+    });
 
     return () => {
       purchaseSub?.remove();
       errorSub?.remove();
-      void endConnection();
+      void endConnection().catch((error) => {
+        console.warn('Store teardown failed:', error);
+      });
     };
   }, [handlePurchase, handleError]);
 
