@@ -38,6 +38,7 @@ class TokenizedListenerRegistryTest {
         registry.add { }
 
         registry.clear()
+        assertFalse(registry.isNotEmpty())
         val activeToken = registry.add { }
 
         assertEquals(3.0, activeToken, 0.0)
