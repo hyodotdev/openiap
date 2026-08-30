@@ -108,13 +108,16 @@ function App() {
 
     const init = async () => {
       // 1. Initialize connection first
-      await initConnection();
+      const connected = await initConnection();
+      if (!connected) throw new Error('Store connection failed');
 
       // 2. Setup purchase success listener
       purchaseUpdateSubscription = purchaseUpdatedListener((purchase) => {
         console.log('Purchase received:', purchase.productId);
         // Handle the purchase (verify + finish)
-        void handlePurchase(purchase);
+        void handlePurchase(purchase).catch((error) => {
+          console.warn('Purchase processing failed:', error);
+        });
       });
 
       // 3. Setup error listener
@@ -124,13 +127,17 @@ function App() {
       });
     };
 
-    void init();
+    void init().catch((error) => {
+      console.warn('Store initialization failed:', error);
+    });
 
     // Cleanup on unmount
     return () => {
       purchaseUpdateSubscription?.remove();
       purchaseErrorSubscription?.remove();
-      void endConnection();
+      void endConnection().catch((error) => {
+        console.warn('Store teardown failed:', error);
+      });
     };
   }, []);
 
@@ -145,7 +152,9 @@ import { useIAP } from 'expo-iap';
 function AppWithHook() {
   useIAP({
     onPurchaseSuccess: (purchase) => {
-      void handlePurchase(purchase);
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Purchase processing failed:', error);
+      });
     },
     onPurchaseError: (error) => {
       handlePurchaseError(error);
@@ -1503,7 +1512,11 @@ function PurchaseProvider({ children }: { children: React.ReactNode }) {
       setProducts((items ?? []) as Product[]);
 
       // Setup listeners
-      purchaseSub = purchaseUpdatedListener((p) => void handlePurchase(p));
+      purchaseSub = purchaseUpdatedListener((purchase) => {
+        void handlePurchase(purchase).catch((error) => {
+          console.warn('Purchase processing failed:', error);
+        });
+      });
       errorSub = purchaseErrorListener(handleError);
     };
 
@@ -2177,7 +2190,9 @@ useEffect(() => {
     await checkPendingPurchases();
   };
 
-  void init();
+  void init().catch((error) => {
+    console.warn('Pending purchase initialization failed:', error);
+  });
 }, []);
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
@@ -2188,7 +2203,11 @@ import { useIAP } from 'expo-iap';
 
 function PendingPurchaseHandler() {
   const { connected, availablePurchases, getAvailablePurchases } = useIAP({
-    onPurchaseSuccess: (purchase) => void handlePurchase(purchase),
+    onPurchaseSuccess: (purchase) => {
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Pending purchase processing failed:', error);
+      });
+    },
   });
 
   useEffect(() => {
@@ -2199,7 +2218,11 @@ function PendingPurchaseHandler() {
   }, [connected, getAvailablePurchases]);
 
   useEffect(() => {
-    availablePurchases.forEach((purchase) => void handlePurchase(purchase));
+    availablePurchases.forEach((purchase) => {
+      void handlePurchase(purchase).catch((error) => {
+        console.warn('Pending purchase processing failed:', error);
+      });
+    });
   }, [availablePurchases]);
 
   return null;

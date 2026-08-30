@@ -207,29 +207,32 @@ if not success:
 } from 'expo-iap';
 
 // Step 1: Set up listener for when user selects alternative billing
-const userChoiceSubscription = userChoiceBillingListenerAndroid(async (details) => {
-  console.log('User chose alternative billing');
-  const products = details.products ?? [];
-  for (const productId of products) {
-    console.log('Product:', productId);
-  }
-  console.log('External transaction token received; send it to your backend without logging it.');
+const userChoiceSubscription = userChoiceBillingListenerAndroid((details) => {
+  void (async () => {
+    console.log('User chose alternative billing');
+    const products = details.products ?? [];
+    for (const productId of products) {
+      console.log('Product:', productId);
+    }
+    console.log('External transaction token received; send it to your backend without logging it.');
 
-  // Process payment with your backend using the token
-  const paymentResult = await yourBackend.processPayment({
-    products,
-    token: details.externalTransactionToken,
-  });
+    // Process payment with your backend using the token
+    const paymentResult = await yourBackend.processPayment({
+      products,
+      token: details.externalTransactionToken,
+    });
 
-  if (paymentResult.success) {
-    grantUserAccess();
-  }
+    if (paymentResult.success) {
+      grantUserAccess();
+    }
+  })().catch((error) => console.warn('Alternative payment failed:', error));
 });
 
 // Step 2: Initialize with user choice billing (recommended)
-await initConnection({
+const connected = await initConnection({
   enableBillingProgramAndroid: 'user-choice-billing',
 });
+if (!connected) throw new Error('Store connection failed');
 
 // Step 3: Fetch products and purchase as normal
 const products = await fetchProducts({
@@ -283,11 +286,12 @@ val userChoiceListener = object : OpenIapUserChoiceBillingListener {
 iapStore.addUserChoiceBillingListener(userChoiceListener)
 
 // Step 2: Initialize with user choice billing (recommended)
-iapStore.initConnection(
+val connected = iapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling
     )
 )
+check(connected) { "Store connection failed" }
 
 // Step 3: Fetch products and purchase as normal
 val products = iapStore.fetchProducts(
@@ -344,9 +348,10 @@ final userChoiceSubscription = FlutterInappPurchase.instance.userChoiceBillingAn
 });
 
 // Step 2: Initialize with user choice billing (recommended)
-await FlutterInappPurchase.instance.initConnection(
+final connected = await FlutterInappPurchase.instance.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.UserChoiceBilling,
 );
+if (!connected) throw StateError('Store connection failed');
 
 // Step 3: Fetch products and purchase as normal
 final products = await FlutterInappPurchase.instance
@@ -393,10 +398,11 @@ var userChoiceSubscription = OpenIapClient.Instance.UserChoiceBillingAndroid.Sub
 });
 
 // Step 2: Initialize with user choice billing (recommended).
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.UserChoiceBilling,
 });
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 // Step 3: Fetch products and purchase as normal.
 await ((QueryResolver)OpenIapClient.Instance).FetchProductsAsync(new ProductRequest
@@ -445,7 +451,10 @@ iap.user_choice_billing_android.connect(_on_user_choice_billing)
 # Step 2: Initialize with user choice billing (recommended)
 var config = InitConnectionConfig.new()
 config.enable_billing_program_android = BillingProgramAndroid.USER_CHOICE_BILLING
-await iap.init_connection(config)
+var connected = await iap.init_connection(config)
+if not connected:
+    push_error("Store connection failed")
+    return
 
 # Step 3: Fetch products and purchase as normal
 var request = ProductRequest.new()
@@ -492,9 +501,10 @@ func _exit_tree() -> void:
 } from 'expo-iap';
 
 // Step 1: Initialize with external offer (recommended)
-await initConnection({
+const connected = await initConnection({
   enableBillingProgramAndroid: 'external-offer',
 });
+if (!connected) throw new Error('Store connection failed');
 
 // Step 2: Check if alternative billing is available
 const availability = await isBillingProgramAvailableAndroid('external-offer');
@@ -541,11 +551,12 @@ import dev.hyo.openiap.store.OpenIapStore
 val iapStore = OpenIapStore(context)
 
 // Step 1: Initialize with external offer (recommended)
-iapStore.initConnection(
+val connected = iapStore.initConnection(
     InitConnectionConfig(
         enableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer
     )
 )
+check(connected) { "Store connection failed" }
 
 // Step 2: Check whether External Offer is available for this user.
 val availability = iapStore.isBillingProgramAvailable(
@@ -605,9 +616,10 @@ lifecycleScope.launch {
 final iap = FlutterInappPurchase.instance;
 
 // Step 1: Initialize with external offer (recommended)
-await iap.initConnection(
+final connected = await iap.initConnection(
   enableBillingProgramAndroid: BillingProgramAndroid.ExternalOffer,
 );
+if (!connected) throw StateError('Store connection failed');
 
 // Step 2: Check whether External Offer is available for this user.
 final availability = await iap.isBillingProgramAvailableAndroid(
@@ -656,10 +668,11 @@ using OpenIap.Maui;
 using System.Linq;
 
 // Step 1: Initialize with external offer (recommended).
-await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
+var connected = await ((MutationResolver)OpenIapClient.Instance).InitConnectionAsync(new InitConnectionConfig
 {
     EnableBillingProgramAndroid = BillingProgramAndroid.ExternalOffer,
 });
+if (!connected) throw new InvalidOperationException("Store connection failed");
 
 var mutate = (MutationResolver)OpenIapClient.Instance;
 
@@ -715,7 +728,10 @@ if (paymentResult.Success)
               <CodeBlock language="gdscript">{`# Step 1: Initialize with external offer (recommended)
 var config = InitConnectionConfig.new()
 config.enable_billing_program_android = BillingProgramAndroid.EXTERNAL_OFFER
-await iap.init_connection(config)
+var connected = await iap.init_connection(config)
+if not connected:
+    push_error("Store connection failed")
+    return
 
 # Step 2: Check whether External Offer is available for this user.
 var availability = await iap.is_billing_program_available_android(

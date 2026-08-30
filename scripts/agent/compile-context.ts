@@ -708,13 +708,13 @@ ${deprecationMigrationReference}
 
 ### Connection
 \`\`\`typescript
-// Initialize (required before any operation)
-await initConnection();
+// Choose one call: remove the config for a standard connection.
+const connected = await initConnection({
+  enableBillingProgramAndroid: 'user-choice-billing',
+});
+if (!connected) throw new Error('Store connection failed');
 
-// With a billing program (Android)
-await initConnection({ enableBillingProgramAndroid: 'user-choice-billing' });
-
-// Cleanup on unmount
+// Cleanup at the connection owner's teardown boundary.
 await endConnection();
 \`\`\`
 

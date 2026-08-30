@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-30T14:04:15.487Z
+> Generated: 2026-08-30T14:13:22.229Z
 
 ## Installation
 
@@ -91,13 +91,13 @@ Current NuGet package version: 2.4.1
 
 ### Connection
 ```typescript
-// Initialize (required before any operation)
-await initConnection();
+// Choose one call: remove the config for a standard connection.
+const connected = await initConnection({
+  enableBillingProgramAndroid: 'user-choice-billing',
+});
+if (!connected) throw new Error('Store connection failed');
 
-// With a billing program (Android)
-await initConnection({ enableBillingProgramAndroid: 'user-choice-billing' });
-
-// Cleanup on unmount
+// Cleanup at the connection owner's teardown boundary.
 await endConnection();
 ```
 
