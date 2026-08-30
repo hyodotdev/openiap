@@ -82,6 +82,34 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertFalse(probe.wasDelegated)
     }
 
+    func testTeardownWaitsForConnectedOperationDelivery() async throws {
+        let hybrid = HybridRnIap()
+        let connected = try await hybrid.initConnection(config: nil).await()
+        XCTAssertTrue(connected)
+        let gate = DeliveryGate()
+        let probe = EventProbe()
+
+        let operation = hybrid.enqueueConnectedOperation {
+            await gate.waitUntilReleased()
+            probe.record("delivery")
+            return true
+        }
+        while !(await gate.hasStarted) {
+            await Task.yield()
+        }
+
+        let endPromise = try hybrid.endConnection()
+        let endTask = Task {
+            _ = try await endPromise.await()
+            probe.record("end")
+        }
+        await gate.release()
+
+        _ = try await operation.value
+        try await endTask.value
+        XCTAssertEqual(probe.events, ["delivery", "end"])
+    }
+
     func testConnectionRequiringCallsUseBridgeOwnedOperations() throws {
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -133,6 +161,25 @@ final class ConnectOnDemandTests: XCTestCase {
                 "\(method) must not delegate around the bridge lifecycle queue"
             )
         }
+
+        let requestPurchaseBody = String(try methodBody("requestPurchase", in: source))
+        let operationBody = try closureBody(
+            after: "runConnectedOperation",
+            in: requestPurchaseBody
+        )
+        let nativeRequest = try XCTUnwrap(
+            operationBody.range(of: "OpenIapModule.shared.requestPurchase")
+        )
+        let delivery = try XCTUnwrap(
+            operationBody.range(
+                of: "deliverRequestPurchaseResultIfNeeded",
+                range: nativeRequest.upperBound..<operationBody.endIndex
+            )
+        )
+        XCTAssertLessThan(
+            operationBody.distance(from: operationBody.startIndex, to: nativeRequest.lowerBound),
+            operationBody.distance(from: operationBody.startIndex, to: delivery.lowerBound)
+        )
     }
 
     // MARK: - Private reflection helpers
@@ -161,9 +208,13 @@ final class ConnectOnDemandTests: XCTestCase {
     }
 
     private func methodBody(_ name: String, in source: String) throws -> Substring {
-        let start = try XCTUnwrap(source.range(of: "    func \(name)"))
+        try closureBody(after: "    func \(name)", in: source)
+    }
+
+    private func closureBody(after marker: String, in source: String) throws -> Substring {
+        let markerRange = try XCTUnwrap(source.range(of: marker))
         let openingBrace = try XCTUnwrap(
-            source.range(of: "{", range: start.upperBound..<source.endIndex)
+            source.range(of: "{", range: markerRange.upperBound..<source.endIndex)
         )
         var depth = 0
         var index = openingBrace.lowerBound
@@ -174,14 +225,14 @@ final class ConnectOnDemandTests: XCTestCase {
             case "}":
                 depth -= 1
                 if depth == 0 {
-                    return source[start.lowerBound...index]
+                    return source[openingBrace.lowerBound...index]
                 }
             default:
                 break
             }
             index = source.index(after: index)
         }
-        throw NSError(domain: "ConnectOnDemandTests", code: 1)
+        throw NSError(domain: "ConnectOnDemandTests", code: 2)
     }
 
     private final class DelegationProbe: @unchecked Sendable {
@@ -197,6 +248,38 @@ final class ConnectOnDemandTests: XCTestCase {
         func markDelegated() {
             lock.lock()
             delegated = true
+            lock.unlock()
+        }
+    }
+
+    private actor DeliveryGate {
+        private(set) var hasStarted = false
+        private var continuation: CheckedContinuation<Void, Never>?
+
+        func waitUntilReleased() async {
+            hasStarted = true
+            await withCheckedContinuation { continuation = $0 }
+        }
+
+        func release() {
+            continuation?.resume()
+            continuation = nil
+        }
+    }
+
+    private final class EventProbe: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recordedEvents: [String] = []
+
+        var events: [String] {
+            lock.lock()
+            defer { lock.unlock() }
+            return recordedEvents
+        }
+
+        func record(_ event: String) {
+            lock.lock()
+            recordedEvents.append(event)
             lock.unlock()
         }
     }

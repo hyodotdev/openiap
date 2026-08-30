@@ -35,6 +35,7 @@ class HybridRnIap: HybridRnIapSpec {
     private var lastPurchaseErrorKey: String? = nil
     private var lastPurchaseErrorTimestamp: TimeInterval = 0
     private var purchasePayloadById: [String: [String: Any]] = [:]
+    private var deliveredPurchaseUpdateIds = Set<String>()
     // Thread safety lock for listener arrays and error dedup state
     private let listenerLock = NSLock()
     private let lifecycleLock = NSLock()
@@ -280,7 +281,15 @@ class HybridRnIap: HybridRnIapSpec {
                 )
 
                 let result = try await self.runConnectedOperation {
-                    try await OpenIapModule.shared.requestPurchase(props)
+                    let epoch = self.currentConnectionEpoch()
+                    let result = try await OpenIapModule.shared.requestPurchase(props)
+                    // OpenIAP posts listener callbacks asynchronously. Deliver the
+                    // returned purchase before teardown can detach this bridge.
+                    await self.deliverRequestPurchaseResultIfNeeded(
+                        result,
+                        expectedEpoch: epoch
+                    )
+                    return result
                 }
                 if result != nil {
                     RnIapLog.result("requestPurchase", "delegated to OpenIAP")
@@ -1303,6 +1312,50 @@ class HybridRnIap: HybridRnIapSpec {
         return try await enqueueConnectedOperation(operation).value
     }
 
+    private func currentConnectionEpoch() -> UInt64 {
+        listenerLock.withLock { connectionEpoch }
+    }
+
+    private func claimPurchaseUpdateDelivery(
+        transactionId: String,
+        expectedEpoch: UInt64
+    ) -> Bool {
+        listenerLock.withLock {
+            guard isInitialized, connectionEpoch == expectedEpoch else { return false }
+            return deliveredPurchaseUpdateIds.insert(transactionId).inserted
+        }
+    }
+
+    private func deliverRequestPurchaseResultIfNeeded(
+        _ result: OpenIAP.RequestPurchaseResult?,
+        expectedEpoch: UInt64
+    ) async {
+        guard let result else { return }
+        let purchases: [OpenIAP.Purchase]
+        switch result {
+        case .purchase(let purchase):
+            purchases = purchase.map { [$0] } ?? []
+        case .purchases(let values):
+            purchases = values ?? []
+        }
+
+        for purchase in purchases {
+            let rawPayload = OpenIapSerialization.purchase(purchase)
+            guard let transactionId = rawPayload["id"] as? String,
+                  claimPurchaseUpdateDelivery(
+                      transactionId: transactionId,
+                      expectedEpoch: expectedEpoch
+                  ) else { continue }
+            let payload = RnIapHelper.sanitizeDictionary(rawPayload)
+            let nitro = RnIapHelper.convertPurchaseDictionary(payload)
+            await MainActor.run {
+                guard self.isCurrentConnection(expectedEpoch) else { return }
+                self.purchasePayloadById[transactionId] = rawPayload
+                self.sendPurchaseUpdate(nitro, includeDuplicateListeners: false)
+            }
+        }
+    }
+
     private func attachListenersIfNeeded(epoch: UInt64) {
         attachPurchaseUpdatedSubIfNeeded(expectedEpoch: epoch)
         attachDuplicatePurchaseUpdatedSubIfNeeded(expectedEpoch: epoch)
@@ -1398,6 +1451,13 @@ class HybridRnIap: HybridRnIapSpec {
                 Task { @MainActor in
                     guard self.isCurrentConnection(expectedEpoch) else { return }
                     let rawPayload = OpenIapSerialization.purchase(openIapPurchase)
+                    if let transactionId = rawPayload["id"] as? String,
+                       !self.claimPurchaseUpdateDelivery(
+                           transactionId: transactionId,
+                           expectedEpoch: expectedEpoch
+                       ) {
+                        return
+                    }
                     let payload = RnIapHelper.sanitizeDictionary(rawPayload)
                     RnIapLog.result("purchaseUpdatedListener", payload)
                     if let identifier = rawPayload["id"] as? String {
@@ -1573,6 +1633,7 @@ class HybridRnIap: HybridRnIapSpec {
             subscriptionBillingIssueListeners.removeAll()
             lastPurchaseErrorKey = nil
             lastPurchaseErrorTimestamp = 0
+            deliveredPurchaseUpdateIds.removeAll()
             return subscriptions
         }
     }
