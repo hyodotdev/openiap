@@ -164,19 +164,28 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await hybrid.runRequestPurchaseOperation {
             .purchase(purchase)
         }
-        XCTAssertEqual(probe.events, ["returned-transaction"])
+        _ = try await hybrid.runRequestPurchaseOperation {
+            .purchase(purchase)
+        }
+        XCTAssertEqual(probe.events, ["returned-transaction", "returned-transaction"])
 
         let epoch = hybrid.currentConnectionEpoch()
-        let originalCallback = hybrid.enqueuePurchaseUpdateDelivery(
+        let firstCallback = hybrid.enqueuePurchaseUpdateDelivery(
             purchase,
             expectedEpoch: epoch,
             includeDuplicateListeners: true
         )
-        _ = try await originalCallback.value
+        let secondCallback = hybrid.enqueuePurchaseUpdateDelivery(
+            purchase,
+            expectedEpoch: epoch,
+            includeDuplicateListeners: true
+        )
+        _ = try await firstCallback.value
+        _ = try await secondCallback.value
         XCTAssertEqual(
             probe.events,
-            ["returned-transaction"],
-            "the asynchronous callback for the returned purchase must be suppressed once"
+            ["returned-transaction", "returned-transaction"],
+            "each direct delivery must suppress its matching asynchronous callback"
         )
         let replay = hybrid.enqueuePurchaseUpdateDelivery(
             purchase,
@@ -186,7 +195,7 @@ final class ConnectOnDemandTests: XCTestCase {
         _ = try await replay.value
         XCTAssertEqual(
             probe.events,
-            ["returned-transaction", "returned-transaction"],
+            ["returned-transaction", "returned-transaction", "returned-transaction"],
             "later StoreKit replays must still reach non-deduping listeners"
         )
 
@@ -224,7 +233,7 @@ final class ConnectOnDemandTests: XCTestCase {
         XCTAssertEqual(probe.events, ["native-winner", "end"])
     }
 
-    func testPurchaseErrorReachesListenerBeforeTeardown() async throws {
+    func testDelayedPurchaseErrorCallbacksAreSuppressedBeforeTeardown() async throws {
         let hybrid = HybridRnIap()
         let probe = EventProbe()
         try hybrid.addPurchaseErrorListener { error in
@@ -237,18 +246,37 @@ final class ConnectOnDemandTests: XCTestCase {
             productId: "premium",
             message: "cancelled"
         )
+        let epoch = hybrid.currentConnectionEpoch()
 
-        do {
-            _ = try await hybrid.runRequestPurchaseOperation {
-                throw purchaseError
+        for _ in 0..<2 {
+            do {
+                _ = try await hybrid.runRequestPurchaseOperation {
+                    throw purchaseError
+                }
+                XCTFail("the injected purchase error must be preserved")
+            } catch let error as PurchaseError {
+                XCTAssertEqual(error.code, .userCancelled)
             }
-            XCTFail("the injected purchase error must be preserved")
-        } catch let error as PurchaseError {
-            XCTAssertEqual(error.code, .userCancelled)
         }
 
+        _ = hybrid.enqueueConnectedOperation {
+            try await Task.sleep(nanoseconds: 250_000_000)
+        }
+        let firstNativeDelivery = hybrid.enqueuePurchaseErrorDelivery(
+            purchaseError,
+            expectedEpoch: epoch
+        )
+        let secondNativeDelivery = hybrid.enqueuePurchaseErrorDelivery(
+            purchaseError,
+            expectedEpoch: epoch
+        )
+        _ = try await firstNativeDelivery.value
+        _ = try await secondNativeDelivery.value
         _ = try await hybrid.endConnection().await()
-        XCTAssertEqual(probe.events, [ErrorCode.userCancelled.rawValue])
+        XCTAssertEqual(
+            probe.events,
+            [ErrorCode.userCancelled.rawValue, ErrorCode.userCancelled.rawValue]
+        )
     }
 
     func testConnectionRequiringCallsUseBridgeOwnedOperations() throws {

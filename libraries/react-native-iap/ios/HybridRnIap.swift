@@ -36,7 +36,8 @@ class HybridRnIap: HybridRnIapSpec {
     private var lastPurchaseErrorTimestamp: TimeInterval = 0
     private var purchasePayloadById: [String: [String: Any]] = [:]
     private var deliveredPurchaseUpdateIds = Set<String>()
-    private var pendingDuplicatePurchaseUpdateSuppressions = Set<String>()
+    private var pendingDuplicatePurchaseUpdateSuppressions: [String: Int] = [:]
+    private var pendingRequestPurchaseErrorSuppressions: [String: Int] = [:]
     // Thread safety lock for listener arrays and error dedup state
     private let listenerLock = NSLock()
     private let lifecycleLock = NSLock()
@@ -1352,7 +1353,7 @@ class HybridRnIap: HybridRnIapSpec {
             let deduping = deliveredPurchaseUpdateIds.insert(transactionId).inserted
             let nonDeduping = !purchaseUpdatedDuplicateListeners.isEmpty
             if nonDeduping {
-                pendingDuplicatePurchaseUpdateSuppressions.insert(transactionId)
+                pendingDuplicatePurchaseUpdateSuppressions[transactionId, default: 0] += 1
             }
             return (deduping, nonDeduping)
         }
@@ -1364,7 +1365,12 @@ class HybridRnIap: HybridRnIapSpec {
     ) -> Bool {
         listenerLock.withLock {
             guard isInitialized, connectionEpoch == expectedEpoch else { return false }
-            if pendingDuplicatePurchaseUpdateSuppressions.remove(transactionId) != nil {
+            if let count = pendingDuplicatePurchaseUpdateSuppressions[transactionId] {
+                if count == 1 {
+                    pendingDuplicatePurchaseUpdateSuppressions.removeValue(forKey: transactionId)
+                } else {
+                    pendingDuplicatePurchaseUpdateSuppressions[transactionId] = count - 1
+                }
                 return false
             }
             return true
@@ -1482,7 +1488,56 @@ class HybridRnIap: HybridRnIapSpec {
             error.productId,
             debugMessage: error.debugMessage
         )
-        sendPurchaseError(result, productId: error.productId)
+        let key = RnIapHelper.makeErrorDedupKey(
+            code: error.code.rawValue,
+            productId: error.productId
+        )
+        listenerLock.withLock {
+            pendingRequestPurchaseErrorSuppressions[key, default: 0] += 1
+        }
+        sendPurchaseError(result, productId: error.productId, dedupe: false)
+    }
+
+    private func consumeRequestPurchaseErrorSuppression(_ error: PurchaseError) -> Bool {
+        let key = RnIapHelper.makeErrorDedupKey(
+            code: error.code.rawValue,
+            productId: error.productId
+        )
+        return listenerLock.withLock {
+            guard let count = pendingRequestPurchaseErrorSuppressions[key] else {
+                return false
+            }
+            if count == 1 {
+                pendingRequestPurchaseErrorSuppressions.removeValue(forKey: key)
+            } else {
+                pendingRequestPurchaseErrorSuppressions[key] = count - 1
+            }
+            return true
+        }
+    }
+
+    func enqueuePurchaseErrorDelivery(
+        _ error: PurchaseError,
+        expectedEpoch: UInt64
+    ) -> Task<Void, Error> {
+        enqueueConnectedOperation {
+            guard self.isCurrentConnection(expectedEpoch),
+                  !self.consumeRequestPurchaseErrorSuppression(error) else {
+                return
+            }
+            let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode(error))
+            let nitroError = RnIapHelper.makePurchaseErrorResult(
+                code: error.code,
+                message: error.message,
+                error.productId,
+                debugMessage: error.debugMessage
+            )
+            await MainActor.run {
+                guard self.isCurrentConnection(expectedEpoch) else { return }
+                RnIapLog.result("purchaseErrorListener", payload)
+                self.sendPurchaseError(nitroError, productId: error.productId)
+            }
+        }
     }
 
     private func attachListenersIfNeeded(epoch: UInt64) {
@@ -1504,21 +1559,10 @@ class HybridRnIap: HybridRnIapSpec {
                     RnIapLog.warn("purchaseErrorListener: HybridRnIap deallocated, error event dropped")
                     return
                 }
-                let operation = self.enqueueConnectedOperation {
-                    guard self.isCurrentConnection(expectedEpoch) else { return }
-                    let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.encode(error))
-                    let nitroError = RnIapHelper.makePurchaseErrorResult(
-                        code: error.code,
-                        message: error.message,
-                        error.productId,
-                        debugMessage: error.debugMessage
-                    )
-                    await MainActor.run {
-                        guard self.isCurrentConnection(expectedEpoch) else { return }
-                        RnIapLog.result("purchaseErrorListener", payload)
-                        self.sendPurchaseError(nitroError, productId: error.productId)
-                    }
-                }
+                let operation = self.enqueuePurchaseErrorDelivery(
+                    error,
+                    expectedEpoch: expectedEpoch
+                )
                 Task {
                     _ = try? await operation.value
                 }
@@ -1673,7 +1717,11 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    private func sendPurchaseError(_ error: NitroPurchaseResult, productId: String? = nil) {
+    private func sendPurchaseError(
+        _ error: NitroPurchaseResult,
+        productId: String? = nil,
+        dedupe: Bool = true
+    ) {
         let dedupIdentifier = productId
             ?? (error.purchaseToken?.isEmpty == false ? error.purchaseToken : nil)
             ?? (error.message.isEmpty ? nil : error.message)
@@ -1681,13 +1729,15 @@ class HybridRnIap: HybridRnIapSpec {
 
         // Protect error dedup state since sendPurchaseError is called from multiple threads
         let snapshot: [(NitroPurchaseResult) -> Void]? = listenerLock.withLock {
-            let now = Date().timeIntervalSince1970
-            let withinWindow = (now - lastPurchaseErrorTimestamp) < 0.15
-            if currentKey == lastPurchaseErrorKey && withinWindow {
-                return nil
+            if dedupe {
+                let now = Date().timeIntervalSince1970
+                let withinWindow = (now - lastPurchaseErrorTimestamp) < 0.15
+                if currentKey == lastPurchaseErrorKey && withinWindow {
+                    return nil
+                }
+                lastPurchaseErrorKey = currentKey
+                lastPurchaseErrorTimestamp = now
             }
-            lastPurchaseErrorKey = currentKey
-            lastPurchaseErrorTimestamp = now
             return Array(purchaseErrorListeners)
         }
         guard let snapshot else { return }
@@ -1756,6 +1806,7 @@ class HybridRnIap: HybridRnIapSpec {
             lastPurchaseErrorTimestamp = 0
             deliveredPurchaseUpdateIds.removeAll()
             pendingDuplicatePurchaseUpdateSuppressions.removeAll()
+            pendingRequestPurchaseErrorSuppressions.removeAll()
             return subscriptions
         }
     }
