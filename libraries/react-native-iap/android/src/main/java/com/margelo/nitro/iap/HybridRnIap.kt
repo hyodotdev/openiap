@@ -97,6 +97,15 @@ internal fun parseOpenIapError(err: Throwable): OpenIapError {
     return OpenIapError.ServiceUnavailable()
 }
 
+internal fun rejectDisconnectedPurchase(
+    isInitialized: Boolean,
+    sendError: (OpenIapError) -> Unit,
+): Boolean {
+    if (isInitialized) return false
+    sendError(OpenIapError.NotPrepared)
+    return true
+}
+
 internal suspend fun endRnConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
@@ -213,6 +222,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val developerProvidedBillingListenersAndroid = mutableListOf<(DeveloperProvidedBillingDetailsAndroid) -> Unit>()
     private val subscriptionBillingIssueListeners = mutableListOf<(NitroPurchase) -> Unit>()
     private var listenersAttached = false
+    @Volatile
     private var isInitialized = false
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
@@ -567,6 +577,13 @@ class HybridRnIap : HybridRnIapSpec() {
             if (androidRequest.skus.isEmpty()) {
                 RnIapLog.warn("requestPurchase received empty SKU list")
                 sendPurchaseError(toErrorResult(OpenIapError.EmptySkuList))
+                return@async defaultResult
+            }
+
+            if (rejectDisconnectedPurchase(isInitialized) { error ->
+                RnIapLog.warn("requestPurchase called before initConnection")
+                sendPurchaseError(toErrorResult(error))
+            }) {
                 return@async defaultResult
             }
 
