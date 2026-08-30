@@ -92,16 +92,8 @@ function stripAnsi(value) {
   return value.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
-function isJsonArrayCandidate(value, index) {
-  for (let i = index + 1; i < value.length; i += 1) {
-    if (/\s/.test(value[i])) continue;
-    return value[i] === '{';
-  }
-  return false;
-}
-
-function findJsonArrayEnd(value, start) {
-  let depth = 0;
+function findJsonValueEnd(value, start) {
+  const closing = [];
   let inString = false;
   let escape = false;
 
@@ -121,41 +113,54 @@ function findJsonArrayEnd(value, start) {
     if (char === '"') {
       inString = true;
     } else if (char === '[') {
-      depth += 1;
-    } else if (char === ']' && depth > 0) {
-      depth -= 1;
-      if (depth === 0) return i + 1;
+      closing.push(']');
+    } else if (char === '{') {
+      closing.push('}');
+    } else if (char === closing.at(-1)) {
+      closing.pop();
+      if (closing.length === 0) return i + 1;
     }
   }
 
   return -1;
 }
 
-function findJsonArrayRanges(value) {
+function findJsonValueRanges(value) {
   const ranges = [];
-  for (let start = value.indexOf('['); start !== -1; start = value.indexOf('[', start + 1)) {
-    if (!isJsonArrayCandidate(value, start)) continue;
-    const end = findJsonArrayEnd(value, start);
+  for (let start = 0; start < value.length; start += 1) {
+    if (value[start] !== '[' && value[start] !== '{') continue;
+    const end = findJsonValueEnd(value, start);
     if (end !== -1) ranges.push([start, end]);
   }
   return ranges;
+}
+
+function getNpmPackInfo(value) {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.values(value)
+      : [];
+  return entries.find((entry) => entry?.filename) ?? null;
 }
 
 function parseNpmPackJson(stdout) {
   const clean = stripAnsi(stdout).trim();
   try {
     const parsed = JSON.parse(clean);
-    if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
+    const packInfo = getNpmPackInfo(parsed);
+    if (packInfo) return packInfo;
   } catch {
     // Keep scanning; package lifecycle scripts can print arbitrary output.
   }
 
-  const ranges = findJsonArrayRanges(clean);
+  const ranges = findJsonValueRanges(clean);
   for (let i = ranges.length - 1; i >= 0; i -= 1) {
     const [start, end] = ranges[i];
     try {
       const parsed = JSON.parse(clean.slice(start, end));
-      if (Array.isArray(parsed) && parsed[0]?.filename) return parsed[0];
+      const packInfo = getNpmPackInfo(parsed);
+      if (packInfo) return packInfo;
     } catch {
       // Keep scanning; package lifecycle scripts can print arbitrary output.
     }
