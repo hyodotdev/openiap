@@ -92,37 +92,39 @@ function EndConnection() {
 import { Text } from 'react-native';
 
 // expo-iap
-import { endConnection, initConnection } from 'expo-iap';
+import { endConnection, initConnection, useIAP } from 'expo-iap';
 // Same API in react-native-iap:
-// import { endConnection, initConnection } from 'react-native-iap';
+// import { endConnection, initConnection, useIAP } from 'react-native-iap';
 
-// In React useEffect cleanup
-useEffect(() => {
-  void initConnection()
-    .then((connected) => {
-      if (!connected) throw new Error('Store connection failed');
-    })
-    .catch((error) => {
-      console.warn('Store connection failed:', error);
-    });
+function ManualStoreConnection() {
+  useEffect(() => {
+    void initConnection()
+      .then((connected) => {
+        if (!connected) throw new Error('Store connection failed');
+      })
+      .catch((error) => {
+        console.warn('Store connection failed:', error);
+      });
 
-  return () => {
-    void endConnection().catch((error) => {
-      console.warn('Store teardown failed:', error);
-    });
-  };
-}, []);
+    return () => {
+      void endConnection().catch((error) => {
+        console.warn('Store teardown failed:', error);
+      });
+    };
+  }, []);
+
+  return <Text>Manual store connection</Text>;
+}
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// useIAP automatically calls endConnection() when the component unmounts,
-// so you only need the module-level call when you want to tear the
-// connection down outside of the hook's lifecycle (e.g. on sign-out).
-import { useIAP } from 'expo-iap';
+// Expo calls endConnection() when the component unmounts. React Native removes
+// the hook's listeners but keeps the native connection open across screens;
+// call the module-level endConnection() at an app-level teardown boundary such
+// as sign-out when the connection should actually close.
 
 function PurchaseScreen() {
   const { connected } = useIAP();
 
-  // No explicit endConnection() call needed — the hook handles cleanup.
   return <Text>Store ready: {String(connected)}</Text>;
 }`}</CodeBlock>
           ),

@@ -144,7 +144,9 @@ function InitConnection() {
       <LanguageTabs>
         {{
           typescript: (
-            <CodeBlock language="typescript">{`// expo-iap
+            <CodeBlock language="typescript">{`import { Text } from 'react-native';
+
+// expo-iap
 import { initConnection } from 'expo-iap';
 // Same API in react-native-iap:
 // import { initConnection } from 'react-native-iap';
@@ -167,10 +169,10 @@ const billingChoiceConnected = await initConnection({
 if (!billingChoiceConnected) throw new Error('Store connection failed');
 
 // --- Or via the useIAP() hook (also exported from react-native-iap) ---
-// useIAP auto-connects on mount and disconnects on unmount, so you almost
-// never need to call initConnection() yourself. Pass connection options
-// (e.g. enableBillingProgramAndroid) to the hook directly, and read the
-// reactive "connected" flag from its return value.
+// Both hooks auto-connect on mount. Expo closes the connection on unmount;
+// React Native removes the screen's listeners but keeps the native connection
+// open across screens. Pass connection options to the hook and read its
+// reactive "connected" flag.
 import { useIAP } from 'expo-iap';
 
 function PurchaseScreen() {
