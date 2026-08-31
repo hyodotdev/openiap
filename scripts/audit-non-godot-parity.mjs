@@ -1481,13 +1481,18 @@ function checkE2eExampleIds() {
     "## Manual Store Flows",
     "## Final Report",
   );
+  const horizonStoreFlow = extractBetween(
+    manualStoreFlows,
+    "- Horizon:",
+    "- Onside:",
+  );
   for (const expected of [
     "verify reconnect/listener behavior",
     "run the exposed purchase/restore flow",
     "visibly marked as test or sandbox",
     "Otherwise report build-only coverage",
   ]) {
-    if (!manualStoreFlows.includes(expected)) {
+    if (!horizonStoreFlow.includes(expected)) {
       fail(`Expo Horizon store flow is missing ${JSON.stringify(expected)}`);
     }
   }
