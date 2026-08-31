@@ -114,12 +114,13 @@ fun PurchaseFlowScreen(navController: NavController) {
                 """.trimIndent()
 
                         scope.launch {
+                            val verificationMethodAtStart = verificationMethod
                             var iapkitVerificationOk = true
                             // Verify purchase based on selected method
-                            if (verificationMethod != VerificationMethod.None) {
+                            if (verificationMethodAtStart != VerificationMethod.None) {
                                 verificationResult = "🔄 Verifying purchase..."
                                 try {
-                                    when (verificationMethod) {
+                                    when (verificationMethodAtStart) {
                                         VerificationMethod.Local -> {
                                             val isIos = getCurrentPlatform() == IapPlatform.Ios
                                             val result = kmpIapInstance.verifyPurchase(
@@ -183,14 +184,14 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         else -> {}
                                     }
                                 } catch (e: Exception) {
-                                    if (verificationMethod == VerificationMethod.IAPKit) {
+                                    if (verificationMethodAtStart == VerificationMethod.IAPKit) {
                                         iapkitVerificationOk = false
                                     }
                                     verificationResult = "❌ Verification failed: ${e.message}"
                                 }
                             }
 
-                            if (verificationMethod == VerificationMethod.IAPKit && !iapkitVerificationOk) {
+                            if (verificationMethodAtStart == VerificationMethod.IAPKit && !iapkitVerificationOk) {
                                 purchaseResult = "$purchaseResult\n\n⚠️ Transaction left unfinished because IAPKit verification failed"
                                 return@launch
                             }
