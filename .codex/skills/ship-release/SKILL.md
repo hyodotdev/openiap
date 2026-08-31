@@ -96,10 +96,12 @@ change resets the clean count. Run all path-specific validation, including the
 docs build, docs and release-state audits, skill validation, and
 `git diff --check`.
 
-Commit and push through `.claude/commands/commit.md`. Direct commits to `main`
-are allowed only when the user explicitly requested them; otherwise use a PR.
-Immediately before committing, fast-forward from `origin/main` and revalidate
-that the intended files are the only changes.
+Commit and push through `.claude/commands/commit.md`. An explicit invocation of
+this full shipping workflow authorizes the release-note and release-process
+documentation commit directly on `main`; do not open a PR for that post-release
+docs-only commit. Immediately before committing, fast-forward from `origin/main`
+and revalidate that the intended files are the only changes. Product-code fixes
+still return to the normal PR loop.
 
 ## 5. Deploy and verify docs
 

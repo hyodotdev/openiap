@@ -1432,9 +1432,13 @@ function checkE2eExampleIds() {
   for (const expected of [
     "shell monkey -p dev.hyo.martie 1",
     "dev.hyo.martie",
-    "-workspace ios/ExpoIAPExample.xcworkspace",
+    "-workspace ios/expoiapexample.xcworkspace",
     "-scheme ExpoIAPExample",
     "Debug-iphoneos/ExpoIAPExample.app",
+    "Variant amazonDebugRuntimeElements",
+    "ProductFlavor:platform[[:space:]]+\\| amazon",
+    "Variant horizonDebugRuntimeElements",
+    "ProductFlavor:platform[[:space:]]+\\| horizon",
   ]) {
     if (!normalTargets.includes(expected)) {
       fail(`Expo E2E normal targets are missing ${JSON.stringify(expected)}`);
@@ -1446,7 +1450,7 @@ function checkE2eExampleIds() {
     );
   }
   for (const staleName of [
-    "ios/expoiapexample.xcworkspace",
+    "ios/ExpoIAPExample.xcworkspace",
     "-scheme expoiapexample",
     "Debug-iphoneos/expoiapexample.app",
   ]) {
@@ -5987,7 +5991,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "currently every five minutes",
       "`npm run deploy`; run `release.yml` with `version=current` only when",
-      "then run the docs deployment. Run the Docs release workflow with",
+      "do not open a PR for that post-release docs-only commit",
+      "deployment. Run the Docs release workflow with",
       "only when the native-derived `spec` advanced",
       "immutable existing `docs-{spec}` tag is never reused",
       "If a Docs GitHub Release is requested while",

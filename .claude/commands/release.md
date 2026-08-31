@@ -151,7 +151,8 @@ Train rules (mistake guards):
   registry-verified, add the consolidated entry to
   `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
   commit it directly to `main` together with any release-process doc updates,
-  then run the docs deployment. Run the Docs release workflow with
+  and do not open a PR for that post-release docs-only commit; then run the docs
+  deployment. Run the Docs release workflow with
   `version=current` only when the native-derived `spec` advanced; otherwise skip
   it so an immutable existing `docs-{spec}` tag is never reused. If a Docs
   GitHub Release is requested while `spec` is unchanged, stop and explain that

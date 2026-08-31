@@ -419,7 +419,7 @@ cd libraries/expo-iap/example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
 xcodebuild \
-  -workspace ios/ExpoIAPExample.xcworkspace \
+  -workspace ios/expoiapexample.xcworkspace \
   -configuration Debug \
   -scheme ExpoIAPExample \
   -destination "id=$IOS_UDID" \
@@ -442,6 +442,11 @@ FireOS/Amazon Android path:
 cd libraries/expo-iap/example
 EXPO_IAP_FIREOS=1 bunx expo prebuild --platform android --clean
 cd android
+variant_report="$(./gradlew :app:dependencyInsight \
+  --configuration debugRuntimeClasspath --dependency openiap-google)"
+printf '%s\n' "$variant_report" | grep -F 'Variant amazonDebugRuntimeElements'
+printf '%s\n' "$variant_report" | \
+  grep -E 'ProductFlavor:platform[[:space:]]+\| amazon'
 ./gradlew :app:assembleDebug
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
@@ -449,13 +454,22 @@ adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
-Horizon Android build-only path:
+Horizon Android build and optional device path:
 
 ```bash
 cd libraries/expo-iap/example
 EXPO_IAP_HORIZON=1 bunx expo prebuild --platform android --clean
 cd android
+variant_report="$(./gradlew :app:dependencyInsight \
+  --configuration debugRuntimeClasspath --dependency openiap-google)"
+printf '%s\n' "$variant_report" | grep -F 'Variant horizonDebugRuntimeElements'
+printf '%s\n' "$variant_report" | \
+  grep -E 'ProductFlavor:platform[[:space:]]+\| horizon'
 ./gradlew :app:assembleDebug
+# Build-only regression can stop here.
+: "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 Onside iOS build-only path:
@@ -469,7 +483,7 @@ grep -F 'OnsideKit' ios/Podfile.lock
 plutil -p ios/ExpoIAPExample/Info.plist | grep -F 'onside'
 plutil -p ios/ExpoIAPExample/Info.plist | grep -F 'dev.hyo.martie.onside-auth'
 xcodebuild \
-  -workspace ios/ExpoIAPExample.xcworkspace \
+  -workspace ios/expoiapexample.xcworkspace \
   -configuration Debug \
   -scheme ExpoIAPExample \
   -destination "generic/platform=iOS" \
@@ -886,9 +900,10 @@ Run these on each connected platform requested:
 - VegaOS / Fire TV: build and install the VPK, copy Amazon tester catalog/config
   with the project script, launch, fetch products, and run at least one purchase
   attempt when device input and tester UI are available.
-- Horizon: build-only unless a runnable Horizon device and store prerequisites
-  are explicitly available. If it is build-only, do not claim purchase flow
-  coverage.
+- Horizon: when a runnable device and store prerequisites are available, install
+  and launch the store-specific build, verify reconnect/listener behavior, and
+  run the exposed purchase/restore flow. Approve checkout only when its UI is
+  visibly marked as test or sandbox. Otherwise report build-only coverage.
 - Onside: Expo iOS build-only. Verify the generated Podfile and iOS project
   include the Onside module when `EXPO_IAP_ONSIDE=1`. Run CocoaPods explicitly
   after prebuild, require `OnsideKit` in `Podfile.lock`, require both `onside`
@@ -918,7 +933,7 @@ RN iOS                | {UDID}        | build/install/purchase | PASS | ...
 RN Vega               | {device id}   | build debug/release/run | PASS | ...
 Expo Android          | {serial}      | build/install/purchase | PASS | ...
 Expo FireOS           | {serial}      | build/install/purchase | PASS | ...
-Expo Horizon          | local Gradle  | build        | PASS   | build-only
+Expo Horizon          | {serial/local Gradle} | build[/install/store flow] | PASS | ...
 Expo iOS              | {UDID}        | build/install/purchase | PASS | ...
 Expo Onside           | generic iOS   | prebuild/build | PASS | build-only
 Expo Vega             | {device id}   | build debug/release/run | PASS | ...

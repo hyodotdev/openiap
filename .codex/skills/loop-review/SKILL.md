@@ -186,7 +186,8 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    consecutive five-minute snapshots are clean. Any edit resets the count.
 5. Commit and push the reviewed release note and process-documentation changes
    directly to `main`. If review finds a product-code fix, return it to the PR
-   loop instead of committing that fix directly to `main`.
+   loop instead of committing that fix directly to `main`. Do not open a PR for
+   this post-release docs-only commit.
 6. From a clean local `main` equal to `origin/main`, run `npm run deploy`, then
    verify the production release page and generated documentation assets.
 7. If the native spec floor advanced, dispatch `.github/workflows/release.yml`
