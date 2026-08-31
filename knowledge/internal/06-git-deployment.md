@@ -309,6 +309,11 @@ Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
 versions, other branches, and stale or unpublished local snapshots.
 
+On a fresh checkout, first run `cd packages/docs && vercel link` and select the
+existing OpenIAP project. Deployment stops when that local project link is
+missing or invalid, and it reports success only after Vercel returns a ready
+production deployment.
+
 ```bash
 # From monorepo root
 npm run deploy

@@ -93,6 +93,17 @@ if ! command -v vercel &> /dev/null; then
     echo -e "${GREEN}✅ Vercel CLI installed successfully${NC}"
 fi
 
+VERCEL_PROJECT_FILE="packages/docs/.vercel/project.json"
+if ! jq -e '
+    (.projectId | type == "string" and length > 0) and
+    (.orgId | type == "string" and length > 0) and
+    (.projectName == "openiap")
+' "$VERCEL_PROJECT_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}❌ packages/docs is not linked to the OpenIAP Vercel project${NC}"
+    echo -e "${YELLOW}Run 'cd packages/docs && vercel link' before deploying.${NC}"
+    exit 1
+fi
+
 # Check if user is logged in to Vercel
 if ! vercel whoami &> /dev/null; then
     echo -e "${YELLOW}🔑 Please log in to Vercel...${NC}"
@@ -149,12 +160,22 @@ if ! bun run build; then
 fi
 
 echo -e "${BLUE}🚀 Deploying to Vercel...${NC}"
-if ! vercel --prod; then
+if ! VERCEL_DEPLOYMENT=$(vercel --prod --yes --format=json --non-interactive); then
     echo -e "${RED}❌ Vercel deployment failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Successfully deployed to Vercel${NC}"
+if ! DEPLOYMENT_URL=$(printf '%s' "$VERCEL_DEPLOYMENT" | jq -er '
+    (.deployment // .)
+    | select(.readyState == "READY" and .target == "production")
+    | .url
+    | select(type == "string" and startswith("https://"))
+'); then
+    echo -e "${RED}❌ Vercel CLI returned no ready production deployment${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Successfully deployed to Vercel: $DEPLOYMENT_URL${NC}"
 
 cd ../..
 
