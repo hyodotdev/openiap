@@ -1327,7 +1327,18 @@ test("production docs are guarded as stable-only", () => {
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /OpenIAP Spec cannot be bumped independently/);
   assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
+  assert.match(
+    deployScript,
+    /EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"/,
+  );
+  assert.match(
+    deployScript,
+    /EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"/,
+  );
+  assert.match(deployScript, /\.projectId == \$projectId/);
+  assert.match(deployScript, /\.orgId == \$orgId/);
   assert.match(deployScript, /\.projectName == "openiap"/);
+  assert.match(deployScript, /Vercel environment target conflicts/);
   assert.match(
     deployScript,
     /vercel --prod --yes --format=json --non-interactive/,
@@ -1445,15 +1456,19 @@ test("production docs require a verified Vercel deployment result", () => {
       cwd: temporaryRoot,
     });
 
-    const environment = {
-      ...process.env,
-      PATH: `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`,
-    };
-    const runDeploy = (mockOutput = "") =>
+    const environment = { ...process.env };
+    delete environment.VERCEL_PROJECT_ID;
+    delete environment.VERCEL_ORG_ID;
+    environment.PATH = `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`;
+    const runDeploy = (mockOutput = "", environmentOverrides = {}) =>
       spawnSync("bash", ["scripts/deploy.sh"], {
         cwd: temporaryRoot,
         encoding: "utf8",
-        env: { ...environment, MOCK_VERCEL_OUTPUT: mockOutput },
+        env: {
+          ...environment,
+          MOCK_VERCEL_OUTPUT: mockOutput,
+          ...environmentOverrides,
+        },
         input: "y\n",
       });
 
@@ -1482,6 +1497,18 @@ test("production docs require a verified Vercel deployment result", () => {
       '{"projectId":"prj_test","orgId":"team_test","projectName":"openiap"}\n',
     );
 
+    const wrongIdentity = runDeploy();
+    assert.notEqual(wrongIdentity.status, 0);
+    assert.match(
+      wrongIdentity.stdout,
+      /not linked to the OpenIAP Vercel project/,
+    );
+
+    writeFileSync(
+      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      '{"projectId":"prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1","orgId":"team_qB5U5TU9IKqAL2KyQsj0duy3","projectName":"openiap"}\n',
+    );
+
     const emptySuccess = runDeploy();
     assert.notEqual(emptySuccess.status, 0);
     assert.match(
@@ -1490,9 +1517,31 @@ test("production docs require a verified Vercel deployment result", () => {
     );
     assert.doesNotMatch(emptySuccess.stdout, /Successfully deployed to Vercel/);
 
-    const ready = runDeploy(
-      '{"status":"ok","deployment":{"id":"dpl_test","url":"https://openiap-test.vercel.app","readyState":"READY","target":"production"}}',
+    const readyOutput =
+      '{"status":"ok","deployment":{"id":"dpl_test","url":"https://openiap-test.vercel.app","readyState":"READY","target":"production"}}';
+    const conflictingEnvironment = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_other",
+      VERCEL_ORG_ID: "team_qB5U5TU9IKqAL2KyQsj0duy3",
+    });
+    assert.notEqual(conflictingEnvironment.status, 0);
+    assert.match(
+      conflictingEnvironment.stdout,
+      /Vercel environment target conflicts with the OpenIAP project/,
     );
+
+    const incompleteEnvironment = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1",
+    });
+    assert.notEqual(incompleteEnvironment.status, 0);
+    assert.match(
+      incompleteEnvironment.stdout,
+      /Vercel environment target conflicts with the OpenIAP project/,
+    );
+
+    const ready = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1",
+      VERCEL_ORG_ID: "team_qB5U5TU9IKqAL2KyQsj0duy3",
+    });
     assert.equal(ready.status, 0, ready.stderr || ready.stdout);
     assert.match(
       ready.stdout,
