@@ -2952,6 +2952,7 @@ void main() {
           apiKey: 'test-api-key',
           horizon: types.RequestVerifyPurchaseWithIapkitHorizonProps(
             sku: 'premium.monthly',
+            userId: 'horizon-user-123',
           ),
         ),
       );
@@ -2970,6 +2971,7 @@ void main() {
       );
 
       expect(horizonPayload['sku'], 'premium.monthly');
+      expect(horizonPayload['userId'], 'horizon-user-123');
       expect(iapkitPayload, isNot(contains('google')));
     });
 
