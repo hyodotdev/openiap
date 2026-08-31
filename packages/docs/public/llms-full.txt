@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-30T15:06:51.142Z
+> Generated: 2026-08-31T09:40:40.893Z
 
 ## Table of Contents
 1. Installation
@@ -31,10 +31,10 @@ cd ios && pod install
 ### Swift (iOS/macOS)
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "3.3.1")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "3.4.0")
 
 // CocoaPods
-pod 'openiap', '~> 3.3.1'
+pod 'openiap', '~> 3.4.0'
 ```
 
 ### Kotlin (Android)
