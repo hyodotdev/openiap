@@ -2096,10 +2096,26 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
     }
 }
 
+public struct RequestVerifyPurchaseWithIapkitHorizonProps: Codable {
+    /// Meta Horizon product or subscription SKU.
+    public var sku: String
+    /// Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
+    public var userId: String?
+
+    public init(
+        sku: String,
+        userId: String? = nil
+    ) {
+        self.sku = sku
+        self.userId = userId
+    }
+}
+
 /// Platform-specific verification parameters for IAPKit.
 ///
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU)
 /// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     /// Amazon Appstore verification parameters.
@@ -2115,9 +2131,11 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var baseUrl: String?
     /// Google Play Store verification parameters.
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
+    /// Meta Horizon verification parameters.
+    public var horizon: RequestVerifyPurchaseWithIapkitHorizonProps?
     /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-    /// Include the product's public IAPKit client payload in a valid Apple or
-    /// Google verification response. Defaults to false so existing response
+    /// Include the product's public IAPKit client payload in a valid verification
+    /// response. Defaults to false so existing response
     /// shapes and bandwidth remain unchanged.
     public var includeClientPayload: Bool?
 
@@ -2127,6 +2145,7 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
         apple: RequestVerifyPurchaseWithIapkitAppleProps? = nil,
         baseUrl: String? = nil,
         google: RequestVerifyPurchaseWithIapkitGoogleProps? = nil,
+        horizon: RequestVerifyPurchaseWithIapkitHorizonProps? = nil,
         includeClientPayload: Bool? = nil
     ) {
         self.amazon = amazon
@@ -2134,6 +2153,7 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
         self.apple = apple
         self.baseUrl = baseUrl
         self.google = google
+        self.horizon = horizon
         self.includeClientPayload = includeClientPayload
     }
 }

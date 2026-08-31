@@ -38,9 +38,12 @@ import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.utils.toPurchaseInput
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
-import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
+import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.PurchaseVerificationProvider
+import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.martie.BuildConfig
 
 enum class VerificationMethod(val displayName: String) {
@@ -531,14 +534,23 @@ fun PurchaseFlowScreen(
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
-            apple = null,
-            google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = token
-            ),
+            google = if (purchase.store == IapStore.Google) {
+                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token)
+            } else null,
+            horizon = if (purchase.store == IapStore.Horizon) {
+                RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId)
+            } else null,
             // Client payload is public configuration, never entitlement authority or secrets.
             includeClientPayload = true
         )
-        return verifyPurchaseWithIapkit(props, "PurchaseFlowScreen")
+        return requireNotNull(
+            iapStore.verifyPurchaseWithProvider(
+                VerifyPurchaseWithProviderProps(
+                    iapkit = props,
+                    provider = PurchaseVerificationProvider.Iapkit,
+                )
+            ).iapkit
+        ) { "IAPKit returned no verification result" }
     }
 
     // Local verification: For Android, we just check if the purchase state is authentic

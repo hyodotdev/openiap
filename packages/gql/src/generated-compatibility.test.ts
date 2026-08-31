@@ -525,10 +525,17 @@ export interface WrongOwner {
       'public data class RequestVerifyPurchaseWithIapkitProps( val amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = null, val apiKey: String? = null, val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null, val baseUrl: String? = null, val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null ) {',
     );
     expect(iapkitProps).toContain('var includeClientPayload: Boolean? = null');
+    expect(iapkitProps).toContain('var horizon: RequestVerifyPurchaseWithIapkitHorizonProps? = null');
+    expect(iapkitProps).toContain(`        includeClientPayload: Boolean?,
+    ) : this(`);
+    expect(iapkitProps).toContain(`        includeClientPayload: Boolean? = null,
+        horizon: RequestVerifyPurchaseWithIapkitHorizonProps?,
+    ) : this(`);
     expect(iapkitResult).toContain('private set');
     expect(iapkitAmazonProps).toContain('private set');
     expect(iapkitProps).toContain('private set');
     expect(iapkitPropsPrimary).not.toContain('includeClientPayload');
+    expect(iapkitPropsPrimary).not.toContain('horizon');
   });
 
   it('preserves schema prose in custom purchase and discount generators', () => {

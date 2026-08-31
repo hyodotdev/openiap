@@ -9,6 +9,7 @@ import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
 import dev.hyo.openiap.VerifyPurchaseHorizonOptions
@@ -530,6 +531,55 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit posts horizon entitlement details`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "secret",
+            horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+                sku = "premium.monthly",
+                userId = "123456789"
+            ),
+            includeClientPayload = true
+        )
+        val connection = FakeHttpURLConnection(
+            200,
+            """{"store":"horizon","isValid":true,"state":"ENTITLED","productId":"premium.monthly"}"""
+        )
+
+        val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
+
+        assertEquals(IapStore.Horizon, result.store)
+        assertTrue(result.isValid)
+        assertEquals("premium.monthly", result.productId)
+        val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
+        assertEquals("horizon", bodyMap["store"])
+        assertEquals("premium.monthly", bodyMap["sku"])
+        assertEquals("123456789", bodyMap["userId"])
+        assertEquals(true, bodyMap["includeClientPayload"])
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit throws when horizon payload is incomplete`() = runTest {
+        for (horizon in listOf(
+            RequestVerifyPurchaseWithIapkitHorizonProps(sku = "", userId = "123456789"),
+            RequestVerifyPurchaseWithIapkitHorizonProps(sku = "premium.monthly", userId = " ")
+        )) {
+            try {
+                verifyPurchaseWithIapkit(
+                    RequestVerifyPurchaseWithIapkitProps(
+                        horizon = horizon
+                    ),
+                    "TEST"
+                ) { _ ->
+                    throw AssertionError("Connection should not be created when Horizon payload is invalid")
+                }
+                throw AssertionError("Expected IllegalArgumentException for invalid Horizon payload")
+            } catch (expected: IllegalArgumentException) {
+                assertTrue(expected.message?.contains("sku and userId") == true)
+            }
+        }
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit accepts absent null and production environments`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
@@ -672,7 +722,7 @@ class PurchaseVerificationValidatorTest {
             }
             throw AssertionError("Expected IllegalArgumentException for apple payload on Android")
         } catch (expected: IllegalArgumentException) {
-            assertTrue(expected.message?.contains("exactly one google or amazon") == true)
+            assertTrue(expected.message?.contains("exactly one google, horizon, or amazon") == true)
         }
     }
 
@@ -695,7 +745,7 @@ class PurchaseVerificationValidatorTest {
             }
             throw AssertionError("Expected IllegalArgumentException for mixed apple payload")
         } catch (expected: IllegalArgumentException) {
-            assertTrue(expected.message?.contains("exactly one google or amazon") == true)
+            assertTrue(expected.message?.contains("exactly one google, horizon, or amazon") == true)
         }
     }
 

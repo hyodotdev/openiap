@@ -40,6 +40,8 @@ import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
+import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
@@ -160,7 +162,8 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                             iapkit = RequestVerifyPurchaseWithIapkitProps(
                                                                 apiKey = apiKey,
                                                                 apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
-                                                                google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null
+                                                                google = if (!isIos && purchase.store == IapStore.Google) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null,
+                                                                horizon = if (purchase.store == IapStore.Horizon) RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId) else null,
                                                             )
                                                         )
                                                     )

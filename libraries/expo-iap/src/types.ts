@@ -1828,11 +1828,19 @@ export interface RequestVerifyPurchaseWithIapkitGoogleProps {
   purchaseToken: string;
 }
 
+export interface RequestVerifyPurchaseWithIapkitHorizonProps {
+  /** Meta Horizon product or subscription SKU. */
+  sku: string;
+  /** Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted. */
+  userId?: (string | null);
+}
+
 /**
  * Platform-specific verification parameters for IAPKit.
  *
  * - apple: Verifies via App Store (JWS token)
  * - google: Verifies via Play Store (purchase token)
+ * - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU)
  * - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
  */
 export interface RequestVerifyPurchaseWithIapkitProps {
@@ -1851,10 +1859,12 @@ export interface RequestVerifyPurchaseWithIapkitProps {
   baseUrl?: (string | null);
   /** Google Play Store verification parameters. */
   google?: (RequestVerifyPurchaseWithIapkitGoogleProps | null);
+  /** Meta Horizon verification parameters. */
+  horizon?: (RequestVerifyPurchaseWithIapkitHorizonProps | null);
   /**
    * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-   * Include the product's public IAPKit client payload in a valid Apple or
-   * Google verification response. Defaults to false so existing response
+   * Include the product's public IAPKit client payload in a valid verification
+   * response. Defaults to false so existing response
    * shapes and bandwidth remain unchanged.
    */
   includeClientPayload?: (boolean | null);

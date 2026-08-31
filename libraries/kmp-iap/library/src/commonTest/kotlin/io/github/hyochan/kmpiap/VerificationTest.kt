@@ -447,6 +447,21 @@ class VerificationTest {
     }
 
     @Test
+    fun testRequestVerifyPurchaseWithIapkitPropsHorizon() {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "test-api-key",
+            horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+                sku = "premium.monthly"
+            )
+        )
+
+        assertEquals("premium.monthly", props.horizon?.sku)
+        assertNull(props.horizon?.userId)
+        val restored = RequestVerifyPurchaseWithIapkitProps.fromJson(props.toJson())
+        assertEquals("premium.monthly", restored.horizon?.sku)
+    }
+
+    @Test
     fun testRequestVerifyPurchaseWithIapkitPropsToJson() {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "key123",

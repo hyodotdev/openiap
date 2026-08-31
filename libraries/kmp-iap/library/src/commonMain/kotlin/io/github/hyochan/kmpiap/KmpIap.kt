@@ -77,6 +77,7 @@ typealias RequestVerifyPurchaseWithIapkitProps = io.github.hyochan.kmpiap.openia
 typealias RequestVerifyPurchaseWithIapkitAmazonProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 typealias RequestVerifyPurchaseWithIapkitAppleProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 typealias RequestVerifyPurchaseWithIapkitGoogleProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+typealias RequestVerifyPurchaseWithIapkitHorizonProps = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 typealias RequestVerifyPurchaseWithIapkitResult = io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 typealias IapkitPurchaseState = io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
 typealias IapStore = io.github.hyochan.kmpiap.openiap.IapStore

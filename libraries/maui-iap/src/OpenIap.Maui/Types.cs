@@ -4707,11 +4707,22 @@ public sealed record RequestVerifyPurchaseWithIapkitGoogleProps
     public required string PurchaseToken { get; init; }
 }
 
+public sealed record RequestVerifyPurchaseWithIapkitHorizonProps
+{
+    /// <summary>Meta Horizon product or subscription SKU.</summary>
+    [JsonPropertyName("sku")]
+    public required string Sku { get; init; }
+    /// <summary>Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.</summary>
+    [JsonPropertyName("userId")]
+    public string? UserId { get; init; }
+}
+
 /// <summary>
 /// Platform-specific verification parameters for IAPKit.
 ///
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU)
 /// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 /// </summary>
 public sealed record RequestVerifyPurchaseWithIapkitProps
@@ -4729,8 +4740,8 @@ public sealed record RequestVerifyPurchaseWithIapkitProps
     public string? BaseUrl { get; init; }
     /// <summary>
     /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-    /// Include the product&apos;s public IAPKit client payload in a valid Apple or
-    /// Google verification response. Defaults to false so existing response
+    /// Include the product&apos;s public IAPKit client payload in a valid verification
+    /// response. Defaults to false so existing response
     /// shapes and bandwidth remain unchanged.
     /// </summary>
     [JsonPropertyName("includeClientPayload")]
@@ -4741,6 +4752,9 @@ public sealed record RequestVerifyPurchaseWithIapkitProps
     /// <summary>Google Play Store verification parameters.</summary>
     [JsonPropertyName("google")]
     public RequestVerifyPurchaseWithIapkitGoogleProps? Google { get; init; }
+    /// <summary>Meta Horizon verification parameters.</summary>
+    [JsonPropertyName("horizon")]
+    public RequestVerifyPurchaseWithIapkitHorizonProps? Horizon { get; init; }
     /// <summary>Amazon Appstore verification parameters.</summary>
     [JsonPropertyName("amazon")]
     public RequestVerifyPurchaseWithIapkitAmazonProps? Amazon { get; init; }

@@ -1846,6 +1846,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   if (iapkit.baseUrl != null) 'baseUrl': iapkit.baseUrl,
                   if (iapkit.google != null)
                     'google': {'purchaseToken': iapkit.google!.purchaseToken},
+                  if (iapkit.horizon != null)
+                    'horizon': {
+                      'sku': iapkit.horizon!.sku,
+                      if (iapkit.horizon!.userId != null)
+                        'userId': iapkit.horizon!.userId,
+                    },
                   if (iapkit.includeClientPayload != null)
                     'includeClientPayload': iapkit.includeClientPayload,
                   if (iapkit.amazon != null)

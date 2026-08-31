@@ -57,4 +57,22 @@ describe('IAPKit native bridge parity', () => {
       'environment = item.environment?.let { Variant_NullType_String.Second(it) }',
     );
   });
+
+  it('forwards Horizon SKU and optional user ID through both native maps', () => {
+    const spec = readSource('src/specs/RnIap.nitro.ts');
+    const ios = readSource('ios/HybridRnIap.swift');
+    const android = readSource(
+      'android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt',
+    );
+
+    expect(spec).toMatch(
+      /interface NitroVerifyPurchaseWithIapkitHorizonProps[\s\S]*?sku: string;[\s\S]*?userId\?: string \| null;/,
+    );
+    expect(ios).toContain('if case .second(let horizon) = iapkit.horizon');
+    expect(ios).toContain('iapkitDict["horizon"] = horizonDict');
+    expect(android).toContain(
+      '(iapkit.horizon as? Variant_NullType_NitroVerifyPurchaseWithIapkitHorizonProps.Second)',
+    );
+    expect(android).toContain('iapkitMap["horizon"] = horizonMap');
+  });
 });

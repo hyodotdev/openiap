@@ -213,7 +213,7 @@ dependencies {
     // platform SDK modules transitively; do not also ship the legacy OVR SDK.
     add("horizonCompileOnly", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
     add("horizonApi", "com.meta.horizon.billingclient.api:horizon-billing-compatibility:$horizonBillingCompatibilityVersion")
-    for (module in listOf("core-kotlin", "user-age-category-kotlin", "iap-kotlin")) {
+    for (module in listOf("core-kotlin", "user-age-category-kotlin", "iap-kotlin", "users-kotlin")) {
         add("horizonApi", "com.meta.horizon.platform.sdk:$module:$horizonPlatformKotlinVersion")
     }
     add("horizonApi", "org.jetbrains.kotlinx:kotlinx-serialization-json:$horizonSerializationVersion")

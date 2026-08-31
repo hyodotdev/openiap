@@ -53,6 +53,15 @@ internal static class IapKitSettings
                 BaseUrl = BaseUrl,
                 Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
             },
+            IapStore.Horizon => new RequestVerifyPurchaseWithIapkitProps
+            {
+                ApiKey = ApiKey,
+                BaseUrl = BaseUrl,
+                Horizon = new RequestVerifyPurchaseWithIapkitHorizonProps
+                {
+                    Sku = common.ProductId,
+                },
+            },
             IapStore.Amazon => new RequestVerifyPurchaseWithIapkitProps
             {
                 ApiKey = ApiKey,

@@ -5091,18 +5091,48 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 			dict["purchaseToken"] = purchase_token
 		return dict
 
-## Platform-specific verification parameters for IAPKit. - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
+class RequestVerifyPurchaseWithIapkitHorizonProps:
+	## Meta Horizon product or subscription SKU.
+	var sku: String = ""
+	## Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
+	var user_id: Variant = null
+
+	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitHorizonProps:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required RequestVerifyPurchaseWithIapkitHorizonProps.sku value")
+			return null
+		if data.has("userId") and data["userId"] != null and not data["userId"] is String:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitHorizonProps.userId value")
+			return null
+		var obj = RequestVerifyPurchaseWithIapkitHorizonProps.new()
+		if data.has("sku") and data["sku"] != null:
+			obj.sku = data["sku"]
+		if data.has("userId") and data["userId"] != null:
+			obj.user_id = data["userId"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		if sku != null:
+			dict["sku"] = sku
+		if user_id != null:
+			dict["userId"] = user_id
+		return dict
+
+## Platform-specific verification parameters for IAPKit. - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
 	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0. Base URL for the IAPKit server. Defaults to https://kit.openiap.dev. Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server. The apiKey must be issued by the same IAPKit/Convex deployment as this server.
 	var base_url: Variant = null
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid Apple or Google verification response. Defaults to false so existing response shapes and bandwidth remain unchanged.
+	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid verification response. Defaults to false so existing response shapes and bandwidth remain unchanged.
 	var include_client_payload: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
 	var google: RequestVerifyPurchaseWithIapkitGoogleProps
+	## Meta Horizon verification parameters.
+	var horizon: RequestVerifyPurchaseWithIapkitHorizonProps
 	## Amazon Appstore verification parameters.
 	var amazon: RequestVerifyPurchaseWithIapkitAmazonProps
 
@@ -5143,6 +5173,16 @@ class RequestVerifyPurchaseWithIapkitProps:
 			else:
 				push_error("Expected google to be a RequestVerifyPurchaseWithIapkitGoogleProps dictionary")
 				return null
+		if data.has("horizon") and data["horizon"] != null:
+			if data["horizon"] is Dictionary:
+				var decoded_horizon = RequestVerifyPurchaseWithIapkitHorizonProps.from_dict(data["horizon"])
+				if decoded_horizon == null:
+					push_error("Invalid input RequestVerifyPurchaseWithIapkitHorizonProps value for horizon")
+					return null
+				obj.horizon = decoded_horizon
+			else:
+				push_error("Expected horizon to be a RequestVerifyPurchaseWithIapkitHorizonProps dictionary")
+				return null
 		if data.has("amazon") and data["amazon"] != null:
 			if data["amazon"] is Dictionary:
 				var decoded_amazon = RequestVerifyPurchaseWithIapkitAmazonProps.from_dict(data["amazon"])
@@ -5173,6 +5213,11 @@ class RequestVerifyPurchaseWithIapkitProps:
 				dict["google"] = google.to_dict()
 			else:
 				dict["google"] = google
+		if horizon != null:
+			if horizon.has_method("to_dict"):
+				dict["horizon"] = horizon.to_dict()
+			else:
+				dict["horizon"] = horizon
 		if amazon != null:
 			if amazon.has_method("to_dict"):
 				dict["amazon"] = amazon.to_dict()

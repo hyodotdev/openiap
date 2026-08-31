@@ -39,10 +39,13 @@ import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
+import dev.hyo.openiap.IapStore
+import dev.hyo.openiap.PurchaseVerificationProvider
+import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
-import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1340,13 +1343,20 @@ fun SubscriptionFlowScreen(
 
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = apiKey,
-            apple = null,
-            google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = token
+            google = if (purchase.store == IapStore.Google) {
+                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token)
+            } else null,
+            horizon = if (purchase.store == IapStore.Horizon) {
+                RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId)
+            } else null,
+        )
+        val result = iapStore.verifyPurchaseWithProvider(
+            VerifyPurchaseWithProviderProps(
+                iapkit = props,
+                provider = PurchaseVerificationProvider.Iapkit,
             )
         )
-        val result = verifyPurchaseWithIapkit(props, "SubscriptionFlowScreen")
-        return result.isValid
+        return result.iapkit?.isValid == true
     }
 
     // Local verification: For Android, we just check if the purchase state is authentic

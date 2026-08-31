@@ -116,6 +116,7 @@ import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndr
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps as AndroidVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps as AndroidVerifyPurchaseWithIapkitGoogleProps
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps as AndroidVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps as AndroidVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions as AndroidVerifyPurchaseGoogleOptions
 import dev.hyo.openiap.VerifyPurchaseProps as AndroidVerifyPurchaseProps
@@ -2242,15 +2243,17 @@ internal class InAppPurchaseAndroid(
         val payloadCount = listOfNotNull(
             iapkitOptions.apple,
             iapkitOptions.google,
+            iapkitOptions.horizon,
             iapkitOptions.amazon
         ).size
         val googleOptions = iapkitOptions.google
+        val horizonOptions = iapkitOptions.horizon
         val amazonOptions = iapkitOptions.amazon
-        if (payloadCount != 1 || (googleOptions == null && amazonOptions == null)) {
+        if (payloadCount != 1 || (googleOptions == null && horizonOptions == null && amazonOptions == null)) {
             failWith(
                 PurchaseError(
                     code = ErrorCode.PurchaseVerificationFailed,
-                    message = "IAPKit verification on KMP Android requires exactly one google or amazon payload"
+                    message = "IAPKit verification on KMP Android requires exactly one google, horizon, or amazon payload"
                 )
             )
         }
@@ -2273,7 +2276,13 @@ internal class InAppPurchaseAndroid(
                         purchaseToken = google.purchaseToken
                     )
                 },
-                includeClientPayload = iapkitOptions.includeClientPayload
+                includeClientPayload = iapkitOptions.includeClientPayload,
+                horizon = horizonOptions?.let { horizon ->
+                    AndroidVerifyPurchaseWithIapkitHorizonProps(
+                        sku = horizon.sku,
+                        userId = horizon.userId,
+                    )
+                },
             )
 
             val androidResult = verifyPurchaseWithIapkitAndroid(openIapProps, "kmp-iap-android")

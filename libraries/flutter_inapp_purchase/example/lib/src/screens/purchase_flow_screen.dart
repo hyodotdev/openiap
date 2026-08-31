@@ -430,9 +430,19 @@ Auto Renewing: ${androidResult.autoRenewing}
         provider: PurchaseVerificationProvider.Iapkit,
         iapkit: RequestVerifyPurchaseWithIapkitProps(
           apiKey: apiKey.isNotEmpty ? apiKey : null,
-          apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken),
-          google: RequestVerifyPurchaseWithIapkitGoogleProps(
-              purchaseToken: jwsOrToken),
+          apple: purchase.store == IapStore.Apple
+              ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
+              : null,
+          google: purchase.store == IapStore.Google
+              ? RequestVerifyPurchaseWithIapkitGoogleProps(
+                  purchaseToken: jwsOrToken,
+                )
+              : null,
+          horizon: purchase.store == IapStore.Horizon
+              ? RequestVerifyPurchaseWithIapkitHorizonProps(
+                  sku: purchase.productId,
+                )
+              : null,
         ),
       );
 
