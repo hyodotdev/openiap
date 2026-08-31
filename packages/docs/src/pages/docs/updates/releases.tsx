@@ -30,6 +30,18 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const purchaseLifecycleHorizonReleases = [
+  ['OpenIAP Spec 3.4.0', 'docs-3.4.0'],
+  ['openiap-apple 3.4.0', '3.4.0'],
+  ['openiap-google 3.5.0', 'google-3.5.0'],
+  ['react-native-iap 16.5.0', 'react-native-iap-16.5.0'],
+  ['expo-iap 5.5.0', 'expo-iap-5.5.0'],
+  ['flutter_inapp_purchase 10.5.0', 'flutter-iap-10.5.0'],
+  ['godot-iap 3.5.0', 'godot-iap-3.5.0'],
+  ['kmp-iap 3.5.0', 'kmp-iap-3.5.0'],
+  ['OpenIap.Maui 2.5.0', 'maui-iap-2.5.0'],
+] as const;
+
 const storeKitToolchainReleases = [
   ['OpenIAP Spec 3.3.1', 'docs-3.3.1'],
   ['openiap-apple 3.3.1', '3.3.1'],
@@ -290,6 +302,163 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 31, 2026 - Purchase lifecycle and Horizon verification
+    {
+      id: 'purchase-lifecycle-horizon-verification-2026-08-31',
+      date: new Date('2026-08-31'),
+      element: (
+        <div
+          key="purchase-lifecycle-horizon-verification-2026-08-31"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="purchase-lifecycle-horizon-verification-2026-08-31"
+            level="h4"
+          >
+            August 31, 2026 - Purchase lifecycle and Horizon verification
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Purchase delivery now stays stable across initialization and
+            reconnect cycles, and Meta Horizon purchases can be verified through
+            IAPKit without being treated as Google Play receipts. Failed or
+            invalid verification leaves the transaction unfinished for a safe
+            retry.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                OpenIAP Spec 3.4.0, openiap-apple 3.4.0, and openiap-google
+                3.5.0
+              </strong>{' '}
+              - add an explicit Horizon IAPKit payload across the shared
+              contract; the Horizon Android module resolves the Meta user before
+              verification (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/412"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #412
+              </a>
+              ).
+            </li>
+            <li>
+              <strong>openiap-google 3.5.0</strong> - restores purchase and
+              error listeners after both successful and failed reconnect
+              attempts (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/410"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #410
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.5.0</strong> - stabilizes iOS
+              on-demand and Android explicit connection, replays bounded startup
+              events, refreshes current catalog data, and preserves store errors
+              (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/409"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #409
+              </a>
+              ), while forwarding the Horizon verification payload described
+              above.
+            </li>
+            <li>
+              <strong>
+                expo-iap 5.5.0, flutter_inapp_purchase 10.5.0, godot-iap 3.5.0,
+                kmp-iap 3.5.0, and OpenIap.Maui 2.5.0
+              </strong>{' '}
+              - expose Horizon IAPKit payloads; Flutter and KMP finish only
+              verified transactions, leaving failed or invalid results available
+              for retry.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Android root API callers must call <code>initConnection()</code>{' '}
+              before store operations. The React Native hook manages this
+              lifecycle, while iOS connects on demand.
+            </li>
+            <li>
+              The React Native hook reports <code>fetchProducts</code> failures
+              to <code>onError</code> and rethrows them.{' '}
+              <code>hasActiveSubscriptions</code> rejects query failures instead
+              of returning <code>false</code>.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {purchaseLifecycleHorizonReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 29, 2026 - StoreKit toolchain compatibility
     {
       id: 'storekit-toolchain-compatibility-2026-08-29',
