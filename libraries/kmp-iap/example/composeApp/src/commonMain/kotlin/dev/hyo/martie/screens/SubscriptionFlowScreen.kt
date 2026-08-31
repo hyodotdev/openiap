@@ -48,6 +48,8 @@ import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
+import io.github.hyochan.kmpiap.openiap.IapStore
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultIOS
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
@@ -118,11 +120,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 """.trimIndent()
 
                         scope.launch {
+                            val verificationMethodAtStart = verificationMethod
+                            var iapkitVerificationOk = true
                             // Verify purchase based on selected method
-                            if (verificationMethod != VerificationMethod.None) {
+                            if (verificationMethodAtStart != VerificationMethod.None) {
                                 verificationResult = "🔄 Verifying subscription..."
                                 try {
-                                    when (verificationMethod) {
+                                    when (verificationMethodAtStart) {
                                         VerificationMethod.Local -> {
                                             val isIos = getCurrentPlatform() == IapPlatform.Ios
                                             val result = kmpIAP.verifyPurchase(
@@ -152,11 +156,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         VerificationMethod.IAPKit -> {
                                             val apiKey = AppConfig.iapkitApiKey
                                             if (apiKey.isEmpty()) {
+                                                iapkitVerificationOk = false
                                                 verificationResult = "❌ IAPKit API key not configured.\n" +
                                                     "Set IAPKIT_API_KEY in .env file."
                                             } else {
                                                 val jwsOrToken = purchase.purchaseToken ?: ""
-                                                if (jwsOrToken.isEmpty()) {
+                                                if (jwsOrToken.isEmpty() && purchase.store != IapStore.Horizon) {
+                                                    iapkitVerificationOk = false
                                                     verificationResult = "❌ No purchase token available for verification"
                                                 } else {
                                                     val isIos = getCurrentPlatform() == IapPlatform.Ios
@@ -166,11 +172,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                             iapkit = RequestVerifyPurchaseWithIapkitProps(
                                                                 apiKey = apiKey,
                                                                 apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
-                                                                google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null
+                                                                google = if (!isIos && purchase.store == IapStore.Google) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null,
+                                                                horizon = if (purchase.store == IapStore.Horizon) RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId) else null,
                                                             )
                                                         )
                                                     )
                                                     val iapkitResult = result.iapkit
+                                                    iapkitVerificationOk = iapkitResult?.isValid == true
                                                     val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
                                                     verificationResult = "$statusEmoji IAPKit Verification:\n" +
                                                         "Valid: ${iapkitResult?.isValid ?: false}\n" +
@@ -182,8 +190,16 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         else -> {}
                                     }
                                 } catch (e: Exception) {
+                                    if (verificationMethodAtStart == VerificationMethod.IAPKit) {
+                                        iapkitVerificationOk = false
+                                    }
                                     verificationResult = "❌ Verification failed: ${e.message}"
                                 }
+                            }
+
+                            if (verificationMethodAtStart == VerificationMethod.IAPKit && !iapkitVerificationOk) {
+                                purchaseResult = "$purchaseResult\n\n⚠️ Transaction left unfinished because IAPKit verification failed"
+                                return@launch
                             }
 
                             // Finish the transaction

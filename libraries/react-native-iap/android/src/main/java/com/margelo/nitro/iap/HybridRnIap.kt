@@ -1678,6 +1678,11 @@ class HybridRnIap : HybridRnIapSpec() {
                     (iapkit.google as? Variant_NullType_NitroVerifyPurchaseWithIapkitGoogleProps.Second)?.value?.let { google ->
                         iapkitMap["google"] = mapOf("purchaseToken" to google.purchaseToken)
                     }
+                    (iapkit.horizon as? Variant_NullType_NitroVerifyPurchaseWithIapkitHorizonProps.Second)?.value?.let { horizon ->
+                        val horizonMap = mutableMapOf<String, Any?>("sku" to horizon.sku)
+                        horizon.userId.unwrapString()?.let { horizonMap["userId"] = it }
+                        iapkitMap["horizon"] = horizonMap
+                    }
                     (iapkit.amazon as? Variant_NullType_NitroVerifyPurchaseWithIapkitAmazonProps.Second)?.value?.let { amazon ->
                         val amazonMap = mutableMapOf<String, Any?>(
                             "receiptId" to amazon.receiptId

@@ -5265,11 +5265,40 @@ public data class RequestVerifyPurchaseWithIapkitGoogleProps(
     )
 }
 
+public data class RequestVerifyPurchaseWithIapkitHorizonProps(
+    /**
+     * Meta Horizon product or subscription SKU.
+     */
+    val sku: String,
+    /**
+     * Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
+     */
+    val userId: String? = null
+) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitHorizonProps? {
+            val sku = json["sku"] as? String
+            val userId = json["userId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            if (sku == null) return null
+            return RequestVerifyPurchaseWithIapkitHorizonProps(
+                sku = sku,
+                userId = userId,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "sku" to sku,
+        "userId" to userId,
+    )
+}
+
 /**
  * Platform-specific verification parameters for IAPKit.
  *
  * - apple: Verifies via App Store (JWS token)
  * - google: Verifies via Play Store (purchase token)
+ * - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU)
  * - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
  */
 public data class RequestVerifyPurchaseWithIapkitProps(
@@ -5300,11 +5329,17 @@ public data class RequestVerifyPurchaseWithIapkitProps(
 
     /**
      * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-     * Include the product's public IAPKit client payload in a valid Apple or
-     * Google verification response. Defaults to false so existing response
+     * Include the product's public IAPKit client payload in a valid verification
+     * response. Defaults to false so existing response
      * shapes and bandwidth remain unchanged.
      */
     var includeClientPayload: Boolean? = null
+        private set
+
+    /**
+     * Meta Horizon verification parameters.
+     */
+    var horizon: RequestVerifyPurchaseWithIapkitHorizonProps? = null
         private set
 
     constructor(
@@ -5324,6 +5359,25 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         this.includeClientPayload = includeClientPayload
     }
 
+    constructor(
+        amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = null,
+        apiKey: String? = null,
+        apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
+        baseUrl: String? = null,
+        google: RequestVerifyPurchaseWithIapkitGoogleProps? = null,
+        includeClientPayload: Boolean? = null,
+        horizon: RequestVerifyPurchaseWithIapkitHorizonProps?,
+    ) : this(
+        amazon = amazon,
+        apiKey = apiKey,
+        apple = apple,
+        baseUrl = baseUrl,
+        google = google,
+    ) {
+        this.includeClientPayload = includeClientPayload
+        this.horizon = horizon
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
@@ -5333,6 +5387,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
                 baseUrl = json["baseUrl"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
                 google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitGoogleProps") },
                 includeClientPayload = json["includeClientPayload"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
+                horizon = json["horizon"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitHorizonProps") },
             )
         }
     }
@@ -5343,6 +5398,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         "includeClientPayload" to includeClientPayload,
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
+        "horizon" to horizon?.toJson(),
         "amazon" to amazon?.toJson(),
     )
 }

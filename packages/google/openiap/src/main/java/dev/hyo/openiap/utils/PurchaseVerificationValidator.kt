@@ -253,10 +253,11 @@ suspend fun verifyPurchaseWithIapkit(
 
     val hasApple = props.apple != null
     val hasGoogle = props.google != null
+    val hasHorizon = props.horizon != null
     val hasAmazon = props.amazon != null
-    if (listOf(hasApple, hasGoogle, hasAmazon).count { it } != 1 || hasApple) {
+    if (listOf(hasApple, hasGoogle, hasHorizon, hasAmazon).count { it } != 1 || hasApple) {
         throw IllegalArgumentException(
-            "IAPKit verification on Android requires exactly one google or amazon payload"
+            "IAPKit verification on Android requires exactly one google, horizon, or amazon payload"
         )
     }
 
@@ -288,6 +289,21 @@ suspend fun verifyPurchaseWithIapkit(
             amazon.sandbox?.let { put("sandbox", it) }
             amazon.expectedProductId?.let { put("expectedProductId", it) }
         }
+    }
+
+    fun buildHorizonPayload(): Map<String, Any?> {
+        val horizon = props.horizon
+            ?: throw IllegalArgumentException("IAPKit Horizon verification requires horizon options")
+        val sku = horizon.sku.trim()
+        val userId = horizon.userId?.trim().orEmpty()
+        if (sku.isBlank() || userId.isBlank()) {
+            throw IllegalArgumentException("IAPKit Horizon verification requires sku and userId")
+        }
+        return mutableMapOf(
+            "store" to IapStore.Horizon.rawValue,
+            "sku" to sku,
+            "userId" to userId
+        )
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -335,10 +351,15 @@ suspend fun verifyPurchaseWithIapkit(
         return null
     }
 
-    val store = if (hasAmazon) IapStore.Amazon else IapStore.Google
+    val store = when {
+        hasAmazon -> IapStore.Amazon
+        hasHorizon -> IapStore.Horizon
+        else -> IapStore.Google
+    }
     val payload = when (store) {
         IapStore.Amazon -> buildAmazonPayload()
         IapStore.Google -> buildGooglePayload()
+        IapStore.Horizon -> buildHorizonPayload()
         else -> throw IllegalArgumentException("IAPKit verification on Android does not support ${store.rawValue}")
     }.toMutableMap().apply {
         if (props.includeClientPayload == true) {

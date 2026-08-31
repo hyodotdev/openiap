@@ -68,6 +68,8 @@ function isIapkitStateReadyForFulfillment(
         verified.state === 'pending-acknowledgment' ||
         (isConsumable && verified.state === 'ready-to-consume')
       );
+    case 'horizon':
+      return verified.state === 'entitled';
     default:
       return false;
   }
@@ -169,6 +171,15 @@ export function createIapkitVerificationPayload(
           receiptId: purchaseToken,
           sandbox: amazonRvsSandbox,
         },
+      },
+      baseUrl,
+    );
+  }
+  if (purchaseStore === 'horizon') {
+    return withIapkitEndpoint(
+      {
+        apiKey: trimmedApiKey,
+        horizon: {sku: purchase.productId},
       },
       baseUrl,
     );

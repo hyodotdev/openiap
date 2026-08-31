@@ -55,6 +55,28 @@ describe('Vega runtime example helpers', () => {
     });
   });
 
+  it('uses Horizon verification without treating the purchase ID as a user ID', () => {
+    const payload = createIapkitVerificationPayload(
+      {
+        id: 'purchase-id-1',
+        productId: 'dev.hyo.martie.premium',
+        purchaseToken: 'purchase-id-1',
+        store: 'horizon',
+      } as unknown as Purchase,
+      'purchase-id-1',
+      'test-api-key',
+      false,
+      'http://localhost:3100',
+    );
+
+    expect(payload).toMatchObject({
+      apiKey: 'test-api-key',
+      baseUrl: 'http://localhost:3100',
+      horizon: {sku: 'dev.hyo.martie.premium'},
+    });
+    expect(payload).not.toHaveProperty('google');
+  });
+
   it('uses Apple verification when purchase store is Apple', () => {
     const payload = createIapkitVerificationPayload(
       {

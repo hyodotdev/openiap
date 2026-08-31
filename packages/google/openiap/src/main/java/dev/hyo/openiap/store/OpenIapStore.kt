@@ -51,6 +51,8 @@ import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 // OpenIapModule is loaded via reflection to support both Play and Horizon flavors
 import dev.hyo.openiap.OpenIapProtocol
+import dev.hyo.openiap.VerifyPurchaseWithProviderProps
+import dev.hyo.openiap.VerifyPurchaseWithProviderResult
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
@@ -524,6 +526,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      */
     suspend fun getActiveSubscriptions(subscriptionIds: List<String>? = null): List<ActiveSubscription> =
         module.queryHandlers.getActiveSubscriptions?.invoke(subscriptionIds) ?: emptyList()
+
+    /** Verify a purchase with the configured provider. */
+    suspend fun verifyPurchaseWithProvider(
+        options: VerifyPurchaseWithProviderProps
+    ): VerifyPurchaseWithProviderResult = module.verifyPurchaseWithProvider(options)
 
     /**
      * Check whether the user has any active subscription.

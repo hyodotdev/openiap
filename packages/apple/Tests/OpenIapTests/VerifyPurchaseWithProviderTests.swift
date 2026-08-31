@@ -220,6 +220,21 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual("premium.monthly", body["expectedProductId"] as? String)
     }
 
+    func testIapkitHorizonPayloadForwardsUserAndSku() throws {
+        let payload = try OpenIapModule.iapkitHorizonPayload(
+            from: RequestVerifyPurchaseWithIapkitHorizonProps(
+                sku: "  premium.monthly  ",
+                userId: "  123456789  "
+            ),
+            includeClientPayload: true
+        )
+
+        XCTAssertEqual(.horizon, payload.store)
+        XCTAssertEqual("premium.monthly", payload.sku)
+        XCTAssertEqual("123456789", payload.userId)
+        XCTAssertEqual(true, payload.includeClientPayload)
+    }
+
     @MainActor
     func testStoreReturnsIapkitResult() async throws {
         let iapkitResult = RequestVerifyPurchaseWithIapkitResult(

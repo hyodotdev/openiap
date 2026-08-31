@@ -619,6 +619,13 @@ class HybridRnIap: HybridRnIapSpec {
                     if case .second(let google) = iapkit.google {
                         iapkitDict["google"] = ["purchaseToken": google.purchaseToken]
                     }
+                    if case .second(let horizon) = iapkit.horizon {
+                        var horizonDict: [String: Any] = ["sku": horizon.sku]
+                        if case .second(let userId) = horizon.userId {
+                            horizonDict["userId"] = userId
+                        }
+                        iapkitDict["horizon"] = horizonDict
+                    }
                     if case .second(let amazon) = iapkit.amazon {
                         var amazonDict: [String: Any] = [
                             "receiptId": amazon.receiptId

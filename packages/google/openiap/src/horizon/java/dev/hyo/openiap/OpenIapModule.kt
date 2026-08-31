@@ -15,6 +15,7 @@ import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
 import com.meta.horizon.billingclient.api.PurchasesUpdatedListener
 import com.meta.horizon.billingclient.api.QueryProductDetailsParams
 import com.meta.horizon.billingclient.api.QueryPurchasesParams
+import horizon.platform.users.Users
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -68,6 +69,26 @@ private const val PURCHASE_QUERY_INTERVAL_MS = 1_000L
 private const val PURCHASE_QUERY_MAX_ATTEMPTS = 300
 internal fun resolveHorizonAppId(metaData: android.os.Bundle?): String? =
     metaData?.getString(HORIZON_APP_ID_META_DATA)?.takeIf { it.isNotBlank() }
+
+internal fun withResolvedHorizonUserId(
+    options: RequestVerifyPurchaseWithIapkitProps,
+    userId: String,
+): RequestVerifyPurchaseWithIapkitProps {
+    val horizon = requireNotNull(options.horizon)
+    return RequestVerifyPurchaseWithIapkitProps(
+        amazon = options.amazon,
+        apiKey = options.apiKey,
+        apple = options.apple,
+        baseUrl = options.baseUrl,
+        google = options.google,
+        includeClientPayload = options.includeClientPayload,
+        horizon = RequestVerifyPurchaseWithIapkitHorizonProps(
+            sku = horizon.sku,
+            userId = userId.trim().takeIf { it.isNotEmpty() }
+                ?: throw IllegalArgumentException("Horizon user ID must not be blank"),
+        ),
+    )
+}
 
 internal data class HorizonAllQueryResults<T : Any>(
     val inApp: T?,
@@ -1411,8 +1432,22 @@ class OpenIapModule(
         val options = props.iapkit ?: throw OpenIapError.DeveloperError(
             "Missing IAPKit verification parameters"
         )
+        val horizonOptions = options.horizon
+        val resolvedOptions = if (horizonOptions != null && horizonOptions.userId.isNullOrBlank()) {
+            try {
+                withResolvedHorizonUserId(options, Users().getLoggedInUser().id)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                throw OpenIapError.PurchaseVerificationFailed(
+                    "Unable to resolve the logged-in Horizon user"
+                )
+            }
+        } else {
+            options
+        }
         VerifyPurchaseWithProviderResult(
-            iapkit = verifyPurchaseWithIapkit(options, TAG),
+            iapkit = verifyPurchaseWithIapkit(resolvedOptions, TAG),
             provider = props.provider
         )
     }

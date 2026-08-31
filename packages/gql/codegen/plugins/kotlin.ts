@@ -56,7 +56,8 @@ const COMPATIBLE_INPUT_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShap
   },
   RequestVerifyPurchaseWithIapkitProps: {
     primaryFields: ['amazon', 'apiKey', 'apple', 'baseUrl', 'google'],
-    extraFields: ['includeClientPayload'],
+    extraFields: ['includeClientPayload', 'horizon'],
+    legacyExtraFieldCounts: [1],
   },
 };
 
@@ -645,24 +646,39 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit('');
     }
 
-    this.emit('    constructor(');
-    for (const value of primaryFields) {
-      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)},`);
+    const constructorExtraFieldCounts = [
+      ...new Set([...(shape.legacyExtraFieldCounts ?? []), extraFields.length]),
+    ];
+    for (const extraFieldCount of constructorExtraFieldCounts) {
+      if (extraFieldCount < 1 || extraFieldCount > extraFields.length) {
+        throw new Error(`${irInput.name} has an invalid compatibility constructor size`);
+      }
+      const constructorExtraFields = extraFields.slice(0, extraFieldCount);
+      const isCurrentConstructor = extraFieldCount === extraFields.length;
+      const hasLegacyConstructor = (shape.legacyExtraFieldCounts?.length ?? 0) > 0;
+      this.emit('    constructor(');
+      for (const value of primaryFields) {
+        this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)},`);
+      }
+      constructorExtraFields.forEach((value, index) => {
+        const isNewestField = index === constructorExtraFields.length - 1;
+        let extraDefault = index === 0 ? '' : ' = null';
+        if (isCurrentConstructor && hasLegacyConstructor) {
+          extraDefault = isNewestField ? '' : ' = null';
+        }
+        this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${extraDefault},`);
+      });
+      this.emit('    ) : this(');
+      for (const value of primaryFields) {
+        this.emit(`        ${value.name} = ${value.name},`);
+      }
+      this.emit('    ) {');
+      for (const value of constructorExtraFields) {
+        this.emit(`        this.${value.name} = ${value.name}`);
+      }
+      this.emit('    }');
+      this.emit('');
     }
-    extraFields.forEach((value, index) => {
-      const extraDefault = index === 0 ? '' : ' = null';
-      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${extraDefault},`);
-    });
-    this.emit('    ) : this(');
-    for (const value of primaryFields) {
-      this.emit(`        ${value.name} = ${value.name},`);
-    }
-    this.emit('    ) {');
-    for (const value of extraFields) {
-      this.emit(`        this.${value.name} = ${value.name}`);
-    }
-    this.emit('    }');
-    this.emit('');
 
     const allFields = [...primaryFields, ...extraFields];
     const requiredFields = allFields.filter(

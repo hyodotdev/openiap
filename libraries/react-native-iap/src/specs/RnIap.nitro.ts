@@ -452,6 +452,13 @@ export interface NitroVerifyPurchaseWithIapkitGoogleProps {
   purchaseToken: string;
 }
 
+export interface NitroVerifyPurchaseWithIapkitHorizonProps {
+  /** Meta Horizon product or subscription SKU. */
+  sku: string;
+  /** Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted. */
+  userId?: string | null;
+}
+
 export interface NitroVerifyPurchaseWithIapkitAmazonProps {
   /** Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS. */
   expectedProductId?: string | null;
@@ -474,6 +481,7 @@ export interface NitroVerifyPurchaseWithIapkitProps {
    */
   baseUrl?: string | null;
   google?: NitroVerifyPurchaseWithIapkitGoogleProps | null;
+  horizon?: NitroVerifyPurchaseWithIapkitHorizonProps | null;
   /**
    * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
    * Include the product's public IAPKit client payload when available.

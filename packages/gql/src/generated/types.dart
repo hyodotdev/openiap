@@ -5299,10 +5299,37 @@ class RequestVerifyPurchaseWithIapkitGoogleProps {
   }
 }
 
+class RequestVerifyPurchaseWithIapkitHorizonProps {
+  const RequestVerifyPurchaseWithIapkitHorizonProps({
+    required this.sku,
+    this.userId,
+  });
+
+  /// Meta Horizon product or subscription SKU.
+  final String sku;
+  /// Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
+  final String? userId;
+
+  factory RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(Map<String, dynamic> json) {
+    return RequestVerifyPurchaseWithIapkitHorizonProps(
+      sku: json['sku'] as String,
+      userId: json['userId'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'sku': sku,
+      'userId': userId,
+    };
+  }
+}
+
 /// Platform-specific verification parameters for IAPKit.
 ///
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
+/// - horizon: Verifies via Meta Horizon (app-scoped user ID + SKU)
 /// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 class RequestVerifyPurchaseWithIapkitProps {
   const RequestVerifyPurchaseWithIapkitProps({
@@ -5311,6 +5338,7 @@ class RequestVerifyPurchaseWithIapkitProps {
     this.apple,
     this.baseUrl,
     this.google,
+    this.horizon,
     this.includeClientPayload,
   });
 
@@ -5327,9 +5355,11 @@ class RequestVerifyPurchaseWithIapkitProps {
   final String? baseUrl;
   /// Google Play Store verification parameters.
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
+  /// Meta Horizon verification parameters.
+  final RequestVerifyPurchaseWithIapkitHorizonProps? horizon;
   /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-  /// Include the product's public IAPKit client payload in a valid Apple or
-  /// Google verification response. Defaults to false so existing response
+  /// Include the product's public IAPKit client payload in a valid verification
+  /// response. Defaults to false so existing response
   /// shapes and bandwidth remain unchanged.
   final bool? includeClientPayload;
 
@@ -5340,6 +5370,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       apple: json['apple'] != null ? RequestVerifyPurchaseWithIapkitAppleProps.fromJson(json['apple'] as Map<String, dynamic>) : null,
       baseUrl: json['baseUrl'] as String?,
       google: json['google'] != null ? RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(json['google'] as Map<String, dynamic>) : null,
+      horizon: json['horizon'] != null ? RequestVerifyPurchaseWithIapkitHorizonProps.fromJson(json['horizon'] as Map<String, dynamic>) : null,
       includeClientPayload: json['includeClientPayload'] as bool?,
     );
   }
@@ -5351,6 +5382,7 @@ class RequestVerifyPurchaseWithIapkitProps {
       'apple': apple?.toJson(),
       'baseUrl': baseUrl,
       'google': google?.toJson(),
+      'horizon': horizon?.toJson(),
       'includeClientPayload': includeClientPayload,
     };
   }

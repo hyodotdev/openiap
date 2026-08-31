@@ -2922,6 +2922,59 @@ void main() {
       expect(iapkitPayload['baseUrl'], 'http://127.0.0.1:4174');
     });
 
+    test('sends Horizon SKU without a Google purchase token', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        if (call.method == 'initConnection') return true;
+        if (call.method == 'verifyPurchaseWithProvider') {
+          return {
+            'provider': 'iapkit',
+            'iapkit': {
+              'isValid': true,
+              'productId': 'premium.monthly',
+              'state': 'entitled',
+              'store': 'horizon',
+            },
+          };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+      await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          apiKey: 'test-api-key',
+          horizon: types.RequestVerifyPurchaseWithIapkitHorizonProps(
+            sku: 'premium.monthly',
+            userId: 'horizon-user-123',
+          ),
+        ),
+      );
+
+      final verifyCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'verifyPurchaseWithProvider',
+      );
+      final payload = Map<String, dynamic>.from(
+        verifyCall.arguments as Map<dynamic, dynamic>,
+      );
+      final iapkitPayload = Map<String, dynamic>.from(
+        payload['iapkit'] as Map<dynamic, dynamic>,
+      );
+      final horizonPayload = Map<String, dynamic>.from(
+        iapkitPayload['horizon'] as Map<dynamic, dynamic>,
+      );
+
+      expect(horizonPayload['sku'], 'premium.monthly');
+      expect(horizonPayload['userId'], 'horizon-user-123');
+      expect(iapkitPayload, isNot(contains('google')));
+    });
+
     test('sends correct payload for Android verification', () async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

@@ -16,6 +16,13 @@ struct IapkitAmazonVerificationPayload: Codable {
     let includeClientPayload: Bool?
 }
 
+struct IapkitHorizonVerificationPayload: Codable {
+    let store: IapStore
+    let sku: String
+    let userId: String
+    let includeClientPayload: Bool?
+}
+
 struct EntitlementSelectionKey: Comparable {
     let purchaseDate: Date
     let transactionId: UInt64
@@ -165,6 +172,26 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             receiptId: receiptId,
             sandbox: amazon.sandbox,
             userId: userId?.isEmpty == true ? nil : userId,
+            includeClientPayload: includeClientPayload
+        )
+    }
+
+    static func iapkitHorizonPayload(
+        from horizon: RequestVerifyPurchaseWithIapkitHorizonProps,
+        includeClientPayload: Bool?
+    ) throws -> IapkitHorizonVerificationPayload {
+        let sku = horizon.sku.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userId = horizon.userId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard sku.isEmpty == false, userId.isEmpty == false else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Horizon sku and userId are required"
+            )
+        }
+        return IapkitHorizonVerificationPayload(
+            store: .horizon,
+            sku: sku,
+            userId: userId,
             includeClientPayload: includeClientPayload
         )
     }
@@ -927,7 +954,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         func buildIapkitPayload(props: RequestVerifyPurchaseWithIapkitProps) throws -> (store: IapStore, body: Data) {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.withoutEscapingSlashes]
-            let payloadCount = [props.apple != nil, props.google != nil, props.amazon != nil].filter { $0 }.count
+            let payloadCount = [
+                props.apple != nil,
+                props.google != nil,
+                props.horizon != nil,
+                props.amazon != nil,
+            ].filter { $0 }.count
             guard payloadCount == 1 else {
                 throw makePurchaseError(code: .developerError, message: "IAPKit verification requires exactly one store payload")
             }
@@ -956,6 +988,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                     includeClientPayload: props.includeClientPayload
                 )
                 return (.google, try encoder.encode(payload))
+            }
+
+            if let horizon = props.horizon {
+                let payload = try Self.iapkitHorizonPayload(
+                    from: horizon,
+                    includeClientPayload: props.includeClientPayload
+                )
+                return (.horizon, try encoder.encode(payload))
             }
 
             if let amazon = props.amazon {
