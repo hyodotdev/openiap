@@ -1,5 +1,14 @@
 # Changelog
 
+## 10.5.0 (2026-08-31)
+
+- chore(release): openiap-google@3.5.0
+- chore(release): openiap-apple@3.4.0
+- fix(iapkit): support Horizon entitlement verification (#412)
+- fix(google): restore listeners after reconnect (#410)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.4.1 (2026-08-29)
 
 - chore(release): openiap-apple@3.3.1
