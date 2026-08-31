@@ -120,6 +120,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                 """.trimIndent()
 
                         scope.launch {
+                            var iapkitVerificationOk = true
                             // Verify purchase based on selected method
                             if (verificationMethod != VerificationMethod.None) {
                                 verificationResult = "🔄 Verifying subscription..."
@@ -154,11 +155,13 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         VerificationMethod.IAPKit -> {
                                             val apiKey = AppConfig.iapkitApiKey
                                             if (apiKey.isEmpty()) {
+                                                iapkitVerificationOk = false
                                                 verificationResult = "❌ IAPKit API key not configured.\n" +
                                                     "Set IAPKIT_API_KEY in .env file."
                                             } else {
                                                 val jwsOrToken = purchase.purchaseToken ?: ""
-                                                if (jwsOrToken.isEmpty()) {
+                                                if (jwsOrToken.isEmpty() && purchase.store != IapStore.Horizon) {
+                                                    iapkitVerificationOk = false
                                                     verificationResult = "❌ No purchase token available for verification"
                                                 } else {
                                                     val isIos = getCurrentPlatform() == IapPlatform.Ios
@@ -174,6 +177,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                         )
                                                     )
                                                     val iapkitResult = result.iapkit
+                                                    iapkitVerificationOk = iapkitResult?.isValid == true
                                                     val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
                                                     verificationResult = "$statusEmoji IAPKit Verification:\n" +
                                                         "Valid: ${iapkitResult?.isValid ?: false}\n" +
@@ -185,8 +189,16 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                         else -> {}
                                     }
                                 } catch (e: Exception) {
+                                    if (verificationMethod == VerificationMethod.IAPKit) {
+                                        iapkitVerificationOk = false
+                                    }
                                     verificationResult = "❌ Verification failed: ${e.message}"
                                 }
+                            }
+
+                            if (verificationMethod == VerificationMethod.IAPKit && !iapkitVerificationOk) {
+                                purchaseResult = "$purchaseResult\n\n⚠️ Transaction left unfinished because IAPKit verification failed"
+                                return@launch
                             }
 
                             // Finish the transaction

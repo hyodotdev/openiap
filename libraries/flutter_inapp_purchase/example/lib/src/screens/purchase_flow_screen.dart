@@ -242,11 +242,6 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
-    // Mark this transaction as processed
-    if (transactionId != null) {
-      _processedTransactionIds.add(transactionId);
-    }
-
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
@@ -266,7 +261,12 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
 
     // Perform verification based on selected method
     if (_verificationMethod == VerificationMethod.iapkit) {
-      await _verifyPurchaseWithIAPKit(purchase);
+      final verificationOk = await _verifyPurchaseWithIAPKit(purchase);
+      if (!verificationOk) {
+        debugPrint(
+            '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
+        return;
+      }
     } else if (_verificationMethod == VerificationMethod.local) {
       await _verifyPurchaseLocally(purchase);
     }
@@ -278,6 +278,9 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
         purchase: purchase,
         isConsumable: true,
       );
+      if (transactionId != null) {
+        _processedTransactionIds.add(transactionId);
+      }
       debugPrint('Transaction finished successfully');
       if (!mounted) return;
       setState(() {
@@ -417,7 +420,7 @@ Auto Renewing: ${androidResult.autoRenewing}
   }
 
   /// Verify purchase with IAPKit provider
-  Future<void> _verifyPurchaseWithIAPKit(Purchase purchase) async {
+  Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
     final apiKey = IapConstants.iapkitApiKey;
     debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
 
@@ -449,14 +452,14 @@ Auto Renewing: ${androidResult.autoRenewing}
       debugPrint(
           'IAPKit verification completed: hasIapkit=${result.iapkit != null}');
 
-      if (result.iapkit != null) {
-        final iapkitResult = result.iapkit!;
+      final iapkitResult = result.iapkit;
+      if (iapkitResult != null) {
         final statusEmoji = iapkitResult.isValid ? '✅' : '⚠️';
         final stateText = iapkitResult.state.value;
 
-        if (!mounted) return;
-        setState(() {
-          _purchaseResult = '''
+        if (mounted) {
+          setState(() {
+            _purchaseResult = '''
 $_purchaseResult
 
 $statusEmoji IAPKit Verification
@@ -464,16 +467,20 @@ Valid: ${iapkitResult.isValid}
 State: $stateText
 Store: ${iapkitResult.store.value}
           '''
-              .trim();
-        });
+                .trim();
+          });
+        }
       }
+      return iapkitResult?.isValid == true;
     } catch (e) {
       debugPrint('IAPKit verification failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _purchaseResult =
-            '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
-      });
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              '$_purchaseResult\n\n❌ IAPKit verification failed: $e';
+        });
+      }
+      return false;
     }
   }
 
