@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-08-30T16:26:08.115Z
+> Last updated: 2026-08-31T15:46:52.495Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2325,6 +2325,12 @@ PR, deploy the docs and verify both surfaces.
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
 versions, other branches, and stale or unpublished local snapshots.
+
+On a fresh checkout, first run `cd packages/docs && vercel link` and select the
+existing OpenIAP project. Deployment stops when that local project link is
+missing or invalid. It validates the immutable project and organization IDs,
+rejects conflicting `VERCEL_PROJECT_ID` or `VERCEL_ORG_ID` overrides, and
+reports success only after Vercel returns a ready production deployment.
 
 ```bash
 # From monorepo root

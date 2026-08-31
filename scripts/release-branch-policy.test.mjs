@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
@@ -1320,6 +1326,29 @@ test("production docs are guarded as stable-only", () => {
   assert.match(deployScript, /Production docs accept stable versions only/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /OpenIAP Spec cannot be bumped independently/);
+  assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
+  assert.match(
+    deployScript,
+    /EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"/,
+  );
+  assert.match(
+    deployScript,
+    /EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"/,
+  );
+  assert.match(deployScript, /\.projectId == \$projectId/);
+  assert.match(deployScript, /\.orgId == \$orgId/);
+  assert.match(deployScript, /\.projectName == "openiap"/);
+  assert.match(deployScript, /Vercel environment target conflicts/);
+  assert.match(
+    deployScript,
+    /vercel --prod --yes --format=json --non-interactive/,
+  );
+  assert.match(deployScript, /\.readyState == "READY"/);
+  assert.match(deployScript, /\.target == "production"/);
+  assert.match(
+    deployScript,
+    /Vercel CLI returned no ready production deployment/,
+  );
   assert.match(deployScript, /DOCS_TAG="docs-\$VERSION"/);
   assert.match(deployScript, /git ls-remote --exit-code --tags origin/);
   assert.match(deployScript, /DOCS_TAG_STATUS=\$\?/);
@@ -1355,6 +1384,173 @@ test("production docs are guarded as stable-only", () => {
     syncScript.indexOf("release-branch-policy.mjs assert-floor") <
       syncScript.indexOf('echo "📦 Syncing version files..."'),
   );
+});
+
+test("production docs require a verified Vercel deployment result", () => {
+  const temporaryRoot = mkdtempSync(resolve(tmpdir(), "openiap-deploy-"));
+  const remoteRoot = mkdtempSync(resolve(tmpdir(), "openiap-deploy-origin-"));
+
+  function writeExecutable(path, source) {
+    writeFileSync(path, source, { mode: 0o755 });
+  }
+
+  try {
+    mkdirSync(resolve(temporaryRoot, "scripts"), { recursive: true });
+    mkdirSync(resolve(temporaryRoot, "packages/docs"), { recursive: true });
+    mkdirSync(resolve(temporaryRoot, "mock-bin"), { recursive: true });
+    writeExecutable(
+      resolve(temporaryRoot, "scripts/deploy.sh"),
+      readFileSync(resolve(repoRoot, "scripts/deploy.sh"), "utf8"),
+    );
+    writeExecutable(
+      resolve(temporaryRoot, "scripts/sync-versions.sh"),
+      "#!/bin/sh\nexit 0\n",
+    );
+    writeFileSync(
+      resolve(temporaryRoot, "openiap-versions.json"),
+      '{"spec":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
+    );
+    writeFileSync(
+      resolve(temporaryRoot, ".gitignore"),
+      "packages/docs/.vercel/\n",
+    );
+    writeExecutable(
+      resolve(temporaryRoot, "mock-bin/node"),
+      "#!/bin/sh\nexit 0\n",
+    );
+    writeExecutable(
+      resolve(temporaryRoot, "mock-bin/bun"),
+      "#!/bin/sh\nexit 0\n",
+    );
+    writeExecutable(
+      resolve(temporaryRoot, "mock-bin/vercel"),
+      [
+        "#!/bin/sh",
+        'if [ "${1:-}" = "whoami" ]; then',
+        "  exit 0",
+        "fi",
+        "printf '%s' \"${MOCK_VERCEL_OUTPUT:-}\"",
+        "exit 0",
+        "",
+      ].join("\n"),
+    );
+
+    execFileSync("git", ["init", "-q", "-b", "main"], {
+      cwd: temporaryRoot,
+    });
+    execFileSync("git", ["config", "user.name", "OpenIAP Test"], {
+      cwd: temporaryRoot,
+    });
+    execFileSync("git", ["config", "user.email", "test@openiap.dev"], {
+      cwd: temporaryRoot,
+    });
+    execFileSync("git", ["add", "."], { cwd: temporaryRoot });
+    execFileSync("git", ["commit", "-q", "-m", "test fixture"], {
+      cwd: temporaryRoot,
+    });
+    execFileSync("git", ["init", "-q", "--bare", remoteRoot]);
+    execFileSync("git", ["remote", "add", "origin", remoteRoot], {
+      cwd: temporaryRoot,
+    });
+    execFileSync("git", ["push", "-q", "-u", "origin", "main"], {
+      cwd: temporaryRoot,
+    });
+
+    const environment = { ...process.env };
+    delete environment.VERCEL_PROJECT_ID;
+    delete environment.VERCEL_ORG_ID;
+    environment.PATH = `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`;
+    const runDeploy = (mockOutput = "", environmentOverrides = {}) =>
+      spawnSync("bash", ["scripts/deploy.sh"], {
+        cwd: temporaryRoot,
+        encoding: "utf8",
+        env: {
+          ...environment,
+          MOCK_VERCEL_OUTPUT: mockOutput,
+          ...environmentOverrides,
+        },
+        input: "y\n",
+      });
+
+    const unlinked = runDeploy();
+    assert.notEqual(unlinked.status, 0);
+    assert.match(unlinked.stdout, /not linked to the OpenIAP Vercel project/);
+    assert.doesNotMatch(unlinked.stdout, /Successfully deployed to Vercel/);
+
+    mkdirSync(resolve(temporaryRoot, "packages/docs/.vercel"), {
+      recursive: true,
+    });
+    writeFileSync(
+      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      '{"projectId":"prj_test","orgId":"team_test","projectName":"other"}\n',
+    );
+
+    const wrongProject = runDeploy();
+    assert.notEqual(wrongProject.status, 0);
+    assert.match(
+      wrongProject.stdout,
+      /not linked to the OpenIAP Vercel project/,
+    );
+
+    writeFileSync(
+      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      '{"projectId":"prj_test","orgId":"team_test","projectName":"openiap"}\n',
+    );
+
+    const wrongIdentity = runDeploy();
+    assert.notEqual(wrongIdentity.status, 0);
+    assert.match(
+      wrongIdentity.stdout,
+      /not linked to the OpenIAP Vercel project/,
+    );
+
+    writeFileSync(
+      resolve(temporaryRoot, "packages/docs/.vercel/project.json"),
+      '{"projectId":"prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1","orgId":"team_qB5U5TU9IKqAL2KyQsj0duy3","projectName":"openiap"}\n',
+    );
+
+    const emptySuccess = runDeploy();
+    assert.notEqual(emptySuccess.status, 0);
+    assert.match(
+      emptySuccess.stdout,
+      /Vercel CLI returned no ready production deployment/,
+    );
+    assert.doesNotMatch(emptySuccess.stdout, /Successfully deployed to Vercel/);
+
+    const readyOutput =
+      '{"status":"ok","deployment":{"id":"dpl_test","url":"https://openiap-test.vercel.app","readyState":"READY","target":"production"}}';
+    const conflictingEnvironment = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_other",
+      VERCEL_ORG_ID: "team_qB5U5TU9IKqAL2KyQsj0duy3",
+    });
+    assert.notEqual(conflictingEnvironment.status, 0);
+    assert.match(
+      conflictingEnvironment.stdout,
+      /Vercel environment target conflicts with the OpenIAP project/,
+    );
+
+    const incompleteEnvironment = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1",
+    });
+    assert.notEqual(incompleteEnvironment.status, 0);
+    assert.match(
+      incompleteEnvironment.stdout,
+      /Vercel environment target conflicts with the OpenIAP project/,
+    );
+
+    const ready = runDeploy(readyOutput, {
+      VERCEL_PROJECT_ID: "prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1",
+      VERCEL_ORG_ID: "team_qB5U5TU9IKqAL2KyQsj0duy3",
+    });
+    assert.equal(ready.status, 0, ready.stderr || ready.stdout);
+    assert.match(
+      ready.stdout,
+      /Successfully deployed to Vercel: https:\/\/openiap-test\.vercel\.app/,
+    );
+  } finally {
+    rmSync(temporaryRoot, { force: true, recursive: true });
+    rmSync(remoteRoot, { force: true, recursive: true });
+  }
 });
 
 test("native releases refuse branch drift after the verified head", () => {

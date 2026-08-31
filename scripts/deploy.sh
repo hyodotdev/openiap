@@ -12,6 +12,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 VERCEL_CLI_VERSION="54.0.0"
+EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"
+EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"
 
 echo -e "${BLUE}🚀 OpenIAP Deployment Script${NC}"
 echo ""
@@ -93,6 +95,28 @@ if ! command -v vercel &> /dev/null; then
     echo -e "${GREEN}✅ Vercel CLI installed successfully${NC}"
 fi
 
+VERCEL_PROJECT_FILE="packages/docs/.vercel/project.json"
+if ! jq -e \
+    --arg projectId "$EXPECTED_VERCEL_PROJECT_ID" \
+    --arg orgId "$EXPECTED_VERCEL_ORG_ID" '
+    (.projectId == $projectId) and
+    (.orgId == $orgId) and
+    (.projectName == "openiap")
+' "$VERCEL_PROJECT_FILE" >/dev/null 2>&1; then
+    echo -e "${RED}❌ packages/docs is not linked to the OpenIAP Vercel project${NC}"
+    echo -e "${YELLOW}Run 'cd packages/docs && vercel link' before deploying.${NC}"
+    exit 1
+fi
+
+if [ -n "${VERCEL_PROJECT_ID:-}" ] || [ -n "${VERCEL_ORG_ID:-}" ]; then
+    if [ "${VERCEL_PROJECT_ID:-}" != "$EXPECTED_VERCEL_PROJECT_ID" ] || \
+        [ "${VERCEL_ORG_ID:-}" != "$EXPECTED_VERCEL_ORG_ID" ]; then
+        echo -e "${RED}❌ Vercel environment target conflicts with the OpenIAP project${NC}"
+        echo -e "${YELLOW}Unset VERCEL_PROJECT_ID and VERCEL_ORG_ID, or set both to the expected project.${NC}"
+        exit 1
+    fi
+fi
+
 # Check if user is logged in to Vercel
 if ! vercel whoami &> /dev/null; then
     echo -e "${YELLOW}🔑 Please log in to Vercel...${NC}"
@@ -149,12 +173,22 @@ if ! bun run build; then
 fi
 
 echo -e "${BLUE}🚀 Deploying to Vercel...${NC}"
-if ! vercel --prod; then
+if ! VERCEL_DEPLOYMENT=$(vercel --prod --yes --format=json --non-interactive); then
     echo -e "${RED}❌ Vercel deployment failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Successfully deployed to Vercel${NC}"
+if ! DEPLOYMENT_URL=$(printf '%s' "$VERCEL_DEPLOYMENT" | jq -er '
+    (.deployment // .)
+    | select(.readyState == "READY" and .target == "production")
+    | .url
+    | select(type == "string" and startswith("https://"))
+'); then
+    echo -e "${RED}❌ Vercel CLI returned no ready production deployment${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Successfully deployed to Vercel: $DEPLOYMENT_URL${NC}"
 
 cd ../..
 
