@@ -1427,6 +1427,11 @@ function checkE2eExampleIds() {
     "Example tests, normal Android build, and launch smoke:",
     "VegaOS/Kepler path:",
   );
+  const horizonTarget = extractBetween(
+    normalTargets,
+    "Horizon Android build and optional device path:",
+    "Onside iOS build-only path:",
+  );
   const vegaTarget = extractBetween(expoSection, "VegaOS/Kepler path:", null);
 
   for (const expected of [
@@ -1461,6 +1466,38 @@ function checkE2eExampleIds() {
         )}`,
       );
     }
+  }
+  for (const expected of [
+    '"${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"',
+    'adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk',
+    'adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1',
+  ]) {
+    if (!horizonTarget.includes(expected)) {
+      fail(`Expo Horizon device flow is missing ${JSON.stringify(expected)}`);
+    }
+  }
+  const manualStoreFlows = extractBetween(
+    workflow,
+    "## Manual Store Flows",
+    "## Final Report",
+  );
+  for (const expected of [
+    "verify reconnect/listener behavior",
+    "run the exposed purchase/restore flow",
+    "visibly marked as test or sandbox",
+    "Otherwise report build-only coverage",
+  ]) {
+    if (!manualStoreFlows.includes(expected)) {
+      fail(`Expo Horizon store flow is missing ${JSON.stringify(expected)}`);
+    }
+  }
+  const finalReport = extractBetween(workflow, "## Final Report", null);
+  if (
+    !finalReport.includes(
+      "Expo Horizon          | {serial/local Gradle} | build[/install/store flow] | PASS | ...",
+    )
+  ) {
+    fail("Expo Horizon final-report coverage row is missing");
   }
   for (const expected of [
     "dev.hyo.openiap.expo.example.main",
@@ -5991,6 +6028,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "currently every five minutes",
       "`npm run deploy`; run `release.yml` with `version=current` only when",
+      "add the consolidated entry to",
+      "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
       "deployment. Run the Docs release workflow with",
       "only when the native-derived `spec` advanced",
@@ -5999,6 +6038,24 @@ function checkFrameworkDependencyHygiene() {
       "stop and explain that the immutable",
     ],
     "dependency release gate must preserve review cadence and conditional Docs releases",
+  );
+  expectIncludes(
+    ".codex/skills/loop-review/SKILL.md",
+    [
+      "Commit and push the reviewed release note and process-documentation changes",
+      "directly to `main`",
+      "Do not open a PR for",
+    ],
+    "loop-review must commit and push post-release documentation directly to main",
+  );
+  expectIncludes(
+    ".codex/skills/ship-release/SKILL.md",
+    [
+      "release-note and release-process",
+      "documentation commit directly on `main`",
+      "do not open a PR for that post-release",
+    ],
+    "ship-release must commit post-release documentation directly to main without a PR",
   );
   expectNotIncludes(
     ".claude/commands/release.md",
