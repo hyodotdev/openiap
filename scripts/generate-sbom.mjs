@@ -206,6 +206,15 @@ const COMPONENTS = {
     directory: "packages/conformance",
     source: { kind: "npm", manifest: "packages/conformance/package.json" },
   },
+  "commerce-protocol": {
+    sbomName: "openiap-commerce-protocol",
+    type: "library",
+    purl: (version) => `pkg:npm/openiap-commerce-protocol@${version}`,
+    distribution: (version) =>
+      `https://www.npmjs.com/package/openiap-commerce-protocol/v/${version}`,
+    directory: "specs/openiap-kit",
+    source: { kind: "npm", manifest: "specs/openiap-kit/package.json" },
+  },
   docs: {
     sbomName: "openiap-spec",
     type: "data",
