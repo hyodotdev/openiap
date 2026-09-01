@@ -1,4 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../../convex", () => ({
+  client: { mutation: vi.fn(), query: vi.fn() },
+  handleConvexError: () => null,
+}));
 
 import { apiRoutesV2 } from "./routes";
 
