@@ -4,6 +4,7 @@ import {
   auditCanonicalOfferDocs,
   auditSubscriptionFailureDocs,
   auditVerifyPurchaseDocs,
+  findWebhookTransportDrift,
   type CanonicalOfferDocsSources,
 } from "./audit-docs";
 
@@ -1333,5 +1334,139 @@ function shadow() {
         auditCanonicalOfferDocs(validOfferDocsSources({ searchData })),
       ).toEqual([]);
     }
+  });
+});
+
+describe("R15 webhook transport constants", () => {
+  const vectors = {
+    headers: {
+      signature: "openiap-signature",
+      timestamp: "openiap-timestamp",
+      eventId: "openiap-event-id",
+      deliveryId: "openiap-delivery-id",
+    },
+    toleranceSeconds: 300,
+  };
+
+  const specification = `
+#### 9.4.3 Response semantics
+
+| Consumer returns            | Emitter behaviour                |
+| --------------------------- | -------------------------------- |
+| \`2xx\`                     | Delivered                        |
+| \`408\`, \`429\`, \`5xx\`     | Retry                            |
+| \`3xx\`                     | Permanent failure; do not follow |
+| Other \`4xx\`               | Permanent failure; do not retry  |
+| Timeout or connection error | Retry                            |
+
+### 6.4 Delivery guarantees
+`;
+  const allResponseRows = `
+      { response: '2xx', behavior: 'Delivered' },
+      { response: '408, 429, 5xx', behavior: 'Retry' },
+      { response: '3xx', behavior: 'Permanent failure; do not follow' },
+      { response: 'Other 4xx', behavior: 'Permanent failure; do not retry' },
+      { response: 'Timeout or connection error', behavior: 'Retry' },`;
+  const page = (
+    rows: string,
+    window = "|now - timestamp| &lt;= 300 seconds",
+    responseRows = allResponseRows,
+  ) => `
+    const HEADER_ROWS: HeaderRow[] = [
+${rows}
+    ];
+    const RESPONSE_ROWS: ResponseRow[] = [
+${responseRows}
+    ];
+    <p>Accept only when <code>${window}</code>.</p>
+  `;
+
+  const allRows = Object.values(vectors.headers)
+    .map((h) => `      { header: '${h}', value: 'x', authority: 'y' },`)
+    .join("\n");
+
+  const rowsWith = (replaced: string, by: string) =>
+    allRows.replace(`header: '${replaced}'`, `header: '${by}'`);
+  const audit = (source: string, spec = specification) =>
+    findWebhookTransportDrift(source, vectors, spec);
+
+  test("accepts a page that names every header and states the window", () => {
+    expect(audit(page(allRows))).toEqual([]);
+  });
+
+  test("rejects a header renamed by suffix", () => {
+    const drift = audit(
+      page(rowsWith("openiap-delivery-id", "openiap-delivery-identifier")),
+    );
+    expect(drift.map((d) => d.message)).toEqual([
+      "Webhook docs must name the openiap-delivery-id header the protocol publishes.",
+    ]);
+  });
+
+  test("rejects a header renamed by prefix", () => {
+    const drift = audit(
+      page(rowsWith("openiap-signature", "x-openiap-signature")),
+    );
+    expect(drift).toHaveLength(1);
+    expect(drift[0]?.message).toContain("openiap-signature");
+  });
+
+  test("rejects a header replaced outright", () => {
+    const drift = audit(page(rowsWith("openiap-timestamp", "x-ts")));
+    expect(drift).toHaveLength(1);
+  });
+
+  // A code sample elsewhere on the page carries the same `header: '...'` shape.
+  // Only the rendered table is the contract, so a deleted row must still fail.
+  test("rejects a renamed row when a code sample repeats the old name", () => {
+    const source =
+      page(rowsWith("openiap-event-id", "x-evt")) +
+      "<pre>{`fetch(url, { headers: { header: 'openiap-event-id' } })`}</pre>";
+    expect(audit(source)).toHaveLength(1);
+  });
+
+  test("rejects a widened replay window", () => {
+    const drift = audit(page(allRows, "|now - timestamp| &lt;= 600 seconds"));
+    expect(drift).toHaveLength(1);
+    expect(drift[0]?.message).toContain("300");
+  });
+
+  // A bare 300 anywhere in the page is not the rule; the comparison is.
+  test("rejects a page carrying 300 without the comparison", () => {
+    const source = page(allRows, "retry after 300 attempts");
+    expect(audit(source)).toHaveLength(1);
+  });
+
+  test("rejects a missing response class", () => {
+    const source = page(
+      allRows,
+      undefined,
+      allResponseRows.replace(
+        "      { response: '3xx', behavior: 'Permanent failure; do not follow' },\n",
+        "",
+      ),
+    );
+    expect(audit(source)).toEqual([
+      expect.objectContaining({
+        message: "Webhook response rows must match SPEC.md §9.4.3 exactly.",
+      }),
+    ]);
+  });
+
+  test("rejects response behavior that differs from the specification", () => {
+    const source = page(
+      allRows,
+      undefined,
+      allResponseRows.replace(
+        "Permanent failure; do not retry",
+        "Permanent failure",
+      ),
+    );
+    expect(audit(source)).toHaveLength(1);
+  });
+
+  test("reports a missing header table", () => {
+    const drift = audit("<p>nothing here</p>");
+    expect(drift.some((d) => d.message.includes("HEADER_ROWS"))).toBe(true);
   });
 });

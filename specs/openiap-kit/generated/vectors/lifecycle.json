@@ -1,0 +1,908 @@
+{
+  "$comment": "Deterministic lifecycle vectors for the OpenIAP Commerce Protocol. Any implementation, in any language, must reproduce every expected value. These are derived from the rules in SPEC.md — sections 2.3, 2.4, and 9.1 — and not from any particular backend, so passing them demonstrates conformance to the specification rather than agreement with one implementation.",
+  "entitlement": {
+    "rule": "SPEC.md 2.3. Evaluate at processedAt. Entitled when the state grants access AND processedAt < expiresAt. An omitted expiresAt means no expiry is known. The boundary is exclusive: processedAt == expiresAt is NOT entitled.",
+    "cases": [
+      {
+        "name": "Active / no expiry",
+        "state": "Active",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": true
+      },
+      {
+        "name": "Active / expires in the future",
+        "state": "Active",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": true
+      },
+      {
+        "name": "Active / expires exactly at processing",
+        "state": "Active",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Active / expired before processing",
+        "state": "Active",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InGracePeriod / no expiry",
+        "state": "InGracePeriod",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": true
+      },
+      {
+        "name": "InGracePeriod / expires in the future",
+        "state": "InGracePeriod",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": true
+      },
+      {
+        "name": "InGracePeriod / expires exactly at processing",
+        "state": "InGracePeriod",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InGracePeriod / expired before processing",
+        "state": "InGracePeriod",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InBillingRetry / no expiry",
+        "state": "InBillingRetry",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InBillingRetry / expires in the future",
+        "state": "InBillingRetry",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InBillingRetry / expires exactly at processing",
+        "state": "InBillingRetry",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "InBillingRetry / expired before processing",
+        "state": "InBillingRetry",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Paused / no expiry",
+        "state": "Paused",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Paused / expires in the future",
+        "state": "Paused",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Paused / expires exactly at processing",
+        "state": "Paused",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Paused / expired before processing",
+        "state": "Paused",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Expired / no expiry",
+        "state": "Expired",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Expired / expires in the future",
+        "state": "Expired",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Expired / expires exactly at processing",
+        "state": "Expired",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Expired / expired before processing",
+        "state": "Expired",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Revoked / no expiry",
+        "state": "Revoked",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Revoked / expires in the future",
+        "state": "Revoked",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Revoked / expires exactly at processing",
+        "state": "Revoked",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Revoked / expired before processing",
+        "state": "Revoked",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Refunded / no expiry",
+        "state": "Refunded",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Refunded / expires in the future",
+        "state": "Refunded",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Refunded / expires exactly at processing",
+        "state": "Refunded",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Refunded / expired before processing",
+        "state": "Refunded",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Unknown / no expiry",
+        "state": "Unknown",
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Unknown / expires in the future",
+        "state": "Unknown",
+        "expiresAt": 1756387200000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Unknown / expires exactly at processing",
+        "state": "Unknown",
+        "expiresAt": 1756300800000,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      },
+      {
+        "name": "Unknown / expired before processing",
+        "state": "Unknown",
+        "expiresAt": 1756300799999,
+        "occurredAt": 1756300799000,
+        "processedAt": 1756300800000,
+        "entitled": false
+      }
+    ]
+  },
+  "emission": {
+    "rule": "SPEC.md 9.1. `lifecycleEvent` is the subscription event the emitter determined occurred, or null when nothing lifecycle-relevant changed. An entitlement event is emitted only when the gate actually flips, and follows the lifecycle event when both occur. How an emitter decides which lifecycle event occurred is implementation business; what it must then emit is not.",
+    "precondition": "Every case assumes the purchase has a bound userId and productId. SPEC.md 2.4 defers an entitlement delta while that actionable target is unavailable.",
+    "cases": [
+      {
+        "name": "subscription.started (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.started",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.started"
+        ]
+      },
+      {
+        "name": "subscription.started (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.started",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.started",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.started (entitled -> entitled)",
+        "lifecycleEvent": "subscription.started",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.started"
+        ]
+      },
+      {
+        "name": "subscription.started (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.started",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.started",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.renewed (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.renewed",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.renewed"
+        ]
+      },
+      {
+        "name": "subscription.renewed (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.renewed",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.renewed",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.renewed (entitled -> entitled)",
+        "lifecycleEvent": "subscription.renewed",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.renewed"
+        ]
+      },
+      {
+        "name": "subscription.renewed (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.renewed",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.renewed",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.recovered (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.recovered",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.recovered"
+        ]
+      },
+      {
+        "name": "subscription.recovered (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.recovered",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.recovered",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.recovered (entitled -> entitled)",
+        "lifecycleEvent": "subscription.recovered",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.recovered"
+        ]
+      },
+      {
+        "name": "subscription.recovered (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.recovered",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.recovered",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.entered_grace_period (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.entered_grace_period",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.entered_grace_period"
+        ]
+      },
+      {
+        "name": "subscription.entered_grace_period (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.entered_grace_period",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.entered_grace_period",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.entered_grace_period (entitled -> entitled)",
+        "lifecycleEvent": "subscription.entered_grace_period",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.entered_grace_period"
+        ]
+      },
+      {
+        "name": "subscription.entered_grace_period (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.entered_grace_period",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.entered_grace_period",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.entered_billing_retry (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.entered_billing_retry",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.entered_billing_retry"
+        ]
+      },
+      {
+        "name": "subscription.entered_billing_retry (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.entered_billing_retry",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.entered_billing_retry",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.entered_billing_retry (entitled -> entitled)",
+        "lifecycleEvent": "subscription.entered_billing_retry",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.entered_billing_retry"
+        ]
+      },
+      {
+        "name": "subscription.entered_billing_retry (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.entered_billing_retry",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.entered_billing_retry",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.expired (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.expired",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.expired"
+        ]
+      },
+      {
+        "name": "subscription.expired (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.expired",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.expired",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.expired (entitled -> entitled)",
+        "lifecycleEvent": "subscription.expired",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.expired"
+        ]
+      },
+      {
+        "name": "subscription.expired (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.expired",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.expired",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.canceled (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.canceled",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.canceled"
+        ]
+      },
+      {
+        "name": "subscription.canceled (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.canceled",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.canceled",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.canceled (entitled -> entitled)",
+        "lifecycleEvent": "subscription.canceled",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.canceled"
+        ]
+      },
+      {
+        "name": "subscription.canceled (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.canceled",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.canceled",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.uncanceled (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.uncanceled",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.uncanceled"
+        ]
+      },
+      {
+        "name": "subscription.uncanceled (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.uncanceled",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.uncanceled",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.uncanceled (entitled -> entitled)",
+        "lifecycleEvent": "subscription.uncanceled",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.uncanceled"
+        ]
+      },
+      {
+        "name": "subscription.uncanceled (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.uncanceled",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.uncanceled",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.revoked (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.revoked",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.revoked"
+        ]
+      },
+      {
+        "name": "subscription.revoked (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.revoked",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.revoked",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.revoked (entitled -> entitled)",
+        "lifecycleEvent": "subscription.revoked",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.revoked"
+        ]
+      },
+      {
+        "name": "subscription.revoked (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.revoked",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.revoked",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.refunded (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.refunded",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.refunded"
+        ]
+      },
+      {
+        "name": "subscription.refunded (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.refunded",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.refunded",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.refunded (entitled -> entitled)",
+        "lifecycleEvent": "subscription.refunded",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.refunded"
+        ]
+      },
+      {
+        "name": "subscription.refunded (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.refunded",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.refunded",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.product_changed (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.product_changed",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.product_changed"
+        ]
+      },
+      {
+        "name": "subscription.product_changed (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.product_changed",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.product_changed",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.product_changed (entitled -> entitled)",
+        "lifecycleEvent": "subscription.product_changed",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.product_changed"
+        ]
+      },
+      {
+        "name": "subscription.product_changed (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.product_changed",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.product_changed",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.price_changed (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.price_changed",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.price_changed"
+        ]
+      },
+      {
+        "name": "subscription.price_changed (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.price_changed",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.price_changed",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.price_changed (entitled -> entitled)",
+        "lifecycleEvent": "subscription.price_changed",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.price_changed"
+        ]
+      },
+      {
+        "name": "subscription.price_changed (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.price_changed",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.price_changed",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.deferred (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.deferred",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.deferred"
+        ]
+      },
+      {
+        "name": "subscription.deferred (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.deferred",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.deferred",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.deferred (entitled -> entitled)",
+        "lifecycleEvent": "subscription.deferred",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.deferred"
+        ]
+      },
+      {
+        "name": "subscription.deferred (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.deferred",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.deferred",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.paused (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.paused",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.paused"
+        ]
+      },
+      {
+        "name": "subscription.paused (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.paused",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.paused",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.paused (entitled -> entitled)",
+        "lifecycleEvent": "subscription.paused",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.paused"
+        ]
+      },
+      {
+        "name": "subscription.paused (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.paused",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.paused",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "subscription.resumed (not entitled -> not entitled)",
+        "lifecycleEvent": "subscription.resumed",
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.resumed"
+        ]
+      },
+      {
+        "name": "subscription.resumed (not entitled -> entitled)",
+        "lifecycleEvent": "subscription.resumed",
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.resumed",
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "subscription.resumed (entitled -> entitled)",
+        "lifecycleEvent": "subscription.resumed",
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": [
+          "subscription.resumed"
+        ]
+      },
+      {
+        "name": "subscription.resumed (entitled -> not entitled)",
+        "lifecycleEvent": "subscription.resumed",
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "subscription.resumed",
+          "entitlement.revoked"
+        ]
+      },
+      {
+        "name": "no lifecycle change (not entitled -> not entitled)",
+        "lifecycleEvent": null,
+        "entitledBefore": false,
+        "entitledAfter": false,
+        "emit": []
+      },
+      {
+        "name": "no lifecycle change (not entitled -> entitled)",
+        "lifecycleEvent": null,
+        "entitledBefore": false,
+        "entitledAfter": true,
+        "emit": [
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "no lifecycle change (entitled -> entitled)",
+        "lifecycleEvent": null,
+        "entitledBefore": true,
+        "entitledAfter": true,
+        "emit": []
+      },
+      {
+        "name": "no lifecycle change (entitled -> not entitled)",
+        "lifecycleEvent": null,
+        "entitledBefore": true,
+        "entitledAfter": false,
+        "emit": [
+          "entitlement.revoked"
+        ]
+      }
+    ]
+  },
+  "binding": {
+    "rule": "SPEC.md 2.4. At first binding, coalesce every unbound gate change into the current predicate evaluated at binding processedAt. The unbound baseline is not entitled: emit one entitlement.granted only when the current gate is open; never replay an obsolete historical grant or revoke.",
+    "cases": [
+      {
+        "name": "bind while the first grant is current",
+        "unboundGateChanges": [
+          "entitlement.granted"
+        ],
+        "entitledAtBinding": true,
+        "emit": [
+          "entitlement.granted"
+        ]
+      },
+      {
+        "name": "bind after the unbound grant expired",
+        "unboundGateChanges": [
+          "entitlement.granted"
+        ],
+        "entitledAtBinding": false,
+        "emit": []
+      },
+      {
+        "name": "bind after an unbound grant was revoked",
+        "unboundGateChanges": [
+          "entitlement.granted",
+          "entitlement.revoked"
+        ],
+        "entitledAtBinding": false,
+        "emit": []
+      },
+      {
+        "name": "bind after an unbound gate reopened",
+        "unboundGateChanges": [
+          "entitlement.granted",
+          "entitlement.revoked",
+          "entitlement.granted"
+        ],
+        "entitledAtBinding": true,
+        "emit": [
+          "entitlement.granted"
+        ]
+      }
+    ]
+  }
+}

@@ -144,6 +144,7 @@ describe("deleteProjectWithData", () => {
         })),
       ],
       webhookEvents,
+      subscriptionUserErasureJobs: rows("subscription_erasure_job"),
       subscriptionTokenAliases: rows("subscription_alias"),
       subscriptions: rows("subscription"),
       subscriptionStats: rows("subscription_stats"),
@@ -165,7 +166,7 @@ describe("deleteProjectWithData", () => {
     }
 
     expect(complete).toBe(true);
-    expect(calls).toBe(40);
+    expect(calls).toBe(42);
     expect(scheduler.runAfter).toHaveBeenCalledTimes(calls - 1);
     expect(db.takeSizes.every((size) => size === 10)).toBe(true);
     for (const [table, tableRows] of Object.entries(db.tables)) {

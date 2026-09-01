@@ -13,10 +13,6 @@ import type { KitProductsResponse as SdkProductsResponse } from "../../../../gql
 import { kitClient } from "../../../../mcp-server/src/kit-client";
 import type { api } from "../../../convex/_generated/api";
 import type { HealthPayload } from "../../health";
-import type {
-  SubscriptionEntitlementsResponse,
-  SubscriptionStatusResponse,
-} from "./subscriptions";
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
@@ -34,6 +30,7 @@ vi.mock("../../convex", () => ({
 }));
 
 const { apiRoutes } = await import("./routes");
+const { apiRoutesV2 } = await import("../v2/routes");
 
 type McpClient = ReturnType<typeof kitClient>;
 type McpProductsResponse = Awaited<ReturnType<McpClient["listProducts"]>>;
@@ -63,6 +60,12 @@ type McpHealthResponse = Awaited<ReturnType<McpClient["health"]>>;
 
 type ServerProductsResponse = FunctionReturnType<
   typeof api.products.query.listProductsPage
+>;
+type ServerStatusV2Response = FunctionReturnType<
+  typeof api.subscriptions.query.subscriptionStatusV2
+>;
+type ServerEntitlementsV2Response = FunctionReturnType<
+  typeof api.subscriptions.query.entitlementsV2
 >;
 type ServerSubscriptionsResponse = FunctionReturnType<
   typeof api.subscriptions.query.listSubscriptions
@@ -126,8 +129,11 @@ describe("MCP Kit response contracts", () => {
       async (input: string | URL | Request, init?: RequestInit) => {
         const request = new Request(input, init);
         const url = new URL(request.url);
-        return apiRoutes.request(
-          `${url.pathname.replace(/^\/v1/, "")}${url.search}`,
+        const versionedRoutes = url.pathname.startsWith("/v2")
+          ? apiRoutesV2
+          : apiRoutes;
+        return versionedRoutes.request(
+          `${url.pathname.replace(/^\/v[12]/, "")}${url.search}`,
           {
             method: request.method,
             headers: request.headers,
@@ -146,15 +152,57 @@ describe("MCP Kit response contracts", () => {
 
   it("keeps app-readable response types aligned", () => {
     expectTypeOf<McpStatusResponse>().toEqualTypeOf<
-      NormalizeContract<SubscriptionStatusResponse>
+      NormalizeContract<ServerStatusV2Response>
     >();
     expectTypeOf<McpEntitlementsResponse>().toEqualTypeOf<
-      NormalizeContract<SubscriptionEntitlementsResponse>
+      NormalizeContract<ServerEntitlementsV2Response>
     >();
     expectTypeOf<McpProductsResponse>().toEqualTypeOf<SdkProductsResponse>();
     expectTypeOf<McpProductsResponse>().toEqualTypeOf<
       NormalizeContract<ServerProductsResponse>
     >();
+  });
+
+  it("calls the v2 account-read handlers", async () => {
+    const client = kitClient({
+      apiKey: "openiap-kit_sk_contract",
+      baseUrl: "http://kit.test",
+    });
+    mocks.query
+      .mockResolvedValueOnce({ active: false, subscription: null })
+      .mockResolvedValueOnce({
+        userId: "user-1",
+        productIds: [],
+        subscriptions: [],
+      });
+
+    await expect(client.status("user-1")).resolves.toEqual({
+      active: false,
+      subscription: null,
+    });
+    await expect(client.entitlements("user-1")).resolves.toEqual({
+      userId: "user-1",
+      productIds: [],
+      subscriptions: [],
+    });
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({
+        apiKey: "openiap-kit_sk_contract",
+        userId: "user-1",
+        now: expect.any(Number),
+      }),
+    );
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({
+        apiKey: "openiap-kit_sk_contract",
+        userId: "user-1",
+        now: expect.any(Number),
+      }),
+    );
   });
 
   it("keeps administrative read response types aligned", () => {

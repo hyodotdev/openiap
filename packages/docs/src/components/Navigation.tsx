@@ -14,6 +14,9 @@ import {
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const isCommerceProtocolPath =
+    location.pathname.startsWith('/docs/commerce-protocol') ||
+    location.pathname === '/docs/webhooks';
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -59,9 +62,22 @@ function Navigation() {
           <li>
             <NavLink
               to="/docs"
-              className={({ isActive }) => (isActive ? 'active' : '')}
+              className={() =>
+                location.pathname.startsWith('/docs') && !isCommerceProtocolPath
+                  ? 'active'
+                  : ''
+              }
             >
               Docs
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink
+              to="/docs/commerce-protocol"
+              className={() => (isCommerceProtocolPath ? 'active' : '')}
+            >
+              Commerce Protocol
             </NavLink>
           </li>
 
@@ -173,10 +189,25 @@ function Navigation() {
             <li>
               <NavLink
                 to="/docs"
-                className={({ isActive }) => (isActive ? 'active' : '')}
+                className={() =>
+                  location.pathname.startsWith('/docs') &&
+                  !isCommerceProtocolPath
+                    ? 'active'
+                    : ''
+                }
                 onClick={closeMobileMenu}
               >
                 Docs
+              </NavLink>
+            </li>
+
+            <li>
+              <NavLink
+                to="/docs/commerce-protocol"
+                className={() => (isCommerceProtocolPath ? 'active' : '')}
+                onClick={closeMobileMenu}
+              >
+                Commerce Protocol
               </NavLink>
             </li>
 

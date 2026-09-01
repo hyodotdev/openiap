@@ -21,6 +21,7 @@ import {
   requestPurchase,
   useIAP,
   getAppTransactionIOS,
+  getPendingTransactionsIOS,
   getStorefront,
 } from '../../src';
 import Loading from '../src/components/Loading';
@@ -38,7 +39,7 @@ import {ErrorCode} from '../../src/types';
 import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
-import {extractErrorMessage} from '../src/utils/errorUtils';
+import {formatErrorForDisplay} from '../src/utils/errorUtils';
 import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
   createIapkitVerificationPayload,
@@ -949,8 +950,13 @@ function PurchaseFlowContainer() {
           }
         }
       } catch (error) {
-        console.log('[PurchaseFlow] Verification failed:', error);
-        const message = extractErrorMessage(error);
+        if (__DEV__) {
+          console.log('[PurchaseFlow] Verification failed:', error);
+        }
+        const message = formatErrorForDisplay(
+          error,
+          ErrorCode.PurchaseVerificationFailed,
+        );
         if (mountedRef.current) {
           setPurchaseResult(`Purchase verification failed: ${message}`);
           showNativeAlert(
@@ -985,7 +991,10 @@ function PurchaseFlowContainer() {
       rememberCompletedPurchaseKey(completedPurchaseKeys, purchaseCleanupKey);
       releasePurchaseTask('finished');
     } catch (error) {
-      const message = extractErrorMessage(error);
+      const message = formatErrorForDisplay(
+        error,
+        ErrorCode.PurchaseVerificationFinishFailed,
+      );
       console.log('[PurchaseFlow] finishTransaction failed:', error);
       releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
       if (mountedRef.current) {
@@ -1067,7 +1076,12 @@ function PurchaseFlowContainer() {
         return;
       }
 
-      setPurchaseResult(`Purchase failed: ${error.message}`);
+      setPurchaseResult(
+        `Purchase failed: ${formatErrorForDisplay(
+          error,
+          ErrorCode.PurchaseError,
+        )}`,
+      );
     },
   });
 
@@ -1098,14 +1112,22 @@ function PurchaseFlowContainer() {
           console.log('[PurchaseFlow] fetchProducts completed');
         })
         .catch((error) => {
-          const message = extractErrorMessage(error);
+          const message = formatErrorForDisplay(error, ErrorCode.QueryProduct);
           console.log('[PurchaseFlow] fetchProducts error:', message);
           setPurchaseResult(`Product loading failed: ${message}`);
         });
 
       getAvailablePurchases()
-        .then(() => {
+        .then(async () => {
           console.log('[PurchaseFlow] getAvailablePurchases completed');
+          if (Platform.OS !== 'ios') return;
+
+          const pendingPurchases = await getPendingTransactionsIOS();
+          for (const purchase of pendingPurchases) {
+            if (isPurchaseFlowProduct(purchase.productId ?? '')) {
+              await enqueuePurchase(purchase);
+            }
+          }
         })
         .catch((error) => {
           console.log('[PurchaseFlow] getAvailablePurchases error:', error);
@@ -1194,7 +1216,12 @@ function PurchaseFlowContainer() {
           return;
         }
 
-        setPurchaseResult(`Purchase failed: ${error.message}`);
+        setPurchaseResult(
+          `Purchase failed: ${formatErrorForDisplay(
+            error,
+            ErrorCode.PurchaseError,
+          )}`,
+        );
       });
     },
     [setIsProcessing, setPurchaseResult],

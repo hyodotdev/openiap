@@ -5,6 +5,8 @@ import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
+import { redactApiKeysInPath } from "./request-logger";
+import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
 import {
   apiKeyMiddleware,
   apiKeyValidationError,
@@ -361,7 +363,7 @@ type AppleJwsParseResult =
   | { kind: "invalid" }
   | { kind: "notAppleJws" };
 
-function normalizeBindUserPurchaseToken(
+export function normalizeBindUserPurchaseToken(
   purchaseToken: string,
 ): BindUserPurchaseTokenResult {
   if (isCompactJwsShape(purchaseToken)) {
@@ -693,13 +695,25 @@ function payloadTooLarge(c: Context) {
 async function pathApiKeyGuard(c: Context, next: Next) {
   const apiKey = c.req.param("apiKey");
   if (isSecretApiKey(apiKey)) {
+    // Rejecting is not containment: the URL has already reached this process,
+    // and any proxy, CDN or browser history in front of it kept a copy. Say so,
+    // and record it so an operator sees a key that needs rotating.
+    console.warn(
+      "[subscriptions] a secret key was presented in a URL path and must be rotated",
+      {
+        path: redactApiKeysInPath(c.req.path, apiKey),
+        // Same display form as the dashboard, so the operator can tell WHICH
+        // key to rotate without the log holding the secret.
+        keyPreview: apiKeyPreview(apiKey),
+      },
+    );
     return c.json(
       {
         errors: [
           {
             code: "SECRET_API_KEY_IN_URL",
             message:
-              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route. This key has been exposed in a URL — rotate it.",
           },
         ],
       },

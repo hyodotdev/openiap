@@ -193,16 +193,59 @@ jobs:
               - 'packages/docs/**'
               - 'packages/gql/src/generated/**'
               - 'packages/gql/generated-sync-manifest.mjs'
+              # The docs link to the canonical contract and audit its derived
+              # transport constants, so every protocol change must run this job.
+              - 'specs/openiap-kit/**'
               - 'scripts/audit-docs.ts'
               - 'scripts/audit-docs.test.ts'
               - '.github/workflows/ci.yml'
             web:
               - 'packages/docs/**'
               - 'packages/kit/**'
+              # The kit server embeds the generated protocol artifacts at build
+              # time, so a spec change must rebuild and probe the binary.
+              - 'specs/openiap-kit/**'
               - 'scripts/e2e-web-sites.mjs'
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
+  test-commerce-protocol:
+    name: Test Commerce Protocol
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            bun install --frozen-lockfile && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
+          done
+
+      # Compiles the canonical SDL and byte-compares every generated artifact,
+      # so an SDL edit that was not rebuilt cannot ship stale validators.
+      - name: Run spec suite
+        working-directory: specs/openiap-kit
+        run: bun run test
+
+      - name: Verify IAPKit conformance
+        working-directory: packages/kit
+        # The payload conformance proof plus the dual-binding runner pass over
+        # the real REST and GraphQL adapters.
+        run: bunx vitest run convex/commerce/spec.conformance.test.ts server/api/commerce/
+
   test-conformance:
     name: Test Conformance Suite
     runs-on: ubuntu-latest

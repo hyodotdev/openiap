@@ -10,16 +10,17 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="OpenIAP ecosystem overview. Native modules power six framework SDKs, while IAPKit adds optional hosted purchase verification, entitlements, store notifications, product sync, and MCP operations."
+        description="OpenIAP ecosystem overview. Native modules power six framework SDKs, while the Commerce Protocol defines a portable server-side lifecycle and webhook contract."
         path="/docs/ecosystem"
-        keywords="OpenIAP ecosystem, IAPKit, openiap-apple, openiap-google, IAP architecture, purchase verification, cross-platform IAP"
+        keywords="OpenIAP ecosystem, OpenIAP Commerce Protocol, openiap-apple, openiap-google, IAP architecture, cross-platform IAP"
       />
       <h1>Ecosystem</h1>
       <p>
-        OpenIAP defines the shared purchase contract and ships native and
-        framework SDKs. IAPKit adds optional hosted purchase verification,
-        entitlements, store notifications, product sync, and MCP operations. If
-        you are interested in joining the ecosystem, please contact{' '}
+        OpenIAP defines the shared client purchase contract and ships native and
+        framework SDKs. The{' '}
+        <a href="/docs/commerce-protocol">Commerce Protocol</a> standardizes the
+        server-side commerce boundary independently of any provider or hosted
+        service. If you are interested in joining the ecosystem, please contact{' '}
         <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
       </p>
 
@@ -161,15 +162,16 @@ function Ecosystem() {
       </section>
 
       <section>
-        <h2>Optional infrastructure</h2>
+        <h2>Server-side contract</h2>
         <p>
-          <a href="/docs/kit-backend">
-            <strong>IAPKit</strong>
+          The{' '}
+          <a href="/docs/commerce-protocol">
+            <strong>OpenIAP Commerce Protocol</strong>
           </a>{' '}
-          is the optional hosted layer for teams that need server-side purchase
-          verification, entitlement state, App Store and Google Play lifecycle
-          notifications, product synchronization, revenue visibility, and MCP
-          operations without building a separate IAP backend.
+          defines normalized transactions, subscription lifecycle, entitlement
+          decisions, commerce events, and signed webhook delivery. A provider or
+          self-hosted backend can conform without depending on a central OpenIAP
+          service.
         </p>
       </section>
 

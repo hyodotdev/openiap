@@ -1,0 +1,139 @@
+{
+  "$comment": "Test vectors for the OpenIAP Commerce Protocol outbound webhook signature. Any implementation, in any language, must reproduce every `expected` value and must reject every case in `rejections`. Signing input is the ASCII timestamp, one 0x2e byte, and the exact body bytes transmitted.",
+  "algorithm": "HMAC-SHA256, lowercase hex, prefixed `v1=`",
+  "toleranceSeconds": 300,
+  "headers": {
+    "signature": "openiap-signature",
+    "timestamp": "openiap-timestamp",
+    "eventId": "openiap-event-id",
+    "deliveryId": "openiap-delivery-id"
+  },
+  "cases": [
+    {
+      "name": "single-key",
+      "description": "The first attempt in the retry pair. retry-after-backoff uses the same body, eventId, and deliveryId with a fresh timestamp and signature.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "deliveryId": "delivery_retry_chain_01",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "expected": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3"
+    },
+    {
+      "name": "retry-after-backoff",
+      "description": "A later attempt keeps the exact body, eventId, and deliveryId but uses a fresh current timestamp and recomputed signature.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "deliveryId": "delivery_retry_chain_01",
+      "timestamp": 1756301401,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "expected": "v1=b840fe58b3a8e190eeef0612574125c282ce4384970832111de601678c170574"
+    },
+    {
+      "name": "raw-utf8-body",
+      "description": "Whitespace and the raw UTF-8 extension value are signed exactly. Parsing and reserializing this body changes the bytes and must not verify.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{ \"eventId\": \"evt_raw_bytes\", \"eventType\": \"subscription.expired\", \"eventVersion\": \"1.0\", \"occurredAt\": 1756300800000, \"processedAt\": 1756300801420, \"store\": \"amazon\", \"environment\": \"production\", \"projectId\": \"proj_7f3a9c\", \"extensions\": { \"note\": \"café\" } }",
+      "expected": "v1=f3243f6851f3841fbbc95ef6f28e94be3bddb32facd86fbe65715f7480ec9b95"
+    },
+    {
+      "name": "during-rotation",
+      "description": "While a secret is rotating, the emitter signs with both keys and joins them with a comma. A receiver holding either key must accept. A receiver must compare against each presented value, never against the header as a whole.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "previousSecret": "whsec_fedcba9876543210fedcba9876543210",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "expected": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3,v1=0f7dee4be14d34164590d0b40fbbb1dc01a22247554c03dfd89659478fc4ba9d",
+      "presentedHeader": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3, v1=0f7dee4be14d34164590d0b40fbbb1dc01a22247554c03dfd89659478fc4ba9d"
+    },
+    {
+      "name": "minimal-event-omits-extensions",
+      "description": "Optional extensions may be omitted; this case pins a minimal event body.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_min\",\"eventType\":\"subscription.expired\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300800001,\"store\":\"amazon\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\"}",
+      "expected": "v1=e39611a0dcaa7f1ceed5d41b39394122c7c0514cc91ceb86cffa0bcdea267731"
+    }
+  ],
+  "rejections": [
+    {
+      "name": "tampered-body",
+      "reason": "Body differs from the signed bytes by one character.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":1000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3"
+    },
+    {
+      "name": "wrong-secret",
+      "reason": "Signature was produced with a key the receiver does not hold.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=b45034a19e3c059eeec1e28a122f22410c2e038fbf2a886b19478a280a65b0fe"
+    },
+    {
+      "name": "timestamp-outside-tolerance",
+      "reason": "Signature is internally valid but older than the 300s tolerance, so it is a replay.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300500,
+      "receiverNow": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=9f9969c260046b1eff88ecbf4792845115661a8682a1133e9de4fa44048942ad"
+    },
+    {
+      "name": "timestamp-not-in-signed-material",
+      "reason": "Signature covers only the body, so a captured body could be replayed under a fresh timestamp header.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=81bcc31411153799434bd37ff71f041b76bf8038cf6be4a7b1117a2c5e7a86a6"
+    },
+    {
+      "name": "retry-reuses-first-signature",
+      "reason": "The second attempt has a fresh timestamp header but incorrectly reuses the first attempt's signature instead of signing that timestamp.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756301401,
+      "receiverNow": 1756301401,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3"
+    },
+    {
+      "name": "garbage-appended-to-valid-signature",
+      "reason": "The presented value contains a valid signature as a prefix but is not equal to it. Rule 2 compares each whole comma-separated value; a substring or prefix match would accept this.",
+      "secret": "whsec_0123456789abcdef0123456789abcdef",
+      "timestamp": 1756300801,
+      "body": "{\"eventId\":\"evt_01J8Z4WQK7N2M0X5A9C3F6H8T1\",\"eventType\":\"subscription.renewed\",\"eventVersion\":\"1.0\",\"occurredAt\":1756300800000,\"processedAt\":1756300801420,\"store\":\"apple\",\"environment\":\"production\",\"projectId\":\"proj_7f3a9c\",\"applicationId\":\"app_2b8d41\",\"userId\":\"user_5e91a7\",\"productId\":\"premium.monthly\",\"transactionId\":\"2000000912345678\",\"originalTransactionId\":\"2000000811111111\",\"subscription\":{\"state\":\"Active\",\"productId\":\"premium.monthly\",\"expiresAt\":1758979200000,\"renewsAt\":1758979200000,\"willRenew\":true,\"active\":true},\"price\":{\"currency\":\"USD\",\"amountMicros\":9990000,\"provenance\":\"store\"},\"sourceStoreEventId\":\"8f3b1c2d-4e5a-6b7c-8d9e-0f1a2b3c4d5e\"}",
+      "presentedSignature": "v1=230e9384a09136b9ba877c6f50b4e79da24aee608b2af9b40ef288b1d03948e3ffff"
+    }
+  ],
+  "responseSemantics": {
+    "$comment": "SPEC.md 9.4.3. A conforming emitter maps every consumer response to exactly one action. 2xx is delivered; 408, 429, and 5xx are retried; 3xx and every other 4xx are permanent failures the emitter must not retry or follow; a timeout or connection error is retried.",
+    "connectionError": "retry",
+    "cases": [
+      { "status": 200, "action": "delivered" },
+      { "status": 202, "action": "delivered" },
+      { "status": 204, "action": "delivered" },
+      { "status": 299, "action": "delivered" },
+      { "status": 301, "action": "permanent-failure" },
+      { "status": 302, "action": "permanent-failure" },
+      { "status": 303, "action": "permanent-failure" },
+      { "status": 307, "action": "permanent-failure" },
+      { "status": 308, "action": "permanent-failure" },
+      { "status": 400, "action": "permanent-failure" },
+      { "status": 401, "action": "permanent-failure" },
+      { "status": 403, "action": "permanent-failure" },
+      { "status": 404, "action": "permanent-failure" },
+      { "status": 410, "action": "permanent-failure" },
+      { "status": 422, "action": "permanent-failure" },
+      { "status": 408, "action": "retry" },
+      { "status": 429, "action": "retry" },
+      { "status": 500, "action": "retry" },
+      { "status": 502, "action": "retry" },
+      { "status": 503, "action": "retry" },
+      { "status": 504, "action": "retry" },
+      { "status": 505, "action": "retry" },
+      { "status": 507, "action": "retry" },
+      { "status": 599, "action": "retry" }
+    ]
+  }
+}

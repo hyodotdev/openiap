@@ -1,0 +1,317 @@
+{
+  "$comment": "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums) exact value sets; additive surface beyond it is a compatible MINOR.",
+  "protocolVersion": "1.0",
+  "queryType": "Query",
+  "mutationType": "Mutation",
+  "types": {
+    "Store": {
+      "kind": "SCALAR"
+    },
+    "Environment": {
+      "kind": "SCALAR"
+    },
+    "Timestamp": {
+      "kind": "SCALAR"
+    },
+    "Identifier": {
+      "kind": "SCALAR"
+    },
+    "SubscriptionState": {
+      "kind": "ENUM",
+      "values": [
+        "Active",
+        "Expired",
+        "InBillingRetry",
+        "InGracePeriod",
+        "Paused",
+        "Refunded",
+        "Revoked",
+        "Unknown"
+      ]
+    },
+    "StoreCapabilitiesMap": {
+      "kind": "SCALAR"
+    },
+    "ProviderCapabilities": {
+      "kind": "OBJECT",
+      "fields": {
+        "specVersion": {
+          "type": "MajorMinor!"
+        },
+        "implementation": {
+          "type": "Implementation"
+        },
+        "eventTypes": {
+          "type": "[NamespacedEventType!]!"
+        },
+        "stores": {
+          "type": "StoreCapabilitiesMap!"
+        },
+        "profiles": {
+          "type": "ProfileVersionMap"
+        },
+        "bindings": {
+          "type": "BindingVersionMap"
+        }
+      }
+    },
+    "ProfileVersionMap": {
+      "kind": "SCALAR"
+    },
+    "BindingVersionMap": {
+      "kind": "SCALAR"
+    },
+    "Implementation": {
+      "kind": "OBJECT",
+      "fields": {
+        "name": {
+          "type": "NonEmptyString"
+        },
+        "version": {
+          "type": "NonEmptyString"
+        }
+      }
+    },
+    "PurchaseVerificationState": {
+      "kind": "SCALAR"
+    },
+    "ErasureJobStatus": {
+      "kind": "SCALAR"
+    },
+    "AppleJws": {
+      "kind": "SCALAR"
+    },
+    "GooglePurchaseToken": {
+      "kind": "SCALAR"
+    },
+    "StoreUserIdentity": {
+      "kind": "SCALAR"
+    },
+    "StoreSku": {
+      "kind": "SCALAR"
+    },
+    "StoreReceiptId": {
+      "kind": "SCALAR"
+    },
+    "AppleEvidence": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "jws": "AppleJws!"
+      }
+    },
+    "GoogleEvidence": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "purchaseToken": "GooglePurchaseToken!"
+      }
+    },
+    "HorizonEvidence": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "StoreUserIdentity!",
+        "sku": "StoreSku!"
+      }
+    },
+    "AmazonEvidence": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "StoreUserIdentity!",
+        "receiptId": "StoreReceiptId!",
+        "sandbox": "Boolean"
+      }
+    },
+    "VerifyPurchaseInput": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "store": "Store!",
+        "apple": "AppleEvidence",
+        "google": "GoogleEvidence",
+        "horizon": "HorizonEvidence",
+        "amazon": "AmazonEvidence"
+      }
+    },
+    "VerifyPurchaseResult": {
+      "kind": "OBJECT",
+      "fields": {
+        "store": {
+          "type": "Store!"
+        },
+        "isValid": {
+          "type": "Boolean!"
+        },
+        "state": {
+          "type": "PurchaseVerificationState!"
+        },
+        "productId": {
+          "type": "NonEmptyString"
+        },
+        "environment": {
+          "type": "Environment"
+        }
+      }
+    },
+    "BindPurchaseInput": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "Identifier!",
+        "store": "Store!",
+        "apple": "AppleEvidence",
+        "google": "GoogleEvidence",
+        "horizon": "HorizonEvidence",
+        "amazon": "AmazonEvidence"
+      }
+    },
+    "BindPurchaseResult": {
+      "kind": "OBJECT",
+      "fields": {
+        "bound": {
+          "type": "Boolean!"
+        }
+      }
+    },
+    "SubscriptionStatusInput": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "Identifier!"
+      }
+    },
+    "SubscriptionStatusSnapshot": {
+      "kind": "OBJECT",
+      "fields": {
+        "productId": {
+          "type": "NonEmptyString!"
+        },
+        "state": {
+          "type": "SubscriptionState!"
+        },
+        "active": {
+          "type": "Boolean!"
+        },
+        "store": {
+          "type": "Store"
+        },
+        "expiresAt": {
+          "type": "Timestamp"
+        },
+        "renewsAt": {
+          "type": "Timestamp"
+        },
+        "willRenew": {
+          "type": "Boolean"
+        },
+        "cancellationReason": {
+          "type": "NonEmptyString"
+        },
+        "startedAt": {
+          "type": "Timestamp"
+        },
+        "updatedAt": {
+          "type": "Timestamp"
+        }
+      }
+    },
+    "SubscriptionStatusResult": {
+      "kind": "OBJECT",
+      "fields": {
+        "active": {
+          "type": "Boolean!"
+        },
+        "subscription": {
+          "type": "SubscriptionStatusSnapshot"
+        }
+      }
+    },
+    "EntitlementsInput": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "Identifier!"
+      }
+    },
+    "EntitlementsResult": {
+      "kind": "OBJECT",
+      "fields": {
+        "userId": {
+          "type": "Identifier!"
+        },
+        "productIds": {
+          "type": "[NonEmptyString!]!"
+        },
+        "subscriptions": {
+          "type": "[SubscriptionStatusSnapshot!]!"
+        }
+      }
+    },
+    "EraseUserInput": {
+      "kind": "INPUT_OBJECT",
+      "inputFields": {
+        "userId": "Identifier!"
+      }
+    },
+    "EraseUserResult": {
+      "kind": "OBJECT",
+      "fields": {
+        "accepted": {
+          "type": "Boolean!"
+        },
+        "jobId": {
+          "type": "Identifier"
+        },
+        "status": {
+          "type": "ErasureJobStatus"
+        }
+      }
+    },
+    "MajorMinor": {
+      "kind": "SCALAR"
+    },
+    "NonEmptyString": {
+      "kind": "SCALAR"
+    },
+    "NamespacedEventType": {
+      "kind": "SCALAR"
+    },
+    "Query": {
+      "kind": "OBJECT",
+      "fields": {
+        "providerCapabilities": {
+          "type": "ProviderCapabilities!"
+        },
+        "subscriptionStatus": {
+          "type": "SubscriptionStatusResult!",
+          "args": {
+            "input": "SubscriptionStatusInput!"
+          }
+        },
+        "entitlements": {
+          "type": "EntitlementsResult!",
+          "args": {
+            "input": "EntitlementsInput!"
+          }
+        }
+      }
+    },
+    "Mutation": {
+      "kind": "OBJECT",
+      "fields": {
+        "verifyPurchase": {
+          "type": "VerifyPurchaseResult!",
+          "args": {
+            "input": "VerifyPurchaseInput!"
+          }
+        },
+        "bindPurchase": {
+          "type": "BindPurchaseResult!",
+          "args": {
+            "input": "BindPurchaseInput!"
+          }
+        },
+        "eraseUser": {
+          "type": "EraseUserResult!",
+          "args": {
+            "input": "EraseUserInput!"
+          }
+        }
+      }
+    }
+  }
+}

@@ -184,7 +184,7 @@ function redactSecrets(value: unknown, apiKey?: string): unknown {
   return value;
 }
 
-function redactSecretString(value: string, apiKey?: string): string {
+export function redactSecretString(value: string, apiKey?: string): string {
   const knownSecrets = [apiKey, process.env.IAPKIT_API_KEY].filter(
     (secret): secret is string => Boolean(secret?.trim()),
   );
@@ -192,11 +192,14 @@ function redactSecretString(value: string, apiKey?: string): string {
   for (const secret of knownSecrets) {
     redacted = redacted.split(secret).join(API_KEY_PLACEHOLDER);
   }
-  // Admin credentials are bearer-only; known webhook path keys are replaced above.
-  return redacted.replace(
-    /(Authorization:\s*Bearer\s+)[^\s"]+/gi,
-    `$1${API_KEY_PLACEHOLDER}`,
-  );
+  // Pattern, not instance: an upstream body can carry a key that is neither
+  // this caller's nor the environment's, and listing known secrets would miss it.
+  return redacted
+    .replace(/openiap-kit_(?:sk|pk)_[A-Za-z0-9_-]+/g, API_KEY_PLACEHOLDER)
+    .replace(
+      /(Authorization:\s*Bearer\s+)[^\s"]+/gi,
+      `$1${API_KEY_PLACEHOLDER}`,
+    );
 }
 
 function registerTool(

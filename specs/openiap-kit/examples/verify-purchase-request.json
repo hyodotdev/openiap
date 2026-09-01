@@ -1,0 +1,6 @@
+{
+  "store": "apple",
+  "apple": {
+    "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0cmFuc2FjdGlvbklkIjoiMjAwMDAwMDEyMzQ1Njc4OSIsInByb2R1Y3RJZCI6InByZW1pdW0ubW9udGhseSJ9.MEUCIQDkQmFrb2Zha2VzaWduYXR1cmVmb3JleGFtcGxlAiBkb2N1bWVudG9ubHlmYWtlc2lnbmF0dXJldmFsdWU"
+  }
+}

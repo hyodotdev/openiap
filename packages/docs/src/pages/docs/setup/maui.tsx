@@ -384,7 +384,14 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
         </h3>
         <p>
           IAPKit is OpenIAP's hosted purchase-validation and entitlement backend
-          (see <a href="/docs/kit-backend">Purchase Verification with IAPKit</a>
+          (see{' '}
+          <a
+            href="https://kit.openiap.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Purchase Verification with IAPKit
+          </a>
           ). The MAUI package ships the same app-facing helper as the other
           OpenIAP SDKs: create a kit client with your publishable key to read
           purchase status and entitlements and to bind a purchase to a user.

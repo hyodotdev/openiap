@@ -271,6 +271,119 @@ describe("product client payload queries", () => {
     );
   });
 
+  // A publishable key ships inside the app: Draft was never sent toward a
+  // store and Removed was pulled from sale, so both stay hidden. Ready is in
+  // the store pipeline (sandbox-purchasable during review) and must appear —
+  // hiding it would empty the catalog for the whole review window.
+  it("shows store-pipeline rows but hides draft and removed ones", async () => {
+    const db = new TestDb({
+      products: [
+        product("p_live", "IOS", "released_monthly"),
+        { ...product("p_draft", "IOS", "unreleased_monthly"), state: "Draft" },
+        { ...product("p_ready", "IOS", "staged_monthly"), state: "Ready" },
+        { ...product("p_gone", "IOS", "retired_monthly"), state: "Removed" },
+      ],
+    });
+
+    const page = await listProductsPage._handler(
+      { db },
+      { apiKey: "key", platform: "IOS", limit: 50 },
+    );
+    expect(page.products.map((p) => p.productId)).toEqual([
+      "released_monthly",
+      "staged_monthly",
+    ]);
+  });
+
+  it("reaches every visible row across cursors when drafts interleave", async () => {
+    // Filtering happens after pagination, so a page may come back short while
+    // hasMore is true; iterating the cursor must still yield exactly the
+    // visible rows.
+    const drafts = Array.from({ length: 60 }, (_, index) => ({
+      ...product(`draft_${index}`, "IOS", `draft_${index}`),
+      state: "Draft",
+    }));
+    const active = Array.from({ length: 25 }, (_, index) =>
+      product(`active_${index}`, "IOS", `active_${index}`),
+    );
+    const db = new TestDb({ products: [...drafts, ...active] });
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 10; guard += 1) {
+      const page = await listProductsPage._handler(
+        { db },
+        { apiKey: "key", platform: "IOS", limit: 20, cursor },
+      );
+      seen.push(...page.products.map((row) => row.productId));
+      if (!page.hasMore) break;
+      cursor = page.nextCursor;
+    }
+
+    expect(seen).toHaveLength(25);
+    expect(seen.every((id) => id.startsWith("active_"))).toBe(true);
+  });
+
+  // The same rule must hold on every app-facing read, not only the default
+  // catalog page: the payload-inclusive page and the single-product payload
+  // lookup are reachable with the same publishable key.
+  it("hides unreleased rows from the payload-inclusive catalog read", async () => {
+    const db = new TestDb({
+      products: [
+        product("p_live", "Android", "released_monthly"),
+        {
+          ...product("p_draft", "Android", "unreleased_monthly"),
+          state: "Draft",
+        },
+      ],
+    });
+
+    const page = await listProductsWithClientPayloads._handler(
+      { db },
+      { apiKey: "key", platform: "Android" },
+    );
+    expect(page.products.map((p) => p.productId)).toEqual(["released_monthly"]);
+  });
+
+  it("does not resolve a payload for an unreleased product", async () => {
+    const db = new TestDb({
+      products: [
+        { ...product("p_draft", "IOS", "unreleased_monthly"), state: "Draft" },
+      ],
+      productClientPayloads: [
+        payload("m_draft", "IOS", "unreleased_monthly", "unreleased body"),
+      ],
+    });
+
+    await expect(
+      getProductClientPayloadIfChanged._handler(
+        { db },
+        { apiKey: "key", platform: "IOS", productId: "unreleased_monthly" },
+      ),
+    ).resolves.toEqual({ status: "not_found" });
+  });
+
+  it("hides removed products from app-facing catalog pages", async () => {
+    const db = new TestDb({
+      products: [
+        {
+          ...product("p_gone", "IOS", "never_shipped"),
+          state: "Removed",
+        },
+        {
+          ...product("p_retired", "IOS", "was_public"),
+          state: "Removed",
+        },
+      ],
+    });
+
+    const page = await listProductsPage._handler(
+      { db },
+      { apiKey: "key", platform: "IOS", limit: 50 },
+    );
+    expect(page.products).toEqual([]);
+  });
+
   it("uses body-free summaries for conditional payload reads", async () => {
     const tables = {
       products: [product("p1", "IOS", "premium")],
@@ -537,7 +650,7 @@ describe("product client payload queries", () => {
     ).resolves.toBeNull();
   });
 
-  it("keeps retained payloads private from apps but editable for authenticated Removed rows", async () => {
+  it("keeps retained Removed payloads private from apps but editable in the dashboard", async () => {
     const removed = product("p_removed", "Android", "removed");
     removed.state = "Removed";
     const db = new TestDb({
@@ -565,7 +678,7 @@ describe("product client payload queries", () => {
       { db },
       { apiKey: "key", platform: "Android" },
     );
-    expect(appPage.products[0]).not.toHaveProperty("clientPayload");
+    expect(appPage.products).toEqual([]);
 
     await expect(
       getProductClientPayload._handler(

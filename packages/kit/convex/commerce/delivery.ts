@@ -16,6 +16,7 @@ import { internal } from "../_generated/api";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import type { ClaimedDelivery } from "./deliveryState";
 import {
+  CONTENT_TYPE,
   DELIVERY_ID_HEADER,
   EVENT_ID_HEADER,
   REQUEST_TIMEOUT_MS,
@@ -214,7 +215,7 @@ export async function deliverPendingEventsHandler(
       const status = await post({
         url: check.url,
         headers: {
-          "content-type": "application/json",
+          "content-type": CONTENT_TYPE,
           [SIGNATURE_HEADER]: signature,
           [TIMESTAMP_HEADER]: String(timestamp),
           [EVENT_ID_HEADER]: item.eventId,

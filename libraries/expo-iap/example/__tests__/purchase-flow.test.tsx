@@ -1,7 +1,11 @@
 import React from 'react';
 import {act, render, fireEvent, waitFor} from '@testing-library/react-native';
 import PurchaseFlow from '../app/purchase-flow';
-import {requestPurchase, getStorefront} from '../../src';
+import {
+  requestPurchase,
+  getPendingTransactionsIOS,
+  getStorefront,
+} from '../../src';
 
 const mockShowActionSheetWithOptions = jest.fn();
 
@@ -60,6 +64,7 @@ jest.mock('../../src', () => ({
   ),
   requestPurchase: jest.fn(() => Promise.resolve()),
   getAppTransactionIOS: jest.fn(),
+  getPendingTransactionsIOS: jest.fn(),
   getStorefront: jest.fn(),
 }));
 
@@ -69,6 +74,7 @@ describe('PurchaseFlow Component', () => {
     mockShowActionSheetWithOptions.mockReset();
     mockFetchProducts.mockResolvedValue([]);
     mockGetAvailablePurchases.mockResolvedValue([]);
+    (getPendingTransactionsIOS as jest.Mock).mockResolvedValue([]);
     mockFinishTransaction.mockResolvedValue(undefined);
     mockVerifyPurchase.mockResolvedValue({});
     mockVerifyPurchaseWithProvider.mockResolvedValue({
@@ -187,6 +193,32 @@ describe('PurchaseFlow Component', () => {
     expect(
       mockVerifyPurchaseWithProvider.mock.invocationCallOrder[0],
     ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
+  });
+
+  it('recovers unfinished iOS purchases through the verification queue', async () => {
+    (getPendingTransactionsIOS as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 'pending-transaction-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'pending-apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      },
+    ]);
+
+    await render(<PurchaseFlow />);
+
+    await waitFor(() =>
+      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledWith({
+        provider: 'iapkit',
+        iapkit: expect.objectContaining({
+          baseUrl: 'http://192.168.0.10:3100',
+          apple: {jws: 'pending-apple-jws'},
+        }),
+      }),
+    );
+    await waitFor(() => expect(mockFinishTransaction).toHaveBeenCalled());
   });
 
   it('finishes a ready-to-consume Google consumable after verification', async () => {

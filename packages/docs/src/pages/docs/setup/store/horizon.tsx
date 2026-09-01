@@ -69,7 +69,14 @@ function HorizonStoreSetup() {
             <tr>
               <td>Verification credentials</td>
               <td>
-                Your backend or <Link to="/docs/kit-backend">IAPKit</Link>{' '}
+                Your backend or{' '}
+                <a
+                  href="https://kit.openiap.dev/docs/verification/horizon"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  IAPKit
+                </a>{' '}
                 project configuration.
               </td>
               <td>
@@ -334,8 +341,15 @@ android {
           <code>fetchProducts</code> and <code>requestPurchase</code> work
           unchanged. For server validation, pass the Horizon receipt context to{' '}
           <Link to="/docs/features/validation">Validation</Link> or to{' '}
-          <Link to="/docs/kit-backend">IAPKit</Link>, OpenIAP's hosted
-          verification backend, using the <code>horizon</code> payload:
+          <a
+            href="https://kit.openiap.dev/docs/verification/horizon"
+            target="_blank"
+            rel="noreferrer"
+          >
+            IAPKit
+          </a>
+          , OpenIAP's hosted verification backend, using the{' '}
+          <code>horizon</code> payload:
         </p>
         <CodeBlock language="typescript">{`await verifyPurchase({
   horizon: {

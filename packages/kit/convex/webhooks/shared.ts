@@ -284,8 +284,14 @@ function mapAppleCancellationReason(
   subtype: string | null | undefined,
   renewalInfo: AppleDecodedRenewalInfo | null | undefined,
 ): WebhookCancellationReason | undefined {
-  if (notificationType === "REFUND" || notificationType === "REVOKE") {
+  if (notificationType === "REFUND") {
     return "Refunded";
+  }
+  // REVOKE also covers Family Sharing loss. Apple does not state why, so omit
+  // unconditionally — renewal info riding the notification must not smuggle an
+  // expirationIntent-derived reason onto a revocation.
+  if (notificationType === "REVOKE") {
+    return undefined;
   }
   if (
     notificationType === "DID_CHANGE_RENEWAL_STATUS" &&
@@ -459,7 +465,17 @@ export function normalizeAppleAsn(
         : (transaction?.productId ?? undefined),
     ...(immediateUpgrade ? { effectiveImmediately: true } : {}),
     subscriptionState: deriveAppleSubscriptionState(type),
-    expiresAt: transaction?.expiresDate ?? undefined,
+    // A grace notification without its deadline must not reuse the elapsed
+    // paid-period end. Omission keeps access until a later store fact resolves
+    // the boundary, as the Commerce Protocol requires.
+    expiresAt:
+      type === "SubscriptionInGracePeriod" &&
+      renewalInfo?.gracePeriodExpiresDate == null
+        ? undefined
+        : Math.max(
+            transaction?.expiresDate ?? 0,
+            renewalInfo?.gracePeriodExpiresDate ?? 0,
+          ) || undefined,
     renewsAt: renewalInfo?.renewalDate ?? undefined,
     willRenew,
     cancellationReason: mapAppleCancellationReason(
@@ -566,10 +582,10 @@ const GOOGLE_SUB_TYPE_MAP: Record<number, WebhookEventType | null> = {
   13: "SubscriptionExpired", // SUBSCRIPTION_EXPIRED
   17: "SubscriptionProductChanged", // SUBSCRIPTION_ITEMS_CHANGED
   18: "SubscriptionCanceled", // SUBSCRIPTION_CANCELLATION_SCHEDULED
-  // 19 = SUBSCRIPTION_PRICE_CHANGE_UPDATED — alias for code 8
-  19: "SubscriptionPriceChange",
-  20: "SubscriptionPendingPurchaseCanceled",
-  22: "SubscriptionPriceStepUpConsentChanged",
+  // 8 and 19 are distinct Play notifications that both mean the price changed.
+  19: "SubscriptionPriceChange", // SUBSCRIPTION_PRICE_CHANGE_UPDATED
+  20: "SubscriptionPendingPurchaseCanceled", // SUBSCRIPTION_PENDING_PURCHASE_CANCELED
+  22: "SubscriptionPriceStepUpConsentChanged", // SUBSCRIPTION_PRICE_STEP_UP_CONSENT_UPDATED
 };
 
 const GOOGLE_ONE_TIME_TYPE_MAP: Record<number, WebhookEventType | null> = {
@@ -669,9 +685,6 @@ function mapGoogleCancellationReason(
         return "Other";
     }
   }
-  if (type === "SubscriptionCanceled") {
-    return "UserCanceled";
-  }
   return undefined;
 }
 
@@ -770,6 +783,8 @@ export function normalizeGoogleRtdn(
       type,
       subscriptionInfo ?? null,
     ),
+    // No Apple-style grace case needed: Play extends expiryTime through grace
+    // and back-dates it on account hold, so one field answers both.
     expiresAt: subscriptionInfo?.expiryTimeMillis,
     renewsAt: subscriptionInfo?.autoRenewingPlanRenewsTimeMillis,
     willRenew: subscriptionInfo?.willRenew,

@@ -485,9 +485,14 @@ function Home() {
                 <span>Open IAPKit</span>
                 <ArrowUpRight size={16} aria-hidden="true" />
               </a>
-              <Link to="/docs/guides/mcp-server" className="btn btn-secondary">
+              <a
+                href="https://kit.openiap.dev/docs/ai-assistants"
+                className="btn btn-secondary"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 MCP workflow
-              </Link>
+              </a>
             </div>
           </div>
 

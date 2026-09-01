@@ -1,0 +1,139 @@
+# Compiler vocabulary --------------------------------------------------------
+
+scalar MajorMinor @jsonString(pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+scalar NonEmptyString @jsonString(minLength: 1)
+scalar CurrencyCode @jsonString(pattern: "^[A-Z]{3}$")
+scalar NamespacedEventType @jsonString(pattern: "^[a-z]+\\.[a-z_]+$")
+scalar SubscriptionEventType @jsonString(pattern: "^subscription\\.[a-z_]+$")
+scalar EntitlementEventType @jsonString(pattern: "^entitlement\\.[a-z_]+$")
+scalar NonNegativeLong @jsonInteger(minimum: 0)
+scalar BoundedExtensionValue @jsonString(maxLength: 512)
+
+"""
+Names the protocol version and JSON Schema identifier base.
+"""
+directive @protocol(version: String!, baseId: String!) on SCHEMA
+
+"""
+Declares one generated JSON Schema document.
+"""
+directive @document(
+  name: String!
+  title: String!
+  description: String!
+  root: String
+) repeatable on SCHEMA
+
+"""
+Emits this named type under the selected document's $defs.
+"""
+directive @definition(schema: String!) on SCALAR | ENUM | OBJECT | INPUT_OBJECT
+
+"""
+Embeds this object at each field that references it.
+"""
+directive @inline on OBJECT | INPUT_OBJECT
+
+"""
+Permits the wire member to be absent.
+"""
+directive @optional on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @jsonObject(additionalProperties: Boolean!) on OBJECT | INPUT_OBJECT
+
+directive @jsonString(
+  pattern: String
+  minLength: Int
+  maxLength: Int
+  examples: [String!]
+) on SCALAR
+
+directive @jsonInteger(minimum: Float, maximum: Float) on SCALAR
+
+directive @jsonArray(
+  minItems: Int
+  maxItems: Int
+  uniqueItems: Boolean
+) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+directive @jsonMap(
+  valueType: String!
+  minProperties: Int
+  maxProperties: Int
+  keyPattern: String
+  keyMinLength: Int
+  keyMaxLength: Int
+) on SCALAR
+
+directive @jsonConst(
+  boolean: Boolean!
+) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+"""
+Requires notes unless both support axes are true, and forbids implementation support without provider support.
+"""
+directive @supportInvariant on OBJECT
+
+"""
+Requires an explanation for an empty mapping lane and keeps mappings empty when no notification channel exists.
+"""
+directive @storeMappingInvariant on OBJECT
+
+"""
+Requires notes for a null event and makes the two history conditions mutually exclusive.
+"""
+directive @mappingInvariant on OBJECT
+
+"""
+Applies cross-field requirements to selected event types. Snapshot constraints apply only when the event carries a subscription snapshot.
+"""
+directive @eventInvariant(
+  eventTypes: [String!]!
+  require: [String!]
+  snapshotState: String
+  snapshotActive: Boolean
+) repeatable on OBJECT
+
+"""
+Requires the named evidence member whenever `store` equals the named store.
+"""
+directive @storeEvidence(
+  store: String!
+  member: String!
+) repeatable on OBJECT | INPUT_OBJECT
+
+"""
+Declares one operation's transport binding: its profile, auth role, HTTP method and path, success status, idempotency, and the protocol error codes it can return. Required on every Query and Mutation field.
+"""
+directive @operation(
+  profile: String!
+  auth: String!
+  method: String!
+  path: String!
+  successStatus: Int!
+  idempotent: Boolean!
+  errors: [String!]!
+) on FIELD_DEFINITION
+
+"""
+Declares one operation profile: a named, versioned group of obligations a provider implements as a unit.
+"""
+directive @profile(
+  name: String!
+  version: String!
+  description: String!
+) repeatable on SCHEMA
+
+"""
+Declares one transport binding the specification defines for the operation surface.
+"""
+directive @binding(
+  name: String!
+  version: String!
+  description: String!
+) repeatable on SCHEMA
+
+"""
+Maps one protocol error code to the HTTP status the REST binding returns for it. Authoritative: the manifest, OpenAPI document, and conformance runner all derive their status table from these.
+"""
+directive @errorStatus(code: String!, http: Int!) repeatable on SCHEMA

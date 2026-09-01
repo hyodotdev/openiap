@@ -1,0 +1,98 @@
+# Store event mapping --------------------------------------------------------
+
+scalar StoreMappingMap
+  @jsonMap(
+    valueType: "StoreMapping"
+    minProperties: 1
+    keyPattern: "^[a-z][a-z0-9_]*$"
+  )
+
+"""
+How each store's own notification vocabulary maps onto the normalized event types. This is the reference an implementer follows to normalize a store notification without reverse-engineering an existing backend, and the reference a consumer reads to understand why a given store produces the events it does. A row states what a notification means, not that an emitter can always act on it: one that lacks the state to interpret a notification — a redelivery it already applied, a purchase whose product it cannot resolve, a token the store has superseded — emits nothing, and that is conformant.
+"""
+type StoreEventMapping @jsonObject(additionalProperties: true) {
+  """
+  OpenIAP Commerce Protocol version this table was written against, as MAJOR.MINOR.
+  """
+  specVersion: MajorMinor!
+
+  """
+  Keyed by store, using the same open value space as the event envelope. A table lists only the stores it has mappings for.
+  """
+  stores: StoreMappingMap!
+}
+
+"""
+One store's notification lane: the channel it publishes, the rows that translate its notifications, and what an emitter could still derive without one.
+"""
+type StoreMapping
+  @definition(schema: "store-event-mapping")
+  @jsonObject(additionalProperties: true)
+  @storeMappingInvariant {
+  """
+  The store's own server-to-server notification product, or null when the store publishes none. This is a fact about the STORE, never about any implementation: a channel a store publishes but this version does not map is still named here, with `mappings` empty and `notes` saying why. Recording an unmapped channel as null would collapse a store limitation and a specification gap into the same value, which is the conflation the capability descriptor's two axes exist to prevent.
+  """
+  notificationChannel: String
+
+  """
+  Required when there is no notification channel, or when the store's semantics need a caveat an implementer would otherwise get wrong.
+  """
+  notes: NonEmptyString! @optional
+
+  """
+  Events an implementation could produce for this store by re-asking an authoritative endpoint on a schedule rather than by consuming a notification. Present so that a store this version maps no notifications for is not mistaken for a store with no possible signal — which is true whether the store publishes a channel that went unmapped or publishes none at all. This version specifies no cadence, so an implementation that derives these MUST still declare its capabilities honestly rather than claim parity with a store whose notifications it consumes.
+  """
+  derivableByPolling: [EntitlementEventType!]!
+    @optional
+    @jsonArray(uniqueItems: true)
+
+  """
+  Notification-to-event rows. Empty when the store publishes no channel, or when it publishes one this version does not map; `notes` MUST distinguish the two.
+  """
+  mappings: [Mapping!]!
+}
+
+"""
+One notification-to-event row. Closed: an unrecognised qualifier would leave a reader selecting this row on fewer conditions than its author intended.
+"""
+type Mapping
+  @definition(schema: "store-event-mapping")
+  @jsonObject(additionalProperties: false)
+  @mappingInvariant {
+  """
+  The notification type in the store's own vocabulary, verbatim.
+  """
+  storeNotification: NonEmptyString!
+
+  """
+  The value the store actually transmits, when it differs from the human-readable name. Google Play sends a numeric notificationType; the names are documentation labels that never appear on the wire.
+  """
+  storeNotificationCode: NonEmptyString! @optional
+
+  """
+  A qualifier the store sends alongside the type. Null means this row is the default for that notification: it applies when the store sends no subtype, and also when it sends one no other row claims.
+  """
+  storeSubtype: String @optional
+
+  """
+  Restricts this row to the case where the emitter has seen no earlier store notification for this purchase. That covers both a purchase it has never heard of and one it learned about from a client receipt but never from the store — in each case the notification is the beginning of the story it can tell. A purchase with store history behind it takes the unconditional row instead.
+  """
+  whenNoPriorStoreEvent: Boolean! @optional @jsonConst(boolean: true)
+
+  """
+  Restricts this row to the case where the subscription was in one of these states immediately before the notification. Use it only where the store itself provides no qualifier: Google sends SUBSCRIPTION_RECOVERED for both a recovery and a resume from pause and marks nothing, so prior state is the only separator. Where a store does send a qualifier, use `storeSubtype` instead. A row without any condition is the default for its (notification, subtype) pair, and an implementation MUST prefer a conditional row that matches.
+  """
+  whenPreviousState: [SubscriptionState!]!
+    @optional
+    @jsonArray(minItems: 1, uniqueItems: true)
+
+  """
+  The normalized event type to emit, or null when the notification is received but produces no event — an audit-only or informational notification. A null event is a deliberate mapping, not a gap. Never an `entitlement.*` type: SPEC.md 9.2 derives those from the gate, not from a notification.
+  """
+  event: SubscriptionEventType
+
+  """
+  Why this row is what it is, in prose an implementer can act on. Required wherever the row emits nothing, so a reader can tell a deliberate no-op from an oversight.
+  """
+  notes: NonEmptyString! @optional
+}

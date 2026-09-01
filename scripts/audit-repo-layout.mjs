@@ -11,6 +11,7 @@ export const canonicalContainers = Object.freeze([
   "packages",
   "libraries",
   "plugins",
+  "specs",
 ]);
 
 export function findDuplicateRootPaths(root = repositoryRoot) {

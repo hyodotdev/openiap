@@ -13,9 +13,15 @@ vi.mock("hono/bun", () => ({
       next(),
 }));
 
-vi.mock("node:fs", () => ({
-  promises: { readFile: serverState.readFile },
-}));
+// Only the SPA fallback's readFile is stubbed; the commerce module loads the
+// spec package's generated artifacts through the real readFileSync at import.
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    promises: { ...actual.promises, readFile: serverState.readFile },
+  };
+});
 
 describe("server entrypoint", () => {
   const originalPort = process.env.PORT;
@@ -78,6 +84,15 @@ describe("server entrypoint", () => {
       new Request("http://localhost/api/v1/removed-endpoint"),
     );
     expect(apiMiss.status).toBe(404);
+
+    const v2 = await fetch(new Request("http://localhost/v2"));
+    expect(v2.status).toBe(200);
+    await expect(v2.json()).resolves.toMatchObject({ version: "2" });
+
+    const v2Miss = await fetch(
+      new Request("http://localhost/api/v2/removed-endpoint"),
+    );
+    expect(v2Miss.status).toBe(404);
 
     const staticMiss = await fetch(
       new Request("http://localhost/assets/missing.js"),

@@ -6,6 +6,7 @@ import {
 } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import {
@@ -17,6 +18,11 @@ import {
 import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 import { isValidSubscriptionUserId } from "./limits";
+
+export const USER_ERASURE_BATCH_SIZE = 100;
+export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
+const USER_ERASURE_STALE_MS = 10 * 60 * 1_000;
+const USER_ERASURE_PRUNER_BATCH_SIZE = 100;
 
 const subscriptionPlatformValidator = v.union(
   v.literal("IOS"),
@@ -53,6 +59,7 @@ export type VerifiedSubscriptionInput = {
   willRenew?: boolean;
   currency?: string;
   priceAmountMicros?: number;
+  revocationReasonIOS?: number;
 };
 
 export type VerifiedSubscriptionSnapshot = {
@@ -89,6 +96,7 @@ type RecordVerifiedSubscriptionArgs = {
   willRenew?: boolean;
   currency?: string;
   priceAmountMicros?: number;
+  revocationReasonIOS?: number;
 };
 
 type BindSubscriptionToUserArgs = {
@@ -202,38 +210,28 @@ export async function applySubscriptionEventHandler(
     const firstApplication = storedEvent.appliedAt === undefined;
     if (firstApplication) {
       if (supersedingSubscription && aliasedTransition) {
+        const predecessorProductId =
+          storedEvent.productId ?? supersedingResolution.productId;
         await emitCommerceEvent(ctx, {
           projectId: args.projectId,
           transition: aliasedTransition,
-          active,
-          previouslyActive: active,
+          active: false,
+          previouslyActive: false,
           sourceEvent: {
             ...storedEvent,
-            productId: storedEvent.productId ?? supersedingResolution.productId,
+            productId: predecessorProductId,
           },
-          subscriptionId: supersedingSubscription._id,
-          subscription: {
-            state: supersedingSubscription.state,
-            productId: supersedingSubscription.productId,
-            ...(supersedingSubscription.expiresAt !== undefined
-              ? { expiresAt: supersedingSubscription.expiresAt }
-              : {}),
-            ...(supersedingSubscription.renewsAt !== undefined
-              ? { renewsAt: supersedingSubscription.renewsAt }
-              : {}),
-            ...(supersedingSubscription.willRenew !== undefined
-              ? { willRenew: supersedingSubscription.willRenew }
-              : {}),
-            ...(supersedingSubscription.cancellationReason
-              ? {
-                  cancellationReason:
-                    supersedingSubscription.cancellationReason,
-                }
-              : {}),
-            ...(supersedingSubscription.userId
-              ? { userId: supersedingSubscription.userId }
-              : {}),
-          },
+          ...(predecessorProductId
+            ? {
+                subscription: {
+                  state: aliasedTransition,
+                  productId: predecessorProductId,
+                  ...(supersedingSubscription.userId
+                    ? { userId: supersedingSubscription.userId }
+                    : {}),
+                },
+              }
+            : {}),
         });
       }
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
@@ -544,6 +542,16 @@ export async function applySubscriptionEventHandler(
     existing !== null &&
     existing.lastEventId === undefined &&
     priorStoreSnapshot === null;
+  // Computed before persistSubscriptionSnapshot stamps lastEvent* onto the
+  // row: a record bootstrapped by receipt verification has no store history,
+  // so a price change or deferral arriving as its first store event has no
+  // baseline to describe. The mapping vectors pin these to no event.
+  const priceOrDeferralWithoutBaseline =
+    existing !== null &&
+    existing.lastEventId === undefined &&
+    priorStoreSnapshot === null &&
+    (effectiveTransition === "PriceChanged" ||
+      effectiveTransition === "Deferred");
   const previousProductId =
     priorStoreSnapshot?.productId ?? existing?.productId;
 
@@ -581,11 +589,16 @@ export async function applySubscriptionEventHandler(
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
   const active = entitlementActive(transition.next, now);
+  // A record bootstrapped by receipt verification has no store history, so a
+  // price change or deferral arriving as its first store event has no
+  // baseline to describe. The mapping vectors pin these to no event.
   const commerceTransition = linkedStartedOnActivePredecessor
     ? effectiveTransition
     : firstStoreEventAfterVerification
       ? "Started"
-      : effectiveTransition;
+      : priceOrDeferralWithoutBaseline
+        ? null
+        : effectiveTransition;
   await emitCommerceEvent(ctx, {
     projectId: args.projectId,
     transition: commerceTransition ?? null,
@@ -667,7 +680,14 @@ export function buildVerifiedSubscriptionSnapshot(
           ...base,
           state: "Revoked",
           willRenew: false,
-          cancellationReason: "Refunded",
+          // Apple's revocationReason field covers a transaction "refunded
+          // ... or revoked from family sharing": value 1 is unambiguously a
+          // refund, while 0 also covers Family Sharing loss. Mirroring the
+          // webhook REVOKE policy, only the unambiguous value asserts money
+          // moved back; webhook REFUND notifications carry the rest.
+          ...(input.revocationReasonIOS === 1
+            ? { cancellationReason: "Refunded" as const }
+            : {}),
         };
       case HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT:
       case HarmonizedPurchaseState.PENDING:
@@ -716,7 +736,6 @@ export function buildVerifiedSubscriptionSnapshot(
         ...base,
         state: "Active",
         willRenew: false,
-        cancellationReason: "UserCanceled",
       };
     case "SUBSCRIPTION_STATE_IN_GRACE_PERIOD":
       return {
@@ -802,6 +821,7 @@ export const recordVerifiedSubscription = internalMutation({
     willRenew: v.optional(v.boolean()),
     currency: v.optional(v.string()),
     priceAmountMicros: v.optional(v.number()),
+    revocationReasonIOS: v.optional(v.number()),
   },
   returns: v.union(v.id("subscriptions"), v.null()),
   handler: async (ctx, args) => recordVerifiedSubscriptionHandler(ctx, args),
@@ -822,6 +842,7 @@ export async function recordVerifiedSubscriptionHandler(
     willRenew: args.willRenew,
     currency: args.currency,
     priceAmountMicros: args.priceAmountMicros,
+    revocationReasonIOS: args.revocationReasonIOS,
   });
   if (!snapshot) return null;
 
@@ -1200,6 +1221,128 @@ export const bindSubscriptionToUser = internalMutation({
   handler: async (ctx, args) => bindSubscriptionToUserHandler(ctx, args),
 });
 
+/**
+ * The retained source a re-emitted entitlement event is attributed to. The
+ * stored row is preferred; a pruned one is reconstructed from the snapshot the
+ * subscription keeps. Price is stripped: a webhook already reported it, and
+ * repeating it would put the same money on another event.
+ */
+async function retainedSourceEventFor(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  sub: Doc<"subscriptions">,
+) {
+  if (!sub.lastEventId) return null;
+  const retained = await ctx.db.get(sub.lastEventId);
+  const source =
+    retained?.projectId === projectId
+      ? retained
+      : sub.lastEventSource &&
+          sub.lastEventOccurredAt !== undefined &&
+          sub.lastEventSourceNotificationId
+        ? {
+            _id: sub.lastEventId,
+            type: sub.lastEventSource.type,
+            platform: sub.platform,
+            environment: sub.lastEventSource.environment,
+            productId: sub.lastEventSource.productId,
+            applicationId: sub.lastEventSource.applicationId,
+            transactionId: sub.lastEventSource.transactionId,
+            originalTransactionId: sub.lastEventSource.originalTransactionId,
+            sourceNotificationId: sub.lastEventSourceNotificationId,
+            occurredAt: sub.lastEventOccurredAt,
+          }
+        : null;
+  if (!source) return null;
+  return {
+    ...source,
+    currency: undefined,
+    priceAmountMicros: undefined,
+    amountProvenance: undefined,
+  };
+}
+
+/**
+ * Moves an existing binding. `bindSubscriptionToUserHandler` refuses this on
+ * purpose — a caller holding a purchase token has not proved it owns the
+ * purchase — so correcting a wrong binding needs an operator-authorized path.
+ * Callers must gate this on a secret key.
+ */
+export async function rebindSubscriptionToUserHandler(
+  ctx: MutationCtx,
+  args: BindSubscriptionToUserArgs,
+): Promise<{ subscriptionId: Id<"subscriptions">; notified: boolean } | null> {
+  if (!isValidSubscriptionUserId(args.userId)) {
+    throw new ConvexError("userId must be nonblank and at most 256 characters");
+  }
+  await assertProjectWritable(ctx, args.projectId);
+  // Resolve exactly as `bind` does. An operator correcting a wrong binding
+  // usually has the token the customer reported, which on Play may be the one
+  // a replacement superseded.
+  const supersedingResolution = await findSupersedingSubscription(
+    ctx,
+    args.projectId,
+    args.purchaseToken,
+  );
+  const sub = supersedingResolution.aliased
+    ? supersedingResolution.subscription
+    : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
+  if (!sub) return null;
+  if (sub.userId === args.userId) {
+    return { subscriptionId: sub._id, notified: true };
+  }
+  const previousUserId = sub.userId;
+  const now = Date.now();
+
+  // A consumer that gates access on commerce events has no other way to learn
+  // the purchase moved: without these it keeps the wrong user entitled and
+  // never entitles the real one. Decide before writing, so the caller is never
+  // told a rebind succeeded when the notification half of it could not.
+  const entitled = isActive({ ...sub, userId: args.userId }, now);
+  const sourceEvent = entitled
+    ? await retainedSourceEventFor(ctx, args.projectId, sub)
+    : null;
+  await ctx.db.patch(sub._id, { userId: args.userId, updatedAt: now });
+  if (!entitled) return { subscriptionId: sub._id, notified: true };
+  if (!sourceEvent) {
+    // Every retained trace of the originating notification is gone, so no
+    // event can be attributed. The binding moved; the operator must reconcile
+    // the developer backend by hand.
+    console.warn(
+      "[subscriptions/rebind] moved a binding without emitting entitlement events",
+      { projectId: args.projectId, subscriptionId: sub._id },
+    );
+    return { subscriptionId: sub._id, notified: false };
+  }
+  const snapshot = {
+    state: sub.state,
+    productId: sub.productId,
+    ...(sub.expiresAt !== undefined ? { expiresAt: sub.expiresAt } : {}),
+    ...(sub.renewsAt !== undefined ? { renewsAt: sub.renewsAt } : {}),
+    ...(sub.willRenew !== undefined ? { willRenew: sub.willRenew } : {}),
+    ...(sub.cancellationReason
+      ? { cancellationReason: sub.cancellationReason }
+      : {}),
+  };
+  for (const [userId, active, previouslyActive] of [
+    ...(previousUserId
+      ? ([[previousUserId, false, true]] as const)
+      : ([] as const)),
+    [args.userId, true, false] as const,
+  ]) {
+    await emitCommerceEvent(ctx, {
+      projectId: args.projectId,
+      transition: null,
+      active,
+      previouslyActive,
+      sourceEvent,
+      subscriptionId: sub._id,
+      subscription: { ...snapshot, userId },
+    });
+  }
+  return { subscriptionId: sub._id, notified: true };
+}
+
 export async function bindSubscriptionToUserHandler(
   ctx: MutationCtx,
   args: BindSubscriptionToUserArgs,
@@ -1219,7 +1362,14 @@ export async function bindSubscriptionToUserHandler(
   if (!sub) return null;
   if (sub.userId === args.userId) return sub._id;
   if (sub.userId) {
-    throw new ConvexError("Subscription is already bound to another user");
+    // Reported the same as an unknown token. A distinct error would tell any
+    // holder of the app-embedded publishable key whether a token exists and
+    // whether someone owns it. The operator still sees the collision.
+    console.warn(
+      "[subscriptions/bind] rejected a bind for an already-bound subscription",
+      { projectId: args.projectId, subscriptionId: sub._id },
+    );
+    return null;
   }
   const now = Date.now();
   await ctx.db.patch(sub._id, {
@@ -1256,15 +1406,14 @@ export async function bindSubscriptionToUserHandler(
             }
           : null;
     if (sourceEvent) {
-      const entitlementSource =
-        sourceEvent.type === "SubscriptionPriceChange" ||
-        (sourceEvent.productId && sourceEvent.productId !== sub.productId)
-          ? {
-              ...sourceEvent,
-              currency: undefined,
-              priceAmountMicros: undefined,
-            }
-          : sourceEvent;
+      // This only fires after a webhook already emitted the notification's
+      // amount, so repeating it would put the same money on a second event.
+      const entitlementSource = {
+        ...sourceEvent,
+        currency: undefined,
+        priceAmountMicros: undefined,
+        amountProvenance: undefined,
+      };
       await emitCommerceEvent(ctx, {
         projectId: args.projectId,
         transition: null,
@@ -1288,3 +1437,149 @@ export async function bindSubscriptionToUserHandler(
   }
   return sub._id;
 }
+
+export async function drainSubscriptionUserErasurePage(
+  ctx: MutationCtx,
+  jobId: Id<"subscriptionUserErasureJobs">,
+): Promise<{
+  done: boolean;
+  subscriptionsErased: number;
+  commerceEventsErased: number;
+}> {
+  const job = await ctx.db.get(jobId);
+  if (!job || job.status === "completed" || !job.userId) {
+    return {
+      done: true,
+      subscriptionsErased: job?.subscriptionsErased ?? 0,
+      commerceEventsErased: job?.commerceEventsErased ?? 0,
+    };
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(jobId, { status: "running", updatedAt: now });
+  const [subscriptions, commerceEvents] = await Promise.all([
+    ctx.db
+      .query("subscriptions")
+      .withIndex("by_project_and_user", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("commerceEvents")
+      .withIndex("by_project_and_user", (q) =>
+        q.eq("projectId", job.projectId).eq("userId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
+  ]);
+
+  for (const subscription of subscriptions) {
+    await ctx.db.patch(subscription._id, { userId: undefined });
+  }
+  for (const event of commerceEvents) {
+    if (event.eventType.startsWith("entitlement.")) {
+      const deliveries = await ctx.db
+        .query("outboundDeliveries")
+        .withIndex("by_event", (q) => q.eq("eventId", event._id))
+        .collect();
+      for (const delivery of deliveries) await ctx.db.delete(delivery._id);
+      await ctx.db.delete(event._id);
+    } else {
+      await ctx.db.patch(event._id, { userId: undefined });
+    }
+  }
+
+  const subscriptionsErased = job.subscriptionsErased + subscriptions.length;
+  const commerceEventsErased = job.commerceEventsErased + commerceEvents.length;
+  const done =
+    subscriptions.length < USER_ERASURE_BATCH_SIZE &&
+    commerceEvents.length < USER_ERASURE_BATCH_SIZE;
+
+  if (done) {
+    await ctx.db.patch(jobId, {
+      userId: undefined,
+      status: "completed",
+      subscriptionsErased,
+      commerceEventsErased,
+      updatedAt: now,
+      completedAt: now,
+    });
+  } else {
+    await ctx.db.patch(jobId, {
+      subscriptionsErased,
+      commerceEventsErased,
+      updatedAt: now,
+    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.internal.drainSubscriptionUserErasureJob,
+      { jobId },
+    );
+  }
+
+  return { done, subscriptionsErased, commerceEventsErased };
+}
+
+export const drainSubscriptionUserErasureJob = internalMutation({
+  args: { jobId: v.id("subscriptionUserErasureJobs") },
+  handler: async (ctx, args) =>
+    drainSubscriptionUserErasurePage(ctx, args.jobId),
+});
+
+export const resumeSubscriptionUserErasureJobs = internalMutation({
+  args: {},
+  returns: v.object({ scheduled: v.number() }),
+  handler: async (ctx) => {
+    const staleBefore = Date.now() - USER_ERASURE_STALE_MS;
+    const [queued, stale] = await Promise.all([
+      ctx.db
+        .query("subscriptionUserErasureJobs")
+        .withIndex("by_status_and_updated", (q) => q.eq("status", "queued"))
+        .take(10),
+      ctx.db
+        .query("subscriptionUserErasureJobs")
+        .withIndex("by_status_and_updated", (q) =>
+          q.eq("status", "running").lt("updatedAt", staleBefore),
+        )
+        .take(10),
+    ]);
+    const jobs = [...queued, ...stale].slice(0, 10);
+    for (const job of jobs) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.subscriptions.internal.drainSubscriptionUserErasureJob,
+        { jobId: job._id },
+      );
+    }
+    return { scheduled: jobs.length };
+  },
+});
+
+export async function pruneCompletedSubscriptionUserErasureJobsHandler(
+  ctx: MutationCtx,
+): Promise<{ pruned: number }> {
+  const completedBefore = Date.now() - USER_ERASURE_JOB_RETENTION_MS;
+  const completed = await ctx.db
+    .query("subscriptionUserErasureJobs")
+    .withIndex("by_status_and_updated", (q) =>
+      q.eq("status", "completed").lt("updatedAt", completedBefore),
+    )
+    .take(USER_ERASURE_PRUNER_BATCH_SIZE);
+
+  for (const job of completed) {
+    await ctx.db.delete(job._id);
+  }
+  if (completed.length === USER_ERASURE_PRUNER_BATCH_SIZE) {
+    await ctx.scheduler.runAfter(
+      0,
+      internal.subscriptions.internal.pruneCompletedSubscriptionUserErasureJobs,
+      {},
+    );
+  }
+  return { pruned: completed.length };
+}
+
+export const pruneCompletedSubscriptionUserErasureJobs = internalMutation({
+  args: {},
+  returns: v.object({ pruned: v.number() }),
+  handler: async (ctx) => pruneCompletedSubscriptionUserErasureJobsHandler(ctx),
+});

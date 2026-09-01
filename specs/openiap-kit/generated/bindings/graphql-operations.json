@@ -1,0 +1,87 @@
+{
+  "$comment": "Canonical full-selection GraphQL documents for every protocol operation. Generated from commerce-protocol.graphql — do not edit. The conformance runner sends exactly these documents; REST/GraphQL parity is judged on each `selection` tree, this protocol version's contract shape.",
+  "protocolVersion": "1.0",
+  "operations": {
+    "providerCapabilities": {
+      "kind": "query",
+      "document": "query ProviderCapabilities { providerCapabilities { specVersion implementation { name version } eventTypes stores profiles bindings } }",
+      "selection": {
+        "specVersion": true,
+        "implementation": {
+          "name": true,
+          "version": true
+        },
+        "eventTypes": true,
+        "stores": true,
+        "profiles": true,
+        "bindings": true
+      }
+    },
+    "subscriptionStatus": {
+      "kind": "query",
+      "document": "query SubscriptionStatus($input: SubscriptionStatusInput!) { subscriptionStatus(input: $input) { active subscription { productId state active store expiresAt renewsAt willRenew cancellationReason startedAt updatedAt } } }",
+      "selection": {
+        "active": true,
+        "subscription": {
+          "productId": true,
+          "state": true,
+          "active": true,
+          "store": true,
+          "expiresAt": true,
+          "renewsAt": true,
+          "willRenew": true,
+          "cancellationReason": true,
+          "startedAt": true,
+          "updatedAt": true
+        }
+      }
+    },
+    "entitlements": {
+      "kind": "query",
+      "document": "query Entitlements($input: EntitlementsInput!) { entitlements(input: $input) { userId productIds subscriptions { productId state active store expiresAt renewsAt willRenew cancellationReason startedAt updatedAt } } }",
+      "selection": {
+        "userId": true,
+        "productIds": true,
+        "subscriptions": {
+          "productId": true,
+          "state": true,
+          "active": true,
+          "store": true,
+          "expiresAt": true,
+          "renewsAt": true,
+          "willRenew": true,
+          "cancellationReason": true,
+          "startedAt": true,
+          "updatedAt": true
+        }
+      }
+    },
+    "verifyPurchase": {
+      "kind": "mutation",
+      "document": "mutation VerifyPurchase($input: VerifyPurchaseInput!) { verifyPurchase(input: $input) { store isValid state productId environment } }",
+      "selection": {
+        "store": true,
+        "isValid": true,
+        "state": true,
+        "productId": true,
+        "environment": true
+      }
+    },
+    "bindPurchase": {
+      "kind": "mutation",
+      "document": "mutation BindPurchase($input: BindPurchaseInput!) { bindPurchase(input: $input) { bound } }",
+      "selection": {
+        "bound": true
+      }
+    },
+    "eraseUser": {
+      "kind": "mutation",
+      "document": "mutation EraseUser($input: EraseUserInput!) { eraseUser(input: $input) { accepted jobId status } }",
+      "selection": {
+        "accepted": true,
+        "jobId": true,
+        "status": true
+      }
+    }
+  }
+}

@@ -209,7 +209,9 @@ export function selectActiveWebhookPublishableKey(
     .filter((apiKey) => apiKey.isActive)
     .sort((a, b) => b.createdAt - a.createdAt);
   return activeApiKeys.find(
-    (apiKey) => effectiveApiKeyType(apiKey.keyType) === "publishable",
+    (apiKey) =>
+      effectiveApiKeyType(apiKey.keyType) === "publishable" &&
+      typeof apiKey.key === "string",
   )?.key;
 }
 

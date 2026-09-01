@@ -95,12 +95,13 @@ export default function QuickstartPage() {
         The <strong>API Keys</strong> tab lists the project&apos;s keys. A
         default <code>openiap-kit_pk_</code> publishable key is auto-created and
         shown once when the project is created. Use it in the mobile app for
-        verification and client-safe reads.
+        purchase verification and public catalog or client-payload reads.
       </p>
       <p>
-        Create a separate <code>openiap-kit_sk_</code> secret key for MCP, CI,
-        catalog or payload writes, analytics, and store sync. Keep secret keys
-        in a secret manager and never include one in an app build.
+        Create a separate <code>openiap-kit_sk_</code> secret key for your
+        backend, MCP, CI, account-level status or entitlement reads, catalog or
+        payload writes, analytics, and store sync. Keep secret keys in a secret
+        manager and never include one in an app build.
       </p>
       <p>
         Keys are credentials for the same project, not separate entitlement
@@ -108,25 +109,25 @@ export default function QuickstartPage() {
         projects and keep each app on a key from the matching project.
       </p>
       <p>
-        Use keys from the same project when verifying a purchase and when
-        binding or checking subscription status. <code>bind-user</code>,{" "}
-        <code>status</code>, and <code>entitlements</code> look up subscription
-        state inside the key's project; state from another project will not be
-        found.
+        Use keys from the same project when verifying a purchase, binding it,
+        and checking subscription state. The authenticated backend selects the
+        opaque app-scoped <code>userId</code> from its session and calls the
+        secret-only <code>/v2/subscriptions/status</code> or{" "}
+        <code>/v2/subscriptions/entitlements</code> endpoint. State from another
+        project will not be found.
       </p>
       <p>
-        When clients call status or entitlements directly, use opaque app-scoped
-        user IDs rather than public identifiers like email addresses.
+        Do not accept an arbitrary <code>userId</code> from an unauthenticated
+        app request and forward it to IAPKit. Resolve it from your authenticated
+        backend session, and do not use public identifiers such as email
+        addresses.
       </p>
       <p>
-        IAPKit does not stream store events back to apps. Cache the latest
-        user-scoped status or entitlement response and conditionally refresh it
-        on cold start, when it is stale after foregrounding, or after an
-        explicit user action. Coalesce concurrent refreshes through one
-        coordinator. Send its <code>ETag</code> as <code>If-None-Match</code>;{" "}
-        <code>304</code> reuses the cached snapshot, while <code>200</code>{" "}
-        replaces it. Define a maximum stale age for offline fallback and avoid
-        continuous polling.
+        IAPKit does not stream store events back to apps. Let your app request
+        access from your authenticated backend at bounded lifecycle points such
+        as cold start, foreground refresh, or an explicit user action. The
+        backend can coalesce concurrent IAPKit reads and apply its own bounded
+        cache policy.
       </p>
       <Callout kind="warning" title="Publishable does not mean private">
         <p>

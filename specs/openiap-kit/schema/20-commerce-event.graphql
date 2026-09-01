@@ -1,0 +1,195 @@
+# Commerce event -------------------------------------------------------------
+
+"""
+What happened. See the taxonomy in SPEC.md. The value space is OPEN: §12 adds an event type in a MINOR version, so a consumer pinned on the major MUST tolerate a type it does not recognise and MUST NOT act on it. The listed values are the ones this version names.
+"""
+scalar CommerceEventType
+  @jsonString(
+    pattern: "^[a-z]+\\.[a-z_]+$"
+    examples: [
+      "subscription.started"
+      "subscription.renewed"
+      "subscription.recovered"
+      "subscription.entered_grace_period"
+      "subscription.entered_billing_retry"
+      "subscription.expired"
+      "subscription.canceled"
+      "subscription.uncanceled"
+      "subscription.revoked"
+      "subscription.refunded"
+      "subscription.product_changed"
+      "subscription.price_changed"
+      "subscription.deferred"
+      "subscription.paused"
+      "subscription.resumed"
+      "entitlement.granted"
+      "entitlement.revoked"
+    ]
+  )
+
+"""
+One normalized commerce lifecycle fact. A consumer reads this without knowing which store produced it and without parsing any store-native payload.
+"""
+type CommerceEvent
+  @jsonObject(additionalProperties: true)
+  @eventInvariant(
+    eventTypes: ["entitlement.granted", "entitlement.revoked"]
+    require: ["userId", "productId"]
+  )
+  @eventInvariant(eventTypes: ["entitlement.granted"], snapshotActive: true)
+  @eventInvariant(eventTypes: ["entitlement.revoked"], snapshotActive: false)
+  @eventInvariant(
+    eventTypes: [
+      "subscription.started"
+      "subscription.renewed"
+      "subscription.recovered"
+      "subscription.resumed"
+    ]
+    snapshotState: "Active"
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.entered_grace_period"]
+    snapshotState: "InGracePeriod"
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.entered_billing_retry"]
+    snapshotState: "InBillingRetry"
+    snapshotActive: false
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.expired"]
+    snapshotState: "Expired"
+    snapshotActive: false
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.revoked"]
+    snapshotState: "Revoked"
+    snapshotActive: false
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.refunded"]
+    snapshotState: "Refunded"
+    snapshotActive: false
+  )
+  @eventInvariant(
+    eventTypes: ["subscription.paused"]
+    snapshotState: "Paused"
+    snapshotActive: false
+  ) {
+  """
+  Unique identity of this event, assigned by the emitter. It is the receiver's deduplication key. An emitter MUST NOT reuse an eventId and MUST NOT change the eventId of an event it has already delivered.
+  """
+  eventId: Identifier!
+
+  """
+  What happened. See the taxonomy in SPEC.md. The value space is OPEN: §12 adds an event type in a MINOR version, so a consumer pinned on the major MUST tolerate a type it does not recognise and MUST NOT act on it. The listed values are the ones this version names.
+  """
+  eventType: CommerceEventType!
+
+  """
+  Schema version of this body, as MAJOR.MINOR. Consumers pin on the major.
+  """
+  eventVersion: MajorMinor!
+
+  """
+  The best authoritative time for the commerce fact. Use the store-asserted transition time when one exists. When polling only reveals that a value changed since the last observation, use the time the emitter observed the new value and do not invent a more precise instant.
+  """
+  occurredAt: Timestamp!
+
+  """
+  When the emitter derived this event. Always greater than or equal to occurredAt in practice, but not guaranteed by this specification.
+  """
+  processedAt: Timestamp!
+
+  store: Store!
+  environment: Environment!
+
+  """
+  The emitter-side scope this event belongs to, opaque to the consumer. A scope is whatever boundary the emitter organises commerce by — a tenant, a project, an application, or a single constant when the emitter serves exactly one. It is NOT an identifier issued by any central registry, and an implementation MUST NOT be required to obtain one from a third party. The member name is inherited from the deployed 1.0 wire format.
+  """
+  projectId: Identifier!
+
+  """
+  A finer-grained scope within `projectId`, when the emitter models one. Opaque to the consumer.
+  """
+  applicationId: Identifier! @optional
+
+  """
+  The app user this purchase is bound to, expressed in the identity space shared by the emitter and its consumer. It is an opaque correlation handle: there is no global user directory, and no central identity resolution is implied or required. Absent when no binding exists; required on every entitlement event.
+  """
+  userId: Identifier! @optional
+
+  """
+  Store product identifier this event concerns. Required on every entitlement event so a consumer knows which access decision to apply.
+  """
+  productId: NonEmptyString! @optional
+
+  """
+  The product that was canonical before this event, when the event applies a product switch.
+  """
+  previousProductId: NonEmptyString! @optional
+
+  """
+  Store transaction identity for this specific economic event, where the store exposes one.
+  """
+  transactionId: NonEmptyString! @optional
+
+  """
+  Store identity of the first transaction in this subscription chain, where the store exposes one.
+  """
+  originalTransactionId: NonEmptyString! @optional
+
+  """
+  The subscription as it stood immediately after this event. Absent for stores that keep no canonical subscription record.
+  """
+  subscription: SubscriptionSnapshot! @optional
+
+  """
+  Amount associated with the transaction this event concerns, carried at whatever provenance it has — only `store` means the store asserted it. Always the transaction's own magnitude and never negative. It is context rather than a charge record: stores repeat the same figure across successive notifications about one subscription, so a consumer MUST NOT sum every priced event. See SPEC.md 9.3. Absent means the amount is unknown, never zero.
+  """
+  price: Money! @optional
+
+  """
+  The store's own notification identifier this event was derived from, for support triage against the store console. Absent when the event did not originate from a store notification.
+  """
+  sourceStoreEventId: NonEmptyString! @optional
+
+  extensions: Extensions! @optional
+}
+
+"""
+The subscription as it stood immediately after this event. Absent for stores that keep no canonical subscription record.
+"""
+type SubscriptionSnapshot @inline @jsonObject(additionalProperties: true) {
+  state: SubscriptionState!
+
+  """
+  The product the subscription is on after this event. Not always the event's top-level `productId`: where a store defers a product change to the next period — Apple's scheduled downgrades do, Google's item changes do not — the top level names the incoming product while this stays on the outgoing one until it renews. A consumer gating access reads this member; one reporting on what the notification announced reads the top level.
+  """
+  productId: NonEmptyString!
+
+  """
+  When access ends. This is the boundary the entitlement predicate compares against, and the comparison is exclusive — at this instant the subscription is no longer entitled. During a grace period it is the end of the grace window, not of the period that failed to renew; an emitter that reports the failed period here revokes access at the moment grace begins.
+  """
+  expiresAt: Timestamp! @optional
+
+  """
+  When the store will next attempt to bill, when it reports one. Distinct from `expiresAt`, which is when access ends: they coincide on a healthy subscription and diverge while a grace period extends access past the billing date. Absent once renewal is no longer expected.
+  """
+  renewsAt: Timestamp! @optional
+
+  """
+  Whether the store will attempt another billing period. False after a cancellation, while access may still be live.
+  """
+  willRenew: Boolean! @optional
+
+  """
+  Why the subscription stopped renewing, as a normalized token — not the store's own wording, which the emitter translates from whatever shape that store uses. This version names `UserCanceled`, `BillingError`, `PriceIncreaseDeclined`, `ProductUnavailable`, `Refunded` and `Other`; the space is open, so a consumer MUST tolerate a token it does not know, and no store yields every token. An emitter that has no store-asserted reason omits this member. Unlike `price`, it has no provenance marker, so treat a present value as advisory rather than as a fact to bill or report on.
+  """
+  cancellationReason: NonEmptyString! @optional
+
+  """
+  The entitlement gate after this event. Where this member is present it is the field to read for access — never a re-derivation from `state`. A store that keeps no canonical subscription record omits the whole `subscription` member; there an `entitlement.granted` or `entitlement.revoked` event carries the decision in its type, while a `subscription.*` event carries none.
+  """
+  active: Boolean!
+}

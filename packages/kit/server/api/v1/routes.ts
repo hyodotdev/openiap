@@ -194,7 +194,8 @@ const verifyPurchaseRouteDescription = describeRoute({
     "Set `includeClientPayload: true` on Apple or Google requests to " +
     "attach the matching public product payload when the receipt is valid " +
     "and the product is present in IAPKit's live catalog. The field is " +
-    "omitted by default, for invalid receipts, missing/Removed products, " +
+    "omitted by default, for invalid receipts, missing/Removed products, Draft " +
+    "products on app-facing publishable keys, " +
     "and Horizon or Amazon requests. Client payloads are public app data, " +
     "not secrets or server-authoritative entitlement rules.\n\n" +
     "Rate limit: each Fly process enforces bounded, in-memory token buckets " +

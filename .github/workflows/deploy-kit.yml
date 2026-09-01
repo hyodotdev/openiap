@@ -13,6 +13,11 @@ on:
       # @hyodotdev/openiap-mcp-server/web straight from source, so an
       # MCP-server change must redeploy kit or it never ships (issue #287).
       - "packages/mcp-server/**"
+      # The kit server imports openiap-commerce-protocol at runtime and the
+      # compiled binary embeds its generated artifacts (the route manifest,
+      # error map, and capability descriptor), so a spec change must redeploy
+      # kit or the served /commerce/v1 surface silently diverges from the spec.
+      - "specs/openiap-kit/**"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
       - "bun.lock"
@@ -21,6 +26,10 @@ on:
     paths:
       - "packages/kit/**"
       - "packages/mcp-server/**"
+      # Runtime dependency of the kit binary (see the push trigger above); its
+      # generated artifacts are compiled in, so a spec change both runs kit's
+      # conformance test and, on main, redeploys.
+      - "specs/openiap-kit/**"
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"

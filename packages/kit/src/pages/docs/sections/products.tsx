@@ -350,12 +350,13 @@ const refreshed = await api.clientPayload(
       </CodeBlock>
       <p>
         The direct endpoint returns <code>{`{ clientPayload: { ... } }`}</code>{" "}
-        or <code>404</code> when the matching product is missing, Removed, or
-        has no payload. Catalog reads omit <code>clientPayload</code> unless{" "}
-        <code>includeClientPayload=true</code> is present. Direct responses use
-        a key/platform/product/version-scoped <code>ETag</code>; a matching{" "}
-        <code>If-None-Match</code> returns <code>304</code> without reading the
-        payload body. Catalog and secret-admin responses are not cacheable.
+        or <code>404</code> when the matching product is missing, Draft,
+        Removed, or has no payload. Catalog reads omit{" "}
+        <code>clientPayload</code> unless <code>includeClientPayload=true</code>{" "}
+        is present. Direct responses use a key/platform/product/version-scoped{" "}
+        <code>ETag</code>; a matching <code>If-None-Match</code> returns{" "}
+        <code>304</code> without reading the payload body. Catalog and
+        secret-admin responses are not cacheable.
       </p>
       <Callout kind="note" title="Cost protection is applied before Convex">
         <p>
@@ -384,8 +385,8 @@ const refreshed = await api.clientPayload(
         Apple and Google verification requests may send{" "}
         <code>includeClientPayload: true</code>. IAPKit attaches the payload
         only when the receipt is valid, the store supplies a verified product
-        ID, and that exact platform/product is present, not Removed, and has a
-        payload.
+        ID, and that exact platform/product is present, not Draft or Removed,
+        and has a payload.
       </p>
       <CodeBlock title="Apple opt-in request" language="json">
         {`{
@@ -410,13 +411,13 @@ const refreshed = await api.clientPayload(
 }`}
       </CodeBlock>
       <p>
-        Default requests, invalid receipts, missing or Removed catalog products,
-        missing payloads, and Horizon or Amazon verification responses omit the
-        field. Always make entitlement decisions from <code>isValid</code>, the
-        purchase <code>state</code>, and the store-verified{" "}
-        <code>productId</code>, require that ID to match the product your app
-        expected, and never fall back to a client-supplied ID when the verified
-        value is missing.
+        Default requests, invalid receipts, missing, Draft, or Removed catalog
+        products, missing payloads, and Horizon or Amazon verification responses
+        omit the field. Always make entitlement decisions from{" "}
+        <code>isValid</code>, the purchase <code>state</code>, and the
+        store-verified <code>productId</code>, require that ID to match the
+        product your app expected, and never fall back to a client-supplied ID
+        when the verified value is missing.
       </p>
 
       <Callout kind="note" title="This is retrieval, not a push notification">

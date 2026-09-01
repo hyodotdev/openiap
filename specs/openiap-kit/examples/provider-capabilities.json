@@ -1,0 +1,209 @@
+{
+  "$comment": "The reference implementation's own descriptor, published as the worked example. Its `implementation` axis is one backend's answer, not a specification requirement; the `provider` axis is a fact about each store.",
+  "specVersion": "1.0",
+  "implementation": {
+    "name": "IAPKit"
+  },
+  "eventTypes": [
+    "subscription.started",
+    "subscription.renewed",
+    "subscription.recovered",
+    "subscription.entered_grace_period",
+    "subscription.entered_billing_retry",
+    "subscription.expired",
+    "subscription.canceled",
+    "subscription.uncanceled",
+    "subscription.revoked",
+    "subscription.refunded",
+    "subscription.product_changed",
+    "subscription.price_changed",
+    "subscription.deferred",
+    "subscription.paused",
+    "subscription.resumed",
+    "entitlement.granted",
+    "entitlement.revoked"
+  ],
+  "profiles": {
+    "verification": "1.0",
+    "entitlements": "1.0",
+    "events": "1.0",
+    "accountLifecycle": "1.0"
+  },
+  "bindings": {
+    "rest": "1.0",
+    "graphql": "1.0"
+  },
+  "stores": {
+    "apple": {
+      "initialValidation": {
+        "provider": true,
+        "implementation": true
+      },
+      "serverNotifications": {
+        "provider": true,
+        "implementation": true
+      },
+      "subscriptions": {
+        "provider": true,
+        "implementation": true
+      },
+      "renewalEvents": {
+        "provider": true,
+        "implementation": true
+      },
+      "refundEvents": {
+        "provider": true,
+        "implementation": true
+      },
+      "expiration": {
+        "provider": true,
+        "implementation": true
+      },
+      "reconciliation": {
+        "provider": true,
+        "implementation": false,
+        "notes": "The App Store Server API can be polled for authoritative subscription status, but this implementation runs no scheduled pass. A notification lost past Apple's retry window is therefore not self-healing."
+      },
+      "entitlements": {
+        "provider": true,
+        "implementation": true
+      },
+      "revenueAmount": {
+        "provider": true,
+        "implementation": true
+      }
+    },
+    "google": {
+      "initialValidation": {
+        "provider": true,
+        "implementation": true
+      },
+      "serverNotifications": {
+        "provider": true,
+        "implementation": true
+      },
+      "subscriptions": {
+        "provider": true,
+        "implementation": true
+      },
+      "renewalEvents": {
+        "provider": true,
+        "implementation": true
+      },
+      "refundEvents": {
+        "provider": true,
+        "implementation": true
+      },
+      "expiration": {
+        "provider": true,
+        "implementation": true
+      },
+      "reconciliation": {
+        "provider": true,
+        "implementation": false,
+        "notes": "purchases.subscriptionsv2.get is authoritative and is called to enrich notifications, but no scheduled pass re-reads state, so a dropped RTDN message is not repaired."
+      },
+      "entitlements": {
+        "provider": true,
+        "implementation": true
+      },
+      "revenueAmount": {
+        "provider": true,
+        "implementation": true,
+        "notes": "Renewal notifications carry the amount the store charged. A refund arrives as a voided-purchase notification, which carries none, so a reversal has no amount to attribute."
+      }
+    },
+    "horizon": {
+      "initialValidation": {
+        "provider": true,
+        "implementation": true,
+        "notes": "The Graph verify_entitlement endpoint answers whether the viewer currently owns a SKU. It returns ownership only \u2014 no amount, currency, expiry, state, or transaction identity."
+      },
+      "serverNotifications": {
+        "provider": false,
+        "implementation": false,
+        "notes": "Meta exposes no server-to-server notification channel for commerce, so no backend can observe Horizon lifecycle changes as they happen."
+      },
+      "subscriptions": {
+        "provider": false,
+        "implementation": false,
+        "notes": "No server-side subscription resource exists to read, so no canonical subscription record can be maintained."
+      },
+      "renewalEvents": {
+        "provider": false,
+        "implementation": false,
+        "notes": "No renewal signal exists on any Meta server API."
+      },
+      "refundEvents": {
+        "provider": false,
+        "implementation": false,
+        "notes": "refund_iap_entitlement performs a refund; it does not report refunds initiated elsewhere."
+      },
+      "expiration": {
+        "provider": false,
+        "implementation": false,
+        "notes": "No expiry timestamp is exposed. Loss of entitlement is observable only by asking again."
+      },
+      "reconciliation": {
+        "provider": true,
+        "implementation": false,
+        "notes": "verify_entitlement could be re-polled on a schedule to approximate reconciliation, but this implementation runs no such pass."
+      },
+      "entitlements": {
+        "provider": true,
+        "implementation": true,
+        "notes": "Point-in-time only. The answer is valid at the moment it is asked and carries no validity window."
+      },
+      "revenueAmount": {
+        "provider": false,
+        "implementation": false,
+        "notes": "No monetary amount is returned by any Meta server commerce API, so no revenue can be attributed with store provenance."
+      }
+    },
+    "amazon": {
+      "initialValidation": {
+        "provider": true,
+        "implementation": true
+      },
+      "serverNotifications": {
+        "provider": true,
+        "implementation": false,
+        "notes": "Amazon Real-Time Notifications exist, but this implementation integrates no receiver for them. This is an implementation gap, not a store limitation."
+      },
+      "subscriptions": {
+        "provider": true,
+        "implementation": false,
+        "notes": "Real-Time Notifications carry the lifecycle transitions a canonical record needs. This implementation polls Receipt Verification Service instead, which reports current validity rather than transitions."
+      },
+      "renewalEvents": {
+        "provider": true,
+        "implementation": false,
+        "notes": "Real-Time Notifications are the store's lifecycle channel. This implementation polls Receipt Verification Service, which reports current validity rather than transitions."
+      },
+      "refundEvents": {
+        "provider": true,
+        "implementation": false,
+        "notes": "Real-Time Notifications are the store's lifecycle channel. Polling Receipt Verification Service surfaces a cancellation only as a later validity change."
+      },
+      "expiration": {
+        "provider": true,
+        "implementation": false,
+        "notes": "Real-Time Notifications are the store's lifecycle channel. Polling Receipt Verification Service only infers expiry from a later response."
+      },
+      "reconciliation": {
+        "provider": true,
+        "implementation": true,
+        "notes": "A scheduled pass re-reads Receipt Verification Service for active receipts. The interval is bounded but not guaranteed, so a change is observed within roughly two days rather than promptly. Cadence is an implementation choice, not a contract."
+      },
+      "entitlements": {
+        "provider": true,
+        "implementation": true
+      },
+      "revenueAmount": {
+        "provider": false,
+        "implementation": false,
+        "notes": "Neither Receipt Verification Service nor the mapping this version defines for Amazon carries an amount, so no revenue can be attributed with store provenance."
+      }
+    }
+  }
+}

@@ -16,11 +16,12 @@
     "render:mcp-video": "node scripts/render-mcp-demo-video.mjs",
     "prepare": "husky",
     "deploy": "./deploy.sh",
-    "deploy:preview": "vercel"
+    "deploy:preview": "vercel pull --yes --environment=preview && vercel build --yes && vercel deploy --prebuilt --yes"
   },
   "dependencies": {
     "@preact/signals-react": "^3.2.1",
     "@types/prismjs": "^1.26.5",
+    "openiap-commerce-protocol": "workspace:*",
     "prismjs": "^1.30.0",
     "react": "^19.0.0",
     "react-compiler-runtime": "^19.1.0-rc.2",

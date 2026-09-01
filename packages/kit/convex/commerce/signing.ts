@@ -26,6 +26,7 @@ export const SIGNATURE_HEADER = "openiap-signature";
 export const TIMESTAMP_HEADER = "openiap-timestamp";
 export const EVENT_ID_HEADER = "openiap-event-id";
 export const DELIVERY_ID_HEADER = "openiap-delivery-id";
+export const CONTENT_TYPE = "application/json";
 
 /**
  * Exponential backoff with a cap. Attempt 1 retries after ~30s and the last

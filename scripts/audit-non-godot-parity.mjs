@@ -1718,12 +1718,56 @@ function checkConformanceSuite() {
 // rounds (mcp-server, conformance) and only fails inside Docker.
 function checkKitDockerfileCopiesWorkspaceManifests() {
   const dockerfile = read("packages/kit/Dockerfile");
-  for (const name of listDirectories("packages")) {
-    if (!exists(`packages/${name}/package.json`)) continue;
-    if (!dockerfile.includes(`COPY packages/${name}/package.json`)) {
-      fail(
-        `packages/kit/Dockerfile must COPY packages/${name}/package.json before bun install --frozen-lockfile`,
+  // Driven by the workspace globs rather than one hardcoded directory: adding
+  // a workspace root is exactly when this is easiest to forget.
+  const roots = (readJson("package.json").workspaces ?? [])
+    .filter((glob) => glob.endsWith("/*"))
+    .map((glob) => glob.slice(0, -2));
+  for (const root of roots) {
+    for (const name of listDirectories(root)) {
+      if (!exists(`${root}/${name}/package.json`)) continue;
+      if (!dockerfile.includes(`COPY ${root}/${name}/package.json`)) {
+        fail(
+          `packages/kit/Dockerfile must COPY ${root}/${name}/package.json before bun install --frozen-lockfile`,
+        );
+      }
+    }
+  }
+}
+
+// The deps stage copies every workspace manifest so --frozen-lockfile can plan
+// the install, but the builder stage copies only the sources it compiles. A
+// workspace dependency that is imported by kit *runtime* code therefore
+// resolves to a dangling symlink inside the image, and only inside the image.
+// Tests are exempt: they never run in the builder.
+function checkKitBuilderCopiesRuntimeWorkspaceSources() {
+  const dockerfile = read("packages/kit/Dockerfile");
+  const roots = (readJson("package.json").workspaces ?? [])
+    .filter((glob) => glob.endsWith("/*"))
+    .map((glob) => glob.slice(0, -2));
+
+  const runtimeFiles = listTrackedFiles("packages/kit").filter(
+    (file) =>
+      /\.(ts|tsx|mjs|js)$/.test(file) &&
+      !/\.test\.[a-z]+$/.test(file) &&
+      !file.includes("/_generated/"),
+  );
+
+  for (const root of roots) {
+    for (const name of listDirectories(root)) {
+      const manifestPath = `${root}/${name}/package.json`;
+      if (!exists(manifestPath)) continue;
+      const packageName = readJson(manifestPath).name;
+      if (!packageName) continue;
+      const importedAtRuntime = runtimeFiles.some((file) =>
+        read(file).includes(`"${packageName}`),
       );
+      if (!importedAtRuntime) continue;
+      if (!dockerfile.includes(`COPY ${root}/${name} `)) {
+        fail(
+          `packages/kit/Dockerfile builder stage must COPY ${root}/${name} — kit runtime code imports ${packageName}, which would be a dangling symlink in the image`,
+        );
+      }
     }
   }
 }
@@ -4968,7 +5012,9 @@ function checkFrameworkDependencyHygiene() {
       "if ! ./scripts/sync-versions.sh; then",
       "if ! bun run typecheck; then",
       "if ! bun run build; then",
-      "if ! VERCEL_DEPLOYMENT=$(vercel --prod --yes --format=json --non-interactive); then",
+      "if ! vercel pull --yes --environment=production; then",
+      "if ! vercel build --prod --yes; then",
+      "if ! VERCEL_DEPLOYMENT=$(vercel --prebuilt --prod --yes --format=json --non-interactive); then",
       'VERCEL_PROJECT_FILE="packages/docs/.vercel/project.json"',
       "(.projectId == $projectId)",
       "(.orgId == $orgId)",
@@ -5016,6 +5062,19 @@ function checkFrameworkDependencyHygiene() {
     ["npm install", "vercel --prod", "bun run typecheck", "bun run build"],
     "docs deploy wrapper must not duplicate root deployment behavior",
   );
+  // A plain `vercel` triggers a remote build whose `bun install` cannot
+  // resolve the workspace:* dependency (openiap-commerce-protocol). The
+  // preview deploy must prebuild locally and ship with --prebuilt, exactly as
+  // production does.
+  expectIncludes(
+    "packages/docs/package.json",
+    [
+      "vercel pull --yes --environment=preview",
+      "vercel build --yes",
+      "vercel deploy --prebuilt --yes",
+    ],
+    "docs deploy:preview must prebuild locally and deploy --prebuilt so the workspace dependency resolves",
+  );
   expectIncludes(
     ".github/workflows/deploy-kit.yml",
     [
@@ -5060,7 +5119,7 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/kit/package.json",
     [
-      '"lint": "run-s lint:tsc lint:convex lint:eslint"',
+      '"lint": "bun run lint:tsc && bun run lint:convex && bun run lint:eslint"',
       '"lint:convex": "convex typecheck"',
     ],
     "Kit lint must reproduce the Convex deploy typecheck before merge",
@@ -9198,6 +9257,7 @@ checkOperationRegistry();
 checkGoogleFlavorHandlerWiring();
 checkConformanceSuite();
 checkConformanceNotPublished();
+checkKitBuilderCopiesRuntimeWorkspaceSources();
 checkKitDockerfileCopiesWorkspaceManifests();
 checkGoogleStoreConformanceSuite();
 checkFrameworkOperationBindings();

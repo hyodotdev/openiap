@@ -1,0 +1,7 @@
+# Generated from commerce-protocol.graphql and byte-compared by `bun run test`.
+# Formatting them would fight the generators.
+generated/schemas/*.schema.json
+generated/vectors/*.json
+generated/bindings/*
+generated/openapi/*.json
+generated/commerce-protocol.graphql

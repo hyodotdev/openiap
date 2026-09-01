@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as path from "path";
-import { CONTEXT_OUTPUTS, CONTEXT_SOURCES } from "../context-files.js";
+import { CONTEXT_OUTPUTS } from "../context-files.js";
 
 const projectRoot = path.resolve(import.meta.dir, "../../..");
 const quickReference = fs.readFileSync(
@@ -13,7 +13,7 @@ const fullReference = fs.readFileSync(
   "utf-8",
 );
 const kitQuickReference = fs.readFileSync(
-  path.join(projectRoot, CONTEXT_SOURCES.kitQuickReference),
+  path.join(projectRoot, "packages/kit/public/llms.txt"),
   "utf-8",
 );
 const compiledContext = fs.readFileSync(
@@ -22,10 +22,34 @@ const compiledContext = fs.readFileSync(
 );
 
 describe("generated LLM references", () => {
-  test("includes the canonical IAPKit client payload reference", () => {
+  test("keeps IAPKit product notes out of the OpenIAP AI reference", () => {
     expect(kitQuickReference).toContain("includeClientPayload=true");
     expect(kitQuickReference).toContain("includeClientPayload: true");
-    expect(fullReference).toContain(kitQuickReference.trim());
+    expect(fullReference).not.toContain(kitQuickReference.trim());
+    expect(fullReference).not.toContain("# IAPKit Internal Webhook Mapping");
+    expect(fullReference).not.toContain("## Dashboard order lookup");
+    expect(fullReference).toContain(
+      "# OpenIAP Commerce Protocol Specification 1.0",
+    );
+    expect(fullReference).toContain("https://kit.openiap.dev/llms.txt");
+  });
+
+  test("documents the Commerce Protocol without a central dependency", () => {
+    for (const generatedReference of [quickReference, fullReference]) {
+      expect(generatedReference).toContain("OpenIAP Commerce Protocol");
+      expect(generatedReference).toContain(
+        "https://openiap.dev/docs/commerce-protocol",
+      );
+      expect(generatedReference).toContain("https://openiap.dev/docs/webhooks");
+      expect(generatedReference).toContain(
+        "https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema",
+      );
+    }
+    expect(quickReference).toContain("requires no OpenIAP account");
+    expect(compiledContext).toContain("# OPENIAP COMMERCE PROTOCOL");
+    expect(compiledContext).toContain(
+      "# OpenIAP Commerce Protocol Specification 1.0",
+    );
   });
 
   test("uses the current product request and error-code shapes", () => {

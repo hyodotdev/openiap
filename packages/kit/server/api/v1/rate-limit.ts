@@ -55,6 +55,8 @@ export interface MultiAxisRateLimitConfig {
   global?: Partial<RateLimitConfig>;
   now?: () => number;
   getIp?: (c: Context) => string | undefined;
+  // The commerce binding wraps 429s in its own error envelope.
+  respond?: RateLimitResponder;
 }
 
 type RateLimitResponder = (c: Context, result: ConsumeResult) => Response;
@@ -495,7 +497,7 @@ export function multiAxisRateLimitMiddleware(
       ? [keyAxis, globalAxis]
       : [keyAxis, ipAxis, globalAxis];
 
-    return applyRateLimitAxes(c, next, axes, nowMs, "key");
+    return applyRateLimitAxes(c, next, axes, nowMs, "key", config.respond);
   });
 }
 

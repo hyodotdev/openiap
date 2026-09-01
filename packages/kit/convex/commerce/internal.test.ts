@@ -253,6 +253,11 @@ describe("emitCommerceEvent", () => {
       active: true,
       previouslyActive: false,
       sourceEvent: sourceEvent(),
+      subscription: {
+        state: "Active",
+        productId: "com.example.premium",
+        userId: "user-1",
+      },
     });
     const types = db.rows("commerceEvents").map((r) => r.eventType);
     expect(types).toEqual(["subscription.started", "entitlement.granted"]);
@@ -266,9 +271,28 @@ describe("emitCommerceEvent", () => {
       active: false,
       previouslyActive: true,
       sourceEvent: sourceEvent(),
+      subscription: {
+        state: "Expired",
+        productId: "com.example.premium",
+        userId: "user-1",
+      },
     });
     const types = db.rows("commerceEvents").map((r) => r.eventType);
     expect(types).toEqual(["subscription.expired", "entitlement.revoked"]);
+  });
+
+  it("defers an entitlement delta until the purchase has a user binding", async () => {
+    const db = new Db();
+    await emitCommerceEvent(ctxOf(db), {
+      projectId: "projects_1" as never,
+      transition: "Started",
+      active: true,
+      previouslyActive: false,
+      sourceEvent: sourceEvent(),
+    });
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toEqual([
+      "subscription.started",
+    ]);
   });
 
   it("marks a store-provided amount as store-authoritative", async () => {
@@ -281,6 +305,7 @@ describe("emitCommerceEvent", () => {
       sourceEvent: sourceEvent({
         currency: "USD",
         priceAmountMicros: 9_990_000,
+        amountProvenance: "store",
       }),
     });
     const event = db.rows("commerceEvents")[0];
@@ -371,6 +396,11 @@ describe("emitCommerceEvent", () => {
       active: true,
       previouslyActive: false,
       sourceEvent: sourceEvent(),
+      subscription: {
+        state: "Active",
+        productId: "com.example.premium",
+        userId: "user-1",
+      },
     });
     // Started + entitlement.granted are two events, so two deliveries — one
     // per event, not two per event.

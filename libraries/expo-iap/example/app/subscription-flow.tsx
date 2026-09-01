@@ -36,7 +36,10 @@ import {ErrorCode} from '../../src/types';
 import type {PurchaseError} from '../../src/utils/errorMapping';
 import PurchaseDetails from '../src/components/PurchaseDetails';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
-import {extractErrorMessage} from '../src/utils/errorUtils';
+import {
+  extractErrorMessage,
+  formatErrorForDisplay,
+} from '../src/utils/errorUtils';
 import {useVegaTvSelection} from '../src/hooks/useVegaTvSelection';
 import {
   createIapkitVerificationPayload,
@@ -1700,8 +1703,13 @@ function SubscriptionFlowContainer() {
           }
         }
       } catch (error) {
-        console.log('[SubscriptionFlow] Verification failed:', error);
-        const message = extractErrorMessage(error);
+        if (__DEV__) {
+          console.log('[SubscriptionFlow] Verification failed:', error);
+        }
+        const message = formatErrorForDisplay(
+          error,
+          ErrorCode.PurchaseVerificationFailed,
+        );
         if (mountedRef.current) {
           setPurchaseResult(`Subscription verification failed: ${message}`);
           showNativeAlert(
@@ -1744,10 +1752,14 @@ function SubscriptionFlowContainer() {
       releasePurchaseTask(mountedRef.current ? 'failed' : 'abandoned');
       if (mountedRef.current) {
         setIsProcessing(false);
+        const message = formatErrorForDisplay(
+          error,
+          ErrorCode.PurchaseVerificationFinishFailed,
+        );
         setPurchaseResult(
           `Subscription ${
             isRestoration ? 'restored' : 'activated'
-          }, but finishTransaction failed: ${extractErrorMessage(error)}`,
+          }, but finishTransaction failed: ${message}`,
         );
         cleanupPurchaseKeysRef.current.delete(purchaseCleanupKey);
       }
@@ -1857,7 +1869,12 @@ function SubscriptionFlowContainer() {
         return;
       }
 
-      setPurchaseResult(`Subscription failed: ${error.message}`);
+      setPurchaseResult(
+        `Subscription failed: ${formatErrorForDisplay(
+          error,
+          ErrorCode.PurchaseError,
+        )}`,
+      );
     },
   });
 
@@ -1920,7 +1937,7 @@ function SubscriptionFlowContainer() {
       didFetchSubsRef.current = true;
       console.log('Connected to store, loading subscription products...');
       fetchProducts({skus: subscriptionIds, type: 'subs'}).catch((error) => {
-        const message = extractErrorMessage(error);
+        const message = formatErrorForDisplay(error, ErrorCode.QueryProduct);
         console.log('[SubscriptionFlow] fetchProducts error:', message);
         setPurchaseResult(`Subscription loading failed: ${message}`);
       });
@@ -2070,7 +2087,12 @@ function SubscriptionFlowContainer() {
           return;
         }
 
-        setPurchaseResult(`Subscription failed: ${error.message}`);
+        setPurchaseResult(
+          `Subscription failed: ${formatErrorForDisplay(
+            error,
+            ErrorCode.PurchaseError,
+          )}`,
+        );
       });
     },
     [activeSubscriptions, subscriptions],
@@ -2079,7 +2101,7 @@ function SubscriptionFlowContainer() {
   const handleRetryLoadSubscriptions = useCallback(() => {
     fetchProducts({skus: SUBSCRIPTION_PRODUCT_IDS, type: 'subs'}).catch(
       (error) => {
-        const message = extractErrorMessage(error);
+        const message = formatErrorForDisplay(error, ErrorCode.QueryProduct);
         console.log('[SubscriptionFlow] retry fetchProducts error:', message);
         setPurchaseResult(`Subscription loading failed: ${message}`);
       },

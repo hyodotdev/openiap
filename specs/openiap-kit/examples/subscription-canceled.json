@@ -1,0 +1,22 @@
+{
+  "eventId": "evt_01J8Z5B2R9P4Q7S1D3G6K8M0V2",
+  "eventType": "subscription.canceled",
+  "eventVersion": "1.0",
+  "occurredAt": 1756304400000,
+  "processedAt": 1756304401110,
+  "store": "apple",
+  "environment": "production",
+  "projectId": "proj_7f3a9c",
+  "userId": "user_5e91a7",
+  "productId": "premium.monthly",
+  "subscription": {
+    "state": "Active",
+    "productId": "premium.monthly",
+    "expiresAt": 1758979200000,
+    "willRenew": false,
+    "cancellationReason": "UserCanceled",
+    "active": true
+  },
+  "sourceStoreEventId": "9a4c2e1f-5b6d-7c8e-9f0a-1b2c3d4e5f60",
+  "originalTransactionId": "2000000811111111"
+}

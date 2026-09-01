@@ -2457,8 +2457,10 @@ function collectPlaySubscriptionOffers(
  * micro to sub-unit prices). Truncation matches how Google Play Console
  * stores price points internally — Play uses micros as the canonical
  * unit, so any rounding here would re-introduce drift we just cleaned
- * up. Resolves to `undefined` when the input has no `units`, when the
- * `units` is not a non-negative decimal string, when `nanos` falls outside
+ * up. Resolves to `undefined` when the input has neither `units` nor
+ * `nanos` (proto3 JSON omits a zero `units`, so a sub-unit price like $0.99
+ * arrives as nanos-only), when the `units` is not a non-negative decimal
+ * string, when the result is negative, when `nanos` falls outside
  * Google Money's int32 sub-unit range, or when the resulting micros exceed
  * `Number.MAX_SAFE_INTEGER` (≈ USD 9 billion — kit treats those rows as
  * price-unknown rather than silently corrupting them).
@@ -2468,13 +2470,14 @@ function collectPlaySubscriptionOffers(
 export function moneyToMicros(
   money: androidpublisher_v3.Schema$Money | undefined,
 ): number | undefined {
-  if (!money?.units) return undefined;
+  if (money?.units == null && money?.nanos == null) return undefined;
   try {
-    const unitsMicros = moneyUnitsToMicros(money.units);
+    const unitsMicros = moneyUnitsToMicros(money.units ?? "0");
     if (unitsMicros === undefined) return undefined;
     const nanosMicros = moneyNanosToMicros(money.nanos);
     if (nanosMicros === undefined) return undefined;
     const microsBigInt = unitsMicros + nanosMicros;
+    if (microsBigInt < 0n) return undefined;
     // Drop values that exceed Number.MAX_SAFE_INTEGER. The schema
     // stores `priceAmountMicros` as a JS `number` (IEEE 754 double),
     // so anything above 2^53 - 1 would silently lose precision on

@@ -267,6 +267,18 @@ export async function deleteProjectWithData(
     return false;
   }
 
+  const subscriptionUserErasureJobs = await ctx.db
+    .query("subscriptionUserErasureJobs")
+    .withIndex("by_project", (q) => q.eq("projectId", projectId))
+    .take(PROJECT_DELETION_PAGE);
+  for (const job of subscriptionUserErasureJobs) {
+    await ctx.db.delete(job._id);
+  }
+  if (subscriptionUserErasureJobs.length > 0) {
+    await scheduleProjectDeletionContinuation(ctx, projectId);
+    return false;
+  }
+
   const subscriptionTokenAliases = await ctx.db
     .query("subscriptionTokenAliases")
     .withIndex("by_project", (q) => q.eq("projectId", projectId))

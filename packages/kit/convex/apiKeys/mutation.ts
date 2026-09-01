@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateApiKey } from "../utils/helpers";
 import { getProjectById } from "../projects/helpers";
+import { apiKeyStorageFields } from "./helpers";
 
 const apiKeyTypeValidator = v.union(
   v.literal("publishable"),
@@ -43,13 +44,14 @@ export const create = mutation({
 
     // Generate a new API key
     const apiKey = generateApiKey(args.keyType);
+    const storageFields = await apiKeyStorageFields(apiKey, args.keyType);
     const now = Date.now();
 
     // Create the API key record
     const keyId = await ctx.db.insert("apiKeys", {
       projectId: args.projectId,
       organizationId: project.organizationId,
-      key: apiKey,
+      ...storageFields,
       name: args.name,
       description: args.description,
       keyType: args.keyType,
@@ -276,6 +278,7 @@ export const regenerate = mutation({
     // explicitly publishable keys instead of silently retaining admin access.
     const keyType = oldApiKey.keyType ?? "publishable";
     const newApiKey = generateApiKey(keyType);
+    const storageFields = await apiKeyStorageFields(newApiKey, keyType);
     const now = Date.now();
     if (project.legacyApiKeyFallbackDisabledAt === undefined) {
       await ctx.db.patch(project._id, {
@@ -294,7 +297,7 @@ export const regenerate = mutation({
     const newKeyId = await ctx.db.insert("apiKeys", {
       projectId: oldApiKey.projectId,
       organizationId: oldApiKey.organizationId,
-      key: newApiKey,
+      ...storageFields,
       name: `${oldApiKey.name} (Regenerated)`,
       description: oldApiKey.description,
       keyType,

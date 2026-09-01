@@ -1862,6 +1862,119 @@ function statSyncSafe(p: string): boolean {
   }
 }
 
+/**
+ * R15 — keep the webhook page aligned with the Commerce Protocol transport
+ * constants and response semantics.
+ *
+ * Pure so it is directly testable — the caller supplies both sides.
+ */
+export function findWebhookTransportDrift(
+  source: string,
+  vectors: { headers: Record<string, string>; toleranceSeconds: number },
+  specification: string,
+  file = "packages/docs/src/pages/docs/webhooks.tsx",
+): Drift[] {
+  const drifts: Drift[] = [];
+  const push = (message: string) =>
+    drifts.push({ file, line: 1, rule: "R15", message });
+
+  // Scope to the rendered header table. Checking the whole file would pass on a
+  // renamed row whenever the old name still appeared in surrounding prose.
+  const tableStart = source.indexOf("const HEADER_ROWS");
+  const table =
+    tableStart === -1
+      ? ""
+      : source.slice(tableStart, source.indexOf("];", tableStart));
+  if (tableStart === -1) {
+    push("Webhook docs must render a HEADER_ROWS table of transport headers.");
+  }
+
+  for (const header of Object.values(vectors.headers)) {
+    // Match the whole quoted value, so neither `x-openiap-signature` nor
+    // `openiap-signature-v2` can stand in for `openiap-signature`.
+    const quoted = new RegExp(`header:\\s*(['"\`])${header}\\1`);
+    if (!quoted.test(table)) {
+      push(
+        `Webhook docs must name the ${header} header the protocol publishes.`,
+      );
+    }
+  }
+
+  // The number alone is not the rule: the page must state the comparison, or
+  // any unrelated 300 in the file would satisfy the check.
+  const window = new RegExp(
+    `(?:&lt;=|<=)\\s*(?:<code>\\s*)?${vectors.toleranceSeconds}(?![\\d])`,
+  );
+  if (!window.test(source)) {
+    push(
+      `Webhook docs must state the |now - timestamp| <= ${vectors.toleranceSeconds} replay window the protocol publishes.`,
+    );
+  }
+
+  const responseSection =
+    specification.match(
+      /#### 9\.4\.3 Response semantics\s*\n([\s\S]*?)(?=\n#### |\n### |\n---)/,
+    )?.[1] ?? "";
+  const specResponses = responseSection
+    .split("\n")
+    .filter((line) => line.trimStart().startsWith("|"))
+    .slice(2)
+    .map((line) =>
+      line
+        .trim()
+        .slice(1, -1)
+        .split("|")
+        .map((cell) => cell.replaceAll("`", "").trim()),
+    )
+    .filter((cells) => cells.length === 2);
+
+  const responseStart = source.indexOf("const RESPONSE_ROWS");
+  const responseTable =
+    responseStart === -1
+      ? ""
+      : source.slice(responseStart, source.indexOf("];", responseStart));
+  const documentedResponses = Array.from(
+    responseTable.matchAll(
+      /\{\s*response:\s*(['"`])([^'"`]+)\1,\s*behavior:\s*(['"`])([^'"`]+)\3,?\s*\}/g,
+    ),
+    (match) => [match[2], match[4]],
+  );
+
+  if (
+    specResponses.length === 0 ||
+    JSON.stringify(documentedResponses) !== JSON.stringify(specResponses)
+  ) {
+    push("Webhook response rows must match SPEC.md §9.4.3 exactly.");
+  }
+  return drifts;
+}
+
+function auditWebhookTransportConstants(): Drift[] {
+  const file = join(REPO_ROOT, "packages/docs/src/pages/docs/webhooks.tsx");
+  if (!statSyncSafe(file)) {
+    return [
+      {
+        file,
+        line: 1,
+        rule: "R15",
+        message:
+          "webhooks.tsx is missing; the webhook transport contract must stay documented.",
+      },
+    ];
+  }
+  return findWebhookTransportDrift(
+    readFileSync(file, "utf8"),
+    JSON.parse(
+      readFileSync(
+        join(REPO_ROOT, "specs/openiap-kit/vectors/signatures.json"),
+        "utf8",
+      ),
+    ),
+    readFileSync(join(REPO_ROOT, "specs/openiap-kit/SPEC.md"), "utf8"),
+    file,
+  );
+}
+
 async function main() {
   const drifts: Drift[] = [];
 
@@ -2062,6 +2175,8 @@ async function main() {
       },
     }),
   );
+
+  drifts.push(...auditWebhookTransportConstants());
 
   // R5 (broken /docs links) is a hard failure; R3 (field name not in
   // generated types) is a warning because top-level scalar function

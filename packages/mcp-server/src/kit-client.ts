@@ -1,10 +1,9 @@
-// Thin HTTP wrapper around kit's `/v1` surface. Each MCP tool calls
+// Thin HTTP wrapper around kit's versioned HTTP surfaces. Each MCP tool calls
 // these helpers instead of hand-rolling fetch + error handling, so the
 // failure mode (kit unreachable, bad apiKey, validation errors) is the
 // same shape across every tool.
 
 import type {
-  EntitlementsResponse,
   KitClientPayloadStateResponse,
   KitMetricsResponse as SharedKitMetricsResponse,
   KitMrrCurrencyEntry as SharedKitMrrCurrencyEntry,
@@ -17,7 +16,7 @@ import type {
   KitRevenueMetricsResponse,
   KitSetClientPayloadResponse,
   KitSubscriptionsResponse,
-  StatusResponse,
+  KitSubscription,
 } from "@hyodotdev/openiap-gql/kit-api";
 
 export type KitClientOptions = {
@@ -34,6 +33,20 @@ export interface KitProductListParams {
 export type KitProductsResponse = SharedKitProductsResponse;
 export type KitMetricsResponse = SharedKitMetricsResponse;
 export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
+
+export type KitSubscriptionV2 = Omit<
+  KitSubscription,
+  "purchaseToken" | "originalTransactionId"
+>;
+export type EntitlementsResponseV2 = {
+  userId: string;
+  productIds: string[];
+  subscriptions: KitSubscriptionV2[];
+};
+export type StatusResponseV2 = {
+  active: boolean;
+  subscription: KitSubscriptionV2 | null;
+};
 
 export interface KitHealthResponse {
   ok: true;
@@ -145,12 +158,12 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     apiKey,
     baseUrl: root,
     status: (userId: string) =>
-      adminCall<StatusResponse>(
-        `/v1/subscriptions/status?userId=${encodeURIComponent(userId)}`,
+      adminCall<StatusResponseV2>(
+        `/v2/subscriptions/status?userId=${encodeURIComponent(userId)}`,
       ),
     entitlements: (userId: string) =>
-      adminCall<EntitlementsResponse>(
-        `/v1/subscriptions/entitlements?userId=${encodeURIComponent(userId)}`,
+      adminCall<EntitlementsResponseV2>(
+        `/v2/subscriptions/entitlements?userId=${encodeURIComponent(userId)}`,
       ),
     listSubscriptions: (params: {
       state?: string;

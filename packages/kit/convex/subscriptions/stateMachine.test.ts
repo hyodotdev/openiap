@@ -124,8 +124,8 @@ describe("applySubscriptionTransition", () => {
       state: "Active",
       expiresAt: 2_500_000_000_000,
       willRenew: false,
-      cancellationReason: "UserCanceled",
     });
+    expect(result.next?.cancellationReason).toBeUndefined();
     expect(result.active).toBe(true);
   });
 
@@ -150,6 +150,96 @@ describe("applySubscriptionTransition", () => {
       productId: baseSub.productId,
     });
     expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.active).toBe(true);
+  });
+
+  it("a reasonless revocation clears the row's earlier cancellation reason", () => {
+    const canceled = {
+      ...baseSub,
+      willRenew: false,
+      cancellationReason: "UserCanceled" as const,
+    };
+    const revoked = applySubscriptionTransition(canceled, {
+      type: "SubscriptionRevoked",
+      productId: baseSub.productId,
+    });
+    expect(revoked.next?.state).toBe("Revoked");
+    expect(revoked.next?.cancellationReason).toBeUndefined();
+
+    const refunded = applySubscriptionTransition(canceled, {
+      type: "SubscriptionRevoked",
+      productId: baseSub.productId,
+      cancellationReason: "Refunded",
+    });
+    expect(refunded.next?.cancellationReason).toBe("Refunded");
+  });
+
+  it("a mid-grace cancel cannot resurrect the elapsed period end", () => {
+    // After an unbounded grace entry, Apple's next notification (for example
+    // DID_CHANGE_RENEWAL_STATUS) still carries the elapsed transaction end.
+    // Re-applying it would revoke a customer the store says is in grace.
+    const inGrace = {
+      ...baseSub,
+      state: "InGracePeriod" as const,
+      expiresAt: undefined,
+    };
+    const result = applySubscriptionTransition(inGrace, {
+      type: "SubscriptionCanceled",
+      productId: baseSub.productId,
+      expiresAt: Date.now() - 60_000,
+    });
+    expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.next?.expiresAt).toBeUndefined();
+    expect(result.active).toBe(true);
+    expect(result.next?.willRenew).toBe(false);
+  });
+
+  it("a future deadline arriving on a non-grace notification is kept", () => {
+    // Mid-grace, renewal-status notifications can carry gracePeriodExpiresDate
+    // through the normalizer's Math.max; a future value is the real boundary.
+    const inGrace = {
+      ...baseSub,
+      state: "InGracePeriod" as const,
+      expiresAt: undefined,
+    };
+    const deadline = Date.now() + 3_600_000;
+    const result = applySubscriptionTransition(inGrace, {
+      type: "SubscriptionCanceled",
+      productId: baseSub.productId,
+      expiresAt: deadline,
+    });
+    expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.next?.expiresAt).toBe(deadline);
+    expect(result.active).toBe(true);
+  });
+
+  it("a repeat grace notification may announce the real deadline", () => {
+    const inGrace = {
+      ...baseSub,
+      state: "InGracePeriod" as const,
+      expiresAt: undefined,
+    };
+    const deadline = Date.now() + 3_600_000;
+    const result = applySubscriptionTransition(inGrace, {
+      type: "SubscriptionInGracePeriod",
+      productId: baseSub.productId,
+      expiresAt: deadline,
+    });
+    expect(result.next?.expiresAt).toBe(deadline);
+    expect(result.active).toBe(true);
+  });
+
+  it("grace without a deadline drops the elapsed period end instead of inheriting it", () => {
+    // Apple can announce grace before signedRenewalInfo carries
+    // gracePeriodExpiresDate. Inheriting the already-elapsed paid-period end
+    // would revoke a paying customer the moment grace begins.
+    const lapsed = { ...baseSub, expiresAt: Date.now() - 60_000 };
+    const result = applySubscriptionTransition(lapsed, {
+      type: "SubscriptionInGracePeriod",
+      productId: baseSub.productId,
+    });
+    expect(result.next?.state).toBe("InGracePeriod");
+    expect(result.next?.expiresAt).toBeUndefined();
     expect(result.active).toBe(true);
   });
 
@@ -189,14 +279,26 @@ describe("applySubscriptionTransition", () => {
     expect(result.active).toBe(false);
   });
 
-  it("Revoked is immediate de-entitlement", () => {
+  // Apple sends REVOKE when Family Sharing access ends as well as after a
+  // refund, and does not say which. Claiming "Refunded" would put a reversal on
+  // a consumer's ledger that may never have happened.
+  it("Revoked is immediate de-entitlement without claiming a refund", () => {
     const result = applySubscriptionTransition(baseSub, {
       type: "SubscriptionRevoked",
       productId: baseSub.productId,
     });
     expect(result.next?.state).toBe("Revoked");
-    expect(result.next?.cancellationReason).toBe("Refunded");
+    expect(result.next?.cancellationReason).toBeUndefined();
     expect(result.active).toBe(false);
+  });
+
+  it("Revoked keeps a reason the notification did assert", () => {
+    const result = applySubscriptionTransition(baseSub, {
+      type: "SubscriptionRevoked",
+      productId: baseSub.productId,
+      cancellationReason: "Refunded",
+    });
+    expect(result.next?.cancellationReason).toBe("Refunded");
   });
 
   it("PurchaseRefunded with no current row records the refund without conjuring a sub", () => {

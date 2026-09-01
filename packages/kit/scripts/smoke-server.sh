@@ -137,6 +137,11 @@ fi
 probe "/" "200"
 probe "/v1" "200"
 probe "/api/v1" "200"
+probe "/v2" "200"
+probe "/api/v2" "200"
+probe "/v2/openapi" "200"
+probe "/v2/subscriptions/status?userId=smoke" "401"
+probe "/api/v2/removed-endpoint" "404"
 probe "/intu/project/intu/apikeys" "200"
 probe "/assets/missing-build-asset.js" "404"
 probe "/missing-static-doc.json" "404"
@@ -152,6 +157,16 @@ probe "/api/v1/webhooks/stream/openiap-kit_pk_smoke-test-key" "404"
 # well-formed Bearer header passes auth-shape middleware, then the empty JSON
 # object is rejected by the request schema with 400.
 probe_json_post "/v1/purchase/verify" "400"
+
+# Commerce Protocol surface in the compiled binary: the credential-less
+# capabilities read serves the published descriptor without Convex, server-role
+# operations fail closed without a credential, the GraphQL endpoint answers
+# without falling through to the SPA, and unknown operations are protocol 404s.
+probe "/commerce/v1/capabilities" "200"
+probe "/commerce/v1/subscriptions/status?userId=smoke" "401"
+probe "/commerce/v1/unknown-operation" "404"
+probe_json_post "/commerce/v1/purchases/verify" "400"
+probe_json_post "/commerce/v1/graphql" "200"
 
 if [[ "$fail" -ne 0 ]]; then
   echo "---- server log ----" >&2

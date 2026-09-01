@@ -1,0 +1,584 @@
+/* OpenIAP Commerce Protocol landing page. */
+
+.commerce-protocol-page {
+  container: commerce-page / inline-size;
+  --commerce-coral: #a6422f;
+  --commerce-gold: #78531d;
+  --commerce-violet: #5f4a9c;
+  --commerce-surface-gold: #f1c58b;
+  --commerce-surface-coral: #eaa990;
+  --commerce-ink: color-mix(in srgb, var(--text-primary) 92%, transparent);
+}
+
+:root.dark .commerce-protocol-page {
+  --commerce-coral: #ef7a5d;
+  --commerce-gold: #f1c58b;
+  --commerce-violet: #b7a5ed;
+}
+
+.commerce-hero {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  min-height: 610px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(390px, 1.08fr);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  align-items: center;
+  margin-bottom: clamp(4rem, 8vw, 6.5rem);
+  padding: clamp(2.5rem, 5vw, 4.5rem);
+  border: 1px solid
+    color-mix(in srgb, var(--commerce-coral) 18%, var(--border-color));
+  border-radius: 32px;
+  background:
+    radial-gradient(
+      circle at 9% 94%,
+      rgba(239, 122, 93, 0.16),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 92% 6%,
+      rgba(155, 131, 223, 0.15),
+      transparent 34%
+    ),
+    linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
+  isolation: isolate;
+}
+
+.commerce-hero::before {
+  position: absolute;
+  z-index: -1;
+  top: -18%;
+  right: 24%;
+  width: 21rem;
+  height: 21rem;
+  border-radius: 42% 58% 63% 37% / 38% 42% 58% 62%;
+  background: linear-gradient(
+    145deg,
+    rgba(239, 122, 93, 0.1),
+    rgba(155, 131, 223, 0.08)
+  );
+  content: '';
+  filter: blur(2px);
+  transform: rotate(18deg);
+}
+
+.commerce-hero::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--text-secondary) 18%, transparent) 0.7px,
+    transparent 0.7px
+  );
+  background-size: 18px 18px;
+  content: '';
+  mask-image: linear-gradient(105deg, transparent 20%, black 100%);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.commerce-hero-copy {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+}
+
+.commerce-kicker,
+.commerce-section-heading > span {
+  color: var(--commerce-coral);
+  font-size: var(--font-size-xs);
+  font-style: normal;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.commerce-kicker i {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  padding: 0.18rem 0.42rem;
+  border: 1px solid color-mix(in srgb, var(--commerce-coral) 45%, transparent);
+  border-radius: 999px;
+  font: inherit;
+  letter-spacing: 0.04em;
+}
+
+.doc-page .commerce-hero h1 {
+  max-width: 640px;
+  margin: 1.2rem 0 0;
+  color: var(--commerce-ink);
+  font-size: clamp(2.65rem, 4.9vw, 4.35rem);
+  line-height: 1.01;
+  letter-spacing: -0.055em;
+}
+
+.commerce-hero h1 > span {
+  display: block;
+  margin-top: 0.16em;
+  color: var(--commerce-coral);
+  background: linear-gradient(
+    96deg,
+    var(--commerce-coral),
+    var(--commerce-gold) 52%,
+    var(--commerce-violet)
+  );
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.commerce-hero-copy > p {
+  max-width: 520px;
+  margin: 1.55rem 0 0;
+  color: var(--text-secondary);
+  font-size: clamp(0.98rem, 1.5vw, 1.12rem);
+  line-height: 1.7;
+}
+
+.commerce-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.8rem;
+}
+
+.doc-page .commerce-hero a.commerce-button,
+:root.dark .doc-page .commerce-hero a.commerce-button {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.76rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-primary) 84%, transparent);
+  font-size: var(--font-size-sm);
+  font-weight: 680;
+  text-decoration: none;
+  backdrop-filter: blur(12px);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.doc-page .commerce-hero a.commerce-button--primary,
+:root.dark .doc-page .commerce-hero a.commerce-button--primary {
+  border-color: transparent;
+  color: #211714;
+  background: linear-gradient(
+    105deg,
+    var(--commerce-surface-gold),
+    var(--commerce-surface-coral)
+  );
+  box-shadow: 0 12px 30px rgba(239, 122, 93, 0.18);
+}
+
+.doc-page .commerce-hero a.commerce-button:hover,
+:root.dark .doc-page .commerce-hero a.commerce-button:hover {
+  border-color: var(--commerce-coral);
+  box-shadow: 0 12px 32px rgba(239, 122, 93, 0.15);
+  transform: translateY(-2px);
+}
+
+.commerce-hero-copy > small {
+  display: block;
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.025em;
+}
+
+/* Signal map ------------------------------------------------------------- */
+
+.commerce-signal {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  min-height: 440px;
+  margin: 0;
+  animation: commerce-rise 0.7s 0.08s both cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.commerce-signal::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(241, 197, 139, 0.14),
+    rgba(239, 122, 93, 0.05) 42%,
+    transparent 70%
+  );
+  content: '';
+  filter: blur(7px);
+  transform: translate(-50%, -50%);
+}
+
+.commerce-signal-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.commerce-signal-paths {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+  stroke-dasharray: 5 9;
+  animation: commerce-flow 14s linear infinite;
+}
+
+.commerce-signal-paths--in {
+  stroke: url('#commerce-signal-in');
+}
+
+.commerce-signal-paths--out {
+  stroke: url('#commerce-signal-out');
+  animation-direction: reverse;
+  animation-duration: 11s;
+}
+
+.commerce-signal-pulse {
+  fill: var(--commerce-surface-gold);
+  filter: url('#commerce-signal-glow');
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.commerce-signal-pulse--echo {
+  animation: commerce-pulse 2.4s ease-out infinite;
+  fill: none;
+  stroke: var(--commerce-surface-gold);
+  stroke-width: 1.5;
+}
+
+.commerce-signal-list {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.commerce-signal-list--stores {
+  top: 4%;
+  bottom: 4%;
+  left: 0;
+}
+
+.commerce-signal-list--outputs {
+  top: 13%;
+  right: 0;
+  bottom: 13%;
+}
+
+.commerce-signal-list > span {
+  display: inline-flex;
+  min-width: 104px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 24%, transparent);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  box-shadow: 0 8px 24px rgba(18, 14, 13, 0.08);
+  font-size: var(--font-size-xs);
+  font-weight: 680;
+  backdrop-filter: blur(10px);
+  animation: commerce-float 5s ease-in-out infinite;
+}
+
+.commerce-signal-list > span:nth-child(2) {
+  animation-delay: -1.2s;
+}
+
+.commerce-signal-list > span:nth-child(3) {
+  animation-delay: -2.4s;
+}
+
+.commerce-signal-list > span:nth-child(4) {
+  animation-delay: -3.6s;
+}
+
+.commerce-signal-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  width: 154px;
+  aspect-ratio: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  border: 1px solid rgba(241, 197, 139, 0.62);
+  border-radius: 42% 58% 54% 46% / 48% 43% 57% 52%;
+  color: #fff9f2;
+  background: linear-gradient(145deg, #b05d4d, #775477 54%, #4e466d);
+  box-shadow:
+    0 20px 60px rgba(99, 65, 88, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.18);
+  text-align: center;
+  transform: translate(-50%, -50%) rotate(-3deg);
+}
+
+.commerce-signal-core::after {
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: inherit;
+  content: '';
+}
+
+.commerce-signal-core > * {
+  position: relative;
+  z-index: 1;
+  transform: rotate(3deg);
+}
+
+.commerce-signal-core > span {
+  color: var(--commerce-surface-gold);
+  font-size: var(--font-size-xs);
+  font-weight: 760;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.commerce-signal-core strong {
+  max-width: 110px;
+  margin-top: 0.35rem;
+  font-family: var(--font-family-display);
+  font-size: 0.95rem;
+  line-height: 1.08;
+}
+
+.commerce-signal-core small {
+  margin-top: 0.5rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-xs);
+}
+
+.commerce-signal figcaption {
+  position: absolute;
+  right: 0;
+  bottom: -0.6rem;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.commerce-signal figcaption span:last-child {
+  color: var(--commerce-violet);
+}
+
+/* Supporting content ----------------------------------------------------- */
+
+.commerce-protocol-page > section {
+  margin-bottom: clamp(4rem, 8vw, 6.5rem);
+}
+
+.commerce-section-heading {
+  max-width: 720px;
+  margin-bottom: clamp(1.7rem, 4vw, 2.7rem);
+}
+
+.doc-page .commerce-section-heading h2 {
+  margin: 0.48rem 0 0;
+  padding: 0;
+  border: 0;
+  font-size: clamp(1.9rem, 4vw, 3.25rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.commerce-principle-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.2rem, 3vw, 2.5rem);
+}
+
+.commerce-principle-grid article {
+  display: flex;
+  min-width: 0;
+  gap: 1rem;
+  align-items: flex-start;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.commerce-principle-grid article > span {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #211714;
+  background: linear-gradient(
+    145deg,
+    var(--commerce-surface-gold),
+    var(--commerce-surface-coral)
+  );
+  font-size: 1.05rem;
+  font-weight: 760;
+}
+
+.doc-page .commerce-principle-grid h3 {
+  margin: 0.1rem 0 0.28rem;
+  font-size: 1rem;
+}
+
+.commerce-principle-grid p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+@keyframes commerce-flow {
+  to {
+    stroke-dashoffset: -140;
+  }
+}
+
+@keyframes commerce-pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(4.5);
+  }
+}
+
+@keyframes commerce-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes commerce-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@container commerce-page (max-width: 860px) {
+  .commerce-hero {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .commerce-hero-copy {
+    max-width: 680px;
+  }
+
+  .commerce-signal {
+    width: min(100%, 600px);
+    min-height: 400px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 680px) {
+  .commerce-principle-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 540px) {
+  .commerce-hero {
+    padding: 1.6rem;
+    border-radius: 24px;
+  }
+
+  .doc-page .commerce-hero h1 {
+    font-size: clamp(2.45rem, 12vw, 3.4rem);
+  }
+
+  .commerce-hero-actions,
+  .doc-page .commerce-hero a.commerce-button {
+    width: 100%;
+  }
+
+  .doc-page .commerce-hero a.commerce-button {
+    justify-content: center;
+  }
+
+  .commerce-signal {
+    min-height: 330px;
+  }
+
+  .commerce-signal-list > span {
+    min-width: 72px;
+    min-height: 32px;
+    padding: 0.35rem 0.5rem;
+    font-size: var(--font-size-xs);
+  }
+
+  .commerce-signal-core {
+    width: 124px;
+  }
+
+  .commerce-signal-core strong {
+    font-size: 0.78rem;
+  }
+
+  .commerce-signal-core small {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commerce-signal,
+  .commerce-signal-paths,
+  .commerce-signal-pulse--echo,
+  .commerce-signal-list > span,
+  .doc-page .commerce-hero a.commerce-button {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .commerce-hero,
+  .commerce-signal-list > span,
+  .commerce-signal-core {
+    border-color: CanvasText;
+  }
+
+  .commerce-hero h1 > span {
+    color: CanvasText;
+    background: none;
+    -webkit-text-fill-color: CanvasText;
+  }
+}

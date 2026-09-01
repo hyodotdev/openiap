@@ -19,7 +19,7 @@ export const CONTEXT_DIRECT_INPUTS = Object.freeze({
   godotPackage: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
   kmpPackage: "libraries/kmp-iap/gradle.properties",
   mauiPackage: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-  kitQuickReference: "packages/kit/public/llms.txt",
+  commerceProtocolSpec: "specs/openiap-kit/SPEC.md",
 });
 
 const knowledgeRoot = "knowledge";

@@ -12,14 +12,14 @@ function AIAssistants() {
     <div className="doc-page">
       <SEO
         title="AI Assistants"
-        description="Use OpenIAP documentation with AI coding assistants like Cursor, GitHub Copilot, Claude, and ChatGPT."
+        description="Use the OpenIAP client and Commerce Protocol references with AI coding assistants, while keeping IAPKit product context separate."
         path="/docs/guides/ai-assistants"
-        keywords="AI assistant, Cursor, GitHub Copilot, Claude, ChatGPT, LLM, documentation"
+        keywords="OpenIAP AI reference, Commerce Protocol AI context, Cursor, GitHub Copilot, Claude, ChatGPT, LLM documentation"
       />
       <h1>AI Assistants</h1>
       <p>
-        OpenIAP provides AI-optimized documentation formats to help you work
-        more efficiently with AI coding assistants.
+        OpenIAP provides AI-optimized references for the client SDK contract and
+        the vendor-neutral Commerce Protocol.
       </p>
 
       <TLDRBox>
@@ -44,10 +44,33 @@ function AIAssistants() {
             >
               llms-full.txt
             </a>{' '}
-            (~1000 lines)
+            (~3,000 lines)
           </li>
         </ul>
       </TLDRBox>
+
+      <Callout kind="note" title="Keep the product context separate">
+        Use the OpenIAP files for SDK APIs, shared types, purchase lifecycle,
+        and the Commerce Protocol. For IAPKit hosted APIs, dashboard setup,
+        compatibility, operations, or MCP, load{' '}
+        <a
+          href="https://kit.openiap.dev/llms.txt"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          kit.openiap.dev/llms.txt
+        </a>{' '}
+        or the{' '}
+        <a
+          href="https://kit.openiap.dev/docs/ai-assistants"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          IAPKit AI guide
+        </a>
+        . IAPKit is an implementation of the protocol, not part of its normative
+        definition.
+      </Callout>
 
       <section>
         <AnchorLink id="ai-optimized-documentation" level="h2">
@@ -90,6 +113,7 @@ function AIAssistants() {
               <li>API signatures</li>
               <li>Core types</li>
               <li>Common patterns</li>
+              <li>Commerce Protocol overview</li>
             </ul>
           </div>
           <div
@@ -110,7 +134,9 @@ function AIAssistants() {
               </a>
             </h4>
             <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
-              <strong>Complete API documentation (~1000 lines)</strong>
+              <strong>
+                Complete API and protocol reference (~3,000 lines)
+              </strong>
             </p>
             <ul
               style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}
@@ -120,6 +146,7 @@ function AIAssistants() {
               <li>All type definitions</li>
               <li>Platform-specific APIs</li>
               <li>Error codes & troubleshooting</li>
+              <li>Normative Commerce Protocol specification</li>
             </ul>
           </div>
         </div>
@@ -223,6 +250,7 @@ ln -s AGENTS.md GEMINI.md`}</CodeBlock>
           <li>Essential types (Product, Purchase, Subscription)</li>
           <li>Common implementation patterns</li>
           <li>Error handling basics</li>
+          <li>Commerce Protocol boundary and key guarantees</li>
         </ul>
 
         <AnchorLink id="full-reference" level="h3">
@@ -236,6 +264,7 @@ ln -s AGENTS.md GEMINI.md`}</CodeBlock>
           <li>All error codes and handling</li>
           <li>Implementation patterns and best practices</li>
           <li>Troubleshooting guide</li>
+          <li>Commerce Protocol schemas, webhooks, and conformance rules</li>
         </ul>
       </section>
 
@@ -264,6 +293,10 @@ to open subscription management on iOS"`}</CodeBlock>
         <h4>Purchase Restoration</h4>
         <CodeBlock language="typescript">{`"How do I restore previous purchases using
 getAvailablePurchases in OpenIAP?"`}</CodeBlock>
+
+        <h4>Server-side Commerce Protocol</h4>
+        <CodeBlock language="typescript">{`"Using the OpenIAP Commerce Protocol, design an idempotent webhook
+consumer that verifies exact request bytes and handles unordered retries."`}</CodeBlock>
       </section>
 
       <section>

@@ -89,6 +89,7 @@ import type * as utils_concurrency from "../utils/concurrency.js";
 import type * as utils_currency from "../utils/currency.js";
 import type * as utils_errors from "../utils/errors.js";
 import type * as utils_helpers from "../utils/helpers.js";
+import type * as utils_sha256 from "../utils/sha256.js";
 import type * as utils_validation from "../utils/validation.js";
 import type * as webhooks_apple from "../webhooks/apple.js";
 import type * as webhooks_google from "../webhooks/google.js";
@@ -183,6 +184,7 @@ declare const fullApi: ApiFromModules<{
   "utils/currency": typeof utils_currency;
   "utils/errors": typeof utils_errors;
   "utils/helpers": typeof utils_helpers;
+  "utils/sha256": typeof utils_sha256;
   "utils/validation": typeof utils_validation;
   "webhooks/apple": typeof webhooks_apple;
   "webhooks/google": typeof webhooks_google;

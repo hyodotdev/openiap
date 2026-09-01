@@ -18,8 +18,8 @@ export default function ApiReferencePage() {
         <Link to="/docs/products" className="text-primary underline">
           product-catalog operations
         </Link>{" "}
-        live on separate project-scoped surfaces. The full OpenAPI spec is also
-        served at{" "}
+        live on separate project-scoped surfaces. The v1 OpenAPI spec is served
+        at{" "}
         <a
           href="/v1"
           className="text-primary underline"
@@ -37,7 +37,16 @@ export default function ApiReferencePage() {
         >
           /v1/openapi
         </a>{" "}
-        (raw JSON).
+        (raw JSON). The secret-only, tokenless account API is documented at{" "}
+        <a
+          href="/v2/openapi"
+          className="text-primary underline"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          /v2/openapi
+        </a>
+        .
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold">Authentication</h2>
@@ -59,6 +68,11 @@ export default function ApiReferencePage() {
         mobile app. If you proxy calls through your own backend, that backend
         can still use a publishable key unless it also performs administrative
         operations.
+      </p>
+      <p>
+        Account-level status, entitlement, and erasure operations live under
+        <code> /v2/subscriptions/*</code>. They require a secret admin key and
+        must be called by your authenticated backend, never by a mobile app.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
@@ -225,176 +239,68 @@ export default function ApiReferencePage() {
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        Refresh access without SSE
+        Read account access through your backend
       </h2>
       <p>
         Apple and Google lifecycle webhooks update IAPKit&apos;s canonical
-        subscription snapshot. IAPKit does not relay those events, expose a raw
-        event feed, or keep a mobile SSE, WebSocket, or long-poll connection
-        open. Apps read only their user-scoped snapshot:
-      </p>
-      <p>
-        Webhook event rows are bounded operational history for deduplication and
-        retention. Polling reads the canonical snapshot, not an event cursor, so
-        pruning old event rows does not erase the user&apos;s latest state and
-        apps do not have to consume every event in order.
+        subscription snapshot. IAPKit does not relay project events or keep a
+        mobile SSE, WebSocket, or long-poll connection open. Your authenticated
+        backend reads the tokenless v2 snapshot when the app needs an access
+        decision.
       </p>
       <ol className="list-decimal space-y-1 pl-6">
+        <li>Authenticate the app user on your backend.</li>
         <li>
-          For a purchase started in this app session, update the UI from the SDK
-          purchase callback and verified result. Bind its stable token to an
-          opaque user ID.
-        </li>
-        <li>Render immediately from the last persisted snapshot.</li>
-        <li>
-          Refresh on cold start, when the cached value is stale after
-          foregrounding, or after an explicit user action. Use one refresh
-          coordinator so concurrent screens share the same in-flight request.
-          Define a maximum stale age for offline or rate-limited fallback and
-          fail closed after that app-specific window.
+          Resolve the opaque IAPKit <code>userId</code> from that session. Do
+          not trust a user ID supplied independently by the client.
         </li>
         <li>
-          Persist the response body and <code>ETag</code>, then send the tag as{" "}
-          <code>If-None-Match</code> on the next request.
+          Call <code>GET /v2/subscriptions/entitlements</code> with a secret key
+          stored only on the backend.
         </li>
         <li>
-          Reuse the cached body on <code>304</code>, replace it on{" "}
-          <code>200</code>, and respect the <code>Retry-After</code> header on{" "}
-          <code>429</code> or <code>503</code>.
-        </li>
-        <li>
-          Key local storage by IAPKit project and opaque user ID, and clear it
-          on sign-out. Never render one user&apos;s snapshot for another.
+          Return only the access decision or tokenless fields the app needs.
+          Coalesce concurrent reads and use a bounded, project-and-user-scoped
+          cache if necessary.
         </li>
       </ol>
-      <p>
-        This example uses raw HTTP so it can retain response headers. The
-        current <code>kitApi.status()</code> and{" "}
-        <code>kitApi.entitlements()</code> convenience methods perform
-        unconditional reads and return only the decoded body; use raw{" "}
-        <code>fetch</code> or an app wrapper for conditional revalidation.
-      </p>
-      <CodeBlock title="Conditional entitlement refresh" language="typescript">
-        {`type CachedEntitlements = {
-  cacheScope: string; // App-defined IAPKit project/environment identifier.
-  etag: string | null;
-  checkedAt: number;
-  snapshot: {
-    userId: string;
-    productIds: string[];
-    subscriptions: Array<{
-      productId: string;
-      state: string;
-      expiresAt?: number;
-      renewsAt?: number;
-      willRenew?: boolean;
-    }>;
-  };
-};
+      <CodeBlock
+        title="Authenticated backend entitlement read"
+        language="typescript"
+      >
+        {`async function entitlementsForSession(sessionToken: string) {
+  const user = await authenticateSession(sessionToken);
+  if (!user) throw new Error("Unauthenticated");
 
-async function refreshEntitlements(
-  iapkitCacheScope: string,
-  userId: string,
-  cached: CachedEntitlements | null,
-  maxStaleMs: number,
-  iapkitPublishableKey: string,
-) {
-  const cachedForScope =
-    cached?.cacheScope === iapkitCacheScope &&
-    cached.snapshot.userId === userId
-      ? cached
-      : null;
-  const canUseCachedSnapshot = () => {
-    if (
-      cachedForScope === null ||
-      !Number.isFinite(cachedForScope.checkedAt) ||
-      !Number.isFinite(maxStaleMs) ||
-      maxStaleMs < 0
-    ) {
-      return false;
-    }
-    const cacheAgeMs = Date.now() - cachedForScope.checkedAt;
-    return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
-  };
-  let response: Response;
-  try {
-    response = await fetch(
-      \`https://kit.openiap.dev/v1/subscriptions/entitlements?userId=\${encodeURIComponent(userId)}\`,
-      {
-        headers: {
-          Authorization: \`Bearer \${iapkitPublishableKey}\`,
-          ...(cachedForScope?.etag
-            ? { "If-None-Match": cachedForScope.etag }
-            : {}),
-        },
+  const response = await fetch(
+    \`https://kit.openiap.dev/v2/subscriptions/entitlements?userId=\${encodeURIComponent(user.iapkitUserId)}\`,
+    {
+      headers: {
+        Authorization: \`Bearer \${process.env.IAPKIT_SECRET_KEY}\`,
       },
-    );
-  } catch (error) {
-    if (cachedForScope && canUseCachedSnapshot()) {
-      return cachedForScope.snapshot;
-    }
-    throw error;
-  }
+    },
+  );
+  if (!response.ok) throw new Error("Entitlement lookup failed");
 
-  if (response.status === 304 && cachedForScope) {
-    const refreshed = { ...cachedForScope, checkedAt: Date.now() };
-    await persistSnapshot(refreshed);
-    return refreshed.snapshot;
-  }
-  if (response.status === 429 || response.status === 503) {
-    scheduleRetry(response.headers.get("Retry-After"));
-    if (cachedForScope && canUseCachedSnapshot()) {
-      return cachedForScope.snapshot;
-    }
-    throw new Error("Entitlement refresh is rate limited");
-  }
-  if (!response.ok) throw new Error("Entitlement refresh failed");
-
-  const wireSnapshot = (await response.json()) as {
-    userId: string;
-    productIds: string[];
-    subscriptions: Array<{
-      productId: string;
-      state: string;
-      expiresAt?: number;
-      renewsAt?: number;
-      willRenew?: boolean;
-    }>;
-  };
-  const snapshot = {
-    userId: wireSnapshot.userId,
-    productIds: wireSnapshot.productIds,
-    subscriptions: wireSnapshot.subscriptions.map(
-      ({ productId, state, expiresAt, renewsAt, willRenew }) => ({
-        productId,
-        state,
-        expiresAt,
-        renewsAt,
-        willRenew,
-      }),
+  const snapshot = await response.json();
+  return {
+    productIds: snapshot.productIds,
+    subscriptions: snapshot.subscriptions.map(
+      ({ productId, state, expiresAt }: {
+        productId: string;
+        state: string;
+        expiresAt?: number;
+      }) => ({ productId, state, expiresAt }),
     ),
   };
-  await persistSnapshot({
-    cacheScope: iapkitCacheScope,
-    snapshot,
-    etag: response.headers.get("ETag"),
-    checkedAt: Date.now(),
-  });
-  return snapshot;
 }`}
       </CodeBlock>
-      <Callout kind="note" title="A 304 is conditional, not free">
+      <Callout kind="note" title="v1 remains a compatibility surface">
         <p>
-          IAPKit still performs one Convex query invocation before returning{" "}
-          <code>304</code>. Convex returns a time-independent row snapshot and
-          invalidates its cached result when a dependent row changes. Fly then
-          evaluates expiry against its own current clock on every HTTP request.
-          Cached query results and caller-controlled timestamps therefore cannot
-          preserve expired access, and a time-only transition is detected on the
-          next refresh. Conditional requests save response bandwidth and
-          app-side state work; they do not justify a continuous timer. A normal
-          client refreshes only at lifecycle boundaries and uses jittered
-          backoff after failures.
+          Existing v1 status and entitlement routes remain available for shipped
+          SDK compatibility. New integrations should use v2 through an
+          authenticated backend. v2 omits <code>purchaseToken</code> and{" "}
+          <code>originalTransactionId</code> and rejects publishable keys.
         </p>
         <p>
           A user snapshot supports up to 200 subscription rows. IAPKit reads one
@@ -408,15 +314,14 @@ async function refreshEntitlements(
         title="Backend-protected content stays server-authoritative"
       >
         <p>
-          A mobile snapshot is suitable for app UI and local feature gating. If
-          paid content or an API is protected by your own backend, authenticate
-          the user there and let that backend make the entitlement decision. A
-          developer-owned backend also owns any optional APNs or FCM push.
+          Authenticate the user before selecting the IAPKit user ID. Paid
+          content and APIs should use the backend&apos;s entitlement decision,
+          and the developer-owned backend also owns any optional APNs or FCM
+          push.
         </p>
         <p>
-          Persist only the fields the UI needs. Avoid retaining purchase tokens
-          in general-purpose local storage when product IDs, states, and expiry
-          times are sufficient.
+          Persist only the tokenless fields the UI needs. Never forward the
+          IAPKit secret key or an unrestricted account lookup to the app.
         </p>
       </Callout>
 
@@ -424,13 +329,17 @@ async function refreshEntitlements(
         Subscription identity fields
       </h2>
       <p>
-        Subscription state endpoints such as{" "}
-        <code>GET /v1/subscriptions/list</code> keep the legacy{" "}
+        Subscription state endpoints under v1 keep the legacy{" "}
         <code>purchaseToken</code> field for the stable store identity. On
         Google this is the Play purchase token. On iOS this is the StoreKit{" "}
         <code>originalTransactionId</code> (falling back to{" "}
         <code>transactionId</code>), not the raw JWS. iOS rows also expose{" "}
         <code>originalTransactionId</code> explicitly.
+      </p>
+      <p>
+        The v2 status and entitlement responses omit both store-identity fields.
+        Use v1 administrative listings only for store reconciliation that
+        actually requires a token.
       </p>
       <p>
         Administrative subscription endpoints require{" "}
@@ -541,7 +450,8 @@ async function refreshEntitlements(
         Bind first, then read. <code>POST /v1/subscriptions/bind-user</code>{" "}
         associates a store transaction with your own user id; until a purchase
         is bound, the read endpoints resolve <code>userId</code> against rows
-        that were never linked and return an empty snapshot.
+        that were never linked and return an empty snapshot. The v2 reads must
+        run on the authenticated developer backend.
       </p>
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="min-w-[42rem] w-full text-sm">
@@ -564,23 +474,33 @@ async function refreshEntitlements(
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">
-                GET /v1/subscriptions/status
+                GET /v2/subscriptions/status
               </td>
-              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">Secret</td>
               <td className="px-3 py-2">
-                Current snapshot for one <code>userId</code> (≤256 chars).
-                Supports <code>ETag</code> / <code>If-None-Match</code>.
+                Tokenless current snapshot for one authenticated backend user
+                mapping (<code>userId</code> ≤256 chars).
               </td>
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">
-                GET /v1/subscriptions/entitlements
+                GET /v2/subscriptions/entitlements
               </td>
-              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">Secret</td>
               <td className="px-3 py-2">
-                Entitled product ids for one <code>userId</code>. Already
-                filtered to non-expired rows, so everything returned is
-                currently entitled.
+                Tokenless entitled product ids for one backend-authenticated
+                user. Already filtered to non-expired rows.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                POST /v2/subscriptions/user-erasure
+              </td>
+              <td className="px-3 py-2">Secret</td>
+              <td className="px-3 py-2">
+                Schedules durable removal of an app user id from subscription
+                and commerce-event rows. Poll the returned job id. Your backend
+                must separately erase any event copies it already received.
               </td>
             </tr>
             <tr>

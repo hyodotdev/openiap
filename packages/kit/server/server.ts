@@ -5,8 +5,10 @@ import { serveStatic } from "hono/bun";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+import { commerceRoutes } from "./api/commerce/routes";
 import { apiRoutes } from "./api/v1/routes";
 import { sourceRateLimitMiddleware } from "./api/v1/rate-limit";
+import { apiRoutesV2 } from "./api/v2/routes";
 import { handleHealthRequest } from "./health";
 import { handleIapKitMcpRequest, mcpRateLimitResponse } from "./mcp";
 import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
@@ -35,6 +37,12 @@ app.get("/health", handleHealthRequest);
 // existing api.iapkit.com clients.
 app.route("/api/v1", apiRoutes);
 app.route("/v1", apiRoutes);
+app.route("/api/v2", apiRoutesV2);
+app.route("/v2", apiRoutesV2);
+
+// OpenIAP Commerce Protocol: the portable REST binding and the GraphQL
+// endpoint, both thin adapters over the same shared operation handlers.
+app.route("/commerce/v1", commerceRoutes);
 
 // Codex / MCP plugin endpoint for IAPKit. This must sit before
 // static serving so `/mcp` never falls through to the React Router SPA.
@@ -47,6 +55,11 @@ app.all("/mcp", (c) => handleIapKitMcpRequest(c.req.raw));
 // hard 404s instead of appearing to exist because they returned index.html.
 app.all("/api/v1/*", (c) => c.notFound());
 app.all("/v1/*", (c) => c.notFound());
+app.all("/api/v2/*", (c) => c.notFound());
+app.all("/v2/*", (c) => c.notFound());
+app.all("/commerce/*", (c) =>
+  c.json({ error: { code: "NOT_FOUND", message: "Unknown operation" } }, 404),
+);
 
 const STATIC_ROOT = process.env.STATIC_ROOT ?? "./dist";
 

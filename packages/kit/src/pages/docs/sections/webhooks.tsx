@@ -192,16 +192,18 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
         for rollup timing and metric definitions.
       </p>
       <p>
-        The{" "}
+        The vendor-neutral{" "}
         <a
           href="https://openiap.dev/docs/webhooks"
           className="text-primary underline"
           target="_blank"
           rel="noopener noreferrer"
         >
-          canonical OpenIAP webhook policy
+          Commerce Protocol webhook contract
         </a>{" "}
-        covers the same boundary across the SDK ecosystem.
+        defines the signed outbound boundary independently of IAPKit. This page
+        remains the canonical source for IAPKit&apos;s inbound store setup and
+        dashboard workflow.
       </p>
     </DocsPage>
   );

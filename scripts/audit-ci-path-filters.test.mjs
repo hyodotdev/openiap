@@ -48,11 +48,17 @@ test("markdown exclusion is final and cannot be re-included", () => {
   const patterns = ["packages/apple/**", "!**/*.md"];
 
   assert.equal(matchesFilter(patterns, ["packages/apple/README.md"]), false);
-  assert.equal(matchesFilter(patterns, ["packages/apple/Sources/A.swift"]), true);
+  assert.equal(
+    matchesFilter(patterns, ["packages/apple/Sources/A.swift"]),
+    true,
+  );
   // Order must not change the answer; that is what makes one list safe in both
   // dorny (polarity) and GitHub native paths (last match wins).
   assert.equal(
-    matchesFilter(["!**/*.md", "packages/apple/**"], ["packages/apple/README.md"]),
+    matchesFilter(
+      ["!**/*.md", "packages/apple/**"],
+      ["packages/apple/README.md"],
+    ),
     false,
   );
 });
@@ -65,7 +71,10 @@ test("rejects negation without the some-with-excludes quantifier", () => {
         file,
         fs
           .readFileSync(file, "utf8")
-          .replaceAll("          predicate-quantifier: some-with-excludes\n", ""),
+          .replaceAll(
+            "          predicate-quantifier: some-with-excludes\n",
+            "",
+          ),
       );
     },
     (root) => {
@@ -99,7 +108,9 @@ test("rejects negation forms outside the audited vocabulary", () => {
     (root) => {
       assert.ok(
         findPolicyViolations(root).some((finding) =>
-          finding.includes("unsupported negation '!libraries/expo-iap/docs/**'"),
+          finding.includes(
+            "unsupported negation '!libraries/expo-iap/docs/**'",
+          ),
         ),
       );
     },
@@ -123,7 +134,9 @@ test("rejects a workflow-level paths filter on ci.yml or codeql.yml", () => {
     (root) => {
       assert.ok(
         findPolicyViolations(root).some(
-          (finding) => finding === "ci.yml: pull_request must stay unfiltered; job-level gating keeps skipped checks reportable",
+          (finding) =>
+            finding ===
+            "ci.yml: pull_request must stay unfiltered; job-level gating keeps skipped checks reportable",
         ),
       );
     },
@@ -158,22 +171,13 @@ test("rejects deleting a filter that a job still gates on", () => {
   withPatchedWorkflows(
     (workflows) => {
       const file = path.join(workflows, "ci.yml");
-      fs.writeFileSync(
-        file,
-        fs
-          .readFileSync(file, "utf8")
-          .replace(
-            `            docs:
-              - 'packages/docs/**'
-              - 'packages/gql/src/generated/**'
-              - 'packages/gql/generated-sync-manifest.mjs'
-              - 'scripts/audit-docs.ts'
-              - 'scripts/audit-docs.test.ts'
-              - '.github/workflows/ci.yml'
-`,
-            "",
-          ),
+      const source = fs.readFileSync(file, "utf8");
+      const mutated = source.replace(
+        /\n            docs:\n[\s\S]*?(?=\n            web:)/u,
+        "",
       );
+      assert.notEqual(mutated, source, "docs filter fixture did not match");
+      fs.writeFileSync(file, mutated);
     },
     (root) => {
       assert.ok(

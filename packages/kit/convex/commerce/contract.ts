@@ -45,7 +45,7 @@ export type CommerceEventType = (typeof COMMERCE_EVENT_TYPES)[number];
 /** Lifecycle transition kinds emitted by the subscription state machine. */
 export type LifecycleTransition = SubscriptionTransitionKind;
 
-const TRANSITION_TO_EVENT: Record<
+export const TRANSITION_TO_EVENT: Record<
   LifecycleTransition,
   CommerceEventType | null
 > = {
@@ -76,11 +76,39 @@ export function commerceEventTypeForTransition(
   return TRANSITION_TO_EVENT[transition] ?? null;
 }
 
+/**
+ * SPEC.md §9.1 emission rule as a pure decision, so the mutation that fans out
+ * events and the conformance adapter that certifies the rule share one source.
+ * The lifecycle event (if any) comes first; an entitlement event follows only
+ * when the gate actually flips and a bound user exists to grant or revoke it.
+ * At first binding (§2.4) the caller passes `previouslyActive: false` — the
+ * unbound baseline is not entitled — so a currently-open gate yields exactly
+ * one `entitlement.granted`.
+ */
+export function commerceEventTypesToEmit(args: {
+  lifecycleType: CommerceEventType | null;
+  active: boolean;
+  previouslyActive: boolean;
+  hasBoundUser: boolean;
+}): CommerceEventType[] {
+  const entitlementType: CommerceEventType | null =
+    args.active === args.previouslyActive || !args.hasBoundUser
+      ? null
+      : args.active
+        ? "entitlement.granted"
+        : "entitlement.revoked";
+  return [args.lifecycleType, entitlementType].filter(
+    (type): type is CommerceEventType => type !== null,
+  );
+}
+
 /** Where a monetary or temporal value came from. Never mix these silently. */
-export type DataProvenance =
-  | "store" // the store asserted it in a signed notification or API response
-  | "catalog" // resolved from the project's own product catalog
-  | "inferred"; // derived by IAPKit from other fields
+export const DATA_PROVENANCE_VALUES = [
+  "store", // the store asserted it in a signed notification or API response
+  "catalog", // resolved from the project's own product catalog
+  "inferred", // derived by IAPKit from other fields
+] as const;
+export type DataProvenance = (typeof DATA_PROVENANCE_VALUES)[number];
 
 export type CommerceMoney = {
   currency: string;
@@ -88,9 +116,20 @@ export type CommerceMoney = {
   provenance: DataProvenance;
 };
 
-export type CommerceStore = "apple" | "google" | "horizon" | "amazon";
+export const COMMERCE_STORES = [
+  "apple",
+  "google",
+  "horizon",
+  "amazon",
+] as const;
+export type CommerceStore = (typeof COMMERCE_STORES)[number];
 
-export type CommerceEnvironment = "production" | "sandbox" | "xcode";
+export const COMMERCE_ENVIRONMENTS = [
+  "production",
+  "sandbox",
+  "xcode",
+] as const;
+export type CommerceEnvironment = (typeof COMMERCE_ENVIRONMENTS)[number];
 
 export type CommerceSubscriptionSnapshot = {
   state: SubscriptionState;

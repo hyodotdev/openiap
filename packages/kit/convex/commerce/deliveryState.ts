@@ -74,7 +74,9 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
     ...(event.originalTransactionId
       ? { originalTransactionId: event.originalTransactionId }
       : {}),
-    ...(event.subscription
+    // `active` is required in the snapshot but optional in storage. `false`
+    // would assert "no access" for an unknown, so drop the snapshot instead.
+    ...(event.subscription && event.entitlementActive !== undefined
       ? {
           subscription: {
             state: event.subscription.state,
@@ -91,16 +93,20 @@ export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
             ...(event.subscription.cancellationReason
               ? { cancellationReason: event.subscription.cancellationReason }
               : {}),
-            active: event.entitlementActive ?? false,
+            active: event.entitlementActive,
           },
         }
       : {}),
-    ...(event.currency && event.amountMicros !== undefined
+    // Same for `provenance`: a default would invent one the emitter never
+    // determined, so drop the price instead.
+    ...(event.currency &&
+    event.amountMicros !== undefined &&
+    event.amountProvenance !== undefined
       ? {
           price: {
             currency: event.currency,
             amountMicros: event.amountMicros,
-            provenance: event.amountProvenance ?? "inferred",
+            provenance: event.amountProvenance,
           },
         }
       : {}),

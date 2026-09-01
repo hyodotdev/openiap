@@ -163,10 +163,13 @@ async function resolveProjectForMutationArgs(
 async function resolveJobByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
-  jobId: Id<"productSyncJobs">,
+  rawJobId: string,
 ): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
   const { project } = await resolveProjectByApiKey(ctx, apiKey);
-  const job = await ctx.db.get(jobId);
+  // Ids arrive from URL paths; a malformed one must read as "not found"
+  // rather than fail argument validation into a 500.
+  const jobId = ctx.db.normalizeId("productSyncJobs", rawJobId);
+  const job = jobId ? await ctx.db.get(jobId) : null;
   if (!job) {
     throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
   }
@@ -183,11 +186,12 @@ async function resolveJobForMutationArgs(
   args: {
     apiKey?: string;
     projectId?: Id<"projects">;
-    jobId: Id<"productSyncJobs">;
+    jobId: string;
   },
 ): Promise<{ job: Doc<"productSyncJobs">; project: Doc<"projects"> }> {
   const { project } = await resolveProjectForMutationArgs(ctx, args);
-  const job = await ctx.db.get(args.jobId);
+  const jobId = ctx.db.normalizeId("productSyncJobs", args.jobId);
+  const job = jobId ? await ctx.db.get(jobId) : null;
   if (!job || job.projectId !== project._id) {
     throw createError(ErrorCode.INVALID_INPUT, "Sync job not found");
   }
@@ -222,7 +226,7 @@ export const getActiveSyncJob = query({
 export const getSyncJobById = query({
   args: {
     apiKey: v.string(),
-    jobId: v.id("productSyncJobs"),
+    jobId: v.string(),
   },
   handler: async (ctx, args) => {
     const { job } = await resolveJobByApiKey(ctx, args.apiKey, args.jobId);
@@ -391,7 +395,7 @@ export const cancelProductSync = mutation({
   args: {
     apiKey: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
-    jobId: v.id("productSyncJobs"),
+    jobId: v.string(),
   },
   handler: async (ctx, args) => {
     const { job } = await resolveJobForMutationArgs(ctx, args);

@@ -1,6 +1,31 @@
 import * as Sentry from "@sentry/bun";
 
+import { redactApiKeysInPath } from "./api/v1/request-logger";
+
 const dsn = process.env.SENTRY_DSN;
+
+/**
+ * App-facing routes carry the project key in the URL path and account reads
+ * carry `userId` in the query, so nothing URL-shaped may leave for Sentry
+ * unscrubbed. Exported for tests.
+ */
+export function scrubSentryEvent<
+  T extends {
+    request?: { url?: string; query_string?: unknown };
+    transaction?: string;
+  },
+>(event: T): T {
+  if (event.request?.url) {
+    event.request.url = redactApiKeysInPath(event.request.url.split("?")[0]);
+  }
+  if (event.request && "query_string" in event.request) {
+    delete event.request.query_string;
+  }
+  if (event.transaction) {
+    event.transaction = redactApiKeysInPath(event.transaction);
+  }
+  return event;
+}
 const sendDefaultPii = process.env.SENTRY_SEND_DEFAULT_PII === "true";
 const enableLogs = process.env.SENTRY_ENABLE_LOGS !== "false";
 
@@ -35,5 +60,7 @@ if (dsn) {
     // transactions carry no signal but dominate the trace budget. Drop
     // them at the SDK level so they never count against quota.
     ignoreTransactions: ["GET /health", "HEAD /health", /^GET \/health(\?|$)/],
+    beforeSend: (event) => scrubSentryEvent(event),
+    beforeSendTransaction: (event) => scrubSentryEvent(event),
   });
 }

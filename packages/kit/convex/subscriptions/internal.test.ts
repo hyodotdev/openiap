@@ -4,6 +4,7 @@ import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import {
   applySubscriptionEventHandler,
   bindSubscriptionToUserHandler,
+  rebindSubscriptionToUserHandler,
   buildVerifiedSubscriptionSnapshot,
   getCurrentProductIdByTokenHandler,
   getSourceProductIdByTokenHandler,
@@ -180,6 +181,47 @@ async function seedWebhookEvent(
   });
 }
 
+describe("bindSubscriptionToUser amount handling", () => {
+  it("does not repeat an amount the webhook already reported", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "message-webhook-first",
+      occurredAt: 1_000,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+    const afterWebhook = db
+      .rows("commerceEvents")
+      .filter((row) => row.amountMicros !== undefined).length;
+
+    await bindSubscriptionToUserHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "user_1",
+    });
+
+    const priced = db
+      .rows("commerceEvents")
+      .filter((row) => row.amountMicros !== undefined);
+    // The bind grant correlates an existing purchase to a user; it is not a
+    // second billing, so the count must not move.
+    expect(priced.length).toBe(afterWebhook);
+    expect(db.rows("commerceEvents").at(-1)?.eventType).toBe(
+      "entitlement.granted",
+    );
+    expect(db.rows("commerceEvents").at(-1)?.amountMicros).toBeUndefined();
+  });
+});
+
 describe("applySubscriptionEventHandler", () => {
   beforeEach(() => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
@@ -187,6 +229,173 @@ describe("applySubscriptionEventHandler", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // Commerce Protocol's `whenNoPriorStoreEvent` turns on store history, not on
+  // whether a record exists — a purchase learned from a client receipt but
+  // never from the store still begins the story. That distinction lives here,
+  // in the override, and nowhere in the state machine, so it is tested here.
+  it("starts rather than recovers when a record exists with no store history", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    // A client receipt created this row; no store notification ever touched it,
+    // so it carries no lastEventId.
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      state: "Unknown",
+      willRenew: true,
+      updatedAt: 0,
+    });
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "message-first-store-event",
+      occurredAt: 1_000,
+    });
+
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+    // Assert on what was emitted, not what the handler returned: the override
+    // applies to the commerce event, while the return value carries the state
+    // machine's own transition.
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toContain(
+      "subscription.started",
+    );
+  });
+
+  it.each([["SubscriptionPriceChange"], ["SubscriptionDeferred"]])(
+    "emits no commerce event when %s is the first store event for a receipt-bootstrapped row",
+    async (storeEventType) => {
+      // store-event-mapping.json pins whenNoPriorStoreEvent -> event: null for
+      // price changes and deferrals: with no earlier store event there is no
+      // baseline the event could describe.
+      const db = new MemDb();
+      db.seedProduct({
+        projectId: PROJECT_ID,
+        platform: "Android",
+        productId: "premium_monthly",
+        billingPeriod: "P1M",
+      });
+      await db.insert("subscriptions", {
+        projectId: PROJECT_ID,
+        platform: "Android",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        state: "Active",
+        expiresAt: 9_999_999_999_999,
+        willRenew: true,
+        updatedAt: 0,
+      });
+      const eventId = await seedWebhookEvent(db, {
+        type: storeEventType as never,
+        notificationId: `message-${storeEventType}`,
+        occurredAt: 1_000,
+      });
+
+      await applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: eventId as never,
+      });
+      expect(db.rows("commerceEvents")).toEqual([]);
+    },
+  );
+
+  // Rows written before `lastEventOccurredAt` existed carry only `lastEventId`,
+  // so the timestamp guard cannot judge them. Both of its fallbacks protect a
+  // money path: a redelivery re-applies the transition and books it twice.
+  it.each([
+    ["the same event redelivered", "message-legacy", 500, "Expired"],
+    ["an older event arriving late", "message-older", 200, "Expired"],
+  ])(
+    "drops %s against a legacy row",
+    async (_name, notificationId, occurredAt, expected) => {
+      const db = new MemDb();
+      db.seedProduct({
+        projectId: PROJECT_ID,
+        platform: "Android",
+        productId: "premium_monthly",
+        billingPeriod: "P1M",
+      });
+      const priorId = await seedWebhookEvent(db, {
+        type: "SubscriptionExpired",
+        notificationId: "message-legacy",
+        occurredAt: 500,
+      });
+      await db.insert("subscriptions", {
+        projectId: PROJECT_ID,
+        platform: "Android",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        state: "Expired",
+        willRenew: false,
+        lastEventId: priorId,
+        updatedAt: 0,
+      });
+      const replayId =
+        notificationId === "message-legacy"
+          ? priorId
+          : await seedWebhookEvent(db, {
+              type: "SubscriptionStarted",
+              notificationId,
+              occurredAt,
+            });
+
+      await expect(
+        applySubscriptionEventHandler(makeCtx(db), {
+          projectId: PROJECT_ID as never,
+          eventId: replayId as never,
+        }),
+      ).resolves.toMatchObject({ transition: null });
+      expect(db.rows("subscriptions")).toMatchObject([{ state: expected }]);
+      expect(db.rows("commerceEvents")).toEqual([]);
+    },
+  );
+
+  it("recovers when the record already has store history", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const priorId = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "message-prior",
+      occurredAt: 500,
+    });
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      state: "Expired",
+      willRenew: false,
+      lastEventId: priorId,
+      updatedAt: 0,
+    });
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "message-after-history",
+      occurredAt: 1_000,
+    });
+
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    });
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toContain(
+      "subscription.recovered",
+    );
   });
 
   it("applies a recorded-but-unapplied event exactly once on redelivery", async () => {
@@ -560,7 +769,7 @@ describe("applySubscriptionEventHandler", () => {
       lastEventId: changedId,
       lastEventOccurredAt: 2_000,
     });
-    expect(db.rows("commerceEvents")).toHaveLength(2);
+    expect(db.rows("commerceEvents")).toHaveLength(1);
 
     const delayedId = await seedWebhookEvent(db, {
       type: "SubscriptionExpired",
@@ -961,8 +1170,13 @@ describe("applySubscriptionEventHandler", () => {
         db
           .rows("commerceEvents")
           .filter((event) => event.sourceEventId === eventId)
-          .map((event) => [event.eventType, event.productId]),
-      ).toEqual([[eventType, "premium_monthly"]]);
+          .map((event) => [
+            event.eventType,
+            event.productId,
+            (event.subscription as { state?: string } | undefined)?.state,
+            event.entitlementActive,
+          ]),
+      ).toEqual([[eventType, "premium_monthly", transition, false]]);
     }
     expect(db.rows("subscriptions")).toMatchObject([
       {
@@ -1154,7 +1368,7 @@ describe("applySubscriptionEventHandler", () => {
         .rows("commerceEvents")
         .filter((event) => event.sourceEventId === recoveredId)
         .map((event) => event.eventType),
-    ).toEqual(["subscription.recovered", "entitlement.granted"]);
+    ).toEqual(["subscription.recovered"]);
   });
 
   it("recovers an inactive predecessor through a linked Google purchase", async () => {
@@ -1204,7 +1418,7 @@ describe("applySubscriptionEventHandler", () => {
         .rows("commerceEvents")
         .filter((event) => event.sourceEventId === recoveredId)
         .map((event) => event.eventType),
-    ).toEqual(["subscription.recovered", "entitlement.granted"]);
+    ).toEqual(["subscription.recovered"]);
   });
 
   it("applies a delayed replacement after the predecessor expires", async () => {
@@ -1743,7 +1957,7 @@ describe("applySubscriptionEventHandler", () => {
       productId: "premium_monthly",
       lastEventId: changedId,
     });
-    expect(db.rows("commerceEvents")).toHaveLength(2);
+    expect(db.rows("commerceEvents")).toHaveLength(1);
   });
 });
 
@@ -1786,6 +2000,41 @@ describe("buildVerifiedSubscriptionSnapshot", () => {
     });
   });
 
+  it("stamps Refunded only when Apple says the revocation was a refund", () => {
+    // revocationReason 1 is Apple's app-issue refund; 0 also covers Family
+    // Sharing loss, where asserting money moved back would be false.
+    const refunded = buildVerifiedSubscriptionSnapshot({
+      platform: "IOS",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      revocationReasonIOS: 1,
+    });
+    expect(refunded).toMatchObject({
+      state: "Revoked",
+      willRenew: false,
+      cancellationReason: "Refunded",
+    });
+
+    const familySharingLoss = buildVerifiedSubscriptionSnapshot({
+      platform: "IOS",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+      revocationReasonIOS: 0,
+    });
+    expect(familySharingLoss).toMatchObject({
+      state: "Revoked",
+      willRenew: false,
+    });
+    expect(familySharingLoss?.cancellationReason).toBeUndefined();
+
+    const unknown = buildVerifiedSubscriptionSnapshot({
+      platform: "IOS",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.CANCELED,
+    });
+    expect(unknown?.cancellationReason).toBeUndefined();
+  });
+
   it("preserves access for canceled Google subscriptions until expiry", () => {
     const snapshot = buildVerifiedSubscriptionSnapshot({
       platform: "Android",
@@ -1799,9 +2048,9 @@ describe("buildVerifiedSubscriptionSnapshot", () => {
       productId: "premium_monthly",
       state: "Active",
       willRenew: false,
-      cancellationReason: "UserCanceled",
       expiresAt: 2_000_000_000_000,
     });
+    expect(snapshot?.cancellationReason).toBeUndefined();
   });
 
   it("maps on-hold Google subscriptions to billing retry", () => {
@@ -2368,6 +2617,54 @@ describe("recordVerifiedSubscriptionHandler", () => {
     });
   });
 
+  it("does not replay an unbound grant that expired before binding", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const started = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "unbound-started",
+      occurredAt: 1_000,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: started as never,
+    });
+    const expired = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "unbound-expired",
+      occurredAt: 2_000,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: expired as never,
+    });
+
+    const beforeBind = db.rows("commerceEvents").map((row) => row.eventType);
+    expect(beforeBind).toEqual([
+      "subscription.started",
+      "subscription.expired",
+    ]);
+
+    await bindSubscriptionToUserHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "user-after-expiry",
+    });
+
+    expect(db.rows("commerceEvents").map((row) => row.eventType)).toEqual(
+      beforeBind,
+    );
+    expect(db.rows("subscriptions")[0]).toMatchObject({
+      state: "Expired",
+      userId: "user-after-expiry",
+    });
+  });
+
   it("uses the compact source snapshot after the webhook row is pruned", async () => {
     const db = new MemDb();
     const eventId = await seedWebhookEvent(db, {
@@ -2392,5 +2689,146 @@ describe("recordVerifiedSubscriptionHandler", () => {
       userId: "user-after-retention",
       sourceStoreNotificationId: "old-webhook",
     });
+  });
+});
+
+describe("user binding authorization", () => {
+  const seedBound = async (db: MemDb, userId?: string) => {
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      state: "Active",
+      willRenew: true,
+      updatedAt: 0,
+      ...(userId ? { userId } : {}),
+    });
+  };
+
+  // Token possession is not proof of ownership, and a distinct rejection would
+  // tell any holder of the app-embedded publishable key that a token exists
+  // and belongs to someone.
+  it("reports an already-bound subscription the same as an unknown token", async () => {
+    const owned = new MemDb();
+    await seedBound(owned, "victim");
+    const unknown = new MemDb();
+    await seedBound(unknown, "victim");
+    await unknown.delete(unknown.rows("subscriptions")[0]._id);
+
+    const attacker = {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "attacker",
+    };
+    await expect(
+      bindSubscriptionToUserHandler(makeCtx(owned) as never, attacker),
+    ).resolves.toBeNull();
+    await expect(
+      bindSubscriptionToUserHandler(makeCtx(unknown) as never, attacker),
+    ).resolves.toBeNull();
+    expect(owned.rows("subscriptions")[0].userId).toBe("victim");
+  });
+
+  // A consumer gating access on commerce events must be told the purchase
+  // moved, or the wrong user keeps access and the real one never gets it.
+  it("revokes the old user and grants the new one on a rebind", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const priorId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "rebind-source",
+      occurredAt: 1_000,
+    });
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      state: "Active",
+      willRenew: true,
+      userId: "wrong-user",
+      lastEventId: priorId,
+      lastEventOccurredAt: 1_000,
+      lastEventSourceNotificationId: "rebind-source",
+      lastEventSource: {
+        type: "SubscriptionStarted",
+        environment: "Production",
+        productId: "premium_monthly",
+      },
+      expiresAt: Date.now() + 86_400_000,
+      updatedAt: 0,
+    });
+
+    await rebindSubscriptionToUserHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "real-owner",
+    });
+
+    const emitted = db
+      .rows("commerceEvents")
+      .map((r) => [r.eventType, r.userId]);
+    expect(emitted).toEqual([
+      ["entitlement.revoked", "wrong-user"],
+      ["entitlement.granted", "real-owner"],
+    ]);
+  });
+
+  // A rebind that cannot attribute events leaves the developer backend
+  // believing the old user still owns the purchase. Say so rather than
+  // reporting plain success.
+  it("reports a rebind it could not notify about", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    await db.insert("subscriptions", {
+      projectId: PROJECT_ID,
+      platform: "Android",
+      purchaseToken: TOKEN,
+      productId: "premium_monthly",
+      state: "Active",
+      willRenew: true,
+      userId: "wrong-user",
+      expiresAt: Date.now() + 86_400_000,
+      updatedAt: 0,
+    });
+
+    const outcome = await rebindSubscriptionToUserHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      purchaseToken: TOKEN,
+      userId: "real-owner",
+    });
+    expect(outcome?.notified).toBe(false);
+    expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
+    expect(db.rows("commerceEvents")).toEqual([]);
+  });
+
+  it("lets an operator move a wrong binding", async () => {
+    const db = new MemDb();
+    await seedBound(db, "wrong-user");
+    await expect(
+      rebindSubscriptionToUserHandler(makeCtx(db) as never, {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "real-owner",
+      }),
+    ).resolves.not.toBeNull();
+    expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
   });
 });

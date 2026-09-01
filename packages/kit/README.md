@@ -320,52 +320,34 @@ expires under webhook retention. The canonical subscription snapshot remains.
 Polling reads that current state rather than replaying a cursor, so an app does
 not have to consume every event in order.
 
-The recommended client flow is:
+The recommended account-access flow is:
 
 1. For a purchase started in the current app session, use the SDK purchase
    callback and verification response for the immediate UI update. Bind the
    stable purchase token to an opaque, app-scoped `userId`.
-2. Render from a persisted entitlement snapshot on startup.
-3. Revalidate `GET /v1/subscriptions/status?userId=...` or
-   `GET /v1/subscriptions/entitlements?userId=...` with the publishable key in
-   `Authorization` on cold start, when a foreground snapshot is stale, or after
-   an explicit user refresh. Route refreshes through one coordinator so
-   concurrent screens share the same in-flight request. Define an app-specific
-   maximum stale age for offline or rate-limited fallback, and fail closed after
-   that window.
-4. Persist the response body and `ETag`. Send that tag as `If-None-Match` next
-   time. A `304` means the snapshot is unchanged; a `200` replaces it.
+2. Authenticate the user on the developer backend and resolve the opaque IAPKit
+   `userId` from that session. Never trust an independently supplied user ID.
+3. Call `GET /v2/subscriptions/status?userId=...` or
+   `GET /v2/subscriptions/entitlements?userId=...` with a secret key kept only on
+   the backend. The v2 response omits `purchaseToken` and
+   `originalTransactionId`.
+4. Return only the access decision or tokenless fields the app needs. Coalesce
+   concurrent reads, scope any backend cache by IAPKit project and authenticated
+   user, and fail closed after its bounded stale window.
 5. Respect `429 Retry-After` and use jittered backoff. Do not run a continuous
    foreground/background polling timer.
-
-Key the local cache by IAPKit project and opaque user ID, and delete it on
-sign-out. Never render one signed-in user's cached snapshot for another.
-Persist only the fields the UI needs; avoid retaining purchase tokens in
-general-purpose local storage when product IDs, states, and expiry times are
-sufficient.
 
 Snapshot reads use the `(projectId, userId, updatedAt)` index, support up to 200
 subscription rows per user, and perform no usage or last-access mutation. One
 additional indexed row is read only to detect overflow; IAPKit fails closed
-instead of returning a partial entitlement set. Convex returns a
-time-independent row snapshot and invalidates its cached result whenever a
-dependent subscription row changes. Fly evaluates `expiresAt` against its own
-current clock on every HTTP request before returning `200` or `304`. Cached
-query results and caller-controlled timestamps therefore cannot preserve
-expired access, and a time-only expiration transition is detected on the next
-refresh. The conditional response saves body transfer and unnecessary app state
-updates; it does not eliminate the Convex query invocation.
+instead of returning a partial entitlement set. Existing v1 SDK helpers remain
+available for shipped-client compatibility, but new account reads use the
+secret-only v2 contract. A developer-owned backend also owns any optional
+APNs/FCM delivery after processing store webhooks.
 
-The raw HTTP response exposes `ETag`. The current `kitApi.status()` and
-`kitApi.entitlements()` convenience methods perform unconditional reads and
-return only the decoded body, so use raw HTTP or an app wrapper when conditional
-revalidation is required.
-
-This client-readable snapshot is appropriate for app UI and local feature
-gating. If paid content is protected by a developer-owned backend, that backend
-must authenticate the user and make the entitlement decision. It may query the
-same user-scoped endpoint or send its own APNs/FCM notification after processing
-store webhooks.
+`POST /v2/subscriptions/user-erasure` removes an app user ID from IAPKit
+subscription and commerce-event rows. Poll the returned job until completion.
+The developer backend must separately erase any event copy it already received.
 
 ### Product client payloads
 
@@ -382,7 +364,7 @@ one directly at
 `GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS`. Valid
 Apple/Google verification responses can include the same top-level field
 when the request sends `includeClientPayload: true`; default, invalid,
-missing/Removed-product, missing-payload, Horizon, and Amazon responses omit
+missing/Draft/Removed-product, missing-payload, Horizon, and Amazon responses omit
 it.
 
 Grant access only when `isValid` and `state` permit it and the store-verified
@@ -436,12 +418,18 @@ routes remain available for compatibility, but should not be used with new
 secret keys because URLs are commonly retained by proxy and access logs.
 
 After deploying the scoped-key schema, operators may persist the runtime
-fallback classification with:
+fallback classification. Like every migration command in this README, it
+follows the deployment-selector rules in
+[Secret-key storage migration](#secret-key-storage-migration) — read those
+first and swap `--prod` for your deployment's selector:
 
 ```bash
-npx convex run migrations:run \
+npx convex run --prod migrations:run \
   '{"fn":"migrations:classifyLegacyApiKeysAsPublishable"}'
 ```
+
+Secret keys created before digest-only storage also need the resumable
+backfill described in the same section.
 
 The migration is idempotent. Authorization already treats an absent `keyType`
 as publishable, so existing app verification remains available before and
@@ -573,11 +561,57 @@ that URL against the committed [`production.env`](production.env) SSOT before
 either deployment proceeds. A development deploy key therefore cannot publish a
 production Fly bundle.
 
+### Secret-key storage migration
+
+Deployments that issued secret API keys before digest-only storage must run the
+resumable backfill after deploying the dual-read lookup. Running it before that
+deployment would make migrated keys unreadable to the old code.
+
+`npx convex run` targets the dev deployment from `.env.local` unless told
+otherwise, and the deploy key sourced by `deploy:prod` does not survive that
+script's shell — so every migration command in this README pins its deployment
+with an explicit selector. Pick yours before running anything:
+
+- this project's default Convex Cloud production: `--prod` (used by the
+  secret-key commands below);
+- a non-default Convex Cloud deployment: `--deployment <name-or-reference>`;
+- a true self-hosted backend: `--env-file .env.self-hosted.local` holding
+  `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY` (used by the
+  self-hosted backfill examples further down). The CLI rejects `--prod` for
+  self-hosted deployments, and the `.env.*.local` name is already gitignored —
+  never pass the admin key on the command line or commit it.
+
+From `packages/kit/`, start with the read-only status query: the selector
+fixes the target, and the query returns the migration's current state there.
+Act on that state before anything else — `unknown` (never run, or an
+interrupted run whose worker is gone): continue with the dry run and then the
+real run, which starts fresh or resumes from the saved cursor; `inProgress`:
+do not start another run, skip to the watch command; `failed` or `canceled`:
+read the reported error if any, then re-run the real command — it resumes from
+the saved cursor (add `"reset":true` only to restart from the beginning);
+`success`: it already completed, stop here. For a first run, test one
+rolled-back batch, start the migration, and watch it reach `success`:
+
+```bash
+npx convex run --prod --component migrations lib:getStatus \
+  '{"names":["migrations:hashStoredSecretApiKeys"]}'
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:hashStoredSecretApiKeys","dryRun":true}'
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:hashStoredSecretApiKeys"}'
+npx convex run --prod --component migrations lib:getStatus \
+  '{"names":["migrations:hashStoredSecretApiKeys"]}' --watch
+```
+
+The dry run intentionally reports a rollback after checking one batch. The real
+run removes plaintext only after writing its digest and display preview;
+publishable and already-clean rows are skipped, so restarting is safe.
+
 Self-hosted deployments that never completed the original row-wise purchase
 stats backfill should run it first (already-completed deployments no-op):
 
 ```bash
-npx convex run migrations:run \
+npx convex run --env-file .env.self-hosted.local migrations:run \
   '{"fn":"migrations:backfillPurchaseStatsFromPurchases"}'
 ```
 
@@ -586,7 +620,7 @@ buckets were added should also run the new resumable migration from
 `packages/kit/`:
 
 ```bash
-npx convex run migrations:run \
+npx convex run --env-file .env.self-hosted.local migrations:run \
   '{"fn":"migrations:backfillPurchaseStatsStoreBuckets"}'
 ```
 
@@ -597,11 +631,29 @@ hosted IAPKit audit found no historical Amazon or Horizon purchases, so no
 hosted migration run was needed or performed.
 
 For deployments that also need to clean up legacy duplicate Google orders, the
-required order is: complete `backfillPurchaseStatsFromPurchases`, run
-`collapseDuplicatePurchasesByOrderId`, then run the full-project
-`recomputeAllPurchaseStats` last whenever a non-dry cleanup run reports
-`rowsDeleted > 0`. The recompute is optional only if cleanup is not run or
-deletes no rows. The Amazon/Horizon `backfillPurchaseStatsStoreBuckets`
+required order is: complete `backfillPurchaseStatsFromPurchases`, complete
+`backfillPurchaseOrderIds` (the cleanup groups rows by the `orderId` column,
+so rows it never populated are invisible to the cleanup), run the cleanup
+until done, then run the full-project `recomputeAllPurchaseStats` last
+whenever any non-dry cleanup page reported `rowsDeleted > 0`. The recompute is
+optional only if cleanup is not run or deletes no rows.
+
+The cleanup is not a migration: it is the internal mutation
+`purchases/cleanup:collapseDuplicatePurchasesByOrderId`, and one invocation
+processes a single page (default 200 rows). Feed each result's `cursor` into
+the next call until `isDone` is `true` — first with `"dryRun": true` to scope
+the damage, then again without it — and sum `rowsDeleted` across the real
+pages:
+
+```bash
+npx convex run --prod migrations:run \
+  '{"fn":"migrations:backfillPurchaseOrderIds"}'
+npx convex run --prod purchases/cleanup:collapseDuplicatePurchasesByOrderId \
+  '{"dryRun":true}'
+# then: pass the returned cursor until isDone, repeat without dryRun
+```
+
+The Amazon/Horizon `backfillPurchaseStatsStoreBuckets`
 migration is independent of the Google duplicate cleanup, so those two steps
 may run in either order after the base backfill. Both must finish before any
 required recompute. The recompute does not write per-purchase sentinels, so

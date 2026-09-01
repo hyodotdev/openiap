@@ -70,7 +70,14 @@ export const verifyAppStoreReceiptInternalV1 = action({
     const project = await getProjectByApiKey(ctx, args.apiKey);
 
     const decodedPayload = decodeJwsPayload(args.jws);
-    const environment = decodedPayload.environment as Environment;
+    // The payload is decoded, not verified, so its environment must never
+    // select a value that turns verification off: SignedDataVerifier returns
+    // the decoded JWT unverified under XCODE and LOCAL_TESTING. Only the two
+    // environments Apple actually signs are reachable.
+    const environment =
+      decodedPayload.environment === Environment.SANDBOX
+        ? Environment.SANDBOX
+        : Environment.PRODUCTION;
 
     const requestData: {
       store: "apple";
@@ -108,6 +115,18 @@ export const verifyAppStoreReceiptInternalV1 = action({
       const serverCredentials = await getAppStoreServerCredentials(
         ctx,
         project,
+      );
+
+      // Prove the caller holds an Apple-signed transaction before asking the
+      // App Store about it. Without this, `decodeJwsPayload` above accepts any
+      // base64 the caller assembles, and every downstream check compares
+      // Apple's answer to the caller's own request — so knowing a
+      // transactionId would be enough to obtain a verified verdict.
+      await verifyJWSTransaction(
+        args.jws,
+        project.iosBundleId,
+        environment,
+        project.iosAppAppleId,
       );
 
       transactionData = await verifyTransactionWithServerApi({
@@ -197,6 +216,7 @@ export async function recordAppStoreVerifiedSubscription(
       expiresAt: params.transactionData.expiresDate,
       currency: params.transactionData.currency,
       priceAmountMicros: appStorePriceToMicros(params.transactionData.price),
+      revocationReasonIOS: params.transactionData.revocationReason,
     },
   );
 }

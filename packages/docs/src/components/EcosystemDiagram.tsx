@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { IAPKIT_LOGO_PATH, IAPKIT_URL, trackIapKitClick } from '../lib/config';
 import { LIBRARIES, type FrameworkLibraryName } from '../lib/images';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import '../styles/ecosystem-diagram.css';
@@ -64,7 +63,6 @@ const SQUARE_ART = new Set([
   '/logos/flutter_inapp_purchase.webp',
   '/logos/kmp-iap.webp',
   '/frameworks/maui.webp',
-  IAPKIT_LOGO_PATH,
 ]);
 
 interface DiagramMark {
@@ -121,13 +119,12 @@ const CORE_NODES: DiagramNode[] = [
   },
 ];
 
-const IAPKIT_NODE: DiagramNode = {
-  id: 'iapkit',
-  name: 'IAPKit',
-  note: 'Optional verification · entitlements · store sync · MCP',
-  icon: IAPKIT_LOGO_PATH,
-  href: IAPKIT_URL,
-  onClick: trackIapKitClick,
+const PROTOCOL_NODE: DiagramNode = {
+  id: 'commerce-protocol',
+  name: 'Commerce Protocol',
+  note: 'Lifecycle · entitlements · events · signed delivery',
+  icon: '/logos/openiap.webp',
+  href: '/docs/commerce-protocol',
 };
 
 function artClass(src: string, base: string): string {
@@ -159,14 +156,9 @@ function NodeCard({
   node: DiagramNode;
   className?: string;
 }) {
-  return (
-    <a
-      className={`eco-node no-icon${className ? ` ${className}` : ''}`}
-      href={node.href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={node.onClick}
-    >
+  const nodeClassName = `eco-node no-icon${className ? ` ${className}` : ''}`;
+  const content = (
+    <>
       <img
         className={artClass(node.icon, 'eco-icon')}
         src={node.icon}
@@ -191,6 +183,26 @@ function NodeCard({
           ))}
         </span>
       ) : null}
+    </>
+  );
+
+  if (node.href.startsWith('/')) {
+    return (
+      <Link className={nodeClassName} to={node.href} onClick={node.onClick}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      className={nodeClassName}
+      href={node.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={node.onClick}
+    >
+      {content}
     </a>
   );
 }
@@ -199,7 +211,7 @@ function Rail({
   variant,
   label,
 }: {
-  variant: 'a' | 'b' | 'bypass' | 'iapkit' | 'iapkit-core';
+  variant: 'a' | 'b' | 'bypass';
   label?: string;
 }) {
   return (
@@ -336,18 +348,15 @@ function EcosystemDiagram() {
           </div>
         </section>
 
-        <Rail variant="iapkit-core" />
-        <Rail variant="iapkit" label="optional backend" />
-
         <section
-          className="eco-band eco-band--iapkit"
-          aria-labelledby="eco-iapkit"
+          className="eco-band eco-band--protocol"
+          aria-labelledby="eco-protocol"
         >
-          <h3 className="eco-band-title" id="eco-iapkit">
-            Infrastructure
+          <h3 className="eco-band-title" id="eco-protocol">
+            Independent server contract
           </h3>
-          <div className="eco-iapkit-body">
-            <NodeCard node={IAPKIT_NODE} className="eco-node--iapkit" />
+          <div className="eco-protocol-body">
+            <NodeCard node={PROTOCOL_NODE} className="eco-node--protocol" />
           </div>
         </section>
       </div>
@@ -355,11 +364,10 @@ function EcosystemDiagram() {
       <figcaption className="eco-caption">
         <strong>openiap-gql</strong> generates the type system for the core
         native packages <em>and</em> for every framework library, and the core
-        packages are bundled into each library. <strong>IAPKit</strong> is the
-        optional hosted layer for purchase verification, entitlements, store
-        notifications, and product operations, and the core packages can use it
-        directly without a framework library. Select any node to open its
-        documentation or project.
+        packages are bundled into each library. The{' '}
+        <strong>Commerce Protocol</strong> defines the portable server-side
+        lifecycle, entitlement, event, and webhook contract independently of any
+        implementation. Select any node to open its documentation or project.
       </figcaption>
     </figure>
   );

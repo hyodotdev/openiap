@@ -1,5 +1,18 @@
 /* Responsive Design */
 @media (max-width: 1100px) {
+  .logo {
+    margin-right: var(--spacing-md);
+  }
+
+  .nav-menu {
+    gap: var(--spacing-md);
+  }
+
+  .nav-menu a {
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
   .iapkit-link {
     width: 32px;
     min-width: 32px;

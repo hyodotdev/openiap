@@ -31,6 +31,28 @@ export interface VerifyLogLine {
   specVersion?: string;
 }
 
+/**
+ * App-facing routes carry the project key in the path so clients that strip
+ * headers can still authenticate, which means the raw path is a credential.
+ * `apiKeyHash` is logged separately, so redacting loses nothing operational —
+ * and a secret key mistakenly placed in a URL must not be recorded either.
+ */
+export function redactApiKeysInPath(path: string, knownKey?: string): string {
+  let scrubbed = path.replace(
+    /openiap-kit_(?:sk|pk)_[A-Za-z0-9_-]+/g,
+    "redacted",
+  );
+  // Legacy project keys carry no recognizable prefix, so also scrub the exact
+  // authenticated credential (and its URL-encoded form) wherever it appears.
+  // The length floor keeps a degenerate credential from eating path segments.
+  if (knownKey && knownKey.length >= 8) {
+    for (const literal of [knownKey, encodeURIComponent(knownKey)]) {
+      scrubbed = scrubbed.split(literal).join("redacted");
+    }
+  }
+  return scrubbed;
+}
+
 // Caller-controlled, so it is shape-checked and bounded before reaching a log
 // line. Nothing branches on it: a client must not be able to change how its
 // receipt is verified by claiming a version.
@@ -273,7 +295,7 @@ export function requestLoggerMiddleware(
           kind: "verify_request",
           corrId,
           method: c.req.method,
-          path: c.req.path,
+          path: redactApiKeysInPath(c.req.path, apiKey),
           statusCode,
           durationMs,
           apiKeyHash,
@@ -295,7 +317,7 @@ export function requestLoggerMiddleware(
             kind: "verify_request_debug",
             corrId,
             method: c.req.method,
-            path: c.req.path,
+            path: redactApiKeysInPath(c.req.path, apiKey),
             statusCode,
             durationMs,
             apiKeyHash,

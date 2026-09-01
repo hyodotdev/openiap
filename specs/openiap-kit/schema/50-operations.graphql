@@ -1,0 +1,461 @@
+# Portable operations --------------------------------------------------------
+
+"""
+A portable protocol error code. The value space is OPEN: a caller MUST tolerate a code it does not recognise and treat it as a failure of the operation, and a MINOR version can add a code. The listed values are the ones this version names; SPEC.md 8 defines each one and its HTTP status.
+"""
+scalar ProtocolErrorCode
+  @jsonString(
+    pattern: "^[A-Z][A-Z0-9_]*$"
+    examples: [
+      "INVALID_REQUEST"
+      "UNAUTHORIZED"
+      "FORBIDDEN"
+      "NOT_FOUND"
+      "PURCHASE_NOT_FOUND"
+      "VERIFICATION_FAILED"
+      "CONFLICT"
+      "RATE_LIMITED"
+      "UNSUPPORTED_PROFILE"
+      "UNSUPPORTED_STORE"
+      "INTERNAL_ERROR"
+    ]
+  )
+
+"""
+One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable and MUST NOT contain credentials, store evidence, stack traces, or implementation source paths.
+"""
+type ProtocolError
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: false) {
+  code: ProtocolErrorCode!
+  """
+  Human-readable failure summary. Never carries credentials, store evidence, stack traces, or source paths.
+  """
+  message: NonEmptyString!
+}
+
+"""
+The REST error envelope. Every non-success REST response carries exactly this shape — CLOSED, so an error body cannot smuggle members past the tokenless rules (a failure response is the easiest place to hide a leak, because callers rarely inspect it).
+"""
+type ProtocolErrorResponse
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: false) {
+  error: ProtocolError!
+}
+
+"""
+The verification verdict for one piece of purchase evidence, as a normalized token. This is the purchase-validation axis SPEC.md 2.3 warns about — a CANCELED verification verdict and a canceled-but-still-entitled subscription are different facts. The value space is OPEN: a caller MUST tolerate a token it does not know and gate on `isValid` alone.
+"""
+scalar PurchaseVerificationState
+  @jsonString(
+    pattern: "^[A-Z][A-Z0-9_]*$"
+    examples: [
+      "ENTITLED"
+      "PENDING_ACKNOWLEDGMENT"
+      "PENDING"
+      "CANCELED"
+      "EXPIRED"
+      "READY_TO_CONSUME"
+      "CONSUMED"
+      "UNKNOWN"
+      "INAUTHENTIC"
+    ]
+  )
+
+"""
+The lifecycle state of a user-erasure job. The value space is open; `completed` is the only terminal token this version names.
+"""
+scalar ErasureJobStatus
+  @jsonString(
+    pattern: "^[a-z][a-z_]*$"
+    examples: ["queued", "running", "completed"]
+  )
+
+"""
+A compact signed transaction JWS. Bounded so an oversized body cannot be forwarded to a store: an Apple transaction JWS is a few kilobytes.
+"""
+scalar AppleJws @jsonString(minLength: 1, maxLength: 16384)
+
+"""
+An opaque store purchase token. Bounded to keep an oversized body off the store API.
+"""
+scalar GooglePurchaseToken @jsonString(minLength: 1, maxLength: 4096)
+
+"""
+A store-issued user identity, as the store's own API returns it. Distinct from the protocol's opaque `userId`.
+"""
+scalar StoreUserIdentity @jsonString(minLength: 1, maxLength: 512)
+
+"""
+A store add-on SKU. Bounded to a predictable identifier length.
+"""
+scalar StoreSku @jsonString(minLength: 1, maxLength: 256)
+
+"""
+A store receipt identifier. Bounded to keep an oversized body off the store API.
+"""
+scalar StoreReceiptId @jsonString(minLength: 1, maxLength: 4096)
+
+"""
+Store evidence for one Apple App Store purchase: the signed StoreKit 2 transaction JWS the app received from the store.
+"""
+input AppleEvidence
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The compact signed transaction JWS, verbatim as the store handed it to the app.
+  """
+  jws: AppleJws!
+}
+
+"""
+Store evidence for one Google Play purchase: the opaque purchase token the store issued to the device.
+"""
+input GoogleEvidence
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The opaque purchase token, verbatim as the store issued it to the device.
+  """
+  purchaseToken: GooglePurchaseToken!
+}
+
+"""
+Store evidence for one Meta Horizon (Quest) entitlement. Horizon issues no server-verifiable receipt, so verification identifies the entitlement by user and SKU; the provider holds the store credentials.
+"""
+input HorizonEvidence
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The store's own user identity for the entitlement holder — not the protocol's opaque `userId`.
+  """
+  userId: StoreUserIdentity!
+  """
+  The add-on SKU as configured in the store's developer dashboard.
+  """
+  sku: StoreSku!
+}
+
+"""
+Store evidence for one Amazon Appstore purchase, as returned by the Amazon SDK. `sandbox` selects the RVS sandbox for App Tester receipts where the provider permits it.
+"""
+input AmazonEvidence
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The store's own user identity from the purchase response — not the protocol's opaque `userId`.
+  """
+  userId: StoreUserIdentity!
+  """
+  The receipt identifier from the purchase or purchase-updates response.
+  """
+  receiptId: StoreReceiptId!
+  """
+  Verify against the store's sandbox where the provider permits it. Omitted means production.
+  """
+  sandbox: Boolean! @optional
+}
+
+"""
+One purchase's store evidence, discriminated by `store`. The store space stays open: a provider that does not integrate the named store rejects the call with UNSUPPORTED_STORE rather than failing schema validation, so a future store is a MINOR evidence-member addition, not a breaking change. For each store this version names, the matching evidence member is required.
+"""
+input VerifyPurchaseInput
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true)
+  @storeEvidence(store: "apple", member: "apple")
+  @storeEvidence(store: "google", member: "google")
+  @storeEvidence(store: "horizon", member: "horizon")
+  @storeEvidence(store: "amazon", member: "amazon") {
+  store: Store!
+  apple: AppleEvidence! @optional
+  google: GoogleEvidence! @optional
+  horizon: HorizonEvidence! @optional
+  amazon: AmazonEvidence! @optional
+}
+
+"""
+The verification verdict. `isValid` is the authoritative acceptance gate: a caller MUST read it and MUST NOT re-derive acceptance from `state`. A verdict is a statement about the evidence at verification time, never an account mutation — verification binds no user.
+"""
+type VerifyPurchaseResult
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  store: Store!
+  """
+  Whether the provider accepts the evidence. The single authoritative acceptance gate.
+  """
+  isValid: Boolean!
+  state: PurchaseVerificationState!
+
+  """
+  The product the store verified, when its response exposes one. Never the caller's claim.
+  """
+  productId: NonEmptyString! @optional
+
+  """
+  The store environment the provider verified against, using the same open value space as the event envelope.
+  """
+  environment: Environment! @optional
+}
+
+"""
+Connects verified store evidence to the adopter's own opaque user identity. Binding is a server-side account mutation: only the server role may call it, and possession of a purchase token is deliberately not proof of ownership — a provider MUST refuse to move an existing binding through this operation.
+"""
+input BindPurchaseInput
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true)
+  @storeEvidence(store: "apple", member: "apple")
+  @storeEvidence(store: "google", member: "google")
+  @storeEvidence(store: "horizon", member: "horizon")
+  @storeEvidence(store: "amazon", member: "amazon") {
+  userId: Identifier!
+  store: Store!
+  apple: AppleEvidence! @optional
+  google: GoogleEvidence! @optional
+  horizon: HorizonEvidence! @optional
+  amazon: AmazonEvidence! @optional
+}
+
+"""
+Whether a binding now exists between this user and the evidenced purchase. `bound: false` covers every non-binding outcome — unknown evidence, evidence bound to a different user, or a store the provider cannot bind — without distinguishing them, so the operation cannot be used to probe whether someone else's purchase exists. Re-binding the same user to the same evidence is idempotent and reports `bound: true`.
+"""
+type BindPurchaseResult
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  True when a binding between this user and the evidenced purchase now exists.
+  """
+  bound: Boolean!
+}
+
+"""
+Selects the user whose subscription standing the caller's backend reads.
+"""
+input SubscriptionStatusInput
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.
+  """
+  userId: Identifier!
+}
+
+"""
+One subscription as the provider currently records it, shaped for a server-side read. It is tokenless by construction: this object is CLOSED, so the schema itself rejects any member beyond those listed — no purchase token, store transaction identity, signed receipt, or provider-internal record identifier can appear, and the response is safe to hold in a developer backend.
+"""
+type SubscriptionStatusSnapshot
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: false) {
+  """
+  Store product identifier of the subscription.
+  """
+  productId: NonEmptyString!
+  state: SubscriptionState!
+
+  """
+  The entitlement gate for this subscription, evaluated with the predicate in SPEC.md 2.3 at the provider's read time. A caller gates access on this member, never on `state`.
+  """
+  active: Boolean!
+  store: Store! @optional
+  expiresAt: Timestamp! @optional
+  renewsAt: Timestamp! @optional
+  """
+  Whether the store will attempt another billing period, when the provider records it.
+  """
+  willRenew: Boolean! @optional
+  """
+  Why the subscription stopped renewing, as the same open normalized token space the event envelope uses. Advisory, never a billing fact.
+  """
+  cancellationReason: NonEmptyString! @optional
+  startedAt: Timestamp! @optional
+  updatedAt: Timestamp! @optional
+}
+
+"""
+The user's current subscription standing. `active` answers the gate for the user as a whole; `subscription` is the most relevant record — the current entitling subscription when one exists, otherwise the provider's most recent record as context. It is omitted when the provider has no record for this user. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.
+"""
+type SubscriptionStatusResult
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: false) {
+  """
+  Whether the user is entitled to anything right now. The gate for simple access checks.
+  """
+  active: Boolean!
+  subscription: SubscriptionStatusSnapshot! @optional
+}
+
+"""
+Selects the user whose access decision the caller's backend reads.
+"""
+input EntitlementsInput
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.
+  """
+  userId: Identifier!
+}
+
+"""
+Every product the user may access right now, with the entitling subscription records. Unknown, expired, and ambiguous records contribute nothing: a product appears only when its gate is open at the provider's read time. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.
+"""
+type EntitlementsResult
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: false) {
+  userId: Identifier!
+  """
+  Every product the user may access right now, deduplicated.
+  """
+  productIds: [NonEmptyString!]! @jsonArray(uniqueItems: true)
+  """
+  The subscription records whose open gates produced `productIds`.
+  """
+  subscriptions: [SubscriptionStatusSnapshot!]!
+}
+
+"""
+Selects the user identity to erase from the provider's records.
+"""
+input EraseUserInput
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  The opaque app-scoped user identity to remove from the provider's subscription records and protocol event identity.
+  """
+  userId: Identifier!
+}
+
+"""
+Acknowledgement of an erasure request. Erasure removes the user identity from the provider's own records and event store; it is asynchronous where the provider processes it as a job, and re-requesting the same user is idempotent — it reports the current job rather than failing. A provider CANNOT unsend events: copies already delivered to the caller's own systems are the caller's responsibility to erase.
+"""
+type EraseUserResult
+  @definition(schema: "operations")
+  @jsonObject(additionalProperties: true) {
+  """
+  Whether the provider accepted the erasure request.
+  """
+  accepted: Boolean!
+  jobId: Identifier! @optional
+  status: ErasureJobStatus! @optional
+}
+
+type Query {
+  """
+  What this provider implements: protocol version, profiles, bindings, and per-store capability. Public and free of commerce data, so a consumer or a conformance runner reads it without credentials and without any central registry.
+  """
+  providerCapabilities: ProviderCapabilities!
+    @operation(
+      profile: "core"
+      auth: "none"
+      method: "GET"
+      path: "/commerce/v1/capabilities"
+      successStatus: 200
+      idempotent: true
+      errors: ["RATE_LIMITED", "INTERNAL_ERROR"]
+    )
+
+  """
+  A developer backend reads one authenticated user's subscription standing. Server role only: a shipped app must not be able to walk arbitrary user identities, which is why the verification role is refused here.
+  """
+  subscriptionStatus(
+    input: SubscriptionStatusInput!
+  ): SubscriptionStatusResult!
+    @operation(
+      profile: "entitlements"
+      auth: "server"
+      method: "GET"
+      path: "/commerce/v1/subscriptions/status"
+      successStatus: 200
+      idempotent: true
+      errors: [
+        "INVALID_REQUEST"
+        "UNAUTHORIZED"
+        "FORBIDDEN"
+        "RATE_LIMITED"
+        "INTERNAL_ERROR"
+      ]
+    )
+
+  """
+  A developer backend reads one authenticated user's access decision. Server role only, and fail-close: anything the provider cannot classify as currently entitled is absent from the answer.
+  """
+  entitlements(input: EntitlementsInput!): EntitlementsResult!
+    @operation(
+      profile: "entitlements"
+      auth: "server"
+      method: "GET"
+      path: "/commerce/v1/entitlements"
+      successStatus: 200
+      idempotent: true
+      errors: [
+        "INVALID_REQUEST"
+        "UNAUTHORIZED"
+        "FORBIDDEN"
+        "RATE_LIMITED"
+        "INTERNAL_ERROR"
+      ]
+    )
+}
+
+type Mutation {
+  """
+  Verifies store evidence and returns the verdict. The verification role suffices: this operation binds no user, reads no account, and repeating it with the same evidence is safe. VERIFICATION_FAILED means the provider could not obtain a verdict — it never stands in for the store rejecting the evidence, which is a successful result with `isValid: false`.
+  """
+  verifyPurchase(input: VerifyPurchaseInput!): VerifyPurchaseResult!
+    @operation(
+      profile: "verification"
+      auth: "verification"
+      method: "POST"
+      path: "/commerce/v1/purchases/verify"
+      successStatus: 200
+      idempotent: true
+      errors: [
+        "INVALID_REQUEST"
+        "UNAUTHORIZED"
+        "UNSUPPORTED_STORE"
+        "VERIFICATION_FAILED"
+        "RATE_LIMITED"
+        "INTERNAL_ERROR"
+      ]
+    )
+
+  """
+  Binds a verified purchase to the adopter's opaque user identity. Server role only; retrying is idempotent.
+  """
+  bindPurchase(input: BindPurchaseInput!): BindPurchaseResult!
+    @operation(
+      profile: "accountLifecycle"
+      auth: "server"
+      method: "POST"
+      path: "/commerce/v1/purchases/bind"
+      successStatus: 200
+      idempotent: true
+      errors: [
+        "INVALID_REQUEST"
+        "UNAUTHORIZED"
+        "FORBIDDEN"
+        "UNSUPPORTED_STORE"
+        "RATE_LIMITED"
+        "INTERNAL_ERROR"
+      ]
+    )
+
+  """
+  Removes a user identity from the provider's subscription records and protocol event identity. Server role only; re-requesting the same user is idempotent and reports the current job.
+  """
+  eraseUser(input: EraseUserInput!): EraseUserResult!
+    @operation(
+      profile: "accountLifecycle"
+      auth: "server"
+      method: "POST"
+      path: "/commerce/v1/users/erase"
+      successStatus: 202
+      idempotent: true
+      errors: [
+        "INVALID_REQUEST"
+        "UNAUTHORIZED"
+        "FORBIDDEN"
+        "RATE_LIMITED"
+        "INTERNAL_ERROR"
+      ]
+    )
+}

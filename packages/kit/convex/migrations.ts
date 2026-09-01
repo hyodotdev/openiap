@@ -11,6 +11,7 @@ import {
   deltaForMissingPurchaseStats,
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
+import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
@@ -350,6 +351,18 @@ export const classifyLegacyApiKeysAsPublishable = migrations.define({
   migrateOne: async (_ctx, doc) => {
     return doc.keyType ? doc : { ...doc, keyType: "publishable" as const };
   },
+});
+
+/**
+ * Replace stored secret API keys with a digest and one-way display preview.
+ * Deploy the dual-read lookup before running this migration.
+ */
+export const hashStoredSecretApiKeys = migrations.define({
+  table: "apiKeys",
+  // A null patch means "no work"; returning undefined makes the component
+  // skip the write instead of patching the row back onto itself.
+  migrateOne: async (_ctx, doc) =>
+    (await hashStoredSecretApiKeyPatch(doc)) ?? undefined,
 });
 
 /**

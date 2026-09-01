@@ -288,7 +288,7 @@ describe("productsRoutes", () => {
         {
           code: "SECRET_API_KEY_IN_URL",
           message:
-            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route. This key has been exposed in a URL — rotate it.",
         },
       ],
     });

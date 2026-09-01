@@ -1,0 +1,139 @@
+# Provider capabilities ------------------------------------------------------
+
+scalar StoreCapabilitiesMap
+  @jsonMap(
+    valueType: "StoreCapabilities"
+    minProperties: 1
+    keyPattern: "^[a-z][a-z0-9_]*$"
+  )
+
+"""
+What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.
+"""
+type ProviderCapabilities @jsonObject(additionalProperties: true) {
+  """
+  OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.
+  """
+  specVersion: MajorMinor!
+
+  """
+  Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.
+  """
+  implementation: Implementation! @optional
+
+  """
+  Event types this implementation can emit. A consumer uses it to know which lifecycle signals to expect; absence of a type here means this implementation never produces it, which is different from a type that simply has not occurred yet.
+  """
+  eventTypes: [NamespacedEventType!]! @jsonArray(minItems: 1, uniqueItems: true)
+
+  """
+  Keyed by store, using the same open value space as the event envelope. An implementation declares only the stores it actually integrates.
+  """
+  stores: StoreCapabilitiesMap!
+
+  """
+  Operation profiles this implementation serves, keyed by profile name with the profile version as the value. This version names `verification`, `entitlements`, `events`, and `accountLifecycle`; the key space is open, so a consumer MUST ignore a profile it does not recognise. An implementation MUST declare only profiles it implements and passes conformance for, and MUST NOT declare a profile it partially implements. Absent on a descriptor from an events-only emitter that predates the operation surface.
+  """
+  profiles: ProfileVersionMap! @optional
+
+  """
+  Transport bindings this implementation serves for the declared profiles, keyed by binding name with the binding version as the value. This version names `rest` and `graphql`; the key space is open. Declaring a binding means every declared profile operation is reachable over it. An implementation MAY serve one binding only. Absent on a descriptor from an events-only emitter.
+  """
+  bindings: BindingVersionMap! @optional
+}
+
+scalar ProfileVersionMap
+  @jsonMap(
+    valueType: "MajorMinor"
+    minProperties: 1
+    keyPattern: "^[a-z][a-zA-Z0-9]*$"
+  )
+
+scalar BindingVersionMap
+  @jsonMap(
+    valueType: "MajorMinor"
+    minProperties: 1
+    keyPattern: "^[a-z][a-zA-Z0-9]*$"
+  )
+
+"""
+Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.
+"""
+type Implementation @inline @jsonObject(additionalProperties: true) {
+  """
+  Name of the backend making this declaration, for an operator reading a descriptor without knowing where it came from.
+  """
+  name: NonEmptyString! @optional
+
+  """
+  Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.
+  """
+  version: NonEmptyString! @optional
+}
+
+"""
+What one store's commerce surface offers and what this backend consumes of it, axis by axis. The container stays open: a version that names a new axis is a MINOR addition older consumers ignore.
+"""
+type StoreCapabilities
+  @definition(schema: "provider-capabilities")
+  @jsonObject(additionalProperties: true) {
+  """
+  Server-side receipt or token validation on demand.
+  """
+  initialValidation: Support!
+  """
+  The store pushes lifecycle notifications to the backend.
+  """
+  serverNotifications: Support!
+  """
+  A canonical subscription record can be maintained for this store.
+  """
+  subscriptions: Support!
+  """
+  Renewal is observable as a distinct lifecycle event.
+  """
+  renewalEvents: Support!
+  """
+  Refund or revocation is observable as a distinct lifecycle event.
+  """
+  refundEvents: Support!
+  """
+  Expiration is observable, rather than only inferred from a timestamp having passed.
+  """
+  expiration: Support!
+  """
+  A scheduled pass re-reads authoritative store state, so a lost notification can self-heal.
+  """
+  reconciliation: Support!
+  """
+  Entitlement is derivable for access gating.
+  """
+  entitlements: Support!
+  """
+  The store asserts an amount that can be attributed to revenue with `store` provenance.
+  """
+  revenueAmount: Support!
+}
+
+"""
+Two axes, deliberately separate. `provider` is what the store's own API offers; `implementation` is what this backend actually consumes. They differ in practice — a store can publish a notification channel that a given backend has not integrated — and collapsing them into one boolean produces a dishonest matrix.
+"""
+type Support
+  @definition(schema: "provider-capabilities")
+  @jsonObject(additionalProperties: false)
+  @supportInvariant {
+  """
+  Whether the store's own API offers this at all. A fact about the store, independent of any backend.
+  """
+  provider: Boolean!
+
+  """
+  Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.
+  """
+  implementation: Boolean!
+
+  """
+  Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.
+  """
+  notes: NonEmptyString! @optional
+}

@@ -163,7 +163,7 @@ describe("webhooksRoutes", () => {
           {
             code: "SECRET_API_KEY_IN_URL",
             message:
-              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard.",
+              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard, then rotate the exposed secret key.",
           },
         ],
       });
@@ -614,32 +614,40 @@ describe("resolveGoogleEventTimeMillis", () => {
 });
 
 describe("sanitizePubSubAudienceForLog", () => {
-  it("preserves webhook endpoint audience logs", () => {
+  // The audience IS the endpoint URL, and this deployment carries the project
+  // key in that path. A log line must keep the route and drop the credential.
+  it("redacts the credential and keeps the route", () => {
     const cases = [
       [
-        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret",
+        "https://kit.openiap.dev/v1/webhooks/openiap-kit_pk_live",
+        "https://kit.openiap.dev/v1/webhooks/redacted",
       ],
       [
-        "https://kit.openiap.dev/v1/webhooks/apple/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/apple/openiap-kit_secret",
+        "https://kit.openiap.dev/v1/webhooks/apple/openiap-kit_pk_live",
+        "https://kit.openiap.dev/v1/webhooks/apple/redacted",
       ],
       [
-        "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_secret",
-        "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_secret",
+        "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_pk_live",
+        "https://kit.openiap.dev/v1/webhooks/google/redacted",
       ],
       [
-        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
-        "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
+        "https://kit.openiap.dev/v1/webhooks/openiap-kit_pk_live?apiKey=openiap-kit_pk_query&token=jwt&id_token=id&jwt=j&since=1",
+        "https://kit.openiap.dev/v1/webhooks/redacted?apiKey=redacted&token=redacted&id_token=redacted&jwt=redacted&since=1",
       ],
       [
-        "https://kit.openiap.dev/api/v1/webhooks/openiap-kit_secret",
-        "https://kit.openiap.dev/api/v1/webhooks/openiap-kit_secret",
+        "https://kit.openiap.dev/api/v1/webhooks/openiap-kit_pk_live",
+        "https://kit.openiap.dev/api/v1/webhooks/redacted",
       ],
     ];
 
     for (const [input, expected] of cases) {
       expect(helpers.sanitizePubSubAudienceForLog(input)).toBe(expected);
     }
+  });
+
+  it("redacts an unparseable audience rather than echoing it", () => {
+    expect(helpers.sanitizePubSubAudienceForLog("openiap-kit_pk_live")).toBe(
+      "redacted",
+    );
   });
 });

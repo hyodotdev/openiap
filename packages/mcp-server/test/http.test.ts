@@ -1046,8 +1046,8 @@ describe("remote MCP HTTP server", () => {
 
       expect(callBody).not.toContain(apiKey);
       expect(callBody).toContain("/v1/subscriptions/metrics");
-      expect(callBody).toContain("/v1/subscriptions/status?userId=");
-      expect(callBody).toContain("/v1/subscriptions/entitlements?userId=");
+      expect(callBody).toContain("/v2/subscriptions/status?userId=");
+      expect(callBody).toContain("/v2/subscriptions/entitlements?userId=");
     } finally {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;

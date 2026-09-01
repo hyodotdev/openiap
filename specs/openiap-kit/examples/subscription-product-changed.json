@@ -1,0 +1,30 @@
+{
+  "eventId": "evt_01J8Z7D6V3Y8Z1A4F6J9N2Q3C5",
+  "eventType": "subscription.product_changed",
+  "eventVersion": "1.0",
+  "occurredAt": 1756390800000,
+  "processedAt": 1756390801900,
+  "store": "apple",
+  "environment": "sandbox",
+  "projectId": "proj_7f3a9c",
+  "userId": "user_5e91a7",
+  "productId": "premium.annual",
+  "previousProductId": "premium.monthly",
+  "originalTransactionId": "2000000811111111",
+  "subscription": {
+    "state": "Active",
+    "productId": "premium.annual",
+    "expiresAt": 1787926800000,
+    "renewsAt": 1787926800000,
+    "willRenew": true,
+    "active": true
+  },
+  "price": {
+    "currency": "EUR",
+    "amountMicros": 79990000,
+    "provenance": "store"
+  },
+  "extensions": {
+    "appleSubtype": "UPGRADE"
+  }
+}

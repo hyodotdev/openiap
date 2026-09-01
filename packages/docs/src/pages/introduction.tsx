@@ -485,10 +485,14 @@ function Introduction() {
                 Open IAPKit
                 <ArrowUpRight size={14} aria-hidden="true" />
               </a>
-              <Link to="/docs/kit-backend">
-                Explore the backend
+              <a
+                href="https://kit.openiap.dev/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Read the IAPKit docs
                 <ArrowRight size={14} aria-hidden="true" />
-              </Link>
+              </a>
             </div>
           </div>
         </section>

@@ -13,19 +13,19 @@ import { COMMERCE_EVENT_RETENTION_MS } from "./signing";
 import {
   COMMERCE_EVENT_SCHEMA_VERSION,
   commerceEventTypeForTransition,
+  commerceEventTypesToEmit,
   sanitizeExtensions,
+  type CommerceEnvironment,
   type CommerceEventType,
-  type DataProvenance,
   type LifecycleTransition,
 } from "./contract";
 
 type WebhookEnvironment = Doc<"webhookEvents">["environment"];
-type CommerceEnvironmentValue = "production" | "sandbox" | "xcode";
 
 /** Store notification environments use TitleCase; the contract uses lowercase. */
 function normalizeEnvironment(
   environment: WebhookEnvironment,
-): CommerceEnvironmentValue {
+): CommerceEnvironment {
   switch (environment) {
     case "Sandbox":
       return "sandbox";
@@ -89,20 +89,20 @@ export async function emitCommerceEvent(
   ctx: MutationCtx,
   args: EmitCommerceEventArgs,
 ): Promise<Id<"commerceEvents">[]> {
-  const lifecycleType = commerceEventTypeForTransition(args.transition);
-  const entitlementType: CommerceEventType | null =
-    args.active === args.previouslyActive
-      ? null
-      : args.active
-        ? "entitlement.granted"
-        : "entitlement.revoked";
-
-  const types = [lifecycleType, entitlementType].filter(
-    (type): type is CommerceEventType => type !== null,
-  );
-  if (types.length === 0) return [];
-
   const source = args.sourceEvent;
+  const lifecycleType = commerceEventTypeForTransition(args.transition);
+  const types = commerceEventTypesToEmit({
+    lifecycleType,
+    active: args.active,
+    previouslyActive: args.previouslyActive,
+    hasBoundUser: Boolean(args.subscription?.userId),
+  });
+  if (types.length === 0) return [];
+  // Both types describe one charge, so the price rides the first only.
+  // Usually the lifecycle event; the entitlement event when there is no
+  // lifecycle transition, which is the only place left to carry it.
+  const pricedType = types[0];
+
   const now = Date.now();
   const written: Id<"commerceEvents">[] = [];
   const extensions = sanitizeExtensions(args.extensions);
@@ -114,10 +114,6 @@ export async function emitCommerceEvent(
     const productId = eventType.startsWith("entitlement.")
       ? (args.subscription?.productId ?? source.productId)
       : (source.productId ?? args.subscription?.productId);
-    const amountProvenance: DataProvenance | undefined =
-      source.priceAmountMicros === undefined
-        ? undefined
-        : (source.amountProvenance ?? "store");
     const eventId = await ctx.db.insert("commerceEvents", {
       projectId: args.projectId,
       eventType,
@@ -158,11 +154,18 @@ export async function emitCommerceEvent(
           }
         : {}),
       entitlementActive: args.active,
-      ...(source.currency ? { currency: source.currency } : {}),
-      ...(source.priceAmountMicros !== undefined
-        ? { amountMicros: source.priceAmountMicros }
+      ...(eventType === pricedType
+        ? {
+            ...(source.currency ? { currency: source.currency } : {}),
+            ...(source.priceAmountMicros !== undefined
+              ? { amountMicros: source.priceAmountMicros }
+              : {}),
+            // Never defaulted: "store" is the contract's authoritative value.
+            ...(source.amountProvenance
+              ? { amountProvenance: source.amountProvenance }
+              : {}),
+          }
         : {}),
-      ...(amountProvenance ? { amountProvenance } : {}),
       sourceEventId: source._id,
       sourceStoreNotificationId: source.sourceNotificationId,
       ...(extensions ? { extensions } : {}),

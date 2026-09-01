@@ -172,8 +172,20 @@ if ! bun run build; then
     exit 1
 fi
 
-echo -e "${BLUE}🚀 Deploying to Vercel...${NC}"
-if ! VERCEL_DEPLOYMENT=$(vercel --prod --yes --format=json --non-interactive); then
+# The docs package depends on the workspace-local `openiap-commerce-protocol`
+# package, which Vercel's remote `bun install` cannot resolve from an upload
+# of packages/docs alone. Build locally (where the workspace exists) and ship
+# the prebuilt output instead of letting Vercel install and build remotely.
+echo -e "${BLUE}🚀 Building prebuilt output and deploying to Vercel...${NC}"
+if ! vercel pull --yes --environment=production; then
+    echo -e "${RED}❌ vercel pull failed${NC}"
+    exit 1
+fi
+if ! vercel build --prod --yes; then
+    echo -e "${RED}❌ vercel build failed${NC}"
+    exit 1
+fi
+if ! VERCEL_DEPLOYMENT=$(vercel --prebuilt --prod --yes --format=json --non-interactive); then
     echo -e "${RED}❌ Vercel deployment failed${NC}"
     exit 1
 fi
