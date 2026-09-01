@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { createHash } from "node:crypto";
+
 import { Hono } from "hono";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   IAPKIT_MCP_LOOPBACK_HEADER,
@@ -207,11 +209,15 @@ describe("parsePositiveNumber", () => {
 
 describe("hashApiKey", () => {
   test("is deterministic and does not echo the plaintext", () => {
-    const h1 = hashApiKey("openiap-kit_secret_abc");
-    const h2 = hashApiKey("openiap-kit_secret_abc");
+    const apiKey = "openiap-kit_secret_abc";
+    const h1 = hashApiKey(apiKey);
+    const h2 = hashApiKey(apiKey);
     expect(h1).toBe(h2);
     expect(h1).not.toContain("secret");
     expect(h1).toMatch(/^[0-9a-f]{16}$/);
+    expect(h1).not.toBe(
+      createHash("sha256").update(apiKey).digest("hex").slice(0, 16),
+    );
   });
 
   test("different keys produce different hashes", () => {

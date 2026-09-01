@@ -75,13 +75,16 @@ export interface ConsumeResult {
   retryAfterSec: number;
 }
 
+const API_KEY_PSEUDONYM_KEY = crypto.randomBytes(32);
+
 export function hashApiKey(apiKey: string): string {
-  // 64-bit prefix of SHA-256 — enough to avoid collisions in-process
-  // without retaining the plaintext key in the bucket map (so a memory
-  // scan of the server doesn't leak customer keys from this layer;
-  // note: other layers may still hold the plaintext for the duration
-  // of the request).
-  return crypto.createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
+  // A process-local HMAC keeps logs and bucket keys useful for correlation
+  // without allowing leaked output to serve as an offline API-key oracle.
+  return crypto
+    .createHmac("sha256", API_KEY_PSEUDONYM_KEY)
+    .update(apiKey)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 // parsePositiveNumber was extracted to ../../utils/env so server.ts

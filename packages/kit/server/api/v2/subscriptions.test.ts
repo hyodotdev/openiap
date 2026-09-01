@@ -184,3 +184,104 @@ describe("GET /v2/subscriptions/user-erasure/:jobId input handling", () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe("v2 subscription input and error handling", () => {
+  const authorization = {
+    authorization: "Bearer openiap-kit_sk_backend",
+  };
+  const jsonHeaders = {
+    ...authorization,
+    "content-type": "application/json",
+  };
+
+  beforeEach(() => {
+    mocks.handleConvexError.mockReset();
+    mocks.handleConvexError.mockReturnValue(null);
+    mocks.mutation.mockReset();
+    mocks.query.mockReset();
+  });
+
+  it("rejects invalid user and erasure inputs before Convex", async () => {
+    const app = buildApp();
+    const tooLong = "u".repeat(513);
+    const responses = await Promise.all([
+      app.request("/subscriptions/status", { headers: authorization }),
+      app.request(`/subscriptions/entitlements?userId=${tooLong}`, {
+        headers: authorization,
+      }),
+      app.request("/subscriptions/user-erasure", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: "{",
+      }),
+      app.request("/subscriptions/user-erasure", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: "{}",
+      }),
+      app.request("/subscriptions/user-erasure", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ userId: tooLong }),
+      }),
+      app.request("/subscriptions/user-erasure", {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify({ userId: "u".repeat(5_000) }),
+      }),
+      app.request(`/subscriptions/user-erasure/${"j".repeat(257)}`, {
+        headers: authorization,
+      }),
+    ]);
+
+    expect(responses.map(({ status }) => status)).toEqual([
+      400, 400, 400, 400, 400, 413, 400,
+    ]);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("maps structured Convex failures and hides unstructured details", async () => {
+    const logSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = buildApp();
+
+    mocks.query.mockRejectedValueOnce(new Error("private status detail"));
+    mocks.handleConvexError.mockReturnValueOnce({
+      code: "INSUFFICIENT_SCOPE",
+      message: "Secret key required",
+    });
+    const status = await app.request("/subscriptions/status?userId=user-1", {
+      headers: authorization,
+    });
+
+    mocks.query.mockRejectedValue(new Error("private query detail"));
+    const entitlements = await app.request(
+      "/subscriptions/entitlements?userId=user-1",
+      { headers: authorization },
+    );
+    const erasureStatus = await app.request(
+      "/subscriptions/user-erasure/job-1",
+      { headers: authorization },
+    );
+
+    mocks.mutation.mockRejectedValueOnce("private mutation detail");
+    const erasure = await app.request("/subscriptions/user-erasure", {
+      method: "POST",
+      headers: jsonHeaders,
+      body: JSON.stringify({ userId: "user-1" }),
+    });
+
+    expect(status.status).toBe(403);
+    expect(await status.json()).toEqual({
+      errors: [{ code: "INSUFFICIENT_SCOPE", message: "Secret key required" }],
+    });
+    expect([entitlements.status, erasureStatus.status, erasure.status]).toEqual(
+      [500, 500, 500],
+    );
+    for (const response of [entitlements, erasureStatus, erasure]) {
+      expect(JSON.stringify(await response.json())).not.toContain("private");
+    }
+    expect(logSpy).toHaveBeenCalledTimes(3);
+    logSpy.mockRestore();
+  });
+});
