@@ -5,7 +5,10 @@ import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
-import { redactApiKeysInPath } from "./request-logger";
+import {
+  legacySubscriptionUsageLoggerMiddleware,
+  redactApiKeysInPath,
+} from "./request-logger";
 import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
 import {
   apiKeyMiddleware,
@@ -105,11 +108,17 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/status", apiKeyMiddleware, publicApiRateLimit, (c) =>
-  handleSubscriptionStatus(c, c.var.apiKey),
+subscriptions.get(
+  "/status",
+  apiKeyMiddleware,
+  publicApiRateLimit,
+  legacySubscriptionUsageLoggerMiddleware("status", "authorization"),
+  (c) => handleSubscriptionStatus(c, c.var.apiKey),
 );
-subscriptions.get("/status/:apiKey", (c) =>
-  handleSubscriptionStatus(c, c.req.param("apiKey")),
+subscriptions.get(
+  "/status/:apiKey",
+  legacySubscriptionUsageLoggerMiddleware("status", "path"),
+  (c) => handleSubscriptionStatus(c, c.req.param("apiKey")),
 );
 
 async function handleEntitlements(c: Context, apiKey: string) {
@@ -146,11 +155,17 @@ async function handleEntitlements(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/entitlements", apiKeyMiddleware, publicApiRateLimit, (c) =>
-  handleEntitlements(c, c.var.apiKey),
+subscriptions.get(
+  "/entitlements",
+  apiKeyMiddleware,
+  publicApiRateLimit,
+  legacySubscriptionUsageLoggerMiddleware("entitlements", "authorization"),
+  (c) => handleEntitlements(c, c.var.apiKey),
 );
-subscriptions.get("/entitlements/:apiKey", (c) =>
-  handleEntitlements(c, c.req.param("apiKey")),
+subscriptions.get(
+  "/entitlements/:apiKey",
+  legacySubscriptionUsageLoggerMiddleware("entitlements", "path"),
+  (c) => handleEntitlements(c, c.req.param("apiKey")),
 );
 
 async function handleListSubscriptions(c: Context, apiKey: string) {

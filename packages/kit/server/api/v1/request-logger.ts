@@ -338,3 +338,45 @@ export function requestLoggerMiddleware(
     }
   });
 }
+
+type LegacySubscriptionLoggerVars = {
+  apiKey?: string;
+  apiKeyHash?: string;
+};
+
+export function legacySubscriptionUsageLoggerMiddleware(
+  operation: "status" | "entitlements",
+  credentialTransport: "authorization" | "path",
+): ReturnType<
+  typeof createMiddleware<{ Variables: LegacySubscriptionLoggerVars }>
+> {
+  return createMiddleware<{ Variables: LegacySubscriptionLoggerVars }>(
+    async (c, next) => {
+      const start = Date.now();
+      await next();
+
+      const apiKey = c.var.apiKey;
+      const apiKeyHash =
+        c.var.apiKeyHash ?? (apiKey ? hashApiKey(apiKey) : undefined);
+      try {
+        console.log(
+          JSON.stringify({
+            level: "info",
+            kind: "legacy_subscription_request",
+            apiVersion: "v1",
+            operation,
+            credentialTransport,
+            statusCode: c.res.status,
+            durationMs: Math.max(0, Date.now() - start),
+            apiKeyHash,
+          }),
+        );
+      } catch (loggerError) {
+        console.error(
+          "legacy-subscription-usage-logger failed:",
+          describeErrorForLog(loggerError),
+        );
+      }
+    },
+  );
+}

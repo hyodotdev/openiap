@@ -154,6 +154,64 @@ describe("subscriptionsRoutes", () => {
     });
   });
 
+  it("labels v1 status and entitlement usage without logging credentials or user IDs", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_header",
+    };
+    mocks.query.mockResolvedValue(evaluationSnapshot());
+
+    const responses = [
+      await app.request("/subscriptions/status?userId=private-user", {
+        headers,
+      }),
+      await app.request(
+        "/subscriptions/entitlements/openiap-kit_pk_path?userId=private-user",
+      ),
+    ];
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    const usageLogs = logSpy.mock.calls
+      .map(([line]) => {
+        if (typeof line !== "string") return null;
+        try {
+          return JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((line) => line?.kind === "legacy_subscription_request");
+
+    expect(
+      usageLogs.map((line) => ({
+        operation: line?.operation,
+        credentialTransport: line?.credentialTransport,
+        statusCode: line?.statusCode,
+      })),
+    ).toEqual([
+      {
+        operation: "status",
+        credentialTransport: "authorization",
+        statusCode: 200,
+      },
+      {
+        operation: "entitlements",
+        credentialTransport: "path",
+        statusCode: 200,
+      },
+    ]);
+    expect(usageLogs).toHaveLength(2);
+    for (const line of usageLogs) {
+      expect(line?.apiKeyHash).toMatch(/^[0-9a-f]{16}$/);
+      expect(line).not.toHaveProperty("path");
+    }
+    const serialized = JSON.stringify(usageLogs);
+    expect(serialized).not.toContain("private-user");
+    expect(serialized).not.toContain("openiap-kit_pk_header");
+    expect(serialized).not.toContain("openiap-kit_pk_path");
+  });
+
   it("returns 403 before publishable keys can read administrative subscription data", async () => {
     const app = buildApp();
     const headers = {
