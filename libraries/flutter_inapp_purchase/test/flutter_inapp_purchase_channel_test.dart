@@ -1012,13 +1012,15 @@ void main() {
         iap.requestPurchase(
           const types.RequestPurchaseProps.inApp((
             apple: null,
-            google: types.RequestPurchaseAndroidProps(skus: ['android.sku']),
+            google: types.RequestPurchaseAndroidProps(
+              skus: <String>['android.sku'],
+            ),
           )),
         ),
         unavailable(),
       );
       await expectLater(
-        iap.fetchProducts(skus: const ['android.sku']),
+        iap.fetchProducts(skus: const <String>['android.sku']),
         unavailable(),
       );
       await expectLater(iap.getActiveSubscriptions(), unavailable());
