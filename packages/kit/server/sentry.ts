@@ -9,7 +9,7 @@ function scrubSpanData(data: Record<string, unknown> | undefined): void {
   for (const name of Object.keys(data)) {
     const normalized = name.toLowerCase();
     if (
-      normalized === "url.query" ||
+      ["url.query", "http.query", "http.request.query"].includes(normalized) ||
       normalized === "url.fragment" ||
       normalized.startsWith("url.path.parameter.") ||
       /(?:^|[._-])(authorization|cookie|set-cookie|proxy-authorization|x-api-key|body)(?:$|[._-])/iu.test(
@@ -21,7 +21,9 @@ function scrubSpanData(data: Record<string, unknown> | undefined): void {
     }
     if (
       typeof data[name] === "string" &&
-      ["url.full", "url.path", "http.url", "http.target"].includes(normalized)
+      ["url", "url.full", "url.path", "http.url", "http.target"].includes(
+        normalized,
+      )
     ) {
       data[name] = redactApiKeysInPath(data[name].split("?")[0]);
     }

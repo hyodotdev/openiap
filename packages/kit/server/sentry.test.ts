@@ -88,6 +88,40 @@ describe("scrubSentryEvent", () => {
     expect(JSON.stringify(event)).not.toContain(pii);
   });
 
+  it("scrubs the URL aliases emitted by Sentry Bun instrumentation", () => {
+    const secret = "openiap-kit_pk_live_HONOSECRET";
+    const pii = "private-hono-user";
+    const rawUrl = `http://localhost/v1/products/${secret}?userId=${pii}`;
+    const event = scrubSentryEvent({
+      contexts: {
+        trace: {
+          data: {
+            url: rawUrl,
+            "http.query": `userId=${pii}`,
+            "http.request.method": "GET",
+          },
+        },
+      },
+      spans: [
+        {
+          data: {
+            url: rawUrl,
+            "http.query": `userId=${pii}`,
+          },
+        },
+      ],
+    });
+    expect(event.contexts?.trace?.data).toEqual({
+      url: "http://localhost/v1/products/redacted",
+      "http.request.method": "GET",
+    });
+    expect(event.spans?.[0].data).toEqual({
+      url: "http://localhost/v1/products/redacted",
+    });
+    expect(JSON.stringify(event)).not.toContain(secret);
+    expect(JSON.stringify(event)).not.toContain(pii);
+  });
+
   it("leaves events without URL-shaped fields untouched", () => {
     expect(scrubSentryEvent({})).toEqual({});
     const event = scrubSentryEvent({ request: {} });
