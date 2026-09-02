@@ -1604,8 +1604,8 @@ function checkGeneratedTypeSync() {
 
 // Workspace consumers type-check against the authored client-spec sources
 // through the `openiap-source` export condition; their runtimes must resolve
-// the same way, or a value import would silently fall through to the
-// published `dist/` build that the workspace never produces.
+// the same way, or a value import would fail to resolve because the workspace
+// never builds the published `dist/` entry points.
 function checkOpenIapSourceCondition() {
   for (const [relativePath, scripts] of [
     ["packages/kit/package.json", ["dev:server", "build:server"]],

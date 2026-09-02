@@ -111,10 +111,17 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
 // deeper). The Vega build copies the example without the library checkout, so
 // every depth must resolve to the published module instead.
 const expoSourceImportPattern =
-  /from (['"])(?:\.\.\/)+src(?:\/types|\/utils\/errorMapping)?\1/gu;
+  /from (['"])(?:\.\.\/)+src(\/types|\/utils\/errorMapping)?\1/gu;
 
+// The public entry does not export the error-mapping helpers the example
+// calls, so those imports go to a local alias package that re-exports the
+// copied library module.
 const rewriteExpoSourceImports = (source) =>
-  source.replace(expoSourceImportPattern, 'from $1expo-iap$1');
+  source.replace(expoSourceImportPattern, (_match, quote, subpath) => {
+    const specifier =
+      subpath === '/utils/errorMapping' ? 'expo-iap-error-mapping' : 'expo-iap';
+    return `from ${quote}${specifier}${quote}`;
+  });
 
 const rewritePackageSourceImports = (source, sourcePath) => {
   const relativeSourcePath = path
@@ -405,6 +412,10 @@ run('bun', ['install', '--frozen-lockfile']);
 writeLocalPackageAlias(
   'expo-iap',
   path.join(tempPackageSourceRoot, 'index.kepler.ts'),
+);
+writeLocalPackageAlias(
+  'expo-iap-error-mapping',
+  path.join(tempPackageSourceRoot, 'utils', 'errorMapping.ts'),
 );
 writeExampleShims();
 run('./node_modules/.bin/react-native', [
