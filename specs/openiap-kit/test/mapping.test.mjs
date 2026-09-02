@@ -238,6 +238,20 @@ describe("store event mapping", () => {
     ).toHaveLength(2);
   });
 
+  it("maps only subscription voids, not one-time Google purchases", () => {
+    const voided = mapping.stores.google.mappings.filter(
+      (row) => row.storeNotification === "voidedPurchaseNotification",
+    );
+    expect(voided).toEqual([
+      expect.objectContaining({
+        storeSubtype: "1",
+        event: "subscription.refunded",
+      }),
+    ]);
+    expect(voided.some((row) => row.storeSubtype == null)).toBe(false);
+    expect(voided.some((row) => row.storeSubtype === "2")).toBe(false);
+  });
+
   it("uses only declared subscription states in a condition", () => {
     for (const m of allMappings) {
       for (const state of m.whenPreviousState ?? []) {

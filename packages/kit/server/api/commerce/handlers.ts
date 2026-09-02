@@ -81,7 +81,11 @@ function rethrowAsProtocolError(error: unknown, fallbackCode: string): never {
     convexError?.code ?? "none",
     error instanceof Error ? error.name : typeof error,
   );
-  throw new ProtocolOperationError(code, safeMessage(code));
+  throw new ProtocolOperationError(
+    code,
+    safeMessage(code),
+    code === "RATE_LIMITED" ? convexError?.retryAfterSec : undefined,
+  );
 }
 
 function requireUserId(userId: unknown): string {
@@ -341,10 +345,7 @@ export async function bindPurchase(
       break;
     case "horizon":
       // Horizon exposes no transaction identity a binding could key on.
-      throw new ProtocolOperationError(
-        "UNSUPPORTED_STORE",
-        "This provider cannot bind purchases for the named store",
-      );
+      return { bound: false };
     default:
       throw new ProtocolOperationError(
         "UNSUPPORTED_STORE",

@@ -284,6 +284,7 @@ describe("generated binding artifacts", () => {
     // green. So the whole signature is re-derived here from the executable
     // projection via graphql-js and must match exactly.
     const schema = buildSchema(rendered.get("bindings/operations.graphql"));
+    const authoredSchema = buildSchema(source);
     const signature = JSON.parse(
       rendered.get("bindings/introspection-signature.json"),
     );
@@ -301,7 +302,20 @@ describe("generated binding artifacts", () => {
             ...(Object.keys(args).length ? { args } : {}),
           };
         }
-        expected[name] = { kind: "OBJECT", fields };
+        const authoredType = authoredSchema.getType(name);
+        const jsonObject = authoredType?.astNode?.directives?.find(
+          (directive) => directive.name.value === "jsonObject",
+        );
+        const additionalProperties = jsonObject?.arguments?.find(
+          (argument) => argument.name.value === "additionalProperties",
+        );
+        expected[name] = {
+          kind: "OBJECT",
+          fields,
+          ...(additionalProperties?.value?.value === false
+            ? { closed: true }
+            : {}),
+        };
       } else if (type.constructor.name === "GraphQLInputObjectType") {
         const inputFields = {};
         for (const [fieldName, field] of Object.entries(type.getFields())) {

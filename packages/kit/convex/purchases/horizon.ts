@@ -12,7 +12,7 @@ import {
   ReceiptVerificationError,
 } from "./errors";
 import {
-  getProjectByApiKey,
+  getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
 } from "./shared";
@@ -165,7 +165,7 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
     const verificationStart = Date.now();
-    const project = await getProjectByApiKey(ctx, args.apiKey);
+    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
 
     if (project.horizonEnabled !== true) {
       throw new ProjectMetaHorizonNotEnabledError();

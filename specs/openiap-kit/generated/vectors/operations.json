@@ -688,6 +688,26 @@
       }
     },
     {
+      "id": "bindPurchase.unbindable-store.not-bound",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "mock-store-user",
+          "sku": "mock.premium"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
+      }
+    },
+    {
       "id": "entitlements.unknown-user.empty",
       "operation": "entitlements",
       "credential": "server",

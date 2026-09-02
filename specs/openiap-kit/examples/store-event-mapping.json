@@ -260,8 +260,9 @@
         },
         {
           "storeNotification": "voidedPurchaseNotification",
+          "storeSubtype": "1",
           "event": "subscription.refunded",
-          "notes": "Sent on its own field of the message rather than as a subscription notification type. Applies to a subscription; a voided one-time purchase is outside this version."
+          "notes": "Sent on its own field of the message rather than as a subscription notification type. The qualifier is Google's productType=1 (subscription); productType=2 is a one-time purchase and has no matching row in this version."
         },
         {
           "storeNotification": "testNotification",

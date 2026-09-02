@@ -215,4 +215,62 @@ describe("subscription user erasure", () => {
     );
     expect(scheduler.runAfter).not.toHaveBeenCalled();
   });
+
+  it("does not complete while an outbound body containing the user is claimed", async () => {
+    const userId = "private-user";
+    const projectId = "projects_1";
+    const db = new TestDb({
+      subscriptionUserErasureJobs: [
+        {
+          _id: "job",
+          projectId,
+          userId,
+          userIdHash: "digest",
+          status: "running",
+          subscriptionsErased: 0,
+          commerceEventsErased: 0,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      subscriptions: [],
+      commerceEvents: [
+        {
+          _id: "event",
+          projectId,
+          userId,
+          eventType: "subscription.renewed",
+        },
+      ],
+      outboundDeliveries: [
+        {
+          _id: "delivery",
+          eventId: "event",
+          status: "delivering",
+        },
+      ],
+    });
+    const scheduler = { runAfter: vi.fn().mockResolvedValue(undefined) };
+    const ctx = { db, scheduler } as never;
+
+    await expect(
+      drainSubscriptionUserErasurePage(ctx, "job" as never),
+    ).resolves.toMatchObject({ done: false, commerceEventsErased: 0 });
+    expect(db.tables.commerceEvents[0].userId).toBe(userId);
+    expect(db.tables.subscriptionUserErasureJobs[0].status).toBe("running");
+    expect(scheduler.runAfter).toHaveBeenLastCalledWith(
+      1_000,
+      expect.anything(),
+      {
+        jobId: "job",
+      },
+    );
+
+    db.tables.outboundDeliveries[0].status = "delivered";
+    await expect(
+      drainSubscriptionUserErasurePage(ctx, "job" as never),
+    ).resolves.toMatchObject({ done: true, commerceEventsErased: 1 });
+    expect(db.tables.commerceEvents[0]).not.toHaveProperty("userId");
+    expect(db.tables.subscriptionUserErasureJobs[0].status).toBe("completed");
+  });
 });

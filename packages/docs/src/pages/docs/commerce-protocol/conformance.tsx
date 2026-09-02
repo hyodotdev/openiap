@@ -39,7 +39,8 @@ function CommerceConformance() {
         or dual-binding, which adds cross-binding parity on every deterministic
         case. IAPKit is the dual-binding reference implementation, and the
         runner certifies an independent mock provider that shares no code with
-        it, so passing means conforming to the specification, not to IAPKit.
+        it, so passing measures the portable surface against the specification,
+        not against IAPKit.
       </p>
       <section>
         <AnchorLink id="runner" level="h2">
@@ -58,9 +59,11 @@ function CommerceConformance() {
           signing-only adapter fails.
         </p>
         <Callout kind="warning">
-          The vectors certify the transport contract with fake, well-formed
-          evidence. Passing says nothing about whether real Apple or Google
-          receipts validate — see{' '}
+          Conformance is a floor, not a production audit. The vectors use fake,
+          well-formed evidence and do not certify real store validation, the
+          event document schema, retry scheduling and dead-lettering,
+          destination safety, or store-event mapping. Cover those behaviors in
+          implementation-owned tests — see{' '}
           <a
             href={`${SPEC_URL}#11-conformance`}
             target="_blank"

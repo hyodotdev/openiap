@@ -444,9 +444,12 @@ describe("requestLoggerMiddleware", () => {
 });
 
 describe("redactApiKeysInPath", () => {
-  test("never lets a degenerate short credential eat path segments", () => {
+  test("redacts a credential slot without trusting the credential shape", () => {
     expect(redactApiKeysInPath("/v1/subscriptions/status/x", "v1")).toBe(
-      "/v1/subscriptions/status/x",
+      "/v1/subscriptions/status/redacted",
+    );
+    expect(redactApiKeysInPath("/v1/unrelated/x", "v1")).toBe(
+      "/v1/unrelated/x",
     );
   });
 
@@ -474,6 +477,22 @@ describe("redactApiKeysInPath", () => {
         "/v1/products/openiap-kit_sk_admin/premium/client-payload",
       ),
     ).toBe("/v1/products/redacted/premium/client-payload");
+  });
+
+  test("redacts legacy keys in every supported v1 path position", () => {
+    expect(
+      redactApiKeysInPath(
+        "https://kit.openiap.dev/v1/subscriptions/status/legacy-key?userId=user-1",
+      ),
+    ).toBe(
+      "https://kit.openiap.dev/v1/subscriptions/status/redacted?userId=user-1",
+    );
+    expect(redactApiKeysInPath("GET /v1/products/legacy-key/premium")).toBe(
+      "GET /v1/products/redacted/premium",
+    );
+    expect(redactApiKeysInPath("/api/v1/webhooks/google/legacy-key")).toBe(
+      "/api/v1/webhooks/google/redacted",
+    );
   });
 
   test("leaves a path with no credential alone", () => {

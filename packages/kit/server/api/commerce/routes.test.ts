@@ -125,6 +125,26 @@ describe("commerce REST adapter", () => {
     expect(body.error.message).not.toContain("upstream");
   });
 
+  it("preserves the Convex admission retry hint", async () => {
+    mocks.action.mockRejectedValue(new Error("limited"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "RATE_LIMITED",
+      message: "Too many verification requests",
+      retryAfterSec: 2,
+    });
+
+    const response = await post(
+      buildApp(),
+      "/commerce/v1/purchases/verify",
+      { store: "google", google: { purchaseToken: GOOGLE_TOKEN } },
+      CLIENT_KEY,
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("2");
+    expect((await response.json()).error.code).toBe("RATE_LIMITED");
+  });
+
   it.each([
     "PLAY_STORE_VERIFICATION_ERROR",
     "META_HORIZON_VERIFICATION_ERROR",
@@ -229,19 +249,20 @@ describe("commerce REST adapter", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
-  it("refuses to bind a Horizon purchase, which has no bindable identity", async () => {
+  it("reports a Horizon purchase as not bound without exposing why", async () => {
     const response = await post(buildApp(), "/commerce/v1/purchases/bind", {
       userId: "user-1",
       store: "horizon",
       horizon: { userId: "1234567890", sku: "premium" },
     });
-    expect(response.status).toBe(422);
-    expect((await response.json()).error.code).toBe("UNSUPPORTED_STORE");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ bound: false });
+    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
-  it("authenticates before store validation: an unknown key never sees UNSUPPORTED_STORE", async () => {
+  it("authenticates before revealing a non-binding store verdict", async () => {
     // The unknown key clears the edge (it is not a publishable prefix) but fails
-    // the authoritative check. It must get UNAUTHORIZED, not the store verdict.
+    // the authoritative check. It must get UNAUTHORIZED, not `bound: false`.
     mocks.query.mockRejectedValue(new Error("boom"));
     mocks.handleConvexError.mockReturnValue({
       code: "INVALID_API_KEY",

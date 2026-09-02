@@ -1475,22 +1475,31 @@ export async function drainSubscriptionUserErasurePage(
   for (const subscription of subscriptions) {
     await ctx.db.patch(subscription._id, { userId: undefined });
   }
+  let commerceEventsErasedThisPage = 0;
+  let waitingForClaimedDelivery = false;
   for (const event of commerceEvents) {
+    const deliveries = await ctx.db
+      .query("outboundDeliveries")
+      .withIndex("by_event", (q) => q.eq("eventId", event._id))
+      .collect();
+    if (deliveries.some((delivery) => delivery.status === "delivering")) {
+      waitingForClaimedDelivery = true;
+      continue;
+    }
     if (event.eventType.startsWith("entitlement.")) {
-      const deliveries = await ctx.db
-        .query("outboundDeliveries")
-        .withIndex("by_event", (q) => q.eq("eventId", event._id))
-        .collect();
       for (const delivery of deliveries) await ctx.db.delete(delivery._id);
       await ctx.db.delete(event._id);
     } else {
       await ctx.db.patch(event._id, { userId: undefined });
     }
+    commerceEventsErasedThisPage += 1;
   }
 
   const subscriptionsErased = job.subscriptionsErased + subscriptions.length;
-  const commerceEventsErased = job.commerceEventsErased + commerceEvents.length;
+  const commerceEventsErased =
+    job.commerceEventsErased + commerceEventsErasedThisPage;
   const done =
+    !waitingForClaimedDelivery &&
     subscriptions.length < USER_ERASURE_BATCH_SIZE &&
     commerceEvents.length < USER_ERASURE_BATCH_SIZE;
 
@@ -1510,7 +1519,7 @@ export async function drainSubscriptionUserErasurePage(
       updatedAt: now,
     });
     await ctx.scheduler.runAfter(
-      0,
+      waitingForClaimedDelivery ? 1_000 : 0,
       internal.subscriptions.internal.drainSubscriptionUserErasureJob,
       { jobId },
     );

@@ -21,13 +21,9 @@ import { parsePositiveNumber } from "../../utils/env";
 // limits their reach enough that Apple / Google's own API rate limits
 // become the next line of defense.
 //
-// Cross-machine note: Fly.io currently runs min_machines_running=1 for
-// this app, so the bucket is effectively global. If the fleet scales
-// out, each machine enforces its own bucket — limits become per-machine
-// rather than per-key globally. That's an accepted tradeoff: the
-// alternative (Convex-backed counter) adds a mutation to every verify
-// call and a hot-row contention point. Revisit if we ever run >~3
-// machines.
+// These edge buckets shed malformed and high-volume traffic cheaply. A
+// persistent per-project backstop in Convex also protects the public actions
+// from callers that bypass this process.
 
 export interface Bucket {
   tokens: number;

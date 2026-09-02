@@ -148,6 +148,10 @@ describe("verifyAppStoreReceiptInternalV1 handler", () => {
     });
 
     expect(appleMocks.getTransactionInfo).not.toHaveBeenCalled();
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(
+      ctx.runMutation.mock.calls.filter(
+        (call) => (call[1] as { state?: unknown }).state !== undefined,
+      ),
+    ).toHaveLength(1);
   });
 });

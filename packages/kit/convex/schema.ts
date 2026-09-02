@@ -196,6 +196,11 @@ const schema = defineSchema({
     // the legacy projects.apiKey column. The marker survives deletion of the
     // last scoped key so a removed legacy credential cannot become valid again.
     legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
+    // Persistent admission backstop for public receipt-verification actions.
+    verificationAdmissionTokens: v.optional(v.number()),
+    verificationAdmissionRefilledAt: v.optional(v.number()),
+    // Keyed user-erasure lookup without retaining a dictionary-testable hash.
+    userErasureHashKey: v.optional(v.string()),
 
     // Platform
     platform: v.optional(
@@ -834,7 +839,7 @@ const schema = defineSchema({
     .index("by_project_and_token", ["projectId", "purchaseToken"]),
 
   // Durable app-user erasure work. The raw userId exists only while a job is
-  // active; completion keeps its digest for idempotency and removes the value.
+  // active; completion keeps a project-keyed digest for idempotency.
   subscriptionUserErasureJobs: defineTable({
     projectId: v.id("projects"),
     userId: v.optional(v.string()),

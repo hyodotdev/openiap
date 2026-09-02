@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-01T19:52:23.082Z
+> Last updated: 2026-09-02T01:17:36.291Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -5880,9 +5880,10 @@ issues one. Where it does not, the consumer keys on a binding it established
 itself — but neither `userId` nor `productId` is safe alone: `userId` is absent
 until a purchase is bound (§2.4), and `productId` changes by design on
 `subscription.product_changed`. A consumer that cannot establish a stable key
-cannot derive current state from this stream. If it needs current state, it must
-use an emitter-specific authoritative status source; a portable read API is not
-part of 1.0 (§14).
+cannot derive current state from this stream. If it needs current state and the
+provider declares the entitlements profile, it uses `subscriptionStatus` or
+`entitlements` (§4.2–§4.3). Otherwise it falls back to an emitter-specific
+authoritative status source.
 
 Events derived from one notification share an `occurredAt`. This
 specification sets no tiebreaker among them, so a consumer MUST NOT read equal

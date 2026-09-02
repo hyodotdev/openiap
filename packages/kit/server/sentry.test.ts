@@ -16,6 +16,36 @@ describe("scrubSentryEvent", () => {
     expect(event.request && "query_string" in event.request).toBe(false);
   });
 
+  it("redacts legacy path keys without relying on a scoped prefix", () => {
+    const event = scrubSentryEvent({
+      request: {
+        url: "https://kit.openiap.dev/v1/subscriptions/status/legacy-project-key?userId=user-1",
+      },
+      transaction: "GET /v1/products/legacy-project-key",
+    });
+    expect(event.request?.url).toBe(
+      "https://kit.openiap.dev/v1/subscriptions/status/redacted",
+    );
+    expect(event.transaction).toBe("GET /v1/products/redacted");
+  });
+
+  it("drops request credentials and purchase evidence", () => {
+    const event = scrubSentryEvent({
+      request: {
+        headers: {
+          Authorization: "Bearer openiap-kit_sk_live_secret",
+          Cookie: "session=secret",
+          "content-type": "application/json",
+        },
+        cookies: { session: "secret" },
+        data: { purchaseToken: "receipt-secret" },
+      },
+    });
+    expect(event.request).toEqual({
+      headers: { "content-type": "application/json" },
+    });
+  });
+
   it("redacts keys embedded in transaction names", () => {
     const event = scrubSentryEvent({
       transaction: "GET /v1/products/openiap-kit_sk_live_abc",

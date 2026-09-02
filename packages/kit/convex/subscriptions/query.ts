@@ -295,15 +295,19 @@ export const subscriptionEvaluationSnapshot = query({
     userId: v.string(),
   },
   returns: v.object({
+    projectId: v.union(v.id("projects"), v.null()),
     candidates: v.array(subscriptionEvaluationRowShape),
     fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
     const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { candidates: [], fallback: null };
+    if (!project) return { projectId: null, candidates: [], fallback: null };
 
     const rows = await userSubscriptionRows(ctx, project._id, args.userId);
-    return shapeSubscriptionEvaluationSnapshot(rows);
+    return {
+      projectId: project._id,
+      ...shapeSubscriptionEvaluationSnapshot(rows),
+    };
   },
 });
 

@@ -8,7 +8,15 @@ import {
   rebindSubscriptionToUserHandler,
 } from "./internal";
 import { isValidSubscriptionUserId } from "./limits";
-import { sha256Hex } from "../utils/sha256";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
+
+function generateUserErasureHashKey(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
 
 // Public mutation called by SDKs after a successful receipt verification:
 // they know who the host-app user is, so they tell kit which userId owns
@@ -147,40 +155,45 @@ export const requestUserErasure = mutation({
       });
     }
 
-    const userIdHash = await sha256Hex(args.userId);
-    const existing = await ctx.db
+    const hashKey =
+      resolved.project.userErasureHashKey ?? generateUserErasureHashKey();
+    if (resolved.project.userErasureHashKey === undefined) {
+      await ctx.db.patch(resolved.project._id, { userErasureHashKey: hashKey });
+    }
+    const userIdHash = await hmacSha256Hex(hashKey, args.userId);
+    let existing = await ctx.db
       .query("subscriptionUserErasureJobs")
       .withIndex("by_project_and_user_hash", (q) =>
         q.eq("projectId", resolved.project._id).eq("userIdHash", userIdHash),
       )
       .unique();
-    if (existing && existing.status !== "completed") {
+    if (!existing) {
+      const legacyHash = await sha256Hex(args.userId);
+      existing = await ctx.db
+        .query("subscriptionUserErasureJobs")
+        .withIndex("by_project_and_user_hash", (q) =>
+          q.eq("projectId", resolved.project._id).eq("userIdHash", legacyHash),
+        )
+        .unique();
+      if (existing) {
+        await ctx.db.patch(existing._id, { userIdHash });
+      }
+    }
+    if (existing) {
       return { ok: true, jobId: existing._id, status: existing.status };
     }
 
     const now = Date.now();
-    const jobId = existing?._id
-      ? existing._id
-      : await ctx.db.insert("subscriptionUserErasureJobs", {
-          projectId: resolved.project._id,
-          userId: args.userId,
-          userIdHash,
-          status: "queued",
-          subscriptionsErased: 0,
-          commerceEventsErased: 0,
-          createdAt: now,
-          updatedAt: now,
-        });
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        userId: args.userId,
-        status: "queued",
-        subscriptionsErased: 0,
-        commerceEventsErased: 0,
-        completedAt: undefined,
-        updatedAt: now,
-      });
-    }
+    const jobId = await ctx.db.insert("subscriptionUserErasureJobs", {
+      projectId: resolved.project._id,
+      userId: args.userId,
+      userIdHash,
+      status: "queued",
+      subscriptionsErased: 0,
+      commerceEventsErased: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
     await ctx.scheduler.runAfter(
       0,
       internal.subscriptions.internal.drainSubscriptionUserErasureJob,

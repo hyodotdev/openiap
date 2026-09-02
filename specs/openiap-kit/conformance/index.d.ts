@@ -266,7 +266,7 @@ export declare const graphqlOperations: {
 /**
  * Structural fingerprint of the executable projection, compared as a subset
  * against a served schema's introspection: exact kinds, field/argument type
- * strings (nullability included), input members, and closed enum value sets.
+ * strings (nullability included), input members, and closed enum/object members.
  */
 export declare const introspectionSignature: {
   protocolVersion: string;
@@ -279,6 +279,7 @@ export declare const introspectionSignature: {
     | { kind: "INPUT_OBJECT"; inputFields: Record<string, string> }
     | {
         kind: "OBJECT";
+        closed?: true;
         fields: Record<string, { type: string; args?: Record<string, string> }>;
       }
   >;

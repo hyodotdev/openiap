@@ -40,7 +40,11 @@ import {
 // trusted servers keep credentials out of URLs.
 
 const subscriptions = new Hono<{
-  Variables: { apiKey: string; apiKeyHash?: string };
+  Variables: {
+    apiKey: string;
+    apiKeyHash?: string;
+    legacySubscriptionProjectId?: string;
+  };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
 const MAX_PRODUCT_ID_LENGTH = 256;
@@ -91,6 +95,9 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
       api.subscriptions.query.subscriptionEvaluationSnapshot,
       { apiKey, userId },
     );
+    if (snapshot.projectId) {
+      c.set("legacySubscriptionProjectId", snapshot.projectId);
+    }
     const result = evaluateSubscriptionStatus(snapshot, Date.now());
     return conditionalSubscriptionSnapshot(c, {
       apiKey,
@@ -134,6 +141,9 @@ async function handleEntitlements(c: Context, apiKey: string) {
       api.subscriptions.query.subscriptionEvaluationSnapshot,
       { apiKey, userId },
     );
+    if (snapshot.projectId) {
+      c.set("legacySubscriptionProjectId", snapshot.projectId);
+    }
     const result = evaluateEntitlements(
       userId,
       snapshot.candidates,
@@ -612,7 +622,7 @@ function subscriptionSnapshotEtag(args: {
 }): string {
   const digest = crypto
     .createHash("sha256")
-    .update(stableJson(args))
+    .update(stableJson({ kind: args.kind, result: args.result }))
     .digest("base64url")
     .slice(0, 32);
   return `W/"iapkit-subscription-${args.kind}-${digest}"`;

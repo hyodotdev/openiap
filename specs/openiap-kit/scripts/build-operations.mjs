@@ -622,6 +622,23 @@ function buildOperationVectors(ir) {
       },
     },
     {
+      // An integrated store may expose no stable purchase identity suitable
+      // for binding. That is still a non-binding outcome, not a store error.
+      id: "bindPurchase.unbindable-store.not-bound",
+      operation: "bindPurchase",
+      credential: "server",
+      input: {
+        userId: FIXTURES.userId,
+        store: "horizon",
+        horizon: { userId: "mock-store-user", sku: "mock.premium" },
+      },
+      expect: {
+        kind: "result",
+        schema: "BindPurchaseResult",
+        resultSubset: { bound: false },
+      },
+    },
+    {
       // A server read for a user the provider knows nothing about must be a
       // well-formed empty answer, not a canned entitled payload.
       id: "entitlements.unknown-user.empty",
@@ -653,6 +670,26 @@ function signatureTypeString(type) {
   return type.name;
 }
 
+function closedObjectNames(ast) {
+  return new Set(
+    ast.definitions
+      .filter((definition) => {
+        if (definition.kind !== Kind.OBJECT_TYPE_DEFINITION) return false;
+        const directive = definition.directives?.find(
+          (candidate) => candidate.name.value === "jsonObject",
+        );
+        const argument = directive?.arguments?.find(
+          (candidate) => candidate.name.value === "additionalProperties",
+        );
+        return (
+          argument?.value.kind === Kind.BOOLEAN &&
+          argument.value.value === false
+        );
+      })
+      .map((definition) => definition.name.value),
+  );
+}
+
 /**
  * A structural fingerprint of the executable projection, for the conformance
  * runner's introspection agreement check. Field and argument types carry full
@@ -661,7 +698,7 @@ function signatureTypeString(type) {
  * this version defines fails, while purely additive MINOR surface (new types,
  * new fields, new nullable arguments) still certifies.
  */
-function buildIntrospectionSignature(sdl, version) {
+function buildIntrospectionSignature(sdl, version, closedObjects) {
   const schema = buildSchema(sdl);
   const types = {};
   for (const [name, type] of Object.entries(schema.getTypeMap())) {
@@ -678,7 +715,11 @@ function buildIntrospectionSignature(sdl, version) {
           ...(Object.keys(args).length ? { args } : {}),
         };
       }
-      types[name] = { kind: "OBJECT", fields };
+      types[name] = {
+        kind: "OBJECT",
+        fields,
+        ...(closedObjects.has(name) ? { closed: true } : {}),
+      };
     } else if (isInputObjectType(type)) {
       const inputFields = {};
       for (const [fieldName, field] of Object.entries(type.getFields())) {
@@ -699,7 +740,7 @@ function buildIntrospectionSignature(sdl, version) {
   }
   return {
     $comment:
-      "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums) exact value sets; additive surface beyond it is a compatible MINOR.",
+      "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums and objects) exact members; additive surface beyond open objects is a compatible MINOR.",
     protocolVersion: version,
     queryType: schema.getQueryType()?.name ?? null,
     mutationType: schema.getMutationType()?.name ?? null,
@@ -747,6 +788,7 @@ export function buildOperationArtifacts(source) {
         buildIntrospectionSignature(
           renderExecutableSchema(ast, ir),
           ir.version,
+          closedObjectNames(ast),
         ),
         null,
         2,

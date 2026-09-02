@@ -1,6 +1,7 @@
 import { v, Infer } from "convex/values";
 import { internal } from "../_generated/api";
 import { ActionCtx } from "../_generated/server";
+import { Id } from "../_generated/dataModel";
 import { InvalidApiKeyError } from "./errors";
 import { receiptEnvironmentValidator } from "../schema";
 import {
@@ -141,6 +142,24 @@ export async function getProjectByApiKey(
     throw new InvalidApiKeyError();
   }
 
+  return project;
+}
+
+export async function assertVerificationAdmission(
+  ctx: ActionCtx,
+  projectId: Id<"projects">,
+): Promise<void> {
+  await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
+    projectId,
+  });
+}
+
+export async function getVerificationProjectByApiKey(
+  ctx: ActionCtx,
+  apiKey: string,
+) {
+  const project = await getProjectByApiKey(ctx, apiKey);
+  await assertVerificationAdmission(ctx, project._id);
   return project;
 }
 

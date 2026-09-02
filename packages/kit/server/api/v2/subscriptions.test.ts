@@ -285,3 +285,20 @@ describe("v2 subscription input and error handling", () => {
     logSpy.mockRestore();
   });
 });
+
+describe("v2 unauthenticated admission", () => {
+  it("rate-limits malformed credentials before authentication", async () => {
+    mocks.query.mockClear();
+    const app = buildApp();
+    let response: Response | undefined;
+    for (let attempt = 0; attempt <= 600; attempt += 1) {
+      response = await app.request("/subscriptions/status?userId=user-1", {
+        headers: { authorization: "not-a-bearer-token" },
+      });
+      if (response.status === 429) break;
+    }
+
+    expect(response?.status).toBe(429);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+});

@@ -60,6 +60,18 @@ function actionContext(projectRow = project()) {
   };
 }
 
+function savedReceipts(runMutation: ReturnType<typeof vi.fn>) {
+  return runMutation.mock.calls
+    .map((call) => call[1])
+    .filter(
+      (args): args is Record<string, unknown> =>
+        typeof args === "object" &&
+        args !== null &&
+        "requestData" in args &&
+        "state" in args,
+    );
+}
+
 async function runVerify(ctx: never, overrides: Record<string, unknown> = {}) {
   return await testableFunction(verifyAmazonReceiptInternalV1)._handler(ctx, {
     apiKey: "iapkit_test_key",
@@ -200,7 +212,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
       AmazonSandboxNotEnabledError,
     );
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(runMutation)).toHaveLength(0);
   });
 
   test("rejects production before fetch when no shared secret is configured", async () => {
@@ -214,7 +226,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
       AmazonSharedSecretNotConfiguredError,
     );
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(runMutation)).toHaveLength(0);
   });
 
   test("uses only the placeholder in opted-in sandbox and returns/persists its environment", async () => {
@@ -344,8 +356,8 @@ describe("verifyAmazonReceiptInternalV1", () => {
         state: HarmonizedPurchaseState.ENTITLED,
       });
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(runMutation).toHaveBeenCalledTimes(1);
-      expect(runMutation.mock.calls[0]?.[1]).toEqual(
+      expect(savedReceipts(runMutation)).toHaveLength(1);
+      expect(savedReceipts(runMutation)[0]).toEqual(
         expect.objectContaining({ isValid: true }),
       );
     },
@@ -364,7 +376,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
         AmazonReceiptVerificationError,
       );
       expect(fetchMock).toHaveBeenCalledTimes(3);
-      expect(runMutation).not.toHaveBeenCalled();
+      expect(savedReceipts(runMutation)).toHaveLength(0);
     },
   );
 
@@ -379,7 +391,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
       AmazonReceiptVerificationError,
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(runMutation)).toHaveLength(0);
   });
 
   test("does not persist transient or protocol failures", async () => {
@@ -398,7 +410,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
       await expect(runVerify(ctx)).rejects.toBeInstanceOf(
         AmazonReceiptVerificationError,
       );
-      expect(runMutation).not.toHaveBeenCalled();
+      expect(savedReceipts(runMutation)).toHaveLength(0);
     }
   });
 
@@ -432,7 +444,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
         AmazonReceiptVerificationError,
       );
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(runMutation).not.toHaveBeenCalled();
+      expect(savedReceipts(runMutation)).toHaveLength(0);
     },
   );
 
@@ -462,7 +474,7 @@ describe("verifyAmazonReceiptInternalV1", () => {
     await vi.runAllTimersAsync();
     await rejection;
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(runMutation)).toHaveLength(0);
   });
 });
 

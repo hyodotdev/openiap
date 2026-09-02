@@ -1035,6 +1035,15 @@ function compareIntrospection(servedSchema) {
       const servedFields = new Map(
         (served.fields ?? []).map((field) => [field.name, field]),
       );
+      if (expected.closed) {
+        for (const fieldName of servedFields.keys()) {
+          if (!Object.hasOwn(expected.fields, fieldName)) {
+            failures.push(
+              `closed type ${typeName} serves undeclared field ${fieldName}`,
+            );
+          }
+        }
+      }
       for (const [fieldName, expectedField] of Object.entries(
         expected.fields,
       )) {
@@ -1529,28 +1538,40 @@ async function checkEventsProfile(capabilities, eventsAdapter, lifecycle) {
         }
       }
       const expectSig = vector.presentedHeader ?? vector.expected;
-      if (got[headerNames.signature] !== expectSig) {
-        failures.push(
-          `delivery ${vector.name}: ${headerNames.signature} must be the signed header`,
+      const requiredHeaders = [
+        [headerNames.signature, expectSig, "the signed header"],
+        [
+          headerNames.timestamp,
+          String(vector.timestamp),
+          "the signing timestamp in seconds",
+        ],
+        [headerNames.eventId, event.eventId, "body.eventId"],
+        [headerNames.deliveryId, vector.deliveryId, "the attempt-chain id"],
+      ];
+      const normalizedHeaders = {};
+      for (const [
+        expectedName,
+        expectedValue,
+        description,
+      ] of requiredHeaders) {
+        const matches = Object.entries(got).filter(
+          ([name]) => name.toLowerCase() === expectedName,
         );
-      }
-      if (String(got[headerNames.timestamp]) !== String(vector.timestamp)) {
-        failures.push(
-          `delivery ${vector.name}: ${headerNames.timestamp} must be the signing timestamp in seconds`,
-        );
-      }
-      if (got[headerNames.eventId] !== event.eventId) {
-        failures.push(
-          `delivery ${vector.name}: ${headerNames.eventId} must equal body.eventId`,
-        );
-      }
-      if (got[headerNames.deliveryId] !== vector.deliveryId) {
-        failures.push(
-          `delivery ${vector.name}: ${headerNames.deliveryId} must equal the attempt-chain id`,
-        );
+        if (matches.length !== 1) {
+          failures.push(
+            `delivery ${vector.name}: ${expectedName} must occur exactly once, got ${matches.length}`,
+          );
+          continue;
+        }
+        normalizedHeaders[expectedName] = matches[0][1];
+        if (String(matches[0][1]) !== String(expectedValue)) {
+          failures.push(
+            `delivery ${vector.name}: ${expectedName} must equal ${description}`,
+          );
+        }
       }
       const chain = chains.get(vector.deliveryId) ?? [];
-      chain.push(got);
+      chain.push(normalizedHeaders);
       chains.set(vector.deliveryId, chain);
     }
     for (const [deliveryId, chain] of chains) {

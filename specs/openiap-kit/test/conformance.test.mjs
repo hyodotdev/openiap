@@ -1354,6 +1354,32 @@ describe("the portable conformance runner", () => {
     expect(eventsResult.failures.join(" ")).toContain("Content-Encoding");
   });
 
+  it("rejects duplicate timestamp headers with different casing", async () => {
+    const provider = createMockProvider({ declareEvents: true });
+    const report = await runConformance({
+      adapters: adaptersFor(provider),
+      Ajv,
+      credentials: provider.credentials,
+      eventsAdapter: {
+        ...referenceEventsAdapter,
+        delivery: async (args) => {
+          const composed = await referenceEventsAdapter.delivery(args);
+          return {
+            ...composed,
+            headers: { ...composed.headers, "OpenIAP-Timestamp": "0" },
+          };
+        },
+      },
+    });
+    const eventsResult = report.results.find(
+      (r) => r.id === "events.profile-verification" && r.binding === "rest",
+    );
+    expect(eventsResult.ok).toBe(false);
+    expect(eventsResult.failures.join(" ")).toContain(
+      "openiap-timestamp must occur exactly once",
+    );
+  });
+
   it("accepts an Identity Content-Encoding in any casing (RFC 9110)", async () => {
     const provider = createMockProvider({ declareEvents: true });
     const report = await runConformance({
@@ -2929,6 +2955,48 @@ describe("the portable conformance runner", () => {
     const probe = report.results.find((r) => r.id === "graphql.executor-probe");
     expect(probe.ok).toBe(false);
     expect(probe.failures.join(" ")).toContain("enum SubscriptionState");
+  });
+
+  it("fails introspection that adds a field to a closed tokenless result", async () => {
+    const provider = createMockProvider();
+    const extraFieldFetch = async (url, options) => {
+      const response = await provider.fetch(url, options);
+      if (
+        String(url).endsWith("/commerce/v1/graphql") &&
+        String(options?.body ?? "").includes("__schema")
+      ) {
+        const body = await response.json();
+        const type = body?.data?.__schema?.types?.find(
+          (entry) => entry.name === "SubscriptionStatusSnapshot",
+        );
+        type.fields.push({
+          name: "rawReceipt",
+          args: [],
+          type: { kind: "SCALAR", name: "String", ofType: null },
+        });
+        return new Response(JSON.stringify(body), {
+          status: response.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return response;
+    };
+    const report = await runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch: extraFieldFetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    const probe = report.results.find((r) => r.id === "graphql.executor-probe");
+    expect(probe.ok).toBe(false);
+    expect(probe.failures.join(" ")).toContain(
+      "closed type SubscriptionStatusSnapshot serves undeclared field rawReceipt",
+    );
   });
 
   it("certifies introspection carrying additive minor surface (new type, new nullable field)", async () => {

@@ -11,7 +11,10 @@ import {
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
 } from "../v1/middleware";
-import { multiAxisRateLimitMiddleware } from "../v1/rate-limit";
+import {
+  multiAxisRateLimitMiddleware,
+  sourceRateLimitMiddleware,
+} from "../v1/rate-limit";
 import {
   JsonBodyTooLargeError,
   readJsonBodyWithLimit,
@@ -28,6 +31,7 @@ const subscriptions = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const rateLimit = multiAxisRateLimitMiddleware();
+const sourceRateLimit = sourceRateLimitMiddleware() as never;
 const USER_ID_LIMIT_MESSAGE = `userId must be ≤ ${MAX_SUBSCRIPTION_USER_ID_LENGTH} chars`;
 const MAX_USER_ERASURE_BODY_BYTES = 4 * 1024;
 const secretAdminSecurity = [{ apiKey: [] }];
@@ -62,6 +66,12 @@ const commonErrorResponses = {
       "application/json": { schema: resolver(apiErrorResponseSchemaV2) },
     },
   },
+  429: {
+    description: "Rate limit exceeded",
+    content: {
+      "application/json": { schema: resolver(apiErrorResponseSchemaV2) },
+    },
+  },
   500: {
     description: "Internal server error",
     content: {
@@ -72,6 +82,7 @@ const commonErrorResponses = {
 
 subscriptions.use(
   "*",
+  sourceRateLimit,
   apiKeyMiddleware,
   secretAdminApiKeyMiddleware,
   rateLimit,

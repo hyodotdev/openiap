@@ -16,7 +16,7 @@ import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { loadAppleRootCertificates } from "../certificates/apple_root_certificates";
 import {
-  getProjectByApiKey,
+  getVerificationProjectByApiKey,
   mapToAppStoreReceiptResponse,
   applyExpectedProductId,
   AppStoreReceiptData,
@@ -67,7 +67,7 @@ export const verifyAppStoreReceiptInternalV1 = action({
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
     const verificationStart = Date.now();
-    const project = await getProjectByApiKey(ctx, args.apiKey);
+    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
 
     const decodedPayload = decodeJwsPayload(args.jws);
     // The payload is decoded, not verified, so its environment must never

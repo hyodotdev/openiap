@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { selectActiveWebhookPublishableKey } from "./query";
+import {
+  projectForDashboard,
+  selectActiveWebhookPublishableKey,
+} from "./query";
 
 describe("selectActiveWebhookPublishableKey", () => {
   it("selects the newest publishable key without returning secret material", () => {
@@ -45,5 +48,26 @@ describe("selectActiveWebhookPublishableKey", () => {
     ]);
 
     expect(selected).toBe("iapkit_legacy");
+  });
+});
+
+describe("projectForDashboard", () => {
+  it("removes verification and erasure secrets with the store secrets", () => {
+    const result = projectForDashboard({
+      _id: "projects_1",
+      apiKey: "legacy-secret",
+      horizonAppSecret: "horizon-secret",
+      amazonSharedSecret: "amazon-secret",
+      userErasureHashKey: "erasure-secret",
+      verificationAdmissionTokens: 10,
+      verificationAdmissionRefilledAt: 1_000,
+    } as never);
+
+    expect(result).not.toHaveProperty("apiKey");
+    expect(result).not.toHaveProperty("horizonAppSecret");
+    expect(result).not.toHaveProperty("amazonSharedSecret");
+    expect(result).not.toHaveProperty("userErasureHashKey");
+    expect(result).not.toHaveProperty("verificationAdmissionTokens");
+    expect(result).not.toHaveProperty("verificationAdmissionRefilledAt");
   });
 });

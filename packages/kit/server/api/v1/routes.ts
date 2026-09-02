@@ -576,6 +576,10 @@ const verifyPurchaseHandler = async (
     const convexError = handleConvexError(error);
 
     if (convexError !== null) {
+      if (convexError.code === "RATE_LIMITED") {
+        c.header("Retry-After", String(convexError.retryAfterSec ?? 1));
+        return c.json({ errors: [convexError] }, 429);
+      }
       return c.json({ errors: [convexError] }, 400);
     }
 

@@ -12,7 +12,8 @@ interface ChangeRow {
 
 const CHANGE_ROWS: ChangeRow[] = [
   {
-    change: 'New optional member, event type, operation, or error code',
+    change:
+      'New optional member on an open object, event type, operation, or error code',
     impact: 'MINOR',
   },
   {
@@ -21,6 +22,10 @@ const CHANGE_ROWS: ChangeRow[] = [
   },
   {
     change: 'Member removed, renamed, retyped, or made required',
+    impact: 'MAJOR',
+  },
+  {
+    change: 'Member added to a closed object or closed enumeration',
     impact: 'MAJOR',
   },
   {

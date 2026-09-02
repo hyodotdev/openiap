@@ -38,7 +38,15 @@ export interface VerifyLogLine {
  * and a secret key mistakenly placed in a URL must not be recorded either.
  */
 export function redactApiKeysInPath(path: string, knownKey?: string): string {
-  let scrubbed = path.replace(
+  let scrubbed = path;
+  for (const pattern of [
+    /(\/(?:api\/)?v1\/products\/)[^/?#]+/g,
+    /(\/(?:api\/)?v1\/webhooks\/(?:apple\/|google\/)?)[^/?#]+/g,
+    /(\/(?:api\/)?v1\/subscriptions\/(?:status|entitlements|list|metrics|revenue|bind-user)\/)[^/?#]+/g,
+  ]) {
+    scrubbed = scrubbed.replace(pattern, "$1redacted");
+  }
+  scrubbed = scrubbed.replace(
     /openiap-kit_(?:sk|pk)_[A-Za-z0-9_-]+/g,
     "redacted",
   );
@@ -342,6 +350,7 @@ export function requestLoggerMiddleware(
 type LegacySubscriptionLoggerVars = {
   apiKey?: string;
   apiKeyHash?: string;
+  legacySubscriptionProjectId?: string;
 };
 
 export function legacySubscriptionUsageLoggerMiddleware(
@@ -355,9 +364,14 @@ export function legacySubscriptionUsageLoggerMiddleware(
       const start = Date.now();
       await next();
 
-      const apiKey = c.var.apiKey;
-      const apiKeyHash =
-        c.var.apiKeyHash ?? (apiKey ? hashApiKey(apiKey) : undefined);
+      const projectId = c.var.legacySubscriptionProjectId;
+      const projectIdHash = projectId
+        ? crypto
+            .createHash("sha256")
+            .update(projectId)
+            .digest("hex")
+            .slice(0, 16)
+        : undefined;
       try {
         console.log(
           JSON.stringify({
@@ -368,7 +382,7 @@ export function legacySubscriptionUsageLoggerMiddleware(
             credentialTransport,
             statusCode: c.res.status,
             durationMs: Math.max(0, Date.now() - start),
-            apiKeyHash,
+            projectIdHash,
           }),
         );
       } catch (loggerError) {

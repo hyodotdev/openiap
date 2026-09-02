@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { testableFunction } from "../test.setup";
+import { hmacSha256Hex, sha256Hex } from "../utils/sha256";
 import {
   bindUserAsServer as registeredBindUserAsServer,
   rebindUser as registeredRebindUser,
@@ -19,10 +20,14 @@ describe("rebindUser authorization", () => {
     _id: "projects_1",
     _creationTime: 0,
     organizationId: "organizations_1",
+    userErasureHashKey: "test-erasure-hash-key",
   };
   const organization = { _id: "organizations_1", _creationTime: 0 };
 
-  const dbWith = (keyType?: "publishable" | "secret") => ({
+  const dbWith = (
+    keyType?: "publishable" | "secret",
+    erasureJob?: Record<string, unknown>,
+  ) => ({
     rows: {
       apiKeys: keyType
         ? [
@@ -39,6 +44,7 @@ describe("rebindUser authorization", () => {
       projects: [project],
       organizations: [organization],
       subscriptions: [],
+      subscriptionUserErasureJobs: erasureJob ? [erasureJob] : [],
     } as Record<string, Record<string, unknown>[]>,
     async get(id: string) {
       return (
@@ -63,14 +69,28 @@ describe("rebindUser authorization", () => {
               rows.find((r) =>
                 Object.entries(captured).every(([k, v]) => r[k] === v),
               ) ?? null,
-            unique: async () => null,
+            unique: async () =>
+              rows.find((r) =>
+                Object.entries(captured).every(([k, v]) => r[k] === v),
+              ) ?? null,
             collect: async () => [],
           };
         },
       };
       return api;
     },
-    async patch() {},
+    async patch(id: string, value: Record<string, unknown>) {
+      const row = Object.values(this.rows)
+        .flat()
+        .find((candidate) => candidate._id === id);
+      if (row) Object.assign(row, value);
+    },
+    async insert(table: string, value: Record<string, unknown>) {
+      const id = `${table}_${(this.rows[table]?.length ?? 0) + 1}`;
+      const row = { _id: id, ...value };
+      (this.rows[table] ??= []).push(row);
+      return id;
+    },
   });
 
   it("rejects a publishable key", async () => {
@@ -121,6 +141,98 @@ describe("rebindUser authorization", () => {
       (error: unknown) =>
         (error as { data?: { code?: string } }).data?.code ===
         "INVALID_API_KEY",
+    );
+  });
+
+  it("returns the completed erasure job instead of reopening it", async () => {
+    const userId = "user-1";
+    const completed = {
+      _id: "subscriptionUserErasureJobs_1",
+      projectId: project._id,
+      userIdHash: await hmacSha256Hex(project.userErasureHashKey, userId),
+      status: "completed",
+    };
+    const scheduler = { runAfter: vi.fn() };
+
+    await expect(
+      requestUserErasure._handler(
+        { db: dbWith("secret", completed), scheduler },
+        { apiKey: "k", userId },
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      jobId: completed._id,
+      status: "completed",
+    });
+    expect(scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("rekeys a legacy completed job on an idempotent request", async () => {
+    const userId = "legacy-user";
+    const completed = {
+      _id: "subscriptionUserErasureJobs_legacy",
+      projectId: project._id,
+      userIdHash: await sha256Hex(userId),
+      status: "completed",
+    };
+    const db = dbWith("secret", completed);
+    const scheduler = { runAfter: vi.fn() };
+
+    await expect(
+      requestUserErasure._handler(
+        { db, scheduler },
+        {
+          apiKey: "k",
+          userId,
+        },
+      ),
+    ).resolves.toMatchObject({ jobId: completed._id, status: "completed" });
+    expect(completed.userIdHash).toBe(
+      await hmacSha256Hex(project.userErasureHashKey, userId),
+    );
+    expect(scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("stores a keyed erasure lookup instead of a plain userId digest", async () => {
+    const userId = "guessable-user@example.com";
+    const db = dbWith("secret");
+    const scheduler = { runAfter: vi.fn() };
+
+    await requestUserErasure._handler(
+      { db, scheduler },
+      {
+        apiKey: "k",
+        userId,
+      },
+    );
+
+    const [job] = db.rows.subscriptionUserErasureJobs;
+    expect(job.userIdHash).toBe(
+      await hmacSha256Hex(project.userErasureHashKey, userId),
+    );
+    expect(job.userIdHash).not.toBe(await sha256Hex(userId));
+  });
+
+  it("creates a project erasure key on first use", async () => {
+    const userId = "first-erasure-user";
+    const db = dbWith("secret");
+    db.rows.projects = [{ ...project, userErasureHashKey: undefined }];
+    const scheduler = { runAfter: vi.fn() };
+
+    await requestUserErasure._handler(
+      { db, scheduler },
+      {
+        apiKey: "k",
+        userId,
+      },
+    );
+
+    const [projectRow] = db.rows.projects;
+    const key = projectRow.userErasureHashKey;
+    expect(key).toEqual(expect.any(String));
+    expect(String(key)).toHaveLength(64);
+    expect(db.rows.subscriptionUserErasureJobs[0].userIdHash).toBe(
+      await hmacSha256Hex(String(key), userId),
     );
   });
 

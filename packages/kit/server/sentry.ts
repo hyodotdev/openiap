@@ -11,7 +11,13 @@ const dsn = process.env.SENTRY_DSN;
  */
 export function scrubSentryEvent<
   T extends {
-    request?: { url?: string; query_string?: unknown };
+    request?: {
+      url?: string;
+      query_string?: unknown;
+      data?: unknown;
+      cookies?: unknown;
+      headers?: Record<string, unknown>;
+    };
     transaction?: string;
   },
 >(event: T): T {
@@ -20,6 +26,27 @@ export function scrubSentryEvent<
   }
   if (event.request && "query_string" in event.request) {
     delete event.request.query_string;
+  }
+  if (event.request && "data" in event.request) {
+    delete event.request.data;
+  }
+  if (event.request && "cookies" in event.request) {
+    delete event.request.cookies;
+  }
+  if (event.request?.headers) {
+    for (const name of Object.keys(event.request.headers)) {
+      if (
+        [
+          "authorization",
+          "cookie",
+          "set-cookie",
+          "proxy-authorization",
+          "x-api-key",
+        ].includes(name.toLowerCase())
+      ) {
+        delete event.request.headers[name];
+      }
+    }
   }
   if (event.transaction) {
     event.transaction = redactApiKeysInPath(event.transaction);

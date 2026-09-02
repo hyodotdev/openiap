@@ -23,7 +23,7 @@ import {
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
   applyExpectedProductId,
-  getProjectByApiKey,
+  getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
 } from "./shared";
@@ -461,7 +461,7 @@ export const verifyAmazonReceiptInternalV1 = action({
   returns: receiptResponseValidator,
   handler: async (ctx, args) => {
     const verificationStart = Date.now();
-    const project = await getProjectByApiKey(ctx, args.apiKey);
+    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
     const sandbox = args.sandbox === true;
     const environment = environmentForSandbox(sandbox);
     const sharedSecret = resolveAmazonSharedSecret({
