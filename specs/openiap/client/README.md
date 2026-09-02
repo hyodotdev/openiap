@@ -4,7 +4,7 @@
 
 <!-- markdownlint-disable MD033 -->
 <p align="center">
-  <img src="./logo.webp" alt="OpenIAP GraphQL logo" width="320" />
+  <img src="https://github.com/user-attachments/assets/f40873ee-dcf4-449e-93b2-203e6453da66" alt="OpenIAP GraphQL logo" width="320" />
   <br />
   <strong>OpenIAP meets GraphQL</strong>
 </p>
@@ -25,7 +25,8 @@ Protocol remains in `specs/openiap/commerce-protocol`.
 The npm tarball ships the TypeScript runtime and declarations compiled into
 `dist/`, so consumer compiler flags never re-check the authored sources.
 Workspace consumers keep resolving the authored sources through the
-`openiap-source` export condition (`customConditions` in their `tsconfig`).
+`openiap-source` export condition (`customConditions` in their `tsconfig`), and
+their bun runtimes pass `--conditions=openiap-source` for the same reason.
 `dist/` is a generated packaging artifact: build it with `bun run build:package`
 and never edit or commit it.
 

@@ -30,7 +30,11 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
-import { validateVersion, versionSources } from "./release-branch-policy.mjs";
+import {
+  commerceProtocolManifest,
+  validateVersion,
+  versionSources,
+} from "./release-branch-policy.mjs";
 import {
   extractDirectDependencies,
   mergeResolved,
@@ -215,8 +219,8 @@ const COMPONENTS = {
     directory: "specs/openiap/commerce-protocol",
     source: {
       kind: "npm",
-      manifest: "specs/openiap/commerce-protocol/package.json",
-      historicalManifests: ["specs/openiap-kit/package.json"],
+      manifest: commerceProtocolManifest.path,
+      historicalManifests: commerceProtocolManifest.historicalPaths,
     },
   },
   docs: {

@@ -20,15 +20,16 @@ openiap/
 └── openiap-versions.json  # Version management
 ```
 
-## Package Responsibilities
+## Directory Responsibilities
 
-| Package  | Purpose                                                   | Language         | Output                        |
-| -------- | --------------------------------------------------------- | ---------------- | ----------------------------- |
-| `apple`  | iOS/macOS IAP implementation                              | Swift            | CocoaPods, SPM                |
-| `google` | Android IAP implementation                                | Kotlin           | Maven Central                 |
-| `spec`   | Client contract and generated types                       | GraphQL          | Swift, Kotlin, Dart, TS types |
-| `docs`   | Documentation website                                     | React/TypeScript | Vercel deployment             |
-| `kit`    | Hosted receipt-validation SaaS (free, MIT, self-hostable) | TypeScript       | Fly.io app (`openiap-kit`)    |
+| Directory                         | Purpose                                                           | Language         | Output                                                           |
+| --------------------------------- | ----------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
+| `packages/apple`                  | iOS/macOS IAP implementation                                      | Swift            | CocoaPods, SPM                                                   |
+| `packages/google`                 | Android IAP implementation                                        | Kotlin           | Maven Central                                                    |
+| `specs/openiap/client`            | Client contract and generated types                               | GraphQL          | Swift, Kotlin, Dart, TS types; package name `@hyodotdev/openiap` |
+| `specs/openiap/commerce-protocol` | Server-side Commerce Protocol contract, bindings, and conformance | GraphQL          | Package name `openiap-commerce-protocol`                         |
+| `packages/docs`                   | Documentation website                                             | React/TypeScript | Vercel deployment                                                |
+| `packages/kit`                    | Hosted receipt-validation SaaS (free, MIT, self-hostable)         | TypeScript       | Fly.io app (`openiap-kit`)                                       |
 
 ## Version Management
 

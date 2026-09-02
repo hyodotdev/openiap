@@ -7,10 +7,10 @@
   "scripts": {
     "dev": "vite --open",
     "dev:all": "convex dev --start 'run-p dev:server dev'",
-    "dev:server": "bun --watch ./server/server.ts",
+    "dev:server": "bun --conditions=openiap-source --watch ./server/server.ts",
     "dev:convex": "convex dev",
     "build": "vite build",
-    "build:server": "bun build --compile ./server/server.ts --outfile openiap-kit-server",
+    "build:server": "bun build --conditions=openiap-source --compile ./server/server.ts --outfile openiap-kit-server",
     "build:all": "bun run build && bun run build:server",
     "start": "./openiap-kit-server",
     "typecheck": "tsc -p . --noEmit --pretty false",

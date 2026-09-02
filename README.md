@@ -20,8 +20,8 @@ The OpenIAP specification standardizes IAP implementations to reduce fragmentati
 
 The contracts every package and library implements live under `specs/openiap/`. They are publishable, implementation-independent, and never deployed as services:
 
-- **[client](specs/openiap/client)** - OpenIAP client API and multiplatform type generation, published as `@hyodotdev/openiap` [![Spec Release](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.spec&label=version&logo=graphql&color=purple&prefix=v)](https://github.com/hyodotdev/openiap/blob/main/openiap-versions.json)
-- **[Commerce Protocol](specs/openiap/commerce-protocol)** - Vendor-neutral server operations, events, bindings, and conformance, published as `openiap-commerce-protocol`
+- **[client](specs/openiap/client)** - OpenIAP client API and multiplatform type generation, package name `@hyodotdev/openiap` [![Spec Release](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.spec&label=version&logo=graphql&color=purple&prefix=v)](https://github.com/hyodotdev/openiap/blob/main/openiap-versions.json)
+- **[Commerce Protocol](specs/openiap/commerce-protocol)** - Vendor-neutral server operations, events, bindings, and conformance, package name `openiap-commerce-protocol`
 
 ## Packages
 

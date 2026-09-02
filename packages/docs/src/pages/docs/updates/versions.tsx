@@ -27,7 +27,7 @@ function Versions() {
     <div className="doc-page">
       <SEO
         title="Versions"
-        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and the @hyodotdev/openiap client specification package."
+        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and the OpenIAP client specification (@hyodotdev/openiap)."
         path="/docs/updates/versions"
       />
       <h1>Versions &amp; Release Channels</h1>

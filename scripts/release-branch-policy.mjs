@@ -15,6 +15,25 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
+// Manifests that have carried the Commerce Protocol version, canonical first.
+// Release retries, provenance checks, and SBOM recovery for tags cut before the
+// specs/openiap move read the historical entry.
+export const commerceProtocolManifest = {
+  path: "specs/openiap/commerce-protocol/package.json",
+  historicalPaths: ["specs/openiap-kit/package.json"],
+};
+
+const readCommerceProtocolVersion = (root) => {
+  const candidates = [
+    commerceProtocolManifest.path,
+    ...commerceProtocolManifest.historicalPaths,
+  ];
+  const manifest =
+    candidates.find((candidate) => existsSync(resolve(root, candidate))) ??
+    commerceProtocolManifest.path;
+  return readJson(root, manifest).version;
+};
+
 export const versionSources = {
   apple: {
     label: "openiap-apple",
@@ -26,15 +45,7 @@ export const versionSources = {
   },
   "commerce-protocol": {
     label: "openiap-commerce-protocol",
-    read: (root) =>
-      readJson(
-        root,
-        existsSync(
-          resolve(root, "specs/openiap/commerce-protocol/package.json"),
-        )
-          ? "specs/openiap/commerce-protocol/package.json"
-          : "specs/openiap-kit/package.json",
-      ).version,
+    read: readCommerceProtocolVersion,
   },
   docs: {
     label: "OpenIAP Spec",

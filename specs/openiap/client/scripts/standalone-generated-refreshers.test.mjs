@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
+  closeSync,
   copyFileSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
+  openSync,
   readdirSync,
+  readFileSync,
   readlinkSync,
   rmSync,
-  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -292,8 +294,15 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
     );
     const commentPrefix = definition.groupName === "gdscript" ? "#" : "//";
     const expected = normalizeFixtureHeader(definition.fixture, commentPrefix);
-    assert.equal(readFileSync(checkout.isolatedTarget, "utf8"), expected);
-    assert.equal(statSync(checkout.isolatedTarget).mode & 0o777, 0o644);
+    // Read and stat through one descriptor: a path-based stat followed by
+    // path-based reads is a check-then-use pattern CodeQL flags as a race.
+    const replaced = openSync(checkout.isolatedTarget, "r");
+    try {
+      assert.equal(readFileSync(replaced, "utf8"), expected);
+      assert.equal(fstatSync(replaced).mode & 0o777, 0o644);
+    } finally {
+      closeSync(replaced);
+    }
     assert.equal(
       readFileSync(checkout.curlLog, "utf8"),
       `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,

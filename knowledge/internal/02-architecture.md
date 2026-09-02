@@ -79,7 +79,7 @@ own production data, or run a production migration. `bun run audit:layout`
 rejects legacy schema ownership under `packages/gql` and service deployment
 manifests under `specs/`.
 
-## Package Responsibilities
+## Directory Responsibilities
 
 ### specs/openiap/client
 

@@ -18,6 +18,7 @@ import {
   maskKotlinCommentsAndStrings,
   maskTypeScriptCommentsAndStrings,
 } from "./audit-purchase-payload-parity.mjs";
+import { sponsorBlockStart } from "./sync-sponsors.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 execFileSync(
@@ -1598,6 +1599,28 @@ function checkGeneratedTypeSync() {
         kind,
       ),
     );
+  }
+}
+
+// Workspace consumers type-check against the authored client-spec sources
+// through the `openiap-source` export condition; their runtimes must resolve
+// the same way, or a value import would silently fall through to the
+// published `dist/` build that the workspace never produces.
+function checkOpenIapSourceCondition() {
+  for (const [relativePath, scripts] of [
+    ["packages/kit/package.json", ["dev:server", "build:server"]],
+    ["packages/mcp-server/package.json", ["start", "start:http"]],
+  ]) {
+    const packageJson = JSON.parse(read(relativePath));
+    for (const script of scripts) {
+      if (
+        !packageJson.scripts?.[script]?.includes("--conditions=openiap-source")
+      ) {
+        fail(
+          `${relativePath} script ${script} must pass --conditions=openiap-source`,
+        );
+      }
+    }
   }
 }
 
@@ -4095,6 +4118,14 @@ function checkFrameworkDependencyHygiene() {
       "https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google",
     ],
     "Google README install version",
+  );
+  // The client specification README ships as the npm README of
+  // @hyodotdev/openiap; specification READMEs opt into the generated sponsor
+  // block through markers, and this one must keep them.
+  expectIncludes(
+    "specs/openiap/client/README.md",
+    [sponsorBlockStart],
+    "client specification README sponsor block",
   );
   expectIncludes(
     "packages/docs/src/lib/versioning.ts",
@@ -9274,6 +9305,7 @@ for (const issue of collectPurchasePayloadParityFailures(root)) {
   fail(issue);
 }
 checkGqlRuntimeExports();
+checkOpenIapSourceCondition();
 checkOperationRegistry();
 checkGoogleFlavorHandlerWiring();
 checkConformanceSuite();

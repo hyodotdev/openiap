@@ -272,9 +272,10 @@ Always use icon components, never inline `<svg>`:
 Husky lives at the **monorepo root**, not inside `packages/kit`. The
 hook (`.husky/pre-commit`) is paths-aware: when staged changes touch
 `packages/kit/**`, `packages/mcp-server/**`, or
-`specs/openiap/commerce-protocol/**` it runs the **full CI-equivalent gate**
-mirroring the `verify` job in `.github/workflows/deploy-kit.yml` plus the
-Commerce Protocol suite from `ci.yml`:
+`specs/openiap/commerce-protocol/**` it runs the **CI-equivalent gate**: the
+install, lint, format, test, and smoke steps of the `verify` job in
+`.github/workflows/deploy-kit.yml` (dependency audit, coverage, Docker, and
+Trivy stay CI-only) plus the Commerce Protocol suite from `ci.yml`:
 
 1. `bun install --frozen-lockfile` (catches lockfile drift)
 2. `bun run --filter @hyodotdev/openiap-kit lint` (tsc + eslint)

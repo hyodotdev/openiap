@@ -3,7 +3,10 @@
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import { validateVersion } from "./release-branch-policy.mjs";
+import {
+  commerceProtocolManifest,
+  validateVersion,
+} from "./release-branch-policy.mjs";
 
 export const PACKAGE_CONFIG = {
   apple: {
@@ -17,8 +20,7 @@ export const PACKAGE_CONFIG = {
     version: (content) => JSON.parse(content).version,
   },
   "commerce-protocol": {
-    path: "specs/openiap/commerce-protocol/package.json",
-    historicalPaths: ["specs/openiap-kit/package.json"],
+    ...commerceProtocolManifest,
     tags: (version) => [`openiap-commerce-protocol-${version}`],
     version: (content) => JSON.parse(content).version,
   },

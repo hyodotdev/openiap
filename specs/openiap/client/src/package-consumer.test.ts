@@ -27,13 +27,18 @@ beforeAll(() => {
       "--prefix",
       consumerRoot,
       "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
       "--no-package-lock",
       "--no-save",
       join(consumerRoot, filename),
     ],
     { stdio: "pipe" },
   );
-});
+  // npm pack runs prepack (a tsc build) before npm install unpacks the tarball;
+  // under vitest's default 10 s hook budget that times out when other suites
+  // contend for CPU.
+}, 120_000);
 
 afterAll(() => {
   if (consumerRoot) rmSync(consumerRoot, { recursive: true, force: true });

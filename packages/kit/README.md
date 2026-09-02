@@ -506,9 +506,11 @@ transactions are mapped to `CANCELED` in the harmonized state — see
 
 The monorepo-root husky hook (`.husky/pre-commit`) is paths-aware:
 when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or
-`specs/openiap/commerce-protocol/**` it runs the full **CI-equivalent** chain
-mirroring the `verify` job in `.github/workflows/deploy-kit.yml` plus the
-Commerce Protocol suite that `ci.yml` runs in `test-commerce-protocol`:
+`specs/openiap/commerce-protocol/**` it runs the **CI-equivalent** install,
+lint, format, test, and smoke steps of the `verify` job in
+`.github/workflows/deploy-kit.yml` (its dependency audit, coverage, Docker, and
+Trivy steps stay CI-only) plus the Commerce Protocol suite that `ci.yml` runs
+in `test-commerce-protocol`:
 
 ```bash
 bun install --frozen-lockfile                           # catches lockfile drift

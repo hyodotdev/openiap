@@ -106,14 +106,15 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
   fs.writeFileSync(path.join(moduleRoot, main), source, 'utf8');
 };
 
+// Example sources import the library by relative path from any nesting depth
+// (`../../src/...` directly under example/src, `../../../src/...` one level
+// deeper). The Vega build copies the example without the library checkout, so
+// every depth must resolve to the published module instead.
+const expoSourceImportPattern =
+  /from (['"])(?:\.\.\/)+src(?:\/types|\/utils\/errorMapping)?\1/gu;
+
 const rewriteExpoSourceImports = (source) =>
-  source
-    .replaceAll("from '../../src/utils/errorMapping'", "from 'expo-iap'")
-    .replaceAll('from "../../src/utils/errorMapping"', 'from "expo-iap"')
-    .replaceAll("from '../../src/types'", "from 'expo-iap'")
-    .replaceAll('from "../../src/types"', 'from "expo-iap"')
-    .replaceAll("from '../../src'", "from 'expo-iap'")
-    .replaceAll('from "../../src"', 'from "expo-iap"');
+  source.replace(expoSourceImportPattern, 'from $1expo-iap$1');
 
 const rewritePackageSourceImports = (source, sourcePath) => {
   const relativeSourcePath = path
@@ -161,7 +162,11 @@ const copyDirectoryWithTransform = (
 
 const copyExampleSources = () => {
   copyFile(path.join(exampleRoot, 'App.kepler.tsx'), 'App.tsx');
-  copyDirectory(path.join(exampleRoot, 'src'), 'src');
+  copyDirectoryWithTransform(
+    path.join(exampleRoot, 'src'),
+    'src',
+    rewriteExpoSourceImports,
+  );
   copyDirectory(path.join(exampleRoot, 'vega-shims'), 'vega-shims');
 
   if (fs.existsSync(path.join(exampleRoot, 'assets'))) {

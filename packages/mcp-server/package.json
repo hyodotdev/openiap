@@ -21,8 +21,8 @@
     "build": "tsc -p .",
     "lint": "tsc -p . --noEmit && prettier --check \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "vitest run --passWithNoTests",
-    "start": "bun run src/index.ts",
-    "start:http": "bun run src/http.ts"
+    "start": "bun --conditions=openiap-source src/index.ts",
+    "start:http": "bun --conditions=openiap-source src/http.ts"
   },
   "dependencies": {
     "@hyodotdev/openiap": "workspace:*",

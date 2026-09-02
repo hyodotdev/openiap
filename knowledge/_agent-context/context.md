@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-02T09:37:00.270Z
+> Last updated: 2026-09-02T17:18:23.567Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -358,7 +358,7 @@ own production data, or run a production migration. `bun run audit:layout`
 rejects legacy schema ownership under `packages/gql` and service deployment
 manifests under `specs/`.
 
-## Package Responsibilities
+## Directory Responsibilities
 
 ### specs/openiap/client
 

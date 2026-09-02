@@ -56,7 +56,7 @@ Sanctioned exception: an operator-only `internalMutation` may stay in
 
 ## Pre-commit Gate (Paths-Aware, CI-Equivalent)
 
-The monorepo-root husky hook (`.husky/pre-commit`) runs the **full CI-equivalent gate** when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or `specs/openiap/commerce-protocol/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, the Commerce Protocol suite, `smoke:server` (Bun compile + boot probe), and the MCP server lint and tests. Mirrors the `verify` job in `deploy-kit.yml` plus the Commerce Protocol suite from `ci.yml`, so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
+The monorepo-root husky hook (`.husky/pre-commit`) runs the **CI-equivalent gate** (the `verify` job's install, lint, format, test, and smoke steps; dependency audit, coverage, Docker, and Trivy stay CI-only) when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or `specs/openiap/commerce-protocol/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, the Commerce Protocol suite, `smoke:server` (Bun compile + boot probe), and the MCP server lint and tests. Mirrors the `verify` job in `deploy-kit.yml` plus the Commerce Protocol suite from `ci.yml`, so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
 
 If the hook fails, fix the underlying issue and re-stage; never bypass with `--no-verify`.
 
