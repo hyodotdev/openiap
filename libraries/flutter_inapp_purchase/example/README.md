@@ -91,6 +91,10 @@ openiapPlatform=none
 
 Run `flutter clean` before rebuilding after changing this property.
 
+`openiapPlatform=none` cannot be combined with `horizonEnabled` or
+`fireOsEnabled`; disable both legacy store flags first, or the Android build
+fails with `openiapPlatform=none conflicts with legacy store flags`.
+
 `initConnection()` then returns `false`, and Android store operations report
 `ErrorCode.IapNotAvailable`. The APK contains no Play Billing, Horizon, or
 Amazon IAP SDK dependency, and no billing manifest entry supplied by those

@@ -16,6 +16,7 @@ class BuilderDemoScreen extends StatefulWidget {
 class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
   final _iap = FlutterInappPurchase.instance;
   String _status = 'Ready';
+  bool _connected = false;
   bool _isProcessing = false;
   StreamSubscription<Purchase>? _purchaseUpdatedSubscription;
   StreamSubscription<PurchaseError>? _purchaseErrorSubscription;
@@ -47,14 +48,20 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
       // Initialize with default settings (no alternative billing)
       final connected = await _iap.initConnection();
       if (!connected) {
-        setState(() => _status = 'IAP unavailable for this build');
+        setState(() {
+          _connected = false;
+          _status = 'IAP unavailable for this build';
+        });
         return;
       }
 
       // Setup purchase listeners
       _setupPurchaseListeners();
 
-      setState(() => _status = 'Connected');
+      setState(() {
+        _connected = true;
+        _status = 'Connected';
+      });
     } catch (e) {
       setState(() => _status = 'Connection failed: $e');
     }
@@ -330,19 +337,21 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _simplePurchase,
+              onPressed: _isProcessing || !_connected ? null : _simplePurchase,
               icon: const Icon(Icons.shopping_bag),
               label: const Text('Simple Purchase (In‑app)'),
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _subscriptionPurchase,
+              onPressed:
+                  _isProcessing || !_connected ? null : _subscriptionPurchase,
               icon: const Icon(Icons.subscriptions),
               label: const Text('Subscription (Monthly)'),
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: _isProcessing ||
+                      !_connected ||
                       kIsWeb ||
                       defaultTargetPlatform != TargetPlatform.android
                   ? null
@@ -360,7 +369,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _alternativeBillingPurchase,
+              onPressed: _isProcessing || !_connected
+                  ? null
+                  : _alternativeBillingPurchase,
               icon: const Icon(Icons.payment),
               label: const Text('Purchase with Alternative Billing'),
               style: ElevatedButton.styleFrom(
@@ -370,7 +381,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _alternativeBillingSubscription,
+              onPressed: _isProcessing || !_connected
+                  ? null
+                  : _alternativeBillingSubscription,
               icon: const Icon(Icons.card_membership),
               label: const Text('Subscription with Alternative Billing'),
               style: ElevatedButton.styleFrom(

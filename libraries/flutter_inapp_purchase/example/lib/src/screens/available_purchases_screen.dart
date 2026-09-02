@@ -96,8 +96,10 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
 
     try {
       final connected = await _iap.initConnection();
+      if (!mounted) return;
       setState(() {
         _connected = connected;
+        _loading = connected;
       });
       if (!connected) return;
       await _loadPurchases();

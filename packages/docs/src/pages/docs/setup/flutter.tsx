@@ -227,6 +227,12 @@ function FlutterSetup() {
           store operations report <code>ErrorCode.IapNotAvailable</code>. Omit
           the property to keep Google Play as the default.
         </p>
+        <Callout kind="warning">
+          <code>openiapPlatform=none</code> cannot be combined with{' '}
+          <code>horizonEnabled</code> or <code>fireOsEnabled</code>. Disable
+          both legacy store flags first, or the Android build fails with{' '}
+          <code>openiapPlatform=none conflicts with legacy store flags</code>.
+        </Callout>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
         <p>

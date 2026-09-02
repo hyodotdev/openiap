@@ -207,6 +207,7 @@ Important:
         enableBillingProgramAndroid: newProgram,
       );
 
+      if (!mounted) return;
       setState(() {
         _connected = connected;
         _purchaseResult = connected
@@ -218,6 +219,7 @@ Important:
       if (connected) await _fetchProducts();
     } catch (e) {
       debugPrint('[AlternativeBilling] Reconnection error: $e');
+      if (!mounted) return;
       setState(() {
         _purchaseResult = 'Reconnection failed: $e';
         _isReconnecting = false;

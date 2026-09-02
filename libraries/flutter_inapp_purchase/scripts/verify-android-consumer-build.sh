@@ -151,7 +151,7 @@ fi
     echo "Failed to locate the Android none merged manifest" >&2
     exit 1
   fi
-  if grep -Eq 'com\.android\.vending\.BILLING|com\.amazon\.(sdktestclient|venezia|inapp\.purchasing)' "$merged_manifest"; then
+  if grep -Eq 'com\.android\.vending\.BILLING|com\.amazon\.(device\.iap|sdktestclient|venezia|inapp\.purchasing)' "$merged_manifest"; then
     echo "Android none build retained a store billing manifest entry" >&2
     exit 1
   fi
