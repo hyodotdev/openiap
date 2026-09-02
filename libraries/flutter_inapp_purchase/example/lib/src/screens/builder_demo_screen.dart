@@ -45,7 +45,11 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
       }
 
       // Initialize with default settings (no alternative billing)
-      await _iap.initConnection();
+      final connected = await _iap.initConnection();
+      if (!connected) {
+        setState(() => _status = 'IAP unavailable for this build');
+        return;
+      }
 
       // Setup purchase listeners
       _setupPurchaseListeners();

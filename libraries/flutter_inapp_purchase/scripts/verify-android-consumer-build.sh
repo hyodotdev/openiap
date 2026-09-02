@@ -130,4 +130,31 @@ fi
   fi
 
   flutter build apk --debug
+
+  printf '\nopeniapPlatform=none\n' >> android/gradle.properties
+  flutter clean
+  flutter pub get
+  flutter build apk --debug
+
+  dependency_report="$tmp_root/none-debug-runtime-classpath.txt"
+  ./android/gradlew -p android :app:dependencies \
+    --configuration debugRuntimeClasspath > "$dependency_report"
+  billing_dependency_pattern='^[-[:space:]|+\\]*project :openiap([[:space:]]|\(|\*|$)|io\.github\.hyochan\.openiap:openiap-google|com\.android\.billingclient|com\.amazon\.device\.iap'
+  if grep -Eq "$billing_dependency_pattern" "$dependency_report"; then
+    echo "Android none build retained a store billing dependency" >&2
+    grep -En "$billing_dependency_pattern" "$dependency_report" >&2
+    exit 1
+  fi
+
+  merged_manifest="$(find build/app/intermediates -type f -path '*merged_manifest*' -path '*debug*' -name AndroidManifest.xml -print -quit)"
+  if [ -z "$merged_manifest" ] || [ ! -f "$merged_manifest" ]; then
+    echo "Failed to locate the Android none merged manifest" >&2
+    exit 1
+  fi
+  if grep -Eq 'com\.android\.vending\.BILLING|com\.amazon\.(sdktestclient|venezia|inapp\.purchasing)' "$merged_manifest"; then
+    echo "Android none build retained a store billing manifest entry" >&2
+    exit 1
+  fi
+
+  ./android/gradlew -p android :flutter_inapp_purchase:testDebugUnitTest
 )

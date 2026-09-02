@@ -53,7 +53,7 @@ void main() {
 
   test('Android custom wire accepts canonical request fields only', () {
     final source = File(
-      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
+      'android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 
     expect(source, contains('KEY_SKUS'));

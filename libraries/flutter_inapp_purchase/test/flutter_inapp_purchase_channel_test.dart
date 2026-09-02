@@ -963,6 +963,44 @@ void main() {
       expect(initCount, 1);
     });
 
+    test('initConnection preserves unavailable native result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return false;
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isFalse);
+      await expectLater(
+        iap.getAvailablePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+
+    test('initConnection accepts the legacy Android success result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return 'Billing client ready';
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isTrue);
+    });
+
     test('endConnection forwards to native channel when initialized', () async {
       int endCount = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

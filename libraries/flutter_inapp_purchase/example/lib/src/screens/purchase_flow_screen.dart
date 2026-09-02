@@ -71,11 +71,12 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       }
 
       // Initialize with default settings (no alternative billing)
-      await _iap.initConnection();
+      final connected = await _iap.initConnection();
       if (!mounted) return;
       setState(() {
-        _connected = true;
+        _connected = connected;
       });
+      if (!connected) return;
 
       _setupPurchaseListeners();
       await _loadProducts();

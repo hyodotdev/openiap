@@ -67,6 +67,7 @@ class FlutterInappPurchasePlugin : FlutterPlugin, ActivityAware {
             return when (configuredStore) {
                 "amazon" -> "amazon"
                 "horizon" -> "horizon"
+                "none" -> "none"
                 else -> "play_store"
             }
         }

@@ -43,6 +43,24 @@ for each Apple target you use:
 
 Apple platform targets require iOS 15.0+ or macOS 14.0+.
 
+### Disable IAP on Android
+
+Apps that use this package only on Apple platforms can exclude every Android
+store SDK. Add this to the app's `android/gradle.properties`:
+
+```properties
+openiapPlatform=none
+```
+
+Then run `flutter clean` before the next Android build.
+
+The Android plugin remains registered, but it compiles a no-op implementation:
+`initConnection()` returns `false`, and store operations report
+`ErrorCode.IapNotAvailable`. The build contains no OpenIAP Google, Play Billing,
+Horizon, or Amazon IAP SDK dependency, and no billing manifest entry supplied by
+those SDKs. Omitting the property keeps Google Play as the default. Do not
+combine the property with `horizonEnabled` or `fireOsEnabled`.
+
 ## 🔧 Quick Start
 
 ### Basic Usage

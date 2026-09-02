@@ -87,12 +87,13 @@ class _AlternativeBillingScreenState extends State<AlternativeBillingScreen> {
 
   Future<void> _initConnection() async {
     try {
-      await FlutterInappPurchase.instance.initConnection(
+      final connected = await FlutterInappPurchase.instance.initConnection(
         enableBillingProgramAndroid: _billingProgram,
       );
 
       if (!mounted) return;
-      setState(() => _connected = true);
+      setState(() => _connected = connected);
+      if (!connected) return;
 
       _setupListeners();
       await _fetchProducts();
@@ -202,16 +203,19 @@ Important:
       await FlutterInappPurchase.instance.endConnection();
       await Future.delayed(const Duration(milliseconds: 500));
 
-      await FlutterInappPurchase.instance.initConnection(
+      final connected = await FlutterInappPurchase.instance.initConnection(
         enableBillingProgramAndroid: newProgram,
       );
 
       setState(() {
-        _purchaseResult = 'Reconnected with ${newProgram.name} program';
+        _connected = connected;
+        _purchaseResult = connected
+            ? 'Reconnected with ${newProgram.name} program'
+            : 'IAP unavailable for this build';
         _isReconnecting = false;
       });
 
-      await _fetchProducts();
+      if (connected) await _fetchProducts();
     } catch (e) {
       debugPrint('[AlternativeBilling] Reconnection error: $e');
       setState(() {

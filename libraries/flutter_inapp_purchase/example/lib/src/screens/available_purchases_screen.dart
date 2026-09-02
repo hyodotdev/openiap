@@ -95,10 +95,11 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     });
 
     try {
-      await _iap.initConnection();
+      final connected = await _iap.initConnection();
       setState(() {
-        _connected = true;
+        _connected = connected;
       });
+      if (!connected) return;
       await _loadPurchases();
     } catch (e) {
       if (!mounted) {

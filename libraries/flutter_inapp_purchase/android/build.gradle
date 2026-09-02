@@ -138,6 +138,26 @@ apply from: project.file('openiap-android-sdk.gradle')
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
 def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
+def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
+if (horizonEnabled && fireOsEnabled) {
+    throw new GradleException("flutter_inapp_purchase: horizonEnabled and fireOsEnabled cannot both be true")
+}
+
+def legacyOpenIapPlatform = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
+def requestedOpenIapPlatform = project.findProperty('openiapPlatform')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+if (requestedOpenIapPlatform != null && requestedOpenIapPlatform != 'none') {
+    throw new GradleException(
+        "flutter_inapp_purchase: openiapPlatform only supports the opt-out value 'none'"
+    )
+}
+if (requestedOpenIapPlatform == 'none' && (horizonEnabled || fireOsEnabled)) {
+    throw new GradleException(
+        "flutter_inapp_purchase: openiapPlatform=none conflicts with legacy store flags"
+    )
+}
+def openiapPlatform = requestedOpenIapPlatform ?: legacyOpenIapPlatform
+def androidIapDisabled = openiapPlatform == 'none'
 
 android {
     if (project.android.hasProperty('namespace')) {
@@ -145,24 +165,24 @@ android {
     }
     compileSdk = openIapCompileSdkVersion
 
-    def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-    def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-    if (horizonEnabled && fireOsEnabled) {
-        throw new GradleException("flutter_inapp_purchase: horizonEnabled and fireOsEnabled cannot both be true")
-    }
-    def openiapFlavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
-
     defaultConfig {
         minSdkVersion = openIapMinSdkVersion
         targetSdkVersion = openIapTargetSdkVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Select the matching openiap-google flavor.
-        missingDimensionStrategy "platform", openiapFlavor
-        buildConfigField "String", "OPENIAP_STORE", "\"${openiapFlavor}\""
+        if (!androidIapDisabled) {
+            missingDimensionStrategy "platform", openiapPlatform
+        }
+        buildConfigField "String", "OPENIAP_STORE", "\"${openiapPlatform}\""
     }
     sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
+        main.java.srcDirs += [
+            'src/main/kotlin',
+            androidIapDisabled ? 'src/none/kotlin' : 'src/store/kotlin',
+        ]
+        test.java.setSrcDirs([
+            androidIapDisabled ? 'src/noneTest/kotlin' : 'src/storeTest/kotlin',
+        ])
     }
     lint {
         disable 'InvalidPackage'
@@ -184,24 +204,23 @@ kotlin {
 }
 
 dependencies {
-    // In monorepo: use local packages/google source if available
-    def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-    def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-    def localGoogleProject = findProject(':openiap')
-    if (localGoogleProject != null) {
-        implementation project(':openiap')
-    } else if (fireOsEnabled) {
-        implementation "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}"
-    } else if (horizonEnabled) {
-        implementation "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}"
-    } else {
-        implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
+    if (!androidIapDisabled) {
+        def localGoogleProject = findProject(':openiap')
+        if (localGoogleProject != null) {
+            implementation project(':openiap')
+        } else if (openiapPlatform == 'amazon') {
+            implementation "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}"
+        } else if (openiapPlatform == 'horizon') {
+            implementation "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}"
+        } else {
+            implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
+        }
+
+        implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
+        implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}"
     }
 
-    implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}"
     testImplementation "junit:junit:${readRequiredAndroidGradleProperty(projectDir, 'openIapJunitVersion')}"
 
-    // Google Play Billing comes transitively from openiap-google so its
-    // version stays centralized in packages/google.
+    // Store SDK versions stay centralized in packages/google.
 }

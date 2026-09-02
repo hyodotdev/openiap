@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('Android custom channel accepts canonical wire fields only', () {
     final source = File(
-      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/'
+      'android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/'
       'AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 

@@ -2294,7 +2294,7 @@ function checkFlutter() {
     );
   }
   expectIncludes(
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     ['"setPurchaseUpdatedListenerOptions" ->'],
     "Flutter Android purchase listener option no-op",
   );
@@ -2508,7 +2508,7 @@ function checkFlutter() {
     "Flutter Android requestPurchase parser",
   );
   expectIncludes(
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     [
       '"Invalid developerBillingOption: ${e.message}"',
       '"Invalid subscriptionProductReplacementParams: ${e.message}"',
@@ -2517,7 +2517,7 @@ function checkFlutter() {
     "Flutter Android billing option validation",
   );
   expectNotIncludes(
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     [
       'OpenIapLog.w(TAG, "Failed to parse developerBillingOption:',
       'OpenIapLog.w(TAG, "Failed to parse subscriptionProductReplacementParams:',
@@ -2694,7 +2694,7 @@ function checkIapkitAmazonContractWiring() {
     "Flutter IAPKit Amazon contract",
   );
   for (const file of [
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
     "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
   ]) {
@@ -3446,7 +3446,7 @@ function checkBillingChoiceFieldBindings() {
     "Flutter Billing Choice Dart bridge fields",
   );
   expectIncludes(
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     [
       'configMap["billingChoiceScreenTypeAndroid"]',
       "originalExternalTransactionId = originalExternalTransactionId",
@@ -7448,12 +7448,12 @@ function checkFrameworkDependencyHygiene() {
       "Flutter standalone Android Gradle plugin must not lag compileSdk support",
     );
     expectIncludes(
-      "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+      "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
       ["val payload = JSONObject(serializeOpenIapError(e))"],
       "Flutter Android plugin error serialization",
     );
     expectNotIncludes(
-      "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+      "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
       [
         '@Deprecated("Deprecated channel endpoint; will be removed in 7.0.0")',
         "will be removed in 7.0.0",
