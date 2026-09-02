@@ -16,6 +16,11 @@ export const PACKAGE_CONFIG = {
     tags: (version) => [`openiap-conformance-${version}`],
     version: (content) => JSON.parse(content).version,
   },
+  "commerce-protocol": {
+    path: "specs/openiap-kit/package.json",
+    tags: (version) => [`openiap-commerce-protocol-${version}`],
+    version: (content) => JSON.parse(content).version,
+  },
   docs: {
     path: "openiap-versions.json",
     tags: (version) => [`docs-${version}`],

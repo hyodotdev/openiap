@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/provider-capabilities.schema.json",
+  "title": "OpenIAP Commerce Protocol implementation descriptor",
+  "description": "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
+  "type": "object",
+  "required": [
+    "specVersion",
+    "eventTypes",
+    "stores"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specVersion": {
+      "description": "OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "implementation": {
+      "description": "Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.",
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "description": "Name of the backend making this declaration, for an operator reading a descriptor without knowing where it came from.",
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "description": "Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "eventTypes": {
+      "description": "Event types this implementation can emit. A consumer uses it to know which lifecycle signals to expect; absence of a type here means this implementation never produces it, which is different from a type that simply has not occurred yet.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z]+\\.[a-z_]+$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "stores": {
+      "description": "Keyed by store, using the same open value space as the event envelope. An implementation declares only the stores it actually integrates.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/StoreCapabilities"
+      }
+    },
+    "profiles": {
+      "description": "Operation profiles this implementation serves, keyed by profile name with the profile version as the value. This version names `verification`, `entitlements`, `events`, and `accountLifecycle`; the key space is open, so a consumer MUST ignore a profile it does not recognise. An implementation MUST declare only profiles it implements and passes conformance for, and MUST NOT declare a profile it partially implements. Absent on a descriptor from an events-only emitter that predates the operation surface.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+      }
+    },
+    "bindings": {
+      "description": "Transport bindings this implementation serves for the declared profiles, keyed by binding name with the binding version as the value. This version names `rest` and `graphql`; the key space is open. Declaring a binding means every declared profile operation is reachable over it. An implementation MAY serve one binding only. Absent on a descriptor from an events-only emitter.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+      }
+    }
+  },
+  "$defs": {
+    "StoreCapabilities": {
+      "description": "What one store's commerce surface offers and what this backend consumes of it, axis by axis. The container stays open: a version that names a new axis is a MINOR addition older consumers ignore.",
+      "type": "object",
+      "required": [
+        "initialValidation",
+        "serverNotifications",
+        "subscriptions",
+        "renewalEvents",
+        "refundEvents",
+        "expiration",
+        "reconciliation",
+        "entitlements",
+        "revenueAmount"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "initialValidation": {
+          "description": "Server-side receipt or token validation on demand.",
+          "$ref": "#/$defs/Support"
+        },
+        "serverNotifications": {
+          "description": "The store pushes lifecycle notifications to the backend.",
+          "$ref": "#/$defs/Support"
+        },
+        "subscriptions": {
+          "description": "A canonical subscription record can be maintained for this store.",
+          "$ref": "#/$defs/Support"
+        },
+        "renewalEvents": {
+          "description": "Renewal is observable as a distinct lifecycle event.",
+          "$ref": "#/$defs/Support"
+        },
+        "refundEvents": {
+          "description": "Refund or revocation is observable as a distinct lifecycle event.",
+          "$ref": "#/$defs/Support"
+        },
+        "expiration": {
+          "description": "Expiration is observable, rather than only inferred from a timestamp having passed.",
+          "$ref": "#/$defs/Support"
+        },
+        "reconciliation": {
+          "description": "A scheduled pass re-reads authoritative store state, so a lost notification can self-heal.",
+          "$ref": "#/$defs/Support"
+        },
+        "entitlements": {
+          "description": "Entitlement is derivable for access gating.",
+          "$ref": "#/$defs/Support"
+        },
+        "revenueAmount": {
+          "description": "The store asserts an amount that can be attributed to revenue with `store` provenance.",
+          "$ref": "#/$defs/Support"
+        }
+      }
+    },
+    "Support": {
+      "description": "Two axes, deliberately separate. `provider` is what the store's own API offers; `implementation` is what this backend actually consumes. They differ in practice — a store can publish a notification channel that a given backend has not integrated — and collapsing them into one boolean produces a dishonest matrix.",
+      "type": "object",
+      "required": [
+        "provider",
+        "implementation"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend.",
+          "type": "boolean"
+        },
+        "implementation": {
+          "description": "Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.",
+          "type": "boolean"
+        },
+        "notes": {
+          "description": "Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "provider": {
+              "const": true
+            },
+            "implementation": {
+              "const": true
+            }
+          }
+        },
+        {
+          "properties": {
+            "notes": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "notes"
+          ]
+        }
+      ],
+      "if": {
+        "properties": {
+          "implementation": {
+            "const": true
+          }
+        },
+        "required": [
+          "implementation"
+        ]
+      },
+      "then": {
+        "properties": {
+          "provider": {
+            "const": true
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      }
+    }
+  }
+}

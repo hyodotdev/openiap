@@ -135,6 +135,22 @@ crons.interval(
   { batchSize: 50 },
 );
 
+// User-erasure mutations schedule their own bounded continuation. This sweep
+// resumes queued or stale work after a cancelled scheduled function.
+crons.interval(
+  "resume subscription user erasure",
+  { minutes: 5 },
+  internal.subscriptions.internal.resumeSubscriptionUserErasureJobs,
+  {},
+);
+
+crons.interval(
+  "prune completed subscription user erasure jobs",
+  { hours: 6 },
+  internal.subscriptions.internal.pruneCompletedSubscriptionUserErasureJobs,
+  {},
+);
+
 // Revenue rollup. Walks `webhookEvents` over the trailing 3-day
 // window and refreshes the `revenueMetricsDaily` rows that power
 // the Analytics dashboard. Trailing window covers Apple ASN v2 and

@@ -196,6 +196,11 @@ const schema = defineSchema({
     // the legacy projects.apiKey column. The marker survives deletion of the
     // last scoped key so a removed legacy credential cannot become valid again.
     legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
+    // Persistent admission backstop for public receipt-verification actions.
+    verificationAdmissionTokens: v.optional(v.number()),
+    verificationAdmissionRefilledAt: v.optional(v.number()),
+    // Keyed user-erasure lookup without retaining a dictionary-testable hash.
+    userErasureHashKey: v.optional(v.string()),
 
     // Platform
     platform: v.optional(
@@ -308,7 +313,11 @@ const schema = defineSchema({
     organizationId: v.id("organizations"), // Denormalized for faster queries
 
     // Key information
-    key: v.string(), // The actual API key
+    // Publishable keys are public identifiers and remain recoverable for
+    // webhook URLs. Secret keys store only keyHash + keyPreview.
+    key: v.optional(v.string()),
+    keyHash: v.optional(v.string()),
+    keyPreview: v.optional(v.string()),
     name: v.string(), // User-friendly name for the key
     description: v.optional(v.string()),
 
@@ -336,6 +345,7 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_organization", ["organizationId"])
     .index("by_key", ["key"])
+    .index("by_key_hash", ["keyHash"])
     .index("by_project_and_active", ["projectId", "isActive"])
     .index("by_created_at", ["createdAt"]),
 
@@ -828,6 +838,27 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"]),
 
+  // Durable app-user erasure work. The raw userId exists only while a job is
+  // active; completion keeps a project-keyed digest for idempotency.
+  subscriptionUserErasureJobs: defineTable({
+    projectId: v.id("projects"),
+    userId: v.optional(v.string()),
+    userIdHash: v.string(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("completed"),
+    ),
+    subscriptionsErased: v.number(),
+    commerceEventsErased: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_and_user_hash", ["projectId", "userIdHash"])
+    .index("by_status_and_updated", ["status", "updatedAt"]),
+
   // Incrementally-maintained per-(project, currency) subscription
   // counters + MRR. Updated by `applySubscriptionEvent` so the
   // dashboard's `metricsSummary` query reads O(currencies) rows
@@ -1302,9 +1333,7 @@ const schema = defineSchema({
     originalTransactionId: v.optional(v.string()),
     subscriptionId: v.optional(v.id("subscriptions")),
     // Subscription as it stood immediately after this event. Stored rather
-    // than joined at read time: an event is an immutable fact, and the live
-    // row has already moved on by the time a consumer reads it. `active` is
-    // not repeated here — it is `entitlementActive` below.
+    // than joined at read time because the live row may have moved on.
     subscription: v.optional(
       v.object({
         state: subscriptionStateValidator,
@@ -1334,6 +1363,7 @@ const schema = defineSchema({
     prunableAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
+    .index("by_project_and_user", ["projectId", "userId"])
     .index("by_prunable_at", ["prunableAt"]),
 
   // Developer-configured destinations for outbound commerce events.

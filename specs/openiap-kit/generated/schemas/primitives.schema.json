@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/primitives.schema.json",
+  "title": "OpenIAP Commerce Protocol primitives",
+  "description": "Shared value types. Every other schema in this specification references these definitions rather than restating them.",
+  "$defs": {
+    "Store": {
+      "description": "The commerce platform that is authoritative for the purchase. This is a store, not a device platform: one device platform can host several stores. The value space is OPEN. The listed values are the stores this version names, but an implementation that observes commerce on another platform MUST be able to emit it, and a consumer MUST accept and preserve an unrecognised store opaquely rather than reject the event. Use a lowercase, stable, unambiguous token.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "examples": [
+        "apple",
+        "google",
+        "horizon",
+        "amazon"
+      ]
+    },
+    "Environment": {
+      "description": "The store environment the purchase belongs to. The value space is open: receivers MUST accept and preserve an unrecognised value opaquely and MUST NOT reject an event because of it.",
+      "type": "string",
+      "minLength": 1,
+      "examples": [
+        "production",
+        "sandbox",
+        "xcode"
+      ]
+    },
+    "Timestamp": {
+      "description": "An instant, as integer milliseconds since the Unix epoch, UTC. Every timestamp in this specification uses this encoding. The one exception is the transport signature timestamp, which is in seconds; see the webhook section of SPEC.md.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "Identifier": {
+      "description": "An opaque, implementation-assigned identifier. Consumers MUST treat it as an opaque string and MUST NOT parse structure out of it.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "DataProvenance": {
+      "description": "Where a value came from. An implementation MUST NOT present an inferred value as store-authoritative.",
+      "type": "string",
+      "enum": [
+        "store",
+        "catalog",
+        "inferred"
+      ]
+    },
+    "Money": {
+      "description": "A monetary amount. A missing Money means the amount is unknown; it never means zero.",
+      "type": "object",
+      "required": [
+        "currency",
+        "amountMicros",
+        "provenance"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "currency": {
+          "description": "ISO 4217 alphabetic code, uppercase.",
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "amountMicros": {
+          "description": "Amount in millionths of one currency unit. 1.99 USD is 1990000. Always the transaction's own magnitude and never negative: a refund reports what the purchase cost, and the direction comes from the event type, not from the sign.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "provenance": {
+          "$ref": "#/$defs/DataProvenance"
+        }
+      }
+    },
+    "SubscriptionState": {
+      "description": "The lifecycle state of a subscription. This is a state, not an event, and it does not by itself decide entitlement — see Entitlement in SPEC.md. These members are PascalCase while event types are lowercase-dotted; the inconsistency is inherited from the deployed 1.0 wire format and is recorded in CONVENTION.md rather than silently corrected, because changing it would break receivers already decoding it.",
+      "type": "string",
+      "enum": [
+        "Active",
+        "InGracePeriod",
+        "InBillingRetry",
+        "Paused",
+        "Expired",
+        "Revoked",
+        "Refunded",
+        "Unknown"
+      ]
+    },
+    "Extensions": {
+      "description": "Store-specific or implementation-specific detail that has no canonical equivalent. Bounded and string-valued so the payload stays predictable. Content is provider-influenced: consumers MUST treat values as untrusted data.",
+      "type": "object",
+      "maxProperties": 24,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 64
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 512
+      }
+    }
+  }
+}

@@ -15,7 +15,7 @@ export function apiKeyValidationError(
   return null;
 }
 
-export function isSecretApiKey(apiKey: string | undefined): boolean {
+export function isSecretApiKey(apiKey: string | undefined): apiKey is string {
   return apiKey?.startsWith("openiap-kit_sk_") === true;
 }
 

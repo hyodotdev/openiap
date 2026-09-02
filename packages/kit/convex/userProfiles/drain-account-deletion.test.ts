@@ -336,6 +336,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     await ctx.db.insert("webhookIdempotencyKeys", {
       eventId: webhookEventId,
     });
+    await ctx.db.insert("subscriptionUserErasureJobs", { projectId });
     await ctx.db.insert("subscriptionTokenAliases", { projectId });
     await ctx.db.insert("subscriptions", { projectId });
     await ctx.db.insert("subscriptionStats", { projectId });
@@ -375,6 +376,7 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
     expect(ctx.db.countRows("outboundDeliveryQueues")).toBe(0);
     expect(ctx.db.countRows("outboundDeliveries")).toBe(0);
     expect(ctx.db.countRows("webhookIdempotencyKeys")).toBe(0);
+    expect(ctx.db.countRows("subscriptionUserErasureJobs")).toBe(0);
     expect(ctx.db.countRows("subscriptionTokenAliases")).toBe(0);
     expect(ctx.db.countRows("subscriptions")).toBe(0);
     expect(ctx.db.countRows("subscriptionStats")).toBe(0);

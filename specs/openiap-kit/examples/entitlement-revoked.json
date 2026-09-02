@@ -1,0 +1,21 @@
+{
+  "eventId": "evt_01J8Z6C4T1W6X9Y2E4H7L9N1B3",
+  "eventType": "entitlement.revoked",
+  "eventVersion": "1.0",
+  "occurredAt": 1758979200000,
+  "processedAt": 1758979203050,
+  "store": "apple",
+  "environment": "production",
+  "projectId": "proj_7f3a9c",
+  "userId": "user_5e91a7",
+  "productId": "premium.monthly",
+  "subscription": {
+    "state": "Expired",
+    "productId": "premium.monthly",
+    "expiresAt": 1758979200000,
+    "willRenew": false,
+    "active": false
+  },
+  "sourceStoreEventId": "a5d3f2b1-6c7e-8d9f-0a1b-2c3d4e5f6071",
+  "originalTransactionId": "2000000811111111"
+}

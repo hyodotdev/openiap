@@ -193,6 +193,21 @@ platforms.
   purchase and entitlement infrastructure that commercial experience providers
   can build on.
 
+## Commerce Protocol surface
+
+`server/api/commerce/` serves the OpenIAP Commerce Protocol operation surface
+under `/commerce/v1`: the REST binding registered from the generated HTTP
+manifest, and the GraphQL endpoint executing the generated schema projection.
+Both are transport adapters over the shared handlers in
+`server/api/commerce/handlers.ts`, which delegate to the same Convex functions
+`/v1` and `/v2` already use — never put business logic in a route or resolver.
+Inputs validate against the generated JSON Schemas; contract changes start in
+`specs/openiap-kit/schema/`, never here. The GraphQL endpoint is bounded
+request/response with no Subscription root, which keeps it inside the webhook
+direction rule below. `server/api/commerce/conformance.test.ts` runs the
+spec package's portable runner over both bindings and is the gate for
+declaring the `rest` and `graphql` bindings in the capability descriptor.
+
 ## Webhook direction
 
 Two directions are supported, both server-to-server:

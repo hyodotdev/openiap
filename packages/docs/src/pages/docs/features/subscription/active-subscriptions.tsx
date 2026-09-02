@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -301,9 +300,13 @@ var hasPremium = await ((QueryResolver)Iap.Instance)
           backend authorization, send <code>purchaseToken</code> /{' '}
           <code>transactionId</code> to your server and verify with the relevant
           store API or{' '}
-          <Link to="/docs/kit-backend">
+          <a
+            href="https://kit.openiap.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
             <code>IAPKit</code>
-          </Link>
+          </a>
           . The client-side active subscription list is useful for immediate UI
           state, but the server should own durable entitlement decisions.
         </p>

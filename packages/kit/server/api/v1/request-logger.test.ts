@@ -8,6 +8,7 @@ import {
   type VerifyDebugLogLine,
   type VerifyLogLine,
   type VerifyOutcome,
+  redactApiKeysInPath,
 } from "./request-logger";
 import { validator } from "./validator";
 import { verifyPurchaseInputSchema } from "./route-input-schemas";
@@ -439,5 +440,64 @@ describe("requestLoggerMiddleware", () => {
     expect(logs[0].statusCode).toBe(500);
     expect(logs[0].apiKeyHash).toBeDefined();
     expect(logs[0].store).toBe("apple");
+  });
+});
+
+describe("redactApiKeysInPath", () => {
+  test("redacts a credential slot without trusting the credential shape", () => {
+    expect(redactApiKeysInPath("/v1/subscriptions/status/x", "v1")).toBe(
+      "/v1/subscriptions/status/redacted",
+    );
+    expect(redactApiKeysInPath("/v1/unrelated/x", "v1")).toBe(
+      "/v1/unrelated/x",
+    );
+  });
+
+  test("scrubs a legacy key with no recognizable prefix when it is known", () => {
+    expect(
+      redactApiKeysInPath(
+        "/v1/subscriptions/status/legacy-project-key-123",
+        "legacy-project-key-123",
+      ),
+    ).toBe("/v1/subscriptions/status/redacted");
+  });
+
+  test("scrubs the URL-encoded form of a known key", () => {
+    expect(
+      redactApiKeysInPath("/v1/products/legacy%2Fkey%2F123", "legacy/key/123"),
+    ).toBe("/v1/products/redacted");
+  });
+
+  test("removes a project key from a logged path", () => {
+    expect(
+      redactApiKeysInPath("/v1/subscriptions/status/openiap-kit_pk_live"),
+    ).toBe("/v1/subscriptions/status/redacted");
+    expect(
+      redactApiKeysInPath(
+        "/v1/products/openiap-kit_sk_admin/premium/client-payload",
+      ),
+    ).toBe("/v1/products/redacted/premium/client-payload");
+  });
+
+  test("redacts legacy keys in every supported v1 path position", () => {
+    expect(
+      redactApiKeysInPath(
+        "https://kit.openiap.dev/v1/subscriptions/status/legacy-key?userId=user-1",
+      ),
+    ).toBe(
+      "https://kit.openiap.dev/v1/subscriptions/status/redacted?userId=user-1",
+    );
+    expect(redactApiKeysInPath("GET /v1/products/legacy-key/premium")).toBe(
+      "GET /v1/products/redacted/premium",
+    );
+    expect(redactApiKeysInPath("/api/v1/webhooks/google/legacy-key")).toBe(
+      "/api/v1/webhooks/google/redacted",
+    );
+  });
+
+  test("leaves a path with no credential alone", () => {
+    expect(redactApiKeysInPath("/v1/purchase/verify")).toBe(
+      "/v1/purchase/verify",
+    );
   });
 });

@@ -1,0 +1,7 @@
+{
+  "store": "apple",
+  "isValid": true,
+  "state": "ENTITLED",
+  "productId": "premium.monthly",
+  "environment": "production"
+}

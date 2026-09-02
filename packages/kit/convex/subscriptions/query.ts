@@ -27,23 +27,59 @@ const subscriptionFields = {
   priceAmountMicros: v.optional(v.number()),
   startedAt: v.number(),
   updatedAt: v.number(),
+  // SECURITY DEBT: on Android this is the credential a server accepts as proof
+  // of purchase, and these rows reach routes that answer to a publishable key
+  // shipped inside the app. It cannot be removed additively: MAUI declares it
+  // `required`, and its tolerant deserializer turns a missing field into a null
+  // subscription and silently drops entitlement rows — every installed MAUI app
+  // would lose entitlement. Removal needs an explicit version transition.
   purchaseToken: v.string(),
   originalTransactionId: v.optional(v.string()),
   userId: v.optional(v.string()),
 };
 const subscriptionShape = v.object(subscriptionFields);
+const subscriptionV2Shape = v.object({
+  id: v.id("subscriptions"),
+  productId: v.string(),
+  platform: v.union(v.literal("IOS"), v.literal("Android")),
+  state: subscriptionStateValidator,
+  expiresAt: v.optional(v.number()),
+  renewsAt: v.optional(v.number()),
+  willRenew: v.optional(v.boolean()),
+  cancellationReason: v.optional(v.string()),
+  currency: v.optional(v.string()),
+  priceAmountMicros: v.optional(v.number()),
+  startedAt: v.number(),
+  updatedAt: v.number(),
+  userId: v.optional(v.string()),
+});
 const subscriptionEvaluationRowShape = v.object({
   ...subscriptionFields,
   createdAt: v.number(),
 });
 type SubscriptionRow = Infer<typeof subscriptionShape>;
+type SubscriptionV2Row = Infer<typeof subscriptionV2Shape>;
 type SubscriptionEvaluationRow = Infer<typeof subscriptionEvaluationRowShape>;
 export const MAX_USER_SUBSCRIPTION_ROWS = 200;
 
-function isActive(sub: Doc<"subscriptions">, now: number): boolean {
-  if (!isEntitledState(sub)) return false;
-  if (sub.expiresAt != null && sub.expiresAt <= now) return false;
+/**
+ * SPEC.md 2.3 entitlement gate as a pure predicate: only Active and
+ * InGracePeriod grant access, an omitted expiry means none is known, and the
+ * boundary is exclusive — expiresAt == now is NOT entitled. Exported so the
+ * conformance adapter certifies the same predicate every read uses.
+ */
+export function isEntitledAt(
+  state: string,
+  expiresAt: number | null | undefined,
+  now: number,
+): boolean {
+  if (state !== "Active" && state !== "InGracePeriod") return false;
+  if (expiresAt != null && expiresAt <= now) return false;
   return true;
+}
+
+function isActive(sub: Doc<"subscriptions">, now: number): boolean {
+  return isEntitledAt(sub.state, sub.expiresAt, now);
 }
 
 function isEntitledState(sub: Doc<"subscriptions">): boolean {
@@ -131,6 +167,26 @@ export function shapeSubscriptionRow(
   return row;
 }
 
+export function shapeSubscriptionV2Row(
+  sub: Doc<"subscriptions">,
+): SubscriptionV2Row {
+  return {
+    id: sub._id,
+    productId: sub.productId,
+    platform: sub.platform,
+    state: sub.state,
+    expiresAt: sub.expiresAt,
+    renewsAt: sub.renewsAt,
+    willRenew: sub.willRenew,
+    cancellationReason: sub.cancellationReason,
+    currency: sub.currency,
+    priceAmountMicros: sub.priceAmountMicros,
+    startedAt: sub.startedAt,
+    updatedAt: sub.updatedAt,
+    userId: sub.userId,
+  };
+}
+
 async function projectByApiKey(
   ctx: QueryCtx,
   apiKey: string | undefined,
@@ -143,6 +199,20 @@ async function projectByApiKey(
     requiredAccess,
   );
   return resolved?.project ?? null;
+}
+
+async function requireAdminProjectByApiKey(
+  ctx: QueryCtx,
+  apiKey: string,
+): Promise<Doc<"projects">> {
+  const project = await projectByApiKey(ctx, apiKey, "admin");
+  if (!project) {
+    throw new ConvexError({
+      code: "INVALID_API_KEY",
+      message: "API key is invalid or inactive",
+    });
+  }
+  return project;
 }
 
 async function projectByIdForCurrentUser(
@@ -225,15 +295,120 @@ export const subscriptionEvaluationSnapshot = query({
     userId: v.string(),
   },
   returns: v.object({
+    projectId: v.union(v.id("projects"), v.null()),
     candidates: v.array(subscriptionEvaluationRowShape),
     fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
     const project = await projectByApiKey(ctx, args.apiKey);
-    if (!project) return { candidates: [], fallback: null };
+    if (!project) return { projectId: null, candidates: [], fallback: null };
 
     const rows = await userSubscriptionRows(ctx, project._id, args.userId);
-    return shapeSubscriptionEvaluationSnapshot(rows);
+    return {
+      projectId: project._id,
+      ...shapeSubscriptionEvaluationSnapshot(rows),
+    };
+  },
+});
+
+// `/v2` account reads are server-to-server. Convex repeats the admin check and
+// shapes the response without store credentials before it crosses the HTTP
+// boundary.
+export const subscriptionStatusV2 = query({
+  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  returns: v.object({
+    active: v.boolean(),
+    subscription: v.union(subscriptionV2Shape, v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
+
+    const subs = await userSubscriptionRows(ctx, project._id, args.userId);
+    const activeSubs = subs.filter((candidate) =>
+      isActive(candidate, args.now),
+    );
+    const selected = selectMostRecentlyUpdatedSubscription(
+      activeSubs.length > 0 ? activeSubs : subs,
+    );
+
+    return {
+      active: activeSubs.length > 0,
+      subscription: selected ? shapeSubscriptionV2Row(selected) : null,
+    };
+  },
+});
+
+export const entitlementsV2 = query({
+  args: { apiKey: v.string(), userId: v.string(), now: v.number() },
+  returns: v.object({
+    userId: v.string(),
+    productIds: v.array(v.string()),
+    subscriptions: v.array(subscriptionV2Shape),
+  }),
+  handler: async (ctx, args) => {
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
+
+    const all = await userSubscriptionRows(ctx, project._id, args.userId);
+    const active = all.filter((sub) => isActive(sub, args.now));
+    return {
+      userId: args.userId,
+      productIds: Array.from(new Set(active.map((sub) => sub.productId))),
+      subscriptions: active.map(shapeSubscriptionV2Row),
+    };
+  },
+});
+
+// Authoritative server-credential gate with no side effect and no data. The
+// commerce bindPurchase handler calls this before it parses store evidence, so
+// an unknown or under-scoped key is rejected (UNAUTHORIZED / FORBIDDEN) before
+// it can learn which stores bind or which evidence a store requires.
+export const assertServerAccess = query({
+  args: { apiKey: v.string() },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, args) => {
+    await requireAdminProjectByApiKey(ctx, args.apiKey);
+    return { ok: true };
+  },
+});
+
+export const userErasureStatusV2 = query({
+  args: {
+    apiKey: v.string(),
+    // The id arrives from a URL path; a malformed one must read as "no such
+    // job" (404), not fail argument validation into a 500.
+    jobId: v.string(),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      jobId: v.id("subscriptionUserErasureJobs"),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("running"),
+        v.literal("completed"),
+      ),
+      subscriptionsErased: v.number(),
+      commerceEventsErased: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+      completedAt: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const project = await requireAdminProjectByApiKey(ctx, args.apiKey);
+    const jobId = ctx.db.normalizeId("subscriptionUserErasureJobs", args.jobId);
+    if (!jobId) return null;
+    const job = await ctx.db.get(jobId);
+    if (!job || job.projectId !== project._id) return null;
+    return {
+      jobId: job._id,
+      status: job.status,
+      subscriptionsErased: job.subscriptionsErased,
+      commerceEventsErased: job.commerceEventsErased,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      completedAt: job.completedAt,
+    };
   },
 });
 

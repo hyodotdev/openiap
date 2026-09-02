@@ -17,7 +17,27 @@ export default function CompatibilityPage() {
         caller upgraded when the service deployed.
       </p>
 
-      <h2 className="mt-10 text-2xl font-semibold">IAPKit guarantees</h2>
+      <h2 id="three-clocks" className="mt-10 text-2xl font-semibold">
+        Three separate clocks
+      </h2>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          <strong>IAPKit deployment</strong> changes what every caller reaches
+          at once.
+        </li>
+        <li>
+          <strong>Compiled SDK version</strong> changes only when a team
+          upgrades and ships.
+        </li>
+        <li>
+          <strong>Installed app build</strong> changes only when a user updates,
+          and some builds remain active indefinitely.
+        </li>
+      </ul>
+
+      <h2 id="guarantees" className="mt-10 text-2xl font-semibold">
+        IAPKit guarantees
+      </h2>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           Response changes on <code>/v1</code> are additive. Existing fields are
@@ -29,8 +49,33 @@ export default function CompatibilityPage() {
           <code>/v1</code> keeps serving.
         </li>
         <li>
-          Required verdict fields stay strict. Every verification response is
-          checked against the published schema before it leaves IAPKit.
+          Required verdict fields stay strict. <code>isValid</code> and the
+          echoed <code>store</code> remain the security boundary, and every
+          verification response is checked against the published schema before
+          it leaves IAPKit.
+        </li>
+      </ul>
+
+      <h2 id="degrade" className="mt-10 text-2xl font-semibold">
+        Unknown optional values degrade safely
+      </h2>
+      <p>
+        Optional metadata must not invalidate a purchase that the store already
+        confirmed:
+      </p>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          An unrecognized <code>state</code> becomes <code>unknown</code> while{" "}
+          <code>isValid</code> remains authoritative.
+        </li>
+        <li>
+          An unreadable <code>clientPayload</code> is omitted by strongly typed
+          SDKs; JavaScript Kit clients can preserve its format and body as
+          opaque data.
+        </li>
+        <li>
+          <code>environment</code> remains an opaque string. A new store
+          environment must not fail an otherwise valid verification.
         </li>
       </ul>
 
@@ -44,7 +89,9 @@ export default function CompatibilityPage() {
         </p>
       </Callout>
 
-      <h2 className="mt-10 text-2xl font-semibold">Reported SDK version</h2>
+      <h2 id="spec-header" className="mt-10 text-2xl font-semibold">
+        Reported SDK version
+      </h2>
       <p>
         SDK builds that support it send the OpenIAP spec version they were
         compiled against:
@@ -60,24 +107,47 @@ X-OpenIAP-Spec: 3.2.0`}
         are ignored.
       </p>
 
-      <h2 className="mt-10 text-2xl font-semibold">Contract enforcement</h2>
+      <h2 id="enforcement" className="mt-10 text-2xl font-semibold">
+        Contract enforcement
+      </h2>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          CI compares IAPKit response enums with the OpenIAP schema used to
+          generate every SDK.
+        </li>
+        <li>
+          Runtime validation rejects a response that cannot satisfy the
+          published <code>/v1</code> schema.
+        </li>
+        <li>
+          SDK parser tests exercise future unknown state, payload format, and
+          environment values without weakening required fields.
+        </li>
+        <li>
+          The entitlement table forces every newly introduced purchase state to
+          receive an explicit access decision.
+        </li>
+      </ul>
+
+      <h2 id="your-side" className="mt-10 text-2xl font-semibold">
+        What your app should do
+      </h2>
+      <ul className="my-3 list-disc space-y-1 pl-6">
+        <li>
+          Gate entitlement on <code>isValid</code>, then require an exact{" "}
+          <code>productId</code> match.
+        </li>
+        <li>Handle every optional field being absent.</li>
+        <li>
+          Do not reject verification because optional metadata is unknown.
+        </li>
+        <li>
+          Keep SDKs reasonably current so new fields become available while old
+          installed builds continue to verify.
+        </li>
+      </ul>
       <p>
-        CI compares IAPKit&apos;s response enums with the OpenIAP schema used to
-        generate every SDK. Runtime response validation and SDK parser tests
-        then verify that unknown optional metadata degrades without weakening
-        required fields.
-      </p>
-      <p>
-        Read the{" "}
-        <a
-          href="https://openiap.dev/docs/kit-compatibility"
-          className="text-primary underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          canonical OpenIAP compatibility policy
-        </a>{" "}
-        for the cross-SDK behavior matrix, or continue to the{" "}
+        Continue to the{" "}
         <Link to="/docs/api" className="text-primary underline">
           IAPKit API reference
         </Link>{" "}

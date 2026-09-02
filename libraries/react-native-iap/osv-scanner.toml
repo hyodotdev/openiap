@@ -7,3 +7,8 @@ reason = "No patched image-size release exists; Metro uses it only during truste
 id = "GHSA-w3rx-r6r6-pgpr"
 ignoreUntil = 2026-09-14
 reason = "No patched image-size release exists; Metro uses it only during trusted local builds."
+
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+ignoreUntil = 2026-09-16
+reason = "The patched package is ESM-only and incompatible with upstream query-string 7; it is present through Expo development tooling while upstream migrates."

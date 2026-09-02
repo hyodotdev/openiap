@@ -1,10 +1,11 @@
 import * as crypto from "node:crypto";
+import { redactApiKeysInPath } from "./request-logger";
+import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
 
 import { Hono, type Context, type Next } from "hono";
 import { ConvexError } from "convex/values";
 
 import { api } from "@/convex";
-import type { Id } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import {
   apiKeyMiddleware,
@@ -504,7 +505,7 @@ async function handleGetProductSyncJob(c: Context, apiKey: string) {
   try {
     const job = await client.query(api.products.jobs.getSyncJobById, {
       apiKey,
-      jobId: jobId as Id<"productSyncJobs">,
+      jobId,
     });
     if (!job) {
       return c.json(
@@ -546,7 +547,7 @@ async function handleCancelProductSync(c: Context, apiKey: string) {
   try {
     const result = await client.mutation(api.products.jobs.cancelProductSync, {
       apiKey,
-      jobId: jobId as Id<"productSyncJobs">,
+      jobId,
     });
     return c.json(result);
   } catch (error) {
@@ -979,7 +980,7 @@ function readClientPayloadJsonBody(request: Request) {
 async function pathApiKeyGuard(c: Context, next: Next) {
   const apiKey = c.req.param("apiKey");
   if (isSecretApiKey(apiKey)) {
-    return secretKeyInUrl(c);
+    return secretKeyInUrl(c, apiKey);
   }
   const validationError = apiKeyValidationError(apiKey);
   if (validationError) {
@@ -1070,14 +1071,24 @@ function clientPayloadKnownVersion(
   return undefined;
 }
 
-function secretKeyInUrl(c: Context) {
+function secretKeyInUrl(c: Context, apiKey: string) {
+  // Rejecting is not containment: the URL already reached this process and
+  // every proxy log in front of it. Record it so an operator sees a key that
+  // needs rotating.
+  console.warn(
+    "[products] a secret key was presented in a URL path and must be rotated",
+    {
+      path: redactApiKeysInPath(c.req.path, apiKey),
+      keyPreview: apiKeyPreview(apiKey),
+    },
+  );
   return c.json(
     {
       errors: [
         {
           code: "SECRET_API_KEY_IN_URL",
           message:
-            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route. This key has been exposed in a URL — rotate it.",
         },
       ],
     },

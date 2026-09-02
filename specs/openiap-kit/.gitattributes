@@ -1,0 +1,8 @@
+# Generated and byte-compared by `bun run test`, so a CRLF checkout would fail
+# the comparison.
+generated/schemas/*.schema.json text eol=lf linguist-generated=true
+generated/vectors/*.json text eol=lf linguist-generated=true
+generated/bindings/* text eol=lf linguist-generated=true
+generated/openapi/*.json text eol=lf linguist-generated=true
+generated/commerce-protocol.graphql text eol=lf linguist-generated=true
+schema/*.graphql text eol=lf

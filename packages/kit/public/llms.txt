@@ -20,21 +20,24 @@ MIT-licensed server for dedicated capacity.
 Base URL: https://kit.openiap.dev
 Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`
 MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`
-App-facing product, subscription, and inbound webhook helpers use a publishable
-key path where mobile/store transports require it. Administrative product,
+App-facing product and inbound webhook helpers use a publishable key path where
+mobile/store transports require it. Account-level v2 reads require a secret key
+held by the authenticated developer backend. Administrative product,
 subscription analytics, MCP, and store-sync requests keep the secret in the
 Bearer header and out of URLs.
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
 - [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
-- [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Removed or no payload exists
+- [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Draft/Removed or no payload exists
 - [GET/PUT/DELETE /v1/products/client-payload/{productId}?platform=IOS](https://kit.openiap.dev/docs/products) — read durable editor state or create/update/remove a payload from CI or MCP with `Authorization: Bearer <secret-key>`; publishable keys receive 403
-- [GET /v1/products and catalog/store-sync writes](https://openiap.dev/docs/kit-backend) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
-- [GET /v1/subscriptions/status?userId=...](https://kit.openiap.dev/docs/api) — publishable Bearer-key entitlement gate; save the weak `ETag`, resend it as `If-None-Match`, and reuse the persisted snapshot on body-free `304`
-- [GET /v1/subscriptions/entitlements?userId=...](https://kit.openiap.dev/docs/api) — publishable Bearer-key active product snapshot with the same conditional contract; supports up to 200 indexed subscription rows and fails closed on overflow
-- [GET /v1/subscriptions/{list|metrics|revenue}](https://openiap.dev/docs/kit-backend) — administrative subscription data with `Authorization: Bearer <secret-key>`
-- [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
+- [GET /v1/products and catalog/store-sync writes](https://kit.openiap.dev/docs/products) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
+- [GET /v2/subscriptions/status?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless account status selected by an authenticated developer backend
+- [GET /v2/subscriptions/entitlements?userId=...](https://kit.openiap.dev/docs/api) — secret-only, tokenless active product snapshot; supports up to 200 indexed subscription rows and fails closed on overflow
+- [POST /v2/subscriptions/user-erasure](https://kit.openiap.dev/docs/api) — schedule durable removal of an app user ID from IAPKit subscription and commerce-event rows; erase downstream copies separately
+- [GET /v1/subscriptions/{list|metrics|revenue}](https://kit.openiap.dev/docs/api) — administrative subscription data with `Authorization: Bearer <secret-key>`
+- [POST /v1/webhooks/{apiKey}](https://kit.openiap.dev/docs/webhooks) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
+- [GET /v2/openapi](https://kit.openiap.dev/v2/openapi) — secret-only account API OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — no-store liveness metadata (`ok`, status, service, API version, public revision, environment, timestamp) with no Convex round-trip
 - [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit secret admin key, not a mobile publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key.
@@ -44,14 +47,12 @@ is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
 
 Apple ASN v2 and Google RTDN update IAPKit's canonical subscription state.
 IAPKit does not relay those events through SSE, WebSockets, push, or long
-polling. Apps persist only the user-scoped fields they need and conditionally
-refresh on cold start, stale foreground, or explicit user action. Each refresh
-still performs one mutation-free indexed Convex query so an expiry with no new
-webhook is detected. Respect the `Retry-After` header on `429` and `503`, coalesce concurrent refreshes,
-and enforce an app-defined maximum stale age for offline fallback. Secret-key
-responses are `private, no-store` and omit `ETag`. The current
-`kitApi.status()` and `kitApi.entitlements()` helpers are unconditional,
-body-only reads; use raw HTTP or an app wrapper to retain response headers.
+polling. The app authenticates to its developer backend; that backend resolves
+the opaque IAPKit user ID and calls v2 with a server-held secret key. It returns
+only the access decision or tokenless fields the app needs. Respect the
+`Retry-After` header on `429` and `503`, coalesce concurrent backend reads, and
+use a bounded project-and-user-scoped cache. Existing v1 SDK helpers remain
+available for shipped-client compatibility.
 
 ## Request shapes (discriminated on `store`)
 
@@ -189,7 +190,7 @@ assuming DAU implies safe request volume.
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
 - [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
-- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for inbound Apple ASN v2 and Google RTDN lifecycle delivery
+- [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/docs/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
 - [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)

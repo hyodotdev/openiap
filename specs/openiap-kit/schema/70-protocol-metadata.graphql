@@ -1,0 +1,76 @@
+# Protocol metadata ---------------------------------------------------------
+
+extend schema
+  @protocol(
+    version: "1.0"
+    baseId: "https://openiap.dev/schemas/commerce-protocol"
+  )
+  @document(
+    name: "primitives"
+    title: "OpenIAP Commerce Protocol primitives"
+    description: "Shared value types. Every other schema in this specification references these definitions rather than restating them."
+  )
+  @document(
+    name: "commerce-event"
+    title: "OpenIAP Commerce Protocol event"
+    description: "One normalized commerce lifecycle fact. A consumer reads this without knowing which store produced it and without parsing any store-native payload."
+    root: "CommerceEvent"
+  )
+  @document(
+    name: "provider-capabilities"
+    title: "OpenIAP Commerce Protocol implementation descriptor"
+    description: "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data."
+    root: "ProviderCapabilities"
+  )
+  @document(
+    name: "operations"
+    title: "OpenIAP Commerce Protocol operations"
+    description: "Input and result documents for the portable operation surface, plus the protocol error shape both transport bindings share. Operations travel over the REST and GraphQL bindings; these schemas validate their JSON projections."
+  )
+  @profile(
+    name: "verification"
+    version: "1.0"
+    description: "Purchase Verification: the verifyPurchase operation over store evidence."
+  )
+  @profile(
+    name: "entitlements"
+    version: "1.0"
+    description: "Entitlement Access: the subscriptionStatus and entitlements server reads."
+  )
+  @profile(
+    name: "events"
+    version: "1.0"
+    description: "Event Delivery: the normalized event envelope, lifecycle taxonomy, entitlement deltas, signed webhook transport, retry, idempotency, ordering, and destination-safety rules."
+  )
+  @profile(
+    name: "accountLifecycle"
+    version: "1.0"
+    description: "Account Lifecycle: the bindPurchase and eraseUser account operations."
+  )
+  @binding(
+    name: "rest"
+    version: "1.0"
+    description: "HTTP/JSON binding under /commerce/v1, described by the generated HTTP manifest and OpenAPI document."
+  )
+  @binding(
+    name: "graphql"
+    version: "1.0"
+    description: "Executable GraphQL binding serving the generated schema projection at one HTTP endpoint."
+  )
+  @errorStatus(code: "INVALID_REQUEST", http: 400)
+  @errorStatus(code: "UNAUTHORIZED", http: 401)
+  @errorStatus(code: "FORBIDDEN", http: 403)
+  @errorStatus(code: "NOT_FOUND", http: 404)
+  @errorStatus(code: "PURCHASE_NOT_FOUND", http: 404)
+  @errorStatus(code: "CONFLICT", http: 409)
+  @errorStatus(code: "UNSUPPORTED_STORE", http: 422)
+  @errorStatus(code: "RATE_LIMITED", http: 429)
+  @errorStatus(code: "INTERNAL_ERROR", http: 500)
+  @errorStatus(code: "UNSUPPORTED_PROFILE", http: 501)
+  @errorStatus(code: "VERIFICATION_FAILED", http: 502)
+  @document(
+    name: "store-event-mapping"
+    title: "OpenIAP Commerce Protocol store event mapping"
+    description: "How each store's own notification vocabulary maps onto the normalized event types. This is the reference an implementer follows to normalize a store notification without reverse-engineering an existing backend, and the reference a consumer reads to understand why a given store produces the events it does. A row states what a notification means, not that an emitter can always act on it: one that lacks the state to interpret a notification — a redelivery it already applied, a purchase whose product it cannot resolve, a token the store has superseded — emits nothing, and that is conformant."
+    root: "StoreEventMapping"
+  )

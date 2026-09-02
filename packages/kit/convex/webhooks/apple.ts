@@ -263,15 +263,15 @@ function previewDecodeNotification(jws: string): {
   }
 }
 
-function mapPreviewEnvironment(value: string | undefined): Environment {
-  switch (value) {
-    case "Sandbox":
-      return Environment.SANDBOX;
-    case "Xcode":
-      return Environment.XCODE;
-    default:
-      return Environment.PRODUCTION;
-  }
+/**
+ * The environment reaches us inside the unverified payload, so it must never
+ * select a value that turns verification off. SignedDataVerifier returns the
+ * decoded JWT unverified under XCODE and LOCAL_TESTING, which would let anyone
+ * holding the publishable key POST an unsigned notification. Only the two
+ * environments Apple actually signs are reachable here.
+ */
+export function mapPreviewEnvironment(value: string | undefined): Environment {
+  return value === "Sandbox" ? Environment.SANDBOX : Environment.PRODUCTION;
 }
 
 function decodeOptionalJws<T>(jws: string | null | undefined): T | null {

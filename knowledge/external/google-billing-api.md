@@ -685,3 +685,25 @@ val updateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
 6. **Check isSuspended** (8.1+) before granting entitlements
 7. **Distinguish in-app and external-link Billing Choice** when configuring and reporting developer billing
 8. **Query fresh ProductDetails before purchase**; stale objects can make `launchBillingFlow()` fail
+
+## Grace period vs account hold: what `expiryTime` reports
+
+Play answers both states through the one `lineItems[].expiryTime` field, so a
+receiver needs no second date the way Apple does.
+
+| State | `subscriptionState` | `expiryTime` | Entitlement |
+| --- | --- | --- | --- |
+| Grace period | `SUBSCRIPTION_STATE_IN_GRACE_PERIOD` | **future** — Play extends it until grace ends | retained |
+| Account hold | `SUBSCRIPTION_STATE_ON_HOLD` | **past** | blocked |
+
+Google states it directly: *"Google Play dynamically extends the `expiryTime`
+value until the grace period has expired because entitlement should last until
+the user cancels or the grace period has lasted for its maximum length."*
+
+This is why `normalizeGoogleRtdn` takes `expiryTimeMillis` verbatim while
+`normalizeAppleAsn` must prefer `gracePeriodExpiresDate`: Apple keeps the failed
+period's `expiresDate` on the transaction and reports the grace deadline
+separately, so taking the transaction value during grace revokes access at the
+instant grace begins.
+
+Reference: [Subscription lifecycle](https://developer.android.com/google/play/billing/lifecycle/subscriptions)

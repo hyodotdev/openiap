@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/commerce-event.schema.json",
+  "title": "OpenIAP Commerce Protocol event",
+  "description": "One normalized commerce lifecycle fact. A consumer reads this without knowing which store produced it and without parsing any store-native payload.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "occurredAt",
+    "processedAt",
+    "store",
+    "environment",
+    "projectId"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "eventId": {
+      "description": "Unique identity of this event, assigned by the emitter. It is the receiver's deduplication key. An emitter MUST NOT reuse an eventId and MUST NOT change the eventId of an event it has already delivered.",
+      "$ref": "primitives.schema.json#/$defs/Identifier"
+    },
+    "eventType": {
+      "description": "What happened. See the taxonomy in SPEC.md. The value space is OPEN: §12 adds an event type in a MINOR version, so a consumer pinned on the major MUST tolerate a type it does not recognise and MUST NOT act on it. The listed values are the ones this version names.",
+      "type": "string",
+      "pattern": "^[a-z]+\\.[a-z_]+$",
+      "examples": [
+        "subscription.started",
+        "subscription.renewed",
+        "subscription.recovered",
+        "subscription.entered_grace_period",
+        "subscription.entered_billing_retry",
+        "subscription.expired",
+        "subscription.canceled",
+        "subscription.uncanceled",
+        "subscription.revoked",
+        "subscription.refunded",
+        "subscription.product_changed",
+        "subscription.price_changed",
+        "subscription.deferred",
+        "subscription.paused",
+        "subscription.resumed",
+        "entitlement.granted",
+        "entitlement.revoked"
+      ]
+    },
+    "eventVersion": {
+      "description": "Schema version of this body, as MAJOR.MINOR. Consumers pin on the major.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "occurredAt": {
+      "description": "The best authoritative time for the commerce fact. Use the store-asserted transition time when one exists. When polling only reveals that a value changed since the last observation, use the time the emitter observed the new value and do not invent a more precise instant.",
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "processedAt": {
+      "description": "When the emitter derived this event. Always greater than or equal to occurredAt in practice, but not guaranteed by this specification.",
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "store": {
+      "$ref": "primitives.schema.json#/$defs/Store"
+    },
+    "environment": {
+      "$ref": "primitives.schema.json#/$defs/Environment"
+    },
+    "projectId": {
+      "description": "The emitter-side scope this event belongs to, opaque to the consumer. A scope is whatever boundary the emitter organises commerce by — a tenant, a project, an application, or a single constant when the emitter serves exactly one. It is NOT an identifier issued by any central registry, and an implementation MUST NOT be required to obtain one from a third party. The member name is inherited from the deployed 1.0 wire format.",
+      "$ref": "primitives.schema.json#/$defs/Identifier"
+    },
+    "applicationId": {
+      "description": "A finer-grained scope within `projectId`, when the emitter models one. Opaque to the consumer.",
+      "$ref": "primitives.schema.json#/$defs/Identifier"
+    },
+    "userId": {
+      "description": "The app user this purchase is bound to, expressed in the identity space shared by the emitter and its consumer. It is an opaque correlation handle: there is no global user directory, and no central identity resolution is implied or required. Absent when no binding exists; required on every entitlement event.",
+      "$ref": "primitives.schema.json#/$defs/Identifier"
+    },
+    "productId": {
+      "description": "Store product identifier this event concerns. Required on every entitlement event so a consumer knows which access decision to apply.",
+      "type": "string",
+      "minLength": 1
+    },
+    "previousProductId": {
+      "description": "The product that was canonical before this event, when the event applies a product switch.",
+      "type": "string",
+      "minLength": 1
+    },
+    "transactionId": {
+      "description": "Store transaction identity for this specific economic event, where the store exposes one.",
+      "type": "string",
+      "minLength": 1
+    },
+    "originalTransactionId": {
+      "description": "Store identity of the first transaction in this subscription chain, where the store exposes one.",
+      "type": "string",
+      "minLength": 1
+    },
+    "subscription": {
+      "description": "The subscription as it stood immediately after this event. Absent for stores that keep no canonical subscription record.",
+      "type": "object",
+      "required": [
+        "state",
+        "productId",
+        "active"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "state": {
+          "$ref": "primitives.schema.json#/$defs/SubscriptionState"
+        },
+        "productId": {
+          "description": "The product the subscription is on after this event. Not always the event's top-level `productId`: where a store defers a product change to the next period — Apple's scheduled downgrades do, Google's item changes do not — the top level names the incoming product while this stays on the outgoing one until it renews. A consumer gating access reads this member; one reporting on what the notification announced reads the top level.",
+          "type": "string",
+          "minLength": 1
+        },
+        "expiresAt": {
+          "description": "When access ends. This is the boundary the entitlement predicate compares against, and the comparison is exclusive — at this instant the subscription is no longer entitled. During a grace period it is the end of the grace window, not of the period that failed to renew; an emitter that reports the failed period here revokes access at the moment grace begins.",
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "renewsAt": {
+          "description": "When the store will next attempt to bill, when it reports one. Distinct from `expiresAt`, which is when access ends: they coincide on a healthy subscription and diverge while a grace period extends access past the billing date. Absent once renewal is no longer expected.",
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "willRenew": {
+          "description": "Whether the store will attempt another billing period. False after a cancellation, while access may still be live.",
+          "type": "boolean"
+        },
+        "cancellationReason": {
+          "description": "Why the subscription stopped renewing, as a normalized token — not the store's own wording, which the emitter translates from whatever shape that store uses. This version names `UserCanceled`, `BillingError`, `PriceIncreaseDeclined`, `ProductUnavailable`, `Refunded` and `Other`; the space is open, so a consumer MUST tolerate a token it does not know, and no store yields every token. An emitter that has no store-asserted reason omits this member. Unlike `price`, it has no provenance marker, so treat a present value as advisory rather than as a fact to bill or report on.",
+          "type": "string",
+          "minLength": 1
+        },
+        "active": {
+          "description": "The entitlement gate after this event. Where this member is present it is the field to read for access — never a re-derivation from `state`. A store that keeps no canonical subscription record omits the whole `subscription` member; there an `entitlement.granted` or `entitlement.revoked` event carries the decision in its type, while a `subscription.*` event carries none.",
+          "type": "boolean"
+        }
+      }
+    },
+    "price": {
+      "description": "Amount associated with the transaction this event concerns, carried at whatever provenance it has — only `store` means the store asserted it. Always the transaction's own magnitude and never negative. It is context rather than a charge record: stores repeat the same figure across successive notifications about one subscription, so a consumer MUST NOT sum every priced event. See SPEC.md 9.3. Absent means the amount is unknown, never zero.",
+      "$ref": "primitives.schema.json#/$defs/Money"
+    },
+    "sourceStoreEventId": {
+      "description": "The store's own notification identifier this event was derived from, for support triage against the store console. Absent when the event did not originate from a store notification.",
+      "type": "string",
+      "minLength": 1
+    },
+    "extensions": {
+      "$ref": "primitives.schema.json#/$defs/Extensions"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "entitlement.granted",
+              "entitlement.revoked"
+            ]
+          }
+        },
+        "required": [
+          "eventType"
+        ]
+      },
+      "then": {
+        "properties": {
+          "userId": {},
+          "productId": {}
+        },
+        "required": [
+          "userId",
+          "productId"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "entitlement.granted"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "const": true
+              }
+            },
+            "required": [
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "entitlement.revoked"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.started",
+              "subscription.renewed",
+              "subscription.recovered",
+              "subscription.resumed"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "Active"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.entered_grace_period"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "InGracePeriod"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.entered_billing_retry"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "InBillingRetry"
+              },
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "state",
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.expired"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "Expired"
+              },
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "state",
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.revoked"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "Revoked"
+              },
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "state",
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.refunded"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "Refunded"
+              },
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "state",
+              "active"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "eventType": {
+            "enum": [
+              "subscription.paused"
+            ]
+          },
+          "subscription": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "eventType",
+          "subscription"
+        ]
+      },
+      "then": {
+        "properties": {
+          "subscription": {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "Paused"
+              },
+              "active": {
+                "const": false
+              }
+            },
+            "required": [
+              "state",
+              "active"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

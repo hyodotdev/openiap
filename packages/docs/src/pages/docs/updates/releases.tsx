@@ -3375,13 +3375,21 @@ function Releases() {
             }}
           >
             See the{' '}
-            <Link to="/docs/kit-backend#api-keys-environments">
+            <a
+              href="https://kit.openiap.dev/docs/api"
+              target="_blank"
+              rel="noreferrer"
+            >
               API key architecture
-            </Link>
+            </a>
             ,{' '}
-            <Link to="/docs/kit-backend#product-client-payloads">
+            <a
+              href="https://kit.openiap.dev/docs/products"
+              target="_blank"
+              rel="noreferrer"
+            >
               product client payload documentation
-            </Link>
+            </a>
             , and the hosted{' '}
             <a
               href="https://kit.openiap.dev/docs/products"
@@ -3987,9 +3995,13 @@ function Releases() {
           >
             Publishes OpenIAP Spec 2.4.0 and coordinated native and framework
             patch releases for{' '}
-            <Link to="/docs/kit-backend#product-client-payloads">
+            <a
+              href="https://kit.openiap.dev/docs/products"
+              target="_blank"
+              rel="noreferrer"
+            >
               IAPKit product client payloads
-            </Link>
+            </a>
             . Apps can retrieve small public TOML, JSON, or text documents at
             startup or alongside valid Apple and Google purchase verification.
             The change is additive and backward-compatible: existing calls keep

@@ -443,43 +443,24 @@ min = "1.2"`}</CodeBlock>
           Verification
         </AnchorLink>
         <p>
-          Fire OS and Vega OS both use the{' '}
-          <Link to="/docs/kit-backend">IAPKit</Link> Amazon payload. Pass the
-          Amazon user id (required), the Amazon receipt id, and{' '}
-          <code>expectedProductId</code> for server-side product binding. For
-          Amazon App Tester, first enable{' '}
-          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the
-          IAPKit project settings, then pass <code>sandbox: true</code>.
+          Receipt verification is a server-side responsibility for both Fire OS
+          and Vega OS. If you use IAPKit as that implementation, follow its{' '}
+          <a
+            href="https://kit.openiap.dev/docs/verification/amazon"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Amazon verification guide
+          </a>
+          . Other backends should validate the Amazon user and receipt evidence
+          with Amazon RVS before granting access.
         </p>
-        <p>
-          The example below uses the TypeScript SDKs (<code>expo-iap</code>,{' '}
-          <code>react-native-iap</code>); other frameworks pass the same{' '}
-          <code>iapkit.amazon</code> payload through their own{' '}
-          <code>verifyPurchaseWithProvider</code> call.
-        </p>
-        <CodeBlock language="typescript">{`const expectedProductId = 'dev.your.app.product';
-const result = await verifyPurchaseWithProvider({
-  provider: 'iapkit',
-  iapkit: {
-    // Use an openiap-kit_pk_ publishable key in the app.
-    apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
-    amazon: {
-      expectedProductId,
-      userId: amazonUserId,
-      receiptId,
-      sandbox: true,
-    },
-  },
-});
-
-const verified = result.iapkit;
-if (
-  verified?.isValid !== true ||
-  verified.environment !== 'Sandbox' ||
-  verified.productId !== expectedProductId
-) {
-  throw new Error('Amazon Sandbox verification failed');
-}`}</CodeBlock>
+        <Callout kind="note">
+          Publishable keys, App Tester sandbox switches, request payloads, and
+          response checks are implementation-specific. Keep those instructions
+          in the verification provider&apos;s documentation rather than treating
+          them as part of the OpenIAP client contract.
+        </Callout>
         <p>
           See <Link to="/docs/features/validation">Validation</Link> for the
           cross-store verification model.

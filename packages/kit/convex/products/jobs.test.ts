@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  getSyncJobById as registeredGetSyncJobById,
   PRODUCT_SYNC_FAILURES_CAP,
   PRODUCT_SYNC_MANUAL_ACTIONS_CAP,
   PRODUCT_SYNC_FAILED_RETENTION_MS,
@@ -21,6 +22,7 @@ import {
 } from "./syncResult";
 import { testableFunction } from "../test.setup";
 
+const getSyncJobById = testableFunction(registeredGetSyncJobById);
 const getJobForWorker = testableFunction(registeredGetJobForWorker);
 const isCancelRequested = testableFunction(registeredIsCancelRequested);
 const markJobRunning = testableFunction(registeredMarkJobRunning);
@@ -237,6 +239,44 @@ describe("pending-deletion worker guards", () => {
       expect(patch).not.toHaveBeenCalled();
     });
   }
+
+  it("reads a malformed sync-job id as not found, not a crash", async () => {
+    // Ids arrive from URL paths; normalizeId turns garbage into the same
+    // "Sync job not found" ConvexError a missing job raises (a 400 at the
+    // route) instead of failing argument validation into a 500.
+    const rows = new Map<string, unknown>([
+      ["project_a", { _id: "project_a", organizationId: "organization_a" }],
+      ["organization_a", { _id: "organization_a" }],
+    ]);
+    const normalizeId = vi.fn().mockReturnValue(null);
+    const ctx = {
+      db: {
+        normalizeId,
+        get: vi.fn(async (id: string) => rows.get(id) ?? null),
+        query: vi.fn(() => ({
+          withIndex: () => ({
+            first: async () => ({
+              _id: "key_a",
+              projectId: "project_a",
+              organizationId: "organization_a",
+              keyType: "secret",
+            }),
+            unique: async () => null,
+          }),
+        })),
+      },
+    };
+    await expect(
+      getSyncJobById._handler(ctx as never, {
+        apiKey: "openiap-kit_sk_x",
+        jobId: "not-a-convex-id",
+      }),
+    ).rejects.toMatchObject({ data: { message: "Sync job not found" } });
+    expect(normalizeId).toHaveBeenCalledWith(
+      "productSyncJobs",
+      "not-a-convex-id",
+    );
+  });
 
   it("treats a job deleted by the cascade as canceled", async () => {
     const ctx = { db: { get: vi.fn().mockResolvedValue(null) } };

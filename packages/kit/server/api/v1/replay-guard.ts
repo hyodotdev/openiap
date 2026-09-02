@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import type { Context } from "hono";
 import * as crypto from "node:crypto";
 
 import { parsePositiveNumber } from "../../utils/env";
@@ -54,6 +55,17 @@ export interface ReplayGuardConfig {
   failureCooldownMs: number;
   now?: () => number;
   store?: Map<string, ReplayBucket>;
+  /**
+   * Supplies the payload to key the bucket on. Defaults to the valibot
+   * validator's parsed body (`c.req.valid("json")`); the commerce binding,
+   * which parses and validates its own body, injects it here instead.
+   */
+  getPayload?: (c: Context) => ReplayPayload;
+  /** Renders the 429 body; defaults to the /v1 error envelope. */
+  respond?: (
+    c: Context,
+    info: { reason: ReplayRejectReason; retryAfterSec: number },
+  ) => Response;
 }
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
@@ -99,19 +111,19 @@ export interface ReplayConsumeResult {
  * doesn't retain the plaintext JWS / purchaseToken / (userId, sku).
  * SHA-256 prefix matches the approach used by `hashApiKey`.
  */
-export function hashPayload(
-  body:
-    | { store: "apple"; jws: string; expectedProductId?: string }
-    | { store: "google"; purchaseToken: string; expectedProductId?: string }
-    | { store: "horizon"; userId: string; sku: string }
-    | {
-        store: "amazon";
-        userId: string;
-        receiptId: string;
-        sandbox?: boolean;
-        expectedProductId?: string;
-      },
-): string {
+export type ReplayPayload =
+  | { store: "apple"; jws: string; expectedProductId?: string }
+  | { store: "google"; purchaseToken: string; expectedProductId?: string }
+  | { store: "horizon"; userId: string; sku: string }
+  | {
+      store: "amazon";
+      userId: string;
+      receiptId: string;
+      sandbox?: boolean;
+      expectedProductId?: string;
+    };
+
+export function hashPayload(body: ReplayPayload): string {
   const hasher = crypto.createHash("sha256");
   hasher.update(body.store);
   hasher.update("\0");
@@ -295,6 +307,19 @@ const DEFAULT_FAILURE_COOLDOWN_MS =
 
 const sharedStore = new Map<string, ReplayBucket>();
 
+/**
+ * The process-wide replay store and its tuned defaults, exported so the
+ * transport-independent verification admission keys the same buckets as the
+ * /v1 middleware — one receipt spends against one bucket regardless of binding.
+ */
+export const REPLAY_GUARD = Object.freeze({
+  store: sharedStore,
+  capacity: DEFAULT_CAPACITY,
+  refillPerSecond: DEFAULT_REFILL_PER_SEC,
+  maxStoreSize: DEFAULT_MAX_STORE_SIZE,
+  failureCooldownMs: DEFAULT_FAILURE_COOLDOWN_MS,
+});
+
 type ReplayGuardVars = {
   apiKeyHash?: string;
   verifyOutcome?: {
@@ -315,6 +340,7 @@ export function replayGuardMiddleware(
     config.failureCooldownMs ?? DEFAULT_FAILURE_COOLDOWN_MS;
   const store = config.store ?? sharedStore;
   const clock = config.now ?? (() => Date.now());
+  const getPayload = config.getPayload ?? ((c) => c.req.valid("json" as never));
 
   function refundCapacityRejectedAttempt(bucketKey: string): void {
     const bucket = store.get(bucketKey);
@@ -351,19 +377,10 @@ export function replayGuardMiddleware(
       );
     }
 
-    // Valid-by-schema by the time this runs — the valibot validator
-    // upstream guarantees one of the discriminated shapes.
-    const body = c.req.valid("json" as never) as
-      | { store: "apple"; jws: string; expectedProductId?: string }
-      | { store: "google"; purchaseToken: string; expectedProductId?: string }
-      | { store: "horizon"; userId: string; sku: string }
-      | {
-          store: "amazon";
-          userId: string;
-          receiptId: string;
-          sandbox?: boolean;
-          expectedProductId?: string;
-        };
+    // Valid-by-schema by the time this runs — the upstream validator (valibot
+    // for /v1, the generated JSON Schema for the commerce binding) guarantees
+    // a well-formed body before the payload is hashed.
+    const body = getPayload(c);
 
     const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
     const result = tryConsumeReplay(
@@ -378,6 +395,12 @@ export function replayGuardMiddleware(
 
     if (!result.allowed) {
       c.header("Retry-After", String(result.retryAfterSec));
+      if (config.respond && result.reason) {
+        return config.respond(c, {
+          reason: result.reason,
+          retryAfterSec: result.retryAfterSec,
+        });
+      }
       const code =
         result.reason === "repeated_failure"
           ? "REPEATED_FAILURE"

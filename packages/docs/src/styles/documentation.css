@@ -333,9 +333,8 @@
   color: #666;
 }
 
-/* The rail carries a single bookmark-shaped handle: click it to collapse or
-   restore the sidebar, drag it to resize. Below 769px the drawer toggle in the
-   top nav owns that job instead, so the rail is hidden. */
+/* Desktop keeps collapse and resize as separate controls: the bookmark toggles
+   visibility, while the full-height edge grip changes width. */
 .docs-sidebar-rail {
   display: none;
 }
@@ -355,28 +354,90 @@
     margin-right: 9px;
   }
 
-  /* Guide line for the drag only. It spans the full height, so showing it on
-     hover reads as a stray scrollbar; the bookmark already marks the edge. */
-  .docs-sidebar-rail::after {
-    content: '';
+  .docs-sidebar-resizer {
     position: absolute;
-    top: var(--spacing-md);
-    left: 8px;
+    z-index: 1;
+    top: 42px;
+    bottom: 0;
+    left: 0;
+    width: 18px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: col-resize;
+    touch-action: none;
+  }
+
+  .docs-sidebar-resizer::before {
+    position: absolute;
+    top: 0;
     bottom: var(--spacing-md);
+    left: 8px;
     width: 2px;
     border-radius: 999px;
     background: var(--primary-color);
-    opacity: 0;
+    content: '';
+    opacity: 0.14;
     transition: opacity 0.15s ease;
+  }
+
+  .docs-sidebar-resizer > span {
+    position: absolute;
+    top: 50%;
+    left: 5px;
+    width: 8px;
+    height: 42px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-primary) 90%, transparent);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.12);
+    opacity: 0.42;
+    transform: translateY(-50%);
+    transition:
+      border-color 0.15s ease,
+      opacity 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .docs-sidebar-resizer:hover::before,
+  .docs-sidebar-resizer:focus-visible::before,
+  .docs-sidebar-rail.is-resizing .docs-sidebar-resizer::before {
+    opacity: 0.72;
+  }
+
+  .docs-sidebar-resizer:hover > span,
+  .docs-sidebar-resizer:focus-visible > span,
+  .docs-sidebar-rail.is-resizing .docs-sidebar-resizer > span {
+    border-color: var(--primary-color);
+    opacity: 1;
+    transform: translateY(-50%) scaleY(1.08);
+  }
+
+  .docs-sidebar-resizer:focus-visible {
+    outline: 0;
+  }
+
+  .docs-sidebar-width-readout {
+    position: absolute;
+    z-index: 3;
+    top: 50%;
+    right: 22px;
+    padding: 0.28rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    font-size: 0.68rem;
+    line-height: 1;
     pointer-events: none;
+    transform: translateY(-50%);
   }
 
-  .docs-sidebar-rail.is-resizing::after {
-    opacity: 0.8;
-  }
-
-  .docs-sidebar-rail.is-collapsed::after {
-    opacity: 0;
+  .docs-sidebar-rail.is-collapsed .docs-sidebar-resizer,
+  .docs-sidebar-rail.is-collapsed .docs-sidebar-width-readout {
+    display: none;
   }
 
   .docs-sidebar-handle {
@@ -384,6 +445,7 @@
     --docs-bookmark-hover: #cf9438;
 
     position: absolute;
+    z-index: 2;
     top: 10px;
     /* Rotated a quarter turn, the bookmark's notch points back at the sidebar,
        so straddling the border reads as "clipped over the edge". The rail is
@@ -399,9 +461,6 @@
     border-radius: 4px;
     background: transparent;
     color: var(--docs-bookmark);
-    /* Click is the primary action, so a pointer - not col-resize, which made
-       it look like a scrollbar grip. The drag cursor is set on <body> for the
-       duration of an actual drag instead. */
     cursor: pointer;
     touch-action: none;
     transition:
@@ -471,6 +530,10 @@
     padding-left: max(0px, calc((100% - 900px) / 2 - 18px));
   }
 
+  .docs-container--wide.is-sidebar-collapsed {
+    padding-left: max(0px, calc((100% - 1120px) / 2 - 18px));
+  }
+
   .docs-sidebar-rail.is-collapsed .docs-sidebar-handle {
     left: 9px;
   }
@@ -481,7 +544,8 @@
    `.docs-sidebar` at (0,1,0) would lose and only the restore direction would
    stop animating. */
 @media (prefers-reduced-motion: reduce) {
-  .docs-sidebar-rail::after,
+  .docs-sidebar-resizer::before,
+  .docs-sidebar-resizer > span,
   .docs-sidebar-handle,
   .docs-sidebar,
   .docs-sidebar.open,
@@ -533,6 +597,10 @@
   max-width: 900px;
   overflow-wrap: break-word;
   word-break: break-word;
+}
+
+.docs-container--wide .docs-content {
+  max-width: 1120px;
 }
 
 /* Prevent any content from overflowing */
@@ -839,6 +907,17 @@
    remaining space instead of leaving an empty block to its right. The shared
    scrollable table behavior remains in place on narrow viewports. */
 @media (min-width: 769px) {
+  .doc-page table.webhook-response-table {
+    display: table;
+    table-layout: fixed;
+  }
+
+  .doc-page table.webhook-response-table th,
+  .doc-page table.webhook-response-table td {
+    width: 50%;
+    min-width: 0;
+  }
+
   .doc-page table.deprecation-schedule-table {
     display: table;
     table-layout: fixed;

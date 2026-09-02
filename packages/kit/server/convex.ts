@@ -35,6 +35,7 @@ interface ApiError {
   expectedVersion?: number;
   byteLength?: number;
   maxBytes?: number;
+  retryAfterSec?: number;
 }
 
 export function handleConvexError(error: unknown): ApiError | null {
@@ -69,6 +70,7 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
         expectedVersion: v.optional(v.number()),
         byteLength: v.optional(v.number()),
         maxBytes: v.optional(v.number()),
+        retryAfterSec: v.optional(v.number()),
       }),
       error.data,
     );
@@ -87,6 +89,9 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
           : {}),
         ...(objectResult.output.maxBytes !== undefined
           ? { maxBytes: objectResult.output.maxBytes }
+          : {}),
+        ...(objectResult.output.retryAfterSec !== undefined
+          ? { retryAfterSec: objectResult.output.retryAfterSec }
           : {}),
       };
     }

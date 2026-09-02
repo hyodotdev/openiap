@@ -146,7 +146,7 @@ export default function ProjectWebhooks() {
                 "Send Test Notification" or Google Pub/Sub's authenticated push
                 delivery.{" "}
                 <a
-                  href="https://openiap.dev/docs/webhooks#setup"
+                  href="https://kit.openiap.dev/docs/webhooks"
                   target="_blank"
                   rel="noreferrer"
                   className="underline hover:text-foreground"

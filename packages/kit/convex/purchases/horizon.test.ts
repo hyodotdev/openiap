@@ -35,6 +35,18 @@ function makeContext(project: typeof PROJECT | null = PROJECT) {
   };
 }
 
+function savedReceipts(ctx: ReturnType<typeof makeContext>) {
+  return ctx.runMutation.mock.calls
+    .map((call) => call[1])
+    .filter(
+      (args): args is Record<string, unknown> =>
+        typeof args === "object" &&
+        args !== null &&
+        "requestData" in args &&
+        "state" in args,
+    );
+}
+
 async function capture<T>(
   promise: Promise<T>,
 ): Promise<{ value: T; error?: never } | { value?: never; error: unknown }> {
@@ -104,8 +116,8 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     });
     expect(init?.signal).toBeInstanceOf(AbortSignal);
 
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
-    const saved = ctx.runMutation.mock.calls[0]?.[1];
+    expect(savedReceipts(ctx)).toHaveLength(1);
+    const [saved] = savedReceipts(ctx);
     expect(saved).toMatchObject({
       projectId: "project_horizon",
       store: "horizon",
@@ -142,8 +154,8 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
       productId: "premium_monthly",
     });
 
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
-    const saved = ctx.runMutation.mock.calls[0]?.[1];
+    expect(savedReceipts(ctx)).toHaveLength(1);
+    const [saved] = savedReceipts(ctx);
     expect(saved).toMatchObject({ state: "INAUTHENTIC", isValid: false });
     expect(JSON.parse(saved?.remoteResponse as string)).toEqual({
       success: false,
@@ -170,7 +182,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
       const error = expectHorizonError(result.error);
       expect(error.errorMessage).toContain(message);
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(ctx.runMutation).not.toHaveBeenCalled();
+      expect(savedReceipts(ctx)).toHaveLength(0);
     },
   );
 
@@ -185,7 +197,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const error = expectHorizonError(result.error);
     expect(error.errorMessage).toContain("returned invalid JSON");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(ctx)).toHaveLength(0);
   });
 
   test("does not retry or persist a deterministic HTTP 4xx failure", async () => {
@@ -199,7 +211,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const error = expectHorizonError(result.error);
     expect(error.errorMessage).toContain("Error 400");
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(ctx)).toHaveLength(0);
   });
 
   test("retries HTTP 429 and 5xx before persisting a confirmed result", async () => {
@@ -221,7 +233,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     expect(result.error).toBeUndefined();
     expect(result.value).toMatchObject({ isValid: true, state: "ENTITLED" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(savedReceipts(ctx)).toHaveLength(1);
   });
 
   test("cancels an HTTP error body without masking its retryable status", async () => {
@@ -248,7 +260,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     expect(result.value).toMatchObject({ isValid: true, state: "ENTITLED" });
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(savedReceipts(ctx)).toHaveLength(1);
   });
 
   test("retries a fetch network failure before persisting a confirmed result", async () => {
@@ -272,7 +284,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
       state: "INAUTHENTIC",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(savedReceipts(ctx)).toHaveLength(1);
   });
 
   test("retries a response-body network failure before persisting a confirmed result", async () => {
@@ -297,7 +309,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     expect(result.error).toBeUndefined();
     expect(result.value).toMatchObject({ isValid: true, state: "ENTITLED" });
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(savedReceipts(ctx)).toHaveLength(1);
   });
 
   test("retries each timed-out request and never persists an inferred verdict", async () => {
@@ -327,7 +339,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const error = expectHorizonError(result.error);
     expect(error.errorMessage).toContain("AbortError");
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(ctx)).toHaveLength(0);
   });
 
   test("retries each timed-out response body without persisting a verdict", async () => {
@@ -362,7 +374,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const error = expectHorizonError(result.error);
     expect(error.errorMessage).toContain("AbortError");
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(ctx)).toHaveLength(0);
   });
 
   test("exhausted 5xx retries do not overwrite the last confirmed receipt", async () => {
@@ -379,7 +391,7 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     const error = expectHorizonError(result.error);
     expect(error.errorMessage).toContain("Error 503");
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(savedReceipts(ctx)).toHaveLength(0);
   });
 });
 

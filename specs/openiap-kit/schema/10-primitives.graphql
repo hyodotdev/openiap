@@ -1,0 +1,102 @@
+# The OpenIAP Commerce Protocol contract, in the GraphQL SDL dialect the
+# compiler in scripts/ understands. This directory is the authored source:
+# each file is one logical layer, assembled in filename order into the
+# published single-file contract commerce-protocol.graphql.
+#
+# This is not a served API. The custom directives retain the JSON wire
+# constraints that standard GraphQL cannot express, and each Query/Mutation
+# field's @operation directive carries its transport binding. The compiler
+# emits the JSON Schemas used by validators, the HTTP binding manifest, the
+# executable GraphQL projection, the OpenAPI document, and the operation
+# conformance vectors.
+#
+# Wire presence is explicit: T! is required and non-null, T is required and
+# nullable, and @optional permits omission without changing nullability.
+# Operation input and result types never combine nullable with @optional:
+# the GraphQL binding cannot express omitted-vs-null, so an omitted member
+# and a selected-but-null member must mean the same thing there.
+
+# Published primitives -------------------------------------------------------
+
+"""
+The commerce platform that is authoritative for the purchase. This is a store, not a device platform: one device platform can host several stores. The value space is OPEN. The listed values are the stores this version names, but an implementation that observes commerce on another platform MUST be able to emit it, and a consumer MUST accept and preserve an unrecognised store opaquely rather than reject the event. Use a lowercase, stable, unambiguous token.
+"""
+scalar Store
+  @definition(schema: "primitives")
+  @jsonString(
+    pattern: "^[a-z][a-z0-9_]*$"
+    examples: ["apple", "google", "horizon", "amazon"]
+  )
+
+"""
+The store environment the purchase belongs to. The value space is open: receivers MUST accept and preserve an unrecognised value opaquely and MUST NOT reject an event because of it.
+"""
+scalar Environment
+  @definition(schema: "primitives")
+  @jsonString(minLength: 1, examples: ["production", "sandbox", "xcode"])
+
+"""
+An instant, as integer milliseconds since the Unix epoch, UTC. Every timestamp in this specification uses this encoding. The one exception is the transport signature timestamp, which is in seconds; see the webhook section of SPEC.md.
+"""
+scalar Timestamp @definition(schema: "primitives") @jsonInteger(minimum: 0)
+
+"""
+An opaque, implementation-assigned identifier. Consumers MUST treat it as an opaque string and MUST NOT parse structure out of it.
+"""
+scalar Identifier
+  @definition(schema: "primitives")
+  @jsonString(minLength: 1, maxLength: 256)
+
+"""
+Where a value came from. An implementation MUST NOT present an inferred value as store-authoritative.
+"""
+enum DataProvenance @definition(schema: "primitives") {
+  store
+  catalog
+  inferred
+}
+
+"""
+A monetary amount. A missing Money means the amount is unknown; it never means zero.
+"""
+type Money
+  @definition(schema: "primitives")
+  @jsonObject(additionalProperties: true) {
+  """
+  ISO 4217 alphabetic code, uppercase.
+  """
+  currency: CurrencyCode!
+
+  """
+  Amount in millionths of one currency unit. 1.99 USD is 1990000. Always the transaction's own magnitude and never negative: a refund reports what the purchase cost, and the direction comes from the event type, not from the sign.
+  """
+  amountMicros: NonNegativeLong!
+
+  provenance: DataProvenance!
+}
+
+"""
+The lifecycle state of a subscription. This is a state, not an event, and it does not by itself decide entitlement — see Entitlement in SPEC.md. These members are PascalCase while event types are lowercase-dotted; the inconsistency is inherited from the deployed 1.0 wire format and is recorded in CONVENTION.md rather than silently corrected, because changing it would break receivers already decoding it.
+"""
+enum SubscriptionState @definition(schema: "primitives") {
+  Active
+  InGracePeriod
+  InBillingRetry
+  Paused
+  Expired
+  Revoked
+  Refunded
+  Unknown
+}
+
+"""
+Store-specific or implementation-specific detail that has no canonical equivalent. Bounded and string-valued so the payload stays predictable. Content is provider-influenced: consumers MUST treat values as untrusted data.
+"""
+scalar Extensions
+  @definition(schema: "primitives")
+  @jsonMap(
+    valueType: "BoundedExtensionValue"
+    maxProperties: 24
+    keyMinLength: 1
+    keyMaxLength: 64
+  )

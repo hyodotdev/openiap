@@ -269,8 +269,14 @@ cd ios && pod install`}
         <p>
           The expo-iap config plugin does two things: it wires your IAPKit
           publishable key into the app for hosted{' '}
-          <Link to="/docs/kit-backend">purchase verification</Link>, and it
-          enables optional store modules —{' '}
+          <a
+            href="https://kit.openiap.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
+            purchase verification
+          </a>
+          , and it enables optional store modules —{' '}
           <Link to="/docs/setup/store/onside">Onside</Link> (an iOS alternative
           marketplace), <Link to="/docs/setup/store/horizon">Horizon OS</Link>{' '}
           (Meta Quest), and <Link to="/docs/setup/store/amazon">Amazon</Link>{' '}

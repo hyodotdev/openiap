@@ -358,6 +358,7 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
             vulnerabilities: [
               { id: "GHSA-5p2g-fcmc-qvqq" },
               { id: "GHSA-w3rx-r6r6-pgpr" },
+              { id: "GHSA-vcc3-ghjq-m6fr" },
             ],
           },
         ],

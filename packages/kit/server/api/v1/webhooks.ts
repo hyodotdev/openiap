@@ -8,6 +8,8 @@ import {
   resolvePubSubOidcAudiences,
 } from "../../../convex/webhooks/shared";
 import { client, handleConvexError } from "../../convex";
+import { hashApiKey } from "./rate-limit";
+import { redactApiKeysInPath } from "./request-logger";
 import { apiKeyValidationError, isSecretApiKey } from "./middleware";
 import {
   isContentLengthOverLimit,
@@ -195,13 +197,23 @@ function looksLikeGoogle(body: unknown): boolean {
 async function pathApiKeyGuard(c: Context, next: Next) {
   const apiKey = c.req.param("apiKey");
   if (isSecretApiKey(apiKey)) {
+    // The caller here is Apple or Pub/Sub, so nobody reads this response body.
+    // A server-side warning is the only way an operator learns that a secret
+    // key is sitting in a store console — and in every proxy log in between.
+    console.warn(
+      "[webhooks] a secret key is configured in a store notification URL and must be rotated",
+      {
+        apiKeyHash: hashApiKey(apiKey ?? ""),
+        path: redactApiKeysInPath(c.req.path, apiKey),
+      },
+    );
     return c.json(
       {
         errors: [
           {
             code: "SECRET_API_KEY_IN_URL",
             message:
-              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard.",
+              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard, then rotate the exposed secret key.",
           },
         ],
       },
@@ -543,6 +555,8 @@ function safeUrl(value: string): URL | null {
   }
 }
 
+const REDACTED_CREDENTIAL = "redacted";
+
 export function sanitizePubSubAudienceForLog(
   audience: unknown,
 ): string | string[] | undefined {
@@ -553,8 +567,20 @@ export function sanitizePubSubAudienceForLog(
   }
   if (typeof audience !== "string") return undefined;
   const parsed = safeUrl(audience);
-  if (!parsed) return audience;
-  return `${parsed.origin}${parsed.pathname}${parsed.search}`;
+  if (!parsed) return REDACTED_CREDENTIAL;
+  // The webhook audience IS the endpoint URL, and this deployment carries the
+  // project key in that path so Pub/Sub can authenticate without a header. The
+  // route prefix is what makes a log entry useful; the key is not.
+  const path = parsed.pathname.replace(
+    /(\/webhooks(?:\/(?:apple|google))?\/)[^/]+/,
+    `$1${REDACTED_CREDENTIAL}`,
+  );
+  const query = new URLSearchParams(parsed.search);
+  for (const name of ["apiKey", "token", "id_token", "jwt"]) {
+    if (query.has(name)) query.set(name, REDACTED_CREDENTIAL);
+  }
+  const search = query.toString();
+  return `${parsed.origin}${path}${search ? `?${search}` : ""}`;
 }
 
 function sanitizeEmailForLog(email: unknown): string | undefined {

@@ -32,6 +32,10 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const releaseWorkflows = {
   apple: { filename: "release-apple.yml", guardedJobs: 1 },
+  "commerce-protocol": {
+    filename: "release-commerce-protocol.yml",
+    guardedJobs: 1,
+  },
   expo: { filename: "release-expo.yml", guardedJobs: 2 },
   flutter: { filename: "release-flutter.yml", guardedJobs: 3 },
   godot: { filename: "release-godot.yml", guardedJobs: 2 },
@@ -248,6 +252,7 @@ test("release version commits use package@version subjects", () => {
     ["release-kmp.yml", "kmp-iap@$VERSION"],
     ["release-maui.yml", "maui-iap@$VERSION"],
     ["release-conformance.yml", "openiap-conformance@$VERSION"],
+    ["release-commerce-protocol.yml", "openiap-commerce-protocol@$VERSION"],
   ]) {
     const expectedCommit = `git commit -m "chore(release): ${subject}"`;
     const versionCommits = readWorkflow(filename)
@@ -674,6 +679,11 @@ test("existing release tags must match metadata, origin, and release-branch ance
     ["apple", "3.1.0", '{"apple":"3.1.0"}'],
     ["google", "google-3.1.0", '{"google":"3.1.0"}'],
     ["conformance", "openiap-conformance-3.1.0", '{"version":"3.1.0"}'],
+    [
+      "commerce-protocol",
+      "openiap-commerce-protocol-3.1.0",
+      '{"version":"3.1.0"}',
+    ],
     ["docs", "docs-3.1.0", '{"spec":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
@@ -1341,7 +1351,7 @@ test("production docs are guarded as stable-only", () => {
   assert.match(deployScript, /Vercel environment target conflicts/);
   assert.match(
     deployScript,
-    /vercel --prod --yes --format=json --non-interactive/,
+    /vercel --prebuilt --prod --yes --format=json --non-interactive/,
   );
   assert.match(deployScript, /\.readyState == "READY"/);
   assert.match(deployScript, /\.target == "production"/);
@@ -1642,6 +1652,36 @@ test("conformance npm publication binds the exact source run attempt", () => {
   );
 });
 
+test("Commerce Protocol npm publication binds the exact source run attempt", () => {
+  const workflow = readWorkflow("release-commerce-protocol.yml");
+  assert.match(workflow, /source_run_attempt:/u);
+  assert.match(
+    workflow,
+    /-f source_run_id="\$GITHUB_RUN_ID" \\\n\s+-f source_run_attempt="\$GITHUB_RUN_ATTEMPT"/u,
+  );
+  assert.match(
+    workflow,
+    /actions\/runs\/\$SOURCE_RUN_ID\/attempts\/\$SOURCE_RUN_ATTEMPT/u,
+  );
+  assert.match(
+    workflow,
+    /SOURCE_PATH" != "\.github\/workflows\/release-commerce-protocol\.yml"/u,
+  );
+  assert.match(
+    workflow,
+    /"openiap-commerce-protocol-\$VERSION" "\$GITHUB_SHA"/u,
+  );
+  const authorizationGuard = workflow.indexOf(
+    "Verify source run authorized this release tag",
+  );
+  const publish = workflow.indexOf(
+    "- name: Publish to npm",
+    authorizationGuard,
+  );
+  assert.ok(authorizationGuard >= 0);
+  assert.ok(authorizationGuard < publish);
+});
+
 test("conformance releases cannot under-version breaking suite changes", () => {
   const workflow = readWorkflow("release-conformance.yml");
   const checkoutTag = workflow.indexOf(
@@ -1668,6 +1708,7 @@ test("conformance releases cannot under-version breaking suite changes", () => {
 
 test("npm trusted publishers use a supported Node runtime", () => {
   for (const filename of [
+    "release-commerce-protocol.yml",
     "release-conformance.yml",
     "release-expo.yml",
     "release-react-native.yml",
@@ -1693,6 +1734,7 @@ test("release pushes expose credentials only in their owning step", () => {
   for (const filename of [
     "release.yml",
     "release-apple.yml",
+    "release-commerce-protocol.yml",
     "release-conformance.yml",
     "release-expo.yml",
     "release-flutter.yml",

@@ -1,9 +1,8 @@
-import { DOCS_URL } from "../../../config/env";
+import { Link } from "react-router-dom";
+
 import { Callout } from "../components/Callout";
 import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
-
-const MCP_SERVER_GUIDE_URL = `${DOCS_URL}/docs/guides/mcp-server`;
 
 export default function ClaudePluginPage() {
   return (
@@ -14,25 +13,17 @@ export default function ClaudePluginPage() {
     >
       <p>
         The OpenIAP plugin connects Claude Code to this IAPKit project through
-        the hosted <code>/mcp</code> endpoint. Use this page for the IAPKit
-        endpoint and key details; use the OpenIAP MCP Server guide for the full
-        installation flow, local PR testing, tool list, safety rules, and
-        Example App walkthrough.
+        the hosted <code>/mcp</code> endpoint. This is the canonical setup page
+        for installation, authentication, and safe IAPKit operations.
       </p>
 
-      <Callout kind="note" title="OpenIAP MCP guide">
+      <Callout kind="note" title="IAPKit AI reference">
         <p>
-          For the full setup guide, local PR testing steps, tool list, safety
-          notes, and Example App walkthrough, open{" "}
-          <a
-            href={MCP_SERVER_GUIDE_URL}
-            className="text-primary underline"
-            target="_blank"
-            rel="noreferrer"
-          >
-            /docs/guides/mcp-server
-          </a>
-          .
+          The{" "}
+          <Link to="/docs/ai-assistants" className="text-primary underline">
+            AI assistants overview
+          </Link>{" "}
+          links the IAPKit <code>llms.txt</code> files and the Codex setup.
         </p>
       </Callout>
 
@@ -106,7 +97,7 @@ export IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>"`}
         Start with a read-only prompt and keep product writes behind review.
         Store sync jobs should begin with <code>dryRun: true</code>; approve
         live writes only after checking the proposed platform, product id,
-        price, and billing period in the OpenIAP MCP Server guide.
+        price, and billing period.
       </p>
     </DocsPage>
   );

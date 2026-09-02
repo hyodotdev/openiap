@@ -5,6 +5,7 @@ import {
   allowsLegacyProjectApiKeyFallback,
   effectiveApiKeyType,
   getApiKeyByKey,
+  apiKeyStorageFields,
 } from "./helpers";
 import { getProjectById } from "../projects/helpers";
 
@@ -119,12 +120,16 @@ export const migrateProjectApiKey = internalMutation({
     }
 
     const now = Date.now();
+    const storageFields = await apiKeyStorageFields(
+      project.apiKey,
+      "publishable",
+    );
 
     // Create a new API key record from the legacy key
     const keyId = await ctx.db.insert("apiKeys", {
       projectId: args.projectId,
       organizationId: project.organizationId,
-      key: project.apiKey,
+      ...storageFields,
       name: "Default Production Key",
       description: "Migrated from legacy API key system",
       keyType: "publishable",

@@ -9,11 +9,12 @@ const convexClientMock = vi.hoisted(() => ({
   action: vi.fn(),
   mutation: vi.fn(),
   query: vi.fn(),
+  handleConvexError: vi.fn(),
 }));
 
 vi.mock("../../convex", () => ({
   client: convexClientMock,
-  handleConvexError: () => null,
+  handleConvexError: convexClientMock.handleConvexError,
 }));
 
 const { apiRoutes } = await import("./routes");
@@ -27,6 +28,8 @@ describe("apiRoutes", () => {
     convexClientMock.action.mockReset();
     convexClientMock.mutation.mockReset();
     convexClientMock.query.mockReset();
+    convexClientMock.handleConvexError.mockReset();
+    convexClientMock.handleConvexError.mockReturnValue(null);
     logLines = [];
     logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
       const [first] = args;
@@ -113,6 +116,31 @@ describe("apiRoutes", () => {
       }),
     );
     expect(convexClientMock.query).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when the persistent verification backstop is exhausted", async () => {
+    convexClientMock.action.mockRejectedValueOnce(new Error("limited"));
+    convexClientMock.handleConvexError.mockReturnValueOnce({
+      code: "RATE_LIMITED",
+      message: "Too many verification requests",
+      retryAfterSec: 2,
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-backstop",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("2");
+    expect((await response.json()).errors[0].code).toBe("RATE_LIMITED");
   });
 
   it("forwards Amazon sandbox and expected product checks and exposes the RVS environment", async () => {

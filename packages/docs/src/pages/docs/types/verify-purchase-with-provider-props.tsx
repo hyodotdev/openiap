@@ -207,9 +207,13 @@ function VerifyPurchaseWithProviderProps() {
             <code>IapkitProductClientPayload</code> result shape
           </Link>{' '}
           and the{' '}
-          <Link to="/docs/kit-backend#product-client-payloads">
+          <a
+            href="https://kit.openiap.dev/docs/products"
+            target="_blank"
+            rel="noreferrer"
+          >
             IAPKit product client payload guide
-          </Link>
+          </a>
           .
         </p>
 

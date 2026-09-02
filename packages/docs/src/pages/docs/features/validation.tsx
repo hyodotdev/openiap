@@ -548,9 +548,13 @@ if (
           rules when the app opens without verifying a new purchase, use the
           React Native or Expo <code>kitApi</code> product methods, or MAUI's{' '}
           <code>KitApiClient</code>, as described in{' '}
-          <Link to="/docs/kit-backend#product-client-payloads">
+          <a
+            href="https://kit.openiap.dev/docs/products"
+            target="_blank"
+            rel="noreferrer"
+          >
             Product client payloads
-          </Link>
+          </a>
           .
         </p>
 

@@ -531,9 +531,26 @@ describe("playPriceMicrosToNumber", () => {
 });
 
 describe("moneyToMicros", () => {
-  it("returns undefined when input is missing or has no units", () => {
+  it("returns undefined when input is missing or carries no amount at all", () => {
     expect(moneyToMicros(undefined)).toBeUndefined();
     expect(moneyToMicros({ currencyCode: "USD" })).toBeUndefined();
+  });
+
+  it("keeps sub-unit prices whose zero units proto3 omitted", () => {
+    // A $0.99 base plan arrives as nanos-only: proto3 JSON drops int64
+    // fields at their zero default, so `units` is absent, not "0".
+    expect(moneyToMicros({ currencyCode: "USD", nanos: 990_000_000 })).toBe(
+      990_000,
+    );
+    expect(
+      moneyToMicros({ currencyCode: "USD", units: null, nanos: 990_000_000 }),
+    ).toBe(990_000);
+  });
+
+  it("treats a negative nanos-only amount as price-unknown", () => {
+    expect(
+      moneyToMicros({ currencyCode: "USD", nanos: -750_000_000 }),
+    ).toBeUndefined();
   });
 
   it("converts whole dollars (units only) to micros", () => {

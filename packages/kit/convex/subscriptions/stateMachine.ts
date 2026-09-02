@@ -108,12 +108,29 @@ export function applySubscriptionTransition(
     options: {
       clearCancellationReason?: boolean;
       clearRenewsAt?: boolean;
+      clearExpiresAt?: boolean;
+      acceptExpiresAtInGrace?: boolean;
     } = {},
-  ) =>
-    ({
+  ) => {
+    // While a grace period has no known deadline, a non-grace notification
+    // whose expiresAt already elapsed is just the failed paid-period end —
+    // accepting it would revoke access mid-grace. A future value is a real
+    // deadline (Math.max picked up gracePeriodExpiresDate) and is kept; a
+    // grace notification itself (acceptExpiresAtInGrace) may set either.
+    const staleExpiryDuringUnboundedGrace =
+      !options.acceptExpiresAtInGrace &&
+      current?.state === "InGracePeriod" &&
+      current.expiresAt === undefined &&
+      (overrides.state ?? current.state) === "InGracePeriod" &&
+      overrides.expiresAt !== undefined &&
+      overrides.expiresAt <= Date.now();
+    return {
       state: overrides.state ?? current?.state ?? "Unknown",
       productId,
-      expiresAt: overrides.expiresAt ?? current?.expiresAt,
+      expiresAt:
+        options.clearExpiresAt || staleExpiryDuringUnboundedGrace
+          ? undefined
+          : (overrides.expiresAt ?? current?.expiresAt),
       renewsAt: options.clearRenewsAt
         ? undefined
         : (overrides.renewsAt ?? current?.renewsAt),
@@ -124,7 +141,8 @@ export function applySubscriptionTransition(
       currency: overrides.currency ?? current?.currency,
       priceAmountMicros:
         overrides.priceAmountMicros ?? current?.priceAmountMicros,
-    }) as NonNullable<CurrentSubscription>;
+    } as NonNullable<CurrentSubscription>;
+  };
 
   switch (event.type) {
     case "SubscriptionStarted": {
@@ -201,7 +219,14 @@ export function applySubscriptionTransition(
           renewsAt: event.renewsAt,
           willRenew: event.willRenew,
         },
-        { clearRenewsAt: event.willRenew === false },
+        {
+          clearRenewsAt: event.willRenew === false,
+          // A grace event with no deadline must not inherit the elapsed
+          // paid-period end — that would revoke access the moment grace
+          // begins. Grace with no expiresAt is entitled by state alone.
+          clearExpiresAt: event.expiresAt === undefined,
+          acceptExpiresAtInGrace: true,
+        },
       );
       return {
         next,
@@ -249,7 +274,7 @@ export function applySubscriptionTransition(
           state: current?.state ?? event.subscriptionState ?? "Active",
           expiresAt: event.expiresAt,
           willRenew: false,
-          cancellationReason: event.cancellationReason ?? "UserCanceled",
+          cancellationReason: event.cancellationReason,
         },
         { clearRenewsAt: true },
       );
@@ -281,9 +306,17 @@ export function applySubscriptionTransition(
           {
             state: "Revoked",
             willRenew: false,
-            cancellationReason: "Refunded",
+            // A revocation is not necessarily a refund — Apple sends REVOKE
+            // when Family Sharing access ends too — so carry what the
+            // normalizer determined rather than asserting money moved back.
+            cancellationReason: event.cancellationReason,
           },
-          { clearRenewsAt: true },
+          {
+            clearRenewsAt: true,
+            // A reasonless revocation must not inherit the row's earlier
+            // reason (e.g. UserCanceled from a cancel that preceded it).
+            clearCancellationReason: event.cancellationReason === undefined,
+          },
         ),
         active: false,
         transition: "Revoked",

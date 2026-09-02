@@ -12,7 +12,7 @@ import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrency,
 } from "../utils/currency";
-import { getApiKeyByKey } from "../apiKeys/helpers";
+import { apiKeyStorageFields, getApiKeyByKey } from "../apiKeys/helpers";
 
 const projectPlatformValidator = v.union(
   v.literal("react-native"),
@@ -267,6 +267,7 @@ export const createProject = mutation({
     }
 
     const apiKey = generateApiKey("publishable");
+    const apiKeyFields = await apiKeyStorageFields(apiKey, "publishable");
     const now = Date.now();
 
     const projectId = await ctx.db.insert("projects", {
@@ -288,7 +289,7 @@ export const createProject = mutation({
     const apiKeyId = await ctx.db.insert("apiKeys", {
       projectId,
       organizationId: args.organizationId,
-      key: apiKey,
+      ...apiKeyFields,
       name: "Default Production Key",
       description: "Automatically generated production key",
       keyType: "publishable",
@@ -541,6 +542,7 @@ export const regenerateApiKey = mutation({
     }
 
     const newApiKey = generateApiKey("publishable");
+    const apiKeyFields = await apiKeyStorageFields(newApiKey, "publishable");
     const now = Date.now();
     const previousKeyRow = await getApiKeyByKey(ctx, project.apiKey);
     if (previousKeyRow?.projectId === project._id && previousKeyRow.isActive) {
@@ -558,7 +560,7 @@ export const regenerateApiKey = mutation({
     await ctx.db.insert("apiKeys", {
       projectId: project._id,
       organizationId: project.organizationId,
-      key: newApiKey,
+      ...apiKeyFields,
       name: "Default Production Key (Regenerated)",
       description: "Regenerated through the legacy project API",
       keyType: "publishable",

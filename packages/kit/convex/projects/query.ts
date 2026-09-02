@@ -9,14 +9,31 @@ import {
 } from "../apiKeys/helpers";
 import { resolveProjectByIdForCurrentUserFromDb } from "./helpers";
 
+type ProjectPrivateField =
+  | "horizonAppSecret"
+  | "amazonSharedSecret"
+  | "userErasureHashKey"
+  | "verificationAdmissionTokens"
+  | "verificationAdmissionRefilledAt";
+
 function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "horizonAppSecret" | "amazonSharedSecret"
+  ProjectPrivateField
 > & {
   hasHorizonAppSecret: boolean;
   hasAmazonSharedSecret: boolean;
 } {
-  const { horizonAppSecret, amazonSharedSecret, ...rest } = project;
+  const {
+    horizonAppSecret,
+    amazonSharedSecret,
+    userErasureHashKey: _userErasureHashKey,
+    verificationAdmissionTokens: _verificationAdmissionTokens,
+    verificationAdmissionRefilledAt: _verificationAdmissionRefilledAt,
+    ...rest
+  } = project;
+  void _userErasureHashKey;
+  void _verificationAdmissionTokens;
+  void _verificationAdmissionRefilledAt;
   return {
     ...rest,
     hasHorizonAppSecret:
@@ -28,7 +45,7 @@ function projectWithSecretState(project: Doc<"projects">): Omit<
 
 function projectForApiKeyLookup(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+  "apiKey" | ProjectPrivateField
 > & {
   hasHorizonAppSecret: boolean;
   hasAmazonSharedSecret: boolean;
@@ -38,9 +55,9 @@ function projectForApiKeyLookup(project: Doc<"projects">): Omit<
   return rest;
 }
 
-function projectForDashboard(project: Doc<"projects">): Omit<
+export function projectForDashboard(project: Doc<"projects">): Omit<
   Doc<"projects">,
-  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
+  "apiKey" | ProjectPrivateField
 > & {
   hasHorizonAppSecret: boolean;
   hasAmazonSharedSecret: boolean;
@@ -52,10 +69,7 @@ function projectForList(
   project: Doc<"projects">,
   projectIdsWithAnyKey: Set<string>,
   projectIdsWithActiveKey: Set<string>,
-): Omit<
-  Doc<"projects">,
-  "apiKey" | "horizonAppSecret" | "amazonSharedSecret"
-> & {
+): Omit<Doc<"projects">, "apiKey" | ProjectPrivateField> & {
   hasApiKey: boolean;
   hasHorizonAppSecret: boolean;
   hasAmazonSharedSecret: boolean;
@@ -209,7 +223,9 @@ export function selectActiveWebhookPublishableKey(
     .filter((apiKey) => apiKey.isActive)
     .sort((a, b) => b.createdAt - a.createdAt);
   return activeApiKeys.find(
-    (apiKey) => effectiveApiKeyType(apiKey.keyType) === "publishable",
+    (apiKey) =>
+      effectiveApiKeyType(apiKey.keyType) === "publishable" &&
+      typeof apiKey.key === "string",
   )?.key;
 }
 

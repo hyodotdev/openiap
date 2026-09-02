@@ -45,6 +45,13 @@ describe("checkDestinationUrl", () => {
   it.each([
     "https://localhost/hook",
     "https://127.0.0.1/hook",
+    "https://127.1.2.3/hook",
+    "https://0.0.0.0/hook",
+    "https://192.0.0.1/hook",
+    "https://192.88.99.1/hook",
+    "https://198.51.100.1/hook",
+    "https://224.0.0.1/hook",
+    "https://240.0.0.1/hook",
     "https://10.0.0.5/hook",
     "https://192.168.1.10/hook",
     "https://172.16.4.4/hook",

@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/store-event-mapping.schema.json",
+  "title": "OpenIAP Commerce Protocol store event mapping",
+  "description": "How each store's own notification vocabulary maps onto the normalized event types. This is the reference an implementer follows to normalize a store notification without reverse-engineering an existing backend, and the reference a consumer reads to understand why a given store produces the events it does. A row states what a notification means, not that an emitter can always act on it: one that lacks the state to interpret a notification — a redelivery it already applied, a purchase whose product it cannot resolve, a token the store has superseded — emits nothing, and that is conformant.",
+  "type": "object",
+  "required": [
+    "specVersion",
+    "stores"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specVersion": {
+      "description": "OpenIAP Commerce Protocol version this table was written against, as MAJOR.MINOR.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "stores": {
+      "description": "Keyed by store, using the same open value space as the event envelope. A table lists only the stores it has mappings for.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/StoreMapping"
+      }
+    }
+  },
+  "$defs": {
+    "StoreMapping": {
+      "description": "One store's notification lane: the channel it publishes, the rows that translate its notifications, and what an emitter could still derive without one.",
+      "type": "object",
+      "required": [
+        "notificationChannel",
+        "mappings"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "notificationChannel": {
+          "description": "The store's own server-to-server notification product, or null when the store publishes none. This is a fact about the STORE, never about any implementation: a channel a store publishes but this version does not map is still named here, with `mappings` empty and `notes` saying why. Recording an unmapped channel as null would collapse a store limitation and a specification gap into the same value, which is the conflation the capability descriptor's two axes exist to prevent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "description": "Required when there is no notification channel, or when the store's semantics need a caveat an implementer would otherwise get wrong.",
+          "type": "string",
+          "minLength": 1
+        },
+        "derivableByPolling": {
+          "description": "Events an implementation could produce for this store by re-asking an authoritative endpoint on a schedule rather than by consuming a notification. Present so that a store this version maps no notifications for is not mistaken for a store with no possible signal — which is true whether the store publishes a channel that went unmapped or publishes none at all. This version specifies no cadence, so an implementation that derives these MUST still declare its capabilities honestly rather than claim parity with a store whose notifications it consumes.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^entitlement\\.[a-z_]+$"
+          },
+          "uniqueItems": true
+        },
+        "mappings": {
+          "description": "Notification-to-event rows. Empty when the store publishes no channel, or when it publishes one this version does not map; `notes` MUST distinguish the two.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Mapping"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "notificationChannel": {
+              "type": "string"
+            },
+            "mappings": {
+              "type": "array",
+              "minItems": 1
+            }
+          },
+          "required": [
+            "notificationChannel",
+            "mappings"
+          ]
+        },
+        {
+          "properties": {
+            "notes": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "notes"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "notificationChannel": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "notificationChannel"
+            ]
+          },
+          "then": {
+            "properties": {
+              "mappings": {
+                "type": "array",
+                "maxItems": 0
+              }
+            },
+            "required": [
+              "mappings"
+            ]
+          }
+        }
+      ]
+    },
+    "Mapping": {
+      "description": "One notification-to-event row. Closed: an unrecognised qualifier would leave a reader selecting this row on fewer conditions than its author intended.",
+      "type": "object",
+      "required": [
+        "storeNotification",
+        "event"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "storeNotification": {
+          "description": "The notification type in the store's own vocabulary, verbatim.",
+          "type": "string",
+          "minLength": 1
+        },
+        "storeNotificationCode": {
+          "description": "The value the store actually transmits, when it differs from the human-readable name. Google Play sends a numeric notificationType; the names are documentation labels that never appear on the wire.",
+          "type": "string",
+          "minLength": 1
+        },
+        "storeSubtype": {
+          "description": "A qualifier the store sends alongside the type. Null means this row is the default for that notification: it applies when the store sends no subtype, and also when it sends one no other row claims.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "whenNoPriorStoreEvent": {
+          "description": "Restricts this row to the case where the emitter has seen no earlier store notification for this purchase. That covers both a purchase it has never heard of and one it learned about from a client receipt but never from the store — in each case the notification is the beginning of the story it can tell. A purchase with store history behind it takes the unconditional row instead.",
+          "type": "boolean",
+          "const": true
+        },
+        "whenPreviousState": {
+          "description": "Restricts this row to the case where the subscription was in one of these states immediately before the notification. Use it only where the store itself provides no qualifier: Google sends SUBSCRIPTION_RECOVERED for both a recovery and a resume from pause and marks nothing, so prior state is the only separator. Where a store does send a qualifier, use `storeSubtype` instead. A row without any condition is the default for its (notification, subtype) pair, and an implementation MUST prefer a conditional row that matches.",
+          "type": "array",
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/SubscriptionState"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "event": {
+          "description": "The normalized event type to emit, or null when the notification is received but produces no event — an audit-only or informational notification. A null event is a deliberate mapping, not a gap. Never an `entitlement.*` type: SPEC.md 9.2 derives those from the gate, not from a notification.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^subscription\\.[a-z_]+$"
+        },
+        "notes": {
+          "description": "Why this row is what it is, in prose an implementer can act on. Required wherever the row emits nothing, so a reader can tell a deliberate no-op from an oversight.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "if": {
+        "properties": {
+          "event": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "notes"
+        ]
+      },
+      "not": {
+        "properties": {
+          "whenNoPriorStoreEvent": {
+            "type": "boolean"
+          },
+          "whenPreviousState": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "whenNoPriorStoreEvent",
+          "whenPreviousState"
+        ]
+      }
+    }
+  }
+}

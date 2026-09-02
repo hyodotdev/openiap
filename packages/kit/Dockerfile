@@ -24,6 +24,7 @@ COPY packages/docs/package.json ./packages/docs/
 # "lockfile had changes, but lockfile is frozen".
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY packages/conformance/package.json ./packages/conformance/
+COPY specs/openiap-kit/package.json ./specs/openiap-kit/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------
@@ -33,6 +34,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
+# Kit runtime code imports openiap-commerce-protocol (generated schemas,
+# binding manifest, capability descriptor); without the sources the workspace
+# symlink dangles inside the image and only inside the image.
+COPY specs/openiap-kit ./specs/openiap-kit
 # Bun workspaces install some deps under each package's
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage

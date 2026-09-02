@@ -137,6 +137,90 @@ const baseTransaction: AppleDecodedTransaction = {
 };
 
 describe("normalizeAppleAsn", () => {
+  // Apple sends DID_FAIL_TO_RENEW/GRACE_PERIOD *after* the paid period has
+  // already ended, so the transaction's expiresDate is in the past. Taking it
+  // as the entitlement deadline ends access at the instant grace begins, which
+  // is the opposite of what a grace period is for. gracePeriodExpiresDate is
+  // the date Apple provides for exactly this.
+  it("uses gracePeriodExpiresDate so a customer in grace keeps access", () => {
+    const elapsedPeriodEnd = 1_713_592_000_000;
+    const graceEnds = elapsedPeriodEnd + 16 * 24 * 60 * 60 * 1000;
+
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_FAIL_TO_RENEW",
+        subtype: "GRACE_PERIOD",
+      },
+      transaction: { ...baseTransaction, expiresDate: elapsedPeriodEnd },
+      renewalInfo: {
+        autoRenewStatus: 1,
+        gracePeriodExpiresDate: graceEnds,
+      },
+    });
+
+    expect(event.type).toBe("SubscriptionInGracePeriod");
+    expect(event.expiresAt).toBe(graceEnds);
+    expect(event.expiresAt).toBeGreaterThan(elapsedPeriodEnd);
+  });
+
+  // The transaction expiry is the paid-period end and is already stale here.
+  // When Apple omits the real grace deadline, omission is safer than revoking
+  // access at the instant grace begins.
+  it("omits expiry when Apple sends no grace deadline", () => {
+    const elapsedPeriodEnd = 1_713_592_000_000;
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "DID_FAIL_TO_RENEW",
+        subtype: "GRACE_PERIOD",
+      },
+      transaction: { ...baseTransaction, expiresDate: elapsedPeriodEnd },
+      renewalInfo: { autoRenewStatus: 1 },
+    });
+
+    expect(event.type).toBe("SubscriptionInGracePeriod");
+    expect(event.expiresAt).toBeUndefined();
+  });
+
+  // Apple sends the stale transaction on EVERY notification during grace, not
+  // just the grace one. Re-enabling auto-renew must not revoke access.
+  it.each([
+    ["DID_CHANGE_RENEWAL_STATUS", "AUTO_RENEW_ENABLED"],
+    ["DID_CHANGE_RENEWAL_STATUS", "AUTO_RENEW_DISABLED"],
+    ["DID_CHANGE_RENEWAL_PREF", undefined],
+  ])(
+    "%s during grace keeps the grace deadline",
+    (notificationType, subtype) => {
+      const elapsedPeriodEnd = 1_713_592_000_000;
+      const graceEnds = elapsedPeriodEnd + 16 * 24 * 60 * 60 * 1000;
+
+      const event = normalizeAppleAsn({
+        payload: { ...baseApplePayload, notificationType, subtype },
+        transaction: { ...baseTransaction, expiresDate: elapsedPeriodEnd },
+        renewalInfo: { autoRenewStatus: 1, gracePeriodExpiresDate: graceEnds },
+      });
+
+      expect(event.expiresAt).toBe(graceEnds);
+    },
+  );
+
+  it("ends access at the grace deadline once grace has expired", () => {
+    const elapsedPeriodEnd = 1_713_592_000_000;
+    const graceEnded = elapsedPeriodEnd + 16 * 24 * 60 * 60 * 1000;
+    const event = normalizeAppleAsn({
+      payload: {
+        ...baseApplePayload,
+        notificationType: "GRACE_PERIOD_EXPIRED",
+      },
+      transaction: { ...baseTransaction, expiresDate: elapsedPeriodEnd },
+      renewalInfo: { autoRenewStatus: 1, gracePeriodExpiresDate: graceEnded },
+    });
+
+    expect(event.type).toBe("SubscriptionInBillingRetry");
+    expect(event.expiresAt).toBe(graceEnded);
+  });
+
   it("normalizes a vanilla DID_RENEW into SubscriptionRenewed with active state", () => {
     const event = normalizeAppleAsn({
       payload: baseApplePayload,
@@ -308,13 +392,27 @@ describe("normalizeAppleAsn", () => {
     }
   });
 
-  it("flags REVOKE / REFUND with cancellationReason = Refunded", () => {
+  // REVOKE also fires when Family Sharing access ends, where no money moves,
+  // and Apple does not distinguish the two. Claiming a refund would put a
+  // reversal on a consumer's ledger that never happened.
+  it("REVOKE omits the reason even when renewal info carries an expirationIntent", () => {
+    // The intent describes why renewal will lapse, not why access was revoked;
+    // a Family Sharing REVOKE must stay reasonless.
+    const normalized = normalizeAppleAsn({
+      payload: { ...baseApplePayload, notificationType: "REVOKE" },
+      transaction: baseTransaction,
+      renewalInfo: { expirationIntent: 1 },
+    });
+    expect(normalized.cancellationReason).toBeUndefined();
+  });
+
+  it("does not claim a refund for REVOKE, only for REFUND", () => {
     const revoke = normalizeAppleAsn({
       payload: { ...baseApplePayload, notificationType: "REVOKE" },
       transaction: baseTransaction,
     });
     expect(revoke.type).toBe("SubscriptionRevoked");
-    expect(revoke.cancellationReason).toBe("Refunded");
+    expect(revoke.cancellationReason).toBeUndefined();
 
     const refund = normalizeAppleAsn({
       payload: { ...baseApplePayload, notificationType: "REFUND" },
@@ -532,6 +630,29 @@ describe("normalizeGoogleRtdn", () => {
     expect(onHold.subscriptionState).toBe("InBillingRetry");
   });
 
+  // Play extends expiryTime through the grace period and back-dates it on
+  // account hold, so copying it verbatim is correct in both cases. That is why
+  // Google needs no equivalent of the Apple gracePeriodExpiresDate preference.
+  it.each([
+    [6, "SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "SubscriptionInGracePeriod"],
+    [5, "SUBSCRIPTION_STATE_ON_HOLD", "SubscriptionInBillingRetry"],
+  ])("takes Play's expiry verbatim for %i", (notificationType, state, type) => {
+    const expiry = 1_713_592_000_000;
+    const event = normalizeGoogleRtdn({
+      payload: {
+        ...baseRtdnSubscription,
+        subscriptionNotification: {
+          ...baseRtdnSubscription.subscriptionNotification!,
+          notificationType,
+        },
+      },
+      subscriptionInfo: { state, expiryTimeMillis: expiry },
+    });
+
+    expect(event.type).toBe(type);
+    expect(event.expiresAt).toBe(expiry);
+  });
+
   it("preserves Active state when SUBSCRIPTION_STATE_CANCELED reports auto-renew off", () => {
     const event = normalizeGoogleRtdn({
       payload: {
@@ -545,7 +666,7 @@ describe("normalizeGoogleRtdn", () => {
     });
     expect(event.type).toBe("SubscriptionCanceled");
     expect(event.subscriptionState).toBe("Active");
-    expect(event.cancellationReason).toBe("UserCanceled");
+    expect(event.cancellationReason).toBeUndefined();
   });
 
   it("translates Google cancelReason values to openiap reasons", () => {
@@ -616,6 +737,29 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.productKind).toBe("subscription");
     expect(event.cancellationReason).toBe("Refunded");
   });
+
+  it.each([undefined, 3])(
+    "drops a voidedPurchase with unsupported productType %s",
+    (productType) => {
+      let thrown: unknown;
+      try {
+        normalizeGoogleRtdn({
+          payload: {
+            messageId: "rtdn-void-unsupported",
+            eventTimeMillis: 1_711_222_222_000,
+            voidedPurchaseNotification: {
+              purchaseToken: "void-token-unsupported",
+              productType,
+            },
+          },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(WebhookNormalizationError);
+      expect(thrown).toMatchObject({ code: "UnknownEventType" });
+    },
+  );
 
   it("normalizes a testNotification to Sandbox environment", () => {
     const event = normalizeGoogleRtdn({

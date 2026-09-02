@@ -13,14 +13,20 @@ export interface DataTableColumn<Row> {
 }
 
 interface DataTableProps<Row> {
+  className?: string;
   columns: DataTableColumn<Row>[];
   rows: Row[];
   rowKey: (row: Row) => string;
 }
 
-function DataTable<Row>({ columns, rows, rowKey }: DataTableProps<Row>) {
+function DataTable<Row>({
+  className,
+  columns,
+  rows,
+  rowKey,
+}: DataTableProps<Row>) {
   return (
-    <table>
+    <table className={className}>
       <thead>
         <tr>
           {columns.map((column) => (

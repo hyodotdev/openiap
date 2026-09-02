@@ -5383,9 +5383,10 @@ public data class RequestVerifyPurchaseWithIapkitProps(
 
     /**
      * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
-     * Include the product's public IAPKit client payload in a valid verification
-     * response. Defaults to false so existing response
-     * shapes and bandwidth remain unchanged.
+     * Include the product's public IAPKit client payload in a valid Apple or
+     * Google verification response. Horizon and Amazon accept this option for
+     * cross-platform request compatibility but omit the payload. Defaults to
+     * false so existing response shapes and bandwidth remain unchanged.
      */
     var includeClientPayload: Boolean? = null
         private set

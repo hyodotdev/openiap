@@ -96,7 +96,7 @@ function evaluationSnapshot(
   candidates: Array<ReturnType<typeof subscriptionRow>> = [],
   fallback: ReturnType<typeof subscriptionRow> | null = candidates[0] ?? null,
 ) {
-  return { candidates, fallback };
+  return { projectId: "project-1", candidates, fallback };
 }
 
 describe("subscriptionsRoutes", () => {
@@ -152,6 +152,83 @@ describe("subscriptionsRoutes", () => {
       purchaseToken: "token",
       userId: "user-1",
     });
+  });
+
+  it("labels v1 status and entitlement usage without logging credentials or user IDs", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_header",
+    };
+    mocks.query.mockResolvedValue(evaluationSnapshot());
+
+    const responses = [
+      await app.request("/subscriptions/status?userId=private-user", {
+        headers,
+      }),
+      await app.request(
+        "/subscriptions/status/openiap-kit_pk_path?userId=private-user",
+      ),
+      await app.request("/subscriptions/entitlements?userId=private-user", {
+        headers,
+      }),
+      await app.request(
+        "/subscriptions/entitlements/openiap-kit_pk_path?userId=private-user",
+      ),
+    ];
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 200, 200, 200,
+    ]);
+    const usageLogs = logSpy.mock.calls
+      .map(([line]) => {
+        if (typeof line !== "string") return null;
+        try {
+          return JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((line) => line?.kind === "legacy_subscription_request");
+
+    expect(
+      usageLogs.map((line) => ({
+        operation: line?.operation,
+        credentialTransport: line?.credentialTransport,
+        statusCode: line?.statusCode,
+      })),
+    ).toEqual([
+      {
+        operation: "status",
+        credentialTransport: "authorization",
+        statusCode: 200,
+      },
+      {
+        operation: "status",
+        credentialTransport: "path",
+        statusCode: 200,
+      },
+      {
+        operation: "entitlements",
+        credentialTransport: "authorization",
+        statusCode: 200,
+      },
+      {
+        operation: "entitlements",
+        credentialTransport: "path",
+        statusCode: 200,
+      },
+    ]);
+    expect(usageLogs).toHaveLength(4);
+    for (const line of usageLogs) {
+      expect(line?.apiVersion).toBe("v1");
+      expect(line?.projectIdHash).toMatch(/^[0-9a-f]{16}$/);
+      expect(line).not.toHaveProperty("path");
+    }
+    const serialized = JSON.stringify(usageLogs);
+    expect(serialized).not.toContain("private-user");
+    expect(serialized).not.toContain("openiap-kit_pk_header");
+    expect(serialized).not.toContain("openiap-kit_pk_path");
   });
 
   it("returns 403 before publishable keys can read administrative subscription data", async () => {
@@ -401,7 +478,7 @@ describe("subscriptionsRoutes", () => {
     expect(body.subscription).not.toHaveProperty("createdAt");
   });
 
-  it("does not accept a snapshot ETag from another key, user, or route", async () => {
+  it("does not accept a snapshot ETag for a different representation or route", async () => {
     const app = buildApp();
     const snapshot = evaluationSnapshot();
     mocks.query.mockResolvedValue(snapshot);
@@ -415,18 +492,27 @@ describe("subscriptionsRoutes", () => {
     expect(first.status).toBe(200);
     expect(etag).not.toBeNull();
 
-    const otherKey = await app.request("/subscriptions/status?userId=user-1", {
-      headers: {
-        authorization: "Bearer openiap-kit_pk_second",
-        "if-none-match": etag!,
+    mocks.query.mockResolvedValueOnce(
+      evaluationSnapshot([subscriptionRow({ id: "different", updatedAt: 99 })]),
+    );
+    const differentResult = await app.request(
+      "/subscriptions/status?userId=user-1",
+      {
+        headers: {
+          authorization: "Bearer openiap-kit_pk_second",
+          "if-none-match": etag!,
+        },
       },
-    });
-    const otherUser = await app.request("/subscriptions/status?userId=user-2", {
-      headers: {
-        authorization: "Bearer openiap-kit_pk_first",
-        "if-none-match": etag!,
+    );
+    const sameRepresentation = await app.request(
+      "/subscriptions/status?userId=user-2",
+      {
+        headers: {
+          authorization: "Bearer openiap-kit_pk_first",
+          "if-none-match": etag!,
+        },
       },
-    });
+    );
     const otherRoute = await app.request(
       "/subscriptions/entitlements?userId=user-1",
       {
@@ -437,13 +523,33 @@ describe("subscriptionsRoutes", () => {
       },
     );
 
-    expect([otherKey.status, otherUser.status, otherRoute.status]).toEqual([
-      200, 200, 200,
-    ]);
-    expect(otherKey.headers.get("etag")).not.toBe(etag);
-    expect(otherUser.headers.get("etag")).not.toBe(etag);
+    expect([
+      differentResult.status,
+      sameRepresentation.status,
+      otherRoute.status,
+    ]).toEqual([200, 304, 200]);
+    expect(differentResult.headers.get("etag")).not.toBe(etag);
+    expect(sameRepresentation.headers.get("etag")).toBe(etag);
     expect(otherRoute.headers.get("etag")).not.toBe(etag);
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("uses the response representation rather than credentials as ETag input", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValue(evaluationSnapshot());
+
+    const first = await app.request("/subscriptions/status?userId=user-1", {
+      headers: {
+        authorization: "Bearer openiap-kit_pk_first",
+      },
+    });
+    const second = await app.request("/subscriptions/status?userId=user-1", {
+      headers: {
+        authorization: "Bearer openiap-kit_pk_second",
+      },
+    });
+
+    expect(second.headers.get("etag")).toBe(first.headers.get("etag"));
   });
 
   it("keeps compatibility-path ETags stable for the same row snapshot", async () => {
@@ -598,7 +704,7 @@ describe("subscriptionsRoutes", () => {
         {
           code: "SECRET_API_KEY_IN_URL",
           message:
-            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route. This key has been exposed in a URL — rotate it.",
         },
       ],
     });

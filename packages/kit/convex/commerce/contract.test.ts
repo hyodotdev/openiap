@@ -7,9 +7,7 @@ import {
   MAX_EXTENSION_ENTRIES,
   MAX_EXTENSION_KEY_LENGTH,
   MAX_EXTENSION_VALUE_LENGTH,
-  commerceEventTypeForTransition,
   sanitizeExtensions,
-  type LifecycleTransition,
 } from "./contract";
 import {
   PROVIDER_CAPABILITIES,
@@ -17,7 +15,7 @@ import {
 } from "./capabilities";
 import { SIGNATURE_TOLERANCE_SECONDS } from "./signing";
 
-describe("commerceEventTypeForTransition", () => {
+describe("the public receiver contract stays in sync", () => {
   it("keeps every public receiver vocabulary in sync", () => {
     const contractSections = [
       sectionBetween(
@@ -39,14 +37,6 @@ describe("commerceEventTypeForTransition", () => {
         "Supported event types are:",
         "See the",
       ),
-      sectionBetween(
-        readFileSync(
-          new URL("../../../docs/src/pages/docs/webhooks.tsx", import.meta.url),
-          "utf8",
-        ),
-        "Event types are:",
-        "Read the",
-      ),
     ];
 
     for (const section of contractSections) {
@@ -55,39 +45,6 @@ describe("commerceEventTypeForTransition", () => {
       expect(new Set(eventTypes).size).toBe(eventTypes.length);
       expect([...eventTypes].sort()).toEqual([...COMMERCE_EVENT_TYPES].sort());
     }
-  });
-
-  it("maps every state-machine transition except Ignored", () => {
-    const transitions: LifecycleTransition[] = [
-      "Started",
-      "Renewed",
-      "Recovered",
-      "EnteredGracePeriod",
-      "EnteredBillingRetry",
-      "Expired",
-      "Canceled",
-      "Uncanceled",
-      "Revoked",
-      "Refunded",
-      "ProductChanged",
-      "PriceChanged",
-      "Deferred",
-      "Paused",
-      "Resumed",
-    ];
-    for (const transition of transitions) {
-      expect(commerceEventTypeForTransition(transition)).not.toBeNull();
-    }
-  });
-
-  it("does not emit an event for a no-op transition", () => {
-    expect(commerceEventTypeForTransition("Ignored")).toBeNull();
-    expect(commerceEventTypeForTransition(null)).toBeNull();
-  });
-
-  it("only produces types declared in the public list", () => {
-    const mapped = commerceEventTypeForTransition("Renewed");
-    expect(COMMERCE_EVENT_TYPES).toContain(mapped);
   });
 
   it("pins the schema version so consumers can pin on the major", () => {

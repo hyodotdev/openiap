@@ -278,6 +278,14 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
 5. Types Reference
 6. Error Codes & Handling
 7. Implementation Patterns
+8. OpenIAP Commerce Protocol
+
+## Documentation boundary
+
+This reference documents the OpenIAP client contract and the vendor-neutral
+OpenIAP Commerce Protocol. IAPKit is one conforming implementation; its product
+setup, hosted API, compatibility, operations, MCP, and AI reference live at
+https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
 
 ---
 
@@ -444,10 +452,10 @@ Canonical setup docs live under \`/docs/setup/store\`:
   \`OpenIapAndroidStore=amazon\`. Godot has shared Amazon types and
   verification payloads but no dedicated Fire OS flavor switch.
   Required values: Android \`applicationId\` matching the Amazon Developer
-  Console app, Amazon Appstore product ids / App Tester catalog entries,
-  Amazon public key for Fire OS Android builds, and IAPKit Amazon receipt
-  verification values (\`amazon.receiptId\`, optional \`amazon.userId\`,
-  \`amazon.sandbox\`).
+  Console app, Amazon Appstore product ids / App Tester catalog entries, and
+  the Amazon public key for Fire OS Android builds. Receipt verification and
+  sandbox configuration belong to the chosen backend; IAPKit documents its
+  hosted setup at https://kit.openiap.dev/docs/verification/amazon.
 - Vega OS: not an Android flavor. Target React Native for Vega and compatible
   Expo Vega targets only, using Amazon's JavaScript IAP API through the
   runtime-selected \`kepler\` adapter at the same runtime integration layer as
@@ -621,8 +629,14 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 
 `;
 
-  // Add each external file content
-  for (const filePath of externalFiles.sort()) {
+  // Internal IAPKit notes remain in the compiled repository context but do not
+  // belong in OpenIAP's public AI reference.
+  const publicExternalFiles = externalFiles.filter(
+    (filePath) => path.basename(filePath) !== "webhook-mapping.md",
+  );
+
+  // Add each public external file content
+  for (const filePath of publicExternalFiles.sort()) {
     const content = fs.readFileSync(filePath, "utf-8");
     const filename = path.basename(filePath, ".md");
     console.log(chalk.cyan(`  📖 Adding ${filename} to llms-full.txt`));
@@ -630,11 +644,11 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
     fullContent += "\n\n---\n\n";
   }
 
-  const kitQuickReference = fs.readFileSync(
-    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.kitQuickReference),
+  const commerceProtocolSpec = fs.readFileSync(
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.commerceProtocolSpec),
     "utf-8",
   );
-  fullContent += kitQuickReference.trimEnd();
+  fullContent += commerceProtocolSpec.trimEnd();
   fullContent += "\n\n---\n\n";
   fullContent += deprecationMigrationReference.trimEnd();
   fullContent += "\n\n---\n\n";
@@ -646,6 +660,11 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Types Reference: https://openiap.dev/docs/types
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
+- Commerce Protocol: https://openiap.dev/docs/commerce-protocol
+- Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
+- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
+- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
+- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/vectors
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries
@@ -911,6 +930,28 @@ interface PurchaseError {
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup
 
+## OpenIAP Commerce Protocol
+
+The OpenIAP Commerce Protocol is the vendor-neutral server-side contract for
+normalized transactions, subscription lifecycle, entitlement decisions,
+commerce events, HMAC-signed webhook delivery, idempotency, and conformance.
+It is not a hosted service and requires no OpenIAP account, registry, issued
+identifier, or central runtime.
+
+- Keep transactions, subscriptions, commerce events, and entitlements distinct.
+- Preserve unknown open values instead of rejecting otherwise valid events.
+- Retry signed deliveries with fresh timestamps; consumers verify exact bytes
+  and deduplicate any accepted copy on the stable body \`eventId\`.
+- Use the bundled JSON Schemas and signature/lifecycle vectors for offline
+  conformance.
+- Docs: https://openiap.dev/docs/commerce-protocol
+- Webhook contract: https://openiap.dev/docs/webhooks
+- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
+- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
+
+IAPKit is one implementation. Its product documentation and AI notes live at
+https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
+
 ## Links
 
 - Docs: https://openiap.dev/docs
@@ -1049,6 +1090,24 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
   console.log(
     chalk.green(`  ✓ ${externalFiles.length} external files processed`),
   );
+
+  const commerceProtocolSpec = fs.readFileSync(
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.commerceProtocolSpec),
+    "utf-8",
+  );
+  output += `# OPENIAP COMMERCE PROTOCOL
+
+The following normative specification defines the vendor-neutral server-side
+commerce contract. IAPKit product and operational documentation is maintained
+separately at https://kit.openiap.dev/docs.
+
+---
+
+${commerceProtocolSpec}
+
+---
+
+`;
 
   // =========================================================================
   // PROJECT STRUCTURE

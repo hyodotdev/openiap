@@ -1,0 +1,1122 @@
+{
+  "$comment": "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case with `requiresStore` runs only when the provider declares that store, and `requiresCapability` additionally requires that store capability's implementation support. A case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
+  "protocolVersion": "1.0",
+  "fixtures": {
+    "userId": "conformance-user-1",
+    "erasureUserId": "conformance-erasure-user-1",
+    "appleJws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl",
+    "googlePurchaseToken": "conformance-google-purchase-token-0000000001",
+    "amazonUserId": "conformance-amazon-user-1",
+    "amazonReceiptId": "conformance-amazon-receipt-0000000001",
+    "horizonUserId": "1234567890123456",
+    "horizonSku": "conformance.sku",
+    "unknownPurchaseToken": "conformance-google-purchase-token-unknown-9999",
+    "unknownUserId": "conformance-user-the-provider-never-heard-of"
+  },
+  "credentialRoles": [
+    "verification",
+    "server"
+  ],
+  "cases": [
+    {
+      "id": "providerCapabilities.success.contract",
+      "operation": "providerCapabilities",
+      "credential": null,
+      "input": null,
+      "expect": {
+        "kind": "result",
+        "schema": "ProviderCapabilities"
+      }
+    },
+    {
+      "id": "subscriptionStatus.auth.missing-credential",
+      "operation": "subscriptionStatus",
+      "credential": null,
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "subscriptionStatus.auth.unknown-credential",
+      "operation": "subscriptionStatus",
+      "credential": "invalid",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "subscriptionStatus.auth.verification-role-refused",
+      "operation": "subscriptionStatus",
+      "credential": "verification",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "FORBIDDEN"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "subscriptionStatus.auth.precedes-validation",
+      "operation": "subscriptionStatus",
+      "credential": "invalid",
+      "input": {
+        "userId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "subscriptionStatus.auth.precedes-structural-validation",
+      "operation": "subscriptionStatus",
+      "credential": "invalid",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "subscriptionStatus.input.missing-required-member",
+      "operation": "subscriptionStatus",
+      "credential": "server",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "subscriptionStatus.success.contract",
+      "operation": "subscriptionStatus",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "result",
+        "schema": "SubscriptionStatusResult",
+        "checks": [
+          "tokenless",
+          "statusConsistency"
+        ]
+      }
+    },
+    {
+      "id": "entitlements.auth.missing-credential",
+      "operation": "entitlements",
+      "credential": null,
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "entitlements.auth.unknown-credential",
+      "operation": "entitlements",
+      "credential": "invalid",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "entitlements.auth.verification-role-refused",
+      "operation": "entitlements",
+      "credential": "verification",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "FORBIDDEN"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "entitlements.auth.precedes-validation",
+      "operation": "entitlements",
+      "credential": "invalid",
+      "input": {
+        "userId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "entitlements.auth.precedes-structural-validation",
+      "operation": "entitlements",
+      "credential": "invalid",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "entitlements.input.missing-required-member",
+      "operation": "entitlements",
+      "credential": "server",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "entitlements.success.contract",
+      "operation": "entitlements",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1"
+      },
+      "expect": {
+        "kind": "result",
+        "schema": "EntitlementsResult",
+        "checks": [
+          "tokenless",
+          "entitlementsConsistency"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.auth.missing-credential",
+      "operation": "verifyPurchase",
+      "credential": null,
+      "input": {
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.auth.unknown-credential",
+      "operation": "verifyPurchase",
+      "credential": "invalid",
+      "input": {
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.missing-required-member",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "bindPurchase.auth.missing-credential",
+      "operation": "bindPurchase",
+      "credential": null,
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "bindPurchase.auth.unknown-credential",
+      "operation": "bindPurchase",
+      "credential": "invalid",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "bindPurchase.auth.verification-role-refused",
+      "operation": "bindPurchase",
+      "credential": "verification",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "FORBIDDEN"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "bindPurchase.auth.precedes-validation",
+      "operation": "bindPurchase",
+      "credential": "invalid",
+      "input": {
+        "userId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "bindPurchase.auth.precedes-structural-validation",
+      "operation": "bindPurchase",
+      "credential": "invalid",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "bindPurchase.input.missing-required-member",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "eraseUser.auth.missing-credential",
+      "operation": "eraseUser",
+      "credential": null,
+      "input": {
+        "userId": "conformance-erasure-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "eraseUser.auth.unknown-credential",
+      "operation": "eraseUser",
+      "credential": "invalid",
+      "input": {
+        "userId": "conformance-erasure-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "eraseUser.auth.verification-role-refused",
+      "operation": "eraseUser",
+      "credential": "verification",
+      "input": {
+        "userId": "conformance-erasure-user-1"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "FORBIDDEN"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "eraseUser.auth.precedes-validation",
+      "operation": "eraseUser",
+      "credential": "invalid",
+      "input": {
+        "userId": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "eraseUser.auth.precedes-structural-validation",
+      "operation": "eraseUser",
+      "credential": "invalid",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNAUTHORIZED"
+        ],
+        "preExecution": true
+      }
+    },
+    {
+      "id": "eraseUser.input.missing-required-member",
+      "operation": "eraseUser",
+      "credential": "server",
+      "input": {},
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "eraseUser.success.contract",
+      "operation": "eraseUser",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-erasure-user-1"
+      },
+      "expect": {
+        "kind": "result",
+        "schema": "EraseUserResult",
+        "ignoreMembers": [
+          "status"
+        ]
+      }
+    },
+    {
+      "id": "eraseUser.input.unknown-member-ignored",
+      "operation": "eraseUser",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-erasure-user-1",
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "expect": {
+        "kind": "result",
+        "schema": "EraseUserResult",
+        "ignoreMembers": [
+          "status"
+        ]
+      }
+    },
+    {
+      "id": "eraseUser.idempotent.repeat",
+      "operation": "eraseUser",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-erasure-user-1"
+      },
+      "repeat": 2,
+      "expect": {
+        "kind": "result",
+        "schema": "EraseUserResult",
+        "ignoreMembers": [
+          "status"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.store.unsupported",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "a_store_openiap_has_never_heard_of"
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "UNSUPPORTED_STORE"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.mismatched-evidence",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "apple",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "codes": [
+          "INVALID_REQUEST"
+        ]
+      }
+    },
+    {
+      "id": "providerCapabilities.honesty.binding-declared",
+      "operation": "providerCapabilities",
+      "credential": null,
+      "input": null,
+      "expect": {
+        "kind": "result",
+        "schema": "ProviderCapabilities",
+        "checks": [
+          "declaresTestedBinding"
+        ]
+      }
+    },
+    {
+      "id": "bindPurchase.unknown-evidence.not-bound",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-unknown-9999"
+        }
+      },
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
+      }
+    },
+    {
+      "id": "bindPurchase.unbindable-store.not-bound",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "mock-store-user",
+          "sku": "mock.premium"
+        }
+      },
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult",
+        "resultSubset": {
+          "bound": false
+        }
+      }
+    },
+    {
+      "id": "entitlements.unknown-user.empty",
+      "operation": "entitlements",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-the-provider-never-heard-of"
+      },
+      "expect": {
+        "kind": "result",
+        "schema": "EntitlementsResult",
+        "checks": [
+          "tokenless",
+          "entitlementsConsistency"
+        ],
+        "resultSubset": {
+          "productIds": []
+        }
+      }
+    }
+  ]
+}

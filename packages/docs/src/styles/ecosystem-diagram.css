@@ -368,15 +368,11 @@
   color: var(--primary-color);
 }
 
-/* ---------- hosted infrastructure --------------------------------------- */
+/* ---------- independent server contract -------------------------------- */
 
-.eco-rail--iapkit,
-.eco-rail--iapkit-core {
-  opacity: 0.72;
-}
-
-.eco-rail--iapkit {
-  height: 42px;
+.doc-page .eco-diagram .eco-band--protocol {
+  margin-top: 1.5rem;
+  border-style: dashed;
 }
 
 /* ---------- artwork -------------------------------------------------------
@@ -467,12 +463,6 @@
   display: none;
 }
 
-/* Stacked, there is no second channel beside Core -> Libraries -> IAPKit to
-   draw this in, so the figcaption is what states it there. */
-.eco-rail--iapkit-core {
-  display: none;
-}
-
 .eco-rail-label {
   position: relative;
   z-index: 1;
@@ -555,7 +545,7 @@
     /* openiap sits alone on row 1; openiap-gql gets row 3 so both "generate
        types" arrows can leave from it. Row 6 soaks up whatever the taller
        Libraries column adds, keeping the connectors at their natural size. */
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) 42px auto;
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto;
     column-gap: 0;
   }
 
@@ -606,23 +596,9 @@
     align-self: center;
   }
 
-  .eco-rail--iapkit {
-    grid-column: 3;
-    grid-row: 7;
-  }
-
-  /* Core reaches IAPKit without a framework library. Spanning the filler row
-     keeps the line attached to the Core band however tall Libraries grows. */
-  .eco-rail--iapkit-core {
-    display: flex;
-    grid-column: 1;
-    grid-row: 6 / 8;
-    height: auto;
-  }
-
-  .eco-band--iapkit {
+  .eco-band--protocol {
     grid-column: 1 / -1;
-    grid-row: 8;
+    grid-row: 7;
   }
 
   /* Gutter rails turn horizontal: line left-to-right, label above it. */

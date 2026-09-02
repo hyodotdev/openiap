@@ -372,7 +372,7 @@ function googleVoidedPayload(
   return {
     messageId,
     eventTimeMillis: 1_711_000_000_000,
-    voidedPurchaseNotification: { purchaseToken },
+    voidedPurchaseNotification: { purchaseToken, productType: 1 },
   };
 }
 
@@ -381,6 +381,7 @@ type GoogleEventSpec =
       kind: "subscription";
       notificationType: number;
       state?: GoogleSubscriptionInfo["state"];
+      cancelReason?: string;
     }
   | { kind: "voided" };
 
@@ -399,6 +400,7 @@ const GOOGLE_EVENTS: Record<LifecycleEvent, GoogleEventSpec | null> = {
     kind: "subscription",
     notificationType: RTDN.CANCELED,
     state: "SUBSCRIPTION_STATE_CANCELED",
+    cancelReason: "USER_CANCELED",
   },
   Expire: {
     kind: "subscription",
@@ -470,7 +472,10 @@ const googleAdapter: ProviderAdapter = {
         spec.notificationType,
         ctx.purchaseToken,
       ),
-      subscriptionInfo: spec.state ? { state: spec.state } : undefined,
+      subscriptionInfo:
+        spec.state || spec.cancelReason
+          ? { state: spec.state, cancelReason: spec.cancelReason }
+          : undefined,
     });
   },
 };

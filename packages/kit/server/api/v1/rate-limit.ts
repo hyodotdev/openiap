@@ -21,13 +21,9 @@ import { parsePositiveNumber } from "../../utils/env";
 // limits their reach enough that Apple / Google's own API rate limits
 // become the next line of defense.
 //
-// Cross-machine note: Fly.io currently runs min_machines_running=1 for
-// this app, so the bucket is effectively global. If the fleet scales
-// out, each machine enforces its own bucket — limits become per-machine
-// rather than per-key globally. That's an accepted tradeoff: the
-// alternative (Convex-backed counter) adds a mutation to every verify
-// call and a hot-row contention point. Revisit if we ever run >~3
-// machines.
+// These edge buckets shed malformed and high-volume traffic cheaply. A
+// persistent per-project backstop in Convex also protects the public actions
+// from callers that bypass this process.
 
 export interface Bucket {
   tokens: number;
@@ -55,6 +51,8 @@ export interface MultiAxisRateLimitConfig {
   global?: Partial<RateLimitConfig>;
   now?: () => number;
   getIp?: (c: Context) => string | undefined;
+  // The commerce binding wraps 429s in its own error envelope.
+  respond?: RateLimitResponder;
 }
 
 type RateLimitResponder = (c: Context, result: ConsumeResult) => Response;
@@ -73,13 +71,16 @@ export interface ConsumeResult {
   retryAfterSec: number;
 }
 
+const API_KEY_PSEUDONYM_KEY = crypto.randomBytes(32);
+
 export function hashApiKey(apiKey: string): string {
-  // 64-bit prefix of SHA-256 — enough to avoid collisions in-process
-  // without retaining the plaintext key in the bucket map (so a memory
-  // scan of the server doesn't leak customer keys from this layer;
-  // note: other layers may still hold the plaintext for the duration
-  // of the request).
-  return crypto.createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
+  // A process-local HMAC keeps logs and bucket keys useful for correlation
+  // without allowing leaked output to serve as an offline API-key oracle.
+  return crypto
+    .createHmac("sha256", API_KEY_PSEUDONYM_KEY)
+    .update(apiKey)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 // parsePositiveNumber was extracted to ../../utils/env so server.ts
@@ -495,7 +496,7 @@ export function multiAxisRateLimitMiddleware(
       ? [keyAxis, globalAxis]
       : [keyAxis, ipAxis, globalAxis];
 
-    return applyRateLimitAxes(c, next, axes, nowMs, "key");
+    return applyRateLimitAxes(c, next, axes, nowMs, "key", config.respond);
   });
 }
 

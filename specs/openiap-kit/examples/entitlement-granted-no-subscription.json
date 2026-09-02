@@ -1,0 +1,12 @@
+{
+  "eventId": "evt_01J8Z8E7X5A2B4C6D8F0H2K4M6",
+  "eventType": "entitlement.granted",
+  "eventVersion": "1.0",
+  "occurredAt": 1756300800000,
+  "processedAt": 1756300800450,
+  "store": "horizon",
+  "environment": "production",
+  "projectId": "proj_7f3a9c",
+  "userId": "1234567890123456",
+  "productId": "premium.lifetime"
+}

@@ -449,16 +449,20 @@ export function kitApi(options: KitApiOptions) {
     apiKey: options.apiKey,
     baseUrl,
 
-    /** GET /v1/subscriptions/status — the `active` boolean is the
-     * fastest gate for "is this user paying?". */
+    /** GET /v1/subscriptions/status compatibility read.
+     * @deprecated New account reads must authenticate the user on a developer
+     * backend and call the secret-only, tokenless `/v2/subscriptions/status`.
+     */
     status: (userId: string) =>
       call<StatusResponse>(
         `/v1/subscriptions/status/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,
       ),
 
-    /** GET /v1/subscriptions/entitlements — every productId the user
-     * is entitled to. Use this when feature gating depends on which
-     * specific tier the user owns. */
+    /** GET /v1/subscriptions/entitlements compatibility read.
+     * @deprecated New account reads must authenticate the user on a developer
+     * backend and call the secret-only, tokenless
+     * `/v2/subscriptions/entitlements`.
+     */
     entitlements: (userId: string) =>
       call<EntitlementsResponse>(
         `/v1/subscriptions/entitlements/${encodeURIComponent(options.apiKey)}?userId=${encodeURIComponent(userId)}`,

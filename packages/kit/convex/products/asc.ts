@@ -3129,6 +3129,7 @@ function mapAscState(
     case "WAITING_FOR_REVIEW":
     case "IN_REVIEW":
     case "PENDING_DEVELOPER_RELEASE":
+    case "PENDING_BINARY_APPROVAL":
     case "READY_TO_SUBMIT":
     case "READY_FOR_REVIEW":
       return "Ready";

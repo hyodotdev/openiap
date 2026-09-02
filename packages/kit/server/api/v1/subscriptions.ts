@@ -6,6 +6,11 @@ import { Hono, type Context, type Next } from "hono";
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
 import {
+  legacySubscriptionUsageLoggerMiddleware,
+  redactApiKeysInPath,
+} from "./request-logger";
+import { apiKeyPreview } from "../../../convex/apiKeys/helpers";
+import {
   apiKeyMiddleware,
   apiKeyValidationError,
   isSecretApiKey,
@@ -35,7 +40,11 @@ import {
 // trusted servers keep credentials out of URLs.
 
 const subscriptions = new Hono<{
-  Variables: { apiKey: string; apiKeyHash?: string };
+  Variables: {
+    apiKey: string;
+    apiKeyHash?: string;
+    legacySubscriptionProjectId?: string;
+  };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
 const MAX_PRODUCT_ID_LENGTH = 256;
@@ -86,6 +95,9 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
       api.subscriptions.query.subscriptionEvaluationSnapshot,
       { apiKey, userId },
     );
+    if (snapshot.projectId) {
+      c.set("legacySubscriptionProjectId", snapshot.projectId);
+    }
     const result = evaluateSubscriptionStatus(snapshot, Date.now());
     return conditionalSubscriptionSnapshot(c, {
       apiKey,
@@ -103,11 +115,17 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/status", apiKeyMiddleware, publicApiRateLimit, (c) =>
-  handleSubscriptionStatus(c, c.var.apiKey),
+subscriptions.get(
+  "/status",
+  apiKeyMiddleware,
+  publicApiRateLimit,
+  legacySubscriptionUsageLoggerMiddleware("status", "authorization"),
+  (c) => handleSubscriptionStatus(c, c.var.apiKey),
 );
-subscriptions.get("/status/:apiKey", (c) =>
-  handleSubscriptionStatus(c, c.req.param("apiKey")),
+subscriptions.get(
+  "/status/:apiKey",
+  legacySubscriptionUsageLoggerMiddleware("status", "path"),
+  (c) => handleSubscriptionStatus(c, c.req.param("apiKey")),
 );
 
 async function handleEntitlements(c: Context, apiKey: string) {
@@ -123,6 +141,9 @@ async function handleEntitlements(c: Context, apiKey: string) {
       api.subscriptions.query.subscriptionEvaluationSnapshot,
       { apiKey, userId },
     );
+    if (snapshot.projectId) {
+      c.set("legacySubscriptionProjectId", snapshot.projectId);
+    }
     const result = evaluateEntitlements(
       userId,
       snapshot.candidates,
@@ -144,11 +165,17 @@ async function handleEntitlements(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/entitlements", apiKeyMiddleware, publicApiRateLimit, (c) =>
-  handleEntitlements(c, c.var.apiKey),
+subscriptions.get(
+  "/entitlements",
+  apiKeyMiddleware,
+  publicApiRateLimit,
+  legacySubscriptionUsageLoggerMiddleware("entitlements", "authorization"),
+  (c) => handleEntitlements(c, c.var.apiKey),
 );
-subscriptions.get("/entitlements/:apiKey", (c) =>
-  handleEntitlements(c, c.req.param("apiKey")),
+subscriptions.get(
+  "/entitlements/:apiKey",
+  legacySubscriptionUsageLoggerMiddleware("entitlements", "path"),
+  (c) => handleEntitlements(c, c.req.param("apiKey")),
 );
 
 async function handleListSubscriptions(c: Context, apiKey: string) {
@@ -361,7 +388,7 @@ type AppleJwsParseResult =
   | { kind: "invalid" }
   | { kind: "notAppleJws" };
 
-function normalizeBindUserPurchaseToken(
+export function normalizeBindUserPurchaseToken(
   purchaseToken: string,
 ): BindUserPurchaseTokenResult {
   if (isCompactJwsShape(purchaseToken)) {
@@ -595,7 +622,7 @@ function subscriptionSnapshotEtag(args: {
 }): string {
   const digest = crypto
     .createHash("sha256")
-    .update(stableJson(args))
+    .update(stableJson({ kind: args.kind, result: args.result }))
     .digest("base64url")
     .slice(0, 32);
   return `W/"iapkit-subscription-${args.kind}-${digest}"`;
@@ -693,13 +720,25 @@ function payloadTooLarge(c: Context) {
 async function pathApiKeyGuard(c: Context, next: Next) {
   const apiKey = c.req.param("apiKey");
   if (isSecretApiKey(apiKey)) {
+    // Rejecting is not containment: the URL has already reached this process,
+    // and any proxy, CDN or browser history in front of it kept a copy. Say so,
+    // and record it so an operator sees a key that needs rotating.
+    console.warn(
+      "[subscriptions] a secret key was presented in a URL path and must be rotated",
+      {
+        path: redactApiKeysInPath(c.req.path, apiKey),
+        // Same display form as the dashboard, so the operator can tell WHICH
+        // key to rotate without the log holding the secret.
+        keyPreview: apiKeyPreview(apiKey),
+      },
+    );
     return c.json(
       {
         errors: [
           {
             code: "SECRET_API_KEY_IN_URL",
             message:
-              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route. This key has been exposed in a URL — rotate it.",
           },
         ],
       },

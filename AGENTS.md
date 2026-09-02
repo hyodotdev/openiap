@@ -30,6 +30,8 @@ openiap/
 │   ├── apple/         # iOS/macOS library
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
+├── specs/            # Interoperability specifications
+│   └── openiap-kit/  # OpenIAP Commerce Protocol: server-side contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -59,6 +61,7 @@ openiap/
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
    - [`packages/docs/CONVENTION.md`](packages/docs/CONVENTION.md)
+   - [`specs/openiap-kit/CONVENTION.md`](specs/openiap-kit/CONVENTION.md) — the server-side commerce specification; its GraphQL contract is the authoring SSOT, JSON Schemas are generated validator artifacts, and IAPKit conforms to the spec, never the reverse
    - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain. Its `/v1` responses are still a published contract that shipped SDKs decode: read the `/v1` response contract section and run `bun audit:kit-contract` before changing a response enum, `isValidState`, or a purchase-state mapping
 3. **For framework libraries, read the library-specific AGENTS.md**:
    - [`libraries/react-native-iap/AGENTS.md`](libraries/react-native-iap/AGENTS.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
@@ -144,7 +147,9 @@ including its stricter release-note limits.
   HTTPS endpoint a project owner registered). Both are server-to-server.
 - Never add an **IAPKit → SDK/mobile** webhook stream, SSE endpoint, WebSocket,
   push relay, or long-poll event feed. Mobile SDKs use bounded request/response
-  verification and scoped status or entitlement reads.
+  verification and scoped status or entitlement reads. The Commerce Protocol
+  GraphQL binding is bounded request/response too: it defines no Subscription
+  root, and the spec compiler rejects one.
 - If a product needs device push notifications, the developer's authenticated
   backend owns that delivery. Do not expose project-wide lifecycle events or a
   secret key to a shipped app.

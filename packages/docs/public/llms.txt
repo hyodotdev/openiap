@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-31T13:10:36.467Z
+> Generated: 2026-09-02T01:55:36.595Z
 
 ## Installation
 
@@ -270,6 +270,28 @@ interface PurchaseError {
 4. requestPurchase({ request: { apple: { sku }, google: { skus: [sku] } }, type: 'in-app' })
 5. In listener: verify -> grant -> finishTransaction()
 6. endConnection() on cleanup
+
+## OpenIAP Commerce Protocol
+
+The OpenIAP Commerce Protocol is the vendor-neutral server-side contract for
+normalized transactions, subscription lifecycle, entitlement decisions,
+commerce events, HMAC-signed webhook delivery, idempotency, and conformance.
+It is not a hosted service and requires no OpenIAP account, registry, issued
+identifier, or central runtime.
+
+- Keep transactions, subscriptions, commerce events, and entitlements distinct.
+- Preserve unknown open values instead of rejecting otherwise valid events.
+- Retry signed deliveries with fresh timestamps; consumers verify exact bytes
+  and deduplicate any accepted copy on the stable body `eventId`.
+- Use the bundled JSON Schemas and signature/lifecycle vectors for offline
+  conformance.
+- Docs: https://openiap.dev/docs/commerce-protocol
+- Webhook contract: https://openiap.dev/docs/webhooks
+- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
+- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
+
+IAPKit is one implementation. Its product documentation and AI notes live at
+https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
 
 ## Links
 

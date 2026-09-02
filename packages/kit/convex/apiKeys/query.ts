@@ -4,23 +4,21 @@ import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 import { getWritableProject } from "../projects/writable";
+import { apiKeyPreview } from "./helpers";
 
-type SafeApiKey = Omit<Doc<"apiKeys">, "key"> & {
+type SafeApiKey = Omit<Doc<"apiKeys">, "key" | "keyHash" | "keyPreview"> & {
   keyPreview: string;
 };
 
-function getApiKeyPreview(key: string): string {
-  const suffix = key.slice(-4);
-  if (key.startsWith("openiap-kit_")) {
-    return `openiap-kit_...${suffix}`;
-  }
-  return `...${suffix}`;
-}
-
-function toSafeApiKey({ key, ...apiKey }: Doc<"apiKeys">): SafeApiKey {
+function toSafeApiKey({
+  key,
+  keyHash: _keyHash,
+  keyPreview,
+  ...apiKey
+}: Doc<"apiKeys">): SafeApiKey {
   return {
     ...apiKey,
-    keyPreview: getApiKeyPreview(key),
+    keyPreview: keyPreview ?? (key ? apiKeyPreview(key) : "unavailable"),
   };
 }
 

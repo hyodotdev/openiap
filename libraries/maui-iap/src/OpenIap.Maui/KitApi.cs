@@ -286,7 +286,10 @@ public sealed class KitApiClient
     public string BaseUrl { get; }
 
     /// <summary>
-    /// GET /v1/subscriptions/status/{apiKey}?userId=...
+    /// GET /v1/subscriptions/status/{apiKey}?userId=... — compatibility read.
+    /// Deprecated, advisory only: new account reads must authenticate the
+    /// user on a developer backend and call the secret-only, tokenless
+    /// /v2/subscriptions/status.
     /// </summary>
     public Task<StatusResponse> StatusAsync(string userId, CancellationToken cancellationToken = default)
         => CallAsync<StatusResponse>(
@@ -295,7 +298,10 @@ public sealed class KitApiClient
             cancellationToken);
 
     /// <summary>
-    /// GET /v1/subscriptions/entitlements/{apiKey}?userId=...
+    /// GET /v1/subscriptions/entitlements/{apiKey}?userId=... — compatibility
+    /// read. Deprecated like the TypeScript kit clients, advisory only: new
+    /// account reads must authenticate the user on a developer backend and
+    /// call the secret-only, tokenless /v2/subscriptions/entitlements.
     /// </summary>
     public Task<EntitlementsResponse> EntitlementsAsync(string userId, CancellationToken cancellationToken = default)
         => CallAsync<EntitlementsResponse>(

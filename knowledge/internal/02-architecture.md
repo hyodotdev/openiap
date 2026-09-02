@@ -15,6 +15,8 @@ openiap/
 │   ├── apple/         # iOS/macOS library (Swift)
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
+├── specs/            # Interoperability specifications
+│   └── openiap-kit/  # OpenIAP Commerce Protocol: server-side contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -46,6 +48,7 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
+| Interoperability specifications                  | `specs/<name>/`         |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
 | Shared editor settings                           | `.vscode/`              |
@@ -84,6 +87,34 @@ Generated files:
 - Dart: `src/generated/types.dart`
 - GDScript: `src/generated/types.gd`
 - C#: `src/generated/Types.cs`
+
+### specs/openiap-kit
+
+**Purpose:** OpenIAP Commerce Protocol — the vendor-neutral server-side
+commerce contract: portable operations (verify, status, entitlements, bind,
+erase, capabilities) over REST and GraphQL bindings, plus the normalized event
+and webhook contract.
+
+```text
+schema/*.graphql                # authored contract layers — edit these
+        ↓ assemble-schema.mjs
+generated/commerce-protocol.graphql # generated single-file assembly
+        ↓ build-json-schemas.mjs / build-bundle.mjs / build-operations.mjs
+generated/schemas/*             # JSON Schema validators + offline bundle
+generated/bindings/*            # HTTP manifest, executable GraphQL projection
+generated/openapi/*             # OpenAPI 3.1 document
+generated/vectors/*             # lifecycle + operation conformance vectors
+conformance/                    # portable runner + IAPKit-free mock provider
+```
+
+The authored source is the `schema/` layers; `commerce-protocol.graphql` is
+their generated assembly and is never hand-edited. The SDL uses custom
+directives for JSON-only constraints and defines `Query` and `Mutation`
+operation roots for the portable server surface, but no `Subscription` root —
+the operation surface is bounded request/response, and the compiler rejects a
+stream. Keep it outside `packages/gql`: the client SDK API and this
+server-side commerce contract have independent owners and generation targets.
+Never edit files under `generated/` directly.
 
 ### packages/apple
 

@@ -373,8 +373,16 @@ dependencies {
           Android requires acknowledging purchases within 3 days. Unacknowledged
           purchases are automatically refunded by Google Play. In OpenIAP SDKs
           the completion order is: verify with a trusted verifier (your backend
-          or <a href="/docs/kit-backend">IAPKit</a>), grant and persist the
-          entitlement so it survives a restart, then acknowledge through{' '}
+          or{' '}
+          <a
+            href="https://kit.openiap.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
+            IAPKit
+          </a>
+          ), grant and persist the entitlement so it survives a restart, then
+          acknowledge through{' '}
           <a href="/docs/apis/finish-transaction">
             <code>finishTransaction</code>
           </a>
@@ -406,8 +414,14 @@ dependencies {
         <p>
           Always verify purchases through a trusted verifier that calls the
           Google Play Developer API — either your backend or{' '}
-          <a href="/docs/kit-backend">IAPKit</a> — to prevent fraud and ensure
-          purchase validity. See the{' '}
+          <a
+            href="https://kit.openiap.dev/docs"
+            target="_blank"
+            rel="noreferrer"
+          >
+            IAPKit
+          </a>{' '}
+          — to prevent fraud and ensure purchase validity. See the{' '}
           <a href="/docs/features/validation">Purchase Verification guide</a>.
         </p>
 

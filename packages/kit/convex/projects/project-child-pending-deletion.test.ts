@@ -278,6 +278,26 @@ describe("pending-deletion project child write guards", () => {
     });
   });
 
+  it("returns a new secret once and never inserts its plaintext", async () => {
+    const ctx = makeCtx({});
+
+    const result = await createApiKey._handler(ctx, {
+      projectId: "projects_a" as never,
+      name: "Backend key",
+      keyType: "secret",
+    });
+    const stored = ctx.db.tables.apiKeys[0];
+
+    expect(result.key).toMatch(/^openiap-kit_sk_/);
+    expect(stored).not.toHaveProperty("key");
+    expect(stored).toMatchObject({
+      keyType: "secret",
+      keyHash: expect.stringMatching(/^[0-9a-f]{64}$/),
+      keyPreview: expect.stringMatching(/^openiap-kit_\.\.\./),
+    });
+    expect(JSON.stringify(stored)).not.toContain(result.key);
+  });
+
   for (const options of [
     { projectPending: true },
     { organizationPending: true },

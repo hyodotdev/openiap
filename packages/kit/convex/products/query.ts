@@ -218,9 +218,9 @@ export const getProductClientPayload = query({
     if (!project) return null;
 
     // Payload rows intentionally outlive catalog resets so a later store pull
-    // can reattach them. API-key reads must not expose absent/Removed catalog
-    // entries. Authenticated dashboard reads may load a Removed row so an
-    // operator can edit or explicitly delete its retained payload.
+    // can reattach them. API-key reads must not expose absent, Draft, or
+    // Removed catalog entries. Authenticated dashboard reads may load a
+    // Removed row so an operator can edit or delete its retained payload.
     const product = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>
@@ -230,7 +230,14 @@ export const getProductClientPayload = query({
           .eq("productId", args.productId),
       )
       .unique();
-    if (!product || (args.apiKey && product.state === "Removed")) return null;
+    if (!product) return null;
+    if (args.apiKey) {
+      const keyType =
+        (resolved as { keyType?: "publishable" | "secret" }).keyType ??
+        "publishable";
+      if (product.state === "Removed") return null;
+      if (!isCatalogRowVisibleTo(keyType, product)) return null;
+    }
 
     const payload = await ctx.db
       .query("productClientPayloads")
@@ -272,7 +279,11 @@ export const getProductClientPayloadIfChanged = query({
           .eq("productId", args.productId),
       )
       .unique();
-    if (!product || product.state === "Removed") {
+    if (
+      !product ||
+      !isCatalogRowVisibleTo(resolved.keyType, product) ||
+      product.state === "Removed"
+    ) {
       return { status: "not_found" } as const;
     }
 
@@ -495,6 +506,12 @@ export const listProducts = query({
         : null;
     const project = resolved?.project ?? null;
     if (!project) return [];
+    // The projectId branch is an authenticated dashboard read; the apiKey
+    // branch can be a publishable key shipped inside an app.
+    const keyType = args.projectId
+      ? ("secret" as const)
+      : ((resolved as { keyType?: "publishable" | "secret" }).keyType ??
+        "publishable");
 
     const rows = args.platform
       ? await ctx.db
@@ -510,16 +527,26 @@ export const listProducts = query({
           )
           .collect();
 
-    return rows.map((row) => shape(row));
+    return rows
+      .filter((row) => isCatalogRowVisibleTo(keyType, row))
+      .map((row) => shape(row));
   },
 });
 
-/**
- * Bounded app/API-facing catalog read. Dashboard code keeps using listProducts
- * because its authenticated project view needs the complete operator table;
- * mobile/API callers must paginate so one public request cannot collect an
- * unbounded catalog.
- */
+// Publishable keys ship inside apps: hide unreleased rows (Draft — authored
+// drafts, plus the fail-closed bucket for store states the pull mappers do not
+// recognize) and rows pulled from sale (Removed). Ready rows are already in
+// the store pipeline — purchasable in sandbox while under review — so hiding
+// them would empty a catalog for the whole review window.
+function isCatalogRowVisibleTo(
+  keyType: "publishable" | "secret",
+  row: Pick<Doc<"products">, "state">,
+): boolean {
+  if (keyType === "secret") return true;
+  return row.state === "Active" || row.state === "Ready";
+}
+
+/** Bounded app/API catalog read; dashboard operator reads use listProducts. */
 export const listProductsPage = query({
   args: {
     apiKey: v.string(),
@@ -536,28 +563,32 @@ export const listProductsPage = query({
     assertProductPageArgs(args);
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     if (!resolved) return { products: [], hasMore: false };
+    const keyType = resolved.keyType ?? "publishable";
 
-    const page = await (
-      args.platform
-        ? ctx.db
-            .query("products")
-            .withIndex("by_project_and_platform", (q) =>
-              q
-                .eq("projectId", resolved.project._id)
-                .eq("platform", args.platform!),
-            )
-        : ctx.db
-            .query("products")
-            .withIndex("by_project_and_platform_and_product", (q) =>
-              q.eq("projectId", resolved.project._id),
-            )
-    ).paginate({
+    // A page filters after pagination, so it can come back short (or empty)
+    // while hasMore is true; the documented contract is cursor iteration.
+    const pageQuery = args.platform
+      ? ctx.db
+          .query("products")
+          .withIndex("by_project_and_platform", (q) =>
+            q
+              .eq("projectId", resolved.project._id)
+              .eq("platform", args.platform!),
+          )
+      : ctx.db
+          .query("products")
+          .withIndex("by_project_and_platform_and_product", (q) =>
+            q.eq("projectId", resolved.project._id),
+          );
+    const page = await pageQuery.paginate({
       numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
       cursor: args.cursor ?? null,
     });
 
     return {
-      products: page.page.map((row) => shape(row)),
+      products: page.page
+        .filter((row) => isCatalogRowVisibleTo(keyType, row))
+        .map((row) => shape(row)),
       hasMore: !page.isDone,
       ...(!page.isDone ? { nextCursor: page.continueCursor } : {}),
     };
@@ -584,33 +615,36 @@ export const listProductsWithClientPayloads = query({
     assertClientPayloadPageArgs(args);
     const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
     if (!resolved) return { products: [], hasMore: false };
+    const keyType = resolved.keyType ?? "publishable";
 
-    const page = await ctx.db
+    const pageQuery = ctx.db
       .query("products")
       .withIndex("by_project_and_platform", (q) =>
         q.eq("projectId", resolved.project._id).eq("platform", args.platform),
-      )
-      .paginate({
-        numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
-        cursor: args.cursor ?? null,
-      });
+      );
+    const page = await pageQuery.paginate({
+      numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
+      cursor: args.cursor ?? null,
+    });
 
     // The product page is bounded before any body lookup. Exact indexed reads
     // keep off-page payload bodies out of this query's memory budget.
     const products = await Promise.all(
-      page.page.map(async (row) => {
-        if (row.state === "Removed") return shape(row);
-        const payload = await ctx.db
-          .query("productClientPayloads")
-          .withIndex("by_project_and_platform_and_product", (q) =>
-            q
-              .eq("projectId", resolved.project._id)
-              .eq("platform", row.platform)
-              .eq("productId", row.productId),
-          )
-          .unique();
-        return shape(row, payload ?? undefined);
-      }),
+      page.page
+        .filter((row) => isCatalogRowVisibleTo(keyType, row))
+        .map(async (row) => {
+          if (row.state === "Removed") return shape(row);
+          const payload = await ctx.db
+            .query("productClientPayloads")
+            .withIndex("by_project_and_platform_and_product", (q) =>
+              q
+                .eq("projectId", resolved.project._id)
+                .eq("platform", row.platform)
+                .eq("productId", row.productId),
+            )
+            .unique();
+          return shape(row, payload ?? undefined);
+        }),
     );
 
     return {

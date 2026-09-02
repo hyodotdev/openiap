@@ -14,9 +14,19 @@ import {
   useLocation,
 } from 'react-router-dom';
 import { MenuDropdown } from '../../components/MenuDropdown';
+import ExternalRedirect from '../../components/ExternalRedirect';
 import { LIBRARIES } from '../../lib/images';
 import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
+import CommerceProtocol from './commerce-protocol';
+import CommerceAuthentication from './commerce-protocol/authentication';
+import CommerceCapabilities from './commerce-protocol/capabilities';
+import CommerceConformance from './commerce-protocol/conformance';
+import CommerceGraphql from './commerce-protocol/graphql';
+import CommerceOperations from './commerce-protocol/operations';
+import CommerceProfiles from './commerce-protocol/profiles';
+import CommerceRest from './commerce-protocol/rest';
+import CommerceVersioning from './commerce-protocol/versioning';
 import LifeCycle from './lifecycle';
 import Subscription from './lifecycle/subscription';
 import TypesIndex from './types/index';
@@ -90,8 +100,6 @@ import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-an
 import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-code-android';
 import Events from './events';
 import Webhooks from './webhooks';
-import KitBackend from './kit-backend';
-import KitCompatibility from './kit-compatibility';
 import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
 import EventsPurchaseErrorListener from './events/purchase-error-listener';
 import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
@@ -129,7 +137,6 @@ import Migration from './updates/migration';
 import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
-import MCPServer from './guides/mcp-server';
 import Testing from './guides/testing';
 import SecurityOverview from './security/overview';
 import SecuritySbom from './security/sbom';
@@ -159,11 +166,7 @@ const SIDEBAR_DEFAULT_WIDTH = 340;
 const SIDEBAR_MIN_WIDTH = 300;
 const SIDEBAR_MAX_WIDTH = 480;
 const SIDEBAR_KEYBOARD_STEP = 16;
-// Drag this far past the minimum and the sidebar snaps shut instead of
-// refusing to move: below ~300px the nav labels start truncating, so hiding it
-// outright is more useful than an unreadably narrow column.
-const SIDEBAR_COLLAPSE_SLACK = 60;
-// Pointer travel that separates "clicked the handle" from "dragged the handle".
+// Ignore tiny pointer movement so clicking the resize rail never nudges it.
 const SIDEBAR_DRAG_THRESHOLD = 4;
 
 function clampSidebarWidth(width: number) {
@@ -195,6 +198,7 @@ function readSavedSidebarCollapsed() {
 }
 
 function Docs() {
+  const { pathname } = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
@@ -208,8 +212,6 @@ function Docs() {
   const dragRef = useRef<{
     startX: number;
     moved: boolean;
-    startedCollapsed: boolean;
-    reopened: boolean;
   } | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
@@ -273,44 +275,10 @@ function Docs() {
 
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const nextWidth = event.clientX - sidebarLeft;
-
-      if (drag.startedCollapsed) {
-        // Collapsed, the sidebar is 0 wide and the handle sits on its edge, so
-        // nextWidth is only ~25px however the pointer moves. Falling through to
-        // the collapse branch below would make any small jitter a no-op and
-        // strand the user - above 768px this handle is the only way back. Only
-        // a deliberate drag out past the minimum reopens; anything shorter is
-        // left to stopResizing, which treats the release as a toggle.
-        if (nextWidth >= SIDEBAR_MIN_WIDTH - SIDEBAR_COLLAPSE_SLACK) {
-          drag.reopened = true;
-          setIsSidebarCollapsed(false);
-          setSidebarWidth(clampSidebarWidth(nextWidth));
-        }
-
-        return;
-      }
-
-      if (nextWidth < SIDEBAR_MIN_WIDTH - SIDEBAR_COLLAPSE_SLACK) {
-        // Dragged past the minimum: snap shut and end the drag. Clear the drag
-        // so a trailing pointerup cannot toggle it straight back open.
-        dragRef.current = null;
-        setIsSidebarCollapsed(true);
-        setIsResizingSidebar(false);
-        return;
-      }
-
       setSidebarWidth(clampSidebarWidth(nextWidth));
     };
 
     const stopResizing = () => {
-      const drag = dragRef.current;
-
-      // Toggle on a plain click, and also when a gesture that started collapsed
-      // never travelled far enough to count as a reopen drag.
-      if (drag && !drag.reopened && (!drag.moved || drag.startedCollapsed)) {
-        setIsSidebarCollapsed((collapsed) => !collapsed);
-      }
-
       dragRef.current = null;
       setIsResizingSidebar(false);
     };
@@ -329,7 +297,7 @@ function Docs() {
   }, [isResizingSidebar]);
 
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (window.innerWidth <= 768) {
+    if (window.innerWidth <= 768 || isSidebarCollapsed) {
       return;
     }
 
@@ -337,8 +305,6 @@ function Docs() {
     dragRef.current = {
       startX: event.clientX,
       moved: false,
-      startedCollapsed: isSidebarCollapsed,
-      reopened: false,
     };
     setIsResizingSidebar(true);
   };
@@ -359,30 +325,6 @@ function Docs() {
   const handleSidebarResizerKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>
   ) => {
-    // Enter/Space are the handle's primary action, matching a plain click.
-    // preventDefault stops the browser also synthesizing a click from them.
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      setIsSidebarCollapsed((collapsed) => !collapsed);
-      return;
-    }
-
-    if (isSidebarCollapsed) {
-      // Collapsed, so the only meaningful direction is back open.
-      if (event.key === 'ArrowRight') {
-        event.preventDefault();
-        setIsSidebarCollapsed(false);
-      }
-      return;
-    }
-
-    // At the minimum width the only place left to go is closed.
-    if (event.key === 'ArrowLeft' && sidebarWidth === SIDEBAR_MIN_WIDTH) {
-      event.preventDefault();
-      setIsSidebarCollapsed(true);
-      return;
-    }
-
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       setSidebarWidth((width) =>
@@ -454,6 +396,8 @@ function Docs() {
     <div
       className={`docs-container ${
         isSidebarCollapsed ? 'is-sidebar-collapsed' : ''
+      } ${
+        pathname === '/docs/commerce-protocol' ? 'docs-container--wide' : ''
       }`}
     >
       {sidebarToggle}
@@ -495,6 +439,37 @@ function Docs() {
                 Ecosystem
               </NavLink>
             </li>
+            <MenuDropdown
+              title="Commerce Protocol"
+              titleTo="/docs/commerce-protocol"
+              items={[
+                { to: '/docs/commerce-protocol/profiles', label: 'Profiles' },
+                {
+                  to: '/docs/commerce-protocol/operations',
+                  label: 'Operations',
+                },
+                { to: '/docs/commerce-protocol/rest', label: 'REST' },
+                { to: '/docs/commerce-protocol/graphql', label: 'GraphQL' },
+                { to: '/docs/webhooks', label: 'Events & Webhooks' },
+                {
+                  to: '/docs/commerce-protocol/authentication',
+                  label: 'Authentication',
+                },
+                {
+                  to: '/docs/commerce-protocol/capabilities',
+                  label: 'Capabilities',
+                },
+                {
+                  to: '/docs/commerce-protocol/conformance',
+                  label: 'Conformance',
+                },
+                {
+                  to: '/docs/commerce-protocol/versioning',
+                  label: 'Versioning',
+                },
+              ]}
+              onItemClick={closeSidebar}
+            />
             <MenuDropdown
               title="Life Cycle"
               titleTo="/docs/lifecycle"
@@ -836,33 +811,6 @@ function Docs() {
             />
             <li>
               <NavLink
-                to="/docs/webhooks"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Webhooks
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/docs/kit-backend"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Purchase Verification
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to="/docs/kit-compatibility"
-                className={({ isActive }) => (isActive ? 'active' : '')}
-                onClick={closeSidebar}
-              >
-                Version Compatibility
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
                 to="/docs/errors"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
@@ -919,12 +867,15 @@ function Docs() {
               ]}
               onItemClick={closeSidebar}
             />
-            <MenuDropdown
-              title="AI Assistants"
-              titleTo="/docs/guides/ai-assistants"
-              items={[{ to: '/docs/guides/mcp-server', label: 'MCP Server' }]}
-              onItemClick={closeSidebar}
-            />
+            <li>
+              <NavLink
+                to="/docs/guides/ai-assistants"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                AI Assistants
+              </NavLink>
+            </li>
             <li>
               <NavLink
                 to="/docs/guides/testing"
@@ -1113,10 +1064,28 @@ function Docs() {
           isResizingSidebar ? 'is-resizing' : ''
         } ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
       >
-        {/* One bookmark-style handle does both jobs: click toggles the
-            sidebar, drag resizes it. A drag is only recognized past
-            SIDEBAR_DRAG_THRESHOLD px, so a plain click never nudges the
-            width. Keyboard users get arrow keys instead of the drag. */}
+        <button
+          type="button"
+          role="separator"
+          className="docs-sidebar-resizer"
+          aria-label="Resize documentation navigation"
+          aria-orientation="vertical"
+          aria-valuemin={SIDEBAR_MIN_WIDTH}
+          aria-valuemax={SIDEBAR_MAX_WIDTH}
+          aria-valuenow={sidebarWidth}
+          title="Drag to resize · Double-click to reset"
+          onPointerDown={startSidebarResize}
+          onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
+          onKeyDown={handleSidebarResizerKeyDown}
+        >
+          <span aria-hidden="true" />
+        </button>
+        {isResizingSidebar && (
+          <output className="docs-sidebar-width-readout">
+            {sidebarWidth}px
+          </output>
+        )}
+
         <button
           type="button"
           className="docs-sidebar-handle"
@@ -1125,11 +1094,10 @@ function Docs() {
           aria-label={
             isSidebarCollapsed
               ? 'Show documentation navigation'
-              : 'Hide documentation navigation. Arrow keys resize it.'
+              : 'Hide documentation navigation'
           }
           title={isSidebarCollapsed ? 'Show navigation' : 'Hide navigation'}
-          onPointerDown={startSidebarResize}
-          onKeyDown={handleSidebarResizerKeyDown}
+          onClick={() => setIsSidebarCollapsed((isCollapsed) => !isCollapsed)}
         >
           {/* Quarter turn so it hangs off the edge like a clipped-in bookmark.
               Filled while the nav is showing, outlined once it is put away. */}
@@ -1150,6 +1118,36 @@ function Docs() {
           />
           <Route path="getting-started" element={<GettingStarted />} />
           <Route path="ecosystem" element={<Ecosystem />} />
+          <Route path="commerce-protocol" element={<CommerceProtocol />} />
+          <Route
+            path="commerce-protocol/profiles"
+            element={<CommerceProfiles />}
+          />
+          <Route
+            path="commerce-protocol/operations"
+            element={<CommerceOperations />}
+          />
+          <Route path="commerce-protocol/rest" element={<CommerceRest />} />
+          <Route
+            path="commerce-protocol/graphql"
+            element={<CommerceGraphql />}
+          />
+          <Route
+            path="commerce-protocol/authentication"
+            element={<CommerceAuthentication />}
+          />
+          <Route
+            path="commerce-protocol/capabilities"
+            element={<CommerceCapabilities />}
+          />
+          <Route
+            path="commerce-protocol/conformance"
+            element={<CommerceConformance />}
+          />
+          <Route
+            path="commerce-protocol/versioning"
+            element={<CommerceVersioning />}
+          />
           <Route path="lifecycle" element={<LifeCycle />} />
           <Route path="lifecycle/subscription" element={<Subscription />} />
           <Route path="types" element={<TypesIndex />} />
@@ -1519,8 +1517,58 @@ function Docs() {
           />
           <Route path="events" element={<Events />} />
           <Route path="webhooks" element={<Webhooks />} />
-          <Route path="kit-backend" element={<KitBackend />} />
-          <Route path="kit-compatibility" element={<KitCompatibility />} />
+          <Route
+            path="kit-backend"
+            element={
+              <ExternalRedirect
+                to="https://kit.openiap.dev/docs"
+                hashTargets={{
+                  '#surface': 'https://kit.openiap.dev/docs/api',
+                  '#api-keys-environments': 'https://kit.openiap.dev/docs/api',
+                  '#dashboard': 'https://kit.openiap.dev/docs/projects',
+                  '#order-lookup': 'https://kit.openiap.dev/docs/orders',
+                  '#purchase-verification': 'https://kit.openiap.dev/docs/api',
+                  '#entitlements': 'https://kit.openiap.dev/docs/api',
+                  '#refresh-entitlements-without-sse':
+                    'https://kit.openiap.dev/docs/api',
+                  '#hosted-capacity': 'https://kit.openiap.dev/docs/operations',
+                  '#product-client-payloads':
+                    'https://kit.openiap.dev/docs/products',
+                  '#fetch-client-payload-on-app-open':
+                    'https://kit.openiap.dev/docs/products',
+                  '#cost-and-abuse-guardrails':
+                    'https://kit.openiap.dev/docs/products',
+                  '#write-client-payload-from-ci':
+                    'https://kit.openiap.dev/docs/products',
+                  '#client-payload-behavior':
+                    'https://kit.openiap.dev/docs/products',
+                  '#product-sync': 'https://kit.openiap.dev/docs/products',
+                  '#mcp': 'https://kit.openiap.dev/docs/ai-assistants',
+                }}
+              />
+            }
+          />
+          <Route
+            path="kit-compatibility"
+            element={
+              <ExternalRedirect
+                to="https://kit.openiap.dev/docs/compatibility"
+                hashTargets={Object.fromEntries(
+                  [
+                    '#three-clocks',
+                    '#guarantees',
+                    '#degrade',
+                    '#spec-header',
+                    '#enforcement',
+                    '#your-side',
+                  ].map((hash) => [
+                    hash,
+                    `https://kit.openiap.dev/docs/compatibility${hash}`,
+                  ])
+                )}
+              />
+            }
+          />
           <Route
             path="events/purchase-updated-listener"
             element={<EventsPurchaseUpdatedListener />}
@@ -1646,7 +1694,30 @@ function Docs() {
             element={<Navigate to="/docs/example" replace />}
           />
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
-          <Route path="guides/mcp-server" element={<MCPServer />} />
+          <Route
+            path="guides/mcp-server"
+            element={
+              <ExternalRedirect
+                to="https://kit.openiap.dev/docs/ai-assistants"
+                hashTargets={{
+                  '#where-to-open-it':
+                    'https://kit.openiap.dev/docs/ai-assistants',
+                  '#codex-plugin':
+                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                  '#claude-code-plugin':
+                    'https://kit.openiap.dev/docs/ai-assistants/claude-plugin',
+                  '#manual-config':
+                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                  '#expo-smoke-test':
+                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                  '#example-app':
+                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                  '#tools': 'https://kit.openiap.dev/docs/ai-assistants',
+                  '#safety': 'https://kit.openiap.dev/docs/ai-assistants',
+                }}
+              />
+            }
+          />
           <Route path="guides/testing" element={<Testing />} />
           <Route path="security/overview" element={<SecurityOverview />} />
           <Route path="security/sbom" element={<SecuritySbom />} />

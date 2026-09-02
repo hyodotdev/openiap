@@ -24,11 +24,11 @@ export const nativeWorkflows = Object.freeze([
 ]);
 
 export const ciFilterJobs = Object.freeze({
-  android: "ci:test-android",
-  docs: "ci:test-docs",
-  gql: "ci:test-gql",
-  ios: "ci:test-ios",
-  web: "ci:web-e2e",
+  android: ["ci:test-android"],
+  docs: ["ci:test-docs"],
+  gql: ["ci:test-gql"],
+  ios: ["ci:test-ios", "ci:test-ios-compiler-boundaries"],
+  web: ["ci:web-e2e"],
 });
 
 export const unconditionalCiJobs = Object.freeze([
@@ -38,6 +38,7 @@ export const unconditionalCiJobs = Object.freeze([
   "changes",
   "test-agent",
   "test-conformance",
+  "test-commerce-protocol",
 ]);
 
 function readWorkflow(root, name) {
@@ -93,15 +94,17 @@ export function readScopes(root = repositoryRoot) {
   }
 
   for (const [name, patterns] of Object.entries(changes.filters)) {
-    const jobId = ciFilterJobs[name];
+    const jobIds = ciFilterJobs[name];
 
-    if (!jobId) {
+    if (!jobIds?.length) {
       throw new Error(
-        `ci.yml: filter '${name}' has no entry in ciFilterJobs; map it to the job it gates`,
+        `ci.yml: filter '${name}' has no entry in ciFilterJobs; map it to the jobs it gates`,
       );
     }
 
-    scopes.set(jobId, patterns);
+    for (const jobId of jobIds) {
+      scopes.set(jobId, patterns);
+    }
   }
 
   for (const name of nativeWorkflows) {
@@ -145,6 +148,7 @@ export const cases = Object.freeze([
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
     ],
   },
@@ -157,6 +161,7 @@ export const cases = Object.freeze([
       "ci-maui-iap.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
     ],
   },
@@ -168,13 +173,19 @@ export const cases = Object.freeze([
       "ci-flutter-inapp-purchase.yml",
       "ci-react-native-iap.yml",
       "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
     ],
   },
   {
     name: "apple-core-build-script",
     files: ["packages/apple/scripts/build-xcframework.sh"],
-    jobs: ["ci-maui-iap.yml", "ci:test-ios", "codeql:analyze-swift"],
+    jobs: [
+      "ci-maui-iap.yml",
+      "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
+      "codeql:analyze-swift",
+    ],
   },
   {
     name: "kmp-swift-bridge-source",
@@ -293,7 +304,9 @@ export const cases = Object.freeze([
   },
   {
     name: "godot-swift-source",
-    files: ["libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift"],
+    files: [
+      "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
+    ],
     jobs: ["ci-godot-iap.yml", "codeql:analyze-swift-wrappers/godot"],
   },
   {
@@ -322,6 +335,7 @@ export const cases = Object.freeze([
       "ci:test-android",
       "ci:test-gql",
       "ci:test-ios",
+      "ci:test-ios-compiler-boundaries",
       "codeql:analyze-swift",
       ...ALL_SWIFT_WRAPPERS,
     ],
@@ -358,6 +372,13 @@ export const cases = Object.freeze([
   {
     name: "docs-site-source",
     files: ["packages/docs/src/pages/docs/index.tsx"],
+    jobs: ["ci:test-docs", "ci:web-e2e"],
+  },
+  {
+    name: "commerce-protocol-source",
+    files: ["specs/openiap-kit/schema/50-operations.graphql"],
+    // The kit server embeds the generated protocol artifacts at build time,
+    // so a contract change also rebuilds and probes the web binary.
     jobs: ["ci:test-docs", "ci:web-e2e"],
   },
   {
@@ -450,7 +471,12 @@ function findQuantifierViolations(root) {
   const codeql = readWorkflow(root, "codeql.yml");
   const ci = readWorkflow(root, "ci.yml");
   const steps = [
-    ["codeql.yml", "codeql-scope", "core", dornyStep(codeql, "codeql-scope", "core")],
+    [
+      "codeql.yml",
+      "codeql-scope",
+      "core",
+      dornyStep(codeql, "codeql-scope", "core"),
+    ],
     [
       "codeql.yml",
       "codeql-scope",
@@ -465,7 +491,10 @@ function findQuantifierViolations(root) {
       patterns.some((pattern) => pattern.startsWith("!")),
     );
 
-    if (!negates || step.with["predicate-quantifier"] === "some-with-excludes") {
+    if (
+      !negates ||
+      step.with["predicate-quantifier"] === "some-with-excludes"
+    ) {
       return [];
     }
 
@@ -473,6 +502,23 @@ function findQuantifierViolations(root) {
       `${file}:${jobId}/${stepId}: negated patterns require predicate-quantifier: some-with-excludes`,
     ];
   });
+}
+
+/**
+ * Docs link to the canonical Commerce Protocol and R15 checks its derived
+ * transport constants, so every protocol change must run the docs job.
+ */
+function findDocsFilterViolations(root) {
+  const ci = readWorkflow(root, "ci.yml");
+  const { filters } = dornyStep(ci, "changes", "filter");
+  const docs = filters?.docs ?? [];
+  const required = ["specs/openiap-kit/**"];
+  return required
+    .filter((pattern) => !docs.includes(pattern))
+    .map(
+      (pattern) =>
+        `ci.yml: docs filter must include '${pattern}' — the canonical contract and its generated artifacts govern docs`,
+    );
 }
 
 function findCoverageViolations(root) {
@@ -535,32 +581,53 @@ function findCoverageViolations(root) {
   // A filter only means something through the job it gates, so pin that wiring.
   const { filters: ciFilters } = dornyStep(ci, "changes", "filter");
 
-  for (const [name, label] of Object.entries(ciFilterJobs)) {
-    const jobId = label.replace(/^ci:/u, "");
-    const job = ci.jobs[jobId];
+  for (const [name, labels] of Object.entries(ciFilterJobs)) {
+    for (const label of labels) {
+      const jobId = label.replace(/^ci:/u, "");
+      const job = ci.jobs[jobId];
 
-    if (!(name in ciFilters)) {
-      findings.push(
-        `ci.yml: filter '${name}' was removed but job ${jobId} still gates on it`,
-      );
-      continue;
-    }
+      if (!(name in ciFilters)) {
+        findings.push(
+          `ci.yml: filter '${name}' was removed but job ${jobId} still gates on it`,
+        );
+        continue;
+      }
 
-    if (!job) {
-      findings.push(`ci.yml: job ${jobId} is missing; update ciFilterJobs`);
-      continue;
-    }
+      if (!job) {
+        findings.push(`ci.yml: job ${jobId} is missing; update ciFilterJobs`);
+        continue;
+      }
 
-    if (job.if !== `needs.changes.outputs.${name} == 'true'`) {
-      findings.push(
-        `ci.yml: job ${jobId} must gate on needs.changes.outputs.${name}`,
-      );
+      if (job.if !== `needs.changes.outputs.${name} == 'true'`) {
+        findings.push(
+          `ci.yml: job ${jobId} must gate on needs.changes.outputs.${name}`,
+        );
+      }
     }
 
     if (
+      name in ciFilters &&
       ci.jobs.changes.outputs[name] !== `\${{ steps.filter.outputs.${name} }}`
     ) {
-      findings.push(`ci.yml: changes job must publish the ${name} filter output`);
+      findings.push(
+        `ci.yml: changes job must publish the ${name} filter output`,
+      );
+    }
+  }
+
+  // Every job must sit in exactly one inventory, or its gating is invisible
+  // to this audit and a mis-gated job ships without any check failing.
+  const inventoried = new Set([
+    ...unconditionalCiJobs,
+    ...Object.values(ciFilterJobs)
+      .flat()
+      .map((label) => label.replace(/^ci:/u, "")),
+  ]);
+  for (const jobId of Object.keys(ci.jobs)) {
+    if (!inventoried.has(jobId)) {
+      findings.push(
+        `ci.yml: job ${jobId} is in neither unconditionalCiJobs nor ciFilterJobs; add it so its gating is audited`,
+      );
     }
   }
 
@@ -590,6 +657,7 @@ export function findPolicyViolations(root = repositoryRoot) {
     ...findQuantifierViolations(root),
     ...findVocabularyViolations(readScopes(root)),
     ...findCoverageViolations(root),
+    ...findDocsFilterViolations(root),
   ];
 }
 

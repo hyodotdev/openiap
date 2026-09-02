@@ -47,6 +47,22 @@ describe("handleConvexError", () => {
     });
   });
 
+  it("preserves a structured retry hint", () => {
+    expect(
+      handleConvexError(
+        new ConvexError({
+          code: "RATE_LIMITED",
+          message: "Too many verification requests",
+          retryAfterSec: 2,
+        }),
+      ),
+    ).toEqual({
+      code: "RATE_LIMITED",
+      message: "Too many verification requests",
+      retryAfterSec: 2,
+    });
+  });
+
   it("returns legacy JSON ConvexError payloads", () => {
     expect(
       handleConvexError(

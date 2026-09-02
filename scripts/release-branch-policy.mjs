@@ -18,6 +18,10 @@ export const versionSources = {
     label: "openiap-conformance",
     read: (root) => readJson(root, "packages/conformance/package.json").version,
   },
+  "commerce-protocol": {
+    label: "openiap-commerce-protocol",
+    read: (root) => readJson(root, "specs/openiap-kit/package.json").version,
+  },
   docs: {
     label: "OpenIAP Spec",
     read: (root) => readJson(root, "openiap-versions.json").spec,

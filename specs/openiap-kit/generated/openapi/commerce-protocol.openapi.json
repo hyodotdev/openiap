@@ -1,0 +1,1413 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenIAP Commerce Protocol",
+    "version": "1.0",
+    "description": "REST binding of the OpenIAP Commerce Protocol operation surface. Generated from commerce-protocol.graphql — do not edit. Error statuses follow the manifest's errorStatus table; every error body is a ProtocolErrorResponse.",
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "paths": {
+    "/commerce/v1/capabilities": {
+      "get": {
+        "operationId": "providerCapabilities",
+        "summary": "What this provider implements: protocol version, profiles, bindings, and per-store capability",
+        "description": "What this provider implements: protocol version, profiles, bindings, and per-store capability. Public and free of commerce data, so a consumer or a conformance runner reads it without credentials and without any central registry.",
+        "tags": [
+          "core"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderCapabilities"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commerce/v1/subscriptions/status": {
+      "get": {
+        "operationId": "subscriptionStatus",
+        "summary": "A developer backend reads one authenticated user's subscription standing",
+        "description": "A developer backend reads one authenticated user's subscription standing. Server role only: a shipped app must not be able to walk arbitrary user identities, which is why the verification role is refused here.",
+        "tags": [
+          "entitlements"
+        ],
+        "security": [
+          {
+            "serverCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionStatusResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "description": "The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.",
+              "$ref": "#/components/schemas/Identifier"
+            }
+          }
+        ]
+      }
+    },
+    "/commerce/v1/entitlements": {
+      "get": {
+        "operationId": "entitlements",
+        "summary": "A developer backend reads one authenticated user's access decision",
+        "description": "A developer backend reads one authenticated user's access decision. Server role only, and fail-close: anything the provider cannot classify as currently entitled is absent from the answer.",
+        "tags": [
+          "entitlements"
+        ],
+        "security": [
+          {
+            "serverCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntitlementsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "description": "The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.",
+              "$ref": "#/components/schemas/Identifier"
+            }
+          }
+        ]
+      }
+    },
+    "/commerce/v1/purchases/verify": {
+      "post": {
+        "operationId": "verifyPurchase",
+        "summary": "Verifies store evidence and returns the verdict",
+        "description": "Verifies store evidence and returns the verdict. The verification role suffices: this operation binds no user, reads no account, and repeating it with the same evidence is safe. VERIFICATION_FAILED means the provider could not obtain a verdict — it never stands in for the store rejecting the evidence, which is a successful result with `isValid: false`.",
+        "tags": [
+          "verification"
+        ],
+        "security": [
+          {
+            "verificationCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPurchaseResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`UNSUPPORTED_STORE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`VERIFICATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyPurchaseInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commerce/v1/purchases/bind": {
+      "post": {
+        "operationId": "bindPurchase",
+        "summary": "Binds a verified purchase to the adopter's opaque user identity",
+        "description": "Binds a verified purchase to the adopter's opaque user identity. Server role only; retrying is idempotent.",
+        "tags": [
+          "accountLifecycle"
+        ],
+        "security": [
+          {
+            "serverCredential": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BindPurchaseResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`UNSUPPORTED_STORE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindPurchaseInput"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/commerce/v1/users/erase": {
+      "post": {
+        "operationId": "eraseUser",
+        "summary": "Removes a user identity from the provider's subscription records and protocol event identity",
+        "description": "Removes a user identity from the provider's subscription records and protocol event identity. Server role only; re-requesting the same user is idempotent and reports the current job.",
+        "tags": [
+          "accountLifecycle"
+        ],
+        "security": [
+          {
+            "serverCredential": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EraseUserResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`INVALID_REQUEST`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`UNAUTHORIZED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`FORBIDDEN`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`RATE_LIMITED`",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EraseUserInput"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProviderCapabilities": {
+        "title": "OpenIAP Commerce Protocol implementation descriptor",
+        "description": "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
+        "type": "object",
+        "required": [
+          "specVersion",
+          "eventTypes",
+          "stores"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "specVersion": {
+            "description": "OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+          },
+          "implementation": {
+            "description": "Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.",
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "name": {
+                "description": "Name of the backend making this declaration, for an operator reading a descriptor without knowing where it came from.",
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "description": "Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.",
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "eventTypes": {
+            "description": "Event types this implementation can emit. A consumer uses it to know which lifecycle signals to expect; absence of a type here means this implementation never produces it, which is different from a type that simply has not occurred yet.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z]+\\.[a-z_]+$"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "stores": {
+            "description": "Keyed by store, using the same open value space as the event envelope. An implementation declares only the stores it actually integrates.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CapabilitiesStoreCapabilities"
+            }
+          },
+          "profiles": {
+            "description": "Operation profiles this implementation serves, keyed by profile name with the profile version as the value. This version names `verification`, `entitlements`, `events`, and `accountLifecycle`; the key space is open, so a consumer MUST ignore a profile it does not recognise. An implementation MUST declare only profiles it implements and passes conformance for, and MUST NOT declare a profile it partially implements. Absent on a descriptor from an events-only emitter that predates the operation surface.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[a-z][a-zA-Z0-9]*$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+            }
+          },
+          "bindings": {
+            "description": "Transport bindings this implementation serves for the declared profiles, keyed by binding name with the binding version as the value. This version names `rest` and `graphql`; the key space is open. Declaring a binding means every declared profile operation is reachable over it. An implementation MAY serve one binding only. Absent on a descriptor from an events-only emitter.",
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "pattern": "^[a-z][a-zA-Z0-9]*$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+            }
+          }
+        }
+      },
+      "SubscriptionStatusInput": {
+        "description": "Selects the user whose subscription standing the caller's backend reads.",
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "description": "The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.",
+            "$ref": "#/components/schemas/Identifier"
+          }
+        }
+      },
+      "SubscriptionStatusResult": {
+        "description": "The user's current subscription standing. `active` answers the gate for the user as a whole; `subscription` is the most relevant record — the current entitling subscription when one exists, otherwise the provider's most recent record as context. It is omitted when the provider has no record for this user. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.",
+        "type": "object",
+        "required": [
+          "active"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "description": "Whether the user is entitled to anything right now. The gate for simple access checks.",
+            "type": "boolean"
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/SubscriptionStatusSnapshot"
+          }
+        }
+      },
+      "EntitlementsInput": {
+        "description": "Selects the user whose access decision the caller's backend reads.",
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "description": "The opaque app-scoped user identity the caller's backend selected, in the identity space shared by provider and caller.",
+            "$ref": "#/components/schemas/Identifier"
+          }
+        }
+      },
+      "EntitlementsResult": {
+        "description": "Every product the user may access right now, with the entitling subscription records. Unknown, expired, and ambiguous records contribute nothing: a product appears only when its gate is open at the provider's read time. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.",
+        "type": "object",
+        "required": [
+          "userId",
+          "productIds",
+          "subscriptions"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "userId": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "productIds": {
+            "description": "Every product the user may access right now, deduplicated.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "subscriptions": {
+            "description": "The subscription records whose open gates produced `productIds`.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubscriptionStatusSnapshot"
+            }
+          }
+        }
+      },
+      "VerifyPurchaseInput": {
+        "description": "One purchase's store evidence, discriminated by `store`. The store space stays open: a provider that does not integrate the named store rejects the call with UNSUPPORTED_STORE rather than failing schema validation, so a future store is a MINOR evidence-member addition, not a breaking change. For each store this version names, the matching evidence member is required.",
+        "type": "object",
+        "required": [
+          "store"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "store": {
+            "$ref": "#/components/schemas/Store"
+          },
+          "apple": {
+            "$ref": "#/components/schemas/AppleEvidence"
+          },
+          "google": {
+            "$ref": "#/components/schemas/GoogleEvidence"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/HorizonEvidence"
+          },
+          "amazon": {
+            "$ref": "#/components/schemas/AmazonEvidence"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "apple"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "apple": {}
+              },
+              "required": [
+                "apple"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "google"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "google": {}
+              },
+              "required": [
+                "google"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "horizon"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "horizon": {}
+              },
+              "required": [
+                "horizon"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "amazon"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "amazon": {}
+              },
+              "required": [
+                "amazon"
+              ]
+            }
+          }
+        ]
+      },
+      "VerifyPurchaseResult": {
+        "description": "The verification verdict. `isValid` is the authoritative acceptance gate: a caller MUST read it and MUST NOT re-derive acceptance from `state`. A verdict is a statement about the evidence at verification time, never an account mutation — verification binds no user.",
+        "type": "object",
+        "required": [
+          "store",
+          "isValid",
+          "state"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "store": {
+            "$ref": "#/components/schemas/Store"
+          },
+          "isValid": {
+            "description": "Whether the provider accepts the evidence. The single authoritative acceptance gate.",
+            "type": "boolean"
+          },
+          "state": {
+            "description": "The verification verdict for one piece of purchase evidence, as a normalized token. This is the purchase-validation axis SPEC.md 2.3 warns about — a CANCELED verification verdict and a canceled-but-still-entitled subscription are different facts. The value space is OPEN: a caller MUST tolerate a token it does not know and gate on `isValid` alone.",
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "examples": [
+              "ENTITLED",
+              "PENDING_ACKNOWLEDGMENT",
+              "PENDING",
+              "CANCELED",
+              "EXPIRED",
+              "READY_TO_CONSUME",
+              "CONSUMED",
+              "UNKNOWN",
+              "INAUTHENTIC"
+            ]
+          },
+          "productId": {
+            "description": "The product the store verified, when its response exposes one. Never the caller's claim.",
+            "type": "string",
+            "minLength": 1
+          },
+          "environment": {
+            "description": "The store environment the provider verified against, using the same open value space as the event envelope.",
+            "$ref": "#/components/schemas/Environment"
+          }
+        }
+      },
+      "BindPurchaseInput": {
+        "description": "Connects verified store evidence to the adopter's own opaque user identity. Binding is a server-side account mutation: only the server role may call it, and possession of a purchase token is deliberately not proof of ownership — a provider MUST refuse to move an existing binding through this operation.",
+        "type": "object",
+        "required": [
+          "userId",
+          "store"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "store": {
+            "$ref": "#/components/schemas/Store"
+          },
+          "apple": {
+            "$ref": "#/components/schemas/AppleEvidence"
+          },
+          "google": {
+            "$ref": "#/components/schemas/GoogleEvidence"
+          },
+          "horizon": {
+            "$ref": "#/components/schemas/HorizonEvidence"
+          },
+          "amazon": {
+            "$ref": "#/components/schemas/AmazonEvidence"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "apple"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "apple": {}
+              },
+              "required": [
+                "apple"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "google"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "google": {}
+              },
+              "required": [
+                "google"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "horizon"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "horizon": {}
+              },
+              "required": [
+                "horizon"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "store": {
+                  "const": "amazon"
+                }
+              },
+              "required": [
+                "store"
+              ]
+            },
+            "then": {
+              "properties": {
+                "amazon": {}
+              },
+              "required": [
+                "amazon"
+              ]
+            }
+          }
+        ]
+      },
+      "BindPurchaseResult": {
+        "description": "Whether a binding now exists between this user and the evidenced purchase. `bound: false` covers every non-binding outcome — unknown evidence, evidence bound to a different user, or a store the provider cannot bind — without distinguishing them, so the operation cannot be used to probe whether someone else's purchase exists. Re-binding the same user to the same evidence is idempotent and reports `bound: true`.",
+        "type": "object",
+        "required": [
+          "bound"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "bound": {
+            "description": "True when a binding between this user and the evidenced purchase now exists.",
+            "type": "boolean"
+          }
+        }
+      },
+      "EraseUserInput": {
+        "description": "Selects the user identity to erase from the provider's records.",
+        "type": "object",
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "description": "The opaque app-scoped user identity to remove from the provider's subscription records and protocol event identity.",
+            "$ref": "#/components/schemas/Identifier"
+          }
+        }
+      },
+      "EraseUserResult": {
+        "description": "Acknowledgement of an erasure request. Erasure removes the user identity from the provider's own records and event store; it is asynchronous where the provider processes it as a job, and re-requesting the same user is idempotent — it reports the current job rather than failing. A provider CANNOT unsend events: copies already delivered to the caller's own systems are the caller's responsibility to erase.",
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "accepted": {
+            "description": "Whether the provider accepted the erasure request.",
+            "type": "boolean"
+          },
+          "jobId": {
+            "$ref": "#/components/schemas/Identifier"
+          },
+          "status": {
+            "description": "The lifecycle state of a user-erasure job. The value space is open; `completed` is the only terminal token this version names.",
+            "type": "string",
+            "pattern": "^[a-z][a-z_]*$",
+            "examples": [
+              "queued",
+              "running",
+              "completed"
+            ]
+          }
+        }
+      },
+      "ProtocolErrorResponse": {
+        "description": "The REST error envelope. Every non-success REST response carries exactly this shape — CLOSED, so an error body cannot smuggle members past the tokenless rules (a failure response is the easiest place to hide a leak, because callers rarely inspect it).",
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ProtocolError"
+          }
+        }
+      },
+      "CapabilitiesStoreCapabilities": {
+        "description": "What one store's commerce surface offers and what this backend consumes of it, axis by axis. The container stays open: a version that names a new axis is a MINOR addition older consumers ignore.",
+        "type": "object",
+        "required": [
+          "initialValidation",
+          "serverNotifications",
+          "subscriptions",
+          "renewalEvents",
+          "refundEvents",
+          "expiration",
+          "reconciliation",
+          "entitlements",
+          "revenueAmount"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "initialValidation": {
+            "description": "Server-side receipt or token validation on demand.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "serverNotifications": {
+            "description": "The store pushes lifecycle notifications to the backend.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "subscriptions": {
+            "description": "A canonical subscription record can be maintained for this store.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "renewalEvents": {
+            "description": "Renewal is observable as a distinct lifecycle event.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "refundEvents": {
+            "description": "Refund or revocation is observable as a distinct lifecycle event.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "expiration": {
+            "description": "Expiration is observable, rather than only inferred from a timestamp having passed.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "reconciliation": {
+            "description": "A scheduled pass re-reads authoritative store state, so a lost notification can self-heal.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "entitlements": {
+            "description": "Entitlement is derivable for access gating.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          },
+          "revenueAmount": {
+            "description": "The store asserts an amount that can be attributed to revenue with `store` provenance.",
+            "$ref": "#/components/schemas/CapabilitiesSupport"
+          }
+        }
+      },
+      "Identifier": {
+        "description": "An opaque, implementation-assigned identifier. Consumers MUST treat it as an opaque string and MUST NOT parse structure out of it.",
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "SubscriptionStatusSnapshot": {
+        "description": "One subscription as the provider currently records it, shaped for a server-side read. It is tokenless by construction: this object is CLOSED, so the schema itself rejects any member beyond those listed — no purchase token, store transaction identity, signed receipt, or provider-internal record identifier can appear, and the response is safe to hold in a developer backend.",
+        "type": "object",
+        "required": [
+          "productId",
+          "state",
+          "active"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "description": "Store product identifier of the subscription.",
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "$ref": "#/components/schemas/SubscriptionState"
+          },
+          "active": {
+            "description": "The entitlement gate for this subscription, evaluated with the predicate in SPEC.md 2.3 at the provider's read time. A caller gates access on this member, never on `state`.",
+            "type": "boolean"
+          },
+          "store": {
+            "$ref": "#/components/schemas/Store"
+          },
+          "expiresAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "renewsAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "willRenew": {
+            "description": "Whether the store will attempt another billing period, when the provider records it.",
+            "type": "boolean"
+          },
+          "cancellationReason": {
+            "description": "Why the subscription stopped renewing, as the same open normalized token space the event envelope uses. Advisory, never a billing fact.",
+            "type": "string",
+            "minLength": 1
+          },
+          "startedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          },
+          "updatedAt": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        }
+      },
+      "Store": {
+        "description": "The commerce platform that is authoritative for the purchase. This is a store, not a device platform: one device platform can host several stores. The value space is OPEN. The listed values are the stores this version names, but an implementation that observes commerce on another platform MUST be able to emit it, and a consumer MUST accept and preserve an unrecognised store opaquely rather than reject the event. Use a lowercase, stable, unambiguous token.",
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$",
+        "examples": [
+          "apple",
+          "google",
+          "horizon",
+          "amazon"
+        ]
+      },
+      "AppleEvidence": {
+        "description": "Store evidence for one Apple App Store purchase: the signed StoreKit 2 transaction JWS the app received from the store.",
+        "type": "object",
+        "required": [
+          "jws"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "jws": {
+            "description": "A compact signed transaction JWS. Bounded so an oversized body cannot be forwarded to a store: an Apple transaction JWS is a few kilobytes.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      },
+      "GoogleEvidence": {
+        "description": "Store evidence for one Google Play purchase: the opaque purchase token the store issued to the device.",
+        "type": "object",
+        "required": [
+          "purchaseToken"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "purchaseToken": {
+            "description": "An opaque store purchase token. Bounded to keep an oversized body off the store API.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        }
+      },
+      "HorizonEvidence": {
+        "description": "Store evidence for one Meta Horizon (Quest) entitlement. Horizon issues no server-verifiable receipt, so verification identifies the entitlement by user and SKU; the provider holds the store credentials.",
+        "type": "object",
+        "required": [
+          "userId",
+          "sku"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "description": "A store-issued user identity, as the store's own API returns it. Distinct from the protocol's opaque `userId`.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "sku": {
+            "description": "A store add-on SKU. Bounded to a predictable identifier length.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "AmazonEvidence": {
+        "description": "Store evidence for one Amazon Appstore purchase, as returned by the Amazon SDK. `sandbox` selects the RVS sandbox for App Tester receipts where the provider permits it.",
+        "type": "object",
+        "required": [
+          "userId",
+          "receiptId"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "userId": {
+            "description": "A store-issued user identity, as the store's own API returns it. Distinct from the protocol's opaque `userId`.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "receiptId": {
+            "description": "A store receipt identifier. Bounded to keep an oversized body off the store API.",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "sandbox": {
+            "description": "Verify against the store's sandbox where the provider permits it. Omitted means production.",
+            "type": "boolean"
+          }
+        }
+      },
+      "Environment": {
+        "description": "The store environment the purchase belongs to. The value space is open: receivers MUST accept and preserve an unrecognised value opaquely and MUST NOT reject an event because of it.",
+        "type": "string",
+        "minLength": 1,
+        "examples": [
+          "production",
+          "sandbox",
+          "xcode"
+        ]
+      },
+      "ProtocolError": {
+        "description": "One protocol operation failure. Both bindings carry the same code space: REST wraps it in ProtocolErrorResponse, GraphQL carries `code` in `errors[].extensions`. A message is human-readable and MUST NOT contain credentials, store evidence, stack traces, or implementation source paths.",
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "A portable protocol error code. The value space is OPEN: a caller MUST tolerate a code it does not recognise and treat it as a failure of the operation, and a MINOR version can add a code. The listed values are the ones this version names; SPEC.md 8 defines each one and its HTTP status.",
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "examples": [
+              "INVALID_REQUEST",
+              "UNAUTHORIZED",
+              "FORBIDDEN",
+              "NOT_FOUND",
+              "PURCHASE_NOT_FOUND",
+              "VERIFICATION_FAILED",
+              "CONFLICT",
+              "RATE_LIMITED",
+              "UNSUPPORTED_PROFILE",
+              "UNSUPPORTED_STORE",
+              "INTERNAL_ERROR"
+            ]
+          },
+          "message": {
+            "description": "Human-readable failure summary. Never carries credentials, store evidence, stack traces, or source paths.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "CapabilitiesSupport": {
+        "description": "Two axes, deliberately separate. `provider` is what the store's own API offers; `implementation` is what this backend actually consumes. They differ in practice — a store can publish a notification channel that a given backend has not integrated — and collapsing them into one boolean produces a dishonest matrix.",
+        "type": "object",
+        "required": [
+          "provider",
+          "implementation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend.",
+            "type": "boolean"
+          },
+          "implementation": {
+            "description": "Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.",
+            "type": "boolean"
+          },
+          "notes": {
+            "description": "Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "provider": {
+                "const": true
+              },
+              "implementation": {
+                "const": true
+              }
+            }
+          },
+          {
+            "properties": {
+              "notes": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "notes"
+            ]
+          }
+        ],
+        "if": {
+          "properties": {
+            "implementation": {
+              "const": true
+            }
+          },
+          "required": [
+            "implementation"
+          ]
+        },
+        "then": {
+          "properties": {
+            "provider": {
+              "const": true
+            }
+          },
+          "required": [
+            "provider"
+          ]
+        }
+      },
+      "SubscriptionState": {
+        "description": "The lifecycle state of a subscription. This is a state, not an event, and it does not by itself decide entitlement — see Entitlement in SPEC.md. These members are PascalCase while event types are lowercase-dotted; the inconsistency is inherited from the deployed 1.0 wire format and is recorded in CONVENTION.md rather than silently corrected, because changing it would break receivers already decoding it.",
+        "type": "string",
+        "enum": [
+          "Active",
+          "InGracePeriod",
+          "InBillingRetry",
+          "Paused",
+          "Expired",
+          "Revoked",
+          "Refunded",
+          "Unknown"
+        ]
+      },
+      "Timestamp": {
+        "description": "An instant, as integer milliseconds since the Unix epoch, UTC. Every timestamp in this specification uses this encoding. The one exception is the transport signature timestamp, which is in seconds; see the webhook section of SPEC.md.",
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "securitySchemes": {
+      "verificationCredential": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Verification-role credential: limited to purchase-evidence verification, no account access."
+      },
+      "serverCredential": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Server-role credential for an authenticated developer backend. Never ship it in an app."
+      }
+    }
+  },
+  "x-error-status": {
+    "INVALID_REQUEST": 400,
+    "UNAUTHORIZED": 401,
+    "FORBIDDEN": 403,
+    "NOT_FOUND": 404,
+    "PURCHASE_NOT_FOUND": 404,
+    "CONFLICT": 409,
+    "UNSUPPORTED_STORE": 422,
+    "RATE_LIMITED": 429,
+    "INTERNAL_ERROR": 500,
+    "UNSUPPORTED_PROFILE": 501,
+    "VERIFICATION_FAILED": 502
+  }
+}

@@ -23,6 +23,11 @@ export interface InFlightLimitConfig {
   state: InFlightState;
   /** Injectable trusted-IP resolver for deterministic tests. */
   getIp: (c: Context) => string | undefined;
+  /** Renders the 503 body; defaults to the /v1 error envelope. */
+  respond: (
+    c: Context,
+    info: { scope: "key" | "ip" | "global"; retryAfterSeconds: number },
+  ) => Response;
 }
 
 const DEFAULT_MAX_IN_FLIGHT = Math.floor(
@@ -42,6 +47,100 @@ const sharedVerifyState: InFlightState = {
   byKey: new Map(),
   byIp: new Map(),
 };
+
+export interface InFlightAcquisition {
+  scope: "key" | "ip" | "global" | null;
+  limit: number;
+  remaining: number;
+  release: () => void;
+}
+
+/**
+ * Transport-independent in-flight admission over shared process state. The
+ * middleware and the commerce verification admission both call this, so a
+ * verify on either binding draws on one concurrency budget. When `scope` is
+ * non-null the caller was rejected and MUST NOT run downstream work; otherwise
+ * it MUST call `release()` exactly once when the work completes.
+ */
+export function acquireInFlightSlot({
+  apiKeyHash,
+  ipHash,
+  state = sharedVerifyState,
+  maxInFlight = DEFAULT_MAX_IN_FLIGHT,
+  maxInFlightPerKey = DEFAULT_MAX_IN_FLIGHT_PER_KEY,
+  maxInFlightPerIp = DEFAULT_MAX_IN_FLIGHT_PER_IP,
+}: {
+  apiKeyHash: string;
+  ipHash: string;
+  state?: InFlightState;
+  maxInFlight?: number;
+  maxInFlightPerKey?: number;
+  maxInFlightPerIp?: number;
+}): InFlightAcquisition {
+  const activeForKey = state.byKey.get(apiKeyHash) ?? 0;
+  const activeForIp = state.byIp.get(ipHash) ?? 0;
+  const scope =
+    state.active >= maxInFlight
+      ? "global"
+      : activeForIp >= maxInFlightPerIp
+        ? "ip"
+        : activeForKey >= maxInFlightPerKey
+          ? "key"
+          : null;
+  if (scope !== null) {
+    const limit =
+      scope === "global"
+        ? maxInFlight
+        : scope === "ip"
+          ? maxInFlightPerIp
+          : maxInFlightPerKey;
+    return { scope, limit, remaining: 0, release: () => {} };
+  }
+
+  state.active += 1;
+  state.byKey.set(apiKeyHash, activeForKey + 1);
+  state.byIp.set(ipHash, activeForIp + 1);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    const remainingForKey = (state.byKey.get(apiKeyHash) ?? 1) - 1;
+    if (remainingForKey <= 0) state.byKey.delete(apiKeyHash);
+    else state.byKey.set(apiKeyHash, remainingForKey);
+    const remainingForIp = (state.byIp.get(ipHash) ?? 1) - 1;
+    if (remainingForIp <= 0) state.byIp.delete(ipHash);
+    else state.byIp.set(ipHash, remainingForIp);
+    state.active = Math.max(0, state.active - 1);
+  };
+  return {
+    scope: null,
+    limit: maxInFlightPerKey,
+    remaining: Math.max(0, maxInFlightPerKey - activeForKey - 1),
+    release,
+  };
+}
+
+function defaultBusyResponse(
+  c: Context,
+  { scope }: { scope: "key" | "ip" | "global"; retryAfterSeconds: number },
+): Response {
+  return c.json(
+    {
+      errors: [
+        {
+          code: "SERVICE_BUSY",
+          message:
+            scope === "global"
+              ? "Shared verification capacity is temporarily full. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity."
+              : scope === "ip"
+                ? "This network source is using its current share of verification capacity. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity."
+                : "This API key is using its current share of verification capacity. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity.",
+        },
+      ],
+    },
+    503,
+  );
+}
 
 type InFlightLimitVars = {
   apiKeyHash?: string;
@@ -84,6 +183,7 @@ export function inFlightLimitMiddleware(
   );
   const state = config.state ?? sharedVerifyState;
   const resolveIp = config.getIp ?? getRequestIp;
+  const respond = config.respond ?? defaultBusyResponse;
 
   return createMiddleware(async (c, next) => {
     const apiKeyHash = c.var.apiKeyHash;
@@ -138,22 +238,7 @@ export function inFlightLimitMiddleware(
       // guard that this request never received a verification slot, allowing
       // it to refund the token consumed for this attempt.
       c.set("verifyCapacityRejected", true);
-      return c.json(
-        {
-          errors: [
-            {
-              code: "SERVICE_BUSY",
-              message:
-                scope === "global"
-                  ? "Shared verification capacity is temporarily full. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity."
-                  : scope === "ip"
-                    ? "This network source is using its current share of verification capacity. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity."
-                    : "This API key is using its current share of verification capacity. Retry with jittered backoff, contact OpenIAP before sustained high-volume traffic, or self-host for dedicated capacity.",
-            },
-          ],
-        },
-        503,
-      );
+      return respond(c, { scope, retryAfterSeconds });
     }
 
     state.active += 1;

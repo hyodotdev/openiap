@@ -1,0 +1,143 @@
+{
+  "$comment": "HTTP binding manifest for the OpenIAP Commerce Protocol operation surface. Generated from commerce-protocol.graphql — do not edit. Schema pointers resolve inside commerce-protocol.bundle.schema.json.",
+  "protocolVersion": "1.0",
+  "profiles": {
+    "verification": "1.0",
+    "entitlements": "1.0",
+    "events": "1.0",
+    "accountLifecycle": "1.0"
+  },
+  "bindings": {
+    "rest": "1.0",
+    "graphql": "1.0"
+  },
+  "errorStatus": {
+    "INVALID_REQUEST": 400,
+    "UNAUTHORIZED": 401,
+    "FORBIDDEN": 403,
+    "NOT_FOUND": 404,
+    "PURCHASE_NOT_FOUND": 404,
+    "CONFLICT": 409,
+    "UNSUPPORTED_STORE": 422,
+    "RATE_LIMITED": 429,
+    "INTERNAL_ERROR": 500,
+    "UNSUPPORTED_PROFILE": 501,
+    "VERIFICATION_FAILED": 502
+  },
+  "errorResponse": "#/$defs/ProtocolErrorResponse",
+  "operations": [
+    {
+      "name": "providerCapabilities",
+      "kind": "query",
+      "profile": "core",
+      "auth": "none",
+      "method": "GET",
+      "path": "/commerce/v1/capabilities",
+      "successStatus": 200,
+      "idempotent": true,
+      "errors": [
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": null,
+      "result": "#/$defs/ProviderCapabilities"
+    },
+    {
+      "name": "subscriptionStatus",
+      "kind": "query",
+      "profile": "entitlements",
+      "auth": "server",
+      "method": "GET",
+      "path": "/commerce/v1/subscriptions/status",
+      "successStatus": 200,
+      "idempotent": true,
+      "errors": [
+        "INVALID_REQUEST",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": "#/$defs/SubscriptionStatusInput",
+      "result": "#/$defs/SubscriptionStatusResult"
+    },
+    {
+      "name": "entitlements",
+      "kind": "query",
+      "profile": "entitlements",
+      "auth": "server",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "successStatus": 200,
+      "idempotent": true,
+      "errors": [
+        "INVALID_REQUEST",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": "#/$defs/EntitlementsInput",
+      "result": "#/$defs/EntitlementsResult"
+    },
+    {
+      "name": "verifyPurchase",
+      "kind": "mutation",
+      "profile": "verification",
+      "auth": "verification",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "successStatus": 200,
+      "idempotent": true,
+      "errors": [
+        "INVALID_REQUEST",
+        "UNAUTHORIZED",
+        "UNSUPPORTED_STORE",
+        "VERIFICATION_FAILED",
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": "#/$defs/VerifyPurchaseInput",
+      "result": "#/$defs/VerifyPurchaseResult"
+    },
+    {
+      "name": "bindPurchase",
+      "kind": "mutation",
+      "profile": "accountLifecycle",
+      "auth": "server",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "successStatus": 200,
+      "idempotent": true,
+      "errors": [
+        "INVALID_REQUEST",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "UNSUPPORTED_STORE",
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": "#/$defs/BindPurchaseInput",
+      "result": "#/$defs/BindPurchaseResult"
+    },
+    {
+      "name": "eraseUser",
+      "kind": "mutation",
+      "profile": "accountLifecycle",
+      "auth": "server",
+      "method": "POST",
+      "path": "/commerce/v1/users/erase",
+      "successStatus": 202,
+      "idempotent": true,
+      "errors": [
+        "INVALID_REQUEST",
+        "UNAUTHORIZED",
+        "FORBIDDEN",
+        "RATE_LIMITED",
+        "INTERNAL_ERROR"
+      ],
+      "input": "#/$defs/EraseUserInput",
+      "result": "#/$defs/EraseUserResult"
+    }
+  ]
+}

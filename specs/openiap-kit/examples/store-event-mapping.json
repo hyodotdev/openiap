@@ -1,0 +1,287 @@
+{
+  "specVersion": "1.0",
+  "stores": {
+    "apple": {
+      "notificationChannel": "App Store Server Notifications V2",
+      "notes": "The signed JWS payload must be verified against Apple's certificate chain before any mapping is applied. `notificationUUID` is the value that belongs in `sourceStoreEventId`.",
+      "mappings": [
+        {
+          "storeNotification": "SUBSCRIBED",
+          "storeSubtype": "INITIAL_BUY",
+          "whenNoPriorStoreEvent": true,
+          "event": "subscription.started",
+          "notes": "This is the first store event for the purchase, so it begins the lifecycle even if a client receipt already created a record."
+        },
+        {
+          "storeNotification": "SUBSCRIBED",
+          "storeSubtype": "INITIAL_BUY",
+          "event": "subscription.recovered",
+          "notes": "Earlier store history exists for this purchase, so the reused original transaction identity resumes that lifecycle instead of beginning one."
+        },
+        {
+          "storeNotification": "SUBSCRIBED",
+          "storeSubtype": "RESUBSCRIBE",
+          "whenNoPriorStoreEvent": true,
+          "event": "subscription.started",
+          "notes": "With no earlier store event for the purchase, this resubscription begins the lifecycle even if a client receipt already created a record."
+        },
+        {
+          "storeNotification": "SUBSCRIBED",
+          "storeSubtype": "RESUBSCRIBE",
+          "event": "subscription.recovered",
+          "notes": "Earlier store history exists, and Apple reuses originalTransactionId across a resubscribe, so this revives the existing lifecycle."
+        },
+        {
+          "storeNotification": "DID_RENEW",
+          "storeSubtype": "BILLING_RECOVERY",
+          "event": "subscription.recovered",
+          "notes": "Billing succeeded after a failure. Apple marks the difference with this subtype."
+        },
+        {
+          "storeNotification": "DID_RENEW",
+          "event": "subscription.renewed",
+          "notes": "An ordinary renewal: the previous period completed and another began."
+        },
+        {
+          "storeNotification": "DID_FAIL_TO_RENEW",
+          "storeSubtype": "GRACE_PERIOD",
+          "event": "subscription.entered_grace_period",
+          "notes": "Access is retained while Apple retries. The deadline is the grace window's end, not the period that failed."
+        },
+        {
+          "storeNotification": "DID_FAIL_TO_RENEW",
+          "event": "subscription.entered_billing_retry",
+          "notes": "No subtype means no grace period was configured, so access is suspended. The subtype is what separates the two outcomes."
+        },
+        {
+          "storeNotification": "GRACE_PERIOD_EXPIRED",
+          "event": "subscription.entered_billing_retry",
+          "notes": "Grace ended with no successful renewal, so access is now suspended while Apple keeps retrying."
+        },
+        {
+          "storeNotification": "EXPIRED",
+          "event": "subscription.expired"
+        },
+        {
+          "storeNotification": "DID_CHANGE_RENEWAL_STATUS",
+          "storeSubtype": "AUTO_RENEW_DISABLED",
+          "event": "subscription.canceled",
+          "notes": "Auto-renew was turned off. Entitlement continues until the paid period ends."
+        },
+        {
+          "storeNotification": "DID_CHANGE_RENEWAL_STATUS",
+          "storeSubtype": "AUTO_RENEW_ENABLED",
+          "event": "subscription.uncanceled"
+        },
+        {
+          "storeNotification": "DID_CHANGE_RENEWAL_PREF",
+          "event": "subscription.product_changed",
+          "notes": "An UPGRADE subtype takes effect immediately; a downgrade or scheduled crossgrade describes the next period, so the canonical product stays unchanged until renewal."
+        },
+        {
+          "storeNotification": "PRICE_INCREASE",
+          "whenNoPriorStoreEvent": true,
+          "event": null,
+          "notes": "No earlier store event establishes a price baseline, so nothing is emitted."
+        },
+        {
+          "storeNotification": "PRICE_INCREASE",
+          "event": "subscription.price_changed"
+        },
+        {
+          "storeNotification": "REVOKE",
+          "event": "subscription.revoked"
+        },
+        {
+          "storeNotification": "REFUND",
+          "event": "subscription.refunded",
+          "notes": "Applies to a subscription; refunds of one-time products are outside this version."
+        },
+        {
+          "storeNotification": "REFUND_REVERSED",
+          "whenNoPriorStoreEvent": true,
+          "event": "subscription.started",
+          "notes": "With no earlier store event for the purchase, the reinstated purchase begins the lifecycle."
+        },
+        {
+          "storeNotification": "REFUND_REVERSED",
+          "event": "subscription.recovered",
+          "notes": "Apple reversed a refund after earlier store history, so the subscription is revived. Access returns through the entitlement delta, not through a fresh start."
+        },
+        {
+          "storeNotification": "CONSUMPTION_REQUEST",
+          "event": null,
+          "notes": "Apple is asking the developer for consumption data. It reports no lifecycle change, so it emits nothing."
+        },
+        {
+          "storeNotification": "TEST",
+          "event": null,
+          "notes": "Delivery test from App Store Connect. Acknowledge it and emit nothing."
+        }
+      ]
+    },
+    "google": {
+      "notificationChannel": "Google Play Real-Time Developer Notifications",
+      "notes": "RTDN carries no subscription detail beyond the token, so an implementation must call purchases.subscriptionsv2.get to resolve state, expiry, price, and cancellation reason before it can emit a complete event. The Pub/Sub messageId is the value that belongs in `sourceStoreEventId`. Google reissues purchaseToken across upgrade and downgrade, so one logical subscription can span several tokens.",
+      "mappings": [
+        {
+          "storeNotification": "SUBSCRIPTION_PURCHASED",
+          "storeNotificationCode": "4",
+          "whenNoPriorStoreEvent": true,
+          "event": "subscription.started",
+          "notes": "This is the first store event for the purchase, so it begins the lifecycle even if a client receipt already created a record."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PURCHASED",
+          "storeNotificationCode": "4",
+          "event": "subscription.recovered",
+          "notes": "Earlier store history exists, so this revives the lifecycle rather than starting a new one. On an upgrade or downgrade Google reissues the purchase token and links it to the predecessor; an emitter that follows that link reports the product or renewal change instead, which is outside what this table can express."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_RENEWED",
+          "storeNotificationCode": "2",
+          "event": "subscription.renewed"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_RECOVERED",
+          "storeNotificationCode": "1",
+          "whenPreviousState": ["Paused"],
+          "event": "subscription.resumed",
+          "notes": "A paused subscription became active again. Google sends the same code as a recovery, so only the prior state separates them."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_RECOVERED",
+          "storeNotificationCode": "1",
+          "event": "subscription.recovered",
+          "notes": "Billing succeeded after a failure."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_IN_GRACE_PERIOD",
+          "storeNotificationCode": "6",
+          "event": "subscription.entered_grace_period"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_ON_HOLD",
+          "storeNotificationCode": "5",
+          "event": "subscription.entered_billing_retry"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_EXPIRED",
+          "storeNotificationCode": "13",
+          "event": "subscription.expired"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_CANCELED",
+          "storeNotificationCode": "3",
+          "event": "subscription.canceled",
+          "notes": "Access continues until the current period or installment commitment ends."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_CANCELLATION_SCHEDULED",
+          "storeNotificationCode": "18",
+          "event": "subscription.canceled"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_RESTARTED",
+          "storeNotificationCode": "7",
+          "event": "subscription.uncanceled",
+          "notes": "Auto-renew was re-enabled while the period was still active."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_REVOKED",
+          "storeNotificationCode": "12",
+          "event": "subscription.revoked"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_ITEMS_CHANGED",
+          "storeNotificationCode": "17",
+          "event": "subscription.product_changed",
+          "notes": "When the replacement product cannot be resolved from the notification alone, an emitter holds the canonical product and emits nothing until a later verification settles it."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PRICE_CHANGE_CONFIRMED",
+          "storeNotificationCode": "8",
+          "whenNoPriorStoreEvent": true,
+          "event": null,
+          "notes": "No earlier store event establishes a price baseline."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PRICE_CHANGE_CONFIRMED",
+          "storeNotificationCode": "8",
+          "event": "subscription.price_changed"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PRICE_CHANGE_UPDATED",
+          "storeNotificationCode": "19",
+          "whenNoPriorStoreEvent": true,
+          "event": null,
+          "notes": "No earlier store event establishes a price baseline."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PRICE_CHANGE_UPDATED",
+          "storeNotificationCode": "19",
+          "event": "subscription.price_changed"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_DEFERRED",
+          "storeNotificationCode": "9",
+          "whenNoPriorStoreEvent": true,
+          "event": null,
+          "notes": "No earlier store event establishes a billing-date baseline."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_DEFERRED",
+          "storeNotificationCode": "9",
+          "event": "subscription.deferred",
+          "notes": "Recurrence time was extended without a product change."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PAUSED",
+          "storeNotificationCode": "10",
+          "event": "subscription.paused"
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED",
+          "storeNotificationCode": "11",
+          "event": null,
+          "notes": "Schedule metadata only. It does not change current entitlement, so it emits nothing."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PENDING_PURCHASE_CANCELED",
+          "storeNotificationCode": "20",
+          "event": null,
+          "notes": "No completed purchase or entitlement ever existed, so there is no lifecycle change to report."
+        },
+        {
+          "storeNotification": "SUBSCRIPTION_PRICE_STEP_UP_CONSENT_UPDATED",
+          "storeNotificationCode": "22",
+          "event": null,
+          "notes": "Consent metadata. It changes neither entitlement nor the catalog price."
+        },
+        {
+          "storeNotification": "voidedPurchaseNotification",
+          "storeSubtype": "1",
+          "event": "subscription.refunded",
+          "notes": "Sent on its own field of the message rather than as a subscription notification type. The qualifier is Google's productType=1 (subscription); productType=2 is a one-time purchase and has no matching row in this version."
+        },
+        {
+          "storeNotification": "testNotification",
+          "event": null,
+          "notes": "Delivery test from Play Console. Acknowledge it and emit nothing."
+        }
+      ]
+    },
+    "horizon": {
+      "notificationChannel": null,
+      "notes": "Meta publishes no server-to-server commerce notification channel. Its Graph commerce surface answers whether a user currently owns a SKU, plus an endpoint that performs a refund but reports none — no amount, currency, expiry, state, or transaction identity. Nothing can therefore be mapped from a notification, and no canonical subscription record can be maintained. A backend that re-asks the entitlement question on a schedule can still observe the answer changing, which is enough for the entitlement events below but never for subscription lifecycle: it learns that access ended, never why or when. This version specifies no cadence for that polling, so those events remain implementation-defined; the capability descriptor is where an implementation states whether it does it at all. A consumer MUST read that descriptor rather than infer absence of a subscription from absence of events.",
+      "derivableByPolling": ["entitlement.granted", "entitlement.revoked"],
+      "mappings": []
+    },
+    "amazon": {
+      "notificationChannel": "Amazon Real-Time Notifications",
+      "notes": "Amazon publishes this channel, but this version of the specification defines no mapping for it and the reference implementation integrates no receiver. That is a gap in this document and in that backend, not a limitation of the store — the capability descriptor's `implementation` axis is where a backend records its own side. Receipt Verification Service, which some backends poll instead, reports current validity rather than transitions, so polling it reveals that entitlement changed without attributing the change to a lifecycle event.",
+      "derivableByPolling": ["entitlement.granted", "entitlement.revoked"],
+      "mappings": []
+    }
+  }
+}

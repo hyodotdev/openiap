@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "description": "OpenIAP - Open In-App Purchase monorepo",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "specs/*"
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
@@ -27,7 +28,7 @@
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",
     "sbom": "node scripts/generate-sbom.mjs",
     "sbom:test": "node --test scripts/generate-sbom.test.mjs",
-    "clean": "rm -rf packages/*/node_modules node_modules",
+    "clean": "rm -rf packages/*/node_modules specs/*/node_modules node_modules",
     "generate": "cd packages/gql && bun run generate",
     "version:sync": "bun scripts/sync-versions.mjs",
     "sponsors:sync": "node scripts/sync-sponsors.mjs --write",
