@@ -294,8 +294,8 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
     );
     const commentPrefix = definition.groupName === "gdscript" ? "#" : "//";
     const expected = normalizeFixtureHeader(definition.fixture, commentPrefix);
-    // Read and stat through one descriptor: a path-based stat followed by
-    // path-based reads is a check-then-use pattern CodeQL flags as a race.
+    // One descriptor for both reads, so content and mode describe the same
+    // inode: the refresher replaces the target by rename, not in place.
     const replaced = openSync(checkout.isolatedTarget, "r");
     try {
       assert.equal(readFileSync(replaced, "utf8"), expected);
