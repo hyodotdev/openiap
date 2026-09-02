@@ -170,7 +170,7 @@ bun run agent
 | ------------------- | ------------------------------------------------------------------------ |
 | Naming conventions  | `"Check if all iOS functions in packages/apple have IOS suffix"`         |
 | Architecture review | `"Find any code in packages/google that violates architecture rules"`    |
-| Code style          | `"Review packages/gql for coding style issues"`                          |
+| Code style          | `"Review specs/openiap/client for coding style issues"`                          |
 | Full audit          | `"List all rule violations in the codebase based on internal knowledge"` |
 | Specific file       | `"Analyze OpenIapModule.swift for compliance with internal rules"`       |
 
@@ -328,8 +328,8 @@ The code map scans these patterns by default:
 sourcePatterns: [
   "packages/apple/Sources/**/*.swift",
   "packages/google/openiap/src/{main,play,horizon,amazon}/**/*.kt",
-  "packages/gql/src/**/*.ts",
-  "packages/gql/**/*.graphql",
+  "specs/openiap/client/src/**/*.ts",
+  "specs/openiap/client/**/*.graphql",
   "packages/docs/src/**/*.{ts,tsx}",
 ];
 ```

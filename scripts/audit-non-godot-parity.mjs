@@ -3,8 +3,12 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
-import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
+import {
+  GENERATED_SYNC_MANIFEST,
+  gqlPackageRelativePath,
+  gqlPublishedArtifactPaths,
+} from "../specs/openiap/client/generated-sync-manifest.mjs";
+import { collectGeneratedSyncDrift } from "../specs/openiap/client/scripts/verify-generated-sync.mjs";
 import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
@@ -22,7 +26,7 @@ execFileSync(
     "--test",
     path.resolve(
       root,
-      "packages/gql/scripts/standalone-generated-refreshers.test.mjs",
+      "specs/openiap/client/scripts/standalone-generated-refreshers.test.mjs",
     ),
   ],
   { stdio: "inherit" },
@@ -281,8 +285,8 @@ function checkNoOutboundWebhookStream() {
   const forbiddenFiles = [
     "packages/kit/server/api/v1/webhookStreamDrain.ts",
     "packages/kit/convex/webhooks/query.ts",
-    "packages/gql/src/webhook.graphql",
-    "packages/gql/src/webhook-client.ts",
+    "specs/openiap/client/src/webhook.graphql",
+    "specs/openiap/client/src/webhook-client.ts",
     "libraries/react-native-iap/src/webhook-client.ts",
     "libraries/react-native-iap/src/hooks/useWebhookEvents.ts",
     "libraries/expo-iap/src/webhook-client.ts",
@@ -364,7 +368,7 @@ function checkNoOutboundWebhookStream() {
   }
 
   const activeRoots = [
-    "packages/gql/src",
+    "specs/openiap/client/src",
     "packages/apple/Sources",
     "packages/apple/Example",
     "packages/google/openiap/src",
@@ -1598,16 +1602,30 @@ function checkGeneratedTypeSync() {
 }
 
 function checkGqlRuntimeExports() {
-  const packageJson = JSON.parse(read("packages/gql/package.json"));
+  const packageJson = JSON.parse(read("specs/openiap/client/package.json"));
   const exports = packageJson.exports ?? {};
   for (const [groupName, definition] of Object.entries(
     GENERATED_SYNC_MANIFEST,
   )) {
-    const filePath = definition.source.replace(/^packages\/gql\//, "./");
-    if (exports[definition.exportKey] !== filePath) {
-      fail(
-        `@hyodotdev/openiap-gql ${groupName} export ${definition.exportKey} should point to ${filePath}`,
-      );
+    const exportTarget = exports[definition.exportKey];
+    const sourcePath = `./${gqlPackageRelativePath(definition.source)}`;
+    const checks =
+      typeof exportTarget === "string"
+        ? [["", exportTarget, sourcePath]]
+        : [
+            ["openiap-source", exportTarget?.["openiap-source"], sourcePath],
+            [
+              "types",
+              exportTarget?.types,
+              gqlPublishedArtifactPaths(definition.source).types,
+            ],
+          ];
+    for (const [condition, actual, expected] of checks) {
+      if (actual !== expected) {
+        fail(
+          `@hyodotdev/openiap ${groupName} export ${definition.exportKey}${condition ? ` (${condition})` : ""} should point to ${expected}`,
+        );
+      }
     }
   }
 }
@@ -1661,7 +1679,7 @@ function checkConformanceSuite() {
     "packages/conformance/src/runner/report.mjs",
     "packages/conformance/scripts/generate-behavior-ids.mjs",
     "packages/conformance/scripts/coverage-report.mjs",
-    "packages/gql/src/capability-matrix.mjs",
+    "specs/openiap/client/src/capability-matrix.mjs",
     // Per-implementation adapters. Deleting one silently drops that
     // implementation from the coverage report instead of failing.
     "packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift",
@@ -3134,7 +3152,7 @@ function checkBillingChoiceFieldBindings() {
     "Google Play Billing runtime documentation",
   );
   expectIncludes(
-    "packages/gql/src/api-android.graphql",
+    "specs/openiap/client/src/api-android.graphql",
     [
       "OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0",
       "requires Play Billing 9.1.0+",
@@ -3142,7 +3160,7 @@ function checkBillingChoiceFieldBindings() {
     "Billing Choice OpenIAP-first API availability",
   );
   expectIncludes(
-    "packages/gql/src/type-android.graphql",
+    "specs/openiap/client/src/type-android.graphql",
     [
       "OpenIAP Spec 2.1.0 / openiap-google 2.3.0",
       "upstream API available since Play Billing 4.1.0",
@@ -3720,7 +3738,7 @@ function checkBillingChoiceFieldBindings() {
 
   for (const [file, bindings] of [
     [
-      "packages/gql/src/error.graphql",
+      "specs/openiap/client/src/error.graphql",
       ["subResponseCodeAndroid: SubResponseCodeAndroid"],
     ],
     [
@@ -3888,7 +3906,7 @@ function checkFrameworkDependencyHygiene() {
   const googleCoroutinesVersion = googleCoroutineVersions[0];
 
   for (const [packagePath, versionKey] of [
-    ["packages/gql/package.json", "spec"],
+    ["specs/openiap/client/package.json", "spec"],
     ["packages/docs/package.json", "spec"],
     ["packages/google/package.json", "google"],
     ["packages/apple/package.json", "apple"],
@@ -4868,25 +4886,25 @@ function checkFrameworkDependencyHygiene() {
     "scripts/sync-versions.sh",
     [
       "set -euo pipefail",
-      'sync_package_json_version "packages/gql/package.json" "spec"',
+      'sync_package_json_version "specs/openiap/client/package.json" "spec"',
       'sync_package_json_version "packages/docs/package.json" "spec"',
       'sync_package_json_version "packages/google/package.json" "google"',
       'sync_package_json_version "packages/apple/package.json" "apple"',
     ],
     "shell version sync must update package metadata for release workflows",
   );
-  if (exists("packages/gql/package-lock.json")) {
+  if (exists("specs/openiap/client/package-lock.json")) {
     fail(
-      "packages/gql must not keep a stale npm package-lock.json; Bun lockfiles are the package-manager SSOT",
+      "specs/openiap/client must not keep a stale npm package-lock.json; Bun lockfiles are the package-manager SSOT",
     );
   }
   expectIncludes(
-    "packages/gql/README.md",
+    "specs/openiap/client/README.md",
     ["bun install --frozen-lockfile"],
     "GQL README must document Bun installs",
   );
   expectNotIncludes(
-    "packages/gql/README.md",
+    "specs/openiap/client/README.md",
     ["npm install"],
     "GQL README must not document npm installs",
   );
@@ -4896,7 +4914,7 @@ function checkFrameworkDependencyHygiene() {
     "root gitignore must prevent npm lockfile drift in Bun-managed packages",
   );
   for (const bunPackageJson of [
-    "packages/gql/package.json",
+    "specs/openiap/client/package.json",
     "packages/docs/package.json",
     "packages/google/package.json",
     "packages/apple/package.json",
@@ -4957,7 +4975,7 @@ function checkFrameworkDependencyHygiene() {
       'update-native google "$VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
       "packages/*/openiap-versions.json",
-      "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "specs/openiap/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
     ],
     "Google update-version must preserve openiap-versions.json fields",
   );
@@ -4982,7 +5000,7 @@ function checkFrameworkDependencyHygiene() {
       'node "$REPO_ROOT/scripts/release-branch-policy.mjs"',
       'update-native apple "$NEW_VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
-      "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "specs/openiap/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
       'git commit -m "chore(release): openiap-apple@$NEW_VERSION"',
       "git pull --rebase origin main",
       "git push origin HEAD:main",
@@ -5263,7 +5281,7 @@ function checkFrameworkDependencyHygiene() {
       [
         "./scripts/sync-release-generated.sh",
         "packages/docs/src/generated/version-metadata.json",
-        "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+        "specs/openiap/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
         "release-branch-policy.mjs assert-floor",
         "Release branch moved after verification; rerun the release workflow",
@@ -5435,7 +5453,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "scripts/assert-release-tag.mjs",
     [
-      'runGit(["show", `${tag}:${config.path}`])',
+      "for (const manifestPath of [config.path, ...(config.historicalPaths ?? [])])",
+      'runGit(["show", `${tag}:${manifestPath}`])',
       '"ls-remote"',
       "`refs/tags/${tag}^{}`",
       '"merge-base", "--is-ancestor"',
@@ -5531,11 +5550,13 @@ function checkFrameworkDependencyHygiene() {
       /^\s*git checkout\b/,
       packageIndex + 1,
     );
-    if (!(
-      guardIndex >= 0 &&
-      packageIndex === guardIndex + 1 &&
-      checkoutIndex > packageIndex
-    )) {
+    if (
+      !(
+        guardIndex >= 0 &&
+        packageIndex === guardIndex + 1 &&
+        checkoutIndex > packageIndex
+      )
+    ) {
       fail(
         `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
       );
@@ -8920,12 +8941,12 @@ function checkReleaseNoteGroupingGuidance() {
 
 function checkXcode27StoreKitCoverage() {
   expectIncludes(
-    "packages/gql/src/api-ios.graphql",
+    "specs/openiap/client/src/api-ios.graphql",
     ["presentCodeRedemptionSheetIOS: PurchaseIOS"],
     "Xcode 27 offer-code redemption result contract",
   );
   expectIncludes(
-    "packages/gql/src/type-ios.graphql",
+    "specs/openiap/client/src/type-ios.graphql",
     [
       "SubscriptionBundle",
       "SubscriptionSuite",
@@ -9236,7 +9257,7 @@ function checkXcode27StoreKitCoverage() {
     "Xcode 27 support boundary",
   );
   expectNotIncludes(
-    "packages/gql/src/type-ios.graphql",
+    "specs/openiap/client/src/type-ios.graphql",
     ["GroupPurchase", "groupPurchase", "seatCount"],
     "unpublished Group Purchase contract must stay out of the public schema",
   );

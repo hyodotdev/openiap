@@ -5,7 +5,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/flutter_inapp_purchase/**"
-      - "packages/gql/src/generated/types.dart"
+      - "specs/openiap/client/src/generated/types.dart"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
@@ -18,7 +18,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/flutter_inapp_purchase/**"
-      - "packages/gql/src/generated/types.dart"
+      - "specs/openiap/client/src/generated/types.dart"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"

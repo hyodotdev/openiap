@@ -153,6 +153,25 @@ describe("generated context path contract", () => {
     expect(workflow).not.toContain("context-files.ts assert-outputs-clean");
     expect(workflow).not.toContain("needs.changes.outputs.agent");
   });
+
+  test("describes both specifications under the canonical nested root", () => {
+    const repositoryRoot = path.resolve(import.meta.dir, "../../..");
+    const compiler = fs.readFileSync(
+      path.join(repositoryRoot, "scripts/agent/compile-context.ts"),
+      "utf8",
+    );
+    const generated = fs.readFileSync(
+      path.join(repositoryRoot, "knowledge/_agent-context/context.md"),
+      "utf8",
+    );
+
+    for (const content of [compiler, generated]) {
+      expect(content).not.toContain("│   ├── gql/");
+      expect(content).not.toContain("specs/openiap-kit");
+      expect(content).toContain("specs/openiap/client");
+      expect(content).toContain("specs/openiap/commerce-protocol");
+    }
+  });
 });
 
 describe("ensureSymlink", () => {

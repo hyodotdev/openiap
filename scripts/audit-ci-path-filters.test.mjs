@@ -44,6 +44,75 @@ test("workflow path filters satisfy the audited policy", () => {
   assert.deepEqual(auditCiPathFilters(), []);
 });
 
+test("rejects dropping the client contract from MCP verification", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "deploy-kit.yml");
+      fs.writeFileSync(
+        file,
+        fs
+          .readFileSync(file, "utf8")
+          .replace('      - "specs/openiap/client/src/kit-api.ts"\n', ""),
+      );
+    },
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).includes(
+          "deploy-kit.yml: pull_request.paths must include 'specs/openiap/client/src/kit-api.ts' — MCP compiles against this client contract",
+        ),
+      );
+    },
+  );
+});
+
+test("rejects dropping the Commerce Protocol from kit verification or deployment", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "deploy-kit.yml");
+      fs.writeFileSync(
+        file,
+        fs
+          .readFileSync(file, "utf8")
+          .replaceAll('      - "specs/openiap/commerce-protocol/**"\n', ""),
+      );
+    },
+    (root) => {
+      assert.deepEqual(
+        findPolicyViolations(root).filter((finding) =>
+          finding.includes("kit binary embeds this runtime contract"),
+        ),
+        [
+          "deploy-kit.yml: pull_request.paths must include 'specs/openiap/commerce-protocol/**' — the kit binary embeds this runtime contract",
+          "deploy-kit.yml: push.paths must include 'specs/openiap/commerce-protocol/**' — the kit binary embeds this runtime contract",
+        ],
+      );
+    },
+  );
+});
+
+test("rejects moving the kit Docker build context below the monorepo root", () => {
+  withPatchedWorkflows(
+    (workflows) => {
+      const file = path.join(workflows, "deploy-kit.yml");
+      const source = fs.readFileSync(file, "utf8");
+      const marker = "        working-directory: ${{ github.workspace }}\n";
+      const markerIndex = source.lastIndexOf(marker);
+      assert.notEqual(markerIndex, -1);
+      fs.writeFileSync(
+        file,
+        source.slice(0, markerIndex) + source.slice(markerIndex + marker.length),
+      );
+    },
+    (root) => {
+      assert.ok(
+        findPolicyViolations(root).includes(
+          "deploy-kit.yml: Deploy must run from github.workspace so the monorepo Docker context contains root manifests and nested specifications",
+        ),
+      );
+    },
+  );
+});
+
 test("markdown exclusion is final and cannot be re-included", () => {
   const patterns = ["packages/apple/**", "!**/*.md"];
 

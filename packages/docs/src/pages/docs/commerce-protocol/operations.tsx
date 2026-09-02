@@ -4,7 +4,7 @@ import DataTable from '../../../components/DataTable';
 import SEO from '../../../components/SEO';
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md';
 
 type OperationRow = (typeof httpBinding.operations)[number];
 

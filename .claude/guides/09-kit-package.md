@@ -6,14 +6,14 @@ Hosted receipt-validation SaaS at [kit.openiap.dev](https://kit.openiap.dev) —
 
 `packages/kit` is the only package in this monorepo that is **a deployable application, not a publishable library**. Treat it differently:
 
-| Aspect              | apple/google/gql/docs       | kit                                                    |
-| ------------------- | --------------------------- | ------------------------------------------------------ |
-| Output              | Library / static site       | Running SaaS (Fly.io machine)                          |
-| Type SSOT           | `packages/gql` (GraphQL IR) | Independent Convex schema                              |
-| Deploy trigger      | Tagged release              | `main` push (paths-filtered to `packages/kit/**`)      |
-| GQL type-sync chain | Yes                         | **No** — kit does not consume `@hyodotdev/openiap-gql` |
-| `private: true`     | Mixed                       | Yes — never publish to npm                             |
-| User-facing brand   | `openiap-*`                 | `IAPKit` (managed by OpenIAP)                          |
+| Aspect                 | apple/google/client spec/docs       | kit                                                                |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| Output                 | Library / static site               | Running SaaS (Fly.io machine)                                      |
+| Type SSOT              | `specs/openiap/client` (GraphQL IR) | Independent Convex schema                                          |
+| Deploy trigger         | Tagged release                      | `main` push, paths-filtered (see `push.paths` in `deploy-kit.yml`) |
+| Client type-sync chain | Yes                                 | **No** — only a type import of `kit-api` via the MCP server        |
+| `private: true`        | Mixed                               | Yes — never publish to npm                                         |
+| User-facing brand      | `openiap-*`                         | `IAPKit` (managed by OpenIAP)                                      |
 
 ## Internal Layout
 
@@ -56,7 +56,7 @@ Sanctioned exception: an operator-only `internalMutation` may stay in
 
 ## Pre-commit Gate (Paths-Aware, CI-Equivalent)
 
-The monorepo-root husky hook (`.husky/pre-commit`) runs the **full CI-equivalent gate** when staged changes touch `packages/kit/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, and `smoke:server` (Bun compile + boot probe). Mirrors the `verify` job in `deploy-kit.yml` exactly so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
+The monorepo-root husky hook (`.husky/pre-commit`) runs the **full CI-equivalent gate** when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or `specs/openiap/commerce-protocol/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, the Commerce Protocol suite, `smoke:server` (Bun compile + boot probe), and the MCP server lint and tests. Mirrors the `verify` job in `deploy-kit.yml` plus the Commerce Protocol suite from `ci.yml`, so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
 
 If the hook fails, fix the underlying issue and re-stage; never bypass with `--no-verify`.
 
@@ -67,8 +67,8 @@ GitHub Actions secrets (set on `hyodotdev/openiap`):
 | Secret                    | Real secret? | Purpose                                                  |
 | ------------------------- | ------------ | -------------------------------------------------------- |
 | `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                      |
-| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (optional — step skips if absent) |
-| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle        |
+| `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy (required — deploy fails without) |
+| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Resolved by `convex deploy`, not a stored secret         |
 | `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional)                             |
 | `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional, analytics opt-in)     |
 
@@ -86,7 +86,7 @@ Monorepo `.vscode/launch.json` has a single kit entry: **🧰 Kit: Dev (Vite + H
 
 ## When You Touch Kit
 
-- Stay paths-aware. The deploy workflow only fires on `packages/kit/**` changes.
+- Stay paths-aware. `deploy-kit.yml` redeploys kit on `main` pushes that match its `push.paths`: `packages/kit/**`, `packages/mcp-server/**`, `specs/openiap/commerce-protocol/**`, the workflow itself, the security-tool installer, and the workspace manifests, because the kit binary embeds the MCP web entry and the Commerce Protocol artifacts.
 - Add new env vars to `.env.example` first (template), then `.env.local` (dev) and `.env.production` (manual prod fallback). For `VITE_KIT_*` vars, also update the Docker build-time injection in `Dockerfile`, the `Deploy` step in `deploy-kit.yml`, and the GitHub secrets. Use BuildKit secrets for TOKEN-named public SPA values to avoid Docker secret-name warnings.
 - For server-runtime-only secrets (Stripe / Resend / GitHub OAuth), use the Convex dashboard, not these files.
 - Keep dashboard text English-only. Inline string literals; do not reintroduce i18next.

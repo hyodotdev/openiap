@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-export const SCHEMA_FILE = "packages/gql/src/type.graphql";
+export const SCHEMA_FILE = "specs/openiap/client/src/type.graphql";
 export const CONVEX_STATE_FILE =
   "packages/kit/convex/purchases/purchaseState.ts";
 export const RESPONSE_SCHEMA_FILE =
@@ -259,7 +259,7 @@ export const runAudit = (sources) => {
       "\nThe /v1 verify response carries enums that already-published SDKs decode.",
     );
     console.error(
-      "Change packages/gql/src/type.graphql first, regenerate, and confirm every",
+      "Change specs/openiap/client/src/type.graphql first, regenerate, and confirm every",
     );
     console.error(
       "SDK degrades unknown values instead of failing the receipt.",

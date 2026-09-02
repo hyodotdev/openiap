@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -20,7 +26,15 @@ export const versionSources = {
   },
   "commerce-protocol": {
     label: "openiap-commerce-protocol",
-    read: (root) => readJson(root, "specs/openiap-kit/package.json").version,
+    read: (root) =>
+      readJson(
+        root,
+        existsSync(
+          resolve(root, "specs/openiap/commerce-protocol/package.json"),
+        )
+          ? "specs/openiap/commerce-protocol/package.json"
+          : "specs/openiap-kit/package.json",
+      ).version,
   },
   docs: {
     label: "OpenIAP Spec",

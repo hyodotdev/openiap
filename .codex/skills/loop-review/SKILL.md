@@ -121,7 +121,7 @@ Require `$e2e-tests` when the diff touches any of:
 - `packages/apple/`, `packages/google/`, or `packages/kit/`;
 - any `libraries/<sdk>/` implementation, example app, or podspec/gradle/csproj
   manifest;
-- `packages/gql/src/*.graphql` or the generated types synced from it;
+- `specs/openiap/client/src/*.graphql` or the generated types synced from it;
 - native build configuration, dependency placement, config plugins, or store
   metadata for any of the above.
 

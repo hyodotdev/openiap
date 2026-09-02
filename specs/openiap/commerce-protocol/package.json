@@ -1,0 +1,69 @@
+{
+  "name": "openiap-commerce-protocol",
+  "version": "0.1.0",
+  "type": "module",
+  "types": "./src/index.d.ts",
+  "main": "./src/index.mjs",
+  "description": "OpenIAP Commerce Protocol: a vendor-neutral server-side contract for purchase verification, entitlements, lifecycle events, and REST and GraphQL bindings",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.mjs"
+    },
+    "./commerce-protocol.graphql": "./generated/commerce-protocol.graphql",
+    "./generated/schemas/*": "./generated/schemas/*",
+    "./generated/vectors/*": "./generated/vectors/*",
+    "./examples/*": "./examples/*",
+    "./vectors/*": "./vectors/*",
+    "./generated/bindings/*": "./generated/bindings/*",
+    "./generated/openapi/*": "./generated/openapi/*",
+    "./conformance": {
+      "types": "./conformance/index.d.ts",
+      "default": "./conformance/index.mjs"
+    },
+    "./schema/*": "./schema/*"
+  },
+  "scripts": {
+    "build": "node scripts/assemble-schema.mjs && node scripts/build-json-schemas.mjs && node scripts/build-bundle.mjs && node scripts/build-lifecycle-vectors.mjs && node scripts/build-operations.mjs",
+    "test": "node scripts/assemble-schema.mjs --check && node scripts/build-json-schemas.mjs --check && node scripts/build-bundle.mjs --check && node scripts/build-lifecycle-vectors.mjs --check && node scripts/build-operations.mjs --check && prettier --check \"**/*.{graphql,json,md,mjs,ts}\" && vitest run test"
+  },
+  "keywords": [
+    "openiap",
+    "iap",
+    "in-app-purchase",
+    "commerce",
+    "webhook",
+    "specification"
+  ],
+  "author": "hyodotdev",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "graphql": "^16.11.0",
+    "prettier": "^3.6.2",
+    "vitest": "^4.1.11"
+  },
+  "packageManager": "bun@1.3.13",
+  "files": [
+    "LICENSE",
+    "README.md",
+    "CONVENTION.md",
+    "SPEC.md",
+    "schema",
+    "generated",
+    "examples",
+    "vectors",
+    "src",
+    "conformance"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyodotdev/openiap.git",
+    "directory": "specs/openiap/commerce-protocol"
+  },
+  "homepage": "https://openiap.dev/docs/commerce-protocol"
+}

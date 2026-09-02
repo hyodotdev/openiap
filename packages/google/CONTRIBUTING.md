@@ -107,10 +107,10 @@ adb logcat | grep -E "OpenIap|Amazon"
 
 ## Generated Types
 
-- All GraphQL models in `openiap/src/main/java/dev/hyo/openiap/Types.kt` are generated from the [`openiap` monorepo](https://github.com/hyodotdev/openiap/tree/main/packages/gql). When you update API behavior, adjust the upstream type generator first so the Kotlin output stays in sync across platforms.
+- All GraphQL models in `openiap/src/main/java/dev/hyo/openiap/Types.kt` are generated from the [`openiap` monorepo](https://github.com/hyodotdev/openiap/tree/main/specs/openiap/client). When you update API behavior, adjust the upstream type generator first so the Kotlin output stays in sync across platforms.
 - The canonical workflow is documented in `CONVENTION.md`. Read it before touching generated models or related helpers.
-- To refresh generated files locally, run `./scripts/generate-types.sh`. This compatibility entry point delegates to the complete `packages/gql` generation and manifest-backed sync; it does not support partial or ad-hoc generated-file modes.
-- For changes that require generator support, open an issue or pull request in the [`packages/gql`](https://github.com/hyodotdev/openiap/tree/main/packages/gql) directory of the monorepo.
+- To refresh generated files locally, run `./scripts/generate-types.sh`. This compatibility entry point delegates to the complete `specs/openiap/client` generation and manifest-backed sync; it does not support partial or ad-hoc generated-file modes.
+- For changes that require generator support, open an issue or pull request in the [`specs/openiap/client`](https://github.com/hyodotdev/openiap/tree/main/specs/openiap/client) directory of the monorepo.
 
 ## Code Style
 

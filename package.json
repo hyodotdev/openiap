@@ -1,11 +1,11 @@
 {
-  "name": "@hyodotdev/openiap",
+  "name": "openiap-monorepo",
   "private": true,
   "version": "1.0.0",
   "description": "OpenIAP - Open In-App Purchase monorepo",
   "workspaces": [
     "packages/*",
-    "specs/*"
+    "specs/openiap/*"
   ],
   "scripts": {
     "build": "bun run --filter '*' build",
@@ -21,15 +21,15 @@
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:kit-contract": "node --test scripts/audit-kit-spec-contract.test.mjs && node scripts/audit-kit-spec-contract.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",
-    "audit:schema-semver": "bun run --cwd packages/gql audit:schema-semver",
+    "audit:schema-semver": "bun run --cwd specs/openiap/client audit:schema-semver",
     "audit:research": "node --test scripts/audit-research.test.mjs && node scripts/audit-research.mjs",
     "research:mine-issues": "node --test scripts/mine-iap-issues.test.mjs && node scripts/mine-iap-issues.mjs",
     "audit:dependencies": "node scripts/audit-security.mjs dependencies",
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",
     "sbom": "node scripts/generate-sbom.mjs",
     "sbom:test": "node --test scripts/generate-sbom.test.mjs",
-    "clean": "rm -rf packages/*/node_modules specs/*/node_modules node_modules",
-    "generate": "cd packages/gql && bun run generate",
+    "clean": "rm -rf packages/*/node_modules specs/openiap/*/node_modules node_modules",
+    "generate": "cd specs/openiap/client && bun run generate",
     "version:sync": "bun scripts/sync-versions.mjs",
     "sponsors:sync": "node scripts/sync-sponsors.mjs --write",
     "version:bump": "bun scripts/bump-version.mjs",

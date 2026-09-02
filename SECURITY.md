@@ -22,7 +22,8 @@ otherwise.
 
 This policy covers everything in this monorepo, including:
 
-- The OpenIAP specification and generated types (`packages/gql`)
+- Both OpenIAP specifications (`specs/openiap/client` and
+  `specs/openiap/commerce-protocol`) and their generated artifacts
 - Native packages (`packages/apple`, `packages/google`)
 - Framework SDKs under `libraries/`
 - IAPKit server and dashboard (`packages/kit`), including the community

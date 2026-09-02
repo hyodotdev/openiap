@@ -13,7 +13,7 @@
  *   MUST   — a conforming implementation fails without it.
  *   SHOULD — recommended; reported as a warning, not a failure.
  *
- * `capability` names an entry in packages/gql/src/capability-matrix.mjs. A
+ * `capability` names an entry in specs/openiap/client/src/capability-matrix.mjs. A
  * behavior gated on a capability is only required of stores whose level for it
  * is `required`; for `unsupported` stores the runner asserts the documented
  * absence instead. Ungated behaviors apply to every implementation.

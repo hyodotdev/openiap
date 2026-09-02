@@ -254,7 +254,7 @@ const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 function mergeHeaders(
   callerHeaders: Record<string, string> | undefined,
   hasBody: boolean,
-): RequestInit["headers"] {
+): NonNullable<RequestInit["headers"]> {
   if (typeof Headers === "function") {
     const merged = new Headers(callerHeaders);
     if (!merged.has("accept")) merged.set("accept", "application/json");

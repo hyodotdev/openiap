@@ -11,11 +11,11 @@ const KNOWN_COMMERCE_EVENT_TYPES =
   commerceEventSchema.properties.eventType.examples;
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md#94-webhook-contract';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md#94-webhook-contract';
 const GRAPHQL_CONTRACT_URL =
-  'https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema';
+  'https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema';
 const SIGNATURE_VECTORS_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/vectors/signatures.json';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/vectors/signatures.json';
 const LEGACY_IAPKIT_HASHES = new Set([
   '#outbound',
   '#setup',

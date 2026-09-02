@@ -8,8 +8,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
-      - "packages/gql/codegen/plugins/gdscript.ts"
-      - "packages/gql/src/generated/types.gd"
+      - "specs/openiap/client/codegen/plugins/gdscript.ts"
+      - "specs/openiap/client/src/generated/types.gd"
       - "openiap-versions.json"
       - "!**/*.md"
   push:
@@ -19,8 +19,8 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
-      - "packages/gql/codegen/plugins/gdscript.ts"
-      - "packages/gql/src/generated/types.gd"
+      - "specs/openiap/client/codegen/plugins/gdscript.ts"
+      - "specs/openiap/client/src/generated/types.gd"
       - "openiap-versions.json"
       - "!**/*.md"
 

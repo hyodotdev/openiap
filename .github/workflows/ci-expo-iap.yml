@@ -5,7 +5,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/expo-iap/**"
-      - "packages/gql/src/generated/types.ts"
+      - "specs/openiap/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
@@ -18,7 +18,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/expo-iap/**"
-      - "packages/gql/src/generated/types.ts"
+      - "specs/openiap/client/src/generated/types.ts"
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"

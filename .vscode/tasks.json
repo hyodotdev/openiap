@@ -183,7 +183,7 @@
             "command": "bun",
             "args": ["run", "generate"],
             "options": {
-                "cwd": "${workspaceFolder}/packages/gql"
+                "cwd": "${workspaceFolder}/specs/openiap/client"
             },
             "group": "build",
             "presentation": {

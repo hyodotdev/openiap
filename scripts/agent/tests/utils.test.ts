@@ -4,7 +4,11 @@
 
 import { describe, expect, test } from "bun:test";
 import * as crypto from "crypto";
-import { extractGraphQLSymbols, splitMarkdownByHeaders } from "../indexer.js";
+import {
+  extractGraphQLSymbols,
+  getPackageName,
+  splitMarkdownByHeaders,
+} from "../indexer.js";
 
 // ============================================================================
 // Test utility functions extracted from indexer.ts
@@ -12,14 +16,6 @@ import { extractGraphQLSymbols, splitMarkdownByHeaders } from "../indexer.js";
 
 function calculateChecksum(content: string): string {
   return crypto.createHash("md5").update(content).digest("hex");
-}
-
-function getPackageName(filePath: string): string {
-  if (filePath.includes("packages/apple")) return "apple";
-  if (filePath.includes("packages/google")) return "google";
-  if (filePath.includes("packages/gql")) return "gql";
-  if (filePath.includes("packages/docs")) return "docs";
-  return "unknown";
 }
 
 function getLanguage(filePath: string): string {
@@ -72,8 +68,11 @@ describe("getPackageName", () => {
     );
   });
 
-  test("should identify gql package", () => {
-    expect(getPackageName("packages/gql/src/types.ts")).toBe("gql");
+  test("should identify OpenIAP specifications", () => {
+    expect(getPackageName("specs/openiap/client/src/types.ts")).toBe("spec");
+    expect(getPackageName("specs/openiap/commerce-protocol/SPEC.md")).toBe(
+      "spec",
+    );
   });
 
   test("should identify docs package", () => {

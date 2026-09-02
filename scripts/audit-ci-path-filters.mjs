@@ -13,6 +13,11 @@ const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 
 const DOCS_EXCLUDE = "!**/*.md";
+const KIT_CLIENT_CONTRACT_PATHS = Object.freeze([
+  "specs/openiap/client/src/kit-api.ts",
+  "specs/openiap/client/package.json",
+]);
+const KIT_RUNTIME_CONTRACT_PATH = "specs/openiap/commerce-protocol/**";
 
 export const nativeWorkflows = Object.freeze([
   "ci-expo-iap.yml",
@@ -376,7 +381,7 @@ export const cases = Object.freeze([
   },
   {
     name: "commerce-protocol-source",
-    files: ["specs/openiap-kit/schema/50-operations.graphql"],
+    files: ["specs/openiap/commerce-protocol/schema/50-operations.graphql"],
     // The kit server embeds the generated protocol artifacts at build time,
     // so a contract change also rebuilds and probes the web binary.
     jobs: ["ci:test-docs", "ci:web-e2e"],
@@ -512,13 +517,48 @@ function findDocsFilterViolations(root) {
   const ci = readWorkflow(root, "ci.yml");
   const { filters } = dornyStep(ci, "changes", "filter");
   const docs = filters?.docs ?? [];
-  const required = ["specs/openiap-kit/**"];
+  const required = ["specs/openiap/commerce-protocol/**"];
   return required
     .filter((pattern) => !docs.includes(pattern))
     .map(
       (pattern) =>
         `ci.yml: docs filter must include '${pattern}' — the canonical contract and its generated artifacts govern docs`,
     );
+}
+
+function findKitConsumerFilterViolations(root) {
+  const workflow = readWorkflow(root, "deploy-kit.yml");
+  const pullRequestPaths = workflow.on.pull_request.paths ?? [];
+  const pushPaths = workflow.on.push.paths ?? [];
+
+  const findings = KIT_CLIENT_CONTRACT_PATHS.filter(
+    (requiredPath) => !pullRequestPaths.includes(requiredPath),
+  ).map(
+    (requiredPath) =>
+      `deploy-kit.yml: pull_request.paths must include '${requiredPath}' — MCP compiles against this client contract`,
+  );
+
+  for (const [event, paths] of [
+    ["pull_request", pullRequestPaths],
+    ["push", pushPaths],
+  ]) {
+    if (!paths.includes(KIT_RUNTIME_CONTRACT_PATH)) {
+      findings.push(
+        `deploy-kit.yml: ${event}.paths must include '${KIT_RUNTIME_CONTRACT_PATH}' — the kit binary embeds this runtime contract`,
+      );
+    }
+  }
+
+  const deployStep = workflow.jobs.deploy.steps.find(
+    (step) => step.name === "Deploy",
+  );
+  if (deployStep?.["working-directory"] !== "${{ github.workspace }}") {
+    findings.push(
+      "deploy-kit.yml: Deploy must run from github.workspace so the monorepo Docker context contains root manifests and nested specifications",
+    );
+  }
+
+  return findings;
 }
 
 function findCoverageViolations(root) {
@@ -658,6 +698,7 @@ export function findPolicyViolations(root = repositoryRoot) {
     ...findVocabularyViolations(readScopes(root)),
     ...findCoverageViolations(root),
     ...findDocsFilterViolations(root),
+    ...findKitConsumerFilterViolations(root),
   ];
 }
 

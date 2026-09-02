@@ -662,9 +662,9 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/docs/commerce-protocol
 - Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
-- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
-- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
-- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/vectors
+- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
+- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
+- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/vectors
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries
@@ -946,8 +946,8 @@ identifier, or central runtime.
   conformance.
 - Docs: https://openiap.dev/docs/commerce-protocol
 - Webhook contract: https://openiap.dev/docs/webhooks
-- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
-- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
+- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
+- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
@@ -1109,39 +1109,11 @@ ${commerceProtocolSpec}
 
 `;
 
-  // =========================================================================
-  // PROJECT STRUCTURE
-  // =========================================================================
-
-  output += `# 📁 PROJECT STRUCTURE
-
-\`\`\`
-openiap/
-├── packages/
-│   ├── apple/        # iOS/macOS StoreKit 2 (Swift)
-│   │   └── Sources/
-│   │       ├── Models/      # Official types
-│   │       ├── Helpers/     # Internal helpers
-│   │       └── OpenIapModule.swift
-│   ├── google/       # Android store implementations (Kotlin)
-│   │   └── openiap/src/
-│   │       ├── main/java/dev/hyo/openiap/     # Shared code + generated Types.kt
-│   │       ├── play/java/dev/hyo/openiap/     # Google Play Billing
-│   │       ├── horizon/java/dev/hyo/openiap/  # Meta Horizon Billing
-│   │       └── amazon/java/dev/hyo/openiap/   # Amazon Appstore
-│   ├── gql/          # GraphQL schema & type generation
-│   └── docs/         # Documentation site
-├── knowledge/        # Shared knowledge base
-│   ├── internal/     # Project philosophy
-│   └── external/     # External API reference
-└── scripts/agent/    # RAG agent scripts
-\`\`\`
-
-## Key Reminders
+  output += `# Key Reminders
 
 - **packages/apple**: iOS functions MUST end with \`IOS\` suffix
 - **packages/google**: DO NOT add \`Android\` suffix (it's Android-only package)
-- **packages/gql**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
+- **specs/openiap/client**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
 - **Cross-platform functions**: NO platform suffix
 
 `;

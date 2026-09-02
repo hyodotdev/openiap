@@ -5,7 +5,7 @@ entitlement infrastructure for the OpenIAP ecosystem. The hosted service at
 [kit.openiap.dev](https://kit.openiap.dev) is a React 19 SPA + Hono on Bun +
 Convex backend, all shipped as one Fly.io binary. **Unlike other packages in
 this monorepo, this is a deployable application, not a publishable library.**
-It does not consume `@hyodotdev/openiap-gql` type generation; it has its own
+It does not consume `@hyodotdev/openiap` type generation; it has its own
 Convex schema as the source of truth for purchase-validation models.
 
 For setup, operations, and deploy details, see [`README.md`](./README.md).
@@ -202,7 +202,7 @@ Both are transport adapters over the shared handlers in
 `server/api/commerce/handlers.ts`, which delegate to the same Convex functions
 `/v1` and `/v2` already use — never put business logic in a route or resolver.
 Inputs validate against the generated JSON Schemas; contract changes start in
-`specs/openiap-kit/schema/`, never here. The GraphQL endpoint is bounded
+`specs/openiap/commerce-protocol/schema/`, never here. The GraphQL endpoint is bounded
 request/response with no Subscription root, which keeps it inside the webhook
 direction rule below. `server/api/commerce/conformance.test.ts` runs the
 spec package's portable runner over both bindings and is the gate for
@@ -247,7 +247,7 @@ Treat the `/v1` response shape as a published API:
   `includeClientPayload` is.
 - **Enum values are spec changes.** `IapkitPurchaseState`,
   `IapkitClientPayloadFormat`, and `IapStore` live in
-  `packages/gql/src/type.graphql`. Change the schema first, regenerate, and
+  `specs/openiap/client/src/type.graphql`. Change the schema first, regenerate, and
   confirm each SDK degrades an unknown value instead of failing the receipt —
   `bun audit:kit-contract` compares the three declarations and fails on drift.
 - **`isValid` is the entitlement gate.** `isValidState` in
@@ -271,14 +271,18 @@ Always use icon components, never inline `<svg>`:
 
 Husky lives at the **monorepo root**, not inside `packages/kit`. The
 hook (`.husky/pre-commit`) is paths-aware: when staged changes touch
-`packages/kit/**` it runs the **full CI-equivalent gate** mirroring
-the `verify` job in `.github/workflows/deploy-kit.yml`:
+`packages/kit/**`, `packages/mcp-server/**`, or
+`specs/openiap/commerce-protocol/**` it runs the **full CI-equivalent gate**
+mirroring the `verify` job in `.github/workflows/deploy-kit.yml` plus the
+Commerce Protocol suite from `ci.yml`:
 
 1. `bun install --frozen-lockfile` (catches lockfile drift)
 2. `bun run --filter @hyodotdev/openiap-kit lint` (tsc + eslint)
 3. prettier check on `src` / `server` / `convex`
 4. `bun run --filter @hyodotdev/openiap-kit test` (vitest)
-5. `bun run --filter @hyodotdev/openiap-kit smoke:server` (compile + boot probe)
+5. `bun run --filter openiap-commerce-protocol test` (spec suite + drift check)
+6. `bun run --filter @hyodotdev/openiap-kit smoke:server` (compile + boot probe)
+7. `bun run --filter @hyodotdev/openiap-mcp-server lint` and `test` (served at `/mcp`)
 
 The hook is intentionally CI-equivalent — past kit pushes failed in CI
 for issues that were silently passing locally (e.g. tsc inferring

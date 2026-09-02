@@ -314,20 +314,21 @@ from issue #206 without duplicating release history across package-local files:
 
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+3. Use semantic IDs like `spec-3-4-0-apple-3-4-0`
 4. Verify every package version against its source of truth before writing it
    (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
-  // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+  // Client spec 3.4.0 / Apple 3.4.0 - Jan 26, 2026
   {
-    id: "gql-1-3-16-apple-1-3-14",
+    id: "spec-3-4-0-apple-3-4-0",
     date: new Date("2026-01-26"),
     element: (
-      <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
-        <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
-          📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 - Feature Description
+      <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
+        <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
+          📅 @hyodotdev/openiap v3.4.0 / openiap-apple v3.4.0 - Feature
+          Description
         </AnchorLink>
         {/* Content here */}
       </div>

@@ -10,13 +10,14 @@ openiap/
 ├── packages/
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
-│   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
 │   ├── apple/         # iOS/macOS library (Swift)
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
-├── specs/            # Interoperability specifications
-│   └── openiap-kit/  # OpenIAP Commerce Protocol: server-side contract
+├── specs/             # Publishable specifications; never deployed services
+│   └── openiap/
+│       ├── client/             # Client GraphQL contract + multiplatform code generation
+│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -48,14 +49,14 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
-| Interoperability specifications                  | `specs/<name>/`         |
+| Specifications, generators, and conformance data | `specs/openiap/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
 | Shared editor settings                           | `.vscode/`              |
 
 - Never create a root directory that duplicates a child of `packages/`,
   `libraries/`, or `plugins/`. For example, use `packages/docs/` and
-  `packages/gql/`, never root `docs/` or `gql/`.
+  `specs/openiap/client/`, never root `docs/` or `gql/`.
 - Before adding a top-level directory, search for an existing owner and extend
   it. Add a new root only when no canonical owner fits, and document that owner
   in this section in the same change.
@@ -64,19 +65,34 @@ Keep each project surface under its canonical owner:
 - Run `bun run audit:layout` after directory changes. Pre-commit and CI enforce
   the same audit; do not weaken it to permit a duplicate owner.
 
+### Specification Distribution Boundary
+
+`specs/` owns contracts and the tools and fixtures that derive portable
+artifacts from them. A specification may publish an npm package so consumers
+can install its types, schemas, or conformance runner. Publishing that artifact
+is distribution, not a service deployment.
+
+Nothing under `specs/` is a hosted runtime. Keep Docker, Fly.io, Vercel, and
+other service deployment configuration with the implementation under
+`packages/` or `libraries/`. A specification must not read production secrets,
+own production data, or run a production migration. `bun run audit:layout`
+rejects legacy schema ownership under `packages/gql` and service deployment
+manifests under `specs/`.
+
 ## Package Responsibilities
 
-### packages/gql
+### specs/openiap/client
 
-**Purpose:** Single source of truth for type definitions.
+**Purpose:** Authored OpenIAP client API contract and multiplatform type
+generation. The publishable package name is `@hyodotdev/openiap`.
 
-- Contains GraphQL schema defining all OpenIAP types
+- Contains the GraphQL SDL defining the client API and its types
 - Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#
 - **RULE:** `Types.swift` / `Types.kt` are AUTO-GENERATED. Never edit directly.
 
 ```bash
 # Regenerate all types
-cd packages/gql && bun run generate
+cd specs/openiap/client && bun run generate
 ```
 
 Generated files:
@@ -88,7 +104,7 @@ Generated files:
 - GDScript: `src/generated/types.gd`
 - C#: `src/generated/Types.cs`
 
-### specs/openiap-kit
+### specs/openiap/commerce-protocol
 
 **Purpose:** OpenIAP Commerce Protocol — the vendor-neutral server-side
 commerce contract: portable operations (verify, status, entitlements, bind,
@@ -112,9 +128,9 @@ their generated assembly and is never hand-edited. The SDL uses custom
 directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
-stream. Keep it outside `packages/gql`: the client SDK API and this
-server-side commerce contract have independent owners and generation targets.
-Never edit files under `generated/` directly.
+stream. The client SDK API and server-side commerce contract are siblings under
+the OpenIAP specification owner, but they keep independent schema inventories
+and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 
@@ -188,11 +204,11 @@ If an app needs immediate push delivery, its authenticated backend owns that
 policy and transport.
 
 ```
-┌─────────────┐
-│  packages/  │
-│    gql      │ ──── Generates Types ────┐
-└─────────────┘                          │
-                                         ▼
+┌──────────────┐
+│   specs/     │
+│openiap/client│ ──── Generates Types ────┐
+└──────────────┘                           │
+                                          ▼
                           ┌──────────────────────────┐
                           │                          │
                     ┌─────┴─────┐            ┌───────┴──────┐

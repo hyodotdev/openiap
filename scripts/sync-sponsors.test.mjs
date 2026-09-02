@@ -214,21 +214,42 @@ test("rejects duplicate supporter ids and missing logo assets", () => {
   }
 });
 
-test("discovers root and first-party package/library READMEs", () => {
+test("discovers root, package, library, and specification READMEs", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-sponsors-"));
 
   try {
     fs.mkdirSync(path.join(root, "packages/alpha"), { recursive: true });
     fs.mkdirSync(path.join(root, "packages/no-readme"), { recursive: true });
     fs.mkdirSync(path.join(root, "libraries/beta"), { recursive: true });
+    fs.mkdirSync(path.join(root, "specs/openiap/gamma"), { recursive: true });
+    fs.mkdirSync(path.join(root, "specs/openiap/neutral"), { recursive: true });
+    fs.mkdirSync(path.join(root, "specs/openiap/no-readme"), {
+      recursive: true,
+    });
     fs.writeFileSync(path.join(root, "README.md"), "root");
     fs.writeFileSync(path.join(root, "packages/alpha/README.md"), "alpha");
     fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "beta");
+    // Specification READMEs opt in with the block markers.
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/gamma/README.md"),
+      `# Gamma\n\n${sponsorBlockStart}\n${sponsorBlockEnd}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n",
+    );
+    // The umbrella README is not a package surface.
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/README.md"),
+      `${sponsorBlockStart}\n${sponsorBlockEnd}\n`,
+    );
 
     assert.deepEqual(discoverReadmes(root), [
       "README.md",
       "libraries/beta/README.md",
       "packages/alpha/README.md",
+      "specs/openiap/gamma/README.md",
+      "specs/openiap/neutral/README.md",
     ]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -261,6 +282,12 @@ test("writes every discovered surface and then reports a clean audit", () => {
     fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "# Beta\n");
     fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
 
+    fs.mkdirSync(path.join(root, "specs/openiap/neutral"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n",
+    );
+
     assert.deepEqual(synchronizeSponsorFiles(root, { write: true }), [
       "README.md",
       "libraries/beta/README.md",
@@ -268,6 +295,33 @@ test("writes every discovered surface and then reports a clean audit", () => {
       ".github/FUNDING.yml",
     ]);
     assert.deepEqual(synchronizeSponsorFiles(root), []);
+    // A specification README without markers is audited but never rewritten.
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "specs/openiap/neutral/README.md"),
+        "utf8",
+      ),
+      "# Neutral\n",
+    );
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n\n[Support](https://opencollective.com/openiap)\n",
+    );
+    assert.deepEqual(synchronizeSponsorFiles(root), [
+      "specs/openiap/neutral/README.md: funding link found outside generated block; use an openiap-* reference",
+    ]);
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n\n## Sponsors\n",
+    );
+    assert.match(
+      synchronizeSponsorFiles(root)[0],
+      /^specs\/openiap\/neutral\/README\.md: unmanaged sponsor\/supporter heading/u,
+    );
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n",
+    );
 
     const betaReadme = path.join(root, "libraries/beta/README.md");
     fs.writeFileSync(
@@ -318,6 +372,8 @@ test("audits sponsor surfaces from the staged snapshot", () => {
       "packages/docs",
       "packages/alpha",
       "libraries/beta",
+      "specs/openiap/gamma",
+      "specs/openiap/neutral",
     ]) {
       fs.mkdirSync(path.join(root, directory), { recursive: true });
     }
@@ -329,8 +385,23 @@ test("audits sponsor surfaces from the staged snapshot", () => {
     fs.writeFileSync(path.join(root, "README.md"), "# Root\n");
     fs.writeFileSync(path.join(root, "packages/alpha/README.md"), "# Alpha\n");
     fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "# Beta\n");
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/gamma/README.md"),
+      `# Gamma\n\n${sponsorBlockStart}\n${sponsorBlockEnd}\n`,
+    );
+    fs.writeFileSync(
+      path.join(root, "specs/openiap/neutral/README.md"),
+      "# Neutral\n",
+    );
     fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
     synchronizeSponsorFiles(root, { write: true });
+    assert.equal(
+      fs.readFileSync(
+        path.join(root, "specs/openiap/neutral/README.md"),
+        "utf8",
+      ),
+      "# Neutral\n",
+    );
 
     execFileSync("git", ["init", "-q"], { cwd: root });
     execFileSync("git", ["add", "."], { cwd: root });
@@ -369,7 +440,14 @@ test("audits sponsor surfaces from the staged snapshot", () => {
       "README.md",
       "libraries/beta/README.md",
       "packages/alpha/README.md",
+      "specs/openiap/gamma/README.md",
     ]);
+    // The neutral specification README is audited from the index and stays clean.
+    assert.ok(
+      discoverReadmes(root, { staged: true }).includes(
+        "specs/openiap/neutral/README.md",
+      ),
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

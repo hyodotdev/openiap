@@ -31,14 +31,14 @@ function Ecosystem() {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/gql"
+              href="https://github.com/hyodotdev/openiap/tree/main/specs/openiap/client"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <strong>openiap-gql</strong>
+              <strong>@hyodotdev/openiap</strong>
             </a>
-            : GraphQL definition of OpenIAP specification which manages the type
-            system for all underlying libraries.
+            : authored client GraphQL contract and type generator shared by all
+            OpenIAP libraries.
           </li>
           <li style={{ marginBottom: '1rem' }}>
             <a

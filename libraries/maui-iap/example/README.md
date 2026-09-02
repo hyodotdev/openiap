@@ -53,7 +53,7 @@ this example project.
 
 ## Status
 
-The pages compile against the generated `OpenIap` contract from `packages/gql`.
+The pages compile against the generated `OpenIap` contract from `specs/openiap/client`.
 The Android and Apple platform bridges under
 [`libraries/maui-iap/src/OpenIap.Maui/Platforms/`](../src/OpenIap.Maui/Platforms)
 are wired to `packages/google` and `packages/apple`; use physical store test

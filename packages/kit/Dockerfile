@@ -4,7 +4,7 @@ FROM oven/bun:1.4.0-slim@sha256:e0ee68d16ccb9927bf02aa7dd8fd4bf3369ee6d46da04faa
 
 # Build context is the monorepo root (see deploy-kit.yml + scripts/deploy-prod.sh).
 # This is required because the workspace lockfile lives at the root, not under
-# packages/kit/, and Bun resolves workspace deps (`@hyodotdev/openiap-gql` etc.)
+# packages/kit/, and Bun resolves workspace deps (`@hyodotdev/openiap` etc.)
 # via the root `package.json` `workspaces` field.
 
 # --- Install deps --------------------------------------------------------
@@ -14,7 +14,7 @@ WORKDIR /app
 # lockfile + every workspace package.json (so Bun can plan the install graph).
 COPY package.json bun.lock ./
 COPY packages/kit/package.json ./packages/kit/
-COPY packages/gql/package.json ./packages/gql/
+COPY specs/openiap/client/package.json ./specs/openiap/client/
 COPY packages/apple/package.json ./packages/apple/
 COPY packages/google/package.json ./packages/google/
 COPY packages/docs/package.json ./packages/docs/
@@ -24,7 +24,7 @@ COPY packages/docs/package.json ./packages/docs/
 # "lockfile had changes, but lockfile is frozen".
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY packages/conformance/package.json ./packages/conformance/
-COPY specs/openiap-kit/package.json ./specs/openiap-kit/
+COPY specs/openiap/commerce-protocol/package.json ./specs/openiap/commerce-protocol/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------
@@ -34,10 +34,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
+# The MCP client imports the client specification's public kit-api subpath.
+COPY specs/openiap/client ./specs/openiap/client
 # Kit runtime code imports openiap-commerce-protocol (generated schemas,
 # binding manifest, capability descriptor); without the sources the workspace
 # symlink dangles inside the image and only inside the image.
-COPY specs/openiap-kit ./specs/openiap-kit
+COPY specs/openiap/commerce-protocol ./specs/openiap/commerce-protocol
 # Bun workspaces install some deps under each package's
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage

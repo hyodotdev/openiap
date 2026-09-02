@@ -50,7 +50,7 @@
             "request": "launch",
             "runtimeExecutable": "bash",
             "runtimeArgs": ["-lc", "bun run generate"],
-            "cwd": "${workspaceFolder}/packages/gql",
+            "cwd": "${workspaceFolder}/specs/openiap/client",
             "console": "integratedTerminal"
         },
         {

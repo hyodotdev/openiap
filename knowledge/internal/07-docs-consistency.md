@@ -12,27 +12,27 @@ When two places disagree, the upstream wins:
 
 ```
 GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs page
-(packages/gql      (libraries/*/src       (Swift / Kotlin /          (packages/docs/
+(specs/openiap/client      (libraries/*/src       (Swift / Kotlin /          (packages/docs/
  /src/*.graphql)   /types.{ts,kt,...})    Dart / TS / GDScript)        src/pages/...)
 ```
 
-- `packages/gql/schema-files.mjs` — ordered inventory of every production SDL
+- `specs/openiap/client/schema-files.mjs` — ordered inventory of every production SDL
   input. Every repository-owned generator imports it directly. Do not add
   another hard-coded schema list or an unverified external generator manifest.
-- `packages/gql/schema-source-utils.mjs` — shared source identity normalization
+- `specs/openiap/client/schema-source-utils.mjs` — shared source identity normalization
   and block-string line detection. Metadata extractors must not duplicate this
   lexical bookkeeping.
-- `packages/gql/src/*.graphql` — schema descriptions ARE the canonical doc
+- `specs/openiap/client/src/*.graphql` — schema descriptions ARE the canonical doc
   string. Edits propagate via `bun run generate` to every generated
   `types.ts`, `Types.kt`, `Types.swift`, `types.dart`, `types.gd`, and
   `Types.cs`.
-- `packages/gql/schema-markers.mjs` — the only parser for the SDL comment
+- `specs/openiap/client/schema-markers.mjs` — the only parser for the SDL comment
   contracts `# Future` and `# => Union`. Generators and the schema linter must
   consume it rather than maintaining independent line-state machines. A union
   wrapper must be a non-root object with at least one field and all fields
   nullable; operation roots, empty wrappers, and required fields fail
   generation instead of silently degrading to an object.
-- `packages/gql/schema-deprecations.mjs` — the only extractor and validator for
+- `specs/openiap/client/schema-deprecations.mjs` — the only extractor and validator for
   canonical deprecation ownership. Standard GraphQL declarations use
   `@deprecated(reason: ...)`; named types use the project-scoped
   `@openiapDeprecated(reason: ...)` directive declared in `schema.graphql`.
@@ -52,11 +52,11 @@ GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs p
   metadata rather than declarations, so wrapper-variant docs have no generated
   declaration target there; every language that emits a wrapper or variant
   declaration must preserve the canonical reason.
-- `packages/gql/custom-input-contracts.ts` — typed
+- `specs/openiap/client/custom-input-contracts.ts` — typed
   field/type/nullability/default contracts for inputs that custom generators
   alias or project. The shared IR transformer validates these before any
   language plugin runs.
-- `packages/gql/generated-sync-manifest.mjs` — generated source/target mapping
+- `specs/openiap/client/generated-sync-manifest.mjs` — generated source/target mapping
   shared by canonical platform sync and the pre-commit drift guard.
 - `libraries/*/src/types.ts` (or equivalent) — generated; never hand-edit.
   When a docs page mentions a field name, that field MUST exist in the
@@ -104,7 +104,7 @@ When changing a default, update:
 
 When a Type doc page lists fields in a `<table>` or `<ul>`, every field name
 MUST exist in the canonical generated
-`packages/gql/src/generated/types.ts` shape, which is synchronized into Expo
+`specs/openiap/client/src/generated/types.ts` shape, which is synchronized into Expo
 and React Native. The audit parses that TypeScript SSOT with the compiler AST
 and flags fields that do not appear in the declaration.
 

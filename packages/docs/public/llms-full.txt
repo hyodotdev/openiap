@@ -3449,9 +3449,9 @@ storage or tooling.
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/docs/commerce-protocol
 - Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
-- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md
-- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema
-- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/vectors
+- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
+- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
+- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/vectors
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries

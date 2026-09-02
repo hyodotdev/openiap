@@ -3,7 +3,7 @@
 `maui-iap` (`OpenIap.Maui` on NuGet, `OpenIap.Maui` namespace) is the
 .NET MAUI projection of OpenIAP. It
 imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
-[`packages/gql`](../../packages/gql), exposes a thin listener contract
+[`specs/openiap/client`](../../specs/openiap/client), exposes a thin listener contract
 (`IOpenIap`), and delegates the actual purchase work to the OpenIAP
 native packages — `packages/apple` on iOS / macCatalyst, `packages/google`
 on Android. It also exposes the app-facing IAPKit HTTP helper surface through
@@ -51,10 +51,10 @@ libraries/maui-iap/
 ## Auto-generated files (DO NOT EDIT)
 
 - [`src/OpenIap.Maui/Types.cs`](src/OpenIap.Maui/Types.cs) — synced from
-  `packages/gql/src/generated/Types.cs` by the GQL manifest pipeline.
+  `specs/openiap/client/src/generated/Types.cs` by the GQL manifest pipeline.
   Regenerate with:
   ```bash
-  cd packages/gql && bun run generate
+  cd specs/openiap/client && bun run generate
   ```
 
 ## Naming conventions (C#)
@@ -69,7 +69,7 @@ Inherits the monorepo rules in
 - The C# casing layer maps GraphQL `camelCase` field names to PascalCase
   properties via `[JsonPropertyName]`. Don't rename properties by hand —
   regenerate via the codegen plugin
-  ([`packages/gql/codegen/plugins/csharp.ts`](../../packages/gql/codegen/plugins/csharp.ts)).
+  ([`specs/openiap/client/codegen/plugins/csharp.ts`](../../specs/openiap/client/codegen/plugins/csharp.ts)).
 
 ## Native bindings — architecture
 
@@ -168,7 +168,7 @@ calculate and commit the next version on `main`.
 
 ## SDK parity checklist (C# specifics)
 
-When the GraphQL schema in `packages/gql` adds or changes an API, follow
+When the GraphQL schema in `specs/openiap/client` adds or changes an API, follow
 the **SDK Parity Checklist** in
 [`knowledge/internal/04-platform-packages.md`](../../knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented).
 For maui-iap specifically:
@@ -201,14 +201,14 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj
 
 ## Pre-commit checklist
 
-1. Regenerate types if `packages/gql/src/*.graphql` changed:
-   `cd packages/gql && bun run generate`
+1. Regenerate types if `specs/openiap/client/src/*.graphql` changed:
+   `cd specs/openiap/client && bun run generate`
 2. Run the shared compile check:
    `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0`.
 3. Run `tests/OpenIap.Maui.ContractTests` for net10.0 and
    `dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0`
    using the commands in [Build & test](#build--test).
-4. Verify `Types.cs` matches `packages/gql/src/generated/Types.cs`
+4. Verify `Types.cs` matches `specs/openiap/client/src/generated/Types.cs`
    byte-for-byte (the sync should keep them in lockstep).
 
 ## Contributing
@@ -216,8 +216,8 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj
 1. Open a discussion at
    <https://github.com/hyodotdev/openiap/discussions> for any new feature
    that requires a schema change.
-2. Schema changes land in `packages/gql` first; the C# plugin in
-   `packages/gql/codegen/plugins/csharp.ts` and downstream `Types.cs`
+2. Schema changes land in `specs/openiap/client` first; the C# plugin in
+   `specs/openiap/client/codegen/plugins/csharp.ts` and downstream `Types.cs`
    files update automatically.
 3. Native binding work touches the Platforms/ files only — Types.cs and
    the IOpenIap contract are derived, not authored.

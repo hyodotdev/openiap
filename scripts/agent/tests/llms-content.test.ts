@@ -42,7 +42,7 @@ describe("generated LLM references", () => {
       );
       expect(generatedReference).toContain("https://openiap.dev/docs/webhooks");
       expect(generatedReference).toContain(
-        "https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema",
+        "https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema",
       );
     }
     expect(quickReference).toContain("requires no OpenIAP account");
@@ -132,16 +132,7 @@ describe("generated LLM references", () => {
 
   test("documents every Android production source set", () => {
     expect(compiledContext).toContain(
-      "main/java/dev/hyo/openiap/     # Shared code + generated Types.kt",
-    );
-    expect(compiledContext).toContain(
-      "play/java/dev/hyo/openiap/     # Google Play Billing",
-    );
-    expect(compiledContext).toContain(
-      "horizon/java/dev/hyo/openiap/  # Meta Horizon Billing",
-    );
-    expect(compiledContext).toContain(
-      "amazon/java/dev/hyo/openiap/   # Amazon Appstore",
+      "main/java/dev/hyo/openiap/       # Shared contracts and store facade",
     );
     expect(compiledContext).toContain(
       "play/java/dev/hyo/openiap/       # Google Play Billing implementation",

@@ -22,4 +22,4 @@ This file is a route map, not a second deployment specification.
 
 For the rare IAPKit manual fallback, follow the Convex-first sequence in
 `packages/kit/README.md#deployment-convex--flyio`. IAPKit has its own Convex
-schema and is not part of the `packages/gql` generated-type sync chain.
+schema and is not part of the `specs/openiap/client` generated-type sync chain.

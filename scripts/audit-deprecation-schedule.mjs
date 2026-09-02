@@ -3,8 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractSchemaDeprecations } from "../packages/gql/schema-deprecations.mjs";
-import { SCHEMA_FILE_NAMES } from "../packages/gql/schema-files.mjs";
+import { extractSchemaDeprecations } from "../specs/openiap/client/schema-deprecations.mjs";
+import { SCHEMA_FILE_NAMES } from "../specs/openiap/client/schema-files.mjs";
 import { validateVersion } from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -36,7 +36,7 @@ export const completedRemovalRules = [
   {
     label: "shared schema and generated contracts",
     roots: [
-      "packages/gql/src",
+      "specs/openiap/client/src",
       "packages/apple/Sources/Models/Types.swift",
       "packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt",
       "libraries/react-native-iap/src/types.ts",
@@ -47,10 +47,10 @@ export const completedRemovalRules = [
       "libraries/maui-iap/src/OpenIap.Maui/Types.cs",
     ],
     excluded: [
-      "packages/gql/src/deprecation-transformer.test.ts",
-      "packages/gql/src/schema-deprecations.test.mjs",
-      "packages/gql/src/generated-compatibility.test.ts",
-      "packages/gql/src/schema-linter.test.ts",
+      "specs/openiap/client/src/deprecation-transformer.test.ts",
+      "specs/openiap/client/src/schema-deprecations.test.mjs",
+      "specs/openiap/client/src/generated-compatibility.test.ts",
+      "specs/openiap/client/src/schema-linter.test.ts",
     ],
     tokens: [
       "validateReceipt",
@@ -451,7 +451,7 @@ export const collectMissingRequiredTexts = (requirements = requiredTexts) => {
 export const collectRepositorySchemaDeprecations = () => {
   const sources = SCHEMA_FILE_NAMES.map((sourceId) => ({
     sourceId,
-    sdl: fs.readFileSync(path.join(root, "packages/gql/src", sourceId), "utf8"),
+    sdl: fs.readFileSync(path.join(root, "specs/openiap/client/src", sourceId), "utf8"),
   }));
   return extractSchemaDeprecations(sources);
 };

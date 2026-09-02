@@ -235,7 +235,7 @@ public extension PurchaseError {
     ///
     /// `.alreadyOwned`, `.billingUnavailable`, `.serviceDisconnected`, and
     /// `.serviceTimeout` are deliberately unreachable here — StoreKit has no
-    /// equivalent condition. See `packages/gql/src/capability-matrix.mjs`.
+    /// equivalent condition. See `specs/openiap/client/src/capability-matrix.mjs`.
     static func errorCode(for code: SKError.Code) -> ErrorCode? {
         switch code {
         case .paymentCancelled:

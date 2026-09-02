@@ -17,7 +17,8 @@ export const PACKAGE_CONFIG = {
     version: (content) => JSON.parse(content).version,
   },
   "commerce-protocol": {
-    path: "specs/openiap-kit/package.json",
+    path: "specs/openiap/commerce-protocol/package.json",
+    historicalPaths: ["specs/openiap-kit/package.json"],
     tags: (version) => [`openiap-commerce-protocol-${version}`],
     version: (content) => JSON.parse(content).version,
   },
@@ -66,10 +67,19 @@ export const PACKAGE_CONFIG = {
 };
 
 function defaultRunGit(args) {
-  return execFileSync("git", args, {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
-  }).trim();
+  try {
+    return execFileSync("git", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim();
+  } catch (error) {
+    // Historical manifest probes are expected to miss on old tags, so git's
+    // stderr only surfaces through the error that finally propagates.
+    const stderr = String(error.stderr ?? "").trim();
+    throw new Error(
+      stderr ? `git ${args.join(" ")}: ${stderr}` : error.message,
+    );
+  }
 }
 
 function parseRemoteTagCommit(output, tag) {
@@ -106,7 +116,21 @@ export function assertReleaseTag(
     );
   }
 
-  const metadata = runGit(["show", `${tag}:${config.path}`]);
+  let metadata;
+  const metadataErrors = [];
+  for (const manifestPath of [config.path, ...(config.historicalPaths ?? [])]) {
+    try {
+      metadata = runGit(["show", `${tag}:${manifestPath}`]);
+      break;
+    } catch (error) {
+      metadataErrors.push(error.message);
+    }
+  }
+  if (metadata === undefined) {
+    throw new Error(
+      `${tag} carries no release manifest:\n${metadataErrors.join("\n")}`,
+    );
+  }
   const tagVersion = config.version(metadata);
   if (tagVersion !== version) {
     throw new Error(
