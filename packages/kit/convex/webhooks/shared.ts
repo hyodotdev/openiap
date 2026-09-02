@@ -736,17 +736,19 @@ export function normalizeGoogleRtdn(
     productId = payload.oneTimeProductNotification.sku;
     productKind = "one_time";
   } else if (payload.voidedPurchaseNotification) {
+    const productType = payload.voidedPurchaseNotification.productType;
+    if (productType !== 1 && productType !== 2) {
+      throw new WebhookNormalizationError(
+        "Unsupported Google voided purchase productType",
+        "UnknownEventType",
+      );
+    }
     // VOIDED_PURCHASE always means the purchase was refunded /
     // chargebacked — collapse to PurchaseRefunded regardless of code.
     type = "PurchaseRefunded";
     purchaseToken = payload.voidedPurchaseNotification.purchaseToken;
     transactionId = payload.voidedPurchaseNotification.orderId;
-    productKind =
-      payload.voidedPurchaseNotification.productType === 1
-        ? "subscription"
-        : payload.voidedPurchaseNotification.productType === 2
-          ? "one_time"
-          : undefined;
+    productKind = productType === 1 ? "subscription" : "one_time";
   }
 
   if (type === null) {

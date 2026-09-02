@@ -47,6 +47,24 @@ const userIdParameter = {
     maxLength: MAX_SUBSCRIPTION_USER_ID_LENGTH,
   },
 };
+const rateLimitResponseHeaders = {
+  "Retry-After": {
+    description: "Seconds to wait before retrying.",
+    schema: { type: "integer" as const, minimum: 1 },
+  },
+  "X-RateLimit-Limit": {
+    description: "Maximum requests in the rejecting bucket.",
+    schema: { type: "integer" as const, minimum: 0 },
+  },
+  "X-RateLimit-Remaining": {
+    description: "Requests remaining in the rejecting bucket.",
+    schema: { type: "integer" as const, minimum: 0 },
+  },
+  "X-RateLimit-Scope": {
+    description: "The rejecting key, source-IP, or process bucket.",
+    schema: { type: "string" as const },
+  },
+};
 const commonErrorResponses = {
   400: {
     description: "Invalid input or API key",
@@ -68,6 +86,7 @@ const commonErrorResponses = {
   },
   429: {
     description: "Rate limit exceeded",
+    headers: rateLimitResponseHeaders,
     content: {
       "application/json": { schema: resolver(apiErrorResponseSchemaV2) },
     },

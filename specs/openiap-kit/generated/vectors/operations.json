@@ -1,5 +1,5 @@
 {
-  "$comment": "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
+  "$comment": "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case with `requiresStore` runs only when the provider declares that store, and `requiresCapability` additionally requires that store capability's implementation support. A case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
   "protocolVersion": "1.0",
   "fixtures": {
     "userId": "conformance-user-1",
@@ -286,6 +286,8 @@
           "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
         }
       },
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
       "expect": {
         "kind": "result",
         "schema": "VerifyPurchaseResult",
@@ -308,6 +310,8 @@
       "bindings": [
         "rest"
       ],
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
       "expect": {
         "kind": "result",
         "schema": "VerifyPurchaseResult",
@@ -327,6 +331,212 @@
         }
       },
       "repeat": 2,
+      "requiresStore": "apple",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.google",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "google",
+        "google": {
+          "purchaseToken": "conformance-google-purchase-token-0000000001"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "google",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.horizon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "horizon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.success.contract.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.input.unknown-member-ignored.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
+      "expect": {
+        "kind": "result",
+        "schema": "VerifyPurchaseResult",
+        "allowCodes": [
+          "VERIFICATION_FAILED"
+        ]
+      }
+    },
+    {
+      "id": "verifyPurchase.idempotent.repeat.amazon",
+      "operation": "verifyPurchase",
+      "credential": "verification",
+      "input": {
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "amazon",
+      "requiresCapability": "initialValidation",
       "expect": {
         "kind": "result",
         "schema": "VerifyPurchaseResult",
@@ -447,6 +657,7 @@
           "purchaseToken": "conformance-google-purchase-token-0000000001"
         }
       },
+      "requiresStore": "google",
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult"
@@ -467,6 +678,7 @@
       "bindings": [
         "rest"
       ],
+      "requiresStore": "google",
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult"
@@ -484,6 +696,184 @@
         }
       },
       "repeat": 2,
+      "requiresStore": "google",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.apple",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "apple",
+        "apple": {
+          "jws": "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0eyJjb25mb3JtYW5jZSI6dHJ1ZX0.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "apple",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.horizon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "horizon",
+        "horizon": {
+          "userId": "1234567890123456",
+          "sku": "conformance.sku"
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "horizon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.success.contract.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.input.unknown-member-ignored.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        },
+        "unknownFutureMember": "ignored"
+      },
+      "bindings": [
+        "rest"
+      ],
+      "requiresStore": "amazon",
+      "expect": {
+        "kind": "result",
+        "schema": "BindPurchaseResult"
+      }
+    },
+    {
+      "id": "bindPurchase.idempotent.repeat.amazon",
+      "operation": "bindPurchase",
+      "credential": "server",
+      "input": {
+        "userId": "conformance-user-1",
+        "store": "amazon",
+        "amazon": {
+          "userId": "conformance-amazon-user-1",
+          "receiptId": "conformance-amazon-receipt-0000000001",
+          "sandbox": true
+        }
+      },
+      "repeat": 2,
+      "requiresStore": "amazon",
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult"
@@ -679,6 +1069,7 @@
           "purchaseToken": "conformance-google-purchase-token-unknown-9999"
         }
       },
+      "requiresStore": "google",
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult",
@@ -699,6 +1090,7 @@
           "sku": "mock.premium"
         }
       },
+      "requiresStore": "horizon",
       "expect": {
         "kind": "result",
         "schema": "BindPurchaseResult",

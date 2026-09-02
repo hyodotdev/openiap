@@ -4,6 +4,30 @@ import { redactApiKeysInPath } from "./api/v1/request-logger";
 
 const dsn = process.env.SENTRY_DSN;
 
+function scrubSpanData(data: Record<string, unknown> | undefined): void {
+  if (!data) return;
+  for (const name of Object.keys(data)) {
+    const normalized = name.toLowerCase();
+    if (
+      normalized === "url.query" ||
+      normalized === "url.fragment" ||
+      normalized.startsWith("url.path.parameter.") ||
+      /(?:^|[._-])(authorization|cookie|set-cookie|proxy-authorization|x-api-key|body)(?:$|[._-])/iu.test(
+        normalized,
+      )
+    ) {
+      delete data[name];
+      continue;
+    }
+    if (
+      typeof data[name] === "string" &&
+      ["url.full", "url.path", "http.url", "http.target"].includes(normalized)
+    ) {
+      data[name] = redactApiKeysInPath(data[name].split("?")[0]);
+    }
+  }
+}
+
 /**
  * App-facing routes carry the project key in the URL path and account reads
  * carry `userId` in the query, so nothing URL-shaped may leave for Sentry
@@ -19,6 +43,11 @@ export function scrubSentryEvent<
       headers?: Record<string, unknown>;
     };
     transaction?: string;
+    contexts?: { trace?: { data?: Record<string, unknown> } };
+    spans?: Array<{
+      data?: Record<string, unknown>;
+      description?: string;
+    }>;
   },
 >(event: T): T {
   if (event.request?.url) {
@@ -50,6 +79,13 @@ export function scrubSentryEvent<
   }
   if (event.transaction) {
     event.transaction = redactApiKeysInPath(event.transaction);
+  }
+  scrubSpanData(event.contexts?.trace?.data);
+  for (const span of event.spans ?? []) {
+    scrubSpanData(span.data);
+    if (span.description) {
+      span.description = redactApiKeysInPath(span.description.split("?")[0]);
+    }
   }
   return event;
 }

@@ -295,6 +295,8 @@ export declare const operationVectors: {
     credential: string | null;
     input: unknown;
     bindings?: string[];
+    requiresStore?: string;
+    requiresCapability?: string;
     repeat?: number;
     expect: Record<string, unknown>;
   }>;

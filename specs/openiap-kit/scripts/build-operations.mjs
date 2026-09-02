@@ -315,6 +315,16 @@ function buildOpenApi(ir, bundle, manifest) {
         description: existing
           ? `${existing.description} or \`${code}\``
           : `\`${code}\``,
+        ...(status === "429"
+          ? {
+              headers: {
+                "Retry-After": {
+                  description: "Seconds to wait before retrying.",
+                  schema: { type: "integer", minimum: 1 },
+                },
+              },
+            }
+          : {}),
         content: {
           "application/json": {
             schema: { $ref: "#/components/schemas/ProtocolErrorResponse" },
@@ -417,7 +427,39 @@ const FIXTURES = Object.freeze({
   unknownUserId: "conformance-user-the-provider-never-heard-of",
 });
 
-function validInputFor(operation) {
+function storeEvidenceFixture(store) {
+  switch (store) {
+    case "apple":
+      return { jws: FIXTURES.appleJws };
+    case "google":
+      return { purchaseToken: FIXTURES.googlePurchaseToken };
+    case "horizon":
+      return { userId: FIXTURES.horizonUserId, sku: FIXTURES.horizonSku };
+    case "amazon":
+      return {
+        userId: FIXTURES.amazonUserId,
+        receiptId: FIXTURES.amazonReceiptId,
+        sandbox: true,
+      };
+    default:
+      throw new Error(`No conformance evidence fixture for store ${store}`);
+  }
+}
+
+function storeRulesFor(operation, operationsSchema) {
+  const input = operationsSchema.$defs?.[operation.input];
+  return (input?.allOf ?? [])
+    .map((rule) => ({
+      store: rule.if?.properties?.store?.const,
+      member: rule.then?.required?.[0],
+    }))
+    .filter(
+      (rule) =>
+        typeof rule.store === "string" && typeof rule.member === "string",
+    );
+}
+
+function validInputFor(operation, storeRule) {
   switch (operation.name) {
     case "providerCapabilities":
       return null;
@@ -425,12 +467,15 @@ function validInputFor(operation) {
     case "entitlements":
       return { userId: FIXTURES.userId };
     case "verifyPurchase":
-      return { store: "apple", apple: { jws: FIXTURES.appleJws } };
+      return {
+        store: storeRule.store,
+        [storeRule.member]: storeEvidenceFixture(storeRule.store),
+      };
     case "bindPurchase":
       return {
         userId: FIXTURES.userId,
-        store: "google",
-        google: { purchaseToken: FIXTURES.googlePurchaseToken },
+        store: storeRule.store,
+        [storeRule.member]: storeEvidenceFixture(storeRule.store),
       };
     case "eraseUser":
       return { userId: FIXTURES.erasureUserId };
@@ -439,10 +484,22 @@ function validInputFor(operation) {
   }
 }
 
-function buildOperationVectors(ir) {
+function buildOperationVectors(ir, operationsSchema) {
   const cases = [];
   for (const operation of ir.operations) {
-    const input = validInputFor(operation);
+    const storeRules = storeRulesFor(operation, operationsSchema);
+    const preferredStore =
+      operation.name === "bindPurchase" ? "google" : "apple";
+    const defaultStoreRule =
+      storeRules.find((rule) => rule.store === preferredStore) ?? storeRules[0];
+    if (
+      (operation.name === "verifyPurchase" ||
+        operation.name === "bindPurchase") &&
+      !defaultStoreRule
+    ) {
+      throw new Error(`${operation.input} has no @storeEvidence rules`);
+    }
+    const input = validInputFor(operation, defaultStoreRule);
     const credential = operation.auth === "none" ? null : operation.auth;
 
     // SPEC.md 5 orders server-role authorization before validation and
@@ -544,33 +601,58 @@ function buildOperationVectors(ir) {
       // Job progress may advance between calls and bindings.
       successExpect.ignoreMembers = ["status"];
     }
-    cases.push({
-      id: `${operation.name}.success.contract`,
-      operation: operation.name,
-      credential,
-      input,
-      expect: successExpect,
-    });
-
-    if (operation.input && operation.method === "POST") {
+    const successVariants = storeRules.length
+      ? [
+          defaultStoreRule,
+          ...storeRules.filter((rule) => rule !== defaultStoreRule),
+        ]
+      : [null];
+    for (const storeRule of successVariants) {
+      const variantInput = storeRule
+        ? validInputFor(operation, storeRule)
+        : input;
+      const suffix =
+        storeRule && storeRule !== defaultStoreRule
+          ? `.${storeRule.store}`
+          : "";
+      const storeRequirement = storeRule
+        ? {
+            requiresStore: storeRule.store,
+            ...(operation.name === "verifyPurchase"
+              ? { requiresCapability: "initialValidation" }
+              : {}),
+          }
+        : {};
       cases.push({
-        id: `${operation.name}.input.unknown-member-ignored`,
+        id: `${operation.name}.success.contract${suffix}`,
         operation: operation.name,
         credential,
-        input: { ...input, unknownFutureMember: "ignored" },
-        bindings: ["rest"],
-        expect: { ...successExpect },
+        input: variantInput,
+        ...storeRequirement,
+        expect: successExpect,
       });
-    }
-    if (operation.idempotent && operation.kind === "mutation") {
-      cases.push({
-        id: `${operation.name}.idempotent.repeat`,
-        operation: operation.name,
-        credential,
-        input,
-        repeat: 2,
-        expect: { ...successExpect },
-      });
+      if (operation.input && operation.method === "POST") {
+        cases.push({
+          id: `${operation.name}.input.unknown-member-ignored${suffix}`,
+          operation: operation.name,
+          credential,
+          input: { ...variantInput, unknownFutureMember: "ignored" },
+          bindings: ["rest"],
+          ...storeRequirement,
+          expect: { ...successExpect },
+        });
+      }
+      if (operation.idempotent && operation.kind === "mutation") {
+        cases.push({
+          id: `${operation.name}.idempotent.repeat${suffix}`,
+          operation: operation.name,
+          credential,
+          input: variantInput,
+          repeat: 2,
+          ...storeRequirement,
+          expect: { ...successExpect },
+        });
+      }
     }
   }
 
@@ -615,6 +697,7 @@ function buildOperationVectors(ir) {
         store: "google",
         google: { purchaseToken: FIXTURES.unknownPurchaseToken },
       },
+      requiresStore: "google",
       expect: {
         kind: "result",
         schema: "BindPurchaseResult",
@@ -632,6 +715,7 @@ function buildOperationVectors(ir) {
         store: "horizon",
         horizon: { userId: "mock-store-user", sku: "mock.premium" },
       },
+      requiresStore: "horizon",
       expect: {
         kind: "result",
         schema: "BindPurchaseResult",
@@ -656,7 +740,7 @@ function buildOperationVectors(ir) {
 
   return {
     $comment:
-      "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
+      "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case with `requiresStore` runs only when the provider declares that store, and `requiresCapability` additionally requires that store capability's implementation support. A case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
     protocolVersion: ir.version,
     fixtures: FIXTURES,
     credentialRoles: ["verification", "server"],
@@ -695,8 +779,8 @@ function closedObjectNames(ast) {
  * runner's introspection agreement check. Field and argument types carry full
  * nullability, enums carry their closed value sets, and input objects their
  * member types — so a served schema that renames, retypes, or drops anything
- * this version defines fails, while purely additive MINOR surface (new types,
- * new fields, new nullable arguments) still certifies.
+ * this version defines fails, while compatible MINOR surface (new types,
+ * fields on open objects, and nullable arguments) still certifies.
  */
 function buildIntrospectionSignature(sdl, version, closedObjects) {
   const schema = buildSchema(sdl);
@@ -740,7 +824,7 @@ function buildIntrospectionSignature(sdl, version, closedObjects) {
   }
   return {
     $comment:
-      "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums and objects) exact members; additive surface beyond open objects is a compatible MINOR.",
+      "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums and objects) exact members. New types and members added to open objects are compatible MINOR extensions.",
     protocolVersion: version,
     queryType: schema.getQueryType()?.name ?? null,
     mutationType: schema.getMutationType()?.name ?? null,
@@ -800,7 +884,11 @@ export function buildOperationArtifacts(source) {
     ],
     [
       "vectors/operations.json",
-      `${JSON.stringify(buildOperationVectors(ir), null, 2)}\n`,
+      `${JSON.stringify(
+        buildOperationVectors(ir, schemas.get("operations.schema.json")),
+        null,
+        2,
+      )}\n`,
     ],
   ]);
 }

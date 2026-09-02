@@ -738,6 +738,29 @@ describe("normalizeGoogleRtdn", () => {
     expect(event.cancellationReason).toBe("Refunded");
   });
 
+  it.each([undefined, 3])(
+    "drops a voidedPurchase with unsupported productType %s",
+    (productType) => {
+      let thrown: unknown;
+      try {
+        normalizeGoogleRtdn({
+          payload: {
+            messageId: "rtdn-void-unsupported",
+            eventTimeMillis: 1_711_222_222_000,
+            voidedPurchaseNotification: {
+              purchaseToken: "void-token-unsupported",
+              productType,
+            },
+          },
+        });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(WebhookNormalizationError);
+      expect(thrown).toMatchObject({ code: "UnknownEventType" });
+    },
+  );
+
   it("normalizes a testNotification to Sandbox environment", () => {
     const event = normalizeGoogleRtdn({
       payload: {

@@ -288,6 +288,8 @@ describe("generated binding artifacts", () => {
     const signature = JSON.parse(
       rendered.get("bindings/introspection-signature.json"),
     );
+    expect(signature.$comment).toContain("members added to open objects");
+    expect(signature.$comment).not.toContain("beyond open objects");
     const expected = {};
     for (const [name, type] of Object.entries(schema.getTypeMap())) {
       if (name.startsWith("__")) continue;
@@ -412,6 +414,12 @@ describe("generated binding artifacts", () => {
           definition.responses[String(manifest.errorStatus[code])],
           `${operation.name} ${code}`,
         ).toBeDefined();
+      }
+      if (operation.errors.includes("RATE_LIMITED")) {
+        expect(
+          definition.responses["429"].headers?.["Retry-After"]?.schema,
+          `${operation.name} Retry-After`,
+        ).toMatchObject({ type: "integer", minimum: 1 });
       }
     }
   });

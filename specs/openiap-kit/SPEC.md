@@ -1234,8 +1234,9 @@ binding — probes that the endpoint is a real executor (a malformed document,
 an undefined field, and a mistyped variable must each be rejected, without
 echoing the submitted value; introspection, where enabled, must agree
 STRUCTURALLY with the generated signature — kinds, field and argument types
-with their nullability, input members, closed enum value sets — with
-additive minor surface beyond it allowed). Event Delivery conformance is likewise separate — §9's
+with their nullability, input members, closed enum value sets, and closed
+object member sets. A compatible MINOR may add types, nullable arguments, and
+members to open objects; it cannot extend a closed object). Event Delivery conformance is likewise separate — §9's
 signature, delivery-envelope, response-semantics, and lifecycle vectors
 cover it, driven through the provider's events adapter — and a signing-only
 provider does not pass it. The events vectors do not reach everything §9

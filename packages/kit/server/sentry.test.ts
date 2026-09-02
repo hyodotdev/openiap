@@ -53,6 +53,41 @@ describe("scrubSentryEvent", () => {
     expect(event.transaction).toBe("GET /v1/products/redacted");
   });
 
+  it("scrubs URL, credential, and account attributes from trace spans", () => {
+    const secret = "openiap-kit_pk_live_SECRET";
+    const pii = "user-private";
+    const rawUrl = `https://kit.openiap.dev/v1/subscriptions/status/${secret}?userId=${pii}`;
+    const traceData = {
+      "url.full": rawUrl,
+      "url.path": `/v1/subscriptions/status/${secret}`,
+      "url.query": `?userId=${pii}`,
+      "url.path.parameter.apiKey": secret,
+      "http.request.header.authorization": `Bearer ${secret}`,
+      "http.request.body": { purchaseToken: "receipt-secret" },
+      "http.request.method": "GET",
+    };
+    const event = scrubSentryEvent({
+      contexts: { trace: { data: { ...traceData } } },
+      spans: [
+        {
+          description: `GET ${rawUrl}`,
+          data: { ...traceData },
+        },
+      ],
+    });
+    expect(event.contexts?.trace?.data).toEqual({
+      "url.full": "https://kit.openiap.dev/v1/subscriptions/status/redacted",
+      "url.path": "/v1/subscriptions/status/redacted",
+      "http.request.method": "GET",
+    });
+    expect(event.spans?.[0].data).toEqual(event.contexts?.trace?.data);
+    expect(event.spans?.[0].description).toBe(
+      "GET https://kit.openiap.dev/v1/subscriptions/status/redacted",
+    );
+    expect(JSON.stringify(event)).not.toContain(secret);
+    expect(JSON.stringify(event)).not.toContain(pii);
+  });
+
   it("leaves events without URL-shaped fields untouched", () => {
     expect(scrubSentryEvent({})).toEqual({});
     const event = scrubSentryEvent({ request: {} });

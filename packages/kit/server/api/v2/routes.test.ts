@@ -12,7 +12,16 @@ describe("v2 routes", () => {
     const response = await apiRoutesV2.request("/openapi");
     const body = (await response.json()) as {
       openapi: string;
-      paths: Record<string, Record<string, { operationId?: string }>>;
+      paths: Record<
+        string,
+        Record<
+          string,
+          {
+            operationId?: string;
+            responses?: Record<string, { headers?: Record<string, unknown> }>;
+          }
+        >
+      >;
       components?: {
         securitySchemes?: Record<string, { scheme?: string }>;
       };
@@ -24,6 +33,12 @@ describe("v2 routes", () => {
     expect(body.paths["/subscriptions/status"]?.get?.operationId).toBe(
       "getSubscriptionStatusV2",
     );
+    expect(
+      body.paths["/subscriptions/status"]?.get?.responses?.["429"]?.headers,
+    ).toHaveProperty("Retry-After");
+    expect(
+      body.paths["/subscriptions/status"]?.get?.responses?.["429"]?.headers,
+    ).toHaveProperty("X-RateLimit-Scope");
     expect(JSON.stringify(body.paths["/subscriptions/status"])).not.toContain(
       "purchaseToken",
     );

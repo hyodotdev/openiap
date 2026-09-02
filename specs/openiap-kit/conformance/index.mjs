@@ -55,24 +55,39 @@ const operationsByName = new Map(
 /** A bearer this map does not name; a conforming provider must reject it. */
 const INVALID_CREDENTIAL = "openiap-conformance-invalid-credential";
 
-/** Evidence members whose values must never be echoed in an error message. */
-const EVIDENCE_MEMBER_NAMES = new Set(["jws", "purchaseToken", "receiptId"]);
-
-function evidenceValues(value, found = []) {
+function stringLeaves(value, found = []) {
   if (Array.isArray(value)) {
-    for (const item of value) evidenceValues(item, found);
+    for (const item of value) stringLeaves(item, found);
+    return found;
+  }
+  if (typeof value === "string") {
+    found.push(value);
     return found;
   }
   if (value === null || typeof value !== "object") return found;
-  for (const [key, member] of Object.entries(value)) {
+  for (const member of Object.values(value)) {
+    stringLeaves(member, found);
+  }
+  return found;
+}
+
+/** Every string nested inside a store-evidence object is sensitive. */
+function evidenceValues(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return [];
+  }
+  const found = [];
+  for (const [memberName, member] of Object.entries(input)) {
+    // Operation-level identity and the store discriminator are not evidence.
+    // Evidence members are nested objects; scanning every such object also
+    // covers a mismatched/future evidence member without a hard-coded list.
     if (
-      EVIDENCE_MEMBER_NAMES.has(key) &&
-      typeof member === "string" &&
-      member.length >= 8
+      memberName !== "userId" &&
+      memberName !== "store" &&
+      member !== null &&
+      typeof member === "object"
     ) {
-      found.push(member);
-    } else {
-      evidenceValues(member, found);
+      stringLeaves(member, found);
     }
   }
   return found;
@@ -989,10 +1004,10 @@ function typeRefString(ref) {
  * Compares a served __schema against the generated structural signature, as a
  * subset: every type, field, argument, input member, and enum value the
  * signature names must be served with the exact kind, type string (including
- * nullability), and — for closed enums — the exact value set. Extra types,
- * extra fields, and extra NULLABLE arguments or input members are compatible
- * MINOR additions; an extra non-null argument or input member would break
- * existing callers and fails.
+ * nullability), and — for closed enums and objects — the exact member set.
+ * Extra types, fields on open objects, and NULLABLE arguments or input members
+ * are compatible MINOR additions; an extra non-null argument or input member
+ * would break existing callers and fails.
  */
 function compareIntrospection(servedSchema) {
   const failures = [];
@@ -1241,8 +1256,9 @@ async function probeGraphqlExecutor(
   // 4. Introspection must agree with the projection STRUCTURALLY (SPEC.md 7):
   // names alone would miss a retyped argument, flipped nullability, a dropped
   // input member, or a mutated closed enum. The generated signature is
-  // compared as a subset — everything it names must be served identically,
-  // additive MINOR surface beyond it certifies (SPEC.md 12).
+  // compared as a subset — everything it names must be served identically;
+  // MINOR additions are limited to new types, open-object fields, and nullable
+  // arguments or input members (SPEC.md 12).
   const TYPE_REF =
     "kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name } } } }";
   // Use the same credential as probes 1-3 because production providers may
@@ -1271,21 +1287,29 @@ async function probeGraphqlExecutor(
   return failures;
 }
 
-/** Reads the provider's capability descriptor once, or null if unavailable. */
-async function readCapabilities(adapter) {
+/** Reads the provider's capability outcome once for gating and certification. */
+async function readCapabilityOutcome(adapter) {
   try {
-    const outcome = await adapter.request({
+    const returned = await adapter.request({
       operation: "providerCapabilities",
       input: null,
       credential: null,
     });
-    return outcome.kind === "result" &&
-      outcome.data &&
-      typeof outcome.data === "object"
-      ? outcome.data
-      : null;
-  } catch {
-    return null;
+    return returned &&
+      typeof returned === "object" &&
+      typeof returned.kind === "string"
+      ? returned
+      : {
+          kind: "invalid",
+          status: 0,
+          detail: `adapter contract: request() returned ${JSON.stringify(returned) ?? String(returned)} instead of an outcome`,
+        };
+  } catch (error) {
+    return {
+      kind: "invalid",
+      status: 0,
+      detail: `adapter threw: ${error instanceof Error ? error.message : String(error)}`,
+    };
   }
 }
 
@@ -1750,15 +1774,35 @@ export async function runConformance({
   const outcomesByCase = new Map();
   let cachedEventsFailures = null;
 
+  const storeVectorIsEligible = (vector, capabilities, declaredStores) => {
+    if (!vector.requiresStore || declaredStores === null) return true;
+    if (!declaredStores.has(vector.requiresStore)) return false;
+    return (
+      !vector.requiresCapability ||
+      capabilities?.stores?.[vector.requiresStore]?.[vector.requiresCapability]
+        ?.implementation === true
+    );
+  };
+
   for (const adapter of adapters) {
     // SPEC.md 3 and 11.1 scope conformance to the profiles a provider
     // declares, so a partial-but-legal provider certifies the profiles it
     // serves instead of failing on operations it never claimed. `core`
     // (providerCapabilities) always runs.
-    const capabilities = await readCapabilities(adapter);
+    const capabilityOutcome = await readCapabilityOutcome(adapter);
+    const capabilities =
+      capabilityOutcome.kind === "result" &&
+      capabilityOutcome.data &&
+      typeof capabilityOutcome.data === "object"
+        ? capabilityOutcome.data
+        : null;
     const declaredProfiles =
       capabilities?.profiles && typeof capabilities.profiles === "object"
         ? new Set(Object.keys(capabilities.profiles))
+        : null;
+    const declaredStores =
+      capabilities?.stores && typeof capabilities.stores === "object"
+        ? new Set(Object.keys(capabilities.stores))
         : null;
 
     // Adapter contract: the credential values feed the SPEC.md 8 message
@@ -1782,6 +1826,28 @@ export async function runConformance({
       ok: versionFailures.length === 0,
       failures: versionFailures,
     });
+    for (const [profile, operation] of [
+      ["verification", "verifyPurchase"],
+      ["accountLifecycle", "bindPurchase"],
+    ]) {
+      if (!declaredProfiles?.has(profile) || declaredStores === null) continue;
+      const hasEligibleStoreVector = operationVectors.cases.some(
+        (vector) =>
+          vector.operation === operation &&
+          vector.requiresStore &&
+          storeVectorIsEligible(vector, capabilities, declaredStores),
+      );
+      if (!hasEligibleStoreVector) {
+        results.push({
+          id: `${profile}.store-coverage`,
+          binding: adapter.binding,
+          ok: false,
+          failures: [
+            `the ${profile} profile declares no store capability this ${operationVectors.protocolVersion} runner can exercise`,
+          ],
+        });
+      }
+    }
     // The events obligations are transport-independent (signing, delivery,
     // emission — no binding involved), so the vectors run ONCE and the
     // verdict is reused for each binding's report row rather than re-driving
@@ -1853,6 +1919,7 @@ export async function runConformance({
       });
     }
 
+    let capabilitySnapshotPending = true;
     for (const vector of operationVectors.cases) {
       if (vector.bindings && !vector.bindings.includes(adapter.binding)) {
         continue;
@@ -1866,6 +1933,9 @@ export async function runConformance({
       ) {
         continue;
       }
+      if (!storeVectorIsEligible(vector, capabilities, declaredStores)) {
+        continue;
+      }
       const attempts = [];
       for (let attempt = 0; attempt < (vector.repeat ?? 1); attempt += 1) {
         requireRoleCredential(vector.credential);
@@ -1874,11 +1944,20 @@ export async function runConformance({
         // other collected result — and a malformed RETURN (null, a non-object,
         // an outcome without kind) is the same class of fault, not a crash.
         try {
-          const returned = await adapter.request({
-            operation: vector.operation,
-            input: vector.input,
-            credential: vector.credential,
-          });
+          let returned;
+          if (
+            vector.operation === "providerCapabilities" &&
+            capabilitySnapshotPending
+          ) {
+            returned = capabilityOutcome;
+            capabilitySnapshotPending = false;
+          } else {
+            returned = await adapter.request({
+              operation: vector.operation,
+              input: vector.input,
+              credential: vector.credential,
+            });
+          }
           attempts.push(
             returned &&
               typeof returned === "object" &&
@@ -1908,6 +1987,16 @@ export async function runConformance({
         input: vector.input,
         credentials,
       });
+      if (
+        vector.operation === "providerCapabilities" &&
+        outcome.kind === "result" &&
+        capabilities !== null &&
+        stableStringify(outcome.data) !== stableStringify(capabilities)
+      ) {
+        failures.push(
+          "providerCapabilities changed during the conformance run; the descriptor used for profile/store gating must be the descriptor being certified",
+        );
+      }
       // A real executor cannot answer a field the canonical document never
       // selected — an unrequested member on the GraphQL binding is fabricated
       // and must fail HERE, before projection could erase it from parity.

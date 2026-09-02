@@ -372,7 +372,7 @@ function googleVoidedPayload(
   return {
     messageId,
     eventTimeMillis: 1_711_000_000_000,
-    voidedPurchaseNotification: { purchaseToken },
+    voidedPurchaseNotification: { purchaseToken, productType: 1 },
   };
 }
 

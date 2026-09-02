@@ -299,6 +299,10 @@ describe("v2 unauthenticated admission", () => {
     }
 
     expect(response?.status).toBe(429);
+    expect(Number(response?.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(response?.headers.get("X-RateLimit-Limit")).toBeTruthy();
+    expect(response?.headers.get("X-RateLimit-Remaining")).toBe("0");
+    expect(response?.headers.get("X-RateLimit-Scope")).toBeTruthy();
     expect(mocks.query).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 {
-  "$comment": "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums and objects) exact members; additive surface beyond open objects is a compatible MINOR.",
+  "$comment": "Structural introspection signature of the executable GraphQL projection. Generated from commerce-protocol.graphql — do not edit. The conformance runner compares a served schema's introspection against this as a subset: everything named here must exist with these exact kinds, types, nullability, arguments, and (for closed enums and objects) exact members. New types and members added to open objects are compatible MINOR extensions.",
   "protocolVersion": "1.0",
   "queryType": "Query",
   "mutationType": "Mutation",

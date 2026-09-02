@@ -2135,6 +2135,267 @@ describe("the portable conformance runner", () => {
     );
   });
 
+  it("exercises a declared store and skips stores the provider does not declare", async () => {
+    const provider = createMockProvider();
+    const inner = createRestAdapter({
+      baseUrl: BASE_URL,
+      fetch: provider.fetch,
+      credentials: provider.credentials,
+    });
+    const unsupportedStore = {
+      kind: "error",
+      status: 422,
+      code: "UNSUPPORTED_STORE",
+      errorBody: {
+        error: {
+          code: "UNSUPPORTED_STORE",
+          message: "This provider does not integrate that store",
+        },
+      },
+    };
+    let amazonCalls = 0;
+    const amazonOnly = {
+      binding: "rest",
+      secrets: inner.secrets,
+      request: async (args) => {
+        const outcome = await inner.request(args);
+        if (
+          args.operation === "providerCapabilities" &&
+          outcome.kind === "result"
+        ) {
+          const support = Object.values(outcome.data.stores)[0];
+          return {
+            ...outcome,
+            data: { ...outcome.data, stores: { amazon: support } },
+          };
+        }
+        if (
+          args.operation === "verifyPurchase" &&
+          args.credential === "verification" &&
+          args.input?.apple &&
+          !args.input?.google
+        ) {
+          return unsupportedStore;
+        }
+        if (
+          args.operation === "bindPurchase" &&
+          args.credential === "server" &&
+          (args.input?.store === "google" || args.input?.store === "horizon")
+        ) {
+          return unsupportedStore;
+        }
+        if (
+          (args.operation === "verifyPurchase" ||
+            args.operation === "bindPurchase") &&
+          args.input?.store === "amazon"
+        ) {
+          amazonCalls += 1;
+        }
+        return outcome;
+      },
+    };
+    const report = await runConformance({
+      adapters: [amazonOnly],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+    expect(
+      report.results.some((result) =>
+        [
+          "verifyPurchase.success.contract",
+          "bindPurchase.success.contract",
+          "bindPurchase.unknown-evidence.not-bound",
+          "bindPurchase.unbindable-store.not-bound",
+        ].includes(result.id),
+      ),
+    ).toBe(false);
+    expect(
+      report.results.some(
+        (result) => result.id === "verifyPurchase.success.contract.amazon",
+      ),
+    ).toBe(true);
+    expect(
+      report.results.some(
+        (result) => result.id === "bindPurchase.success.contract.amazon",
+      ),
+    ).toBe(true);
+    expect(amazonCalls).toBeGreaterThan(0);
+  });
+
+  it("runs verification vectors only where initial validation is implemented", async () => {
+    const provider = createMockProvider();
+    const inner = createRestAdapter({
+      baseUrl: BASE_URL,
+      fetch: provider.fetch,
+      credentials: provider.credentials,
+    });
+    const capabilityAware = {
+      binding: "rest",
+      secrets: inner.secrets,
+      request: async (args) => {
+        const outcome = await inner.request(args);
+        if (
+          args.operation === "providerCapabilities" &&
+          outcome.kind === "result"
+        ) {
+          const support = Object.values(outcome.data.stores)[0];
+          return {
+            ...outcome,
+            data: {
+              ...outcome.data,
+              stores: {
+                apple: {
+                  ...support,
+                  initialValidation: {
+                    ...support.initialValidation,
+                    implementation: false,
+                    notes:
+                      "The fixture provider does not validate Apple evidence",
+                  },
+                },
+                google: support,
+              },
+            },
+          };
+        }
+        if (
+          args.operation === "verifyPurchase" &&
+          args.credential === "verification" &&
+          args.input?.store === "apple" &&
+          args.input?.apple &&
+          !args.input?.google
+        ) {
+          return {
+            kind: "error",
+            status: 422,
+            code: "UNSUPPORTED_STORE",
+            errorBody: {
+              error: {
+                code: "UNSUPPORTED_STORE",
+                message: "Initial validation is not implemented for Apple",
+              },
+            },
+          };
+        }
+        return outcome;
+      },
+    };
+    const report = await runConformance({
+      adapters: [capabilityAware],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+    expect(
+      report.results.some(
+        (result) => result.id === "verifyPurchase.success.contract",
+      ),
+    ).toBe(false);
+    expect(
+      report.results.some(
+        (result) => result.id === "verifyPurchase.success.contract.google",
+      ),
+    ).toBe(true);
+
+    const noValidation = {
+      ...capabilityAware,
+      request: async (args) => {
+        const outcome = await capabilityAware.request(args);
+        if (
+          args.operation === "providerCapabilities" &&
+          outcome.kind === "result"
+        ) {
+          return {
+            ...outcome,
+            data: {
+              ...outcome.data,
+              stores: Object.fromEntries(
+                Object.entries(outcome.data.stores).map(([store, support]) => [
+                  store,
+                  {
+                    ...support,
+                    initialValidation: {
+                      ...support.initialValidation,
+                      implementation: false,
+                      notes: `The fixture provider does not validate ${store} evidence`,
+                    },
+                  },
+                ]),
+              ),
+            },
+          };
+        }
+        return outcome;
+      },
+    };
+    const uncovered = await runConformance({
+      adapters: [noValidation],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(
+      uncovered.results.find(
+        (result) => result.id === "verification.store-coverage",
+      )?.ok,
+    ).toBe(false);
+    expect(uncovered.ok).toBe(false);
+  });
+
+  it("certifies the same capability snapshot it uses for vector gating", async () => {
+    const provider = createMockProvider();
+    const inner = createRestAdapter({
+      baseUrl: BASE_URL,
+      fetch: provider.fetch,
+      credentials: provider.credentials,
+    });
+    let capabilityCalls = 0;
+    const drifting = {
+      binding: "rest",
+      secrets: inner.secrets,
+      request: async (args) => {
+        const outcome = await inner.request(args);
+        if (
+          args.operation === "providerCapabilities" &&
+          outcome.kind === "result" &&
+          ++capabilityCalls === 1
+        ) {
+          return {
+            ...outcome,
+            data: {
+              ...outcome.data,
+              profiles: { future: "1.0" },
+            },
+          };
+        }
+        return outcome;
+      },
+    };
+    const report = await runConformance({
+      adapters: [drifting],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(capabilityCalls).toBe(2);
+    expect(
+      report.results.some(
+        (result) =>
+          !result.ok &&
+          result.failures.join(" ").includes("changed during the conformance"),
+      ),
+    ).toBe(true);
+    expect(
+      report.results.some(
+        (result) => result.id === "verifyPurchase.success.contract",
+      ),
+    ).toBe(false);
+    expect(report.ok).toBe(false);
+  });
+
   it("certifies a verification-only GraphQL provider (the probe targets the role it holds)", async () => {
     // With only a verification credential, the probes must exercise
     // verifyPurchase — probing the server-only subscriptionStatus would hit
@@ -2342,6 +2603,71 @@ describe("the portable conformance runner", () => {
     expect(failure.failures.join(" ")).toContain("echoes submitted");
     expect(report.ok).toBe(false);
   });
+
+  it.each([
+    ["horizon", operationVectors.fixtures.horizonUserId],
+    ["amazon", operationVectors.fixtures.amazonUserId],
+  ])(
+    "rejects a %s evidence identity echoed in an error",
+    async (store, token) => {
+      const provider = createMockProvider();
+      const inner = createRestAdapter({
+        baseUrl: BASE_URL,
+        fetch: provider.fetch,
+        credentials: provider.credentials,
+      });
+      const echoing = {
+        binding: "rest",
+        secrets: inner.secrets,
+        request: async (args) => {
+          const outcome = await inner.request(args);
+          if (
+            args.operation === "providerCapabilities" &&
+            outcome.kind === "result"
+          ) {
+            const support = Object.values(outcome.data.stores)[0];
+            return {
+              ...outcome,
+              data: {
+                ...outcome.data,
+                profiles: { verification: "1.0" },
+                stores: { [store]: support },
+              },
+            };
+          }
+          if (
+            args.operation === "verifyPurchase" &&
+            args.credential === "verification" &&
+            args.input?.store === store
+          ) {
+            return {
+              kind: "error",
+              status: 502,
+              code: "VERIFICATION_FAILED",
+              errorBody: {
+                error: {
+                  code: "VERIFICATION_FAILED",
+                  message: `store rejected ${token}`,
+                },
+              },
+            };
+          }
+          return outcome;
+        },
+      };
+      const report = await runConformance({
+        adapters: [echoing],
+        Ajv,
+        credentials: provider.credentials,
+      });
+      const failure = report.results.find(
+        (result) => result.id === `verifyPurchase.success.contract.${store}`,
+      );
+      expect(failure.ok).toBe(false);
+      expect(failure.failures.join(" ")).toContain("echoes submitted");
+      expect(report.ok).toBe(false);
+    },
+  );
 
   it("rejects error messages echoing evidence or credentials on both bindings", async () => {
     const token = operationVectors.fixtures.googlePurchaseToken;
