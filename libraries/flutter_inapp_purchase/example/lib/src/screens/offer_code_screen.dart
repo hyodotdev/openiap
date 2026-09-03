@@ -38,9 +38,13 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     });
 
     try {
-      await _iap.initConnection();
+      final connected = await _iap.initConnection();
       setState(() {
-        _connected = true;
+        _connected = connected;
+        if (!connected) {
+          _statusMessage = 'IAP unavailable for this build';
+          _isSuccess = false;
+        }
       });
     } catch (e) {
       debugPrint('Failed to initialize IAP connection: $e');

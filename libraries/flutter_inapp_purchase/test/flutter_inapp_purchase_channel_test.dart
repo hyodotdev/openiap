@@ -963,6 +963,119 @@ void main() {
       expect(initCount, 1);
     });
 
+    test('initConnection preserves unavailable native result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return false;
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isFalse);
+      await expectLater(
+        iap.getAvailablePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+
+    test('unavailable build gates every store operation', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return false;
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isFalse);
+
+      Matcher unavailable() => throwsA(
+            isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              types.ErrorCode.IapNotAvailable,
+            ),
+          );
+
+      await expectLater(
+        iap.requestPurchase(
+          const types.RequestPurchaseProps.inApp((
+            apple: null,
+            google: types.RequestPurchaseAndroidProps(
+              skus: <String>['android.sku'],
+            ),
+          )),
+        ),
+        unavailable(),
+      );
+      await expectLater(
+        iap.fetchProducts(skus: const <String>['android.sku']),
+        unavailable(),
+      );
+      await expectLater(iap.getActiveSubscriptions(), unavailable());
+      await expectLater(iap.verifyPurchase(), unavailable());
+      await expectLater(
+        iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+        ),
+        unavailable(),
+      );
+    });
+
+    test('endConnection keeps the unavailable state after a failed init',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return false;
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isFalse);
+      expect(await iap.endConnection(), isFalse);
+
+      // The build cannot do IAP at all, so the error stays IapNotAvailable
+      // instead of degrading to NotPrepared.
+      await expectLater(
+        iap.getAvailablePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.IapNotAvailable,
+          ),
+        ),
+      );
+    });
+
+    test('initConnection accepts the legacy Android success result', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') return 'Billing client ready';
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      expect(await iap.initConnection(), isTrue);
+    });
+
     test('endConnection forwards to native channel when initialized', () async {
       int endCount = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

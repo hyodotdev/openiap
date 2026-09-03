@@ -19,6 +19,7 @@ This example supports multiple billing platforms:
 - **Google Play Billing** (default)
 - **Meta Horizon Billing** (for Meta Quest devices)
 - **Fire OS IAP** (Amazon Appstore distribution)
+- **No Android billing SDK** (for Apple-only IAP apps)
 
 ### Google Play (Default)
 
@@ -78,6 +79,26 @@ To use Fire OS IAP through the Amazon Appstore SDK:
 
 The build system automatically selects the Fire OS `amazon` flavor based on
 `fireOsEnabled`.
+
+### No Android IAP
+
+To keep the Flutter package for iOS or macOS while excluding Android store
+SDKs, set this in `android/gradle.properties`:
+
+```properties
+openiapPlatform=none
+```
+
+Run `flutter clean` before rebuilding after changing this property.
+
+`openiapPlatform=none` cannot be combined with `horizonEnabled` or
+`fireOsEnabled`; disable both legacy store flags first, or the Android build
+fails with `openiapPlatform=none conflicts with legacy store flags`.
+
+`initConnection()` then returns `false`, and Android store operations report
+`ErrorCode.IapNotAvailable`. The APK contains no Play Billing, Horizon, or
+Amazon IAP SDK dependency, and no billing manifest entry supplied by those
+SDKs.
 
 ## IDE Configuration
 

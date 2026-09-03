@@ -207,6 +207,33 @@ function FlutterSetup() {
           flavor to select there.
         </Callout>
 
+        <h4 id="disable-android-iap" className="anchor-heading">
+          Disable IAP on Android
+          <a href="#disable-android-iap" className="anchor-link">
+            #
+          </a>
+        </h4>
+        <p>
+          If the app uses this package only on iOS or macOS, add the following
+          to <code>android/gradle.properties</code>:
+        </p>
+        <CodeBlock language="properties">{`openiapPlatform=none`}</CodeBlock>
+        <p>
+          Run <code>flutter clean</code> before rebuilding. This keeps the
+          Android plugin registered with a no-op implementation while excluding
+          OpenIAP Google, Play Billing, Horizon, and Amazon IAP SDK dependencies
+          and the billing manifest entries supplied by them.{' '}
+          <code>initConnection()</code> returns <code>false</code>; Android
+          store operations report <code>ErrorCode.IapNotAvailable</code>. Omit
+          the property to keep Google Play as the default.
+        </p>
+        <Callout kind="warning">
+          <code>openiapPlatform=none</code> cannot be combined with{' '}
+          <code>horizonEnabled</code> or <code>fireOsEnabled</code>. Disable
+          both legacy store flags first, or the Android build fails with{' '}
+          <code>openiapPlatform=none conflicts with legacy store flags</code>.
+        </Callout>
+
         <h4>ProGuard Rules (if using ProGuard)</h4>
         <p>
           Add to your <code>android/app/proguard-rules.pro</code>:

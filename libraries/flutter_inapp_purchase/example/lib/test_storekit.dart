@@ -51,7 +51,11 @@ class _TestScreenState extends State<TestScreen> {
 
       // Test 2: Initialize connection
       setState(() => _status = 'Initializing connection...');
-      await _iap.initConnection();
+      final connected = await _iap.initConnection();
+      if (!connected) {
+        setState(() => _status = 'IAP is unavailable for this build');
+        return;
+      }
       setState(() => _status = 'Connection initialized');
 
       // Test 3: Get simple product

@@ -1238,7 +1238,7 @@ function checkFlutterPayloadContracts() {
   }
 
   expectIncludes(
-    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     [
       "array.put(JSONObject(purchase.toJson()))",
       "val payload = JSONObject(p.toJson())",

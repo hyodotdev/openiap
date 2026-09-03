@@ -11,7 +11,7 @@ void main() {
       'macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift',
     ).readAsStringSync();
     final android = File(
-      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
+      'android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 
     const appleForwarding = 'if let baseUrl = iapkit["baseUrl"] as? String {';
@@ -35,7 +35,7 @@ void main() {
       'macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift',
     ).readAsStringSync();
     final android = File(
-      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
+      'android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 
     for (final apple in [ios, macos]) {
@@ -62,7 +62,7 @@ void main() {
       'macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift',
     ).readAsStringSync();
     final android = File(
-      'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
+      'android/src/store/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 
     for (final apple in [ios, macos]) {

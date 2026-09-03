@@ -285,7 +285,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       _subscriptionBillingIssueListener.stream;
 
   bool _isInitialized = false;
+  bool _isIapUnavailable = false;
   Future<void> _purchaseListenerConfiguration = Future<void>.value();
+
+  PurchaseError _connectionRequiredError() => PurchaseError(
+        code: _isIapUnavailable
+            ? gentype.ErrorCode.IapNotAvailable
+            : gentype.ErrorCode.NotPrepared,
+        message: _isIapUnavailable
+            ? 'In-app purchases are unavailable for this build'
+            : 'IAP connection not initialized',
+      );
 
   Future<void> _configurePurchaseListener(
     Future<void> Function() configure,
@@ -449,9 +459,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
           }
 
-          await _channel.invokeMethod('initConnection', config);
-          _isInitialized = true;
-          return true;
+          final nativeResult =
+              await _channel.invokeMethod<Object?>('initConnection', config);
+          final connected = nativeResult != false;
+          _isInitialized = connected;
+          _isIapUnavailable = !connected;
+          return connected;
         } on PlatformException catch (error) {
           throw _purchaseErrorFromPlatformException(
             error,
@@ -478,6 +491,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           await _channel.invokeMethod('endConnection');
 
           _isInitialized = false;
+          _isIapUnavailable = false;
           if (isIOS) {
             _resetPurchaseUpdatedDedupeHistoryIOS();
           }
@@ -521,10 +535,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   @override
   gentype.MutationRequestPurchaseHandler get requestPurchase => (params) async {
         if (!_isInitialized) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.NotPrepared,
-            message: 'IAP connection not initialized',
-          );
+          throw _connectionRequiredError();
         }
 
         // Determine type based on factory constructor used
@@ -763,10 +774,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         bool? onlyIncludeActiveItemsIOS,
       }) async {
         if (!_isInitialized) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.NotPrepared,
-            message: 'IAP connection not initialized',
-          );
+          throw _connectionRequiredError();
         }
 
         try {
@@ -1830,10 +1838,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             gentype.RequestVerifyPurchaseWithIapkitProps? iapkit,
           }) async {
             if (!_isInitialized) {
-              throw PurchaseError(
-                code: gentype.ErrorCode.NotPrepared,
-                message: 'IAP connection not initialized',
-              );
+              throw _connectionRequiredError();
             }
 
             try {
@@ -2061,10 +2066,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         gentype.VerifyPurchaseHorizonOptions? horizon,
       }) async {
         if (!_isInitialized) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.NotPrepared,
-            message: 'IAP connection not initialized',
-          );
+          throw _connectionRequiredError();
         }
 
         try {
@@ -2136,10 +2138,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
     required gentype.ProductQueryType queryType,
   }) async {
     if (!_isInitialized) {
-      throw PurchaseError(
-        code: gentype.ErrorCode.NotPrepared,
-        message: 'IAP connection not initialized',
-      );
+      throw _connectionRequiredError();
     }
 
     try {
@@ -2431,10 +2430,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   gentype.QueryGetActiveSubscriptionsHandler get getActiveSubscriptions =>
       ([subscriptionIds]) async {
         if (!_isInitialized) {
-          throw PurchaseError(
-            code: gentype.ErrorCode.NotPrepared,
-            message: 'IAP connection not initialized',
-          );
+          throw _connectionRequiredError();
         }
 
         try {

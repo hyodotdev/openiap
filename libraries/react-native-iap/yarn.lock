@@ -3277,20 +3277,30 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@humanfs/core@npm:^0.19.1":
-  version: 0.19.1
-  resolution: "@humanfs/core@npm:0.19.1"
-  checksum: 611e0545146f55ddfdd5c20239cfb7911f9d0e28258787c4fc1a1f6214250830c9367aaaeace0096ed90b6739bee1e9c52ad5ba8adaf74ab8b449119303babfe
+"@humanfs/core@npm:^0.19.2":
+  version: 0.19.2
+  resolution: "@humanfs/core@npm:0.19.2"
+  dependencies:
+    "@humanfs/types": ^0.15.0
+  checksum: cfcf57302dafe41eadd900b30da5e10f8b4e51fac635c834c03ae11933d1911c131ef3cfa3ff14c47b17dd23524180c69f50cfe0b68c152034c2f6ba0ec2ccae
   languageName: node
   linkType: hard
 
 "@humanfs/node@npm:^0.16.6":
-  version: 0.16.7
-  resolution: "@humanfs/node@npm:0.16.7"
+  version: 0.16.8
+  resolution: "@humanfs/node@npm:0.16.8"
   dependencies:
-    "@humanfs/core": ^0.19.1
+    "@humanfs/core": ^0.19.2
+    "@humanfs/types": ^0.15.0
     "@humanwhocodes/retry": ^0.4.0
-  checksum: 7d2a396a94d80158ce320c0fd7df9aebb82edb8b667e5aaf8f87f4ca50518d0941ca494e0cd68e06b061e777ce5f7d26c45f93ac3fa9f7b11fd1ff26e3cd1440
+  checksum: 179d1dae12c5d1330c262b79b037e4db3e98d870f4827a56c1eb8a6bc32a6d2b4c32603a5b13c4f2e11882239276ed2a559cf465dfba33a3ac37bc7d9f5c1e9b
+  languageName: node
+  linkType: hard
+
+"@humanfs/types@npm:^0.15.0":
+  version: 0.15.0
+  resolution: "@humanfs/types@npm:0.15.0"
+  checksum: fe8abe73e36ded7bf854addd48a5a7defe3aa77af9e92a95195bc6abd7d2a22c193bbac38d47982c198e2683e5108acba691cd859c4e1104b94d76651139e2da
   languageName: node
   linkType: hard
 
@@ -4852,9 +4862,9 @@ __metadata:
   linkType: hard
 
 "@xmldom/xmldom@npm:^0.8.8":
-  version: 0.8.14
-  resolution: "@xmldom/xmldom@npm:0.8.14"
-  checksum: 2fb1f1c3495d23e55916c5b1b47278e82f82931276a41d7bd9655060e236d019185cfa9958dd09b3be35f3b1bb3c2cb3c3072944562a0185eb56d5cee786d5c6
+  version: 0.8.15
+  resolution: "@xmldom/xmldom@npm:0.8.15"
+  checksum: efeb17d041ed73adb54c903fe959254a3b2155f820b127dbf0b5390a2b1436143bb34fab58c3f82e58aa910d0c5d4f1e205cd9370d39f098ec1ce8c6daf0424e
   languageName: node
   linkType: hard
 
@@ -7500,9 +7510,9 @@ __metadata:
   linkType: hard
 
 "fast-uri@npm:^3.0.1":
-  version: 3.1.5
-  resolution: "fast-uri@npm:3.1.5"
-  checksum: 8a95af13e0730ac5c3abeb7f3939dee9fa95f2652e0ebac7a072b5597f836200084340c9bc2030f392318cdb49ec04e3fd6f558fa24c58d6d373557b9c01d7fb
+  version: 3.1.7
+  resolution: "fast-uri@npm:3.1.7"
+  checksum: 2095554c1e48b5a772529175dfa8d3c2ca33a1db6c84abe1584f9c4c3337b62d8e4807ed60a806f85bb7635cb7acca6c66c0c642b867efc3ea4e20a0d6c40cbe
   languageName: node
   linkType: hard
 
@@ -11099,12 +11109,12 @@ __metadata:
   linkType: hard
 
 "qs@npm:^6.15.2":
-  version: 6.15.3
-  resolution: "qs@npm:6.15.3"
+  version: 6.16.0
+  resolution: "qs@npm:6.16.0"
   dependencies:
     es-define-property: ^1.0.1
     side-channel: ^1.1.1
-  checksum: b59a0f20498f323d1f990f1fad3b808ee328f96c3c45575beeb0d51ec27dc0ed3422d9e9308a7c09f6000cb914b95dfb6eb7cca8636bc4d1befdc2a10cf59d2b
+  checksum: fb97665d1b481fadbcb17cc056f1af95ae93328195bf9536a56142137f4d9cc16fe2a1dab9cd17186c9fa69a7e6fa64a3766f71ffaa7c248ec5555f34d21047b
   languageName: node
   linkType: hard
 
