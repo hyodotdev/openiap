@@ -17,13 +17,13 @@ Review and address PR review comments for this repository.
 
 Based on changed files, run these checks BEFORE committing:
 
-| Package            | Commands                                                                                                                                                         |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/agent/`   | `cd scripts/agent && bun test`                                                                                                                                   |
-| `specs/openiap/client/`    | `cd specs/openiap/client && bun run test`                                                                                                                                |
-| `packages/docs/`   | `cd packages/docs && bun run lint && bun run typecheck`                                                                                                          |
-| `packages/apple/`  | `cd packages/apple && swift build`                                                                                                                               |
-| `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
+| Package                 | Commands                                                                                                                                                         |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/agent/`        | `cd scripts/agent && bun test`                                                                                                                                   |
+| `specs/openiap/client/` | `cd specs/openiap/client && bun run test`                                                                                                                        |
+| `packages/docs/`        | `cd packages/docs && bun run lint && bun run typecheck`                                                                                                          |
+| `packages/apple/`       | `cd packages/apple && swift build`                                                                                                                               |
+| `packages/google/`      | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
 
 **Important:** For Android, test Play, Horizon, and Amazon flavors.
 

@@ -12,8 +12,3 @@ reason = "No patched image-size release exists; Metro uses it only during truste
 id = "GHSA-vcc3-ghjq-m6fr"
 ignoreUntil = 2026-09-16
 reason = "The patched package is ESM-only and incompatible with upstream query-string 7; this lockfile belongs to the example app while upstream navigation packages migrate."
-
-[[IgnoredVulns]]
-id = "GHSA-6gmq-8vp8-gcm6"
-ignoreUntil = 2026-09-17
-reason = "@xmldom/xmldom is only used by Expo config-plugin and plist tooling during trusted local builds; Bun cannot bump this transitive dependency without re-resolving the whole Expo tooling lockfile, so it moves with the next Expo tooling refresh."
