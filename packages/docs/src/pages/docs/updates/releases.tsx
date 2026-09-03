@@ -30,6 +30,10 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const androidIapOptOutReleases = [
+  ['flutter_inapp_purchase 10.6.0', 'flutter-iap-10.6.0'],
+] as const;
+
 const purchaseLifecycleHorizonReleases = [
   ['OpenIAP Spec 3.4.0', 'docs-3.4.0'],
   ['openiap-apple 3.4.0', '3.4.0'],
@@ -302,6 +306,108 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // September 3, 2026 - Android IAP opt-out for Apple-only Flutter apps
+    {
+      id: 'android-iap-opt-out-2026-09-03',
+      date: new Date('2026-09-03'),
+      element: (
+        <div key="android-iap-opt-out-2026-09-03" style={noteCardStyle}>
+          <AnchorLink id="android-iap-opt-out-2026-09-03" level="h4">
+            September 3, 2026 - Android IAP opt-out
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Flutter apps that ship in-app purchases only on Apple platforms can
+            now drop every Android store SDK from the build.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>flutter_inapp_purchase 10.6.0</strong> - adds the{' '}
+              <code>openiapPlatform=none</code> Android opt-out, which keeps the
+              plugin registered with a no-op implementation while excluding
+              OpenIAP Google, Play Billing, Horizon, and Amazon IAP dependencies
+              and the billing manifest entries they supply (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/422"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #422
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Set <code>openiapPlatform=none</code> in{' '}
+              <code>android/gradle.properties</code> and run{' '}
+              <code>flutter clean</code> before rebuilding. Omit the property to
+              keep Google Play as the default.
+            </li>
+            <li>
+              On such a build <code>initConnection()</code> returns{' '}
+              <code>false</code> and Android store operations report{' '}
+              <code>ErrorCode.IapNotAvailable</code>.
+            </li>
+            <li>
+              The opt-out cannot be combined with <code>horizonEnabled</code> or{' '}
+              <code>fireOsEnabled</code>; disable both legacy store flags first,
+              or the Android build fails.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {androidIapOptOutReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 31, 2026 - Purchase lifecycle and Horizon verification
     {
       id: 'purchase-lifecycle-horizon-verification-2026-08-31',
