@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.6.0 (2026-09-03)
+
+- feat(flutter): add Android IAP opt-out (#422)
+- feat: add OpenIAP Commerce Protocol (#419)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.5.0 (2026-08-31)
 
 - chore(release): openiap-google@3.5.0
