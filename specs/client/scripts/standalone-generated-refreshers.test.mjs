@@ -21,10 +21,7 @@ import { GENERATED_SYNC_MANIFEST } from "../generated-sync-manifest.mjs";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const FIXTURE_SPEC_VERSION = "9.8.7";
 const generatedHeaderSource = readFileSync(
-  resolve(
-    repositoryRoot,
-    "specs/client/codegen/core/generated-header.ts",
-  ),
+  resolve(repositoryRoot, "specs/client/codegen/core/generated-header.ts"),
   "utf8",
 );
 const headerGuidance = [
@@ -279,11 +276,42 @@ test("standalone generated refreshers stay linked to manifest targets", () => {
   );
 });
 
-test("standalone refreshers validate and atomically replace in isolation", () => {
-  // Modes are asserted in a second pass, after every replacement, so the run
-  // never interleaves a stat of one target with writes to another.
-  const replacedTargets = [];
+test("standalone refreshers replace the target and leave it 0644", () => {
+  // The mode is recorded per replacement and asserted after the loop, so no
+  // stat of one target sits between the writes to another. Splitting the
+  // later cases into their own test keeps this assertion on the mode the
+  // first replacement produced, which a second successful run would overwrite.
+  const replaced = [];
 
+  for (const definition of refreshers) {
+    const checkout = createIsolatedCheckout(definition);
+    // Seed 0600 so 0644 below proves the refresher set it rather than
+    // inheriting it from the file it replaced.
+    writeFileSync(checkout.isolatedTarget, "preserve-me\n", { mode: 0o600 });
+
+    const success = runRefresher(definition, checkout);
+    assert.equal(
+      success.status,
+      0,
+      `${definition.scriptPath}\n${success.stderr}`,
+    );
+    const commentPrefix = definition.groupName === "gdscript" ? "#" : "//";
+    const expected = normalizeFixtureHeader(definition.fixture, commentPrefix);
+    assert.equal(readFileSync(checkout.isolatedTarget, "utf8"), expected);
+    assert.equal(
+      readFileSync(checkout.curlLog, "utf8"),
+      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
+    );
+    assertNoRefreshTemps(checkout);
+    replaced.push([definition.scriptPath, checkout.isolatedTarget]);
+  }
+
+  for (const [scriptPath, target] of replaced) {
+    assert.equal(statSync(target).mode & 0o777, 0o644, scriptPath);
+  }
+});
+
+test("standalone refreshers stay idempotent and preserve invalid results", () => {
   for (const definition of refreshers) {
     const checkout = createIsolatedCheckout(definition);
     writeFileSync(checkout.isolatedTarget, "preserve-me\n", { mode: 0o644 });
@@ -296,13 +324,6 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
     );
     const commentPrefix = definition.groupName === "gdscript" ? "#" : "//";
     const expected = normalizeFixtureHeader(definition.fixture, commentPrefix);
-    assert.equal(readFileSync(checkout.isolatedTarget, "utf8"), expected);
-    replacedTargets.push(checkout.isolatedTarget);
-    assert.equal(
-      readFileSync(checkout.curlLog, "utf8"),
-      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
-    );
-    assertNoRefreshTemps(checkout);
 
     const idempotent = runRefresher(definition, checkout, { body: expected });
     assert.equal(
@@ -337,10 +358,6 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
       "preserve-download\n",
     );
     assertNoRefreshTemps(checkout);
-  }
-
-  for (const target of replacedTargets) {
-    assert.equal(statSync(target).mode & 0o777, 0o644);
   }
 });
 
