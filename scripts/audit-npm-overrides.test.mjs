@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { auditNpmOverrides } from "./audit-npm-overrides.mjs";
+import { auditNpmOverrides, manifestPaths } from "./audit-npm-overrides.mjs";
 
 function withTemporaryRepository(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "npm-overrides-"));
@@ -92,6 +92,49 @@ test("checks workspace manifests, not just the root", () => {
       'scripts/agent/package.json: override "uuid": "11.1.1" conflicts with its direct dependency "^11.0.0" — use "$uuid"',
     ]);
   });
+});
+
+test("finds a conflict in a nested example project", () => {
+  withTemporaryRepository((root) => {
+    writeManifest(root, "package.json", {});
+    // CI installs libraries/expo-iap/example/vega on its own, so a conflict
+    // there breaks npm just as thoroughly as one in the root.
+    writeManifest(root, "libraries/expo-iap/example/vega/package.json", {
+      dependencies: { "fast-uri": "^3.1.7" },
+      overrides: { "fast-uri": "3.1.7" },
+    });
+
+    assert.deepEqual(auditNpmOverrides(root), [
+      'libraries/expo-iap/example/vega/package.json: override "fast-uri": "3.1.7" conflicts with its direct dependency "^3.1.7" — use "$fast-uri"',
+    ]);
+  });
+});
+
+test("ignores manifests inside installed dependencies", () => {
+  withTemporaryRepository((root) => {
+    writeManifest(root, "package.json", {});
+    writeManifest(root, "node_modules/some-dep/package.json", {
+      dependencies: { qs: "^6.16.0" },
+      overrides: { qs: "6.16.0" },
+    });
+
+    assert.deepEqual(auditNpmOverrides(root), []);
+  });
+});
+
+test("covers every independently installed project in this repository", () => {
+  const root = path.resolve(import.meta.dirname, "..");
+  const seen = manifestPaths(root);
+
+  for (const project of [
+    "package.json",
+    "libraries/expo-iap/package.json",
+    "libraries/expo-iap/example/package.json",
+    "libraries/expo-iap/example/vega/package.json",
+    "libraries/react-native-iap/example/vega/package.json",
+  ]) {
+    assert.ok(seen.includes(project), `${project} is not audited`);
+  }
 });
 
 test("the repository's own manifests are npm-installable", () => {

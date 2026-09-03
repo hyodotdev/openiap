@@ -19,24 +19,51 @@ const DEPENDENCY_FIELDS = [
   "optionalDependencies",
 ];
 
-/** Manifests npm may be run from. Nested example apps install on their own. */
-function manifestPaths(root) {
+/**
+ * Every manifest in the repository, at any depth. Example apps nest their own
+ * projects (expo-iap/example/vega and the like) and CI installs several of them
+ * independently, so a container's immediate children are not the whole set.
+ */
+const SKIPPED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "Pods",
+  ".next",
+  ".expo",
+  "vendor",
+]);
+
+export function manifestPaths(root) {
   const found = [];
-  const push = (relative) => {
-    if (fs.existsSync(path.join(root, relative))) found.push(relative);
+
+  const walk = (relative) => {
+    const absolute = relative ? path.join(root, relative) : root;
+    let entries;
+    try {
+      entries = fs.readdirSync(absolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const next = relative
+        ? path.posix.join(relative, entry.name)
+        : entry.name;
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith(".") || SKIPPED_DIRECTORIES.has(entry.name)) {
+          continue;
+        }
+        walk(next);
+      } else if (entry.name === "package.json") {
+        found.push(next);
+      }
+    }
   };
 
-  push("package.json");
-  for (const container of ["packages", "libraries", "specs", "scripts"]) {
-    const directory = path.join(root, container);
-    if (!fs.existsSync(directory)) continue;
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
-      push(path.posix.join(container, entry.name, "package.json"));
-    }
-  }
-
-  return found;
+  walk("");
+  return found.sort();
 }
 
 export function auditNpmOverrides(root = repositoryRoot) {
