@@ -95,7 +95,7 @@ export const CAPABILITY_MATRIX = Object.freeze({
     },
     evidence: {
       Amazon:
-        'specs/openiap/client/src/type.graphql (IapEvent.SubscriptionBillingIssue) — Amazon Appstore exposes no suspension signal.',
+        'specs/client/src/type.graphql (IapEvent.SubscriptionBillingIssue) — Amazon Appstore exposes no suspension signal.',
       Horizon:
         'Horizon Billing Compatibility SDK implements Play Billing 7.0, which predates isSuspended.',
     },

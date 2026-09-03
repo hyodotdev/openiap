@@ -168,8 +168,8 @@ describe("generated context path contract", () => {
     for (const content of [compiler, generated]) {
       expect(content).not.toContain("│   ├── gql/");
       expect(content).not.toContain("specs/openiap-kit");
-      expect(content).toContain("specs/openiap/client");
-      expect(content).toContain("specs/openiap/commerce-protocol");
+      expect(content).toContain("specs/client");
+      expect(content).toContain("specs/commerce-protocol");
     }
   });
 });

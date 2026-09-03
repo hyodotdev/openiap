@@ -14,7 +14,7 @@ WORKDIR /app
 # lockfile + every workspace package.json (so Bun can plan the install graph).
 COPY package.json bun.lock ./
 COPY packages/kit/package.json ./packages/kit/
-COPY specs/openiap/client/package.json ./specs/openiap/client/
+COPY specs/client/package.json ./specs/client/
 COPY packages/apple/package.json ./packages/apple/
 COPY packages/google/package.json ./packages/google/
 COPY packages/docs/package.json ./packages/docs/
@@ -24,7 +24,7 @@ COPY packages/docs/package.json ./packages/docs/
 # "lockfile had changes, but lockfile is frozen".
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY packages/conformance/package.json ./packages/conformance/
-COPY specs/openiap/commerce-protocol/package.json ./specs/openiap/commerce-protocol/
+COPY specs/commerce-protocol/package.json ./specs/commerce-protocol/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------
@@ -35,11 +35,11 @@ COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
 # The MCP client imports the client specification's public kit-api subpath.
-COPY specs/openiap/client ./specs/openiap/client
+COPY specs/client ./specs/client
 # Kit runtime code imports openiap-commerce-protocol (generated schemas,
 # binding manifest, capability descriptor); without the sources the workspace
 # symlink dangles inside the image and only inside the image.
-COPY specs/openiap/commerce-protocol ./specs/openiap/commerce-protocol
+COPY specs/commerce-protocol ./specs/commerce-protocol
 # Bun workspaces install some deps under each package's
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage

@@ -6,7 +6,7 @@
  *   1. Walks every `packages/docs/src/pages/docs/apis/**\/*.tsx` and
  *      `packages/docs/src/pages/docs/types/**\/*.tsx` page.
  *   2. Loads the generated TypeScript SSOT from
- *      `specs/openiap/client/src/generated/types.ts` and indexes every exported
+ *      `specs/client/src/generated/types.ts` and indexes every exported
  *      `interface` and object-shaped `type` alias field.
  *   3. For each doc page, extracts:
  *        - `<Link to="/docs/...">` targets
@@ -34,7 +34,7 @@ import { readFileSync, statSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
-import { GENERATED_SYNC_MANIFEST } from "../specs/openiap/client/generated-sync-manifest.mjs";
+import { GENERATED_SYNC_MANIFEST } from "../specs/client/generated-sync-manifest.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
@@ -1966,11 +1966,11 @@ function auditWebhookTransportConstants(): Drift[] {
     readFileSync(file, "utf8"),
     JSON.parse(
       readFileSync(
-        join(REPO_ROOT, "specs/openiap/commerce-protocol/vectors/signatures.json"),
+        join(REPO_ROOT, "specs/commerce-protocol/vectors/signatures.json"),
         "utf8",
       ),
     ),
-    readFileSync(join(REPO_ROOT, "specs/openiap/commerce-protocol/SPEC.md"), "utf8"),
+    readFileSync(join(REPO_ROOT, "specs/commerce-protocol/SPEC.md"), "utf8"),
     file,
   );
 }

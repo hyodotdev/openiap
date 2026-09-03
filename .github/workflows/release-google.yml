@@ -327,7 +327,7 @@ jobs:
           git add openiap-versions.json packages/*/openiap-versions.json
           git add packages/apple/Sources/OpenIapGeneratedVersion.swift
           git add packages/docs/src/generated/version-metadata.json
-          git add specs/openiap/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+          git add specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
           git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
 
           if git diff --staged --quiet; then

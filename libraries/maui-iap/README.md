@@ -184,7 +184,7 @@ store build from leaking its AAR or manifest into the next variant.
 
 - **Generated:** [`src/OpenIap.Maui/Types.cs`](src/OpenIap.Maui/Types.cs) is
   synced from
-  [`specs/openiap/client/src/generated/Types.cs`](../../specs/openiap/client/src/generated/Types.cs).
+  [`specs/client/src/generated/Types.cs`](../../specs/client/src/generated/Types.cs).
   Do not edit it by hand.
 - **Hand-written:** [`OpenIap.cs`](src/OpenIap.Maui/OpenIap.cs),
   [`ObservableExtensions.cs`](src/OpenIap.Maui/ObservableExtensions.cs), native
@@ -194,7 +194,7 @@ store build from leaking its AAR or manifest into the next variant.
 Regenerate types with:
 
 ```bash
-cd specs/openiap/client && bun run generate
+cd specs/client && bun run generate
 ```
 
 ## Links

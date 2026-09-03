@@ -20,7 +20,7 @@ definitions.
 This is a publishable specification artifact, not a deployed service. Runtime
 service implementations remain in `packages/` and `libraries/`; the portable
 `kit-api` helper is client code, and the independent server-side Commerce
-Protocol remains in `specs/openiap/commerce-protocol`.
+Protocol remains in `specs/commerce-protocol`.
 
 The npm tarball ships the TypeScript runtime and declarations compiled into
 `dist/`, so consumer compiler flags never re-check the authored sources.

@@ -81,9 +81,9 @@ const PRODUCT_PREMIUM := "com.example.premium"
 
 ### Types (auto-generated from OpenIAP GraphQL schema)
 
-Types are generated from `openiap/specs/openiap/client` and should not be modified manually:
+Types are generated from `openiap/specs/client` and should not be modified manually:
 
-- In this monorepo, run `cd specs/openiap/client && bun run generate` from the repository root so every manifest target stays synchronized.
+- In this monorepo, run `cd specs/client && bun run generate` from the repository root so every manifest target stays synchronized.
 - `scripts/generate-types.sh` is only for a standalone checkout and validates then atomically installs the platform-ready `types.gd` file from the raw `docs-${spec}` tag pinned by `openiap-versions.json`.
 - `addons/godot-iap/types.gd` is the one generated type file. `Example/addons` is a tracked symlink to `../addons`, so the example sees the canonical file rather than owning a second generated copy.
 

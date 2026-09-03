@@ -17,7 +17,7 @@ The `Types.swift` file in `Sources/Models/` is **auto-generated** from the OpenI
 
 ```bash
 # From the monorepo root: regenerate all languages and sync manifest targets
-cd specs/openiap/client && bun run generate
+cd specs/client && bun run generate
 ```
 
 ### Version Management
@@ -34,8 +34,8 @@ Version is managed in `openiap-versions.json`:
 
 **To update GQL types:**
 
-1. Edit the canonical schema under `specs/openiap/client/src/`.
-2. Run `cd specs/openiap/client && bun run generate`.
+1. Edit the canonical schema under `specs/client/src/`.
+2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
 `"spec"` must always equal the lower semantic version of `"google"` and
@@ -126,7 +126,7 @@ format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
 <version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
 consumers which library release contains the API.
 
-When the GraphQL schema in [`specs/openiap/client`](../../specs/openiap/client) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
+When the GraphQL schema in [`specs/client`](../../specs/client) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
 
 The mechanical guardrail for this checklist is:
 
@@ -153,7 +153,7 @@ and fails when:
   `packages/google` flavor handler bundle (play / horizon / amazon
   `OpenIapModule.kt`) — the generated resolver interfaces stay green on their
   own because new bundle fields default to `null`
-- generated types or shared TS runtime helpers drift from `specs/openiap/client`
+- generated types or shared TS runtime helpers drift from `specs/client`
 - framework/package version metadata or Godot Android GDAP dependencies drift
   from the package/version SSOTs
 
@@ -303,7 +303,7 @@ The Google package supports **three build flavors**:
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
-3. Run `cd specs/openiap/client && bun run generate` from the monorepo root
+3. Run `cd specs/client && bun run generate` from the monorepo root
 4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
@@ -405,7 +405,7 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 1. Update the canonical schema without directly changing the `spec` version.
    Native version writers keep `spec` equal to the lower semantic version of
    `google` and `apple`; sync fails instead of silently repairing drift.
-2. Run `cd specs/openiap/client && bun run generate` from the monorepo root.
+2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
@@ -430,7 +430,7 @@ Kotlin (or Swift) code references the affected symbol.
 Before committing any change that touches the following surfaces:
 
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapError.kt`
-- `specs/openiap/client/src/error.graphql` (ErrorCode enum additions — ripples
+- `specs/client/src/error.graphql` (ErrorCode enum additions — ripples
   through every generated `Types.*`)
 - `packages/apple/Sources/Models/OpenIapError.swift`
 - `packages/apple/Sources/OpenIapModule.swift` (public function
@@ -486,13 +486,13 @@ can depend on the new version), then framework libraries in any order.
 
 ---
 
-## OpenIAP Client Specification (`specs/openiap/client`)
+## OpenIAP Client Specification (`specs/client`)
 
 ### Required Pre-Work
 
 Before writing or editing anything, **ALWAYS** review:
 
-- [`specs/openiap/client/CONVENTION.md`](../../specs/openiap/client/CONVENTION.md)
+- [`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md)
 
 ### Code Generation Architecture
 
@@ -512,7 +512,7 @@ GraphQL Schema (src/*.graphql)
 #### Directory Structure
 
 ```text
-specs/openiap/client/codegen/
+specs/client/codegen/
 ├── index.ts              # Main entry point
 ├── core/
 │   ├── types.ts          # IR type definitions
@@ -569,7 +569,7 @@ Each plugin handles language-specific requirements:
 ### Generating Types
 
 ```bash
-cd specs/openiap/client
+cd specs/client
 
 # Generate all platform types
 bun run generate

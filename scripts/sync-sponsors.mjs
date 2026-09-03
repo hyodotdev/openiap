@@ -381,8 +381,8 @@ export function renderFundingConfig(registry) {
 // specification README receives it only after opting in with the block
 // markers; until then it is still audited so it cannot grow an unmanaged
 // sponsor section or a hardcoded funding link. The Commerce Protocol README
-// must stay marker-free (specs/openiap/commerce-protocol/test/decentralization.test.mjs).
-const specificationOwner = "specs/openiap";
+// must stay marker-free (specs/commerce-protocol/test/decentralization.test.mjs).
+const specificationOwner = "specs";
 const receivesSponsorBlock = (relative, readme) =>
   !relative.startsWith(`${specificationOwner}/`) ||
   readme.includes(sponsorBlockStart);
@@ -401,7 +401,7 @@ export function discoverReadmes(
         "README.md",
         "packages",
         "libraries",
-        "specs/openiap",
+        "specs",
       ],
       { cwd: root, encoding: "utf8" },
     )
@@ -410,7 +410,7 @@ export function discoverReadmes(
       .filter(
         (relative) =>
           relative === "README.md" ||
-          /^(?:packages|libraries|specs\/openiap)\/[^/]+\/README\.md$/u.test(
+          /^(?:packages|libraries|specs)\/[^/]+\/README\.md$/u.test(
             relative,
           ),
       )

@@ -69,8 +69,8 @@ describe("getPackageName", () => {
   });
 
   test("should identify OpenIAP specifications", () => {
-    expect(getPackageName("specs/openiap/client/src/types.ts")).toBe("spec");
-    expect(getPackageName("specs/openiap/commerce-protocol/SPEC.md")).toBe(
+    expect(getPackageName("specs/client/src/types.ts")).toBe("spec");
+    expect(getPackageName("specs/commerce-protocol/SPEC.md")).toBe(
       "spec",
     );
   });

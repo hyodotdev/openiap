@@ -55,7 +55,7 @@ cannot express. `bun run build` compiles that source into the JSON Schemas a Go,
 Python, or other backend executes against incoming webhook bodies. `SPEC.md`
 governs meaning and transport.
 
-Do not add this SDL to `specs/openiap/client/schema-files.mjs`. `specs/openiap/client` owns the
+Do not add this SDL to `specs/client/schema-files.mjs`. `specs/client` owns the
 client purchase API and the SDK types compiled from it; this file independently
 owns the server-to-server commerce contract. Its Query and Mutation types are
 the portable server operation surface — compiled into the REST and GraphQL

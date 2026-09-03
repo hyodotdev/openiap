@@ -1,6 +1,6 @@
 # OpenIAP Client Specification Conventions
 
-`specs/openiap/client` is the authored source of truth for the OpenIAP client API and
+`specs/client` is the authored source of truth for the OpenIAP client API and
 multiplatform type system. Its publishable npm package is
 `@hyodotdev/openiap`; the private repository root is not that package.
 
@@ -11,7 +11,7 @@ deployment configuration, production credentials, runtime data, or migrations.
 Hosted and store implementations belong under `packages/` or `libraries/`.
 
 The independent server-side Commerce Protocol is its sibling at
-`specs/openiap/commerce-protocol`. Never add its schema layers to this
+`specs/commerce-protocol`. Never add its schema layers to this
 directory's `schema-files.mjs` or merge the two generation pipelines.
 
 ## Files

@@ -58,11 +58,11 @@ openiap/
 1. **Read the relevant knowledge files** from `knowledge/internal/`
    - When the GraphQL schema adds or changes an API, follow the **SDK Parity Checklist** in [`knowledge/internal/04-platform-packages.md`](knowledge/internal/04-platform-packages.md#sdk-parity-checklist-critical--prevents-declared-but-not-implemented) to avoid phantom interfaces (declared in types but never wired end-to-end — the class of bug behind GitHub issue #104).
 2. **Check the package-specific CONVENTION.md**:
-   - [`specs/openiap/client/CONVENTION.md`](specs/openiap/client/CONVENTION.md)
+   - [`specs/client/CONVENTION.md`](specs/client/CONVENTION.md)
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
    - [`packages/docs/CONVENTION.md`](packages/docs/CONVENTION.md)
-   - [`specs/openiap/commerce-protocol/CONVENTION.md`](specs/openiap/commerce-protocol/CONVENTION.md) — the server-side commerce specification; its GraphQL contract is the authoring SSOT, JSON Schemas are generated validator artifacts, and IAPKit conforms to the spec, never the reverse
+   - [`specs/commerce-protocol/CONVENTION.md`](specs/commerce-protocol/CONVENTION.md) — the server-side commerce specification; its GraphQL contract is the authoring SSOT, JSON Schemas are generated validator artifacts, and IAPKit conforms to the spec, never the reverse
    - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain. Its `/v1` responses are still a published contract that shipped SDKs decode: read the `/v1` response contract section and run `bun audit:kit-contract` before changing a response enum, `isValidState`, or a purchase-state mapping
 3. **For framework libraries, read the library-specific AGENTS.md**:
    - [`libraries/react-native-iap/AGENTS.md`](libraries/react-native-iap/AGENTS.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
@@ -159,7 +159,7 @@ including its stricter release-note limits.
 
 ### Auto-Generated Files (DO NOT EDIT)
 
-- `specs/openiap/client/src/generated/*` - Generated type outputs; never edit directly
+- `specs/client/src/generated/*` - Generated type outputs; never edit directly
 - `packages/apple/Sources/OpenIapGeneratedVersion.swift` - Synced from `openiap-versions.json`
 - `packages/apple/Sources/Models/Types.swift` - Synced from GQL
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt` - Synced from GQL
@@ -188,7 +188,7 @@ copy nearby release blocks without checking the actual package/tag.
 Regenerate and sync types:
 
 ```bash
-cd specs/openiap/client && bun run generate  # Generate every language and sync every manifest target
+cd specs/client && bun run generate  # Generate every language and sync every manifest target
 ```
 
 ### Client Specification Code Generation System

@@ -18,13 +18,13 @@ Complete workflow: branch → commit → push → PR
 - `--push` or `-p`: Push to remote after commit
 - `--pr`: Create PR after push
 - `--all` or `-a`: Commit all changes at once
-- `<path>`: Commit only specific path (e.g., `specs/openiap/client`)
+- `<path>`: Commit only specific path (e.g., `specs/client`)
 
 ## Examples
 
 ```bash
 # Full workflow: commit gql spec, push, create PR
-/commit specs/openiap/client/src/*.graphql --pr
+/commit specs/client/src/*.graphql --pr
 
 # Commit all and create PR
 /commit --all --pr
@@ -93,7 +93,7 @@ git checkout -b feat/<feature-name>
 - `flutter` → flutter_inapp_purchase
 - `godot` → godot-iap
 - `kmp` → kmp-iap
-- `gql` → specs/openiap/client
+- `gql` → specs/client
 - `apple` → packages/apple
 - `google` → packages/google
 - `docs` → packages/docs
@@ -110,13 +110,13 @@ git diff --name-only
 **GQL schema only (FIRST COMMIT):**
 
 ```bash
-git add specs/openiap/client/src/*.graphql
+git add specs/client/src/*.graphql
 ```
 
 **Generated types (SECOND COMMIT):**
 
 ```bash
-git add specs/openiap/client/src/generated/
+git add specs/client/src/generated/
 ```
 
 **Specific path:**
@@ -252,7 +252,7 @@ gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
 - Changes to `packages/apple/` → `📱 iOS`
 - Changes to `packages/google/` → `🤖 android`
 - Changes to `packages/docs/` → `📖 documentation`
-- Changes to `specs/openiap/client/` → `⬡ gql`
+- Changes to `specs/client/` → `⬡ gql`
 - Changes to `libraries/react-native-iap/` → `react-native-iap`
 - Changes to `libraries/expo-iap/` → `expo-iap`
 - Changes to `libraries/flutter_inapp_purchase/` → `flutter-iap`
@@ -274,8 +274,8 @@ When making cross-package changes, commit in this order:
 
 | Order | Path                          | Description                              |
 | ----- | ----------------------------- | ---------------------------------------- |
-| 1     | `specs/openiap/client/src/*.graphql`  | GraphQL schema ONLY (no generated types) |
-| 2     | `specs/openiap/client/src/generated/` | Generated types (after schema review)    |
+| 1     | `specs/client/src/*.graphql`  | GraphQL schema ONLY (no generated types) |
+| 2     | `specs/client/src/generated/` | Generated types (after schema review)    |
 | 3     | `packages/apple/`             | iOS implementation                       |
 | 4     | `packages/google/`            | Android implementation                   |
 | 5     | `packages/docs/`              | Documentation updates                    |
@@ -286,13 +286,13 @@ When making cross-package changes, commit in this order:
 
 ```bash
 # Stage ONLY .graphql files (not generated/)
-git add specs/openiap/client/src/*.graphql
+git add specs/client/src/*.graphql
 
 # Verify - should only show .graphql files
 git diff --cached --name-only
-# specs/openiap/client/src/type-android.graphql
-# specs/openiap/client/src/type-ios.graphql
-# specs/openiap/client/src/type.graphql
+# specs/client/src/type-android.graphql
+# specs/client/src/type-ios.graphql
+# specs/client/src/type.graphql
 
 # Commit schema changes
 git commit -m "feat(gql): add new types..."
@@ -376,7 +376,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ## Changes
 
-### GraphQL Schema (specs/openiap/client)
+### GraphQL Schema (specs/client)
 
 - `WinBackOfferInputIOS` - Win-back offer input type
 - `ProductStatusAndroid` - Product fetch status enum
@@ -417,9 +417,9 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```bash
 # Full workflow from main
 git checkout -b feat/my-feature
-git add specs/openiap/client/src/*.graphql
+git add specs/client/src/*.graphql
 git commit -m "feat(gql): add new types"
-git add specs/openiap/client/src/generated/
+git add specs/client/src/generated/
 git commit -m "chore(gql): regenerate types"
 git add packages/apple/
 git commit -m "feat(apple): implement new types"

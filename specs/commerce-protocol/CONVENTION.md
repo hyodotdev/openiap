@@ -31,8 +31,8 @@ event-type list, read it from
 schema documents the known values rather than closing the set.
 A second hand-maintained list is the defect this rule exists to prevent.
 
-Do not add this SDL to `specs/openiap/client/schema-files.mjs` or generate client SDK
-types from it. `specs/openiap/client` owns the client purchase API and its executable
+Do not add this SDL to `specs/client/schema-files.mjs` or generate client SDK
+types from it. `specs/client` owns the client purchase API and its executable
 Query, Mutation, and Subscription surface. This package independently owns the
 server-to-server commerce contract; its own Query and Mutation types are
 operation containers for the portable server surface, compiled into the REST
@@ -122,6 +122,6 @@ usually in kit — unless the spec change was wrong.
 ## Verification
 
 ```bash
-bun run test                                          # from specs/openiap/commerce-protocol
+bun run test                                          # from specs/commerce-protocol
 cd ../../../packages/kit && npx vitest run convex/commerce/  # the conformance proof
 ```

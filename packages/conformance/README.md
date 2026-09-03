@@ -4,13 +4,13 @@ A versioned behavioral contract for OpenIAP implementations, plus a runner that
 executes it against any implementation through an adapter and emits a
 compatibility report.
 
-The GraphQL schema in `specs/openiap/client` defines what the API _is_. The capability
+The GraphQL schema in `specs/client` defines what the API _is_. The capability
 matrix defines which stores must implement each behavior. This package defines
 what each behavior must **do**.
 
 ```text
-specs/openiap/client/src/*.graphql            API shape and types
-specs/openiap/client/src/capability-matrix.mjs   which stores must implement what
+specs/client/src/*.graphql            API shape and types
+specs/client/src/capability-matrix.mjs   which stores must implement what
 packages/conformance/src/spec/        what each behavior must do   <- you are here
 ```
 

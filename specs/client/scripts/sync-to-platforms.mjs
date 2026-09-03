@@ -6,7 +6,7 @@ import { GENERATED_SYNC_EDGES } from "../generated-sync-manifest.mjs";
 import { materializeGeneratedSyncEdge } from "./generated-sync-materializer.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const monorepoRoot = resolve(scriptDirectory, "../../../..");
+const monorepoRoot = resolve(scriptDirectory, "../../..");
 const fromRoot = (path) => resolve(monorepoRoot, path);
 
 for (const source of new Set(GENERATED_SYNC_EDGES.map((edge) => edge.source))) {

@@ -54,7 +54,7 @@ fun buildModuleAndroid()
 the schema name exactly, including `Android` when the operation is Android-only.
 For example, `MutationHandlers.isBillingProgramAvailableAndroid` must
 be wired in `packages/google` because it is generated from
-`specs/openiap/client/src/api-android.graphql`; the hand-written implementation it
+`specs/client/src/api-android.graphql`; the hand-written implementation it
 delegates to should still be suffix-free, such as
 `isBillingProgramAvailable()`.
 

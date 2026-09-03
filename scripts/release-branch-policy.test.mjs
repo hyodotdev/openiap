@@ -737,7 +737,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
       (args) => {
         if (
           args[0] === "show" &&
-          args[1].endsWith("specs/openiap/commerce-protocol/package.json")
+          args[1].endsWith("specs/commerce-protocol/package.json")
         ) {
           throw new Error("path does not exist in historical tag");
         }

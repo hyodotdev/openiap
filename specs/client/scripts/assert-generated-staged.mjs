@@ -5,7 +5,7 @@ import { GENERATED_DRIFT_PATHS } from "../generated-sync-manifest.mjs";
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../..",
+  "../../..",
 );
 const git = (...args) =>
   execFileSync("git", args, {

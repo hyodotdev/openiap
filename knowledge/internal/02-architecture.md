@@ -49,14 +49,14 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
-| Specifications, generators, and conformance data | `specs/openiap/<name>/` |
+| Specifications, generators, and conformance data | `specs/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
 | Shared editor settings                           | `.vscode/`              |
 
 - Never create a root directory that duplicates a child of `packages/`,
   `libraries/`, or `plugins/`. For example, use `packages/docs/` and
-  `specs/openiap/client/`, never root `docs/` or `gql/`.
+  `specs/client/`, never root `docs/` or `gql/`.
 - Before adding a top-level directory, search for an existing owner and extend
   it. Add a new root only when no canonical owner fits, and document that owner
   in this section in the same change.
@@ -81,7 +81,7 @@ manifests under `specs/`.
 
 ## Directory Responsibilities
 
-### specs/openiap/client
+### specs/client
 
 **Purpose:** Authored OpenIAP client API contract and multiplatform type
 generation. The publishable package name is `@hyodotdev/openiap`.
@@ -92,7 +92,7 @@ generation. The publishable package name is `@hyodotdev/openiap`.
 
 ```bash
 # Regenerate all types
-cd specs/openiap/client && bun run generate
+cd specs/client && bun run generate
 ```
 
 Generated files:
@@ -104,7 +104,7 @@ Generated files:
 - GDScript: `src/generated/types.gd`
 - C#: `src/generated/Types.cs`
 
-### specs/openiap/commerce-protocol
+### specs/commerce-protocol
 
 **Purpose:** OpenIAP Commerce Protocol — the vendor-neutral server-side
 commerce contract: portable operations (verify, status, entitlements, bind,

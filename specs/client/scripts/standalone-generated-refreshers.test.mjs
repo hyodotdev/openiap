@@ -18,12 +18,12 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { afterEach, test } from "node:test";
 import { GENERATED_SYNC_MANIFEST } from "../generated-sync-manifest.mjs";
 
-const repositoryRoot = resolve(import.meta.dirname, "../../../..");
+const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const FIXTURE_SPEC_VERSION = "9.8.7";
 const generatedHeaderSource = readFileSync(
   resolve(
     repositoryRoot,
-    "specs/openiap/client/codegen/core/generated-header.ts",
+    "specs/client/codegen/core/generated-header.ts",
   ),
   "utf8",
 );

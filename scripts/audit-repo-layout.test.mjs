@@ -19,7 +19,7 @@ function withTemporaryRepository(run) {
 
 function writeCanonicalSpecifications(root) {
   for (const child of ["client", "commerce-protocol"]) {
-    const directory = path.join(root, "specs", "openiap", child);
+    const directory = path.join(root, "specs", child);
     fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(directory, "package.json"), "{}");
   }
@@ -48,30 +48,33 @@ test("rejects legacy client schema ownership under packages", () => {
     writeCanonicalSpecifications(root);
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "remove legacy packages/gql/; use specs/openiap/client/ instead",
+      "remove legacy packages/gql/; use specs/client/ instead",
     ]);
   });
 });
 
-test("rejects legacy Commerce Protocol ownership beside openiap", () => {
+test("rejects legacy Commerce Protocol ownership beside the specifications", () => {
   withTemporaryRepository((root) => {
+    writeCanonicalSpecifications(root);
     fs.mkdirSync(path.join(root, "specs", "openiap-kit"), {
       recursive: true,
     });
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "remove legacy specs/openiap-kit/; use specs/openiap/commerce-protocol/ instead",
+      "remove legacy specs/openiap-kit/; use specs/commerce-protocol/ instead",
+      "unknown specification root specs/openiap-kit/; declare it in SPECIFICATION_ROOTS or move it",
     ]);
   });
 });
 
-test("rejects a package manifest on the specification umbrella", () => {
+test("rejects the legacy specification umbrella", () => {
   withTemporaryRepository((root) => {
     writeCanonicalSpecifications(root);
-    fs.writeFileSync(path.join(root, "specs", "openiap", "package.json"), "{}");
+    fs.mkdirSync(path.join(root, "specs", "openiap"), { recursive: true });
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "remove specs/openiap/package.json; publish only the client and commerce-protocol child packages",
+      "remove legacy specs/openiap/; specifications sit directly under specs/",
+      "unknown specification root specs/openiap/; declare it in SPECIFICATION_ROOTS or move it",
     ]);
   });
 });
@@ -80,18 +83,17 @@ test("rejects service deployment manifests under specifications", () => {
   withTemporaryRepository((root) => {
     writeCanonicalSpecifications(root);
     fs.mkdirSync(
-      path.join(root, "specs", "openiap", "client", "deploy", ".openai"),
+      path.join(root, "specs", "client", "deploy", ".openai"),
       { recursive: true },
     );
     fs.writeFileSync(
-      path.join(root, "specs", "openiap", "client", "Dockerfile"),
+      path.join(root, "specs", "client", "Dockerfile"),
       "",
     );
     fs.writeFileSync(
       path.join(
         root,
         "specs",
-        "openiap",
         "client",
         "deploy",
         "Dockerfile.prod",
@@ -102,7 +104,6 @@ test("rejects service deployment manifests under specifications", () => {
       path.join(
         root,
         "specs",
-        "openiap",
         "client",
         "deploy",
         "docker-compose.yml",
@@ -113,7 +114,6 @@ test("rejects service deployment manifests under specifications", () => {
       path.join(
         root,
         "specs",
-        "openiap",
         "client",
         "deploy",
         ".openai",
@@ -125,7 +125,6 @@ test("rejects service deployment manifests under specifications", () => {
       path.join(
         root,
         "specs",
-        "openiap",
         "client",
         "deploy",
         "fly.staging.toml",
@@ -133,44 +132,44 @@ test("rejects service deployment manifests under specifications", () => {
       "",
     );
     fs.writeFileSync(
-      path.join(root, "specs", "openiap", "client", "convex.json"),
+      path.join(root, "specs", "client", "convex.json"),
       "{}",
     );
     fs.writeFileSync(
-      path.join(root, "specs", "openiap", "client", "fly.toml"),
+      path.join(root, "specs", "client", "fly.toml"),
       "",
     );
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "move service deployment manifest specs/openiap/client/Dockerfile to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/convex.json to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/deploy/.openai/hosting.json to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/deploy/Dockerfile.prod to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/deploy/docker-compose.yml to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/deploy/fly.staging.toml to its runtime implementation",
-      "move service deployment manifest specs/openiap/client/fly.toml to its runtime implementation",
+      "move service deployment manifest specs/client/Dockerfile to its runtime implementation",
+      "move service deployment manifest specs/client/convex.json to its runtime implementation",
+      "move service deployment manifest specs/client/deploy/.openai/hosting.json to its runtime implementation",
+      "move service deployment manifest specs/client/deploy/Dockerfile.prod to its runtime implementation",
+      "move service deployment manifest specs/client/deploy/docker-compose.yml to its runtime implementation",
+      "move service deployment manifest specs/client/deploy/fly.staging.toml to its runtime implementation",
+      "move service deployment manifest specs/client/fly.toml to its runtime implementation",
     ]);
   });
 });
 
 test("requires both canonical specification packages", () => {
   withTemporaryRepository((root) => {
-    fs.mkdirSync(path.join(root, "specs", "openiap"), { recursive: true });
+    fs.mkdirSync(path.join(root, "specs"), { recursive: true });
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "restore canonical specification package specs/openiap/client/package.json",
-      "restore canonical specification package specs/openiap/commerce-protocol/package.json",
+      "restore canonical specification package specs/client/package.json",
+      "restore canonical specification package specs/commerce-protocol/package.json",
     ]);
   });
 });
 
-test("rejects specification roots beside the OpenIAP umbrella", () => {
+test("rejects unknown specification roots", () => {
   withTemporaryRepository((root) => {
     writeCanonicalSpecifications(root);
-    fs.mkdirSync(path.join(root, "specs", "client"), { recursive: true });
+    fs.mkdirSync(path.join(root, "specs", "rogue"), { recursive: true });
 
     assert.deepEqual(auditRepositoryLayout(root), [
-      "move specification root specs/client/ under specs/openiap/",
+      "unknown specification root specs/rogue/; declare it in SPECIFICATION_ROOTS or move it",
     ]);
   });
 });

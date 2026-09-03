@@ -166,7 +166,7 @@ jobs:
           predicate-quantifier: some-with-excludes
           filters: |
             gql:
-              - 'specs/openiap/client/**'
+              - 'specs/client/**'
               - 'packages/conformance/**'
               - 'scripts/**'
               - 'package.json'
@@ -177,25 +177,25 @@ jobs:
               - '!**/*.md'
             android:
               - 'packages/google/**'
-              - 'specs/openiap/client/**'
+              - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - '!**/*.md'
             ios:
               - 'packages/apple/**'
-              - 'specs/openiap/client/**'
+              - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - '!**/*.md'
             docs:
               - 'packages/docs/**'
-              - 'specs/openiap/client/src/generated/**'
-              - 'specs/openiap/client/generated-sync-manifest.mjs'
+              - 'specs/client/src/generated/**'
+              - 'specs/client/generated-sync-manifest.mjs'
               # The docs link to the canonical contract and audit its derived
               # transport constants, so every protocol change must run this job.
-              - 'specs/openiap/commerce-protocol/**'
+              - 'specs/commerce-protocol/**'
               - 'scripts/audit-docs.ts'
               - 'scripts/audit-docs.test.ts'
               - '.github/workflows/ci.yml'
@@ -204,7 +204,7 @@ jobs:
               - 'packages/kit/**'
               # The kit server embeds the generated protocol artifacts at build
               # time, so a spec change must rebuild and probe the binary.
-              - 'specs/openiap/commerce-protocol/**'
+              - 'specs/commerce-protocol/**'
               - 'scripts/e2e-web-sites.mjs'
               - 'package.json'
               - 'bun.lock'
@@ -237,7 +237,7 @@ jobs:
       # Compiles the canonical SDL and byte-compares every generated artifact,
       # so an SDL edit that was not rebuilt cannot ship stale validators.
       - name: Run spec suite
-        working-directory: specs/openiap/commerce-protocol
+        working-directory: specs/commerce-protocol
         run: bun run test
 
       - name: Verify IAPKit conformance
@@ -396,18 +396,18 @@ jobs:
           done
 
       - name: Generate types
-        working-directory: specs/openiap/client
+        working-directory: specs/client
         run: bun run generate
 
       - name: Run tests
-        working-directory: specs/openiap/client
+        working-directory: specs/client
         run: bun run test
 
       # Breaking-change guard for the schema (knowledge/research backlog R1).
       # PR-only: after merge the base comparison is no longer actionable.
       - name: Audit schema semver claims
         if: github.event_name == 'pull_request'
-        working-directory: specs/openiap/client
+        working-directory: specs/client
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: bun run audit:schema-semver -- --base "origin/$BASE_REF"

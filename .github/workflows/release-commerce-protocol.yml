@@ -91,7 +91,7 @@ jobs:
           done
 
       - name: Run protocol tests
-        working-directory: specs/openiap/commerce-protocol
+        working-directory: specs/commerce-protocol
         run: bun run test
 
       - name: Verify IAPKit reference conformance
@@ -99,7 +99,7 @@ jobs:
         run: bunx vitest run convex/commerce/spec.conformance.test.ts server/api/commerce/
 
       - name: Inspect the published package
-        working-directory: specs/openiap/commerce-protocol
+        working-directory: specs/commerce-protocol
         run: npm pack --dry-run
 
   deploy:
@@ -141,7 +141,7 @@ jobs:
 
       - name: Bump version
         id: bump
-        working-directory: specs/openiap/commerce-protocol
+        working-directory: specs/commerce-protocol
         env:
           VERSION_TYPE: ${{ inputs.version }}
           IS_PRERELEASE: ${{ inputs.prerelease }}
@@ -245,7 +245,7 @@ jobs:
         run: |
           gh auth setup-git
           TAG="openiap-commerce-protocol-$VERSION"
-          git add specs/openiap/commerce-protocol/package.json
+          git add specs/commerce-protocol/package.json
           git commit -m "chore(release): openiap-commerce-protocol@$VERSION"
           git tag -a "$TAG" -m "Release $TAG"
           git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
@@ -307,7 +307,7 @@ jobs:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
           TAG="openiap-commerce-protocol-$VERSION"
-          SPEC_PATH="specs/openiap/commerce-protocol/SPEC.md"
+          SPEC_PATH="specs/commerce-protocol/SPEC.md"
           if ! git cat-file -e "$TAG:$SPEC_PATH"; then
             SPEC_PATH="specs/openiap-kit/SPEC.md"
           fi
@@ -366,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: specs/openiap/commerce-protocol
+        working-directory: specs/commerce-protocol
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

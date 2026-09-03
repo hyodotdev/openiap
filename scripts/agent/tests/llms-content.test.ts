@@ -42,7 +42,7 @@ describe("generated LLM references", () => {
       );
       expect(generatedReference).toContain("https://openiap.dev/docs/webhooks");
       expect(generatedReference).toContain(
-        "https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema",
+        "https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema",
       );
     }
     expect(quickReference).toContain("requires no OpenIAP account");

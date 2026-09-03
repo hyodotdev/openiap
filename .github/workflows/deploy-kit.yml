@@ -17,7 +17,7 @@ on:
       # compiled binary embeds its generated artifacts (the route manifest,
       # error map, and capability descriptor), so a spec change must redeploy
       # kit or the served /commerce/v1 surface silently diverges from the spec.
-      - "specs/openiap/commerce-protocol/**"
+      - "specs/commerce-protocol/**"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
       - "bun.lock"
@@ -28,12 +28,12 @@ on:
       - "packages/mcp-server/**"
       # MCP compiles against the portable kit-api contract. These inputs run
       # verification on PRs but do not trigger a production deploy by themselves.
-      - "specs/openiap/client/src/kit-api.ts"
-      - "specs/openiap/client/package.json"
+      - "specs/client/src/kit-api.ts"
+      - "specs/client/package.json"
       # Runtime dependency of the kit binary (see the push trigger above); its
       # generated artifacts are compiled in, so a spec change both runs kit's
       # conformance test and, on main, redeploys.
-      - "specs/openiap/commerce-protocol/**"
+      - "specs/commerce-protocol/**"
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"

@@ -11,7 +11,7 @@ openiap/
 │   ├── google/        # Android library (Kotlin, Play Billing)
 │   ├── docs/          # Documentation site (React/Vite)
 │   └── kit/           # Hosted receipt-validation SaaS (kit.openiap.dev)
-├── specs/openiap/
+├── specs/
 │   ├── client/             # Client GraphQL contract & type generation
 │   └── commerce-protocol/  # Server-side Commerce Protocol
 ├── scripts/           # Monorepo-wide automation
@@ -26,8 +26,8 @@ openiap/
 | --------------------------------- | ----------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
 | `packages/apple`                  | iOS/macOS IAP implementation                                      | Swift            | CocoaPods, SPM                                                   |
 | `packages/google`                 | Android IAP implementation                                        | Kotlin           | Maven Central                                                    |
-| `specs/openiap/client`            | Client contract and generated types                               | GraphQL          | Swift, Kotlin, Dart, TS types; package name `@hyodotdev/openiap` |
-| `specs/openiap/commerce-protocol` | Server-side Commerce Protocol contract, bindings, and conformance | GraphQL          | Package name `openiap-commerce-protocol`                         |
+| `specs/client`            | Client contract and generated types                               | GraphQL          | Swift, Kotlin, Dart, TS types; package name `@hyodotdev/openiap` |
+| `specs/commerce-protocol` | Server-side Commerce Protocol contract, bindings, and conformance | GraphQL          | Package name `openiap-commerce-protocol`                         |
 | `packages/docs`                   | Documentation website                                             | React/TypeScript | Vercel deployment                                                |
 | `packages/kit`                    | Hosted receipt-validation SaaS (free, MIT, self-hostable)         | TypeScript       | Fly.io app (`openiap-kit`)                                       |
 

@@ -63,7 +63,7 @@ gh issue edit $ISSUE_NUMBER --repo hyodotdev/openiap --add-label "<label1>,<labe
 | Mentions `packages/apple` or iOS | `📱 iOS` |
 | Mentions `packages/google` or Android | `🤖 android` |
 | Mentions `packages/docs` | `📖 documentation` |
-| Mentions `specs/openiap/client` | `⬡ gql` |
+| Mentions `specs/client` | `⬡ gql` |
 | Mentions `react-native-iap` | `react-native-iap` |
 | Mentions `expo-iap` | `expo-iap` |
 | Mentions `flutter_inapp_purchase` | `flutter-iap` |
@@ -102,7 +102,7 @@ git checkout -b fix/<library>-<short-description>
 
 | Package | Commands |
 |---------|----------|
-| `specs/openiap/client/` | `cd specs/openiap/client && bun run test` |
+| `specs/client/` | `cd specs/client && bun run test` |
 | `packages/docs/` | `cd packages/docs && bun run lint && bun run typecheck` |
 | `packages/apple/` | `cd packages/apple && swift build` |
 | `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |

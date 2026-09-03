@@ -6,7 +6,7 @@ import { materializeGeneratedSyncEdge } from "./generated-sync-materializer.mjs"
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../..",
+  "../../..",
 );
 
 export function collectGeneratedSyncDrift(root = repositoryRoot) {

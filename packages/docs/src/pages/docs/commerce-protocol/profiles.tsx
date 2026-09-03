@@ -4,7 +4,7 @@ import DataTable from '../../../components/DataTable';
 import SEO from '../../../components/SEO';
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
 
 interface ProfileRow {
   name: string;

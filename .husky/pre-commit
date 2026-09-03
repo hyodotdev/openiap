@@ -109,13 +109,13 @@ fi
 # kit.openiap.dev/mcp, so its regressions ship with kit. deploy-kit.yml
 # triggers on those paths and runs both suites; mirror that here or a commit
 # touching only the MCP server would skip the gate entirely.
-# specs/openiap/commerce-protocol is included because the drift runs both ways: its own
+# specs/commerce-protocol is included because the drift runs both ways: its own
 # suite compiles the canonical SDL, then byte-compares schemas and vectors, while
 # kit's conformance test is what catches the spec disagreeing with the
 # implementation. Both have to run, or a spec-only commit passes here and fails
 # on CI — the exact loop this hook exists to prevent.
 if git diff --cached --name-only --diff-filter=ACMR \
-  | grep -qE '^(packages/(kit|mcp-server)|specs/openiap/commerce-protocol)/'; then
+  | grep -qE '^(packages/(kit|mcp-server)|specs/commerce-protocol)/'; then
   echo "🧰 kit-touched commit — running CI-equivalent gate…"
 
   # Lockfile must satisfy package.json. Without --frozen-lockfile,
@@ -183,15 +183,15 @@ if git diff --cached --name-only --diff-filter=ACMR \
 fi
 
 # Paths-aware client-spec generator gate. Core parser/plugin/script edits are as
-# contract-sensitive as SDL edits, so every specs/openiap/client/** change must run
+# contract-sensitive as SDL edits, so every specs/client/** change must run
 # the complete schema suite and canonical generation/sync. The final manifest-
 # backed check rejects generated outputs that changed but were not staged.
-if node specs/openiap/client/scripts/assert-generation-inputs-staged.mjs has-staged-inputs; then
+if node specs/client/scripts/assert-generation-inputs-staged.mjs has-staged-inputs; then
   echo "🧬 gql-touched commit — running tests + canonical generation…"
-  node specs/openiap/client/scripts/assert-generation-inputs-staged.mjs assert-staged-clean
+  node specs/client/scripts/assert-generation-inputs-staged.mjs assert-staged-clean
   bun install --frozen-lockfile
   (
-    cd specs/openiap/client
+    cd specs/client
     bun run test
     bun run generate
     bun run verify:generated-staged
@@ -205,7 +205,7 @@ fi
 # Catches the redeclaration / interface-method-missing class of failure
 # that hit PR #124.
 if git diff --cached --name-only --diff-filter=ACMR \
-  | grep -qE '^(libraries/kmp-iap/library/src|specs/openiap/client/src/)' ; then
+  | grep -qE '^(libraries/kmp-iap/library/src|specs/client/src/)' ; then
   if [ -x libraries/kmp-iap/gradlew ]; then
     echo "🎯 kmp/client-spec-touched commit — running KMP Android flavor compiles…"
     (
@@ -227,7 +227,7 @@ fi
 # @types/react hoisting to break docs's tsc only in CI. Both are now on
 # React 19, but if either drifts again we want to know on commit.
 if git diff --cached --name-only --diff-filter=ACMR \
-  | grep -qE '^(packages/docs/|specs/openiap/client/|specs/openiap/commerce-protocol/|scripts/audit-docs(\.test)?\.ts$)'; then
+  | grep -qE '^(packages/docs/|specs/client/|specs/commerce-protocol/|scripts/audit-docs(\.test)?\.ts$)'; then
   echo "📘 docs/contract/audit-touched commit — running typecheck + audit + format…"
   bun install --frozen-lockfile
   bun run --filter @hyodotdev/openiap-docs typecheck

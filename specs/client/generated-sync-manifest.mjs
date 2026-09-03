@@ -12,12 +12,12 @@ const group = ({ source, generated, exportKey, targets }) =>
     targets: Object.freeze(targets),
   });
 
-export const GQL_PACKAGE_ROOT = 'specs/openiap/client';
+export const GQL_PACKAGE_ROOT = 'specs/client';
 export const GQL_GENERATED_SOURCE_DIRECTORY = `${GQL_PACKAGE_ROOT}/src/generated`;
 
 export const GENERATED_SYNC_MANIFEST = Object.freeze({
   kotlin: group({
-    source: 'specs/openiap/client/src/generated/Types.kt',
+    source: 'specs/client/src/generated/Types.kt',
     generated: true,
     exportKey: './kotlin',
     targets: {
@@ -30,7 +30,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   swift: group({
-    source: 'specs/openiap/client/src/generated/Types.swift',
+    source: 'specs/client/src/generated/Types.swift',
     generated: true,
     exportKey: './swift',
     targets: {
@@ -38,7 +38,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   dart: group({
-    source: 'specs/openiap/client/src/generated/types.dart',
+    source: 'specs/client/src/generated/types.dart',
     generated: true,
     exportKey: './dart',
     targets: {
@@ -46,7 +46,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   gdscript: group({
-    source: 'specs/openiap/client/src/generated/types.gd',
+    source: 'specs/client/src/generated/types.gd',
     generated: true,
     exportKey: './gdscript',
     targets: {
@@ -54,7 +54,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   typescript: group({
-    source: 'specs/openiap/client/src/generated/types.ts',
+    source: 'specs/client/src/generated/types.ts',
     generated: true,
     exportKey: '.',
     targets: {
@@ -63,7 +63,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   csharp: group({
-    source: 'specs/openiap/client/src/generated/Types.cs',
+    source: 'specs/client/src/generated/Types.cs',
     generated: true,
     exportKey: './csharp',
     targets: {
@@ -71,7 +71,7 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
     },
   }),
   kitApi: group({
-    source: 'specs/openiap/client/src/kit-api.ts',
+    source: 'specs/client/src/kit-api.ts',
     generated: false,
     exportKey: './kit-api',
     targets: {

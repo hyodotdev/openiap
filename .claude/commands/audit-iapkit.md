@@ -44,7 +44,7 @@ does not decide the question (product positioning, support claims). Never
 
 ```bash
 # Spec and SDK movement since the kit surface was last reviewed.
-git log --oneline -20 -- specs/openiap/client/src/type.graphql openiap-versions.json
+git log --oneline -20 -- specs/client/src/type.graphql openiap-versions.json
 # Least recently reviewed kit files first — that is where drift concentrates.
 for f in $(git ls-files packages/kit/src/pages/docs/sections packages/kit/src/content); do
   echo "$(git log -1 --format='%ad' --date=short -- "$f")  $f"

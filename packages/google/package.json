@@ -4,7 +4,7 @@
   "private": true,
   "description": "OpenIAP Android/Kotlin implementation",
   "scripts": {
-    "generate:types": "cd ../../specs/openiap/client && bun run generate",
+    "generate:types": "cd ../../specs/client && bun run generate",
     "build": "./gradlew :openiap:assembleRelease",
     "test": "./gradlew :openiap:test",
     "clean": "./gradlew clean"

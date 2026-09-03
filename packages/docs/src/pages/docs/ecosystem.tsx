@@ -31,7 +31,7 @@ function Ecosystem() {
         <ul style={{ listStyle: 'none', padding: 0 }}>
           <li style={{ marginBottom: '1rem' }}>
             <a
-              href="https://github.com/hyodotdev/openiap/tree/main/specs/openiap/client"
+              href="https://github.com/hyodotdev/openiap/tree/main/specs/client"
               target="_blank"
               rel="noopener noreferrer"
             >

@@ -5,7 +5,7 @@ import { nullableEnumListSchema } from "../codegen/fixtures/nullable-enum-list.j
 import { GDScriptPlugin } from "../codegen/plugins/gdscript.js";
 
 const packageRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const repositoryRoot = resolve(packageRoot, "../../..");
+const repositoryRoot = resolve(packageRoot, "../..");
 const outputPath = resolve(
   repositoryRoot,
   "libraries/godot-iap/Example/tests/generated_nullable_enum_list_types.gd",

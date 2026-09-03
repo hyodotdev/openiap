@@ -3,7 +3,7 @@
 This policy covers **`packages/kit`** of the OpenIAP monorepo — the
 hosted purchase-validation and entitlement service at `kit.openiap.dev`. For security
 issues in other packages (`apple`, `google`, `docs`), the specifications
-under `specs/openiap/`, or the
+under `specs/`, or the
 framework libraries under `libraries/`, see the monorepo-wide policy
 or open a discussion in the relevant category.
 

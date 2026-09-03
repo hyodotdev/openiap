@@ -5,7 +5,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/maui-iap/**"
-      - "specs/openiap/client/**"
+      - "specs/client/**"
       - "packages/google/**"
       - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"
@@ -18,7 +18,7 @@ on:
     branches: [main, next]
     paths:
       - "libraries/maui-iap/**"
-      - "specs/openiap/client/**"
+      - "specs/client/**"
       - "packages/google/**"
       - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"

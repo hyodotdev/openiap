@@ -52,13 +52,13 @@ test("rejects dropping the client contract from MCP verification", () => {
         file,
         fs
           .readFileSync(file, "utf8")
-          .replace('      - "specs/openiap/client/src/kit-api.ts"\n', ""),
+          .replace('      - "specs/client/src/kit-api.ts"\n', ""),
       );
     },
     (root) => {
       assert.ok(
         findPolicyViolations(root).includes(
-          "deploy-kit.yml: pull_request.paths must include 'specs/openiap/client/src/kit-api.ts' — MCP compiles against this client contract",
+          "deploy-kit.yml: pull_request.paths must include 'specs/client/src/kit-api.ts' — MCP compiles against this client contract",
         ),
       );
     },
@@ -73,7 +73,7 @@ test("rejects dropping the Commerce Protocol from kit verification or deployment
         file,
         fs
           .readFileSync(file, "utf8")
-          .replaceAll('      - "specs/openiap/commerce-protocol/**"\n', ""),
+          .replaceAll('      - "specs/commerce-protocol/**"\n', ""),
       );
     },
     (root) => {
@@ -82,8 +82,8 @@ test("rejects dropping the Commerce Protocol from kit verification or deployment
           finding.includes("kit binary embeds this runtime contract"),
         ),
         [
-          "deploy-kit.yml: pull_request.paths must include 'specs/openiap/commerce-protocol/**' — the kit binary embeds this runtime contract",
-          "deploy-kit.yml: push.paths must include 'specs/openiap/commerce-protocol/**' — the kit binary embeds this runtime contract",
+          "deploy-kit.yml: pull_request.paths must include 'specs/commerce-protocol/**' — the kit binary embeds this runtime contract",
+          "deploy-kit.yml: push.paths must include 'specs/commerce-protocol/**' — the kit binary embeds this runtime contract",
         ],
       );
     },

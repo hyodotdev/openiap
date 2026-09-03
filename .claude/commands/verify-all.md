@@ -35,7 +35,7 @@ type sync target, or GQL root operation is not covered by the parity audit.
 set -euo pipefail
 
 # Regenerate the schema SSOT, run codegen tests, and sync every wrapper first.
-(cd specs/openiap/client && bun run generate && bun run test)
+(cd specs/client && bun run generate && bun run test)
 
 # Docs formatting, typecheck, and production bundle
 (cd packages/docs && bun run format:check && bun run build)
@@ -193,12 +193,12 @@ Verify the manifest-owned generated graph and cross-SDK contracts:
 ```bash
 set -euo pipefail
 
-(cd specs/openiap/client && bun run test)
+(cd specs/client && bun run test)
 bun run audit:parity
 ```
 
 The GQL suite derives source/target paths from
-`specs/openiap/client/generated-sync-manifest.mjs`; do not add a hard-coded file loop.
+`specs/client/generated-sync-manifest.mjs`; do not add a hard-coded file loop.
 
 Also verify `COMMON_ERROR_CODE_MAP` in react-native-iap and expo-iap includes all ErrorCode entries:
 
@@ -312,7 +312,7 @@ the complete platform matrix in step 1.
 ```bash
 set -euo pipefail
 
-(cd specs/openiap/client && bun run generate && bun run test)
+(cd specs/client && bun run generate && bun run test)
 (cd packages/docs && bun run format:check && bun run build)
 (cd packages/apple && swift test)
 (cd packages/google && ./gradlew \

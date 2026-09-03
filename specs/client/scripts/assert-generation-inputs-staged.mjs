@@ -8,7 +8,7 @@ import {
 
 const repositoryRoot = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../../../..",
+  "../../..",
 );
 const gitLines = (...args) => {
   const output = execFileSync("git", args, {

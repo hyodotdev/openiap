@@ -17,9 +17,9 @@ const semverPattern =
 
 // Manifests that have carried the Commerce Protocol version, canonical first.
 // Release retries, provenance checks, and SBOM recovery for tags cut before the
-// specs/openiap move read the historical entry.
+// specs/ move read the historical entry.
 export const commerceProtocolManifest = {
-  path: "specs/openiap/commerce-protocol/package.json",
+  path: "specs/commerce-protocol/package.json",
   historicalPaths: ["specs/openiap-kit/package.json"],
 };
 

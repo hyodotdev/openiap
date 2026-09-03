@@ -45,7 +45,7 @@ object ConformanceBehaviors {
     const val CAPABILITIES_UNSUPPORTED_OPERATIONS_DEGRADE_PREDICTABLY = "capabilities.unsupported-operations-degrade-predictably"
     const val CAPABILITIES_DECLARED_CAPABILITIES_MATCH_THE_MATRIX = "capabilities.declared-capabilities-match-the-matrix"
 
-    /** Capability level per store, from specs/openiap/client/src/capability-matrix.mjs. */
+    /** Capability level per store, from specs/client/src/capability-matrix.mjs. */
     val CAPABILITY_MATRIX: Map<String, Map<String, String>> = mapOf(
         "pendingPurchases" to mapOf("Google" to "required", "Horizon" to "required", "Amazon" to "required"),
         "subscriptionBillingIssue" to mapOf("Google" to "required", "Horizon" to "unsupported", "Amazon" to "unsupported"),

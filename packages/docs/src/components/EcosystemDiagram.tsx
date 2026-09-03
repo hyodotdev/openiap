@@ -94,7 +94,7 @@ const SPEC_NODES: DiagramNode[] = [
     name: '@hyodotdev/openiap',
     note: 'Client contract · type SSOT',
     icon: '/logos/openiap-gql.webp',
-    href: `${GITHUB_TREE}/specs/openiap/client`,
+    href: `${GITHUB_TREE}/specs/client`,
   },
 ];
 
@@ -152,7 +152,7 @@ const PROTOCOL_IMPLEMENTATIONS: ProtocolImplementation[] = [
 ];
 
 function groupByRole(
-  implementations: ProtocolImplementation[],
+  implementations: ProtocolImplementation[]
 ): [string, ProtocolImplementation[]][] {
   const groups = new Map<string, ProtocolImplementation[]>();
 
@@ -300,7 +300,7 @@ function EcosystemDiagram() {
           </h3>
           <a
             className="eco-band-chip no-icon"
-            href={`${GITHUB_TREE}/specs/openiap/client`}
+            href={`${GITHUB_TREE}/specs/client`}
             target="_blank"
             rel="noopener noreferrer"
           >

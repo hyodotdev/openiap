@@ -34,7 +34,7 @@ MutationHandlers(
 ```
 
 In other words, the `...Android` handler key is the generated API surface from
-`specs/openiap/client/src/api-android.graphql`; the implementation function it delegates
+`specs/client/src/api-android.graphql`; the implementation function it delegates
 to remains suffix-free inside `packages/google`.
 
 ## Generated Files

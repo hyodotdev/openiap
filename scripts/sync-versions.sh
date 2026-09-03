@@ -47,7 +47,7 @@ PY
 
 echo ""
 echo "📦 Syncing package metadata..."
-sync_package_json_version "specs/openiap/client/package.json" "spec"
+sync_package_json_version "specs/client/package.json" "spec"
 sync_package_json_version "packages/docs/package.json" "spec"
 sync_package_json_version "packages/google/package.json" "google"
 sync_package_json_version "packages/apple/package.json" "apple"
@@ -381,7 +381,7 @@ echo "📦 Syncing Godot Android dependency versions..."
 # Delegate generated source distribution to the GQL package. It owns every
 # source/target mapping and required per-platform post-processing.
 echo ""
-echo "📦 Syncing generated sources through specs/openiap/client..."
-node specs/openiap/client/scripts/sync-to-platforms.mjs
+echo "📦 Syncing generated sources through specs/client..."
+node specs/client/scripts/sync-to-platforms.mjs
 
 echo "✅ Version files and generated sources synced successfully"

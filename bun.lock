@@ -173,7 +173,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "specs/openiap/client": {
+    "specs/client": {
       "name": "@hyodotdev/openiap",
       "version": "3.4.0",
       "devDependencies": {
@@ -185,7 +185,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "specs/openiap/commerce-protocol": {
+    "specs/commerce-protocol": {
       "name": "openiap-commerce-protocol",
       "version": "0.1.0",
       "devDependencies": {
@@ -480,7 +480,7 @@
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
-    "@hyodotdev/openiap": ["@hyodotdev/openiap@workspace:specs/openiap/client"],
+    "@hyodotdev/openiap": ["@hyodotdev/openiap@workspace:specs/client"],
 
     "@hyodotdev/openiap-android": ["@hyodotdev/openiap-android@workspace:packages/google"],
 
@@ -1990,7 +1990,7 @@
 
     "openapi-types": ["openapi-types@12.1.3", "", {}, "sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw=="],
 
-    "openiap-commerce-protocol": ["openiap-commerce-protocol@workspace:specs/openiap/commerce-protocol"],
+    "openiap-commerce-protocol": ["openiap-commerce-protocol@workspace:specs/commerce-protocol"],
 
     "openiap-conformance": ["openiap-conformance@workspace:packages/conformance"],
 

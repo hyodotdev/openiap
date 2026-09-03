@@ -76,8 +76,8 @@ Each library uses its own package manager:
 
 ### Adding a New ErrorCode or Type
 
-1. Edit `specs/openiap/client/src/*.graphql`
-2. `cd specs/openiap/client && bun run generate`
+1. Edit `specs/client/src/*.graphql`
+2. `cd specs/client && bun run generate`
 3. Update Swift switch statements in `packages/apple/Sources/Models/OpenIapError.swift` and `packages/apple/Sources/OpenIapModule.swift`
 4. Update `COMMON_ERROR_CODE_MAP` in `libraries/react-native-iap/src/utils/errorMapping.ts` and `libraries/expo-iap/src/utils/errorMapping.ts`
 
@@ -90,20 +90,20 @@ GraphQL Schema ─┬─► graphql-codegen + guarded AST post-processing ─►
                                              generated-sync-manifest.mjs
 ```
 
-One `bun run generate` command in `specs/openiap/client` produces every language and
+One `bun run generate` command in `specs/client` produces every language and
 syncs every target declared in `generated-sync-manifest.mjs`. Do not run a
 second type-copy command or maintain another target list.
 
 ### Changing the Commerce Protocol
 
-1. Edit `specs/openiap/commerce-protocol/SPEC.md` and the owning GraphQL layer
+1. Edit `specs/commerce-protocol/SPEC.md` and the owning GraphQL layer
    under `schema/`.
-2. Run `cd specs/openiap/commerce-protocol && bun run build` to regenerate the
+2. Run `cd specs/commerce-protocol && bun run build` to regenerate the
    validator, binding, OpenAPI, and vector artifacts.
 3. Run `bun run test` from that directory, then run the focused IAPKit
    conformance suite documented in its `CONVENTION.md`.
 
-Never edit `specs/openiap/commerce-protocol/generated/` directly. Nothing under
+Never edit `specs/commerce-protocol/generated/` directly. Nothing under
 `specs/` is a deployed service; IAPKit remains under `packages/kit`.
 
 ### Working on a Specific Library
@@ -162,7 +162,7 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
 - `spec` is derived as the semantic-version minimum of `google` and `apple`;
   never bump it independently.
 - The Commerce Protocol has an independent version in
-  `specs/openiap/commerce-protocol/package.json`. Release it through
+  `specs/commerce-protocol/package.json`. Release it through
   `release-commerce-protocol.yml`; it is not the client/native `spec` floor.
 - Framework library versions live in each library's package metadata and release workflow.
 - Native version writers update their native key and the derived `spec`
@@ -187,9 +187,9 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
 ## 6. Auto-generated Files (DO NOT EDIT)
 
 These files are generated and synchronized by `bun run generate` in
-`specs/openiap/client`. Never edit them directly:
+`specs/client`. Never edit them directly:
 
-- `specs/openiap/client/src/generated/*` -- Generated type outputs
+- `specs/client/src/generated/*` -- Generated type outputs
 - `packages/apple/Sources/Models/Types.swift`
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
 - `libraries/react-native-iap/src/types.ts`
@@ -205,7 +205,7 @@ These files are generated and synchronized by `bun run generate` in
 To regenerate:
 
 ```bash
-cd specs/openiap/client && bun run generate
+cd specs/client && bun run generate
 ```
 
 ## 7. Commit Conventions

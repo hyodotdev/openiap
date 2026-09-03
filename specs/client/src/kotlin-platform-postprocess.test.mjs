@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { GENERATED_SYNC_MANIFEST } from "../generated-sync-manifest.mjs";
 import { postProcessKotlinSource } from "../scripts/kotlin-platform-postprocess.mjs";
 
-const repositoryRoot = resolve(import.meta.dirname, "../../../..");
+const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const read = (path) => readFileSync(resolve(repositoryRoot, path), "utf8");
 const canonical = read(GENERATED_SYNC_MANIFEST.kotlin.source);
 

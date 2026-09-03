@@ -69,7 +69,7 @@ Inherits the monorepo rules in
 ## Things to avoid
 
 - **Don't add C#-only fields to schema-derived types.** Edit the GraphQL
-  schema in `specs/openiap/client` and regenerate. Hand-edits to `Types.cs` are
+  schema in `specs/client` and regenerate. Hand-edits to `Types.cs` are
   reverted on next sync.
 - **Don't create a NuGet package without the wiring complete.** Empty
   observables or missing native bindings are not a shippable contract — see

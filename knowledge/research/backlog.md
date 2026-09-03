@@ -12,13 +12,13 @@ Status values: `proposed` → `in progress` → `shipped (link)` or
 - Evidence: raemaekers2017semver, ochoa2022breakingbad, brito2018why,
   li2023gosemver — version labels are unreliable claims; ~1/3 of releases and
   20.1% of non-major upgrades break clients.
-- Owner: `specs/openiap/client` + `scripts/`.
+- Owner: `specs/client` + `scripts/`.
 - What: diff the GraphQL schema between the release base and head, classify
   each change (breaking / additive / neutral), and fail the release lane when
   the classification exceeds the declared bump type.
 - First step: prototype a schema-AST diff over two git revisions of
-  `specs/openiap/client/src/*.graphql` and print the classification table.
-- Status: shipped — `specs/openiap/client/scripts/audit-schema-semver.mjs`
+  `specs/client/src/*.graphql` and print the classification table.
+- Status: shipped — `specs/client/scripts/audit-schema-semver.mjs`
   (`bun run audit:schema-semver`; PR-gated in `.github/workflows/ci.yml`
   test-gql).
 

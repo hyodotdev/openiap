@@ -4,7 +4,7 @@
   "private": true,
   "description": "OpenIAP iOS/Swift implementation",
   "scripts": {
-    "generate:types": "cd ../../specs/openiap/client && bun run generate",
+    "generate:types": "cd ../../specs/client && bun run generate",
     "build": "swift build",
     "test": "swift test",
     "clean": "swift package clean"

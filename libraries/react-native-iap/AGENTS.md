@@ -54,7 +54,7 @@ example/               # React Native example app (workspace)
 
 ### Auto-generated Files
 
-- `src/types.ts` is generated; never edit manually. In this monorepo, update the schema/spec and run `cd specs/openiap/client && bun run generate` from the repository root. The library-local `yarn generate:types` command is only for a standalone checkout: it atomically refreshes the platform-ready file from the raw `docs-${spec}` tag pinned by `openiap-versions.json` (or the version passed with `--tag`).
+- `src/types.ts` is generated; never edit manually. In this monorepo, update the schema/spec and run `cd specs/client && bun run generate` from the repository root. The library-local `yarn generate:types` command is only for a standalone checkout: it atomically refreshes the platform-ready file from the raw `docs-${spec}` tag pinned by `openiap-versions.json` (or the version passed with `--tag`).
 - When declaring API params/results in JS/TS modules, import the canonical types from `src/types.ts` rather than creating ad-hoc interfaces.
 
 ## Development Commands

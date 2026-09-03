@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MONOREPO_ROOT="$(cd "${REPO_ROOT}/../.." && pwd)"
 
 # Canonical generation path
-GQL_DIR="${MONOREPO_ROOT}/specs/openiap/client"
+GQL_DIR="${MONOREPO_ROOT}/specs/client"
 
 # Check if the client specification exists
 if [[ ! -d "$GQL_DIR" ]]; then

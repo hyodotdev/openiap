@@ -287,8 +287,8 @@ identifier, or central runtime.
   conformance.
 - Docs: https://openiap.dev/docs/commerce-protocol
 - Webhook contract: https://openiap.dev/docs/webhooks
-- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
-- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
+- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
+- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.

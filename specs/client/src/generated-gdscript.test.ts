@@ -9,7 +9,7 @@ const generated = readFileSync(
 );
 const nullableEnumListFixture = readFileSync(
   new URL(
-    "../../../../libraries/godot-iap/Example/tests/generated_nullable_enum_list_types.gd",
+    "../../../libraries/godot-iap/Example/tests/generated_nullable_enum_list_types.gd",
     import.meta.url,
   ),
   "utf8",

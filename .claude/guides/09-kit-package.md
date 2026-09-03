@@ -9,7 +9,7 @@ Hosted receipt-validation SaaS at [kit.openiap.dev](https://kit.openiap.dev) —
 | Aspect                 | apple/google/client spec/docs       | kit                                                                |
 | ---------------------- | ----------------------------------- | ------------------------------------------------------------------ |
 | Output                 | Library / static site               | Running SaaS (Fly.io machine)                                      |
-| Type SSOT              | `specs/openiap/client` (GraphQL IR) | Independent Convex schema                                          |
+| Type SSOT              | `specs/client` (GraphQL IR) | Independent Convex schema                                          |
 | Deploy trigger         | Tagged release                      | `main` push, paths-filtered (see `push.paths` in `deploy-kit.yml`) |
 | Client type-sync chain | Yes                                 | **No** — only a type import of `kit-api` via the MCP server        |
 | `private: true`        | Mixed                               | Yes — never publish to npm                                         |
@@ -56,7 +56,7 @@ Sanctioned exception: an operator-only `internalMutation` may stay in
 
 ## Pre-commit Gate (Paths-Aware, CI-Equivalent)
 
-The monorepo-root husky hook (`.husky/pre-commit`) runs the **CI-equivalent gate** (the `verify` job's install, lint, format, test, and smoke steps; dependency audit, coverage, Docker, and Trivy stay CI-only) when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or `specs/openiap/commerce-protocol/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, the Commerce Protocol suite, `smoke:server` (Bun compile + boot probe), and the MCP server lint and tests. Mirrors the `verify` job in `deploy-kit.yml` plus the Commerce Protocol suite from `ci.yml`, so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
+The monorepo-root husky hook (`.husky/pre-commit`) runs the **CI-equivalent gate** (the `verify` job's install, lint, format, test, and smoke steps; dependency audit, coverage, Docker, and Trivy stay CI-only) when staged changes touch `packages/kit/**`, `packages/mcp-server/**`, or `specs/commerce-protocol/**`: `bun install --frozen-lockfile`, lint (tsc + eslint), prettier check, vitest, the Commerce Protocol suite, `smoke:server` (Bun compile + boot probe), and the MCP server lint and tests. Mirrors the `verify` job in `deploy-kit.yml` plus the Commerce Protocol suite from `ci.yml`, so issues that only surface on CI's fresh install are caught locally. ~15-20s on warm checkouts, ~30-60s after a clean install.
 
 If the hook fails, fix the underlying issue and re-stage; never bypass with `--no-verify`.
 
@@ -86,7 +86,7 @@ Monorepo `.vscode/launch.json` has a single kit entry: **🧰 Kit: Dev (Vite + H
 
 ## When You Touch Kit
 
-- Stay paths-aware. `deploy-kit.yml` redeploys kit on `main` pushes that match its `push.paths`: `packages/kit/**`, `packages/mcp-server/**`, `specs/openiap/commerce-protocol/**`, the workflow itself, the security-tool installer, and the workspace manifests, because the kit binary embeds the MCP web entry and the Commerce Protocol artifacts.
+- Stay paths-aware. `deploy-kit.yml` redeploys kit on `main` pushes that match its `push.paths`: `packages/kit/**`, `packages/mcp-server/**`, `specs/commerce-protocol/**`, the workflow itself, the security-tool installer, and the workspace manifests, because the kit binary embeds the MCP web entry and the Commerce Protocol artifacts.
 - Add new env vars to `.env.example` first (template), then `.env.local` (dev) and `.env.production` (manual prod fallback). For `VITE_KIT_*` vars, also update the Docker build-time injection in `Dockerfile`, the `Deploy` step in `deploy-kit.yml`, and the GitHub secrets. Use BuildKit secrets for TOKEN-named public SPA values to avoid Docker secret-name warnings.
 - For server-runtime-only secrets (Stripe / Resend / GitHub OAuth), use the Convex dashboard, not these files.
 - Keep dashboard text English-only. Inline string literals; do not reintroduce i18next.

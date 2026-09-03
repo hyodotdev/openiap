@@ -216,7 +216,7 @@ const COMPONENTS = {
     purl: (version) => `pkg:npm/openiap-commerce-protocol@${version}`,
     distribution: (version) =>
       `https://www.npmjs.com/package/openiap-commerce-protocol/v/${version}`,
-    directory: "specs/openiap/commerce-protocol",
+    directory: "specs/commerce-protocol",
     source: {
       kind: "npm",
       manifest: commerceProtocolManifest.path,
@@ -228,7 +228,7 @@ const COMPONENTS = {
     type: "data",
     purl: (version) => `pkg:generic/openiap-spec@${version}`,
     distribution: (version) => `${REPOSITORY_URL}/releases/tag/docs-${version}`,
-    directory: "specs/openiap/client",
+    directory: "specs/client",
     // The spec release publishes the GraphQL contract and generated types.
     // It carries no third-party runtime code.
     source: { kind: "none" },

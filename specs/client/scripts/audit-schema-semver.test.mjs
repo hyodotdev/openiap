@@ -197,12 +197,12 @@ test('falls back to the prior canonical directory for refs without an inventory'
   );
   assert.deepEqual(
     selectSchemaSnapshot(
-      readFrom(new Map([['specs/openiap/client/src/type.graphql', 'type Q']])),
+      readFrom(new Map([['specs/client/src/type.graphql', 'type Q']])),
     ),
-    { directory: 'specs/openiap/client/src', names: SCHEMA_FILE_NAMES },
+    { directory: 'specs/client/src', names: SCHEMA_FILE_NAMES },
   );
   assert.deepEqual(selectSchemaSnapshot(readFrom(new Map())), {
-    directory: 'specs/openiap/client/src',
+    directory: 'specs/client/src',
     names: SCHEMA_FILE_NAMES,
   });
 });

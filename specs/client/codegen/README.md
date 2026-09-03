@@ -60,7 +60,7 @@ bun codegen/index.ts
 bun codegen/index.ts swift
 bun codegen/index.ts kotlin dart
 
-# Package scripts from specs/openiap/client
+# Package scripts from specs/client
 bun run generate            # TypeScript + all IR plugins + sync
 bun run generate:csharp     # Single-language example
 ```
@@ -114,7 +114,7 @@ These patterns are difficult to express cleanly in templates. The current plugin
 ## Testing
 
 ```bash
-cd specs/openiap/client
+cd specs/client
 bun test
 ```
 

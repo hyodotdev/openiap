@@ -14,7 +14,7 @@ This file captures package-local rules for `packages/apple`. The root
 ## Generated Types
 
 - Do not edit `Sources/Models/Types.swift` directly.
-- Change GraphQL schema in `specs/openiap/client/src`, run generation, then sync the
+- Change GraphQL schema in `specs/client/src`, run generation, then sync the
   generated output through the documented monorepo scripts.
 
 ## Public API Changes

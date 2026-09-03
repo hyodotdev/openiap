@@ -18,15 +18,9 @@ import {
 import { SCHEMA_FILE_NAMES } from "../schema-files.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
-const repositoryRoot = path.resolve(
-  path.dirname(scriptPath),
-  "..",
-  "..",
-  "..",
-  "..",
-);
-const SCHEMA_DIR = "specs/openiap/client/src";
-const SCHEMA_PACKAGE_ROOTS = ["specs/openiap/client", "packages/gql"];
+const repositoryRoot = path.resolve(path.dirname(scriptPath), "..", "..", "..");
+const SCHEMA_DIR = "specs/client/src";
+const SCHEMA_PACKAGE_ROOTS = ["specs/client", "packages/gql"];
 
 function runGit(args, root) {
   return execFileSync("git", args, {

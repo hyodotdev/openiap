@@ -14,10 +14,10 @@ const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 
 const DOCS_EXCLUDE = "!**/*.md";
 const KIT_CLIENT_CONTRACT_PATHS = Object.freeze([
-  "specs/openiap/client/src/kit-api.ts",
-  "specs/openiap/client/package.json",
+  "specs/client/src/kit-api.ts",
+  "specs/client/package.json",
 ]);
-const KIT_RUNTIME_CONTRACT_PATH = "specs/openiap/commerce-protocol/**";
+const KIT_RUNTIME_CONTRACT_PATH = "specs/commerce-protocol/**";
 
 export const nativeWorkflows = Object.freeze([
   "ci-expo-iap.yml",
@@ -381,7 +381,7 @@ export const cases = Object.freeze([
   },
   {
     name: "commerce-protocol-source",
-    files: ["specs/openiap/commerce-protocol/schema/50-operations.graphql"],
+    files: ["specs/commerce-protocol/schema/05-operations.graphql"],
     // The kit server embeds the generated protocol artifacts at build time,
     // so a contract change also rebuilds and probes the web binary.
     jobs: ["ci:test-docs", "ci:web-e2e"],
@@ -517,7 +517,7 @@ function findDocsFilterViolations(root) {
   const ci = readWorkflow(root, "ci.yml");
   const { filters } = dornyStep(ci, "changes", "filter");
   const docs = filters?.docs ?? [];
-  const required = ["specs/openiap/commerce-protocol/**"];
+  const required = ["specs/commerce-protocol/**"];
   return required
     .filter((pattern) => !docs.includes(pattern))
     .map(

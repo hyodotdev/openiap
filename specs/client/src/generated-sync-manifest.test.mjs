@@ -25,7 +25,7 @@ import {
   isGqlGenerationInputPath,
 } from "../generated-sync-manifest.mjs";
 
-const repositoryRoot = resolve(import.meta.dirname, "../../../..");
+const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const readRepositoryFile = (path) =>
   readFileSync(resolve(repositoryRoot, path), "utf8");
 
@@ -96,20 +96,20 @@ describe("generated sync manifest", () => {
 
   it("distinguishes canonical generator inputs from generated outputs", () => {
     expect(
-      isGqlGenerationInputPath("specs/openiap/client/src/schema.graphql"),
+      isGqlGenerationInputPath("specs/client/src/schema.graphql"),
     ).toBe(true);
     expect(
       isGqlGenerationInputPath(
-        "specs/openiap/client/codegen/core/transformer.ts",
+        "specs/client/codegen/core/transformer.ts",
       ),
     ).toBe(true);
     expect(
-      isGqlGenerationInputPath("specs/openiap/client/src/kit-api.ts"),
+      isGqlGenerationInputPath("specs/client/src/kit-api.ts"),
     ).toBe(true);
     expect(isGqlGenerationInputPath("package.json")).toBe(true);
     expect(isGqlGenerationInputPath("bun.lock")).toBe(true);
     expect(
-      isGqlGenerationInputPath("specs/openiap/client/src/generated/types.ts"),
+      isGqlGenerationInputPath("specs/client/src/generated/types.ts"),
     ).toBe(false);
     expect(
       isGqlGenerationInputPath("libraries/react-native-iap/src/types.ts"),
@@ -128,7 +128,7 @@ describe("generated sync manifest", () => {
 
   it("owns the public client-spec export paths", () => {
     const packageJson = JSON.parse(
-      readRepositoryFile("specs/openiap/client/package.json"),
+      readRepositoryFile("specs/client/package.json"),
     );
     const rootPackageJson = JSON.parse(readRepositoryFile("package.json"));
     expect(packageJson.name).toBe("@hyodotdev/openiap");
@@ -139,7 +139,7 @@ describe("generated sync manifest", () => {
     });
     expect(rootPackageJson.workspaces).toEqual([
       "packages/*",
-      "specs/openiap/*",
+      "specs/*",
     ]);
     const definitions = Object.values(GENERATED_SYNC_MANIFEST);
     expect(new Set(definitions.map(({ exportKey }) => exportKey)).size).toBe(
@@ -181,12 +181,12 @@ describe("generated sync manifest", () => {
 
   it("keeps executable sync consumers on the manifest", () => {
     for (const path of [
-      "specs/openiap/client/scripts/sync-to-platforms.mjs",
-      "specs/openiap/client/scripts/assert-generated-staged.mjs",
-      "specs/openiap/client/scripts/verify-generated-sync.mjs",
-      "specs/openiap/client/codegen.ts",
-      "specs/openiap/client/codegen/index.ts",
-      "specs/openiap/client/scripts/fix-generated-types.mjs",
+      "specs/client/scripts/sync-to-platforms.mjs",
+      "specs/client/scripts/assert-generated-staged.mjs",
+      "specs/client/scripts/verify-generated-sync.mjs",
+      "specs/client/codegen.ts",
+      "specs/client/codegen/index.ts",
+      "specs/client/scripts/fix-generated-types.mjs",
       "scripts/audit-docs.ts",
       "scripts/audit-non-godot-parity.mjs",
     ]) {
@@ -241,7 +241,7 @@ describe("generated sync manifest", () => {
     expect(parityJob).not.toContain("needs.changes.outputs.parity");
     expect(parityJob).not.toContain("assert-generated-staged.mjs");
     expect(parityJob).not.toContain(
-      "node specs/openiap/client/scripts/verify-generated-sync.mjs",
+      "node specs/client/scripts/verify-generated-sync.mjs",
     );
     expect(parityJob).toContain(
       "node --test scripts/assert-clean-worktree.test.mjs",
@@ -262,7 +262,7 @@ describe("generated sync manifest", () => {
     expect(parityAudit).toContain("process.execPath");
     expect(parityAudit).toContain('"--test"');
     expect(parityAudit).toContain(
-      "specs/openiap/client/scripts/standalone-generated-refreshers.test.mjs",
+      "specs/client/scripts/standalone-generated-refreshers.test.mjs",
     );
     const syncCheck = parityAudit.slice(
       parityAudit.indexOf("function checkGeneratedTypeSync()"),
@@ -363,17 +363,17 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
       rmSync(harnessRoot, { recursive: true, force: true });
     }
     expect(preCommit).not.toContain(
-      "node specs/openiap/client/scripts/verify-generated-sync.mjs",
+      "node specs/client/scripts/verify-generated-sync.mjs",
     );
   });
 
   it("keeps package entry points on the complete canonical pipeline", () => {
     const gqlPackageJson = JSON.parse(
-      readRepositoryFile("specs/openiap/client/package.json"),
+      readRepositoryFile("specs/client/package.json"),
     );
     const rootPackageJson = JSON.parse(readRepositoryFile("package.json"));
     expect(rootPackageJson.scripts.generate).toBe(
-      "cd specs/openiap/client && bun run generate",
+      "cd specs/client && bun run generate",
     );
     expect(gqlPackageJson.scripts.generate).toBe(
       "bun run generate:ts && bun codegen/index.ts && bun scripts/generate-gdscript-runtime-fixture.ts && bun run sync",
@@ -385,7 +385,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
     ]) {
       const packageJson = JSON.parse(readRepositoryFile(path));
       expect(packageJson.scripts["generate:types"], path).toBe(
-        "cd ../../specs/openiap/client && bun run generate",
+        "cd ../../specs/client && bun run generate",
       );
     }
 
@@ -422,7 +422,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
       existsSync(
         resolve(
           repositoryRoot,
-          "specs/openiap/client/.github/workflows/generate-types.yml",
+          "specs/client/.github/workflows/generate-types.yml",
         ),
       ),
     ).toBe(false);
@@ -430,7 +430,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
       existsSync(
         resolve(
           repositoryRoot,
-          "specs/openiap/client/.github/workflows/release-types.yml",
+          "specs/client/.github/workflows/release-types.yml",
         ),
       ),
     ).toBe(false);
@@ -454,7 +454,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
       new Set(["copy", "google-kotlin", "kmp-kotlin"]),
     );
     expect(
-      readRepositoryFile("specs/openiap/client/scripts/sync-to-platforms.mjs"),
+      readRepositoryFile("specs/client/scripts/sync-to-platforms.mjs"),
     ).toContain("for (const edge of GENERATED_SYNC_EDGES)");
   });
 });

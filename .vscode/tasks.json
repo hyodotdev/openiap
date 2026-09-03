@@ -183,7 +183,7 @@
             "command": "bun",
             "args": ["run", "generate"],
             "options": {
-                "cwd": "${workspaceFolder}/specs/openiap/client"
+                "cwd": "${workspaceFolder}/specs/client"
             },
             "group": "build",
             "presentation": {

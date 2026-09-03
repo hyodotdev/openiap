@@ -59,7 +59,7 @@ Types.swift is auto-generated from GraphQL schema.
 
 ```bash
 # From the monorepo root: generate all languages and sync manifest targets
-cd specs/openiap/client && bun run generate
+cd specs/client && bun run generate
 ```
 
 ## Version Management

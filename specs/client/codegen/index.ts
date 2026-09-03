@@ -64,7 +64,7 @@ export function normalizeLanguages(languages: readonly string[] | undefined = un
 export interface GenerateConfig {
   /** Languages to generate (default: all) */
   languages?: SupportedLanguage[];
-  /** Output directory (default: specs/openiap/client/src/generated) */
+  /** Output directory (default: specs/client/src/generated) */
   outputDir?: string;
   /** Whether to log progress */
   verbose?: boolean;

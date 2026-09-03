@@ -4,6 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The specification roots that may sit directly under specs/. Each one is a
+// publishable contract with its own package manifest, never a deployed service.
+const SPECIFICATION_ROOTS = ["client", "commerce-protocol"];
 const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 
@@ -93,44 +96,32 @@ export function auditRepositoryLayout(root = repositoryRoot) {
   const legacyGqlPath = path.join(root, "packages", "gql");
   if (fs.existsSync(legacyGqlPath)) {
     violations.push(
-      "remove legacy packages/gql/; use specs/openiap/client/ instead",
+      "remove legacy packages/gql/; use specs/client/ instead",
     );
   }
 
   const legacyCommercePath = path.join(root, "specs", "openiap-kit");
   if (fs.existsSync(legacyCommercePath)) {
     violations.push(
-      "remove legacy specs/openiap-kit/; use specs/openiap/commerce-protocol/ instead",
+      "remove legacy specs/openiap-kit/; use specs/commerce-protocol/ instead",
     );
   }
 
-  const umbrellaPackageManifest = path.join(
-    root,
-    "specs",
-    "openiap",
-    "package.json",
-  );
-  if (fs.existsSync(umbrellaPackageManifest)) {
+  const legacyUmbrellaPath = path.join(root, "specs", "openiap");
+  if (fs.existsSync(legacyUmbrellaPath)) {
     violations.push(
-      "remove specs/openiap/package.json; publish only the client and commerce-protocol child packages",
+      "remove legacy specs/openiap/; specifications sit directly under specs/",
     );
   }
 
   const specsPath = path.join(root, "specs");
   if (fs.existsSync(specsPath)) {
-    const openiapSpecsPath = path.join(specsPath, "openiap");
-    if (fs.existsSync(openiapSpecsPath)) {
-      for (const child of ["client", "commerce-protocol"]) {
-        const childManifest = path.join(
-          openiapSpecsPath,
-          child,
-          "package.json",
+    for (const child of SPECIFICATION_ROOTS) {
+      const childManifest = path.join(specsPath, child, "package.json");
+      if (!fs.existsSync(childManifest)) {
+        violations.push(
+          `restore canonical specification package specs/${child}/package.json`,
         );
-        if (!fs.existsSync(childManifest)) {
-          violations.push(
-            `restore canonical specification package specs/openiap/${child}/package.json`,
-          );
-        }
       }
     }
 
@@ -138,9 +129,9 @@ export function auditRepositoryLayout(root = repositoryRoot) {
       if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
       if (entry.name === "node_modules") continue;
 
-      if (entry.name !== "openiap" && entry.name !== "openiap-kit") {
+      if (!SPECIFICATION_ROOTS.includes(entry.name)) {
         violations.push(
-          `move specification root specs/${entry.name}/ under specs/openiap/`,
+          `unknown specification root specs/${entry.name}/; declare it in SPECIFICATION_ROOTS or move it`,
         );
       }
 

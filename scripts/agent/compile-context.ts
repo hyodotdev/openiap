@@ -662,9 +662,9 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/docs/commerce-protocol
 - Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
-- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
-- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
-- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/vectors
+- Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
+- Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
+- Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/vectors
 - GitHub: https://github.com/hyodotdev/openiap
 
 ### Ecosystem Libraries
@@ -946,8 +946,8 @@ identifier, or central runtime.
   conformance.
 - Docs: https://openiap.dev/docs/commerce-protocol
 - Webhook contract: https://openiap.dev/docs/webhooks
-- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/openiap/commerce-protocol/SPEC.md
-- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/openiap/commerce-protocol/schema
+- Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
+- Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
@@ -1113,7 +1113,7 @@ ${commerceProtocolSpec}
 
 - **packages/apple**: iOS functions MUST end with \`IOS\` suffix
 - **packages/google**: DO NOT add \`Android\` suffix (it's Android-only package)
-- **specs/openiap/client**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
+- **specs/client**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
 - **Cross-platform functions**: NO platform suffix
 
 `;

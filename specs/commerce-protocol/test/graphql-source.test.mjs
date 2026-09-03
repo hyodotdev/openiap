@@ -34,13 +34,13 @@ describe("the canonical GraphQL contract", () => {
     // The layers are the authored source; the assembled single file stays at
     // its long-published path for consumers and docs links.
     expect(readdirSync(at("schema")).sort()).toEqual([
-      "10-primitives.graphql",
-      "20-commerce-event.graphql",
-      "30-provider-capabilities.graphql",
-      "40-store-event-mapping.graphql",
-      "50-operations.graphql",
-      "60-compiler-vocabulary.graphql",
-      "70-protocol-metadata.graphql",
+      "01-primitives.graphql",
+      "02-commerce-event.graphql",
+      "03-provider-capabilities.graphql",
+      "04-store-event-mapping.graphql",
+      "05-operations.graphql",
+      "06-compiler-vocabulary.graphql",
+      "07-protocol-metadata.graphql",
     ]);
     expect(packageJson.exports["./commerce-protocol.graphql"]).toBe(
       "./generated/commerce-protocol.graphql",

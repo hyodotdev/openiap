@@ -135,8 +135,8 @@ const CONFIG = {
   sourcePatterns: [
     "packages/apple/Sources/**/*.swift",
     "packages/google/openiap/src/{main,play,horizon,amazon}/**/*.kt",
-    "specs/openiap/client/src/**/*.ts",
-    "specs/openiap/client/**/*.graphql",
+    "specs/client/src/**/*.ts",
+    "specs/client/**/*.graphql",
     "packages/docs/src/**/*.{ts,tsx}",
   ],
 
@@ -211,7 +211,7 @@ function readFile(filePath: string): string | null {
 export function getPackageName(filePath: string): string {
   if (filePath.includes("packages/apple")) return "apple";
   if (filePath.includes("packages/google")) return "google";
-  if (/(?:^|[/\\])specs[/\\]openiap(?:[/\\]|$)/.test(filePath)) return "spec";
+  if (/(?:^|[/\\])specs[/\\][^/\\]+/.test(filePath)) return "spec";
   if (filePath.includes("packages/docs")) return "docs";
   return "unknown";
 }
