@@ -16,7 +16,7 @@
 
 OpenIAP has an unusually disciplined **type and API-surface** contract system, and essentially **no behavioral conformance system**.
 
-The GraphQL schema in `packages/gql/src/` is a genuine single source of truth. It generates six language bindings, those bindings are synced into eight downstream targets through a manifest, and CI fails on any drift. A 8,827-line parity audit (`scripts/audit-non-godot-parity.mjs`) runs on every pull request and enforces that every schema operation has a corresponding binding in every framework SDK. This machinery is real, it is enforced, and it is better than most projects of this size have.
+The GraphQL schema in `specs/client/src/` is a genuine single source of truth. It generates six language bindings, those bindings are synced into eight downstream targets through a manifest, and CI fails on any drift. A 8,827-line parity audit (`scripts/audit-non-godot-parity.mjs`) runs on every pull request and enforces that every schema operation has a corresponding binding in every framework SDK. This machinery is real, it is enforced, and it is better than most projects of this size have.
 
 But it verifies **shape, not behavior**. `audit-non-godot-parity.mjs` works by reading source files as text and regex-matching for the presence of symbols and declarations — for example, `hasTypeScriptFieldBinding()` (line 1129) passes if a top-level `const` mentioning the operation name and a `QueryField<`/`MutationField<` type parameter exists in the file. An SDK that declares `restorePurchases` and returns immediately without doing anything passes the parity audit. Nothing in the repository asserts what `restorePurchases` should *do*.
 
@@ -27,7 +27,7 @@ The three artifacts in the repo that carry conformance-adjacent names are, on in
 | `scripts/audit-non-godot-parity.mjs` | Cross-SDK parity | Static source-text presence checking |
 | `libraries/maui-iap/tests/OpenIap.Maui.ContractTests/` | Contract tests | HTTP/JSON tests against a fake handler for the IAPKit REST client |
 | `libraries/flutter_inapp_purchase/test/native_wire_contract_test.dart` | Wire contract | `File(...).readAsStringSync()` + `expect(source, contains(...))` |
-| `packages/gql/src/schema-contract.test.ts` | Schema contract | GraphQL directive/type-shape assertions (legitimately schema validation) |
+| `specs/client/src/schema-contract.test.ts` | Schema contract | GraphQL directive/type-shape assertions (legitimately schema validation) |
 | `packages/kit/convex/webhooks/conformance.test.ts` | Conformance | **A genuine deterministic conformance harness** — the one real instance |
 
 The single real conformance kernel in the repository is on the server side: `packages/kit/convex/webhooks/conformance.test.ts` drives Apple ASN v2 and Google RTDN payloads through a **shared** normalizer → **shared** state machine (`applySubscriptionTransition`) → **shared** entitlement predicate (`entitlementActive`), and asserts the normalized outcome. That is the correct architecture. It covers 6 scenarios and 2 of IAPKit's 4 providers.
@@ -64,7 +64,7 @@ Two findings deserve immediate attention independent of any conformance program:
 
 ### 3.1 Specification source of truth
 
-The canonical spec is the GraphQL schema set in `packages/gql/src/` — 9 files, 3,224 lines:
+The canonical spec is the GraphQL schema set in `specs/client/src/` — 9 files, 3,224 lines:
 
 | File | Lines | Role |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ The canonical spec is the GraphQL schema set in `packages/gql/src/` — 9 files,
 | `error.graphql` | 64 | `ErrorCode` enum (37 members) + `PurchaseError` |
 | `event.graphql` | 52 | Subscription/event operations |
 
-Generation runs through two guarded lanes (`packages/gql/package.json` → `generate`): graphql-codegen for TypeScript, and a custom Parser → IR → language-plugin pipeline for Swift, Kotlin, Dart, GDScript, and C#. Output lands in `packages/gql/src/generated/` and is distributed by `packages/gql/generated-sync-manifest.mjs` to eight targets (Apple `Types.swift`, Google `Types.kt`, and the six framework SDKs' generated type files).
+Generation runs through two guarded lanes (`specs/client/package.json` → `generate`): graphql-codegen for TypeScript, and a custom Parser → IR → language-plugin pipeline for Swift, Kotlin, Dart, GDScript, and C#. Output lands in `specs/client/src/generated/` and is distributed by `specs/client/generated-sync-manifest.mjs` to eight targets (Apple `Types.swift`, Google `Types.kt`, and the six framework SDKs' generated type files).
 
 **Is the spec precise enough to base conformance testing on?** For types, yes. For behavior, no. The schema defines shape and vocabulary; behavioral requirements exist only as free-text docstrings, and they are sparse. The strongest normative statements found in the entire schema are:
 
@@ -140,7 +140,7 @@ google.ts  ──► normalizeGoogleRtdn ──┘         │
 
 | Area | Test files | Notes |
 | --- | --- | --- |
-| `packages/gql` | 20 | Schema + codegen validation |
+| `specs/client` | 20 | Schema + codegen validation |
 | `packages/apple` | 9 files / 136 `func test` | |
 | `packages/google` | 41 files / 380 `@Test` | Split across `test/`, `testPlay/`, `testHorizon/`, `testAmazon/` |
 | `packages/kit` | 86 | Includes the one real conformance harness |
@@ -157,10 +157,10 @@ google.ts  ──► normalizeGoogleRtdn ──┘         │
 
 | Suite | Verifies | Class |
 | --- | --- | --- |
-| `packages/gql/src/schema-contract.test.ts` | Directive locations, union allowlist, `platform` field removed from `PurchaseAndroid`/`PurchaseIOS` in favor of `store` | Schema validation |
-| `packages/gql/src/generated-compatibility.test.ts` | Deprecation tags, doc-comment preservation, blank-line formatting, published-signature stability across generated languages | Code-generation validation |
-| `packages/gql/src/generated-sync-verifier.test.mjs`, `generated-sync-manifest.test.mjs` | Generated files match manifest targets | Drift detection |
-| `packages/gql/src/schema-linter.test.ts`, `schema-*.test.mjs` | Schema hygiene, deprecation markers | Schema validation |
+| `specs/client/src/schema-contract.test.ts` | Directive locations, union allowlist, `platform` field removed from `PurchaseAndroid`/`PurchaseIOS` in favor of `store` | Schema validation |
+| `specs/client/src/generated-compatibility.test.ts` | Deprecation tags, doc-comment preservation, blank-line formatting, published-signature stability across generated languages | Code-generation validation |
+| `specs/client/src/generated-sync-verifier.test.mjs`, `generated-sync-manifest.test.mjs` | Generated files match manifest targets | Drift detection |
+| `specs/client/src/schema-linter.test.ts`, `schema-*.test.mjs` | Schema hygiene, deprecation markers | Schema validation |
 | **`scripts/audit-non-godot-parity.mjs`** | Presence of symbols/bindings/example routes across 5 SDKs by regex over source text | **Static analysis — not a test** |
 | `scripts/audit-docs.ts` | Doc pages' `<code>` field mentions exist in generated types; release-note link integrity; version metadata | Docs/type drift detection |
 | `scripts/audit-purchase-payload-parity.mjs` | Purchase payload field parity across SDKs by source-text extraction | Static analysis |
@@ -518,7 +518,7 @@ The design principle: **define expected behavior once, execute it against every 
 ### 13.1 Structure
 
 ```text
-packages/gql/src/
+specs/client/src/
   capability.graphql            # NEW: @capability directive + store capability matrix
   *.graphql                     # existing schema, extended with normative annotations
 
@@ -600,7 +600,7 @@ Files: `packages/docs/src/pages/docs/foundation/{one-pager,sponsorship}.tsx`. De
 
 **P0-2. Write the normative error-mapping table and close the Apple gap.** *(M — implement now)*
 Why: R4/§7.1. `AlreadyOwned`, `BillingUnavailable`, `ServiceDisconnected`, and `ServiceTimeout` are produced on Android and never constructed on Apple, and Apple's `StoreKitError` catch-all maps only 5 cases before falling back to `.purchaseError`. Today neither platform is "wrong" because nothing says what's right. Document the required mapping, then extend `OpenIapError.wrap` and its call sites.
-Files: `packages/gql/src/error.graphql`, `packages/apple/Sources/Models/OpenIapError.swift`, `conformance/spec/behaviors/errors.yaml`. Dependencies: none.
+Files: `specs/client/src/error.graphql`, `packages/apple/Sources/Models/OpenIapError.swift`, `conformance/spec/behaviors/errors.yaml`. Dependencies: none.
 
 **P0-3. Resolve the Amazon purchase-state divergence.** *(M — implement now)*
 Why: R1/R2, the highest-impact entitlement-integrity finding. Either map Amazon cancellation to a distinct state or declare `Pending`/cancellation unsupported for Amazon in the capability matrix — but decide explicitly and test it.
@@ -622,7 +622,7 @@ Files: `packages/docs/src/pages/docs/foundation/`, `README.md`. Dependencies: P0
 
 **P1-1. Add the capability model to the schema.** *(M — implement now)*
 Why: G2/§8. Every other conformance decision depends on knowing whether a behavior is required, optional, or unsupported for a given store. This is the true blocker, and it should land before Samsung rather than after.
-Files: `packages/gql/src/capability.graphql`, `packages/gql/codegen/`, all 6 language plugins, `generated-sync-manifest.mjs`. Dependencies: none. Note: the existing drift gates (`assert-clean-worktree.mjs`) make this schema change mechanically safe.
+Files: `specs/client/src/capability.graphql`, `specs/client/codegen/`, all 6 language plugins, `generated-sync-manifest.mjs`. Dependencies: none. Note: the existing drift gates (`assert-clean-worktree.mjs`) make this schema change mechanically safe.
 
 **P1-2. Extract a shared Android conformance source set.** *(L — implement now)*
 Why: G3/G5/G6/§9.4. Replaces copy-paste-and-drift with one parameterized suite compiled into every flavor. `SubscriptionGroupMappingPlayTest`/`...HorizonTest` are the obvious first migration since they are already near-identical.
@@ -634,7 +634,7 @@ Files: `conformance/fixtures/`, `packages/google/openiap/src/conformanceTest/Fak
 
 **P1-4. Unify the IAPKit verification interface.** *(M — implement now)*
 Why: R3/G7. A shared `PurchaseVerificationProvider` interface with a normalized validity signal removes the fail-open hazard and gives Samsung a slot to implement rather than a pattern to imitate.
-Files: `packages/kit/convex/purchases/{ios,android,amazon,horizon}.ts`, `shared.ts`, `packages/gql/src/api.graphql` (result union). Dependencies: none.
+Files: `packages/kit/convex/purchases/{ios,android,amazon,horizon}.ts`, `shared.ts`, `specs/client/src/api.graphql` (result union). Dependencies: none.
 
 **P1-5. Parameterize the IAPKit lifecycle harness and add Amazon/Horizon.** *(M — implement now)*
 Why: G8/R6/§10.3. `runScenario(adapter, steps)` turns 6 provider-specific scenarios into 6 × N provider-agnostic ones and closes the disjoint-coverage gap.
@@ -648,7 +648,7 @@ Files: `docs/` or `knowledge/internal/`. Dependencies: none.
 
 **P2-1. Add normative language discipline to the specification.** *(L — implement now, incrementally)*
 Why: G1. Adopt RFC 2119 keywords and separate normative requirements from guidance. `getStorefront`'s existing "must not synthesize a locale fallback" shows the project already thinks this way; the practice just needs to be systematic and enforced by a schema linter rule.
-Files: all `packages/gql/src/*.graphql`, `packages/gql/src/schema-linter.test.ts`. Dependencies: none, but P1-1 shares the tooling.
+Files: all `specs/client/src/*.graphql`, `specs/client/src/schema-linter.test.ts`. Dependencies: none, but P1-1 shares the tooling.
 
 **P2-2. Version the conformance suite against the spec version.** *(M — document now, implement after P1)*
 Why: G11. "Conformant to OpenIAP 3.2.0" needs a versioned artifact and a machine-readable report to mean anything, and it is the precondition for any compatibility badge.
@@ -676,7 +676,7 @@ Files: `.claude/skills/e2e-tests/`, a results log. Dependencies: none.
 
 ### 1. Can OpenIAP honestly say today that its implementations are conformance-tested against a shared specification?
 
-**No.** It can honestly say something narrower and still valuable: *OpenIAP implementations are type-conformant and API-surface-complete against a shared GraphQL specification, enforced in CI on every pull request.* That claim is well-supported by `packages/gql/`, the six-language codegen pipeline, `generated-sync-manifest.mjs`, the clean-worktree drift gates, and `audit-non-godot-parity.mjs`.
+**No.** It can honestly say something narrower and still valuable: *OpenIAP implementations are type-conformant and API-surface-complete against a shared GraphQL specification, enforced in CI on every pull request.* That claim is well-supported by `specs/client/`, the six-language codegen pipeline, `generated-sync-manifest.mjs`, the clean-worktree drift gates, and `audit-non-godot-parity.mjs`.
 
 Behavioral conformance testing does not exist on the client. Zero of the 14 audited behavior categories are Covered by the strict definition; 8 are Partial and 6 are absent. The one genuine conformance harness — `packages/kit/convex/webhooks/conformance.test.ts` — covers server-side subscription lifecycle for 2 of 4 providers across 6 scenarios.
 
@@ -745,7 +745,7 @@ would have caught it existed, in the file next door, and was never copied across
 | 3 | Extracted Amazon's entitlement seam to match the other flavors | `packages/google/openiap/src/amazon/java/dev/hyo/openiap/utils/AmazonBillingConverters.kt`, `OpenIapModule.kt` |
 | 4 | StoreKit 1 + StoreKit 2 error normalization on Apple | `packages/apple/Sources/Models/OpenIapError.swift` |
 | 5 | Apple error-normalization test suite (13 tests) | `packages/apple/Tests/OpenIapTests/ErrorNormalizationTests.swift` |
-| 6 | Machine-checked store capability matrix | `packages/gql/src/capability-matrix.mjs`, `capability-matrix.test.ts` |
+| 6 | Machine-checked store capability matrix | `specs/client/src/capability-matrix.mjs`, `capability-matrix.test.ts` |
 | 7 | IAPKit harness rebuilt around shared scenarios + provider adapters | `packages/kit/convex/webhooks/conformance.test.ts` |
 | 8 | Parity audit gate for the conformance architecture | `scripts/audit-non-godot-parity.mjs` |
 | 9 | KMP iOS tests now execute in CI | `.github/workflows/ci-kmp-iap.yml` |
@@ -802,7 +802,7 @@ and fails if any maps into that set.
 
 ### 16.5 Capability modeling (closes G2)
 
-`packages/gql/src/capability-matrix.mjs` makes §8's prose machine-checkable: ten
+`specs/client/src/capability-matrix.mjs` makes §8's prose machine-checkable: ten
 behaviors × four stores, each `required` / `optional` / `unsupported`, with `evidence`
 required for every non-`required` level and `notes` for behaviors that are required
 everywhere but *delivered* differently.
@@ -858,7 +858,7 @@ Run locally, all passing:
 | Suite | Result |
 | --- | --- |
 | `swift test` (packages/apple) | **149 passed** (136 before, +13 new) |
-| `bun run test` (packages/gql) | **171 passed**, 20 files (+10 capability tests) |
+| `bun run test` (specs/client) | **171 passed**, 20 files (+10 capability tests) |
 | `bun run test` (packages/kit) | **1185 passed**, 1 skipped, 86 files |
 | `node scripts/audit-non-godot-parity.mjs` | **passed** (+ 23 self-tests) |
 | `bun run audit:docs` | clean — 0 drift |
@@ -1036,7 +1036,7 @@ renaming one behavior id makes the audit fail.
 | --- | --- |
 | `packages/conformance` | **20 passed** (2 files) |
 | Reference conformance report | **27 pass, conformant** |
-| `packages/gql` | **171 passed** |
+| `specs/client` | **171 passed** |
 | `packages/kit` | **1187 passed**, 1 skipped (86 files) |
 | `swift test` | **149 passed** |
 | parity audit (+ conformance + id drift gates) | **passed** |
@@ -1206,7 +1206,7 @@ implementation at all, and runs in the parity audit.
 | Suite | Result |
 | --- | --- |
 | `packages/conformance` | **20 passed** |
-| `packages/gql` | **171 passed** |
+| `specs/client` | **171 passed** |
 | `packages/kit` | **1187 passed**, 1 skipped |
 | `swift test` | **155 passed** |
 | `expo-iap` (full suite) | **425 passed**, 16 files |
@@ -1345,7 +1345,7 @@ added, because a missing MUST is a failure — the runner behaving exactly as de
 
 | Suite | Result |
 | --- | --- |
-| `packages/gql` | **171 passed** (regenerated schema + updated deprecation tests) |
+| `specs/client` | **171 passed** (regenerated schema + updated deprecation tests) |
 | `packages/conformance` | **20 passed** |
 | `packages/kit` | **1187 passed**, 1 skipped |
 | `swift test` | **156 passed** |
@@ -1459,7 +1459,7 @@ left to the reference adapter alone.
 
 | Suite | Result |
 | --- | --- |
-| `packages/gql` | 171 passed |
+| `specs/client` | 171 passed |
 | `packages/conformance` | 20 passed |
 | `packages/kit` | 1187 passed, 1 skipped |
 | `swift test` | 156 passed |
@@ -1492,7 +1492,7 @@ thing standing between 4.5 and 5.
 
 ```js
 // src/runner/runner.mjs    — module does not exist in the tarball
-import { capabilityLevel } from '../../../gql/src/capability-matrix.mjs';
+import { capabilityLevel } from '../../../../specs/client/src/capability-matrix.mjs';
 
 // src/spec/version.mjs     — file is not in the tarball
 new URL('../../../../openiap-versions.json', import.meta.url)
@@ -1504,7 +1504,7 @@ existing check could see it.
 
 **Fixed** by generating `src/spec/generated-spec.mjs` (capability matrix + spec version)
 from the gql SSOT through the same generator and drift gate already used for the Kotlin and
-Swift behavior ids. `packages/gql` remains the source of truth; the package no longer reads
+Swift behavior ids. `specs/client` remains the source of truth; the package no longer reads
 across its own boundary.
 
 Verified by packing the tarball, installing it into an empty project outside the repo, and

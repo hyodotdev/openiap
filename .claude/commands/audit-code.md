@@ -73,7 +73,7 @@ Check each package against internal rules AND latest API capabilities:
 
 - `packages/apple/Sources/` - iOS/macOS Swift code
 - `packages/google/openiap/src/{main,play,horizon,amazon}/` - Android Kotlin code
-- `packages/gql/src/` - GraphQL schema (API definitions)
+- `specs/client/src/` - GraphQL schema (API definitions)
 
 **Rules to check (from knowledge/internal/):**
 
@@ -86,7 +86,7 @@ Check each package against internal rules AND latest API capabilities:
 
 Compare current implementation against latest platform APIs:
 
-**Google Play Billing (check packages/gql/src/api-android.graphql):**
+**Google Play Billing (check specs/client/src/api-android.graphql):**
 
 | Feature                                | Version | Check                                  |
 | -------------------------------------- | ------- | -------------------------------------- |
@@ -101,7 +101,7 @@ Compare current implementation against latest platform APIs:
 | Opt-in price increase in-app messages  | 9.0     | showInAppMessagesAndroid implemented?  |
 | Billing Choice                         | 9.1     | Info, dialog, and choice type wired?   |
 
-**StoreKit 2 (check packages/gql/src/api-ios.graphql):**
+**StoreKit 2 (check specs/client/src/api-ios.graphql):**
 
 | Feature                        | Version                            | Check                                    |
 | ------------------------------ | ---------------------------------- | ---------------------------------------- |
@@ -165,7 +165,7 @@ packages/google (Kotlin):
 - [ ] Play, Horizon, and Amazon flavors compile
 - [ ] Shared code is store-agnostic; Play-only APIs stay in `src/play`
 
-packages/gql (GraphQL):
+specs/client (GraphQL):
 
 - [ ] Async operations have `# Future` comment
 - [ ] Generated types are not manually edited

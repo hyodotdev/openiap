@@ -52,7 +52,7 @@ unless the stray file is the intended new value.
 
 | Domain                              | Owner                                         |
 | ----------------------------------- | --------------------------------------------- |
-| Generated type files source→targets | `packages/gql/generated-sync-manifest.mjs`    |
+| Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
 | Package/spec version floor          | `openiap-versions.json` + release-state audit |
 | API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
 | Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |

@@ -17,7 +17,7 @@ import type {
   KitSetClientPayloadResponse,
   KitSubscriptionsResponse,
   KitSubscription,
-} from "@hyodotdev/openiap-gql/kit-api";
+} from "@hyodotdev/openiap/kit-api";
 
 export type KitClientOptions = {
   baseUrl?: string;

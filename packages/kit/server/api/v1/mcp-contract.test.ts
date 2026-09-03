@@ -9,7 +9,7 @@ import {
   vi,
 } from "vitest";
 
-import type { KitProductsResponse as SdkProductsResponse } from "../../../../gql/src/kit-api";
+import type { KitProductsResponse as SdkProductsResponse } from "../../../../../specs/client/src/kit-api";
 import { kitClient } from "../../../../mcp-server/src/kit-client";
 import type { api } from "../../../convex/_generated/api";
 import type { HealthPayload } from "../../health";

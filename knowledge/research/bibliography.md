@@ -92,7 +92,7 @@ Developers Break APIs._ SANER 2018.
   API simplification, and maintainability — not accidents.
 - OpenIAP relevance: intentional breaks still ship unlabeled; detection must be
   mechanical, not trust-based. Supports a schema-diff release guard.
-- Applied: `packages/gql/scripts/audit-schema-semver.mjs` (backlog R1).
+- Applied: `specs/client/scripts/audit-schema-semver.mjs` (backlog R1).
 
 ### li2023gosemver
 
@@ -104,7 +104,7 @@ Semantic Versioning in Golang Ecosystem._ ASE 2023.
   clients; violations persist even in an ecosystem with tooling support.
 - OpenIAP relevance: cross-ecosystem baseline showing tooling alone is
   insufficient without release-gate enforcement.
-- Applied: `packages/gql/scripts/audit-schema-semver.mjs` (backlog R1).
+- Applied: `specs/client/scripts/audit-schema-semver.mjs` (backlog R1).
 
 ### ochoa2022breakingbad
 
@@ -117,7 +117,7 @@ Empirical Software Engineering, 2022.
   clients are actually impacted.
 - OpenIAP relevance: quantifies the risk our floor policy in
   `openiap-versions.json` and release-state audits exist to prevent.
-- Applied: `packages/gql/scripts/audit-schema-semver.mjs` (backlog R1).
+- Applied: `specs/client/scripts/audit-schema-semver.mjs` (backlog R1).
 
 ### raemaekers2017semver
 
@@ -130,7 +130,7 @@ Software, 2017.
   least one breaking change; semver labels are unreliable.
 - OpenIAP relevance: original evidence base for treating version labels as
   claims to verify, not facts.
-- Applied: `packages/gql/scripts/audit-schema-semver.mjs` (backlog R1).
+- Applied: `specs/client/scripts/audit-schema-semver.mjs` (backlog R1).
 
 ## API learnability and misuse
 

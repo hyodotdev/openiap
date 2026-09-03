@@ -80,7 +80,7 @@ import {getVegaIapModule, isVegaOS} from './vega';
 // ------------------------------
 
 // BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
-// are exported from './types' (auto-generated from openiap-gql).
+// are exported from './types' (generated from the OpenIAP client spec).
 
 // Export all types
 export type {

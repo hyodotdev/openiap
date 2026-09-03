@@ -7900,8 +7900,9 @@ function Releases() {
               }}
             >
               <li>
-                <strong>packages/gql</strong> — added the <code>kit-api</code>{' '}
-                typed client. Spec bumped to <code>2.1.0</code>.
+                <strong>OpenIAP client specification</strong> — added the{' '}
+                <code>kit-api</code> typed client. Spec bumped to{' '}
+                <code>2.1.0</code>.
               </li>
               <li>
                 <strong>packages/apple</strong> — <code>Types.swift</code>{' '}
@@ -7919,7 +7920,7 @@ function Releases() {
               <li>
                 <strong>flutter_inapp_purchase</strong> —{' '}
                 <code>types.dart</code> now mirrors the kit-api shapes generated
-                from <code>packages/gql</code>.
+                from the OpenIAP client specification.
               </li>
               <li>
                 <strong>kmp-iap</strong> — expanded <code>Types.kt</code> for

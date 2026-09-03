@@ -4,13 +4,13 @@
   "private": true,
   "description": "OpenIAP Android/Kotlin implementation",
   "scripts": {
-    "generate:types": "cd ../gql && bun run generate",
+    "generate:types": "cd ../../specs/client && bun run generate",
     "build": "./gradlew :openiap:assembleRelease",
     "test": "./gradlew :openiap:test",
     "clean": "./gradlew clean"
   },
   "dependencies": {
-    "@hyodotdev/openiap-gql": "workspace:*"
+    "@hyodotdev/openiap": "workspace:*"
   },
   "packageManager": "bun@1.3.13"
 }

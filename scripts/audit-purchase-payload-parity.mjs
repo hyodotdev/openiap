@@ -1058,7 +1058,7 @@ function checkFlutterPayloadContracts() {
   const kotlinPath =
     "packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt";
   const swiftPath = "packages/apple/Sources/Models/Types.swift";
-  const dartTypesPath = "packages/gql/src/generated/types.dart";
+  const dartTypesPath = "specs/client/src/generated/types.dart";
   const flutterHelpersPath =
     "libraries/flutter_inapp_purchase/lib/helpers.dart";
   for (const relativePath of [
@@ -1359,7 +1359,7 @@ function checkStrictAppleFrameworkQuerySerialization() {
 }
 
 function checkReactNativePurchasePayloadContracts() {
-  const generatedTypesPath = "packages/gql/src/generated/types.ts";
+  const generatedTypesPath = "specs/client/src/generated/types.ts";
   const nitroSpecPath = "libraries/react-native-iap/src/specs/RnIap.nitro.ts";
   const typeBridgePath = "libraries/react-native-iap/src/utils/type-bridge.ts";
   const kotlinBridgePath =
@@ -1567,7 +1567,7 @@ function checkReactNativePurchasePayloadContracts() {
 }
 
 function checkReactNativeActiveSubscriptionPayloadContracts() {
-  const generatedTypesPath = "packages/gql/src/generated/types.ts";
+  const generatedTypesPath = "specs/client/src/generated/types.ts";
   const nitroSpecPath = "libraries/react-native-iap/src/specs/RnIap.nitro.ts";
   const indexPath = "libraries/react-native-iap/src/index.ts";
   const swiftBridgePath = "libraries/react-native-iap/ios/RnIapHelper.swift";
@@ -1958,7 +1958,7 @@ function checkGooglePurchasePayloadContracts() {
 }
 
 function checkVegaPurchasePayloadContracts() {
-  const generatedTypesPath = "packages/gql/src/generated/types.ts";
+  const generatedTypesPath = "specs/client/src/generated/types.ts";
   expectFile(generatedTypesPath);
   if (!exists(generatedTypesPath)) return;
   const generatedTypes = read(generatedTypesPath);

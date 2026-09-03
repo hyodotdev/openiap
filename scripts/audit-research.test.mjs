@@ -26,7 +26,7 @@ Text. <https://example.org/a.pdf>
 ### li2023gosemver
 
 - OpenIAP relevance: mentions \`src/spec/behaviors.mjs\` relative path.
-- Applied: \`scripts/mine-iap-issues.mjs\` and glob \`packages/gql/src/*.graphql\`.
+- Applied: \`scripts/mine-iap-issues.mjs\` and glob \`specs/client/src/*.graphql\`.
 `;
 
 test("extracts cite keys from headings", () => {
@@ -56,7 +56,7 @@ test("applied references come only from Applied bullets", () => {
 test("repo path filter keeps whitelisted real paths and drops globs", () => {
   const paths = repoPathReferences([
     "packages/conformance/src/spec/behaviors.mjs",
-    "packages/gql/src/*.graphql",
+    "specs/client/src/*.graphql",
     "src/spec/behaviors.mjs",
     "bun run audit:schema-semver",
     ".github/workflows/ci.yml",

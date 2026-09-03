@@ -79,7 +79,7 @@ node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
 # Commit changes
 cd "$REPO_ROOT"
 git add openiap-versions.json packages/*/openiap-versions.json
-git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+git add specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
 git commit -m "chore(release): openiap-apple@$NEW_VERSION"
 
 # Push commits

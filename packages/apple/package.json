@@ -4,13 +4,13 @@
   "private": true,
   "description": "OpenIAP iOS/Swift implementation",
   "scripts": {
-    "generate:types": "cd ../gql && bun run generate",
+    "generate:types": "cd ../../specs/client && bun run generate",
     "build": "swift build",
     "test": "swift test",
     "clean": "swift package clean"
   },
   "dependencies": {
-    "@hyodotdev/openiap-gql": "workspace:*"
+    "@hyodotdev/openiap": "workspace:*"
   },
   "packageManager": "bun@1.3.13"
 }

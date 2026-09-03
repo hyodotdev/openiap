@@ -4,9 +4,9 @@ import CommerceProtocolDiagram from '../../../components/CommerceProtocolDiagram
 import SEO from '../../../components/SEO';
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
 const GRAPHQL_VIEW_URL =
-  'https://github.com/hyodotdev/openiap/tree/main/specs/openiap-kit/schema';
+  'https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema';
 
 interface Principle {
   symbol: string;

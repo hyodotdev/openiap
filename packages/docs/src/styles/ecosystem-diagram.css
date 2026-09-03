@@ -375,6 +375,33 @@
   border-style: dashed;
 }
 
+.doc-page .eco-diagram .eco-protocol-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+/* Each role reads as a caption over its own row, so the contract node stays
+   the subject and the implementations under it stay subordinate to it. */
+.doc-page .eco-diagram .eco-protocol-role {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.doc-page .eco-diagram .eco-protocol-role-label {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.doc-page .eco-diagram .eco-protocol-role-body {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+
 /* ---------- artwork -------------------------------------------------------
    Most marks are transparent full-color logos and need no treatment. The two
    exceptions are declared per asset in EcosystemDiagram.tsx: artwork with its

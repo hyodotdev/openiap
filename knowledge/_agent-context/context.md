@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-02T01:55:36.582Z
+> Last updated: 2026-09-03T17:49:09.391Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -72,7 +72,7 @@ fun buildModuleAndroid()
 the schema name exactly, including `Android` when the operation is Android-only.
 For example, `MutationHandlers.isBillingProgramAvailableAndroid` must
 be wired in `packages/google` because it is generated from
-`packages/gql/src/api-android.graphql`; the hand-written implementation it
+`specs/client/src/api-android.graphql`; the hand-written implementation it
 delegates to should still be suffix-free, such as
 `isBillingProgramAvailable()`.
 
@@ -289,13 +289,14 @@ openiap/
 ├── packages/
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
-│   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
 │   ├── apple/         # iOS/macOS library (Swift)
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
-├── specs/            # Interoperability specifications
-│   └── openiap-kit/  # OpenIAP Commerce Protocol: server-side contract
+├── specs/             # Publishable specifications; never deployed services
+│   └── openiap/
+│       ├── client/             # Client GraphQL contract + multiplatform code generation
+│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -327,14 +328,14 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
-| Interoperability specifications                  | `specs/<name>/`         |
+| Specifications, generators, and conformance data | `specs/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
 | Shared editor settings                           | `.vscode/`              |
 
 - Never create a root directory that duplicates a child of `packages/`,
   `libraries/`, or `plugins/`. For example, use `packages/docs/` and
-  `packages/gql/`, never root `docs/` or `gql/`.
+  `specs/client/`, never root `docs/` or `gql/`.
 - Before adding a top-level directory, search for an existing owner and extend
   it. Add a new root only when no canonical owner fits, and document that owner
   in this section in the same change.
@@ -343,19 +344,34 @@ Keep each project surface under its canonical owner:
 - Run `bun run audit:layout` after directory changes. Pre-commit and CI enforce
   the same audit; do not weaken it to permit a duplicate owner.
 
-## Package Responsibilities
+### Specification Distribution Boundary
 
-### packages/gql
+`specs/` owns contracts and the tools and fixtures that derive portable
+artifacts from them. A specification may publish an npm package so consumers
+can install its types, schemas, or conformance runner. Publishing that artifact
+is distribution, not a service deployment.
 
-**Purpose:** Single source of truth for type definitions.
+Nothing under `specs/` is a hosted runtime. Keep Docker, Fly.io, Vercel, and
+other service deployment configuration with the implementation under
+`packages/` or `libraries/`. A specification must not read production secrets,
+own production data, or run a production migration. `bun run audit:layout`
+rejects legacy schema ownership under `packages/gql` and service deployment
+manifests under `specs/`.
 
-- Contains GraphQL schema defining all OpenIAP types
+## Directory Responsibilities
+
+### specs/client
+
+**Purpose:** Authored OpenIAP client API contract and multiplatform type
+generation. The publishable package name is `@hyodotdev/openiap`.
+
+- Contains the GraphQL SDL defining the client API and its types
 - Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#
 - **RULE:** `Types.swift` / `Types.kt` are AUTO-GENERATED. Never edit directly.
 
 ```bash
 # Regenerate all types
-cd packages/gql && bun run generate
+cd specs/client && bun run generate
 ```
 
 Generated files:
@@ -367,7 +383,7 @@ Generated files:
 - GDScript: `src/generated/types.gd`
 - C#: `src/generated/Types.cs`
 
-### specs/openiap-kit
+### specs/commerce-protocol
 
 **Purpose:** OpenIAP Commerce Protocol — the vendor-neutral server-side
 commerce contract: portable operations (verify, status, entitlements, bind,
@@ -391,9 +407,9 @@ their generated assembly and is never hand-edited. The SDL uses custom
 directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
-stream. Keep it outside `packages/gql`: the client SDK API and this
-server-side commerce contract have independent owners and generation targets.
-Never edit files under `generated/` directly.
+stream. The client SDK API and server-side commerce contract are siblings under
+the OpenIAP specification owner, but they keep independent schema inventories
+and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 
@@ -467,11 +483,11 @@ If an app needs immediate push delivery, its authenticated backend owns that
 policy and transport.
 
 ```
-┌─────────────┐
-│  packages/  │
-│    gql      │ ──── Generates Types ────┐
-└─────────────┘                          │
-                                         ▼
+┌──────────────┐
+│   specs/     │
+│openiap/client│ ──── Generates Types ────┐
+└──────────────┘                           │
+                                          ▼
                           ┌──────────────────────────┐
                           │                          │
                     ┌─────┴─────┐            ┌───────┴──────┐
@@ -1008,7 +1024,7 @@ The `Types.swift` file in `Sources/Models/` is **auto-generated** from the OpenI
 
 ```bash
 # From the monorepo root: regenerate all languages and sync manifest targets
-cd packages/gql && bun run generate
+cd specs/client && bun run generate
 ```
 
 ### Version Management
@@ -1025,8 +1041,8 @@ Version is managed in `openiap-versions.json`:
 
 **To update GQL types:**
 
-1. Edit the canonical schema under `packages/gql/src/`.
-2. Run `cd packages/gql && bun run generate`.
+1. Edit the canonical schema under `specs/client/src/`.
+2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
 `"spec"` must always equal the lower semantic version of `"google"` and
@@ -1117,7 +1133,7 @@ format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
 <version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
 consumers which library release contains the API.
 
-When the GraphQL schema in [`packages/gql`](../../packages/gql) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
+When the GraphQL schema in [`specs/client`](../../specs/client) adds or changes an API, the regenerated `types.*` files **declare** the handler but do not **implement** it. Every wrapper library must wire the new API end-to-end or users will see silent nulls, phantom interfaces (GitHub issue #104), or `UnsupportedOperationException` at runtime.
 
 The mechanical guardrail for this checklist is:
 
@@ -1144,7 +1160,7 @@ and fails when:
   `packages/google` flavor handler bundle (play / horizon / amazon
   `OpenIapModule.kt`) — the generated resolver interfaces stay green on their
   own because new bundle fields default to `null`
-- generated types or shared TS runtime helpers drift from `packages/gql`
+- generated types or shared TS runtime helpers drift from `specs/client`
 - framework/package version metadata or Godot Android GDAP dependencies drift
   from the package/version SSOTs
 
@@ -1294,7 +1310,7 @@ The Google package supports **three build flavors**:
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
-3. Run `cd packages/gql && bun run generate` from the monorepo root
+3. Run `cd specs/client && bun run generate` from the monorepo root
 4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
@@ -1391,12 +1407,12 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
 
-### Updating openiap-gql Types and Derived Version
+### Updating `@hyodotdev/openiap` Types and the Derived Version
 
 1. Update the canonical schema without directly changing the `spec` version.
    Native version writers keep `spec` equal to the lower semantic version of
    `google` and `apple`; sync fails instead of silently repairing drift.
-2. Run `cd packages/gql && bun run generate` from the monorepo root.
+2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
@@ -1421,7 +1437,7 @@ Kotlin (or Swift) code references the affected symbol.
 Before committing any change that touches the following surfaces:
 
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapError.kt`
-- `packages/gql/src/error.graphql` (ErrorCode enum additions — ripples
+- `specs/client/src/error.graphql` (ErrorCode enum additions — ripples
   through every generated `Types.*`)
 - `packages/apple/Sources/Models/OpenIapError.swift`
 - `packages/apple/Sources/OpenIapModule.swift` (public function
@@ -1477,17 +1493,18 @@ can depend on the new version), then framework libraries in any order.
 
 ---
 
-## GQL Package (packages/gql)
+## OpenIAP Client Specification (`specs/client`)
 
 ### Required Pre-Work
 
 Before writing or editing anything, **ALWAYS** review:
 
-- [`packages/gql/CONVENTION.md`](../../packages/gql/CONVENTION.md)
+- [`specs/client/CONVENTION.md`](../../specs/client/CONVENTION.md)
 
 ### Code Generation Architecture
 
-The GQL package uses two guarded generation lanes over one schema inventory:
+The `@hyodotdev/openiap` package uses two guarded generation lanes over one
+authored schema inventory:
 
 ```text
 GraphQL Schema (src/*.graphql)
@@ -1502,7 +1519,7 @@ GraphQL Schema (src/*.graphql)
 #### Directory Structure
 
 ```text
-packages/gql/codegen/
+specs/client/codegen/
 ├── index.ts              # Main entry point
 ├── core/
 │   ├── types.ts          # IR type definitions
@@ -1559,7 +1576,7 @@ Each plugin handles language-specific requirements:
 ### Generating Types
 
 ```bash
-cd packages/gql
+cd specs/client
 
 # Generate all platform types
 bun run generate
@@ -1962,20 +1979,21 @@ from issue #206 without duplicating release history across package-local files:
 
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `gql-1-3-16-apple-1-3-14`
+3. Use semantic IDs like `spec-3-4-0-apple-3-4-0`
 4. Verify every package version against its source of truth before writing it
    (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
-  // GQL 1.3.16 / Apple 1.3.14 - Jan 26, 2026
+  // Client spec 3.4.0 / Apple 3.4.0 - Jan 26, 2026
   {
-    id: "gql-1-3-16-apple-1-3-14",
+    id: "spec-3-4-0-apple-3-4-0",
     date: new Date("2026-01-26"),
     element: (
-      <div key="gql-1-3-16-apple-1-3-14" style={noteCardStyle}>
-        <AnchorLink id="gql-1-3-16-apple-1-3-14" level="h4">
-          📅 openiap-gql v1.3.16 / openiap-apple v1.3.14 - Feature Description
+      <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
+        <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
+          📅 @hyodotdev/openiap v3.4.0 / openiap-apple v3.4.0 - Feature
+          Description
         </AnchorLink>
         {/* Content here */}
       </div>
@@ -2154,7 +2172,7 @@ Fix purchase validation error
 | --------- | ---------------------------------- |
 | `apple`   | `packages/apple`                   |
 | `google`  | `packages/google`                  |
-| `spec`    | `packages/gql`                     |
+| `spec`    | `specs/client`                     |
 | `docs`    | `packages/docs`                    |
 | `rn`      | `libraries/react-native-iap`       |
 | `expo`    | `libraries/expo-iap`               |
@@ -2489,7 +2507,7 @@ Version ownership is split:
 - The shared `spec` is always the lower semantic version of `google` and
   `apple`
 - Native version writers update their native key and derive `spec` atomically;
-  sync then verifies the invariant and refreshes `packages/gql/package.json`,
+  sync then verifies the invariant and refreshes `specs/client/package.json`,
   `packages/docs/package.json`, and other derived copies
 - Production docs deployment consumes the derived current `spec`; it must not
   accept an independently selected spec version
@@ -2537,27 +2555,27 @@ When two places disagree, the upstream wins:
 
 ```
 GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs page
-(packages/gql      (libraries/*/src       (Swift / Kotlin /          (packages/docs/
+(specs/client      (libraries/*/src       (Swift / Kotlin /          (packages/docs/
  /src/*.graphql)   /types.{ts,kt,...})    Dart / TS / GDScript)        src/pages/...)
 ```
 
-- `packages/gql/schema-files.mjs` — ordered inventory of every production SDL
+- `specs/client/schema-files.mjs` — ordered inventory of every production SDL
   input. Every repository-owned generator imports it directly. Do not add
   another hard-coded schema list or an unverified external generator manifest.
-- `packages/gql/schema-source-utils.mjs` — shared source identity normalization
+- `specs/client/schema-source-utils.mjs` — shared source identity normalization
   and block-string line detection. Metadata extractors must not duplicate this
   lexical bookkeeping.
-- `packages/gql/src/*.graphql` — schema descriptions ARE the canonical doc
+- `specs/client/src/*.graphql` — schema descriptions ARE the canonical doc
   string. Edits propagate via `bun run generate` to every generated
   `types.ts`, `Types.kt`, `Types.swift`, `types.dart`, `types.gd`, and
   `Types.cs`.
-- `packages/gql/schema-markers.mjs` — the only parser for the SDL comment
+- `specs/client/schema-markers.mjs` — the only parser for the SDL comment
   contracts `# Future` and `# => Union`. Generators and the schema linter must
   consume it rather than maintaining independent line-state machines. A union
   wrapper must be a non-root object with at least one field and all fields
   nullable; operation roots, empty wrappers, and required fields fail
   generation instead of silently degrading to an object.
-- `packages/gql/schema-deprecations.mjs` — the only extractor and validator for
+- `specs/client/schema-deprecations.mjs` — the only extractor and validator for
   canonical deprecation ownership. Standard GraphQL declarations use
   `@deprecated(reason: ...)`; named types use the project-scoped
   `@openiapDeprecated(reason: ...)` directive declared in `schema.graphql`.
@@ -2577,11 +2595,11 @@ GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs p
   metadata rather than declarations, so wrapper-variant docs have no generated
   declaration target there; every language that emits a wrapper or variant
   declaration must preserve the canonical reason.
-- `packages/gql/custom-input-contracts.ts` — typed
+- `specs/client/custom-input-contracts.ts` — typed
   field/type/nullability/default contracts for inputs that custom generators
   alias or project. The shared IR transformer validates these before any
   language plugin runs.
-- `packages/gql/generated-sync-manifest.mjs` — generated source/target mapping
+- `specs/client/generated-sync-manifest.mjs` — generated source/target mapping
   shared by canonical platform sync and the pre-commit drift guard.
 - `libraries/*/src/types.ts` (or equivalent) — generated; never hand-edit.
   When a docs page mentions a field name, that field MUST exist in the
@@ -2629,7 +2647,7 @@ When changing a default, update:
 
 When a Type doc page lists fields in a `<table>` or `<ul>`, every field name
 MUST exist in the canonical generated
-`packages/gql/src/generated/types.ts` shape, which is synchronized into Expo
+`specs/client/src/generated/types.ts` shape, which is synchronized into Expo
 and React Native. The audit parses that TypeScript SSOT with the compiler AST
 and flags fields that do not appear in the declaration.
 
@@ -2966,7 +2984,7 @@ unless the stray file is the intended new value.
 
 | Domain                              | Owner                                         |
 | ----------------------------------- | --------------------------------------------- |
-| Generated type files source→targets | `packages/gql/generated-sync-manifest.mjs`    |
+| Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
 | Package/spec version floor          | `openiap-versions.json` + release-state audit |
 | API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
 | Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
@@ -6363,33 +6381,9 @@ storage or tooling.
 
 ---
 
-# 📁 PROJECT STRUCTURE
-
-```
-openiap/
-├── packages/
-│   ├── apple/        # iOS/macOS StoreKit 2 (Swift)
-│   │   └── Sources/
-│   │       ├── Models/      # Official types
-│   │       ├── Helpers/     # Internal helpers
-│   │       └── OpenIapModule.swift
-│   ├── google/       # Android store implementations (Kotlin)
-│   │   └── openiap/src/
-│   │       ├── main/java/dev/hyo/openiap/     # Shared code + generated Types.kt
-│   │       ├── play/java/dev/hyo/openiap/     # Google Play Billing
-│   │       ├── horizon/java/dev/hyo/openiap/  # Meta Horizon Billing
-│   │       └── amazon/java/dev/hyo/openiap/   # Amazon Appstore
-│   ├── gql/          # GraphQL schema & type generation
-│   └── docs/         # Documentation site
-├── knowledge/        # Shared knowledge base
-│   ├── internal/     # Project philosophy
-│   └── external/     # External API reference
-└── scripts/agent/    # RAG agent scripts
-```
-
-## Key Reminders
+# Key Reminders
 
 - **packages/apple**: iOS functions MUST end with `IOS` suffix
 - **packages/google**: DO NOT add `Android` suffix (it's Android-only package)
-- **packages/gql**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
+- **specs/client**: Types.kt and Types.swift are AUTO-GENERATED, never edit directly
 - **Cross-platform functions**: NO platform suffix

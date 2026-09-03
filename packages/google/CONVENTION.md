@@ -27,7 +27,7 @@ fun buildModuleAndroid()          // Don't add Android suffix
 **Exception**: Generated GraphQL operation names and generated handler fields
 must keep the schema name exactly, including `Android` when the operation is
 Android-only. For example, `MutationHandlers.isBillingProgramAvailableAndroid`
-is generated from `packages/gql/src/api-android.graphql` and must be wired under
+is generated from `specs/client/src/api-android.graphql` and must be wired under
 that name; the hand-written implementation it delegates to should still be
 suffix-free, such as `isBillingProgramAvailable()`.
 
@@ -44,7 +44,7 @@ operation/handler identifier that must match the schema.
 
 ## Generated GraphQL/Kotlin Models
 
-- `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated. Regenerate it with `./scripts/generate-types.sh`, which delegates to the canonical `packages/gql` pipeline and sync manifest.
+- `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated. Regenerate it with `./scripts/generate-types.sh`, which delegates to the canonical `specs/client` pipeline and sync manifest.
 - Never edit `Types.kt` manually. Regeneration guarantees consistency across platforms and avoids merge conflicts.
 - When additional parsing or conversion helpers are needed for GraphQL payloads, place them in a utility file (for example `openiap/src/main/java/dev/hyo/openiap/utils/JsonUtils.kt`). Keep all custom helpers outside of generated sources and have the hand-written code call into them.
 

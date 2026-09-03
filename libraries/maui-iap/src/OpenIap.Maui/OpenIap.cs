@@ -12,7 +12,7 @@
 // All concrete behaviour comes from the OpenIAP native packages
 // (`packages/apple` and `packages/google`) — this library is a thin .NET
 // projection of that contract, generated from the GraphQL schema in
-// `packages/gql`.
+// `specs/client`.
 //
 // QueryResolver / MutationResolver / SubscriptionResolver in the generated
 // Types.cs declare the full operation surface. Concrete `IOpenIap`

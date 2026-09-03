@@ -42,7 +42,10 @@
   governance, one-pager, and IAPKit docs; generated README sponsor blocks; and
   `.github/FUNDING.yml`.
 - Run `bun run sponsors:sync` from the repository root after changing it. The
-  command updates every root/package/library README and `.github/FUNDING.yml`.
+  command updates the root, package, and library READMEs, the specification
+  READMEs under `specs/` that carry the block markers (currently the
+  client specification; the Commerce Protocol README must stay marker-free), and
+  `.github/FUNDING.yml`.
 - Use the generated `openiap-*` reference links for sponsor or funding mentions
   elsewhere in those READMEs; the audit rejects hardcoded funding URLs.
 - Do not edit content between `<!-- sponsors:start -->` and

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { extractSchemaDeprecations } from "../packages/gql/schema-deprecations.mjs";
+import { extractSchemaDeprecations } from "../specs/client/schema-deprecations.mjs";
 import {
   activeDocsForbiddenTokens,
   collectForbiddenMatches,

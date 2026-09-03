@@ -30,7 +30,11 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
-import { validateVersion, versionSources } from "./release-branch-policy.mjs";
+import {
+  commerceProtocolManifest,
+  validateVersion,
+  versionSources,
+} from "./release-branch-policy.mjs";
 import {
   extractDirectDependencies,
   mergeResolved,
@@ -212,15 +216,19 @@ const COMPONENTS = {
     purl: (version) => `pkg:npm/openiap-commerce-protocol@${version}`,
     distribution: (version) =>
       `https://www.npmjs.com/package/openiap-commerce-protocol/v/${version}`,
-    directory: "specs/openiap-kit",
-    source: { kind: "npm", manifest: "specs/openiap-kit/package.json" },
+    directory: "specs/commerce-protocol",
+    source: {
+      kind: "npm",
+      manifest: commerceProtocolManifest.path,
+      historicalManifests: commerceProtocolManifest.historicalPaths,
+    },
   },
   docs: {
     sbomName: "openiap-spec",
     type: "data",
     purl: (version) => `pkg:generic/openiap-spec@${version}`,
     distribution: (version) => `${REPOSITORY_URL}/releases/tag/docs-${version}`,
-    directory: "packages/gql",
+    directory: "specs/client",
     // The spec release publishes the GraphQL contract and generated types.
     // It carries no third-party runtime code.
     source: { kind: "none" },
@@ -691,6 +699,18 @@ export function readComponentVersion(componentId, root = repoRoot) {
     throw new Error(`Unknown release component: ${componentId}`);
   }
   return validateVersion(source.read(root), source.label);
+}
+
+function sourceForRoot(source, root) {
+  if (!source.manifest || existsSync(resolve(root, source.manifest))) {
+    return source;
+  }
+  const historicalManifest = source.historicalManifests?.find((manifest) =>
+    existsSync(resolve(root, manifest)),
+  );
+  return historicalManifest
+    ? { ...source, manifest: historicalManifest }
+    : source;
 }
 
 export function releaseTagFor(componentId, version) {
@@ -1659,10 +1679,14 @@ export async function generateSbom(
     runGit(["show", "-s", "--format=%cI", resolvedCommit]),
   ).toISOString();
 
-  const direct = await extractDirectDependencies(root, definition.source, {
-    version,
-    fetchText: fetchArtifactText,
-  });
+  const direct = await extractDirectDependencies(
+    root,
+    sourceForRoot(definition.source, root),
+    {
+      version,
+      fetchText: fetchArtifactText,
+    },
+  );
   const merged = resolvedFile
     ? mergeResolved(direct, readResolvedFile(resolvedFile))
     : direct;

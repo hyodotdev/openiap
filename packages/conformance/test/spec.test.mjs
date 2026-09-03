@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CAPABILITY_MATRIX,
   CAPABILITY_STORES,
-} from '../../gql/src/capability-matrix.mjs';
+} from '../../../specs/client/src/capability-matrix.mjs';
 import {
   BEHAVIORS,
   BEHAVIOR_CATEGORIES,

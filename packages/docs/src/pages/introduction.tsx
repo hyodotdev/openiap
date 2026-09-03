@@ -270,7 +270,7 @@ function Introduction() {
               </span>
             </a>
             <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/gql"
+              href="https://github.com/hyodotdev/openiap/tree/main/specs/client"
               target="_blank"
               rel="noopener noreferrer"
             >

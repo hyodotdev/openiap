@@ -166,7 +166,7 @@ jobs:
           predicate-quantifier: some-with-excludes
           filters: |
             gql:
-              - 'packages/gql/**'
+              - 'specs/client/**'
               - 'packages/conformance/**'
               - 'scripts/**'
               - 'package.json'
@@ -177,25 +177,25 @@ jobs:
               - '!**/*.md'
             android:
               - 'packages/google/**'
-              - 'packages/gql/**'
+              - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - '!**/*.md'
             ios:
               - 'packages/apple/**'
-              - 'packages/gql/**'
+              - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - '!**/*.md'
             docs:
               - 'packages/docs/**'
-              - 'packages/gql/src/generated/**'
-              - 'packages/gql/generated-sync-manifest.mjs'
+              - 'specs/client/src/generated/**'
+              - 'specs/client/generated-sync-manifest.mjs'
               # The docs link to the canonical contract and audit its derived
               # transport constants, so every protocol change must run this job.
-              - 'specs/openiap-kit/**'
+              - 'specs/commerce-protocol/**'
               - 'scripts/audit-docs.ts'
               - 'scripts/audit-docs.test.ts'
               - '.github/workflows/ci.yml'
@@ -204,7 +204,7 @@ jobs:
               - 'packages/kit/**'
               # The kit server embeds the generated protocol artifacts at build
               # time, so a spec change must rebuild and probe the binary.
-              - 'specs/openiap-kit/**'
+              - 'specs/commerce-protocol/**'
               - 'scripts/e2e-web-sites.mjs'
               - 'package.json'
               - 'bun.lock'
@@ -237,7 +237,7 @@ jobs:
       # Compiles the canonical SDL and byte-compares every generated artifact,
       # so an SDL edit that was not rebuilt cannot ship stale validators.
       - name: Run spec suite
-        working-directory: specs/openiap-kit
+        working-directory: specs/commerce-protocol
         run: bun run test
 
       - name: Verify IAPKit conformance
@@ -318,12 +318,12 @@ jobs:
       - name: Install parity audit dependencies
         run: |
           # The root parity scripts use root devDependencies (for example,
-          # TypeScript) as well as GQL workspace tooling. Install both scopes
+          # TypeScript) as well as client-spec workspace tooling. Install both scopes
           # so Node can resolve them without installing unrelated workspaces.
           for i in 1 2 3; do
             bun install --frozen-lockfile \
-              --filter @hyodotdev/openiap \
-              --filter @hyodotdev/openiap-gql && break
+              --filter openiap-monorepo \
+              --filter @hyodotdev/openiap && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
@@ -367,7 +367,7 @@ jobs:
         run: npm run audit:sponsors
 
   test-gql:
-    name: Test GQL Types
+    name: Test OpenIAP Client Spec
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.gql == 'true'
@@ -396,18 +396,18 @@ jobs:
           done
 
       - name: Generate types
-        working-directory: packages/gql
+        working-directory: specs/client
         run: bun run generate
 
       - name: Run tests
-        working-directory: packages/gql
+        working-directory: specs/client
         run: bun run test
 
       # Breaking-change guard for the schema (knowledge/research backlog R1).
       # PR-only: after merge the base comparison is no longer actionable.
       - name: Audit schema semver claims
         if: github.event_name == 'pull_request'
-        working-directory: packages/gql
+        working-directory: specs/client
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: bun run audit:schema-semver -- --base "origin/$BASE_REF"
@@ -415,7 +415,7 @@ jobs:
       - name: Verify generated types are committed (no drift)
         run: node scripts/assert-clean-worktree.mjs
 
-  # test-gql owns regeneration, platform sync, and the clean-worktree drift
+  # test-gql owns client-spec regeneration, platform sync, and worktree drift
   # check. Consumer jobs compile the committed copies instead of invoking a
   # second generator path.
   test-android:

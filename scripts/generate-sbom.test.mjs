@@ -215,6 +215,31 @@ test("component versions come from the release SSOT", () => {
   }
 });
 
+test("Commerce Protocol SBOMs support the historical manifest path", async () => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-commerce-sbom-"));
+  const manifest = resolve(root, "specs/openiap-kit/package.json");
+  mkdirSync(dirname(manifest), { recursive: true });
+  writeFileSync(
+    manifest,
+    JSON.stringify({
+      name: "openiap-commerce-protocol",
+      version: "0.1.0",
+      license: "MIT",
+    }),
+  );
+
+  try {
+    assert.equal(readComponentVersion("commerce-protocol", root), "0.1.0");
+    const { document } = await generateSbom("commerce-protocol", {
+      root,
+      runGit: stubGit,
+    });
+    assert.equal(document.metadata.component.version, "0.1.0");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("SBOM file name matches the documented convention", () => {
   assert.equal(
     sbomFileName("react-native", "16.3.0"),

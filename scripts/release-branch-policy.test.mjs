@@ -726,6 +726,29 @@ test("existing release tags must match metadata, origin, and release-branch ance
     );
   }
 
+  assert.doesNotThrow(() =>
+    assertReleaseTag(
+      {
+        packageId: "commerce-protocol",
+        branch: "main",
+        tag: "openiap-commerce-protocol-0.1.0",
+        expectedVersion: "0.1.0",
+      },
+      (args) => {
+        if (
+          args[0] === "show" &&
+          args[1].endsWith("specs/commerce-protocol/package.json")
+        ) {
+          throw new Error("path does not exist in historical tag");
+        }
+        return gitMock(
+          "openiap-commerce-protocol-0.1.0",
+          '{"version":"0.1.0"}',
+        )(args);
+      },
+    ),
+  );
+
   const [packageId, tag, metadata] = cases.find(
     ([candidate]) => candidate === "kmp",
   );
@@ -1680,6 +1703,25 @@ test("Commerce Protocol npm publication binds the exact source run attempt", () 
   );
   assert.ok(authorizationGuard >= 0);
   assert.ok(authorizationGuard < publish);
+});
+
+test("Commerce Protocol current retries survive the specification directory move", () => {
+  const workflow = readWorkflow("release-commerce-protocol.yml");
+  const deployJob = workflow.slice(
+    workflow.indexOf("\n  deploy:"),
+    workflow.indexOf("\n  publish-npm:"),
+  );
+  const bumpStep = extractNamedStep(workflow, "Bump version").source;
+
+  assert.doesNotMatch(
+    deployJob,
+    /defaults:\n\s+run:\n\s+working-directory: specs\/commerce-protocol/u,
+  );
+  assert.match(
+    bumpStep,
+    /working-directory: specs\/commerce-protocol/u,
+  );
+  assert.match(workflow, /SPEC_PATH="specs\/openiap-kit\/SPEC\.md"/u);
 });
 
 test("conformance releases cannot under-version breaking suite changes", () => {

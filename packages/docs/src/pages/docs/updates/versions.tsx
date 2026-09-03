@@ -1,14 +1,18 @@
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { GQL_RELEASE } from '../../../lib/versioning';
+import { GQL_RELEASE, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
 const GOOGLE_MAVEN_ARTIFACT =
   'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
-const APPLE_SWIFT_BADGE =
-  'https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=2.*&label=Swift%20Package&logo=swift&color=orange';
+// The Apple package ships on the repository's plain semantic tags, alongside
+// prefixed tags for every other package, so the badge has to filter to this
+// major or shields.io picks up an unrelated release. Deriving the major from
+// openiap-versions.json keeps it correct across the next major bump.
+const APPLE_TAG_MAJOR = OPENIAP_VERSIONS.apple.split('.')[0];
+const APPLE_SWIFT_BADGE = `https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=${APPLE_TAG_MAJOR}.*&label=Swift%20Package&logo=swift&color=orange`;
 const APPLE_SWIFT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/packages/apple';
 const APPLE_COCOAPODS_BADGE =
@@ -27,7 +31,7 @@ function Versions() {
     <div className="doc-page">
       <SEO
         title="Versions"
-        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and openiap-gql packages."
+        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and the OpenIAP client specification (@hyodotdev/openiap)."
         path="/docs/updates/versions"
       />
       <h1>Versions &amp; Release Channels</h1>
@@ -135,7 +139,7 @@ function Versions() {
 
       <section>
         <AnchorLink id="openiap-gql" level="h2">
-          OpenIAP GraphQL Schema (GQL)
+          @hyodotdev/openiap Client Specification
         </AnchorLink>
         <p>
           The GraphQL schema powers API docs and SDK generators. Review the

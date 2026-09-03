@@ -3,7 +3,7 @@ import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
 
 const EXAMPLE_QUERY = `query SubscriptionStatus($input: SubscriptionStatusInput!) {
   subscriptionStatus(input: $input) {

@@ -3,7 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 
 const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/openiap-kit/SPEC.md';
+  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
 
 const DESCRIPTOR_EXCERPT = JSON.stringify(
   {

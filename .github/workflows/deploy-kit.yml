@@ -17,7 +17,7 @@ on:
       # compiled binary embeds its generated artifacts (the route manifest,
       # error map, and capability descriptor), so a spec change must redeploy
       # kit or the served /commerce/v1 surface silently diverges from the spec.
-      - "specs/openiap-kit/**"
+      - "specs/commerce-protocol/**"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
       - "bun.lock"
@@ -26,10 +26,14 @@ on:
     paths:
       - "packages/kit/**"
       - "packages/mcp-server/**"
+      # MCP compiles against the portable kit-api contract. These inputs run
+      # verification on PRs but do not trigger a production deploy by themselves.
+      - "specs/client/src/kit-api.ts"
+      - "specs/client/package.json"
       # Runtime dependency of the kit binary (see the push trigger above); its
       # generated artifacts are compiled in, so a spec change both runs kit's
       # conformance test and, on main, redeploys.
-      - "specs/openiap-kit/**"
+      - "specs/commerce-protocol/**"
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "scripts/install-security-tool.sh"
@@ -254,6 +258,7 @@ jobs:
         # to `bun install --filter @hyodotdev/openiap-kit`. Without this,
         # `COPY package.json bun.lock ./` in the Dockerfile can't find
         # the lockfile — it lives at root, not under packages/kit/.
+        working-directory: ${{ github.workspace }}
         env:
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
           VITE_KIT_SENTRY_DSN: ${{ secrets.VITE_KIT_SENTRY_DSN }}

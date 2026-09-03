@@ -21,6 +21,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    "customConditions": ["openiap-source"],
 
     "types": [
       "vite/client",

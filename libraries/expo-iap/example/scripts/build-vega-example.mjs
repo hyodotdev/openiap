@@ -106,14 +106,22 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
   fs.writeFileSync(path.join(moduleRoot, main), source, 'utf8');
 };
 
+// Example sources import the library by relative path from any nesting depth
+// (`../../src/...` directly under example/src, `../../../src/...` one level
+// deeper). The Vega build copies the example without the library checkout, so
+// every depth must resolve to the published module instead.
+const expoSourceImportPattern =
+  /from (['"])(?:\.\.\/)+src(\/types|\/utils\/errorMapping)?\1/gu;
+
+// The public entry does not export the error-mapping helpers the example
+// calls, so those imports go to a local alias package that re-exports the
+// copied library module.
 const rewriteExpoSourceImports = (source) =>
-  source
-    .replaceAll("from '../../src/utils/errorMapping'", "from 'expo-iap'")
-    .replaceAll('from "../../src/utils/errorMapping"', 'from "expo-iap"')
-    .replaceAll("from '../../src/types'", "from 'expo-iap'")
-    .replaceAll('from "../../src/types"', 'from "expo-iap"')
-    .replaceAll("from '../../src'", "from 'expo-iap'")
-    .replaceAll('from "../../src"', 'from "expo-iap"');
+  source.replace(expoSourceImportPattern, (_match, quote, subpath) => {
+    const specifier =
+      subpath === '/utils/errorMapping' ? 'expo-iap-error-mapping' : 'expo-iap';
+    return `from ${quote}${specifier}${quote}`;
+  });
 
 const rewritePackageSourceImports = (source, sourcePath) => {
   const relativeSourcePath = path
@@ -161,7 +169,11 @@ const copyDirectoryWithTransform = (
 
 const copyExampleSources = () => {
   copyFile(path.join(exampleRoot, 'App.kepler.tsx'), 'App.tsx');
-  copyDirectory(path.join(exampleRoot, 'src'), 'src');
+  copyDirectoryWithTransform(
+    path.join(exampleRoot, 'src'),
+    'src',
+    rewriteExpoSourceImports,
+  );
   copyDirectory(path.join(exampleRoot, 'vega-shims'), 'vega-shims');
 
   if (fs.existsSync(path.join(exampleRoot, 'assets'))) {
@@ -400,6 +412,10 @@ run('bun', ['install', '--frozen-lockfile']);
 writeLocalPackageAlias(
   'expo-iap',
   path.join(tempPackageSourceRoot, 'index.kepler.ts'),
+);
+writeLocalPackageAlias(
+  'expo-iap-error-mapping',
+  path.join(tempPackageSourceRoot, 'utils', 'errorMapping.ts'),
 );
 writeExampleShims();
 run('./node_modules/.bin/react-native', [

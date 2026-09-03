@@ -83,7 +83,7 @@
       "name": "Sync Types (gql → maui)",
       "type": "node",
       "request": "launch",
-      "cwd": "${workspaceFolder}/../../packages/gql",
+      "cwd": "${workspaceFolder}/../../specs/client",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-lc", "bun run generate"],
       "console": "integratedTerminal"

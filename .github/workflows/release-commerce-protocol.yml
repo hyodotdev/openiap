@@ -91,7 +91,7 @@ jobs:
           done
 
       - name: Run protocol tests
-        working-directory: specs/openiap-kit
+        working-directory: specs/commerce-protocol
         run: bun run test
 
       - name: Verify IAPKit reference conformance
@@ -99,7 +99,7 @@ jobs:
         run: bunx vitest run convex/commerce/spec.conformance.test.ts server/api/commerce/
 
       - name: Inspect the published package
-        working-directory: specs/openiap-kit
+        working-directory: specs/commerce-protocol
         run: npm pack --dry-run
 
   deploy:
@@ -109,9 +109,6 @@ jobs:
       actions: write
       contents: write
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: specs/openiap-kit
     env:
       RELEASE_BRANCH: ${{ github.ref_name }}
     outputs:
@@ -144,6 +141,7 @@ jobs:
 
       - name: Bump version
         id: bump
+        working-directory: specs/commerce-protocol
         env:
           VERSION_TYPE: ${{ inputs.version }}
           IS_PRERELEASE: ${{ inputs.prerelease }}
@@ -247,7 +245,7 @@ jobs:
         run: |
           gh auth setup-git
           TAG="openiap-commerce-protocol-$VERSION"
-          git add specs/openiap-kit/package.json
+          git add specs/commerce-protocol/package.json
           git commit -m "chore(release): openiap-commerce-protocol@$VERSION"
           git tag -a "$TAG" -m "Release $TAG"
           git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
@@ -308,6 +306,11 @@ jobs:
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          TAG="openiap-commerce-protocol-$VERSION"
+          SPEC_PATH="specs/commerce-protocol/SPEC.md"
+          if ! git cat-file -e "$TAG:$SPEC_PATH"; then
+            SPEC_PATH="specs/openiap-kit/SPEC.md"
+          fi
           cat > /tmp/release-notes.md <<EOF
           OpenIAP Commerce Protocol: the vendor-neutral server-side contract, generated validator artifacts, and portable conformance runner.
 
@@ -320,7 +323,7 @@ jobs:
           ### Links
 
           - [npm](https://www.npmjs.com/package/openiap-commerce-protocol/v/$VERSION)
-          - [Specification](https://github.com/hyodotdev/openiap/blob/openiap-commerce-protocol-$VERSION/specs/openiap-kit/SPEC.md)
+          - [Specification](https://github.com/hyodotdev/openiap/blob/$TAG/$SPEC_PATH)
           EOF
 
       - name: Create GitHub Release
@@ -363,7 +366,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: specs/openiap-kit
+        working-directory: specs/commerce-protocol
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -12,7 +12,8 @@
     "isolatedModules": true,
     "declaration": true,
     "resolveJsonModule": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "customConditions": ["openiap-source"]
   },
   "include": ["src"]
 }

@@ -1,13 +1,38 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+
+// Manifests that have carried the Commerce Protocol version, canonical first.
+// Release retries, provenance checks, and SBOM recovery for tags cut before the
+// specs/ move read the historical entry.
+export const commerceProtocolManifest = {
+  path: "specs/commerce-protocol/package.json",
+  historicalPaths: ["specs/openiap-kit/package.json"],
+};
+
+const readCommerceProtocolVersion = (root) => {
+  const candidates = [
+    commerceProtocolManifest.path,
+    ...commerceProtocolManifest.historicalPaths,
+  ];
+  const manifest =
+    candidates.find((candidate) => existsSync(resolve(root, candidate))) ??
+    commerceProtocolManifest.path;
+  return readJson(root, manifest).version;
+};
 
 export const versionSources = {
   apple: {
@@ -20,7 +45,7 @@ export const versionSources = {
   },
   "commerce-protocol": {
     label: "openiap-commerce-protocol",
-    read: (root) => readJson(root, "specs/openiap-kit/package.json").version,
+    read: readCommerceProtocolVersion,
   },
   docs: {
     label: "OpenIAP Spec",
