@@ -2,17 +2,15 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
-  closeSync,
   copyFileSync,
-  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
-  openSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -282,6 +280,10 @@ test("standalone generated refreshers stay linked to manifest targets", () => {
 });
 
 test("standalone refreshers validate and atomically replace in isolation", () => {
+  // Modes are asserted in a second pass, after every replacement, so the run
+  // never interleaves a stat of one target with writes to another.
+  const replacedTargets = [];
+
   for (const definition of refreshers) {
     const checkout = createIsolatedCheckout(definition);
     writeFileSync(checkout.isolatedTarget, "preserve-me\n", { mode: 0o644 });
@@ -294,15 +296,8 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
     );
     const commentPrefix = definition.groupName === "gdscript" ? "#" : "//";
     const expected = normalizeFixtureHeader(definition.fixture, commentPrefix);
-    // One descriptor for both reads, so content and mode describe the same
-    // inode: the refresher replaces the target by rename, not in place.
-    const replaced = openSync(checkout.isolatedTarget, "r");
-    try {
-      assert.equal(readFileSync(replaced, "utf8"), expected);
-      assert.equal(fstatSync(replaced).mode & 0o777, 0o644);
-    } finally {
-      closeSync(replaced);
-    }
+    assert.equal(readFileSync(checkout.isolatedTarget, "utf8"), expected);
+    replacedTargets.push(checkout.isolatedTarget);
     assert.equal(
       readFileSync(checkout.curlLog, "utf8"),
       `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
@@ -342,6 +337,10 @@ test("standalone refreshers validate and atomically replace in isolation", () =>
       "preserve-download\n",
     );
     assertNoRefreshTemps(checkout);
+  }
+
+  for (const target of replacedTargets) {
+    assert.equal(statSync(target).mode & 0o777, 0o644);
   }
 });
 

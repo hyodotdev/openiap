@@ -74,6 +74,11 @@ export const LIBRARIES: LibraryInfo[] = [
     homeLabel: 'Expo',
     modules: [
       {
+        name: 'Vega OS',
+        description: 'Amazon Fire TV (Kepler) build target',
+        setupPath: '/docs/setup/store/amazon#vega-os',
+      },
+      {
         name: 'Onside',
         description: 'Alternative iOS marketplace integration',
         setupPath: '/docs/setup/store/onside',
@@ -99,6 +104,13 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'react-native-iap',
     frameworkName: 'React Native',
     homeLabel: 'React Native',
+    modules: [
+      {
+        name: 'Vega OS',
+        description: 'Amazon Fire TV (Kepler) build target',
+        setupPath: '/docs/setup/store/amazon#vega-os',
+      },
+    ],
     version: REACT_NATIVE_PACKAGE.version,
     deprecatedApiRemovalVersion: '16.0.0',
     setupPath: '/docs/setup/react-native',

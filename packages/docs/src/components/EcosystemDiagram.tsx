@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { LIBRARIES, type FrameworkLibraryName } from '../lib/images';
+import { IAPKIT_LOGO_PATH, IAPKIT_URL } from '../lib/config';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import '../styles/ecosystem-diagram.css';
 
@@ -101,11 +102,13 @@ const CORE_NODES: DiagramNode[] = [
   {
     id: 'openiap-google',
     name: 'openiap-google',
-    note: `Kotlin · Play Billing · ${OPENIAP_VERSIONS.google}`,
+    note: `Kotlin · Play, Amazon, Horizon · ${OPENIAP_VERSIONS.google}`,
     icon: '/logos/openiap-google.webp',
     href: `${GITHUB_TREE}/packages/google`,
+    // Fire OS rides the Android mark because it is an Android target built
+    // from the same package, selected by the amazon product flavor.
     marks: [
-      { src: '/logos/android.webp', label: 'Android' },
+      { src: '/logos/android.webp', label: 'Android and Fire OS' },
       { src: '/logos/horizonos.webp', label: 'Horizon OS' },
     ],
   },
@@ -126,6 +129,45 @@ const PROTOCOL_NODE: DiagramNode = {
   icon: '/logos/openiap.webp',
   href: '/docs/commerce-protocol',
 };
+
+/**
+ * Implementations of the server contract, grouped under the `role` string each
+ * one declares. A new role renders its own group in declaration order, so an
+ * implementation that relates to the protocol differently does not have to be
+ * filed under a claim that does not fit it.
+ */
+interface ProtocolImplementation extends DiagramNode {
+  role: string;
+}
+
+const PROTOCOL_IMPLEMENTATIONS: ProtocolImplementation[] = [
+  {
+    id: 'iapkit',
+    role: 'Conforming providers',
+    name: 'IAPKit',
+    note: 'Verification · entitlements · events · webhooks',
+    icon: IAPKIT_LOGO_PATH,
+    href: IAPKIT_URL,
+  },
+];
+
+function groupByRole(
+  implementations: ProtocolImplementation[],
+): [string, ProtocolImplementation[]][] {
+  const groups = new Map<string, ProtocolImplementation[]>();
+
+  for (const implementation of implementations) {
+    const group = groups.get(implementation.role);
+
+    if (group) {
+      group.push(implementation);
+    } else {
+      groups.set(implementation.role, [implementation]);
+    }
+  }
+
+  return [...groups];
+}
 
 function artClass(src: string, base: string): string {
   const classes = [base];
@@ -357,6 +399,20 @@ function EcosystemDiagram() {
           </h3>
           <div className="eco-protocol-body">
             <NodeCard node={PROTOCOL_NODE} className="eco-node--protocol" />
+            {groupByRole(PROTOCOL_IMPLEMENTATIONS).map(([role, entries]) => (
+              <div className="eco-protocol-role" key={role}>
+                <span className="eco-protocol-role-label">{role}</span>
+                <div className="eco-protocol-role-body">
+                  {entries.map((entry) => (
+                    <NodeCard
+                      key={entry.id}
+                      node={entry}
+                      className="eco-node--implementation"
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </div>
@@ -367,7 +423,8 @@ function EcosystemDiagram() {
         core packages are bundled into each library. The{' '}
         <strong>Commerce Protocol</strong> defines the portable server-side
         lifecycle, entitlement, event, and webhook contract independently of any
-        implementation. Select any node to open its documentation or project.
+        implementation, and the providers listed under it implement that
+        contract. Select any node to open its documentation or project.
       </figcaption>
     </figure>
   );

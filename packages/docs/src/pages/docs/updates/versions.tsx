@@ -1,14 +1,19 @@
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { GQL_RELEASE } from '../../../lib/versioning';
+import { GQL_RELEASE, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
 const GOOGLE_MAVEN_ARTIFACT =
   'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
+// The Apple package ships on the repository's plain semantic tags, alongside
+// prefixed tags for every other package, so the badge has to filter to this
+// major or shields.io picks up an unrelated release. Deriving the major from
+// openiap-versions.json keeps it correct across the next major bump.
+const APPLE_TAG_MAJOR = OPENIAP_VERSIONS.apple.split('.')[0];
 const APPLE_SWIFT_BADGE =
-  'https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=2.*&label=Swift%20Package&logo=swift&color=orange';
+  `https://img.shields.io/github/v/tag/hyodotdev/openiap?filter=${APPLE_TAG_MAJOR}.*&label=Swift%20Package&logo=swift&color=orange`;
 const APPLE_SWIFT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/packages/apple';
 const APPLE_COCOAPODS_BADGE =
