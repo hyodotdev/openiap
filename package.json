@@ -15,6 +15,7 @@
     "e2e:web": "node scripts/e2e-web-sites.mjs",
     "audit:deprecations": "node --test scripts/audit-deprecation-schedule.test.mjs && node scripts/audit-deprecation-schedule.mjs",
     "audit:layout": "node --test scripts/audit-repo-layout.test.mjs && node scripts/audit-repo-layout.mjs",
+    "audit:overrides": "node --test scripts/audit-npm-overrides.test.mjs && node scripts/audit-npm-overrides.mjs",
     "audit:ci-paths": "node --test scripts/audit-ci-path-filters.test.mjs && node scripts/audit-ci-path-filters.mjs",
     "audit:agents": "node --test scripts/audit-agent-surfaces.test.mjs && node scripts/audit-agent-surfaces.mjs",
     "audit:sponsors": "node --test scripts/sync-sponsors.test.mjs && node scripts/sync-sponsors.mjs",
@@ -48,10 +49,10 @@
   },
   "overrides": {
     "csstype": "3.2.3",
-    "fast-uri": "3.1.7",
+    "fast-uri": "$fast-uri",
     "hono": "4.13.2",
     "ip-address": "10.5.0",
-    "qs": "6.16.0"
+    "qs": "$qs"
   },
   "packageManager": "bun@1.3.13",
   "dependencies": {

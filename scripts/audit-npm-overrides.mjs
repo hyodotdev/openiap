@@ -1,0 +1,115 @@
+#!/usr/bin/env node
+
+// npm refuses every command in a workspace whose manifest overrides a package
+// it also depends on directly, unless the override repeats the dependency's
+// spec or references it as `$name`. bun does not enforce that, so the conflict
+// only surfaces when someone runs npm or npx — see #429. CI installs with bun,
+// so this audit is what keeps the manifests npm-usable.
+
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptPath = fileURLToPath(import.meta.url);
+const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
+
+const DEPENDENCY_FIELDS = [
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+];
+
+/**
+ * Every manifest in the repository, at any depth. Example apps nest their own
+ * projects (expo-iap/example/vega and the like) and CI installs several of them
+ * independently, so a container's immediate children are not the whole set.
+ */
+const SKIPPED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  "Pods",
+  ".next",
+  ".expo",
+  "vendor",
+]);
+
+export function manifestPaths(root) {
+  const found = [];
+
+  const walk = (relative) => {
+    const absolute = relative ? path.join(root, relative) : root;
+    let entries;
+    try {
+      entries = fs.readdirSync(absolute, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const next = relative
+        ? path.posix.join(relative, entry.name)
+        : entry.name;
+      if (entry.isDirectory()) {
+        if (entry.name.startsWith(".") || SKIPPED_DIRECTORIES.has(entry.name)) {
+          continue;
+        }
+        walk(next);
+      } else if (entry.name === "package.json") {
+        found.push(next);
+      }
+    }
+  };
+
+  walk("");
+  return found.sort();
+}
+
+export function auditNpmOverrides(root = repositoryRoot) {
+  const violations = [];
+
+  for (const relative of manifestPaths(root)) {
+    let manifest;
+    try {
+      manifest = JSON.parse(fs.readFileSync(path.join(root, relative), "utf8"));
+    } catch {
+      violations.push(`${relative} is not readable JSON`);
+      continue;
+    }
+
+    const overrides = manifest.overrides;
+    if (!overrides || typeof overrides !== "object") continue;
+
+    for (const [name, override] of Object.entries(overrides)) {
+      if (typeof override !== "string") continue;
+
+      const direct = DEPENDENCY_FIELDS.map(
+        (field) => manifest[field]?.[name],
+      ).find((spec) => typeof spec === "string");
+      if (direct === undefined) continue;
+
+      // `$name` defers to the direct dependency, which is what keeps the two
+      // from drifting; an identical literal is also accepted by npm.
+      if (override === `$${name}` || override === direct) continue;
+
+      violations.push(
+        `${relative}: override "${name}": "${override}" conflicts with its direct dependency "${direct}" — use "$${name}"`,
+      );
+    }
+  }
+
+  return violations;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  const violations = auditNpmOverrides();
+
+  if (violations.length === 0) {
+    console.log("npm override audit: clean.");
+  } else {
+    console.error("npm override audit failed:");
+    for (const violation of violations) console.error(`- ${violation}`);
+    process.exitCode = 1;
+  }
+}
