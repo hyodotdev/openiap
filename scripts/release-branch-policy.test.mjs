@@ -1715,11 +1715,11 @@ test("Commerce Protocol current retries survive the specification directory move
 
   assert.doesNotMatch(
     deployJob,
-    /defaults:\n\s+run:\n\s+working-directory: specs\/openiap\/commerce-protocol/u,
+    /defaults:\n\s+run:\n\s+working-directory: specs\/commerce-protocol/u,
   );
   assert.match(
     bumpStep,
-    /working-directory: specs\/openiap\/commerce-protocol/u,
+    /working-directory: specs\/commerce-protocol/u,
   );
   assert.match(workflow, /SPEC_PATH="specs\/openiap-kit\/SPEC\.md"/u);
 });
