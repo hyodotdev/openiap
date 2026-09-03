@@ -75,6 +75,28 @@ request other review bots or post their trigger comments. An accepted CodeRabbit
 command can still return a terminal availability failure, so inspect the
 response instead of treating the trigger comment itself as review success.
 
+### Never Post Round Summaries to the PR Conversation
+
+**The `@coderabbitai review` trigger is the ONLY comment this workflow may add to
+the PR conversation, and it is temporary — delete it in the same round.** Never
+post a per-round status update, findings table, CI classification, verification
+log, merge-readiness report, or "here is what I fixed" summary as a top-level PR
+comment. Those belong in exactly two places:
+
+- **Per-finding detail** → a threaded reply on that finding's review thread.
+- **Round summary, CI triage, and progress** → your response to the user in the
+  terminal. The user reads the loop output; the PR does not need a transcript.
+
+A top-level comment is the wrong tool even when the content is correct. It
+duplicates what the threads already say, buries the reviewer's own comments, and
+leaves permanent noise a maintainer has to scroll past. If a fact genuinely
+belongs to the PR itself — E2E evidence, validation results, scope caveats —
+edit the PR description with `gh pr edit`, do not append a comment.
+
+Facts that do not fit a review thread and do not belong in the PR description
+(for example "this CI failure is pre-existing and out of scope") go to the user,
+not to GitHub. Raise them in the terminal and let the user decide.
+
 ## Automated Reviewer Fallback
 
 CodeRabbit is a useful review input, not a completion dependency. If it cannot
@@ -130,6 +152,8 @@ CodeRabbit needs a few minutes to produce feedback. After pushing a round of
 fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)** and re-enter
 `/review-pr $PR_NUMBER` to:
 
+0. Run the review-automation comment cleanup below, so spent triggers and bot
+   acknowledgements never pile up across rounds.
 1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`) and reviewer request/status/review evidence.
 2. If new unresolved threads exist → fix them, push, request CodeRabbit again,
    and schedule another 5-minute wake-up.
@@ -147,8 +171,13 @@ Guard against infinite loops: if a reviewer keeps flagging the same finding afte
 
 ### Cleanup Review Automation Comments
 
-When the polling loop ends with no unresolved review threads, delete temporary
-top-level comments that only record review automation activity:
+**Run this cleanup at the START of every polling round, not only at loop end.**
+Once CodeRabbit has responded to a trigger, that trigger and its bot
+acknowledgement have served their purpose and become noise. Deleting them each
+round keeps the PR timeline readable instead of accumulating one trigger pair per
+round. Run it again as the final step when the loop ends.
+
+Delete temporary top-level comments that only record review automation activity:
 
 - Author comments whose body is exactly `@coderabbitai review`
 - CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
