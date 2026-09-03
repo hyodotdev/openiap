@@ -95,6 +95,12 @@ jobs:
             sleep 5
           done
 
+      # This job installs with bun, which accepts an override that npm refuses.
+      # Without this step a manifest can ship that breaks every npm and npx
+      # command in the repository root.
+      - name: Audit npm override compatibility
+        run: bun run audit:overrides
+
       - name: Verify independent Bun locks
         run: |
           for directory in \
