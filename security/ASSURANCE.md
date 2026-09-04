@@ -99,3 +99,8 @@ artifact or hosted service:
 Do not merge a dependency whose obligations cannot be met by the distribution
 or deployment model. Published SBOM license metadata is evidence of declared
 licenses, not legal advice.
+
+[`dependency-reviews.md`](dependency-reviews.md) records which dependencies
+currently trip these triggers and whether each has been reviewed, so an
+outstanding review is visible rather than implicit. It also carries the log for
+the policy review cadence above.

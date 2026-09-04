@@ -255,6 +255,22 @@ is created complete. Until then the compensating controls are the attestation
 and post-publication digest check on the lanes that have them, and `sbom.yml`
 verifying an existing SBOM's attestation before it would replace one.
 
+### What "immutable tag" means here
+
+`knowledge/internal/06-git-deployment.md` calls release tags immutable. That
+describes what the tag is _used for_ — npm provenance binds to the workflow run
+and the commit SHA behind the tag, so a published attestation cannot be changed
+by anything done to the tag afterwards. It does not describe an enforced
+protection: this repository has no rulesets and `main` carries no branch
+protection, so a maintainer with write access can move or delete a tag.
+
+The consequence is bounded but real. Published provenance stays true, and the
+post-publication checks on the lanes that have them compare against what the
+release actually serves. What a moved tag would break is the repository's own
+record agreeing with that attestation. Tag protection is a repository setting,
+not a file in this tree, so it is recorded here rather than changed by a pull
+request.
+
 ## Scanning posture
 
 Every pull request installs all committed Bun locks plus the React Native Yarn

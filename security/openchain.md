@@ -42,12 +42,12 @@ OpenChain is a Linux Foundation project.
 
 Only the parts touched by the SBOM work are assessed here.
 
-| Area                                                 | Status      | Notes                                                                                                                                                                                 |
-| ---------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component license inventory                          | **Partial** | Published SBOMs carry local-known and registry-resolved license data, while ecosystems without standard machine-readable metadata retain visible gaps ([`SBOM.md`](SBOM.md#licenses)) |
-| License policy (allowed/conditional/forbidden tiers) | **Met**     | [`ASSURANCE.md`](ASSURANCE.md#dependency-and-license-policy) defines preferred licenses and changes requiring explicit maintainer review                                              |
-| Attribution / NOTICE generation                      | **Missing** | Not generated. Release SBOMs expose native and framework dependencies but do not produce consumer attribution bundles                                                                 |
-| Per-package LICENSE files                            | **Partial** | Current source packages `openiap-conformance` with a LICENSE, but the already published 1.0.0 and 1.0.1 tarballs predate that fix                                                     |
+| Area                                                 | Status      | Notes                                                                                                                                                                                                                                    |
+| ---------------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component license inventory                          | **Partial** | Published SBOMs carry local-known and registry-resolved license data, while ecosystems without standard machine-readable metadata retain visible gaps ([`SBOM.md`](SBOM.md#licenses))                                                    |
+| License policy (allowed/conditional/forbidden tiers) | **Met**     | [`ASSURANCE.md`](ASSURANCE.md#dependency-and-license-policy) defines preferred licenses and changes requiring explicit maintainer review; [`dependency-reviews.md`](dependency-reviews.md) tracks which dependencies trip those triggers |
+| Attribution / NOTICE generation                      | **Missing** | Not generated. Release SBOMs expose native and framework dependencies but do not produce consumer attribution bundles                                                                                                                    |
+| Per-package LICENSE files                            | **Partial** | Every currently published package carries licence text in its tarball, including `openiap-conformance` from 2.0.0. It stays Partial because `openiap-conformance` 1.0.0 and 1.0.1 remain downloadable without one                        |
 
 ## Proportionality
 

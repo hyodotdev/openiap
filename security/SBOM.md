@@ -266,6 +266,12 @@ machine-readable value. Current structural gaps include:
 
 - **NuGet packages whose nuspec carries only a license URL** that does not map
   to an SPDX identifier, such as `Xamarin.Android.Google.BillingClient`.
+- **Dart lockfiles are not committed, deliberately.** `pubspec.lock` pins the
+  versions one application resolved; a package published for others to depend
+  on must not ship one, because the consumer resolves against their own
+  constraints. The SBOM therefore records the constraint from `pubspec.yaml`
+  rather than a resolved version, and says so with a `versionRange` rather than
+  implying a pin.
 - **pub.dev packages record the license of the version pub.dev analysed**, not
   of the version constraint the SBOM lists. Dart lockfiles are not committed
   (see below), so `^1.2.0` in the SBOM is a constraint while `license:` comes
