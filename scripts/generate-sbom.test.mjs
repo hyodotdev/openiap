@@ -26,6 +26,7 @@ import {
   latestSbomAssets,
   listComponentIds,
   normalizeLicense,
+  parseTrivyExceptions,
   prepareSbomForExactVulnerabilityScan,
   publishedSbomAssets,
   readComponentVersion,
@@ -38,7 +39,6 @@ import {
   verifySbomGeneratorAttestation,
 } from "./generate-sbom.mjs";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
-import { parse as parseYaml } from "yaml";
 import {
   PublishedMetadataUnavailableError,
   __testing as dependencyTesting,
@@ -822,10 +822,10 @@ test("every Trivy exception is complete and still in date", () => {
   // Asserting the current CVE's text would pin a snapshot: removing a properly
   // expired exception would fail this test, and a new one could be added with
   // no expiry at all. These are the properties that actually matter.
-  const exceptions =
-    parseYaml(
-      readFileSync(resolve(repoRoot, "packages/kit/.trivyignore.yaml"), "utf8"),
-    )?.vulnerabilities ?? [];
+  const exceptions = parseTrivyExceptions(
+    readFileSync(resolve(repoRoot, "packages/kit/.trivyignore.yaml"), "utf8"),
+  );
+  assert.ok(exceptions.length > 0, "the exception file parsed to nothing");
 
   const today = new Date().toISOString().slice(0, 10);
   for (const entry of exceptions) {

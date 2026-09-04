@@ -744,6 +744,46 @@ export function sbomRevisionForTag(tag) {
 // reported as gaps. A component with no entry is required from its very first
 // release, which is what keeps a newly added component covered without anyone
 // remembering to add it here.
+/**
+ * Read the Trivy exception list without a YAML dependency. The release
+ * automation CI job installs nothing, so a parser import there would fail to
+ * resolve; the file is a flat list of scalar fields plus one folded block, so
+ * this reads exactly that shape and nothing more.
+ */
+export function parseTrivyExceptions(contents) {
+  const entries = [];
+  let current = null;
+  let folding = null;
+  for (const raw of contents.split("\n")) {
+    const item = raw.match(/^\s*-\s+id:\s*(\S+)\s*$/);
+    if (item) {
+      current = { id: item[1], purls: [] };
+      entries.push(current);
+      folding = null;
+      continue;
+    }
+    if (!current) continue;
+    const purl = raw.match(/^\s*-\s+(pkg:\S+)\s*$/);
+    if (purl) {
+      current.purls.push(purl[1]);
+      continue;
+    }
+    const scalar = raw.match(/^\s{4}(\w+):\s*(.*)$/);
+    if (scalar) {
+      const [, key, rawValue] = scalar;
+      const value = rawValue.trim();
+      folding = value === ">-" || value === "|" ? key : null;
+      // A key with no value on its line introduces a nested list.
+      current[key] = folding ? "" : value === "" ? [] : value;
+      continue;
+    }
+    if (folding && raw.trim() !== "") {
+      current[folding] = `${current[folding]} ${raw.trim()}`.trim();
+    }
+  }
+  return entries;
+}
+
 export const SBOM_COVERAGE_FLOOR = {
   apple: "3.2.0",
   docs: "docs-3.2.0",
