@@ -225,6 +225,23 @@ Do not replace either with a check that reads the build file's text. The value
 is decided by the manifest merger, and approximating that decision from source
 is what an earlier revision of this audit got wrong.
 
+### IAPKit toolchain boundary
+
+IAPKit deploys with `flyctl deploy --remote-only`, so the image is built by
+Fly's builder from `packages/kit/Dockerfile`, not by CI. Two different Bun
+versions are therefore in play, and they are not interchangeable:
+
+| Role                             | Version | What it touches                                              |
+| -------------------------------- | ------- | ------------------------------------------------------------ |
+| `toolchain.bun` / `pinned`       | 1.3.13  | what CI installs to lint, typecheck and test                 |
+| `toolchain.bun` / `runtimeImage` | 1.4.0   | the `oven/bun` base that compiles the binary serving traffic |
+
+The tests that gate a deploy run on the first; the artifact that serves traffic
+is compiled by the second. Both are declared in `scripts/facts.mjs` and scanned,
+so neither can move without the declared-fact audit failing — but the gap
+between them is a real one, not an artefact of the audit. Closing it means
+agreeing a single version and moving both together.
+
 ### Release immutability
 
 GitHub's immutable releases would stop a published asset being replaced after

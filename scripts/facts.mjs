@@ -40,12 +40,20 @@ export const FACTS = Object.freeze([
   },
   {
     key: "toolchain.bun",
-    values: { pinned: "1.3.13" },
+    // `pinned` is the toolchain CI installs and tests against. `runtimeImage`
+    // is the Bun inside the IAPKit container, which compiles the binary that
+    // actually serves traffic — a separate role, and one the workflows never
+    // mention, so it needs its own scanner to be visible here at all.
+    values: { pinned: "1.3.13", runtimeImage: "1.4.0" },
     scanners: [
       { files: [WORKFLOWS], pattern: /bun-version:\s*["']?([\d.]+)/g },
       {
         files: ["package.json"],
         pattern: /"packageManager":\s*"bun@([\d.]+)"/g,
+      },
+      {
+        files: ["packages/kit/Dockerfile"],
+        pattern: /oven\/bun:([\d.]+)/g,
       },
     ],
   },
