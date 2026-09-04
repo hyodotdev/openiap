@@ -2095,13 +2095,14 @@ test("a POM licence is recorded only when the declarations agree", async () => {
     );
 
   // Taking the first <name> after <licenses> silently chose one of two
-  // declarations. security/SBOM.md forbids guessing, so record neither.
-  assert.equal(
+  // declarations. Maven defines them as alternatives, so the pair is recorded
+  // as an expression rather than narrowed — see the alternatives test below.
+  assert.deepEqual(
     await look(
       "<project><licenses><license><name>MIT</name></license>" +
         "<license><name>Apache-2.0</name></license></licenses></project>",
     ),
-    null,
+    { license: { expression: "MIT OR Apache-2.0" } },
   );
 
   // An error page that merely contains the tags is not a declaration by this
@@ -2213,33 +2214,45 @@ test("a licence URL that is not a valid IRI is dropped", async () => {
   );
 });
 
-test("two declared licences record neither an id nor a reference", async () => {
+test("several declared licences are alternatives, not a discard", async () => {
   const look = (body) =>
     generatorTesting.lookupComponentMetadata(
       { name: "a", version: "1", purl: "pkg:maven/g/a@1" },
       { fetcher: async () => body },
     );
+  const project = (...licenses) =>
+    `<project><licenses>${licenses.join("")}</licenses></project>`;
+  const license = (name, url) =>
+    `<license>${name ? `<name>${name}</name>` : ""}${url ? `<url>${url}</url>` : ""}</license>`;
 
-  // An externalReference of type `license` reads as the component's licence, so
-  // emitting the second declaration's URL would answer "which terms?" when the
-  // document declares two and settles nothing.
-  const both = await look(
-    "<project><licenses>" +
-      "<license><name>MIT</name></license>" +
-      "<license><url>https://x.test/APACHE</url></license>" +
-      "</licenses></project>",
+  // Maven's model descriptor: "If multiple licenses are listed, it is assumed
+  // that the user can select any of them, not that they must accept all."
+  assert.deepEqual(
+    await look(
+      project(
+        license("MIT", "https://x.test/M"),
+        license("Apache-2.0", "https://x.test/A"),
+      ),
+    ),
+    { license: { expression: "MIT OR Apache-2.0" } },
   );
-  assert.equal(both, null);
 
-  // A URL we cannot use is still a second declaration, so it must not collapse
-  // back to a bare MIT claim.
-  const unusable = await look(
-    "<project><licenses>" +
-      "<license><name>MIT</name></license>" +
-      "<license><url>https://x.test/A B</url></license>" +
-      "</licenses></project>",
+  // An operand this reader cannot name leaves the set unstatable. Narrowing to
+  // the ones it could read would turn "MIT or something else" into bare MIT.
+  assert.equal(
+    await look(project(license("MIT"), license("Weird Corp EULA v3"))),
+    null,
   );
-  assert.equal(unusable, null);
+  // A bare URL is a declaration with no id, so the set is unstatable too — and
+  // a URL this reader cannot use is still that declaration.
+  assert.equal(
+    await look(project(license("MIT"), license(null, "https://x.test/A"))),
+    null,
+  );
+  assert.equal(
+    await look(project(license("MIT"), license(null, "https://x.test/A B"))),
+    null,
+  );
 });
 
 test("a licence known only by URL is an external reference", async () => {

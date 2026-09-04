@@ -1783,12 +1783,23 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         ];
         const supplier = project.first("organization")?.value("name");
         const only = declared.length === 1 ? declared[0] : undefined;
-        // `licenseUrl: null` marks a declaration counted for ambiguity that
-        // cannot be recorded. Both are recorded only when the document declares
-        // exactly one set of terms: an external reference of type `license` is
-        // read as the component's licence, so emitting one of two declarations
-        // would answer a question the document leaves open.
-        const license = only && "licenseUrl" in only ? undefined : only;
+        // Maven's model descriptor settles what several licences mean: "If
+        // multiple licenses are listed, it is assumed that the user can select
+        // any of them, not that they must accept all." That is an SPDX `OR`,
+        // and CycloneDX carries it as an expression — but only when every
+        // operand is a known id, which is also what `normalizeLicense` requires.
+        const ids = declared.map((entry) => entry.license?.id);
+        const alternatives =
+          declared.length > 1 && ids.every(Boolean)
+            ? { expression: ids.join(" OR ") }
+            : undefined;
+        // `licenseUrl: null` marks a declaration counted but not recordable. A
+        // declaration this reader cannot name leaves the set unstatable, so it
+        // records nothing rather than narrowing to the ones it could read. An
+        // external reference of type `license` is read as the component's
+        // licence, so it too is recorded only for a single declaration.
+        const license =
+          alternatives ?? (only && "licenseUrl" in only ? undefined : only);
         const licenseUrl = only?.licenseUrl ?? undefined;
         const result = nonEmpty({ license, licenseUrl, supplier });
         if (result) return result;

@@ -265,7 +265,11 @@ enrichment is disabled.
 Licenses are never guessed. A registry value is emitted as an SPDX identifier
 only when it is a recognised one; anything else is recorded as a free-text
 license name, because downstream tooling treats `license.id` as authoritative
-and a confident wrong identifier is worse than an absent one. A lookup failure
+and a confident wrong identifier is worse than an absent one. A Maven POM that
+lists several licences declares alternatives — "the user can select any of
+them, not that they must accept all" — so those become an SPDX `OR` expression,
+and only when every operand is a recognised identifier; one operand this reader
+cannot name leaves the whole set unstated rather than narrowed to the rest. A lookup failure
 preserves reviewed local metadata and leaves any remaining field empty rather
 than failing the release — license data is compliance metadata, not part of the
 security inventory.
