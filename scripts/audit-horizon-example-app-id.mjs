@@ -163,61 +163,139 @@ const inspectManifest = (contents, allowPlaceholder) => {
 
 const UNREADABLE = Symbol("unreadable");
 
-// Follow an expression to an object literal, through the wrappers TypeScript
-// allows around one and through a single `const` binding.
-const objectLiteral = (node, seen = new Set()) => {
+// Wrappers that do not change the value at runtime.
+const unwrap = (node) =>
+  ts.isParenthesizedExpression(node) ||
+  ts.isAsExpression(node) ||
+  ts.isSatisfiesExpression(node) ||
+  ts.isTypeAssertionExpression(node) ||
+  ts.isNonNullExpression(node)
+    ? unwrap(node.expression)
+    : node;
+
+// Follow an expression to a node of the wanted kind, through those wrappers and
+// through `const` bindings.
+const resolve = (node, is, seen = new Set()) => {
   if (!node) return null;
-  if (ts.isObjectLiteralExpression(node)) return node;
-  if (
-    ts.isParenthesizedExpression(node) ||
-    ts.isAsExpression(node) ||
-    ts.isSatisfiesExpression(node) ||
-    ts.isTypeAssertionExpression(node)
-  ) {
-    return objectLiteral(node.expression, seen);
-  }
-  if (ts.isIdentifier(node)) {
-    if (seen.has(node)) return null;
-    seen.add(node);
-    return objectLiteral(resolveBinding(node), seen);
+  const bare = unwrap(node);
+  if (is(bare)) return bare;
+  if (ts.isIdentifier(bare)) {
+    if (seen.has(bare)) return null;
+    seen.add(bare);
+    return resolve(resolveBinding(bare), is, seen);
   }
   return null;
+};
+
+const objectLiteral = (node) => resolve(node, ts.isObjectLiteralExpression);
+const arrayLiteral = (node) => resolve(node, ts.isArrayLiteralExpression);
+// A template with no substitutions has a definite value; one with them does not.
+const stringValue = (node) => {
+  const literal = resolve(
+    node,
+    (candidate) =>
+      ts.isStringLiteral(candidate) ||
+      ts.isNoSubstitutionTemplateLiteral(candidate),
+  );
+  return literal === null ? null : literal.text;
+};
+
+/**
+ * The names a node introduces into the scope it belongs to.
+ *
+ * Only a plain `const x = <expression>` yields a value. Everything else — a
+ * `let`, a loop or catch binding, a destructuring pattern, a parameter, an
+ * import, a function or class declaration — binds the name to something whose
+ * value is not the declaration's text, so it resolves to nothing rather than
+ * falling through to an outer constant of the same name.
+ */
+const bindingsIn = (node) => {
+  const bound = new Map();
+  const declare = (name, initialiser) => {
+    if (ts.isIdentifier(name)) {
+      bound.set(name.text, initialiser ?? null);
+      return;
+    }
+    // A binding pattern names several things and none of them is this text.
+    for (const element of name.elements ?? []) {
+      if (element.name) declare(element.name, null);
+    }
+  };
+  const fromList = (list, constant) => {
+    for (const declaration of list.declarations) {
+      declare(declaration.name, constant ? declaration.initializer : null);
+    }
+  };
+
+  if (ts.isVariableStatement(node)) {
+    fromList(
+      node.declarationList,
+      Boolean(node.declarationList.flags & ts.NodeFlags.Const),
+    );
+  } else if (
+    (ts.isForStatement(node) ||
+      ts.isForOfStatement(node) ||
+      ts.isForInStatement(node)) &&
+    node.initializer &&
+    ts.isVariableDeclarationList(node.initializer)
+  ) {
+    // A loop binding takes a new value each iteration, `const` included.
+    fromList(node.initializer, false);
+  } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+    declare(node.variableDeclaration.name, null);
+  } else if (
+    (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+    node.name
+  ) {
+    declare(node.name, null);
+  } else if (ts.isImportDeclaration(node) && node.importClause) {
+    if (node.importClause.name) declare(node.importClause.name, null);
+    for (const element of node.importClause.namedBindings?.elements ?? []) {
+      declare(element.name, null);
+    }
+    if (node.importClause.namedBindings?.name) {
+      declare(node.importClause.namedBindings.name, null);
+    }
+  }
+  return bound;
+};
+
+// A parameter is never a value read from its declaration, so it only has to be
+// recognised as a shadow.
+const bindsParameter = (scope, name) => {
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  return (scope.parameters ?? []).some((parameter) => named(parameter.name));
 };
 
 /**
  * The initialiser an identifier resolves to, or null.
  *
- * Scope is resolved the way the language does it — innermost enclosing scope
- * first — so a same-named binding inside an unrelated function is a different
- * variable, and a parameter shadows anything outside its function. Only `const`
- * resolves: `let x = {…}; x = {}` means the declaration's text is not the value
- * the plugin receives.
+ * Scope is resolved the way the language does — the innermost enclosing scope
+ * that binds the name wins — so a same-named binding in an unrelated function
+ * is a different variable, and a parameter, loop variable or catch binding
+ * shadows anything outside it.
  */
 const resolveBinding = (identifier) => {
   for (let scope = identifier.parent; scope; scope = scope.parent) {
     const statements = ts.isSourceFile(scope)
       ? scope.statements
-      : ts.isBlock(scope) || ts.isModuleBlock(scope)
+      : ts.isBlock(scope) || ts.isModuleBlock(scope) || ts.isCaseClause(scope)
         ? scope.statements
         : null;
     for (const statement of statements ?? []) {
-      if (!ts.isVariableStatement(statement)) continue;
-      for (const declaration of statement.declarationList.declarations) {
-        if (!ts.isIdentifier(declaration.name)) continue;
-        if (declaration.name.text !== identifier.text) continue;
-        if (!(statement.declarationList.flags & ts.NodeFlags.Const)) return null;
-        return declaration.initializer ?? null;
-      }
+      const bound = bindingsIn(statement);
+      if (bound.has(identifier.text)) return bound.get(identifier.text);
     }
-    if (ts.isFunctionLike(scope)) {
-      for (const parameter of scope.parameters ?? []) {
-        if (
-          ts.isIdentifier(parameter.name) &&
-          parameter.name.text === identifier.text
-        ) {
-          return null;
-        }
-      }
+    // A loop or catch header binds for its own body.
+    const header = bindingsIn(scope);
+    if (header.has(identifier.text)) return header.get(identifier.text);
+    if (ts.isFunctionLike(scope) && bindsParameter(scope, identifier.text)) {
+      return null;
     }
   }
   return null;
@@ -227,51 +305,73 @@ const resolveBinding = (identifier) => {
  * The winning value of a property, UNREADABLE when the object is composed in a
  * way this audit does not model, or null when the key is absent.
  *
- * The last assignment of a key wins, matching the language. A spread AFTER that
- * assignment can replace it, and deciding whether it does means resolving the
- * spread's source — so it is reported. A spread before the winning assignment
- * loses to it and is harmless.
+ * The last assignment of a key wins, matching the language. A spread or a
+ * computed key that follows it can replace it, and deciding whether it does
+ * means resolving its source — but a later explicit assignment wins over both,
+ * so the check is positional rather than blanket.
  */
 const property = (object, name) => {
   let value = null;
+  let shadowed = false;
   for (const member of object.properties) {
-    if (ts.isSpreadAssignment(member)) {
-      if (value !== null) return UNREADABLE;
+    if (ts.isSpreadAssignment(member) || ts.isComputedPropertyName(member.name)) {
+      shadowed = true;
       continue;
     }
-    if (!member.name || ts.isComputedPropertyName(member.name)) {
-      if (value !== null) return UNREADABLE;
-      continue;
-    }
+    if (!member.name) continue;
     // `name.text` is the DECODED property name, so `"appId"` is `appId`.
     if (member.name.text !== name) continue;
     if (ts.isPropertyAssignment(member)) value = member.initializer;
     else if (ts.isShorthandPropertyAssignment(member)) value = member.name;
     else return UNREADABLE;
+    shadowed = false;
   }
-  return value;
+  return shadowed ? UNREADABLE : value;
 };
 
-// The tuple the plugin is registered with names the options the build receives.
+/**
+ * The options the OpenIAP plugin entry names.
+ *
+ * The tuple has to be reached through a `plugins` value, or an unused fixture
+ * elsewhere in the module stands in for the entry the build receives. Two
+ * candidate tuples are an ambiguity this audit reports rather than picks from.
+ */
 const pluginOptions = (source) => {
-  let options;
-  const visit = (node) => {
-    if (options !== undefined) return;
+  const arrays = [];
+  const findPluginsValue = (node) => {
+    if (
+      (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+      node.name &&
+      !ts.isComputedPropertyName(node.name) &&
+      node.name.text === "plugins"
+    ) {
+      const array = arrayLiteral(
+        ts.isPropertyAssignment(node) ? node.initializer : node.name,
+      );
+      if (array) arrays.push(array);
+    }
+    ts.forEachChild(node, findPluginsValue);
+  };
+  findPluginsValue(source);
+
+  const found = [];
+  const findEntry = (node) => {
     if (ts.isArrayLiteralExpression(node) && node.elements.length >= 2) {
-      const [entry, second] = node.elements;
+      const entry = unwrap(node.elements[0]);
       if (
         (ts.isStringLiteral(entry) ||
           ts.isNoSubstitutionTemplateLiteral(entry)) &&
         /app\.plugin\.js$/u.test(entry.text)
       ) {
-        options = second;
+        found.push(node.elements[1]);
         return;
       }
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, findEntry);
   };
-  visit(source);
-  return options;
+  for (const array of arrays) findEntry(array);
+  if (found.length > 1) return UNREADABLE;
+  return found[0];
 };
 
 const inspectExpoPluginConfig = (contents) => {
@@ -282,7 +382,17 @@ const inspectExpoPluginConfig = (contents) => {
     true,
     ts.ScriptKind.TS,
   );
+  // The parser recovers from a syntax error and hands back a tree anyway, so a
+  // truncated config would read as a well-formed one that happens to declare
+  // the id. Refusing it is the same rule the XML reader follows.
+  if (source.parseDiagnostics?.length) {
+    return "does not parse, so no app id can be read from it";
+  }
+
   const entry = pluginOptions(source);
+  if (entry === UNREADABLE) {
+    return "registers the OpenIAP config plugin more than once, so which options the build receives is not readable here";
+  }
   if (entry === undefined) {
     return "registers no OpenIAP config plugin entry";
   }
@@ -295,9 +405,10 @@ const inspectExpoPluginConfig = (contents) => {
   // block anywhere else — a local constant, a commented-out draft, an
   // unrelated export — supplies nothing to the build.
   for (const key of ["android", "horizon"]) {
+    const where = key === "android" ? "the plugin options" : "android";
     const value = property(block, key);
     if (value === UNREADABLE) {
-      return `composes ${key === "android" ? "the plugin options" : "android"} in a way this audit cannot read; write the Horizon app id as a plain literal`;
+      return `composes ${where} in a way this audit cannot read; write the Horizon app id as a plain literal`;
     }
     if (value === null) {
       return key === "android"
@@ -311,16 +422,14 @@ const inspectExpoPluginConfig = (contents) => {
   }
 
   const appId = property(block, "appId");
-  if (
-    appId === UNREADABLE ||
-    appId === null ||
-    !ts.isStringLiteral(appId) ||
-    !LITERAL_APP_ID.test(appId.text)
-  ) {
+  const literal =
+    appId === UNREADABLE || appId === null ? null : stringValue(appId);
+  if (literal === null || !LITERAL_APP_ID.test(literal)) {
     return "declares android.horizon without a literal appId";
   }
   return null;
 };
+
 const INSPECTORS = {
   "android-manifest": (contents) => inspectManifest(contents, false),
   "templated-manifest": (contents) => inspectManifest(contents, true),

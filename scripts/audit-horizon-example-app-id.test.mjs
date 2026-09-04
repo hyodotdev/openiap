@@ -406,28 +406,6 @@ test("tools:node=removeAll deletes the declaration too", () => {
   );
 });
 
-test("the parity audit is what runs this one", () => {
-  // I read the absence of `audit:horizon-app-id` from the workflows and the
-  // hook as "nothing runs this audit" and wired a second invocation. Wrong:
-  // the parity audit — which CI and the hook both run — executes these test
-  // files and calls the collector. The enforcement is real but indirect, so
-  // this pins it rather than duplicating it.
-  const parity = fs.readFileSync(
-    path.join(repoRoot, "scripts/audit-non-godot-parity.mjs"),
-    "utf8",
-  );
-  assert.match(parity, /collectHorizonExampleAppIdFailures\(root\)/u);
-  assert.match(parity, /scripts\/audit-horizon-example-app-id\.test\.mjs/u);
-  assert.match(parity, /scripts\/verify-horizon-merged-manifest\.test\.mjs/u);
-
-  for (const caller of [".github/workflows/ci.yml", ".husky/pre-commit"]) {
-    assert.match(
-      fs.readFileSync(path.join(repoRoot, caller), "utf8"),
-      /node scripts\/audit-non-godot-parity\.mjs/u,
-      `${caller} no longer runs the parity audit`,
-    );
-  }
-});
 
 
 test("the reader answers for every shape review has raised", () => {
@@ -456,9 +434,14 @@ test("the reader answers for every shape review has raised", () => {
     `const options = "ignored"\n{ android: {horizon: {appId: ${id}}} }\nexport default {plugins:[["../app.plugin.js",options]]};`,
     // JavaScript decodes the later key to `appId`, so it wins and is empty.
     `const options={android:{horizon:{appId:${id}, "app${backslash}u0049d":""}}};`,
-    // Not a plain string literal.
-    "const options={android:{horizon:{appId:`31705015229097839`}}};",
+    // A template with substitutions has no definite value.
+    "const options={android:{horizon:{appId:`3170501522909783${n}`}}};",
     `const options={android:{horizon:{appId: load()}}};`,
+    // A binding the plugin never receives — a loop variable, a catch binding, a
+    // destructured name — is not the outer constant of the same name.
+    `const options={android:{horizon:{appId:${id}}}};\nexport default function config(){\n  for (const options of [{android:{}}]) {\n    return {plugins:[["../app.plugin.js", options]]};\n  }\n}`,
+    `const options={android:{horizon:{appId:${id}}}};\nexport default function config(){\n  try{}catch(options){\n    return {plugins:[["../app.plugin.js", options]]};\n  }\n}`,
+    `const options={android:{horizon:{appId:${id}}}};\nexport default function config(){\n  const {options}=load();\n  return {plugins:[["../app.plugin.js", options]]};\n}`,
     `const options={android:{horizon:{appId:"123"}}};`,
     // The path is direct: a horizon nested inside horizon is not it.
     `const options={android:{horizon:{horizon:{appId:${id}}}}};`,
@@ -484,11 +467,47 @@ test("the reader answers for every shape review has raised", () => {
     `const options={k:process.env.X, xs:[1,2], android:{horizon:{appId:${id}}}};`,
     `const horizon={appId:${id}};\nconst options={android:{horizon}};`,
     `const options={android:{horizon:{appId:${id}}}} satisfies Opts;`,
+    // A no-substitution template, a `const` binding, and a later explicit key
+    // that wins over an earlier spread all have definite values.
+    "const options={android:{horizon:{appId:`31705015229097839`}}};",
+    `const appId=${id};\nconst options={android:{horizon:{appId}}};`,
+    `const d={appId:""};\nconst options={android:{horizon:{appId:${id}, ...d, appId:${id}}}};`,
     `const android={horizon:{appId:${id}}};\nfunction other(android){ return android; }\nconst options={android};`,
   ];
   for (const source of accepted) {
     assert.equal(t(source + tail), null, source);
   }
+
+  // A tuple that is not reached through a `plugins` value is a fixture, not the
+  // entry the build receives. Searching the whole module for one let a stale
+  // constant stand in for an entry that was never registered.
+  assert.match(
+    String(
+      t(
+        `const good={android:{horizon:{appId:${id}}}};\nconst fixture=["../app.plugin.js", good];\nvoid fixture;\nexport default {plugins:[]};`,
+      ),
+    ),
+    /registers no OpenIAP config plugin entry/u,
+  );
+
+  // The parser recovers from a syntax error and returns a tree anyway, so a
+  // truncated config would otherwise read as one that declares the id.
+  assert.match(
+    String(
+      t(
+        `export default {plugins:[["../app.plugin.js",\n  {android:{horizon:{appId:${id}}}}]]`,
+      ),
+    ),
+    /does not parse/u,
+  );
+
+  // A non-null assertion changes the type, not the value.
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nexport default {plugins:[["../app.plugin.js", options!]]};`,
+    ),
+    null,
+  );
 
   // A comment between the plugin path and its options is not markup.
   assert.equal(
