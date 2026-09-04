@@ -6,6 +6,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  maskKotlinCommentsAndStrings,
+  maskTypeScriptCommentsAndStrings,
+} from "./audit-purchase-payload-parity.mjs";
 
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
@@ -51,28 +55,46 @@ export const HORIZON_APP_ID_SOURCES = [
 const APP_ID = String.raw`\d{10,}`;
 const APP_ID_LITERAL = new RegExp(`^["']${APP_ID}["']$`);
 
+// Structural scanning runs over masked text so a brace, paren, or comment
+// marker inside a string literal cannot be mistaken for syntax. The maskers
+// preserve offsets, so values are still read from the original source at the
+// same positions.
+// A match is real code only when the masker left that position intact:
+// comments and string bodies become spaces, while keywords and punctuation
+// survive. This lets values be read from the source without a comment counting.
+const matchesInCode = (
+  source,
+  masked,
+  pattern,
+  from = 0,
+  to = source.length,
+) => {
+  const found = [];
+  for (const match of source.slice(from, to).matchAll(pattern)) {
+    const at = from + match.index;
+    const anchor = match[0].search(/\S/);
+    if (masked[at + anchor] === source[at + anchor])
+      found.push({ ...match, index: at });
+  }
+  return found;
+};
+
+const maskedCode = (source, kind) =>
+  kind === "expo-plugin-config"
+    ? maskTypeScriptCommentsAndStrings(source)
+    : maskKotlinCommentsAndStrings(source);
+
 // Replace to a fixpoint: one pass over `<!-- <!-- -->` leaves a bare `<!--`,
 // so a single substitution is not a complete strip.
-const replaceToFixpoint = (source, pattern) => {
+const stripXmlComments = (source) => {
   let previous;
   let current = source;
   do {
     previous = current;
-    current = previous.replace(pattern, "");
+    current = previous.replace(/<!--[\s\S]*?-->/g, "");
   } while (current !== previous);
   return current;
 };
-
-const stripXmlComments = (source) =>
-  replaceToFixpoint(source, /<!--[\s\S]*?-->/g);
-
-// Kotlin, Groovy, and the Expo TypeScript config all use both comment forms,
-// and a commented-out declaration is not the active one.
-const stripCodeComments = (source) =>
-  replaceToFixpoint(source, /\/\*[\s\S]*?\*\//g).replace(
-    /(^|[^:])\/\/[^\n]*/g,
-    "$1",
-  );
 
 const APPLICATION_ELEMENT = /<application\b[\s\S]*?<\/application\s*>/;
 // activity-alias precedes activity: the alternation is ordered, and
@@ -104,48 +126,64 @@ const inspectAndroidManifest = (contents) => {
 };
 
 const APP_ID_PROPERTY = /(?:HORIZON|OPENIAP)_APP_ID["']\s*\)/g;
-const CONTINUATION = /^\s*(?:\?:|\.|\)|,)/;
 const ASSIGNMENT = /(?:^|\s)(?:val|var|def)\s+\w+\s*=|^\s*\w+\s*=[^=]/;
+// A wrapped line continues the statement it belongs to.
+const CONTINUATION = /^\s*(?:\?:|\?\.|\.|\)|\}|,)/;
 const STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
 
+// Depth counts braces as well as parens: a multi-line `firstOrNull { … }` is
+// one statement, and stopping at the closing paren would cut off the fallback.
 const balanceOf = (line) =>
-  (line.match(/\(/g)?.length ?? 0) - (line.match(/\)/g)?.length ?? 0);
+  (line.match(/[({]/g)?.length ?? 0) - (line.match(/[)}]/g)?.length ?? 0);
 
-// Both Gradle examples resolve the id inside one statement, but they do not
-// share a shape: one is an elvis chain, the other a listOf(...).firstOrNull.
-// Rather than pattern-match either, take the whole statement that reads a
-// Horizon app id property and require the value it ends on to be a literal id.
-// A literal elsewhere in the file is not the fallback.
 // A build file can resolve the id more than once — packages/google does it in
 // defaultConfig and again in the horizon flavor — and the later one wins for
 // that flavor. Inspect every statement, not the first.
-export const extractAppIdStatements = (source) => {
+export const extractAppIdStatements = (source, masked = source) => {
   const lines = source.split("\n");
+  const maskedLines = masked.split("\n");
   const offsets = [];
   let cursor = 0;
-  for (const line of lines) {
+  for (const line of maskedLines) {
     offsets.push(cursor);
     cursor += line.length + 1;
   }
 
   const statements = [];
   const seen = new Set();
+  // Search the source so the quoted property name is visible, then keep only
+  // reads whose closing paren survived masking — a read inside a comment does
+  // not resolve anything.
   for (const match of source.matchAll(APP_ID_PROPERTY)) {
+    const close = match.index + match[0].length - 1;
+    if (masked[close] !== ")") continue;
     const line = offsets.findLastIndex((offset) => offset <= match.index);
 
     // The read can sit inside a multi-line expression, so walk back to the
-    // assignment that owns it before reading forward.
+    // assignment that owns it. Track depth so the walk cannot escape the block
+    // the read lives in and attach itself to an unrelated earlier assignment.
     let first = line;
-    while (first > 0 && !ASSIGNMENT.test(lines[first])) first -= 1;
+    let depth = 0;
+    while (first > 0 && !ASSIGNMENT.test(maskedLines[first])) {
+      const previous = first - 1;
+      // Stop rather than escape the block the read lives in, which would
+      // attach the statement to an unrelated earlier assignment.
+      if (depth + balanceOf(maskedLines[previous]) < 0) break;
+      depth += balanceOf(maskedLines[previous]);
+      first = previous;
+    }
+    // A read with no assignment above it still resolves something, so fall back
+    // to its own line. Skipping would make an unattributable read a silent pass.
+    if (!ASSIGNMENT.test(maskedLines[first])) first = line;
     if (seen.has(first)) continue;
     seen.add(first);
 
     const statement = [lines[first]];
-    let depth = balanceOf(lines[first]);
+    let open = balanceOf(maskedLines[first]);
     for (let next = first + 1; next < lines.length; next += 1) {
-      if (depth <= 0 && !CONTINUATION.test(lines[next])) break;
+      if (open <= 0 && !CONTINUATION.test(maskedLines[next])) break;
       statement.push(lines[next]);
-      depth += balanceOf(lines[next]);
+      open += balanceOf(maskedLines[next]);
     }
     statements.push(statement.join("\n"));
   }
@@ -156,7 +194,7 @@ export const extractAppIdStatements = (source) => {
 // present with no value, and "" is non-null, so a blank entry in the
 // developer's local.properties would defeat the literal fallback and put an
 // empty app id in the manifest. The statement must reject blank too.
-const REJECTS_BLANK = /isNullOrBlank|isNotBlank|\?\.trim\(\)|\.trim\(\)\s*\?:/;
+const REJECTS_BLANK = /isNullOrBlank|isNotBlank|\.trim\(\)/;
 
 export const inspectAppIdStatement = (statement) => {
   const literals = statement.match(STRING_LITERAL) ?? [];
@@ -174,7 +212,8 @@ export const inspectAppIdStatement = (statement) => {
 };
 
 const inspectGradleFallback = (contents) => {
-  const statements = extractAppIdStatements(stripCodeComments(contents));
+  const masked = maskedCode(contents, "gradle-fallback");
+  const statements = extractAppIdStatements(contents, masked);
   if (statements.length === 0) return "reads no Horizon app id property";
   for (const statement of statements) {
     const issue = inspectAppIdStatement(statement);
@@ -183,15 +222,15 @@ const inspectGradleFallback = (contents) => {
   return null;
 };
 
-// Brace-balanced rather than `[^}]*`, so a nested object between `horizon:`
-// and `appId:` does not truncate the block being searched.
-const extractBalancedBlock = (source, from) => {
+// Brace-balanced over masked text, so a brace inside a string neither truncates
+// the block nor stretches it into a later one.
+const extractBalancedBlock = (masked, from) => {
   let depth = 0;
-  for (let index = from; index < source.length; index += 1) {
-    if (source[index] === "{") depth += 1;
-    else if (source[index] === "}") {
+  for (let index = from; index < masked.length; index += 1) {
+    if (masked[index] === "{") depth += 1;
+    else if (masked[index] === "}") {
       depth -= 1;
-      if (depth === 0) return source.slice(from, index + 1);
+      if (depth === 0) return [from, index + 1];
     }
   }
   return null;
@@ -203,16 +242,24 @@ const LITERAL_APP_ID_ENTRY = new RegExp(
 );
 
 const inspectExpoPluginConfig = (contents) => {
-  const source = stripCodeComments(contents);
+  const masked = maskedCode(contents, "expo-plugin-config");
   let declared = false;
-  for (const match of source.matchAll(HORIZON_KEY)) {
-    const block = extractBalancedBlock(
-      source,
+  for (const match of masked.matchAll(HORIZON_KEY)) {
+    const span = extractBalancedBlock(
+      masked,
       match.index + match[0].length - 1,
     );
-    if (block === null) continue;
+    if (span === null) continue;
     declared = true;
-    if (LITERAL_APP_ID_ENTRY.test(block)) return null;
+    // Structure came from the masked text; the value comes from the source.
+    const bound = matchesInCode(
+      contents,
+      masked,
+      new RegExp(LITERAL_APP_ID_ENTRY.source, "g"),
+      span[0],
+      span[1],
+    );
+    if (bound.length > 0) return null;
   }
   return declared
     ? "declares horizon config without a literal appId"

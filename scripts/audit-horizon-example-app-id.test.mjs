@@ -353,6 +353,57 @@ test("a nested object between horizon and appId does not hide the id", () => {
   );
 });
 
+test("structure is read from masked text, so strings cannot forge syntax", () => {
+  // Every case below came from a Grok review of an earlier revision that
+  // counted parens and braces inside string literals.
+  const wrappedTrim = [
+    'horizonAppId = localProperties.getProperty("HORIZON_APP_ID")',
+    '    ?.trim() ?: "31705015229097839"',
+  ].join("\n");
+  const multiLineLambda = [
+    "val appId = listOf(",
+    '    localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),',
+    ").firstOrNull {",
+    "    !it.isNullOrBlank()",
+    '} ?: "31705015229097839"',
+  ].join("\n");
+  const parenInString = [
+    'val appId = localProperties.getProperty("HORIZON_APP_ID")?.trim() ?: "31705015229097839"',
+    'val other = "a ( b"',
+  ].join("\n");
+  const braceInString = [
+    "horizon: {",
+    '  note: "needs a } here",',
+    "  appId: '31705015229097839',",
+    "}",
+  ].join("\n");
+
+  for (const source of [wrappedTrim, multiLineLambda, parenInString]) {
+    assert.equal(
+      inspectHorizonAppIdSource(source, "gradle-fallback"),
+      null,
+      source,
+    );
+  }
+  assert.equal(
+    inspectHorizonAppIdSource(braceInString, "expo-plugin-config"),
+    null,
+  );
+
+  // A brace inside a string must not stretch the block into a later decoy.
+  const stretchedIntoDecoy = [
+    "horizon: {",
+    '  note: "{ {",',
+    "  appId: process.env.HORIZON,",
+    "},",
+    "later: { appId: '31705015229097839' },",
+  ].join("\n");
+  assert.equal(
+    inspectHorizonAppIdSource(stretchedIntoDecoy, "expo-plugin-config"),
+    "declares horizon config without a literal appId",
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {
