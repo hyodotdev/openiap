@@ -113,6 +113,16 @@ canonical standard in
 [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#reader-first-writing-standard),
 including its stricter release-note limits.
 
+### GitHub Writing Style
+
+Write pull request bodies, review replies, issue comments, and release text the
+way a maintainer would explain the change to a colleague. Lead with what changed
+and why it matters, keep sentences short and words ordinary, and cut anything
+that does not change what the reader does next. A PR body stays under 60 lines;
+a review reply is one to three sentences, outcome first. No preamble, no
+investigation narrative, no thanking-and-summarising. Canonical rules in
+[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-style).
+
 ### Platform Function Naming
 
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)

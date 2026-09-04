@@ -17,13 +17,13 @@ Review and address PR review comments for this repository.
 
 Based on changed files, run these checks BEFORE committing:
 
-| Package                 | Commands                                                                                                                                                         |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scripts/agent/`        | `cd scripts/agent && bun test`                                                                                                                                   |
-| `specs/client/` | `cd specs/client && bun run test`                                                                                                                        |
-| `packages/docs/`        | `cd packages/docs && bun run lint && bun run typecheck`                                                                                                          |
-| `packages/apple/`       | `cd packages/apple && swift build`                                                                                                                               |
-| `packages/google/`      | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
+| Package            | Commands                                                                                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/agent/`   | `cd scripts/agent && bun test`                                                                                                                                   |
+| `specs/client/`    | `cd specs/client && bun run test`                                                                                                                                |
+| `packages/docs/`   | `cd packages/docs && bun run lint && bun run typecheck`                                                                                                          |
+| `packages/apple/`  | `cd packages/apple && swift build`                                                                                                                               |
+| `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
 
 **Important:** For Android, test Play, Horizon, and Amazon flavors.
 
@@ -288,6 +288,39 @@ Threads that the author has already replied to still show up in the "unresolved"
 ## Reply Format Rules (CRITICAL)
 
 When replying to PR comments:
+
+### Write Like a Person
+
+Follow
+`knowledge/internal/06-git-deployment.md#public-github-communication-style`.
+A reply is one to three sentences: the outcome first, then the reason.
+
+- **Outcome first.** "Fixed in f3b5fec." / "Already handled — see ..." /
+  "Disagreed, because ...". The reader learns the result before the reasoning.
+- **One sentence of why.** What was actually wrong, in ordinary words. A
+  reviewer who wants more reads the commit.
+- **No preamble.** Skip "Thanks for the thorough review", "Great catch",
+  "You raise an excellent point", and any restatement of their comment.
+- **No investigation narrative.** Do not walk through what you checked, what
+  you considered, or how you arrived at the fix.
+- **Push back plainly** when the finding is wrong: say so in a sentence, give
+  the concrete repo evidence, and do not resolve the thread.
+
+Bad:
+
+```text
+Thank you for catching this! After carefully investigating the code path you
+identified, I can confirm that the validation logic was indeed not accounting
+for the case you describe. I have now implemented a fix that addresses this by
+restructuring the guard clause to properly handle...
+```
+
+Good:
+
+```text
+Fixed in abc1234. The guard matched only the bare tag, so an element with an
+attribute fell through to the "declares none" branch.
+```
 
 ### Commit Hash Formatting
 

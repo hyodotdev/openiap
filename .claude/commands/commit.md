@@ -42,6 +42,15 @@ public communication policy in
 `knowledge/internal/06-git-deployment.md#public-github-communication-language`.
 Inspect the complete commit message, PR title, and PR body before sending them.
 
+### Public GitHub Style Guard
+
+Write the PR title and body for a human reviewer, following
+`knowledge/internal/06-git-deployment.md#public-github-communication-style`.
+Lead with what changed and why it matters, keep sentences short and the words
+ordinary, and stay under 60 lines. Group findings of the same shape into one
+paragraph instead of enumerating each. Reread the body before sending and cut
+anything that does not change what the reviewer does next.
+
 ### Internal Workflow Guard
 
 If the staged changes only touch internal agent/workflow files, do not push or
@@ -187,24 +196,17 @@ requested a prerelease train. Never target prerelease version-only commits at
 ```bash
 PR_BASE=main # set to next only for an explicit prerelease train
 gh pr create --base "$PR_BASE" --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
-## Summary
+<One or two sentences: what changed and why it matters. No preamble.>
 
-<1-3 bullet points describing changes>
+## What changed
 
-## Changes
+<A short paragraph per theme, or a few bullets. Group related changes rather
+than listing every file. Name the user-visible effect, not the implementation
+narrative.>
 
-### <Category 1>
-- Change 1
-- Change 2
+## Checks
 
-### <Category 2>
-- Change 1
-
-## Test plan
-
-- [ ] Type check passes
-- [ ] Tests pass
-- [ ] Build succeeds
+<The commands that were run and their result, on one line each.>
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
