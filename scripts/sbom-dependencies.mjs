@@ -757,6 +757,7 @@ function parseNugetNuspec(source, context) {
   if (
     !/<package\b/iu.test(masked) ||
     !/<metadata\b/iu.test(masked) ||
+    !/<\/metadata\s*>/iu.test(masked) ||
     !/<\/package\s*>/iu.test(masked)
   ) {
     throw new PublishedMetadataUnavailableError(

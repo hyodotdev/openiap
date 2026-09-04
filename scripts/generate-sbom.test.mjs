@@ -2430,6 +2430,11 @@ test("a published body that is not a nuspec fails closed", () => {
     '<package><metadata><id>X</id><dependencies><dependency id="A" version="1.0.0"',
     // An error page that happens to use both words.
     "<html>package metadata not found</html>",
+    // Closes <package> but never </metadata>: the document ended early, so an
+    // empty <dependencies> here is truncation, not a package with none.
+    "<package><metadata><dependencies></dependencies></package>",
+    // Ends mid-dependency-list.
+    '<package><metadata><dependencies><dependency id="A" version="1.0" /></package>',
   ]) {
     assert.throws(
       () => parseNugetNuspec(body, context),
