@@ -66,6 +66,7 @@ execFileSync(
   [
     "--test",
     path.resolve(root, "scripts/audit-horizon-example-app-id.test.mjs"),
+    path.resolve(root, "scripts/verify-horizon-merged-manifest.test.mjs"),
   ],
   { stdio: "inherit" },
 );

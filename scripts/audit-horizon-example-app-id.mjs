@@ -1,26 +1,32 @@
 #!/usr/bin/env node
-// Every example that can build the Horizon flavor must resolve a non-empty
-// HORIZON_APP_ID. Horizon's billing client reads the id from the merged
-// manifest and throws inside startConnection when it is missing, so an example
-// that omits it still compiles and only fails once it runs on a headset.
+// Every example that can build the Horizon flavor must declare
+// com.meta.horizon.platform.HORIZON_APP_ID, because the billing client reads it
+// from the merged manifest and throws inside startConnection when it is absent.
+// An example that omits it still compiles and only fails on a headset.
+//
+// This audit checks the DECLARATION, which is a static property of the source.
+// It deliberately does not try to prove what a Gradle expression resolves to —
+// that depends on which properties are set and how the expression
+// short-circuits, and reading it out of the build file's text can only
+// approximate it. `scripts/verify-horizon-merged-manifest.mjs` checks the value
+// the manifest merger actually produced, and CI runs it on a built variant.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import {
-  maskKotlinCommentsAndStrings,
-  maskTypeScriptCommentsAndStrings,
-} from "./audit-purchase-payload-parity.mjs";
+import { maskTypeScriptCommentsAndStrings } from "./audit-purchase-payload-parity.mjs";
 
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
-// Each example declares the id in whichever file its toolchain merges into the
-// Android manifest, so each kind is checked against its own syntax.
+// "android-manifest"    — the manifest carries the literal id
+// "templated-manifest"  — the manifest carries a Gradle placeholder, and the
+//                         resolved value is verified against a built variant
+// "expo-plugin-config"  — the config plugin binds the id
 export const HORIZON_APP_ID_SOURCES = [
   {
     library: "packages/google",
-    file: "packages/google/Example/build.gradle.kts",
-    kind: "gradle-fallback",
+    file: "packages/google/Example/src/main/AndroidManifest.xml",
+    kind: "templated-manifest",
   },
   {
     library: "react-native-iap",
@@ -34,8 +40,8 @@ export const HORIZON_APP_ID_SOURCES = [
   },
   {
     library: "flutter_inapp_purchase",
-    file: "libraries/flutter_inapp_purchase/example/android/app/build.gradle",
-    kind: "gradle-fallback",
+    file: "libraries/flutter_inapp_purchase/example/android/app/src/main/AndroidManifest.xml",
+    kind: "templated-manifest",
   },
   {
     library: "kmp-iap",
@@ -53,39 +59,9 @@ export const HORIZON_APP_ID_SOURCES = [
 // bound to the Horizon declaration: a bare number elsewhere in the file leaves
 // the merged manifest just as empty.
 const APP_ID = String.raw`\d{10,}`;
-const APP_ID_LITERAL = new RegExp(`^["']${APP_ID}["']$`);
 
-// Structural scanning runs over masked text so a brace, paren, or comment
-// marker inside a string literal cannot be mistaken for syntax. The maskers
-// preserve offsets, so values are still read from the original source at the
-// same positions.
-// A match is real code only when the masker left that position intact:
-// comments and string bodies become spaces, while keywords and punctuation
-// survive. This lets values be read from the source without a comment counting.
-const matchesInCode = (
-  source,
-  masked,
-  pattern,
-  from = 0,
-  to = source.length,
-) => {
-  const found = [];
-  for (const match of source.slice(from, to).matchAll(pattern)) {
-    const at = from + match.index;
-    const anchor = match[0].search(/\S/);
-    if (masked[at + anchor] === source[at + anchor])
-      found.push({ ...match, index: at });
-  }
-  return found;
-};
-
-const maskedCode = (source, kind) =>
-  kind === "expo-plugin-config"
-    ? maskTypeScriptCommentsAndStrings(source)
-    : maskKotlinCommentsAndStrings(source);
-
-// Replace to a fixpoint: one pass over `<!-- <!-- -->` leaves a bare `<!--`,
-// so a single substitution is not a complete strip.
+// Replace to a fixpoint: removing an inner `<!-- -->` can splice `<!-` and `-`
+// into a new opener the pass never saw, so one substitution is not a strip.
 const stripXmlComments = (source) => {
   let previous;
   let current = source;
@@ -102,124 +78,31 @@ const APPLICATION_ELEMENT = /<application\b[\s\S]*?<\/application\s*>/;
 const NESTED_ELEMENT =
   /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
+const LITERAL_VALUE = new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`);
+const PLACEHOLDER_VALUE = /android:value\s*=\s*["']\$\{(\w+)\}["']/;
 
 // Horizon reads the id from <application>. A meta-data nested inside an
 // activity or service merges somewhere the platform never looks.
-const inspectAndroidManifest = (contents) => {
-  const application = stripXmlComments(contents).match(APPLICATION_ELEMENT);
+const inspectManifest = (contents, allowPlaceholder) => {
+  const source = stripXmlComments(contents);
+  const application = source.match(APPLICATION_ELEMENT);
   if (!application) return "has no <application> element";
   const direct = application[0].replace(NESTED_ELEMENT, "");
   let declared = false;
   for (const [element] of direct.matchAll(META_DATA_ELEMENT)) {
     if (!element.includes(HORIZON_APP_ID_META_DATA_NAME)) continue;
     declared = true;
-    if (new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`).test(element)) {
-      return null;
-    }
+    if (LITERAL_VALUE.test(element)) return null;
+    if (allowPlaceholder && PLACEHOLDER_VALUE.test(element)) return null;
   }
   if (declared) {
-    return "declares the Horizon meta-data without a literal app id";
+    return allowPlaceholder
+      ? "declares the Horizon meta-data without a literal app id or a placeholder"
+      : "declares the Horizon meta-data without a literal app id";
   }
-  return stripXmlComments(contents).includes(HORIZON_APP_ID_META_DATA_NAME)
+  return source.includes(HORIZON_APP_ID_META_DATA_NAME)
     ? "declares the Horizon meta-data outside <application>"
     : "declares no Horizon app id meta-data";
-};
-
-const APP_ID_PROPERTY = /(?:HORIZON|OPENIAP)_APP_ID["']\s*\)/g;
-const ASSIGNMENT = /(?:^|\s)(?:val|var|def)\s+\w+\s*=|^\s*\w+\s*=[^=]/;
-// A wrapped line continues the statement it belongs to.
-const CONTINUATION = /^\s*(?:\?:|\?\.|\.|\)|\}|,)/;
-const STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
-
-// Depth counts braces as well as parens: a multi-line `firstOrNull { … }` is
-// one statement, and stopping at the closing paren would cut off the fallback.
-const balanceOf = (line) =>
-  (line.match(/[({]/g)?.length ?? 0) - (line.match(/[)}]/g)?.length ?? 0);
-
-// A build file can resolve the id more than once — packages/google does it in
-// defaultConfig and again in the horizon flavor — and the later one wins for
-// that flavor. Inspect every statement, not the first.
-export const extractAppIdStatements = (source, masked = source) => {
-  const lines = source.split("\n");
-  const maskedLines = masked.split("\n");
-  const offsets = [];
-  let cursor = 0;
-  for (const line of maskedLines) {
-    offsets.push(cursor);
-    cursor += line.length + 1;
-  }
-
-  const statements = [];
-  const seen = new Set();
-  // Search the source so the quoted property name is visible, then keep only
-  // reads whose closing paren survived masking — a read inside a comment does
-  // not resolve anything.
-  for (const match of source.matchAll(APP_ID_PROPERTY)) {
-    const close = match.index + match[0].length - 1;
-    if (masked[close] !== ")") continue;
-    const line = offsets.findLastIndex((offset) => offset <= match.index);
-
-    // The read can sit inside a multi-line expression, so walk back to the
-    // assignment that owns it. Track depth so the walk cannot escape the block
-    // the read lives in and attach itself to an unrelated earlier assignment.
-    let first = line;
-    let depth = 0;
-    while (first > 0 && !ASSIGNMENT.test(maskedLines[first])) {
-      const previous = first - 1;
-      // Stop rather than escape the block the read lives in, which would
-      // attach the statement to an unrelated earlier assignment.
-      if (depth + balanceOf(maskedLines[previous]) < 0) break;
-      depth += balanceOf(maskedLines[previous]);
-      first = previous;
-    }
-    // A read with no assignment above it still resolves something, so fall back
-    // to its own line. Skipping would make an unattributable read a silent pass.
-    if (!ASSIGNMENT.test(maskedLines[first])) first = line;
-    if (seen.has(first)) continue;
-    seen.add(first);
-
-    const statement = [lines[first]];
-    let open = balanceOf(maskedLines[first]);
-    for (let next = first + 1; next < lines.length; next += 1) {
-      if (open <= 0 && !CONTINUATION.test(maskedLines[next])) break;
-      statement.push(lines[next]);
-      open += balanceOf(maskedLines[next]);
-    }
-    statements.push(statement.join("\n"));
-  }
-  return statements;
-};
-
-// Elvis alone is not enough: Properties.getProperty returns "" for a key
-// present with no value, and "" is non-null, so a blank entry in the
-// developer's local.properties would defeat the literal fallback and put an
-// empty app id in the manifest. The statement must reject blank too.
-const REJECTS_BLANK = /isNullOrBlank|isNotBlank|\.trim\(\)/;
-
-export const inspectAppIdStatement = (statement) => {
-  const literals = statement.match(STRING_LITERAL) ?? [];
-  const terminal = literals[literals.length - 1];
-  if (terminal === undefined) return "has no fallback for the Horizon app id";
-  if (!APP_ID_LITERAL.test(terminal)) {
-    return terminal === '""' || terminal === "''"
-      ? "falls back to an empty app id"
-      : `falls back to ${terminal} instead of a literal Horizon app id`;
-  }
-  if (!REJECTS_BLANK.test(statement)) {
-    return "accepts a blank override, which defeats the literal fallback";
-  }
-  return null;
-};
-
-const inspectGradleFallback = (contents) => {
-  const masked = maskedCode(contents, "gradle-fallback");
-  const statements = extractAppIdStatements(contents, masked);
-  if (statements.length === 0) return "reads no Horizon app id property";
-  for (const statement of statements) {
-    const issue = inspectAppIdStatement(statement);
-    if (issue) return issue;
-  }
-  return null;
 };
 
 // Brace-balanced over masked text, so a brace inside a string neither truncates
@@ -237,12 +120,16 @@ const extractBalancedBlock = (masked, from) => {
 };
 
 const HORIZON_KEY = /\bhorizon\s*:\s*\{/g;
-const LITERAL_APP_ID_ENTRY = new RegExp(
+const APP_ID_ENTRY = new RegExp(
   String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
+  "g",
 );
 
 const inspectExpoPluginConfig = (contents) => {
-  const masked = maskedCode(contents, "expo-plugin-config");
+  // Structure comes from masked text so a brace in a string is not syntax; the
+  // value is read from the source at the same offset, and a match only counts
+  // when the masker left that position intact — a commented-out entry does not.
+  const masked = maskTypeScriptCommentsAndStrings(contents);
   let declared = false;
   for (const match of masked.matchAll(HORIZON_KEY)) {
     const span = extractBalancedBlock(
@@ -251,15 +138,12 @@ const inspectExpoPluginConfig = (contents) => {
     );
     if (span === null) continue;
     declared = true;
-    // Structure came from the masked text; the value comes from the source.
-    const bound = matchesInCode(
-      contents,
-      masked,
-      new RegExp(LITERAL_APP_ID_ENTRY.source, "g"),
-      span[0],
-      span[1],
-    );
-    if (bound.length > 0) return null;
+    for (const entry of contents
+      .slice(span[0], span[1])
+      .matchAll(APP_ID_ENTRY)) {
+      const at = span[0] + entry.index;
+      if (masked[at] === contents[at]) return null;
+    }
   }
   return declared
     ? "declares horizon config without a literal appId"
@@ -267,8 +151,8 @@ const inspectExpoPluginConfig = (contents) => {
 };
 
 const INSPECTORS = {
-  "android-manifest": inspectAndroidManifest,
-  "gradle-fallback": inspectGradleFallback,
+  "android-manifest": (contents) => inspectManifest(contents, false),
+  "templated-manifest": (contents) => inspectManifest(contents, true),
   "expo-plugin-config": inspectExpoPluginConfig,
 };
 
@@ -313,6 +197,6 @@ if (
     process.exit(1);
   }
   console.log(
-    `OK ${HORIZON_APP_ID_SOURCES.length} Horizon examples resolve an app id`,
+    `OK ${HORIZON_APP_ID_SOURCES.length} Horizon examples declare an app id`,
   );
 }
