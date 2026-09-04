@@ -594,14 +594,20 @@ test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory()
         ? walk(new URL(`${entry.name}/`, dir))
-        : entry.name.endsWith(".swift")
-          ? [new URL(entry.name, dir)]
-          : [],
+        : [new URL(entry.name, dir)],
     );
 
   const sources = walk(root);
-  assert.ok(sources.length > 0, "the bridge has no Swift sources");
+  assert.ok(sources.length > 0, "the bridge has no sources");
   for (const source of sources) {
+    // SwiftPM builds C, Objective-C and C++ sources in the same target without
+    // an explicit path, and CodeQL never sees them because this package is
+    // built after `analyze`.
+    assert.match(
+      source.pathname,
+      /\.swift$/u,
+      `${source.pathname} is compiled but not analysed: move it, or build this package between init and analyze`,
+    );
     for (const line of readFileSync(source, "utf8").split("\n")) {
       const code = line.trim();
       if (code === "" || code.startsWith("//")) continue;

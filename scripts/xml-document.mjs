@@ -192,11 +192,18 @@ export function parseXml(source, context) {
       continue;
     }
     if (source.startsWith("<!", index)) {
-      // A declaration such as <!DOCTYPE …>. `<!` is only legal before `--`,
-      // `[CDATA[` — both handled above — or a name, so anything else is
-      // malformed. Accepting it would let `<!-` open a pseudo-comment that
-      // swallows a real declaration, which is how the regex reader was fooled.
-      if (!readName(source, index + 2)) fail("Malformed declaration", context);
+      // The only declaration this reader supports is a DOCTYPE, and XML allows
+      // it only before the root element. Skipping any `<!Name …>` accepted
+      // `<!garbage>` inside the root and a DOCTYPE after it, and the callers
+      // read that success as structural validation.
+      const declaration = readName(source, index + 2);
+      if (!declaration) fail("Malformed declaration", context);
+      if (declaration.name.toUpperCase() !== "DOCTYPE") {
+        fail(`Unsupported declaration <!${declaration.name}>`, context);
+      }
+      if (root !== null || stack.length > 0) {
+        fail("DOCTYPE is not before the root element", context);
+      }
       index += 2;
       skipUntil(">", "declaration");
       continue;

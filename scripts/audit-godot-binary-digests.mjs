@@ -104,6 +104,17 @@ export function digestOf(repoRoot, relativeFile) {
     .digest("hex");
 }
 
+// Everything the audit requires a digest for — not only what looks like a
+// Mach-O. A framework resource such as PrivacyInfo.xcprivacy is neither
+// excused nor renderable otherwise, so `--write` could not produce a manifest
+// the audit accepts.
+export function listFilesRequiringDigests(repoRoot) {
+  return listBinaryRootFiles(repoRoot).filter((file) => {
+    if (!NON_PAYLOAD.some((pattern) => pattern.test(file))) return true;
+    // An excused name still needs a digest when it holds executable code.
+    return isMachO(path.resolve(repoRoot, GODOT_ROOT, file));
+  });
+}
 export function collectGodotBinaryDigestFailures(repoRoot) {
   const manifestPath = path.resolve(repoRoot, DIGEST_MANIFEST);
   if (!fs.existsSync(manifestPath)) {
@@ -123,7 +134,10 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
       .filter((entry) => entry.digest)
       .map((entry) => [entry.file, entry.digest]),
   );
-  const present = listTrackedBinaries(repoRoot);
+  // The same set the renderer writes. Using the Mach-O-only list here meant a
+  // recorded framework resource was reported as no longer existing, so the
+  // documented `--write` recovery could not produce a passing manifest.
+  const present = listFilesRequiringDigests(repoRoot);
 
   // A binary added to the addon without a digest is the case this exists for.
   // Scan every shipped file rather than only the ones that still look like
@@ -161,18 +175,6 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
     }
   }
   return failures;
-}
-
-// Everything the audit requires a digest for — not only what looks like a
-// Mach-O. A framework resource such as PrivacyInfo.xcprivacy is neither
-// excused nor renderable otherwise, so `--write` could not produce a manifest
-// the audit accepts.
-export function listFilesRequiringDigests(repoRoot) {
-  return listBinaryRootFiles(repoRoot).filter((file) => {
-    if (!NON_PAYLOAD.some((pattern) => pattern.test(file))) return true;
-    // An excused name still needs a digest when it holds executable code.
-    return isMachO(path.resolve(repoRoot, GODOT_ROOT, file));
-  });
 }
 
 export function renderDigestManifest(repoRoot, header) {

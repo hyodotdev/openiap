@@ -2268,6 +2268,51 @@ test("a nuspec copyright is read from the metadata element", async () => {
   );
 });
 
+test("a declaration must be a DOCTYPE, before the root", () => {
+  const { parseNugetNuspec, parseMavenPom } = dependencyTesting;
+  const context = { url: "fixture" };
+
+  // Skipping any `<!Name …>` accepted junk inside the root and a DOCTYPE after
+  // it, and the callers read that success as structural validation.
+  for (const body of [
+    "<package><metadata><!garbage><id>X</id></metadata></package>",
+    "<package><metadata><id>X</id></metadata></package><!DOCTYPE x>",
+    // Before the root, but not a DOCTYPE — the only declaration this reads.
+    "<!ENTITY x 'y'><package><metadata><id>X</id></metadata></package>",
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not well-formed XML/u,
+      `accepted ${JSON.stringify(body.slice(0, 40))}`,
+    );
+  }
+
+  // A DOCTYPE in its legal position is fine — Maven Central serves POMs with
+  // one.
+  assert.deepEqual(
+    parseMavenPom(
+      '<?xml version="1.0"?><!DOCTYPE project><project><modelVersion>4.0.0</modelVersion></project>',
+      context,
+    ),
+    [],
+  );
+});
+
+test("a dependencies container below a wrapper is refused", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  // `<files><dependencies>…</dependencies></files>` is well-formed XML that a
+  // direct-child check does not see, so it read as "declares none".
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        "<package><metadata><id>X</id></metadata><files><dependencies>" +
+          '<dependency id="Hidden" version="1"/></dependencies></files></package>',
+        { url: "fixture" },
+      ),
+    /<dependencies> outside <metadata>/u,
+  );
+});
+
 test("a duplicate container is refused, not silently half-read", () => {
   const { parseMavenPom, parseNugetNuspec } = dependencyTesting;
   const context = { url: "fixture" };

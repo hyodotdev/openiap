@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   DIGEST_MANIFEST,
   collectGodotBinaryDigestFailures,
+  renderDigestManifest,
   digestOf,
   listTrackedBinaries,
   parseDigestManifest,
@@ -132,6 +133,45 @@ test("an excused name does not excuse executable content", () => {
     assert.ok(
       failures.some((failure) => failure.includes("Payload.gdextension")),
       `expected the disguised binary to be reported, got ${JSON.stringify(failures)}`,
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("--write produces a manifest the audit accepts", () => {
+  // The renderer emitted every file needing a digest while the collector still
+  // enumerated only Mach-O, so a recorded framework resource was reported as
+  // no longer existing and the documented recovery could not converge.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = stageFixture(scratch);
+    const resource = path.join(
+      target,
+      "addons/godot-iap/bin/ios/GodotIap.framework/PrivacyInfo.xcprivacy",
+    );
+    fs.mkdirSync(path.dirname(resource), { recursive: true });
+    fs.writeFileSync(resource, "privacy\n");
+
+    assert.ok(
+      collectGodotBinaryDigestFailures(scratch).some((failure) =>
+        failure.includes("PrivacyInfo.xcprivacy"),
+      ),
+      "an unrecorded resource should be reported",
+    );
+
+    fs.writeFileSync(
+      path.join(scratch, DIGEST_MANIFEST),
+      renderDigestManifest(scratch, "# test"),
+    );
+    assert.deepEqual(collectGodotBinaryDigestFailures(scratch), []);
+
+    fs.writeFileSync(resource, "tampered\n");
+    assert.ok(
+      collectGodotBinaryDigestFailures(scratch).some((failure) =>
+        failure.includes("PrivacyInfo.xcprivacy"),
+      ),
+      "a changed resource should be reported",
     );
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });

@@ -769,7 +769,14 @@ function parseNugetNuspec(source, context) {
   // A sibling elsewhere is a malformed nuspec, not an empty one — and checking
   // that only when metadata declared none let a self-closing <dependencies />
   // inside metadata mask a populated one outside.
-  if (document.first("dependencies")) {
+  // Any descendant container that is not metadata's own child is a malformed
+  // nuspec — `<files><dependencies>…</dependencies></files>` is well-formed XML
+  // that a direct-child check does not see, and it would read as none declared.
+  if (
+    collectElements(document, "dependencies").some(
+      (element) => !metadataElement.all("dependencies").includes(element),
+    )
+  ) {
     throw new Error(`<dependencies> outside <metadata> in ${context.url}`);
   }
   const dependencyGroups = metadataElement.all("dependencies");
