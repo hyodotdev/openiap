@@ -30,6 +30,7 @@ test("the audit covers every library that ships a Horizon example", () => {
       "flutter_inapp_purchase",
       "kmp-iap",
       "maui-iap",
+      "packages/google",
       "react-native-iap",
     ],
   );
@@ -53,6 +54,59 @@ test("a manifest that binds the id to the Horizon meta-data passes", () => {
       "android-manifest",
     ),
     null,
+  );
+});
+
+test("meta-data nested inside an activity does not satisfy the audit", () => {
+  // Horizon reads the id from <application>; nested here it merges where the
+  // platform never looks, so the build still fails on device.
+  const contents = manifest(
+    `<activity android:name=".MainActivity">${HORIZON_META("31705015229097839")}</activity>`,
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares the Horizon meta-data outside <application>",
+  );
+});
+
+test("only the value terminating the Gradle elvis chain counts", () => {
+  // The chain's earlier operands are property reads; the last one is what
+  // actually reaches manifestPlaceholders.
+  const chain = [
+    'val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")',
+    '    ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)',
+    '    ?: ""',
+  ].join("\n");
+  assert.equal(
+    inspectHorizonAppIdSource(chain, "gradle-fallback"),
+    "falls back to an empty app id",
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(
+      chain.replace('?: ""', '?: "31705015229097839"'),
+      "gradle-fallback",
+    ),
+    null,
+  );
+});
+
+test("a commented-out Gradle fallback does not satisfy the audit", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      '// val appId = localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"',
+      "gradle-fallback",
+    ),
+    "reads no Horizon app id property",
+  );
+});
+
+test("a commented-out Expo appId does not satisfy the audit", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "horizon: { // appId: '31705015229097839'\n }",
+      "expo-plugin-config",
+    ),
+    "does not set a literal horizon.appId",
   );
 });
 
@@ -135,7 +189,7 @@ test("a Gradle file with the id only in an unrelated place is rejected", () => {
       'def unrelated = "31705015229097839"\n',
       "gradle-fallback",
     ),
-    "does not fall back to a literal Horizon app id",
+    "reads no Horizon app id property",
   );
 });
 

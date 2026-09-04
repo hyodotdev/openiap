@@ -4,8 +4,9 @@
 # Location of the SDK. This is only used by Gradle.
 sdk.dir=/path/to/your/Android/sdk
 
-# Horizon OS App ID (Meta Quest)
-horizon.app.id=YOUR_HORIZON_APP_ID
+# Horizon OS App ID (Meta Quest). Optional: the Example falls back to the
+# shared OpenIAP example app id when this is unset.
+EXAMPLE_HORIZON_APP_ID=YOUR_HORIZON_APP_ID
 
 # IAPKit publishable key for mobile purchase verification.
 # Never put an openiap-kit_sk_ secret admin key in an app build.
