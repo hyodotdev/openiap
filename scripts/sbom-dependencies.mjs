@@ -644,12 +644,18 @@ function resolveMavenValue(value, properties, context) {
   return resolvedValue;
 }
 
+// Every descendant with this tag name.
+function collectElements(element, name, found = []) {
+  if (element.name === name) found.push(element);
+  for (const child of element.children) collectElements(child, name, found);
+  return found;
+}
+
 function parseMavenPom(source, context) {
-  // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
-  // truncated response would otherwise parse as "this artifact declares no
-  // dependencies" and produce a silently empty inventory. Require the project
-  // element in nesting order — one structural rule, the same one the nuspec
-  // reader applies.
+  // Parsed, not pattern-matched. Reading the raw document counted dependencies
+  // inside comments — the published httpmime 4.5.6 POM carries a commented-out
+  // one with no version, which threw — and matched only the exact opening tag
+  // `<dependency>`, so `<dependency >` read as no dependencies at all.
   const document = parseXmlDocument(source, context, "XML");
   if (document.name !== "project") {
     throw new PublishedMetadataUnavailableError(
@@ -658,34 +664,22 @@ function parseMavenPom(source, context) {
   }
 
   const properties = new Map();
-  const propertiesBlock = source.match(
-    /<properties>([\s\S]*?)<\/properties>/u,
-  )?.[1];
-  if (propertiesBlock) {
-    for (const match of propertiesBlock.matchAll(
-      /<([A-Za-z_][\w.-]*)>([^<]+)<\/\1>/gu,
-    )) {
-      properties.set(match[1], decodeXml(match[2].trim()));
-    }
+  for (const property of document.first("properties")?.children ?? []) {
+    properties.set(property.name, property.text.trim());
   }
 
-  const profiles = source.match(/<profiles>([\s\S]*?)<\/profiles>/u)?.[1];
-  if (profiles && /<dependency\b/u.test(profiles)) {
+  const profiles = document.first("profiles");
+  if (profiles && collectElements(profiles, "dependency").length > 0) {
     throw new Error(`Unsupported profiled Maven dependency in ${context.url}`);
   }
 
-  const withoutManaged = source
-    .replace(/<dependencyManagement>[\s\S]*?<\/dependencyManagement>/gu, "")
-    .replace(/<profiles>[\s\S]*?<\/profiles>/gu, "")
-    .replace(/<build>[\s\S]*?<\/build>/gu, "");
+  // Managed, profiled and build dependencies are not this artifact's runtime
+  // inventory; only the project's own <dependencies> is.
   const found = new Map();
-
-  for (const match of withoutManaged.matchAll(
-    /<dependency>([\s\S]*?)<\/dependency>/gu,
-  )) {
-    const block = match[1];
-    const scope = xmlValue(block, "scope") ?? "compile";
-    const optional = xmlValue(block, "optional")?.toLowerCase() === "true";
+  for (const declaration of document.first("dependencies")?.all("dependency") ??
+    []) {
+    const scope = declaration.value("scope") ?? "compile";
+    const optional = declaration.value("optional")?.toLowerCase() === "true";
     if (
       !["compile", "runtime", "test", "provided", "system", "import"].includes(
         scope,
@@ -697,16 +691,16 @@ function parseMavenPom(source, context) {
       continue;
     }
 
-    const group = xmlValue(block, "groupId");
-    const artifact = xmlValue(block, "artifactId");
-    const rawVersion = xmlValue(block, "version");
+    const group = declaration.value("groupId");
+    const artifact = declaration.value("artifactId");
+    const rawVersion = declaration.value("version");
     if (!group || !artifact || !rawVersion) {
       throw new Error(`Incomplete runtime dependency in ${context.url}`);
     }
     const version = resolveMavenValue(rawVersion, properties, context);
     const qualifiers = [];
-    const type = xmlValue(block, "type");
-    const classifier = xmlValue(block, "classifier");
+    const type = declaration.value("type");
+    const classifier = declaration.value("classifier");
     if (type && type !== "jar") qualifiers.push(["type", type]);
     if (classifier) qualifiers.push(["classifier", classifier]);
     const qualifier = qualifiers.length

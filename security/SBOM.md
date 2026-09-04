@@ -97,16 +97,18 @@ after its component's floor is missing its SBOM. The older check beside it only
 ever reports the newest release per component, so a gap behind that one used to
 become permanent. A floor tag absent from the release list is an error rather
 than a skipped component, and a component with no floor must still appear in
-the list, so a truncated page cannot narrow the scan in silence.
+the list, so a truncated page cannot narrow the scan in silence. The cost is
+that a component added to the generator before its first release fails this
+check until that release exists; the error says so and names the remedy.
 
 **Releases before a floor.** These are published without an SBOM and stay that
 way. They are not backfilled: an SBOM generated today resolves today's registry
 metadata, so it would describe something other than what shipped, and a
 plausible-looking artifact that misdescribes a release is worse than its
 absence. Advisory questions about a pre-floor release are answered from the
-tag's committed manifests. For Apple, Google, the docs site and Godot those are
-the inputs the generator reads. KMP and MAUI resolve their published POM and
-nuspec instead, so a manifest answer for those two describes what the tag
+tag's committed manifests. For Apple, the docs site and Godot those are the
+inputs the generator reads. Google, KMP and MAUI resolve their published POM or
+nuspec instead, so a manifest answer for those three describes what the tag
 declared rather than what publishing produced.
 
 **When backfill is appropriate.** Only when the SBOM can be generated from the
@@ -269,12 +271,13 @@ security inventory.
 License coverage is best-effort where an ecosystem does not publish a standard
 machine-readable value. Current structural gaps include:
 
-- **NuGet packages whose nuspec carries only a license URL.** The URL is
-  recorded as `license.url`, so the reference is not lost, but a URL that maps
-  to no SPDX identifier — `Xamarin.Android.Google.BillingClient` carries one —
-  leaves the component without a machine-readable licence id. NuGet's
-  `aka.ms/deprecateLicenseUrl` placeholder states no terms at all and is
-  dropped rather than recorded.
+- **NuGet packages whose nuspec states no machine-readable licence.** A real
+  `<licenseUrl>` is recorded as `license.url`, so the reference is not lost,
+  but the component still carries no SPDX id. `Xamarin.Android.Google.BillingClient`
+  is the sharper case: its `<licenseUrl>` is NuGet's `aka.ms/deprecateLicenseUrl`
+  placeholder, which states no terms and is dropped, and its `<license>` names a
+  file inside the package rather than an expression. It resolves to no licence
+  at all, correctly.
 - **Dart lockfiles are not committed, deliberately.** `pubspec.lock` pins the
   versions one application resolved; a package published for others to depend
   on must not ship one, because the consumer resolves against their own

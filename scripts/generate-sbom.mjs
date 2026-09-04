@@ -30,6 +30,7 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
+import { parseXml } from "./xml-document.mjs";
 import {
   commerceProtocolManifest,
   compareSemVer,
@@ -862,7 +863,9 @@ export function findMissingCoverageTags(
     );
     if (!seen) {
       throw new Error(
-        `no releases for ${componentId} in the release list, so its coverage cannot be checked`,
+        `no releases for ${componentId} in the release list, so its coverage cannot be checked. ` +
+          `If it has not shipped yet, add it to SBOM_COVERAGE_FLOOR when it does; ` +
+          `otherwise the release list is incomplete.`,
       );
     }
   }
@@ -1688,25 +1691,23 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       ]) {
         const pom = await fetcher(`${base}/${path}`);
         if (!pom) continue;
-        // Any 200 body reaches here, and an error page that merely contains
-        // <licenses><name>MIT</name></licenses> is not a declaration by this
-        // artifact. Require a POM document before reading anything from it.
-        const projectOpen = pom.search(/<project\b/iu);
-        if (
-          projectOpen < 0 ||
-          !(projectOpen < pom.search(/<\/project\s*>/iu))
-        ) {
+        // Parsed, not pattern-matched. Reading the raw body recorded a
+        // licence out of an XML comment, and out of a <project> nested inside
+        // an error page.
+        let project;
+        try {
+          project = parseXml(pom, { url: `${base}/${path}` });
+        } catch {
           continue;
         }
+        if (project.name !== "project") continue;
         // A POM may declare several licences, and taking the first <name>
         // after <licenses> silently picked one of them — a guess, which
         // security/SBOM.md forbids. Read the whole block, and record a licence
         // only when the declarations agree on a single SPDX id. Scoping to the
         // block also stops a stray <name> elsewhere in the document from being
         // read as a licence.
-        const licensesBlock = pom.match(
-          /<licenses>([\s\S]*?)<\/licenses>/u,
-        )?.[1];
+
         // Dedupe on the normalised declaration, not on an SPDX id: a licence
         // with no SPDX id — the Android SDK licence, for example — is a real
         // declaration and recording its name is not a guess. What is forbidden
@@ -1715,27 +1716,20 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         // Maven allows <name> and <url> independently, so a <license> element
         // carrying only a <url> is a second set of terms. Counting elements
         // rather than <name> tags stops it from being invisible here.
-        const licenseElements = [
-          ...(licensesBlock ?? "").matchAll(
-            /<license\b[^>]*>([\s\S]*?)<\/license\s*>/gu,
-          ),
-        ].map((match) => match[1]);
         const declared = [
           ...new Map(
-            licenseElements
+            (project.first("licenses")?.all("license") ?? [])
               .map((element) => {
-                const name = element.match(/<name>([^<]+)<\/name>/u)?.[1];
-                if (name) return normalizeLicense(name.trim());
-                const url = element.match(/<url>([^<]+)<\/url>/u)?.[1];
-                return url ? { license: { url: url.trim() } } : undefined;
+                const name = element.value("name");
+                if (name) return normalizeLicense(name);
+                const url = element.value("url");
+                return url ? { license: { url } } : undefined;
               })
               .filter(Boolean)
               .map((entry) => [JSON.stringify(entry), entry]),
           ).values(),
         ];
-        const supplier = pom
-          .match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1]
-          ?.trim();
+        const supplier = project.first("organization")?.value("name");
         const license = declared.length === 1 ? declared[0] : undefined;
         if (license || supplier) {
           return { license, supplier };

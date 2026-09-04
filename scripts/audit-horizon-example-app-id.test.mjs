@@ -340,6 +340,56 @@ test("only a direct android.horizon.appId counts", () => {
   );
 });
 
+test("the tools namespace is recognised under any prefix", () => {
+  // The merger honours tools:node="remove" whatever prefix the document binds
+  // to that namespace, so searching for the literal spelling misses it.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        '<manifest xmlns:android="http://schemas.android.com/apk/res/android"',
+        '  xmlns:t="http://schemas.android.com/tools">',
+        "  <application>",
+        '    <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+        '        android:value="31705015229097839" t:node="remove"/>',
+        "  </application>",
+        "</manifest>",
+      ].join("\n"),
+      "android-manifest",
+    ),
+    "declares the Horizon meta-data without a literal app id",
+  );
+});
+
+test("a commented-out plugin entry supplies no options", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        'const retired = {android:{horizon:{appId:"31705015229097839"}}};',
+        '// ["../app.plugin.js", retired]',
+        "export default {plugins:[]};",
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "passes no options object to the OpenIAP config plugin",
+  );
+});
+
+test("shorthand android.horizon resolves its binding", () => {
+  // `{android: {horizon}}` is a legitimate config the plugin reads correctly;
+  // requiring a nested literal reported it as missing the id.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        'const horizon = {appId: "31705015229097839"};',
+        "const options = {android: {horizon}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    null,
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {

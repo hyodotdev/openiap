@@ -2114,6 +2114,36 @@ test("a POM licence is recorded only when the declarations agree", async () => {
   );
 });
 
+test("a POM is read from its structure, not its text", () => {
+  const { parseMavenPom } = dependencyTesting;
+  const context = { url: "https://repo1.maven.org/maven2/g/a/1/a-1.pom" };
+
+  // The published httpmime 4.5.6 POM carries a commented-out dependency with
+  // no version. Reading the raw text threw `Incomplete runtime dependency` on
+  // a document Maven Central actually serves.
+  assert.deepEqual(
+    parseMavenPom(
+      `<project><dependencies>
+        <!-- <dependency><groupId>g</groupId><artifactId>old</artifactId></dependency> -->
+        <dependency><groupId>g</groupId><artifactId>a</artifactId><version>1.0</version></dependency>
+      </dependencies></project>`,
+      context,
+    ).map((entry) => entry.name),
+    ["g:a"],
+  );
+
+  // The opening tag is not literally `<dependency>` when it carries whitespace.
+  assert.deepEqual(
+    parseMavenPom(
+      `<project><dependencies><dependency >
+        <groupId>g</groupId><artifactId>a</artifactId><version>1.0</version>
+      </dependency></dependencies></project>`,
+      context,
+    ).map((entry) => entry.name),
+    ["g:a"],
+  );
+});
+
 test("a published POM body that is not a POM fails closed", () => {
   const { parseMavenPom } = dependencyTesting;
   const context = { url: "https://repo1.maven.org/maven2/g/a/1/a-1.pom" };
@@ -2510,6 +2540,37 @@ test("the defaults refuse a list that omits any component", () => {
         },
       ]),
     /(?:coverage floor .+ is not in the release list|no releases for .+ in the release list)/u,
+  );
+});
+
+test("a POM licence is read from the document, not its text", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "g:a", version: "1.0", purl: "pkg:maven/g/a@1.0" },
+      { fetcher: async () => body },
+    );
+
+  // A licence inside a comment is not a declaration.
+  assert.equal(
+    await look(
+      "<project><!-- <licenses><license><name>MIT</name></license></licenses> --></project>",
+    ),
+    null,
+  );
+
+  // Nor is a <project> nested inside an error page.
+  assert.equal(
+    await look(
+      "<html><project><licenses><license><name>MIT</name></license></licenses></project></html>",
+    ),
+    null,
+  );
+
+  assert.deepEqual(
+    await look(
+      "<project><licenses><license><name>MIT</name></license></licenses></project>",
+    ),
+    { license: { license: { id: "MIT" } }, supplier: undefined },
   );
 });
 

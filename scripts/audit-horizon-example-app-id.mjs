@@ -104,6 +104,23 @@ const allMetaData = (element, found = []) => {
 const isHorizon = (element) =>
   element.attribute("android:name") === HORIZON_APP_ID_META_DATA_NAME;
 
+const TOOLS_NAMESPACE = "http://schemas.android.com/tools";
+
+// Prefixes bound to the tools namespace anywhere in the document.
+const toolsPrefixes = (root) => {
+  const found = new Set();
+  const visit = (element) => {
+    for (const [name, value] of element.attributes) {
+      if (name.startsWith("xmlns:") && value === TOOLS_NAMESPACE) {
+        found.add(name.slice("xmlns:".length));
+      }
+    }
+    for (const child of element.children) visit(child);
+  };
+  visit(root);
+  return [...found];
+};
+
 const LITERAL_APP_ID = new RegExp(`^${APP_ID}$`);
 const PLACEHOLDER_APP_ID = /^\$\{\w+\}$/;
 
@@ -126,9 +143,15 @@ const inspectManifest = (contents, allowPlaceholder) => {
   let declared = false;
   for (const element of application.all("meta-data").filter(isHorizon)) {
     declared = true;
-    // The merger honours tools:node="remove", so a declaration carrying it is
-    // deleted from the manifest the platform actually reads.
-    if (element.attribute("tools:node") === "remove") continue;
+    // The merger honours the tools namespace, whatever prefix the document
+    // binds it to — `xmlns:t=".../tools"` makes `t:node` equivalent.
+    if (
+      toolsPrefixes(root).some(
+        (prefix) => element.attribute(`${prefix}:node`) === "remove",
+      )
+    ) {
+      continue;
+    }
     const value = element.attribute("android:value") ?? "";
     if (LITERAL_APP_ID.test(value)) return null;
     if (allowPlaceholder && PLACEHOLDER_APP_ID.test(value)) return null;
@@ -186,6 +209,21 @@ const directKeyOffsets = (masked, [start, end], name) => {
 };
 
 // A literal appId directly on the horizon object, not nested deeper.
+// `{android: {horizon}}` is shorthand for `{android: {horizon: horizon}}`, so
+// the value can be a binding rather than a literal object. Resolving one level
+// keeps a legitimate config from being reported as missing the id.
+const bindingBlock = (contents, masked, name) => {
+  const binding = new RegExp(
+    String.raw`\b(?:const|let|var)\s+${name}\b[^=]*=\s*\{`,
+  ).exec(contents);
+  return binding
+    ? extractBalancedBlock(masked, binding.index + binding[0].length - 1)
+    : null;
+};
+
+const SHORTHAND = (name) =>
+  new RegExp(String.raw`(?:^|[{,])\s*${name}\s*(?=[,}])`, "m");
+
 const directAppId = (masked, contents, [start, end]) => {
   let depth = 0;
   for (let index = start + 1; index < end - 1; index += 1) {
@@ -218,6 +256,9 @@ const IDENTIFIER = /^([A-Za-z_$][\w$]*)/;
 // still runs over the masked text where a brace in a string is not syntax.
 const optionsBlock = (contents, masked) => {
   for (const entry of contents.matchAll(PLUGIN_ENTRY)) {
+    // The masker blanks comments and string bodies, so an entry the masker
+    // did not leave intact is commented out and supplies nothing.
+    if (masked[entry.index] !== contents[entry.index]) continue;
     const after = entry.index + entry[0].length;
     if (contents[after] === "{") return extractBalancedBlock(masked, after);
     const named = contents.slice(after).match(IDENTIFIER);
@@ -256,9 +297,18 @@ const inspectExpoPluginConfig = (contents) => {
 
   let declared = false;
   for (const android of androidBlocks) {
-    for (const offset of directKeyOffsets(masked, android, "horizon")) {
-      const span = extractBalancedBlock(masked, offset);
-      if (span === null) continue;
+    const spans = directKeyOffsets(masked, android, "horizon")
+      .map((offset) => extractBalancedBlock(masked, offset))
+      .filter(Boolean);
+    // `{android: {horizon}}` names a binding instead of nesting an object.
+    if (
+      spans.length === 0 &&
+      SHORTHAND("horizon").test(masked.slice(android[0], android[1]))
+    ) {
+      const bound = bindingBlock(contents, masked, "horizon");
+      if (bound) spans.push(bound);
+    }
+    for (const span of spans) {
       declared = true;
       if (directAppId(masked, contents, span)) return null;
     }
