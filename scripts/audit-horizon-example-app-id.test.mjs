@@ -488,6 +488,19 @@ test("a spread into android is reported rather than read past", () => {
   );
 });
 
+test("a source the audit cannot read is reported", () => {
+  assert.match(
+    String(inspectHorizonAppIdSource("<manifest></manifest>", "android-manifest")),
+    /has no <application> element/u,
+  );
+  assert.match(
+    String(
+      inspectHorizonAppIdSource("<manifest><application>", "android-manifest"),
+    ),
+    /is not well-formed XML/u,
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {

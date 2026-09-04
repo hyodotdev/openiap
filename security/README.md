@@ -218,10 +218,10 @@ headset.
 
 Two checks cover this, and they prove different things:
 
-| Check                                        | Proves                                                                                                                                                                                             |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder                                                                                            |
-| `scripts/verify-horizon-merged-manifest.mjs` | the manifest merger _resolved_ a value under `<application>` that is non-empty, not an unresolved placeholder, and shaped like an app id. Nothing offline can prove the id is registered with Meta |
+| Check                                        | Proves                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder. For Expo it reads the options object the plugin entry names; it does not evaluate the config, so it cannot prove that entry is still in the exported `plugins` array |
+| `scripts/verify-horizon-merged-manifest.mjs` | the manifest merger _resolved_ a value under `<application>` that is non-empty, not an unresolved placeholder, and shaped like an app id. Nothing offline can prove the id is registered with Meta                                                                            |
 
 The declaration check is static and runs on every pull request. The resolution
 check needs a built variant, and CI runs it for both targets that resolve their

@@ -281,6 +281,14 @@ const APP_ID_ENTRY = new RegExp(
 // The plugin entry names the options the build actually receives — either an
 // inline object or an identifier bound to one. Anything else in the module is
 // a decoy: a stale constant left by a refactor supplies nothing.
+//
+// What this cannot prove: that the tuple is still in the exported `plugins`
+// array. The real config assembles that array through a binding and pushes to
+// it conditionally, so following it would mean evaluating the module rather
+// than reading it. A tuple left behind while the exported array is emptied
+// therefore still passes. This audit catches a forgotten or malformed app id,
+// which is the accident that actually happens; proving what the build resolves
+// is the merged-manifest verifier's job, and Expo has no such gate today.
 const PLUGIN_ENTRY = /\[\s*['"][^'"]*app\.plugin\.js['"]\s*,\s*/g;
 const IDENTIFIER = /^([A-Za-z_$][\w$]*)/;
 

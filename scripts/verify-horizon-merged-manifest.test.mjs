@@ -93,6 +93,27 @@ test("a self-closing application child does not swallow the declaration", () => 
   assert.equal(inspectMergedManifest(manifest), null);
 });
 
+test("an unreadable manifest is reported, not read past", () => {
+  // Each of these branches decides whether CI blocks a Horizon build, and none
+  // of them was exercised.
+  assert.match(
+    String(inspectMergedManifest("<manifest><application>")),
+    /is not well-formed XML/u,
+  );
+  assert.match(
+    String(inspectMergedManifest("<manifest/>")),
+    /has no <application> element/u,
+  );
+  assert.match(
+    String(
+      inspectMergedManifest(
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"/></application></manifest>',
+      ),
+    ),
+    /has no android:value/u,
+  );
+});
+
 test("a commented-out declaration is not a declaration", () => {
   const contents = [
     "<manifest><application>",
