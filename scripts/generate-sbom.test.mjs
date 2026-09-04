@@ -38,6 +38,7 @@ import {
   verifySbomGeneratorAttestation,
 } from "./generate-sbom.mjs";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
+import { parse as parseYaml } from "yaml";
 import {
   __testing as dependencyTesting,
   extractDirectDependencies,
@@ -814,10 +815,47 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
   for (const workflow of [deploy, source]) {
     assert.match(workflow, /--ignorefile packages\/kit\/\.trivyignore\.yaml/u);
   }
-  assert.match(trivyExceptions, /id: CVE-2026-14456/u);
-  assert.match(trivyExceptions, /pkg:deb\/debian\/libssl3@3\.0\.20-1~deb12u2/u);
-  assert.match(trivyExceptions, /expired_at: 2026-09-14/u);
-  assert.match(trivyExceptions, /statement: >-/u);
+  assert.match(trivyExceptions, /vulnerabilities:/u);
+});
+
+test("every Trivy exception is complete and still in date", () => {
+  // Asserting the current CVE's text would pin a snapshot: removing a properly
+  // expired exception would fail this test, and a new one could be added with
+  // no expiry at all. These are the properties that actually matter.
+  const exceptions =
+    parseYaml(
+      readFileSync(resolve(repoRoot, "packages/kit/.trivyignore.yaml"), "utf8"),
+    )?.vulnerabilities ?? [];
+
+  const today = new Date().toISOString().slice(0, 10);
+  for (const entry of exceptions) {
+    assert.match(
+      String(entry.id ?? ""),
+      /^(CVE|GHSA)-/u,
+      `exception ${JSON.stringify(entry)} has no advisory id`,
+    );
+    assert.ok(
+      Array.isArray(entry.purls) && entry.purls.length > 0,
+      `${entry.id} names no package, so it would suppress the advisory everywhere`,
+    );
+    const expiry =
+      entry.expired_at instanceof Date
+        ? entry.expired_at.toISOString().slice(0, 10)
+        : String(entry.expired_at ?? "");
+    assert.match(
+      expiry,
+      /^\d{4}-\d{2}-\d{2}$/u,
+      `${entry.id} has no expiry date, so it would never be rechecked`,
+    );
+    assert.ok(
+      expiry >= today,
+      `${entry.id} expired on ${expiry}: recheck the vendor classification or remove it`,
+    );
+    assert.ok(
+      String(entry.statement ?? "").trim().length > 0,
+      `${entry.id} carries no statement explaining why it is accepted`,
+    );
+  }
 });
 
 test("Google releases require complete credentials before version mutation", () => {
@@ -2279,4 +2317,35 @@ test("every coverage floor names a real component", () => {
       `${componentId} is not a released component`,
     );
   }
+});
+
+test("the godot SBOM matches the dependency contract the addon ships", async () => {
+  // GodotIap.gdap is what a consumer's Gradle resolves; the SBOM is what the
+  // release tells an auditor it ships. Both are derived from the same version
+  // sources but by different code, so nothing stopped them diverging.
+  const gdap = readFileSync(
+    resolve(
+      repoRoot,
+      "libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap",
+    ),
+    "utf8",
+  );
+  const remote = gdap.match(/^remote=\[(.*)\]$/m);
+  assert.ok(remote, "GodotIap.gdap declares no remote dependency list");
+  const declared = [...remote[1].matchAll(/"([^"]+)"/g)]
+    .map((match) => match[1])
+    .sort();
+
+  // withLicenses is off, so this resolves from committed manifests only.
+  const { document } = await generateSbom("godot", { root: repoRoot });
+  const fromSbom = (document.components ?? [])
+    .filter((component) => component.purl?.startsWith("pkg:maven/"))
+    .map((component) => `${component.name}:${component.version}`)
+    .sort();
+
+  assert.deepEqual(
+    fromSbom,
+    declared,
+    "the godot SBOM and GodotIap.gdap disagree about the shipped Android dependencies",
+  );
 });
