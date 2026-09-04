@@ -131,6 +131,27 @@ test("a mirror does not satisfy the value-still-occurs requirement", () => {
   );
 });
 
+test("a role with no non-mirror site left is reported by role", () => {
+  // Keying only by value let one occurrence satisfy two roles once their
+  // versions converged, so losing a real declaration site went unnoticed. The
+  // role check fires even when some other site still carries the same string.
+  const failures = auditFacts((path) => {
+    const text = readRepoFile(path);
+    if (text === null) return null;
+    return path === "packages/kit/Dockerfile"
+      ? text.replace(/^FROM\s+oven\/bun:.*$/mu, "FROM node:24-slim AS base")
+      : text;
+  });
+  assert.ok(
+    failures.some((entry) =>
+      /toolchain\.bun: no non-mirror site declares the runtimeImage role/u.test(
+        entry,
+      ),
+    ),
+    `expected a role failure, got ${JSON.stringify(failures)}`,
+  );
+});
+
 test("the workflow glob sees .yaml files, which Actions also loads", () => {
   const files = expandFiles([".github/workflows/*.{yml,yaml}"], () => [
     "ci.yml",

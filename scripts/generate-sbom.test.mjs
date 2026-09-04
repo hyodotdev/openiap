@@ -2154,6 +2154,29 @@ test("the XML reader refuses documents that are not well-formed", () => {
   );
 });
 
+test("an unusable licence URL still counts as a declaration", async () => {
+  // Dropping it outright turned "MIT and something else" into a bare MIT
+  // claim — the guess security/SBOM.md forbids.
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "g:a", version: "1", purl: "pkg:maven/g/a@1" },
+      { fetcher: async () => body },
+    );
+  assert.equal(
+    await look(
+      `<project><licenses><license><name>MIT</name></license>` +
+        `<license><url>https://x.test/My License</url></license></licenses></project>`,
+    ),
+    null,
+  );
+  assert.deepEqual(
+    await look(
+      `<project><licenses><license><name>MIT</name></license></licenses></project>`,
+    ),
+    { license: { license: { id: "MIT" } } },
+  );
+});
+
 test("a licence URL that is not a valid IRI is dropped", async () => {
   // CycloneDX types externalReferences.url as an iri-reference, so a registry
   // value carrying whitespace fails whole-document schema validation at

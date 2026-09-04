@@ -811,6 +811,13 @@ export function parseTrivyExceptions(contents) {
   return entries;
 }
 
+// A component merged before its first release has no releases to find and no
+// floor tag to name, so requiring either would leave no state the audit can
+// pass between merging it and publishing. Listing it here is the explicit,
+// reviewable way to say "not shipped yet"; the entry comes out when it ships
+// and the floor goes in.
+export const UNRELEASED_COMPONENTS = new Set([]);
+
 export const SBOM_COVERAGE_FLOOR = {
   apple: "3.2.0",
   docs: "docs-3.2.0",
@@ -858,6 +865,7 @@ export function findMissingCoverageTags(
   // if the list actually contains it.
   for (const componentId of components) {
     if (floors[componentId] !== undefined) continue;
+    if (UNRELEASED_COMPONENTS.has(componentId)) continue;
     const seen = stable.some(
       (entry) => componentFromTag(entry.tag_name)?.componentId === componentId,
     );
@@ -1755,10 +1763,12 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
                 if (name) return normalizeLicense(name);
                 // CycloneDX requires a licence object to carry an id or a
                 // name; a bare url is not one, so it travels as an external
-                // reference instead of an invalid licence entry.
+                // reference instead of an invalid licence entry. A url we
+                // cannot use is still a declaration — dropping it outright
+                // would turn "MIT and something else" into a bare MIT claim.
                 const url = element.value("url");
-                const usable = usableLicenseUrl(url);
-                return usable ? { licenseUrl: usable } : undefined;
+                if (!url) return undefined;
+                return { licenseUrl: usableLicenseUrl(url) ?? null };
               })
               .filter(Boolean)
               .map((entry) => [JSON.stringify(entry), entry]),
@@ -1766,8 +1776,9 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         ];
         const supplier = project.first("organization")?.value("name");
         const only = declared.length === 1 ? declared[0] : undefined;
-        const license = only?.licenseUrl ? undefined : only;
-        const licenseUrl = only?.licenseUrl;
+        // `licenseUrl: null` marks a declaration we counted but cannot record.
+        const license = only && "licenseUrl" in only ? undefined : only;
+        const licenseUrl = only?.licenseUrl ?? undefined;
         const result = nonEmpty({ license, licenseUrl, supplier });
         if (result) return result;
       }

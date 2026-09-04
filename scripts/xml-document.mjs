@@ -179,6 +179,14 @@ export function parseXml(source, context) {
       continue;
     }
     if (source.startsWith("<?", index)) {
+      // A PI needs a target, and `<?xml …?>` is a declaration that may appear
+      // only at the very start. Skipping any `<?…?>` let a malformed body read
+      // as a well-formed document with no dependencies.
+      const target = readName(source, index + 2);
+      if (!target) fail("Processing instruction has no target", context);
+      if (target.name.toLowerCase() === "xml" && index !== 0) {
+        fail("XML declaration is not at the start of the document", context);
+      }
       index += 2;
       skipUntil("?>", "processing instruction");
       continue;

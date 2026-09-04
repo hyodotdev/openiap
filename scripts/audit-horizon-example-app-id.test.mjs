@@ -469,6 +469,60 @@ test("a shorthand binding must be direct and in scope", () => {
   );
 });
 
+test("a spread after any verified property is reported", () => {
+  const t = (src) => inspectHorizonAppIdSource(src, "expo-plugin-config");
+  // Nested: the spread replaces appId inside horizon.
+  assert.match(
+    String(
+      t(
+        'const d={appId:""};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};\nexport default {plugins:[["../app.plugin.js",options]]};',
+      ),
+    ),
+    /horizon after appId/u,
+  );
+  // Root: the spread replaces android itself.
+  assert.match(
+    String(
+      t(
+        'const o={android:{}};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...o};\nexport default {plugins:[["../app.plugin.js",options]]};',
+      ),
+    ),
+    /options after android/u,
+  );
+});
+
+test("a spread before a shorthand horizon is not a problem", () => {
+  // `lastKey` recognised only `horizon: …`, so the shorthand form was reported
+  // as unsafe even though the later property still wins.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "const defaults = {};",
+        'const horizon = {appId: "31705015229097839"};',
+        "const options = {android: {...defaults, horizon}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    null,
+  );
+});
+
+test("an object-shaped type annotation is read, not refused", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "const options: {android: object} = {",
+        '  android: {horizon: {appId: "31705015229097839"}},',
+        "};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    null,
+  );
+});
+
 test("a spread before the key is not a problem", () => {
   // JavaScript guarantees the later explicit property wins, and that ordering
   // is decidable without evaluating the module — rejecting it would block a

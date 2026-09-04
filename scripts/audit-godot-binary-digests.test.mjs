@@ -13,6 +13,24 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
+// The collector reads the digest manifest and the binary root, nothing else.
+// Copying the whole addon pulled in build output — 8 GB in a checkout that has
+// built Godot — three times per run.
+const stageFixture = (scratch) => {
+  const target = path.join(scratch, "libraries/godot-iap");
+  fs.mkdirSync(path.join(target, "addons/godot-iap"), { recursive: true });
+  fs.copyFileSync(
+    path.join(repoRoot, DIGEST_MANIFEST),
+    path.join(scratch, DIGEST_MANIFEST),
+  );
+  fs.cpSync(
+    path.join(repoRoot, "libraries/godot-iap/addons/godot-iap/bin"),
+    path.join(target, "addons/godot-iap/bin"),
+    { recursive: true },
+  );
+  return target;
+};
+
 test("the shipped Godot binaries match their recorded digests", () => {
   assert.deepEqual(collectGodotBinaryDigestFailures(repoRoot), []);
 });
@@ -48,9 +66,7 @@ test("a changed binary is reported with both digests", () => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
   try {
     // Copy the addon tree, then rewrite the manifest with one wrong digest.
-    const source = path.join(repoRoot, "libraries/godot-iap");
-    const target = path.join(scratch, "libraries/godot-iap");
-    fs.cpSync(source, target, { recursive: true });
+    stageFixture(scratch);
     const manifest = path.join(scratch, DIGEST_MANIFEST);
     fs.writeFileSync(
       manifest,
@@ -76,10 +92,7 @@ test("corrupting a binary and deleting its line does not hide it", () => {
   );
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
   try {
-    const target = path.join(scratch, "libraries/godot-iap");
-    fs.cpSync(path.join(repoRoot, "libraries/godot-iap"), target, {
-      recursive: true,
-    });
+    const target = stageFixture(scratch);
     fs.writeFileSync(
       path.join(scratch, "libraries/godot-iap", file),
       "not a Mach-O\n",
@@ -110,10 +123,7 @@ test("an excused name does not excuse executable content", () => {
   const donor = listTrackedBinaries(repoRoot)[0];
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
   try {
-    const target = path.join(scratch, "libraries/godot-iap");
-    fs.cpSync(path.join(repoRoot, "libraries/godot-iap"), target, {
-      recursive: true,
-    });
+    const target = stageFixture(scratch);
     fs.copyFileSync(
       path.join(scratch, "libraries/godot-iap", donor),
       path.join(target, "addons/godot-iap/bin/Payload.gdextension"),

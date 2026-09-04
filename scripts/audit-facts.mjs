@@ -112,6 +112,24 @@ export function auditFacts(readFile) {
       }
     }
 
+    // When every scanner names its role, require each declared role to be
+    // observed through a scanner carrying that role. Keying only by value let
+    // one occurrence satisfy two roles once their versions converged, so a
+    // routine upgrade could hide the loss of a real declaration site.
+    if (fact.scanners.every((scanner) => scanner.role !== undefined)) {
+      for (const [role] of Object.entries(fact.values)) {
+        const observed = occurrences.some(
+          (occurrence) => !occurrence.mirror && occurrence.role === role,
+        );
+        if (!observed) {
+          failures.push(
+            `${fact.key}: no non-mirror site declares the ${role} role any more — ` +
+              `update or remove it from scripts/facts.mjs`,
+          );
+        }
+      }
+    }
+
     for (const [value, role] of allowed) {
       if (!seen.has(value)) {
         failures.push(

@@ -212,7 +212,7 @@ function bindingBlock(contents, masked, name, referenceIndex) {
   // though it were the binding. Allow only a type annotation between the name
   // and its `=`.
   const pattern = new RegExp(
-    String.raw`\b(?:const|let|var)\s+${name}\s*(?::[^=;{}]*)?=\s*\{`,
+    String.raw`\b(?:const|let|var)\s+${name}\s*(?::[^=;]*)?=\s*\{`,
     "g",
   );
   let visible = null;
@@ -243,9 +243,10 @@ function bindingBlock(contents, masked, name, referenceIndex) {
   return visible;
 }
 
-// A shorthand property `{ …, horizon, … }` at depth 0 of the given block.
-const directShorthand = (masked, [start, end], name) => {
+// Offsets of a shorthand property `{ …, horizon, … }` at depth 0 of the block.
+const directShorthandOffsets = (masked, [start, end], name) => {
   const shorthand = new RegExp(String.raw`${name}\s*(?=[,}])`, "y");
+  const offsets = [];
   let depth = 0;
   for (let index = start + 1; index < end - 1; index += 1) {
     const character = masked[index];
@@ -255,13 +256,18 @@ const directShorthand = (masked, [start, end], name) => {
       const before = masked[index - 1];
       if (before !== undefined && /[\w$.]/u.test(before)) continue;
       shorthand.lastIndex = index;
-      if (shorthand.test(masked)) return true;
+      if (shorthand.test(masked)) offsets.push(index);
     }
   }
-  return false;
+  return offsets;
 };
 
-const directAppId = (masked, contents, [start, end]) => {
+const directShorthand = (masked, block, name) =>
+  directShorthandOffsets(masked, block, name).length > 0;
+
+// Offset of a literal appId directly on the horizon object, or -1. The caller
+// compares it with any spread position, so it needs the offset, not a boolean.
+const directAppIdOffset = (masked, contents, [start, end]) => {
   let depth = 0;
   for (let index = start + 1; index < end - 1; index += 1) {
     const character = masked[index];
@@ -271,11 +277,11 @@ const directAppId = (masked, contents, [start, end]) => {
       APP_ID_ENTRY.lastIndex = index;
       const match = APP_ID_ENTRY.exec(contents);
       if (match && match.index === index && masked[index] === contents[index]) {
-        return true;
+        return index;
       }
     }
   }
-  return false;
+  return -1;
 };
 const APP_ID_ENTRY = new RegExp(
   String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
@@ -332,24 +338,28 @@ const inspectExpoPluginConfig = (contents) => {
     .filter(Boolean);
   if (androidBlocks.length === 0) return "declares no android config block";
 
-  // A spread AFTER the key replaces it — `{horizon: {...}, ...d}` leaves
-  // whatever `d.horizon` holds — so reading the literal would assert a value
-  // the build never sees. A spread BEFORE the key is harmless: the later
-  // explicit property wins, and that ordering is decidable without evaluating
-  // the module.
-  for (const android of androidBlocks) {
-    const spreads = directSpreadOffsets(masked, android);
-    if (spreads.length === 0) continue;
-    const keys = directKeyOffsets(masked, android, "horizon");
-    const lastKey = keys.length > 0 ? keys[keys.length - 1] : -1;
-    if (spreads.some((offset) => offset > lastKey)) {
-      return "spreads an object into android after horizon, so the resolved appId is not readable here";
-    }
+  // A spread AFTER the property it would overwrite replaces it, so the literal
+  // we read is not what the build receives. A spread BEFORE it loses to the
+  // later explicit property, and that ordering is decidable without evaluating
+  // the module. This has to hold at every level on the path — options, android
+  // and horizon — because a spread at any of them can replace what is below.
+  const spreadAfter = (block, keyOffset) =>
+    directSpreadOffsets(masked, block).some((offset) => offset > keyOffset);
+
+  if (spreadAfter(options, Math.max(-1, ...androidBlocks.map(([at]) => at)))) {
+    return "spreads an object into the plugin options after android, so the resolved appId is not readable here";
   }
 
   let declared = false;
   for (const android of androidBlocks) {
-    const spans = directKeyOffsets(masked, android, "horizon")
+    const horizonKeys = [
+      ...directKeyOffsets(masked, android, "horizon"),
+      ...directShorthandOffsets(masked, android, "horizon"),
+    ];
+    if (spreadAfter(android, Math.max(-1, ...horizonKeys))) {
+      return "spreads an object into android after horizon, so the resolved appId is not readable here";
+    }
+    const spans = horizonKeys
       .map((offset) => extractBalancedBlock(masked, offset))
       .filter(Boolean);
     // `{android: {horizon}}` names a binding instead of nesting an object. The
@@ -361,7 +371,12 @@ const inspectExpoPluginConfig = (contents) => {
     }
     for (const span of spans) {
       declared = true;
-      if (directAppId(masked, contents, span)) return null;
+      const at = directAppIdOffset(masked, contents, span);
+      if (at < 0) continue;
+      if (spreadAfter(span, at)) {
+        return "spreads an object into horizon after appId, so the resolved appId is not readable here";
+      }
+      return null;
     }
   }
   return declared

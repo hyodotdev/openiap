@@ -30,7 +30,10 @@ scan, and the `overrides` block against declared ranges — and none is inferabl
 from the SBOM. They are named here so the register is not read as covering the
 whole policy.
 
-The tracked set is derived, not curated. Regenerate it with:
+The tracked set is derived by hand, on the cadence below — no audit regenerates
+or checks it, so a dependency that gains a custom licence between refreshes will
+not appear here until someone runs the command. That is the gap to close if this
+register ever gates a release rather than informing one. Refresh it with:
 
 ```bash
 bun run sbom <component> --with-licenses --stdout

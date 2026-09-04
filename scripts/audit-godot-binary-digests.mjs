@@ -163,8 +163,20 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
   return failures;
 }
 
+// Everything the audit requires a digest for — not only what looks like a
+// Mach-O. A framework resource such as PrivacyInfo.xcprivacy is neither
+// excused nor renderable otherwise, so `--write` could not produce a manifest
+// the audit accepts.
+export function listFilesRequiringDigests(repoRoot) {
+  return listBinaryRootFiles(repoRoot).filter((file) => {
+    if (!NON_PAYLOAD.some((pattern) => pattern.test(file))) return true;
+    // An excused name still needs a digest when it holds executable code.
+    return isMachO(path.resolve(repoRoot, GODOT_ROOT, file));
+  });
+}
+
 export function renderDigestManifest(repoRoot, header) {
-  const lines = listTrackedBinaries(repoRoot).map(
+  const lines = listFilesRequiringDigests(repoRoot).map(
     (file) => `${digestOf(repoRoot, file)}  ${file}`,
   );
   return `${header.trimEnd()}\n${lines.join("\n")}\n`;

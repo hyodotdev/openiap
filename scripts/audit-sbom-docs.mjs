@@ -39,7 +39,10 @@ export function parseDocumentedFloors(markdown) {
       continue;
     }
     const match = line.match(FLOOR_ROW);
-    if (match) rows.set(match[1], match[2]);
+    if (match) {
+      if (rows.has(match[1])) rows.set(`${match[1]}\u0000duplicate`, match[2]);
+      else rows.set(match[1], match[2]);
+    }
   }
   return rows;
 }
@@ -56,6 +59,8 @@ export function parseDocumentedComponents(markdown) {
     }
     const match = line.match(MATRIX_ROW);
     if (match) rows.push({ id: match[1], sbomName: match[2] });
+    // Duplicates are kept, not collapsed: two rows for one component give the
+    // reader contradictory answers, and a Map would hide the first one.
   }
   return rows;
 }
@@ -135,6 +140,12 @@ export function collectSbomDocFailures(repoRoot) {
       }
     }
     for (const id of documentedFloors.keys()) {
+      if (id.includes("\u0000")) {
+        failures.push(
+          `${SBOM_DOC} lists the coverage floor for \`${id.split("\u0000")[0]}\` more than once`,
+        );
+        continue;
+      }
       if (!declared.has(id)) {
         failures.push(
           `${SBOM_DOC} documents a coverage floor for \`${id}\`, which has none`,
