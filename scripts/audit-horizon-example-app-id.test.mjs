@@ -320,6 +320,26 @@ test("only the object the plugin receives counts", () => {
   );
 });
 
+test("only a direct android.horizon.appId counts", () => {
+  // The plugin reads the direct path. A nested `decoy` in between supplies
+  // nothing, and a regex that only anchors on a property position cannot tell
+  // the two apart.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "const o = {android: {decoy: {horizon: {appId: '31705015229097839'}}}};\nexport default {plugins: [['../app.plugin.js', o]]};",
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "const o = {android: {horizon: {nested: {appId: '31705015229097839'}}}};\nexport default {plugins: [['../app.plugin.js', o]]};",
+      "expo-plugin-config",
+    ),
+    "declares android.horizon without a literal appId",
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {

@@ -148,9 +148,13 @@ export function parseXml(source, context) {
     if (source.startsWith("<![CDATA[", index)) {
       const close = source.indexOf("]]>", index + 9);
       if (close < 0) fail("Unterminated CDATA section", context);
-      if (stack.length > 0) {
-        stack[stack.length - 1].text += source.slice(index + 9, close);
+      // Character data is only legal inside an element. Ignoring a section
+      // outside the root would let an error page prefixed to a document pass
+      // as valid metadata.
+      if (stack.length === 0) {
+        fail("CDATA outside the root element", context);
       }
+      stack[stack.length - 1].text += source.slice(index + 9, close);
       index = close + 3;
       continue;
     }

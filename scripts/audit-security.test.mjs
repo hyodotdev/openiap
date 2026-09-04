@@ -528,6 +528,44 @@ test("published SBOM audit fails fast and trusts only main", () => {
   assert.doesNotMatch(block, /--signer-workflow/u);
 });
 
+test("sbom.yml restores every module the generator imports", () => {
+  // sbom.yml runs the current generator against a released tag's tree, so it
+  // copies the generator files in by name. A new module reachable from the
+  // entry point but missing from that list fails with ERR_MODULE_NOT_FOUND
+  // before any SBOM is produced — for every tag that predates the file.
+  const workflow = readFileSync(
+    new URL("../.github/workflows/sbom.yml", import.meta.url),
+    "utf8",
+  );
+  const listed = new Set(
+    [...workflow.matchAll(/^\s*(scripts\/[\w.-]+\.mjs)\s*\\?$/gmu)].map(
+      (match) => match[1],
+    ),
+  );
+  assert.ok(listed.size > 0, "no generator files found in sbom.yml");
+
+  const scripts = new URL("../scripts/", import.meta.url);
+  const seen = new Set();
+  const visit = (name) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const source = readFileSync(new URL(name, scripts), "utf8");
+    for (const match of source.matchAll(/from\s+"\.\/([\w.-]+\.mjs)"/gu)) {
+      visit(match[1]);
+    }
+  };
+  visit("generate-sbom.mjs");
+
+  const missing = [...seen]
+    .map((name) => `scripts/${name}`)
+    .filter((path) => !listed.has(path));
+  assert.deepEqual(
+    missing,
+    [],
+    `sbom.yml does not restore: ${missing.join(", ")}`,
+  );
+});
+
 test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
   // codeql.yml builds this package AFTER `analyze`, so its sources are never
   // in the database. That is correct only while the package re-exports a

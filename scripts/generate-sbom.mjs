@@ -754,7 +754,13 @@ export function parseTrivyExceptions(contents) {
   const entries = [];
   let current = null;
   let folding = null;
+  let inVulnerabilities = false;
   for (const raw of contents.split("\n")) {
+    if (/^vulnerabilities:/u.test(raw)) {
+      inVulnerabilities = !/^vulnerabilities:\s*\[\s*\]\s*$/u.test(raw);
+      continue;
+    }
+    if (/^\S/u.test(raw)) inVulnerabilities = false;
     const item = raw.match(/^\s*-\s+id:\s*(\S+)\s*$/);
     if (item) {
       current = { id: item[1], purls: [] };
@@ -762,7 +768,21 @@ export function parseTrivyExceptions(contents) {
       folding = null;
       continue;
     }
-    if (!current) continue;
+    // Reached only for a line this reader does not recognise as an entry.
+    // Skipping it silently made every lifecycle check below vacuous — a YAML
+    // flow entry parsed to no exceptions at all — so refuse instead.
+    if (!current) {
+      if (
+        inVulnerabilities &&
+        raw.trim() !== "" &&
+        !raw.trim().startsWith("#")
+      ) {
+        throw new Error(
+          `Unsupported Trivy exception syntax: ${raw.trim().slice(0, 80)}`,
+        );
+      }
+      continue;
+    }
     const purl = raw.match(/^\s*-\s+(pkg:\S+)\s*$/);
     if (purl) {
       current.purls.push(purl[1]);
@@ -779,6 +799,12 @@ export function parseTrivyExceptions(contents) {
     }
     if (folding && raw.trim() !== "") {
       current[folding] = `${current[folding]} ${raw.trim()}`.trim();
+      continue;
+    }
+    if (inVulnerabilities && raw.trim() !== "" && !raw.trim().startsWith("#")) {
+      throw new Error(
+        `Unsupported Trivy exception syntax: ${raw.trim().slice(0, 80)}`,
+      );
     }
   }
   return entries;
@@ -856,6 +882,13 @@ export function findMissingCoverageTags(
     const resolved = componentFromTag(tag);
     if (!resolved) {
       throw new Error(`SBOM coverage floor ${tag} is not a recognised tag`);
+    }
+    // A floor naming another component's tag would satisfy the presence check
+    // above while that component had no release in the list at all.
+    if (resolved.componentId !== componentId) {
+      throw new Error(
+        `SBOM coverage floor ${tag} belongs to ${resolved.componentId}, not ${componentId}`,
+      );
     }
     floorVersion.set(componentId, resolved.version);
   }

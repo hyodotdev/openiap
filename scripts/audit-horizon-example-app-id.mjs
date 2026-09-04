@@ -157,8 +157,51 @@ const extractBalancedBlock = (masked, from) => {
   return null;
 };
 
-const ANDROID_KEY = /\bandroid\s*:\s*\{/g;
-const HORIZON_KEY = /\bhorizon\s*:\s*\{/g;
+// Property lookups walk brace depth so only DIRECT members count: the plugin
+// reads `android.horizon.appId`, and `android.decoy.horizon.appId` supplies
+// nothing. A regex alone cannot tell the two apart.
+const directKeyOffsets = (masked, [start, end], name) => {
+  const key = new RegExp(String.raw`\b${name}\s*:\s*\{`, "g");
+  const offsets = [];
+  let depth = 0;
+  for (let index = start + 1; index < end - 1; index += 1) {
+    const character = masked[index];
+    if (character === "}") {
+      depth -= 1;
+      continue;
+    }
+    if (character !== "{") {
+      if (depth !== 0) continue;
+      key.lastIndex = index;
+      const match = key.exec(masked);
+      if (match && match.index === index) {
+        offsets.push(index + match[0].length - 1);
+        index = match.index + match[0].length - 1;
+      }
+      continue;
+    }
+    depth += 1;
+  }
+  return offsets;
+};
+
+// A literal appId directly on the horizon object, not nested deeper.
+const directAppId = (masked, contents, [start, end]) => {
+  let depth = 0;
+  for (let index = start + 1; index < end - 1; index += 1) {
+    const character = masked[index];
+    if (character === "{") depth += 1;
+    else if (character === "}") depth -= 1;
+    else if (depth === 0) {
+      APP_ID_ENTRY.lastIndex = index;
+      const match = APP_ID_ENTRY.exec(contents);
+      if (match && match.index === index && masked[index] === contents[index]) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
 const APP_ID_ENTRY = new RegExp(
   String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
   "g",
@@ -206,32 +249,18 @@ const inspectExpoPluginConfig = (contents) => {
   // Expo reads the id from `android.horizon` of those options. A `horizon`
   // block anywhere else — a local constant, a commented-out draft, an
   // unrelated export — supplies nothing to the build.
-  const androidBlocks = [];
-  for (const match of optionsText.matchAll(ANDROID_KEY)) {
-    const span = extractBalancedBlock(
-      masked,
-      options[0] + match.index + match[0].length - 1,
-    );
-    if (span !== null) androidBlocks.push(span);
-  }
+  const androidBlocks = directKeyOffsets(masked, options, "android")
+    .map((offset) => extractBalancedBlock(masked, offset))
+    .filter(Boolean);
   if (androidBlocks.length === 0) return "declares no android config block";
 
   let declared = false;
-  for (const [androidStart, androidEnd] of androidBlocks) {
-    const scope = masked.slice(androidStart, androidEnd);
-    for (const match of scope.matchAll(HORIZON_KEY)) {
-      const span = extractBalancedBlock(
-        masked,
-        androidStart + match.index + match[0].length - 1,
-      );
+  for (const android of androidBlocks) {
+    for (const offset of directKeyOffsets(masked, android, "horizon")) {
+      const span = extractBalancedBlock(masked, offset);
       if (span === null) continue;
       declared = true;
-      for (const entry of contents
-        .slice(span[0], span[1])
-        .matchAll(APP_ID_ENTRY)) {
-        const at = span[0] + entry.index;
-        if (masked[at] === contents[at]) return null;
-      }
+      if (directAppId(masked, contents, span)) return null;
     }
   }
   return declared

@@ -2513,6 +2513,46 @@ test("the defaults refuse a list that omits any component", () => {
   );
 });
 
+test("a coverage floor must belong to its own component", () => {
+  // A floor naming another component's tag satisfies the presence check while
+  // the component it is supposed to cover has no release in the list at all.
+  assert.throws(
+    () =>
+      findMissingCoverageTags(
+        [
+          {
+            tag_name: "google-9.0.0",
+            published_at: "2026-01-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "google-9.0.0.cdx.json" }],
+          },
+        ],
+        { floors: { godot: "google-9.0.0" }, components: ["godot"] },
+      ),
+    /belongs to google, not godot/u,
+  );
+});
+
+test("the Trivy reader refuses syntax it cannot read", () => {
+  // Skipping an unrecognised entry returned no exceptions at all, which made
+  // every lifecycle, expiry and package-scope check below vacuous.
+  assert.throws(
+    () =>
+      parseTrivyExceptions(
+        "vulnerabilities:\n  - { id: CVE-2026-12345, expired_at: 2099-01-01, statement: ok }\n",
+      ),
+    /Unsupported Trivy exception syntax/u,
+  );
+  assert.throws(
+    () =>
+      parseTrivyExceptions(
+        "vulnerabilities:\n  - id: CVE-2026-99999 # temporary\n    statement: forever\n",
+      ),
+    /Unsupported Trivy exception syntax/u,
+  );
+});
+
 test("every coverage floor names a real component", () => {
   for (const componentId of Object.keys(SBOM_COVERAGE_FLOOR)) {
     assert.ok(
@@ -2631,6 +2671,19 @@ test("a <dependencies> element is read through its attributes, or fails loudly",
         context,
       ),
     /(?:well-formed XML|<dependencies> outside <metadata>)/u,
+  );
+});
+
+test("CDATA outside the root element is not a document", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  // An error page prefixed to a real document would otherwise be ignored and
+  // the rest accepted as this package's metadata.
+  assert.throws(
+    () =>
+      parseNugetNuspec("<![CDATA[error]]><package><metadata/></package>", {
+        url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+      }),
+    /is not well-formed XML/u,
   );
 });
 
