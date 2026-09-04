@@ -69,13 +69,14 @@ test("meta-data nested inside an activity does not satisfy the audit", () => {
   );
 });
 
-test("only the value terminating the Gradle elvis chain counts", () => {
+test("only the value terminating a Gradle statement counts", () => {
   // The chain's earlier operands are property reads; the last one is what
   // actually reaches manifestPlaceholders.
   const chain = [
-    'val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")',
-    '    ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)',
-    '    ?: ""',
+    "val appId = listOf(",
+    '    localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),',
+    '    project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?,',
+    ').firstOrNull { !it.isNullOrBlank() } ?: ""',
   ].join("\n");
   assert.equal(
     inspectHorizonAppIdSource(chain, "gradle-fallback"),
@@ -106,7 +107,7 @@ test("a commented-out Expo appId does not satisfy the audit", () => {
       "horizon: { // appId: '31705015229097839'\n }",
       "expo-plugin-config",
     ),
-    "does not set a literal horizon.appId",
+    "declares horizon config without a literal appId",
   );
 });
 
@@ -176,7 +177,7 @@ test("an empty Gradle fallback is rejected even when a literal id is nearby", ()
 test("a Gradle fallback to a literal id passes", () => {
   assert.equal(
     inspectHorizonAppIdSource(
-      'localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"',
+      'localProperties.getProperty("HORIZON_APP_ID")?.trim() ?: "31705015229097839"',
       "gradle-fallback",
     ),
     null,
@@ -203,10 +204,10 @@ test("the Expo plugin config must bind the id to horizon.appId", () => {
   );
   assert.equal(
     inspectHorizonAppIdSource(
-      "android: { horizon: { appId: process.env.HORIZON } }\nconst other = '31705015229097839'",
+      "android: { horizon: { appId: process.env.HORIZON } }",
       "expo-plugin-config",
     ),
-    "does not set a literal horizon.appId",
+    "declares horizon config without a literal appId",
   );
 });
 
@@ -219,14 +220,14 @@ test("a short number is not accepted as a Horizon app id", () => {
   );
   assert.equal(
     inspectHorizonAppIdSource(
-      'localProperties.getProperty("HORIZON_APP_ID") ?: "12345"',
+      'localProperties.getProperty("HORIZON_APP_ID")?.trim() ?: "12345"',
       "gradle-fallback",
     ),
     'falls back to "12345" instead of a literal Horizon app id',
   );
   assert.equal(
     inspectHorizonAppIdSource("horizon: { appId: '42' }", "expo-plugin-config"),
-    "does not set a literal horizon.appId",
+    "declares horizon config without a literal appId",
   );
 });
 
@@ -277,7 +278,7 @@ test("the Gradle inspector reads the statement, not one syntax", () => {
   // The two Gradle examples do not share a shape. Both must resolve, and both
   // must fail when the value the statement ends on is blank.
   const elvis =
-    'val appId = localProperties.getProperty("HORIZON_APP_ID")\n    ?: "31705015229097839"';
+    'val appId = localProperties.getProperty("HORIZON_APP_ID")?.trim()\n    ?: "31705015229097839"';
   const listOf = [
     "val appId = listOf(",
     '    localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),',
@@ -294,6 +295,62 @@ test("the Gradle inspector reads the statement, not one syntax", () => {
       "falls back to an empty app id",
     );
   }
+});
+
+test("every app id statement is inspected, not only the first", () => {
+  // packages/google resolves the id twice — defaultConfig and the horizon
+  // flavor — and the flavor's value is what that build actually uses.
+  const source = [
+    "val appId = listOf(",
+    '    localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),',
+    ').firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"',
+    'create("horizon") {',
+    '    val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID") ?: ""',
+    "}",
+  ].join("\n");
+  assert.equal(
+    inspectHorizonAppIdSource(source, "gradle-fallback"),
+    "falls back to an empty app id",
+  );
+});
+
+test("a literal fallback that a blank override defeats is rejected", () => {
+  // Properties.getProperty returns "" for a key present with no value, and ""
+  // is non-null, so elvis alone never reaches the literal.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      'horizonAppId = localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"',
+      "gradle-fallback",
+    ),
+    "accepts a blank override, which defeats the literal fallback",
+  );
+});
+
+test("a single-quoted Groovy property name is still recognised", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "horizonAppId = localProperties.getProperty('HORIZON_APP_ID')?.trim() ?: '31705015229097839'",
+      "gradle-fallback",
+    ),
+    null,
+  );
+});
+
+test("a single-quoted manifest value is still recognised", () => {
+  const contents = manifest(
+    "<meta-data android:name=\"com.meta.horizon.platform.HORIZON_APP_ID\" android:value='31705015229097839' />",
+  );
+  assert.equal(inspectHorizonAppIdSource(contents, "android-manifest"), null);
+});
+
+test("a nested object between horizon and appId does not hide the id", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "horizon: { extra: { store: 'meta' }, appId: '31705015229097839' }",
+      "expo-plugin-config",
+    ),
+    null,
+  );
 });
 
 test("a missing source file is reported instead of silently passing", () => {

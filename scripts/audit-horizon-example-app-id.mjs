@@ -91,7 +91,7 @@ const inspectAndroidManifest = (contents) => {
   for (const [element] of direct.matchAll(META_DATA_ELEMENT)) {
     if (!element.includes(HORIZON_APP_ID_META_DATA_NAME)) continue;
     declared = true;
-    if (new RegExp(`android:value\\s*=\\s*"${APP_ID}"`).test(element)) {
+    if (new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`).test(element)) {
       return null;
     }
   }
@@ -103,7 +103,7 @@ const inspectAndroidManifest = (contents) => {
     : "declares no Horizon app id meta-data";
 };
 
-const APP_ID_PROPERTY = /(?:HORIZON|OPENIAP)_APP_ID"\s*\)/;
+const APP_ID_PROPERTY = /(?:HORIZON|OPENIAP)_APP_ID["']\s*\)/g;
 const CONTINUATION = /^\s*(?:\?:|\.|\)|,)/;
 const ASSIGNMENT = /(?:^|\s)(?:val|var|def)\s+\w+\s*=|^\s*\w+\s*=[^=]/;
 const STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
@@ -116,9 +116,10 @@ const balanceOf = (line) =>
 // Rather than pattern-match either, take the whole statement that reads a
 // Horizon app id property and require the value it ends on to be a literal id.
 // A literal elsewhere in the file is not the fallback.
-export const extractAppIdStatement = (source) => {
-  const match = source.search(APP_ID_PROPERTY);
-  if (match === -1) return null;
+// A build file can resolve the id more than once — packages/google does it in
+// defaultConfig and again in the horizon flavor — and the later one wins for
+// that flavor. Inspect every statement, not the first.
+export const extractAppIdStatements = (source) => {
   const lines = source.split("\n");
   const offsets = [];
   let cursor = 0;
@@ -126,45 +127,97 @@ export const extractAppIdStatement = (source) => {
     offsets.push(cursor);
     cursor += line.length + 1;
   }
-  let index = offsets.findLastIndex((offset) => offset <= match);
 
-  // The property read can sit inside a multi-line expression, so walk back to
-  // the assignment that owns it before reading forward.
-  let first = index;
-  while (first > 0 && !ASSIGNMENT.test(lines[first])) first -= 1;
+  const statements = [];
+  const seen = new Set();
+  for (const match of source.matchAll(APP_ID_PROPERTY)) {
+    const line = offsets.findLastIndex((offset) => offset <= match.index);
 
-  const statement = [lines[first]];
-  let depth = balanceOf(lines[first]);
-  for (let next = first + 1; next < lines.length; next += 1) {
-    if (depth <= 0 && !CONTINUATION.test(lines[next])) break;
-    statement.push(lines[next]);
-    depth += balanceOf(lines[next]);
+    // The read can sit inside a multi-line expression, so walk back to the
+    // assignment that owns it before reading forward.
+    let first = line;
+    while (first > 0 && !ASSIGNMENT.test(lines[first])) first -= 1;
+    if (seen.has(first)) continue;
+    seen.add(first);
+
+    const statement = [lines[first]];
+    let depth = balanceOf(lines[first]);
+    for (let next = first + 1; next < lines.length; next += 1) {
+      if (depth <= 0 && !CONTINUATION.test(lines[next])) break;
+      statement.push(lines[next]);
+      depth += balanceOf(lines[next]);
+    }
+    statements.push(statement.join("\n"));
   }
-  return statement.join("\n");
+  return statements;
+};
+
+// Elvis alone is not enough: Properties.getProperty returns "" for a key
+// present with no value, and "" is non-null, so a blank entry in the
+// developer's local.properties would defeat the literal fallback and put an
+// empty app id in the manifest. The statement must reject blank too.
+const REJECTS_BLANK = /isNullOrBlank|isNotBlank|\?\.trim\(\)|\.trim\(\)\s*\?:/;
+
+export const inspectAppIdStatement = (statement) => {
+  const literals = statement.match(STRING_LITERAL) ?? [];
+  const terminal = literals[literals.length - 1];
+  if (terminal === undefined) return "has no fallback for the Horizon app id";
+  if (!APP_ID_LITERAL.test(terminal)) {
+    return terminal === '""' || terminal === "''"
+      ? "falls back to an empty app id"
+      : `falls back to ${terminal} instead of a literal Horizon app id`;
+  }
+  if (!REJECTS_BLANK.test(statement)) {
+    return "accepts a blank override, which defeats the literal fallback";
+  }
+  return null;
 };
 
 const inspectGradleFallback = (contents) => {
-  const statement = extractAppIdStatement(stripCodeComments(contents));
-  if (statement === null) return "reads no Horizon app id property";
-  const literals = statement.match(STRING_LITERAL) ?? [];
-  // Property names are quoted too; the fallback is the last literal, which is
-  // the value the statement resolves to when every lookup misses.
-  const terminal = literals[literals.length - 1];
-  if (terminal === undefined) return "has no fallback for the Horizon app id";
-  if (APP_ID_LITERAL.test(terminal)) return null;
-  return terminal === '""' || terminal === "''"
-    ? "falls back to an empty app id"
-    : `falls back to ${terminal} instead of a literal Horizon app id`;
+  const statements = extractAppIdStatements(stripCodeComments(contents));
+  if (statements.length === 0) return "reads no Horizon app id property";
+  for (const statement of statements) {
+    const issue = inspectAppIdStatement(statement);
+    if (issue) return issue;
+  }
+  return null;
 };
 
-const EXPO_HORIZON_APP_ID = new RegExp(
-  String.raw`horizon\s*:\s*\{[^}]*?appId\s*:\s*['"]${APP_ID}['"]`,
+// Brace-balanced rather than `[^}]*`, so a nested object between `horizon:`
+// and `appId:` does not truncate the block being searched.
+const extractBalancedBlock = (source, from) => {
+  let depth = 0;
+  for (let index = from; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    else if (source[index] === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(from, index + 1);
+    }
+  }
+  return null;
+};
+
+const HORIZON_KEY = /\bhorizon\s*:\s*\{/g;
+const LITERAL_APP_ID_ENTRY = new RegExp(
+  String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
 );
 
-const inspectExpoPluginConfig = (contents) =>
-  EXPO_HORIZON_APP_ID.test(stripCodeComments(contents))
-    ? null
+const inspectExpoPluginConfig = (contents) => {
+  const source = stripCodeComments(contents);
+  let declared = false;
+  for (const match of source.matchAll(HORIZON_KEY)) {
+    const block = extractBalancedBlock(
+      source,
+      match.index + match[0].length - 1,
+    );
+    if (block === null) continue;
+    declared = true;
+    if (LITERAL_APP_ID_ENTRY.test(block)) return null;
+  }
+  return declared
+    ? "declares horizon config without a literal appId"
     : "does not set a literal horizon.appId";
+};
 
 const INSPECTORS = {
   "android-manifest": inspectAndroidManifest,

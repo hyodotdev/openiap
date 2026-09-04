@@ -83,7 +83,9 @@ android {
         // empty value would only surface as a startConnection crash on device.
         def horizonAppId = ""
         if (horizonEnabled) {
-            horizonAppId = localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"
+            // Blank counts as absent: getProperty returns "" for a key present
+            // with no value, and "" is non-null, so elvis alone would keep it.
+            horizonAppId = localProperties.getProperty("HORIZON_APP_ID")?.trim() ?: "31705015229097839"
         }
         manifestPlaceholders = [HORIZON_APP_ID: horizonAppId]
     }
