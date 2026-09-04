@@ -1236,6 +1236,9 @@ function dependencyComponent(entry) {
   if (entry.copyright) {
     component.copyright = entry.copyright;
   }
+  if (entry.externalReferences?.length) {
+    component.externalReferences = entry.externalReferences;
+  }
   if (entry.hashes?.length) {
     component.hashes = entry.hashes;
   }
@@ -1674,6 +1677,18 @@ async function fetchPublishedText(
 // deprecated the field; it identifies no terms.
 const DEPRECATED_NUGET_LICENSE_URL = "https://aka.ms/deprecateLicenseUrl";
 
+// Callers deep-compare these results, so an explicitly-undefined key reads as
+// a different shape from an absent one. Drop the empties, and return null when
+// the registry stated nothing at all.
+function nonEmpty(fields) {
+  const kept = Object.fromEntries(
+    Object.entries(fields).filter(
+      ([, value]) => value !== undefined && value !== null,
+    ),
+  );
+  return Object.keys(kept).length > 0 ? kept : null;
+}
+
 async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
   try {
     if (entry.purl.startsWith("pkg:maven/")) {
@@ -1722,18 +1737,22 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
               .map((element) => {
                 const name = element.value("name");
                 if (name) return normalizeLicense(name);
+                // CycloneDX requires a licence object to carry an id or a
+                // name; a bare url is not one, so it travels as an external
+                // reference instead of an invalid licence entry.
                 const url = element.value("url");
-                return url ? { license: { url } } : undefined;
+                return url ? { licenseUrl: url } : undefined;
               })
               .filter(Boolean)
               .map((entry) => [JSON.stringify(entry), entry]),
           ).values(),
         ];
         const supplier = project.first("organization")?.value("name");
-        const license = declared.length === 1 ? declared[0] : undefined;
-        if (license || supplier) {
-          return { license, supplier };
-        }
+        const only = declared.length === 1 ? declared[0] : undefined;
+        const license = only?.licenseUrl ? undefined : only;
+        const licenseUrl = only?.licenseUrl;
+        const result = nonEmpty({ license, licenseUrl, supplier });
+        if (result) return result;
       }
       return null;
     }
@@ -1764,19 +1783,19 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
       const raw = expression ?? (fromUrl && decodeURIComponent(fromUrl));
       const license = normalizeLicense(raw);
-      return {
-        // A licenceUrl that maps to no SPDX id is still a statement of where
-        // the terms are, so it is recorded as a url rather than dropped. The
-        // exception is NuGet's own placeholder for a retired licenceUrl, which
-        // states nothing.
-        license:
-          license ??
-          (url && url !== DEPRECATED_NUGET_LICENSE_URL
-            ? { license: { url } }
-            : undefined),
+      return nonEmpty({
+        license,
+        // A licenceUrl that maps to no SPDX id still says where the terms are,
+        // but CycloneDX has no licence object carrying only a url — it belongs
+        // in externalReferences. NuGet's placeholder for a retired licenceUrl
+        // states nothing, so it is dropped.
+        licenseUrl:
+          license || !url || url === DEPRECATED_NUGET_LICENSE_URL
+            ? undefined
+            : url,
         supplier: metadata.value("authors") || undefined,
         copyright: metadata.value("copyright") || undefined,
-      };
+      });
     }
 
     if (entry.purl.startsWith("pkg:npm/")) {
@@ -1789,12 +1808,12 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       const metadata = JSON.parse(raw);
       const license = metadata.license;
       const author = metadata.author;
-      return {
+      return nonEmpty({
         license: normalizeLicense(
           typeof license === "string" ? license : license?.type,
         ),
         supplier: typeof author === "string" ? author : author?.name,
-      };
+      });
     }
     if (entry.purl.startsWith("pkg:pub/")) {
       // pub.dev states the licence as a score tag rather than a metadata
@@ -1829,13 +1848,13 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       } catch {
         supplier = undefined;
       }
-      return {
+      return nonEmpty({
         // Two different declared licences is a question for a human, not a
         // coin flip.
         license:
           resolved.length === 1 ? { license: { id: resolved[0] } } : undefined,
         supplier,
-      };
+      });
     }
   } catch {
     // Network failure, timeout, or malformed registry response.
@@ -1863,6 +1882,14 @@ async function attachRegistryMetadata(
           : {}),
         ...(found.copyright && !entry.copyright
           ? { copyright: found.copyright }
+          : {}),
+        ...(found.licenseUrl && !entry.licenses?.length
+          ? {
+              externalReferences: [
+                ...(entry.externalReferences ?? []),
+                { url: found.licenseUrl, type: "license" },
+              ],
+            }
           : {}),
       };
     }),

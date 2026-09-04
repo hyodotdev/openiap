@@ -1968,19 +1968,16 @@ test("a pub.dev tag that is not a licence never becomes one", async () => {
   assert.deepEqual(
     await lookupPub(["license:osi-approved", "license:fsf-libre"]),
     {
-      license: undefined,
       supplier: "dart.dev",
     },
   );
   assert.deepEqual(await lookupPub([]), {
-    license: undefined,
     supplier: "dart.dev",
   });
 });
 
 test("two declared pub.dev licences yield none rather than a guess", async () => {
   assert.deepEqual(await lookupPub(["license:mit", "license:bsd-3-clause"]), {
-    license: undefined,
     supplier: "dart.dev",
   });
   // The same licence stated twice is still one licence.
@@ -1993,7 +1990,6 @@ test("two declared pub.dev licences yield none rather than a guess", async () =>
 test("a pub.dev publisher lookup failure does not discard the licence", async () => {
   assert.deepEqual(await lookupPub(["license:mit"], null), {
     license: { license: { id: "MIT" } },
-    supplier: undefined,
   });
 
   // A malformed publisher body used to throw into the outer catch, which
@@ -2008,7 +2004,7 @@ test("a pub.dev publisher lookup failure does not discard the licence", async ()
             : "not json at all",
       },
     ),
-    { license: { license: { id: "MIT" } }, supplier: undefined },
+    { license: { license: { id: "MIT" } } },
   );
 });
 
@@ -2029,15 +2025,14 @@ test("a nuspec copyright is recorded rather than discarded", async () => {
   assert.deepEqual(found.license, { license: { id: "MIT" } });
 });
 
-test("a licence url with no SPDX id is recorded as a url, not dropped", async () => {
-  assert.deepEqual(
-    (
-      await lookupNuspec(
-        "<licenseUrl>https://example.test/LICENSE</licenseUrl>",
-      )
-    ).license,
-    { license: { url: "https://example.test/LICENSE" } },
+test("a licence url with no SPDX id becomes an external reference", async () => {
+  // CycloneDX requires a licence object to carry an id or a name, so a bare
+  // url cannot travel as one without failing schema validation.
+  const found = await lookupNuspec(
+    "<licenseUrl>https://example.test/LICENSE</licenseUrl>",
   );
+  assert.equal(found.license, undefined);
+  assert.equal(found.licenseUrl, "https://example.test/LICENSE");
 });
 
 test("NuGet's deprecated licence-url placeholder states nothing", async () => {
@@ -2068,7 +2063,6 @@ test("registry metadata never guesses suppliers or replaces reviewed values", as
     license: {
       license: { name: "Android Software Development Kit License" },
     },
-    supplier: undefined,
   });
 
   const reviewed = {
@@ -2121,7 +2115,7 @@ test("a POM licence is recorded only when the declarations agree", async () => {
     await look(
       "<project><licenses><license><name>MIT</name></license></licenses></project>",
     ),
-    { license: { license: { id: "MIT" } }, supplier: undefined },
+    { license: { license: { id: "MIT" } } },
   );
 });
 
@@ -2138,6 +2132,9 @@ test("the XML reader refuses documents that are not well-formed", () => {
     `<package><metadata><id>A &bogus; B</id></metadata></package>`,
     `<package><metadata><id>A & B</id></metadata></package>`,
     `<package><metadata><dependencies><dependency id="x < y" version="1"/></dependencies></metadata></package>`,
+    // `&#65A;` is not a decimal reference; truncating it to 65 substituted data
+    // for a document the reader should have refused.
+    `<package><metadata><id>&#65A;</id></metadata></package>`,
     `<package><!-- a -- b --><metadata><id>X</id></metadata></package>`,
   ]) {
     assert.throws(
@@ -2157,6 +2154,45 @@ test("the XML reader refuses documents that are not well-formed", () => {
   );
 });
 
+test("a licence known only by URL is an external reference", async () => {
+  // CycloneDX requires a licence object to carry an id or a name, so
+  // `{license: {url}}` fails schema validation and would block a release.
+  const look = (body, purl) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl },
+      { fetcher: async () => body },
+    );
+
+  assert.equal(
+    (
+      await look(
+        `<package><metadata><id>X</id><licenseUrl>https://x.test/L</licenseUrl></metadata></package>`,
+        "pkg:nuget/X@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+  assert.equal(
+    (
+      await look(
+        `<project><licenses><license><url>https://x.test/L</url></license></licenses></project>`,
+        "pkg:maven/g/a@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+
+  // It reaches the component as an externalReferences entry, never a licence.
+  const [component] = await generatorTesting.attachRegistryMetadata(
+    [{ name: "X", version: "1", purl: "pkg:nuget/X@1" }],
+    { lookup: async () => ({ licenseUrl: "https://x.test/L" }) },
+  );
+  assert.equal(component.licenses, undefined);
+  assert.deepEqual(component.externalReferences, [
+    { url: "https://x.test/L", type: "license" },
+  ]);
+});
+
 test("a nuspec copyright is read from the metadata element", async () => {
   // Reading the raw text recorded a commented-out value as the artifact's
   // attribution, which would publish a false statement in the SBOM.
@@ -2169,7 +2205,32 @@ test("a nuspec copyright is read from the metadata element", async () => {
     await look(
       `<package><metadata><id>X</id><!-- <copyright>Fake</copyright> --><copyright>Real</copyright></metadata></package>`,
     ),
-    { license: undefined, supplier: undefined, copyright: "Real" },
+    { copyright: "Real" },
+  );
+});
+
+test("a duplicate container is refused, not silently half-read", () => {
+  const { parseMavenPom, parseNugetNuspec } = dependencyTesting;
+  const context = { url: "fixture" };
+
+  // Reading only the first container dropped everything the second declared.
+  assert.throws(
+    () =>
+      parseMavenPom(
+        "<project><dependencies/><dependencies><dependency><groupId>g</groupId>" +
+          "<artifactId>a</artifactId><version>1</version></dependency></dependencies></project>",
+        context,
+      ),
+    /Multiple <dependencies> elements/u,
+  );
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        "<package><metadata><id>X</id></metadata><metadata><dependencies>" +
+          '<dependency id="Hidden" version="1"/></dependencies></metadata></package>',
+        context,
+      ),
+    /Multiple <metadata> elements/u,
   );
 });
 
@@ -2629,7 +2690,7 @@ test("a POM licence is read from the document, not its text", async () => {
     await look(
       "<project><licenses><license><name>MIT</name></license></licenses></project>",
     ),
-    { license: { license: { id: "MIT" } }, supplier: undefined },
+    { license: { license: { id: "MIT" } } },
   );
 });
 

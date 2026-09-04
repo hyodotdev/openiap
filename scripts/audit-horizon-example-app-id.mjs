@@ -67,18 +67,6 @@ export const HORIZON_APP_ID_SOURCES = [
 // the merged manifest just as empty.
 const APP_ID = String.raw`\d{10,}`;
 
-// Replace to a fixpoint: removing an inner `<!-- -->` can splice `<!-` and `-`
-// into a new opener the pass never saw, so one substitution is not a strip.
-const stripXmlComments = (source) => {
-  let previous;
-  let current = source;
-  do {
-    previous = current;
-    current = previous.replace(/<!--[\s\S]*?-->/g, "");
-  } while (current !== previous);
-  return current;
-};
-
 const APPLICATION_ELEMENT =
   /<application\b(?:[^>]*\/>|[\s\S]*?<\/application\s*>)/;
 // activity-alias precedes activity: the alternation is ordered, and
@@ -234,9 +222,14 @@ function bindingBlock(contents, masked, name, referenceIndex) {
       if (masked[index] === "{") open.push(index);
       else if (masked[index] === "}") open.pop();
     }
+    // The reference must fall inside the declaration's scope AND after the
+    // declaration itself. Checking only the end let a binding declared later,
+    // in an unrelated block, shadow the one the plugin actually receives.
+    if (referenceIndex < binding.index) continue;
     if (open.length > 0) {
       const scope = extractBalancedBlock(masked, open[open.length - 1]);
-      if (scope === null || referenceIndex >= scope[1]) continue;
+      if (scope === null) continue;
+      if (referenceIndex <= scope[0] || referenceIndex >= scope[1]) continue;
     }
     visible = extractBalancedBlock(
       masked,
@@ -318,7 +311,6 @@ const inspectExpoPluginConfig = (contents) => {
   if (options === null) {
     return "passes no options object to the OpenIAP config plugin";
   }
-  const optionsText = masked.slice(options[0], options[1]);
 
   // Expo reads the id from `android.horizon` of those options. A `horizon`
   // block anywhere else — a local constant, a commented-out draft, an
@@ -327,6 +319,15 @@ const inspectExpoPluginConfig = (contents) => {
     .map((offset) => extractBalancedBlock(masked, offset))
     .filter(Boolean);
   if (androidBlocks.length === 0) return "declares no android config block";
+
+  // A spread can replace a key after it was written — `{horizon: {...}, ...d}`
+  // leaves whatever `d.horizon` holds. Reading the literal and calling it
+  // settled would assert a value the build never sees, so say so instead.
+  for (const android of androidBlocks) {
+    if (/\.\.\./u.test(masked.slice(android[0], android[1]))) {
+      return "spreads an object into android, so the resolved appId is not readable here";
+    }
+  }
 
   let declared = false;
   for (const android of androidBlocks) {

@@ -36,11 +36,11 @@ function decodeEntities(text, context) {
   // supports no DTD, so any name outside the predefined five is undeclared,
   // and passing the reference through unchanged would put markup-looking text
   // into a value the caller treats as data.
-  if (/&(?!(?:#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);)/u.test(text)) {
+  if (/&(?!(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);)/u.test(text)) {
     fail("Unescaped '&' in character data", context);
   }
   return text.replace(
-    /&(#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);/gu,
+    /&(#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);/gu,
     (raw, body) => {
       if (body.startsWith("#x") || body.startsWith("#X")) {
         const code = Number.parseInt(body.slice(2), 16);

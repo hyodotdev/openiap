@@ -173,12 +173,14 @@ gates remain independent of that hosted view.
   has no npm provenance. Version 1.0.1 is the first provenance-verified release;
   tag, registry-integrity, reproducibility, and SBOM evidence for 1.0.0 do not
   retroactively create npm build provenance.
-- `openiap-commerce-protocol@0.0.0-bootstrap.0` has no npm provenance either,
-  and is not a release. npm cannot register a trusted publisher for a package
-  that does not exist, so the name was claimed by publishing that placeholder
-  once by hand. It stays on the `bootstrap` dist-tag; `latest` is `0.1.0`, the
-  first provenance-verified release, so `npm install openiap-commerce-protocol`
-  never resolves to it.
+- `openiap-commerce-protocol@0.0.0-bootstrap.0` has no npm provenance either.
+  It is a publicly installable version but not a project release: npm cannot
+  register a trusted publisher for a package that does not exist, so the name
+  was claimed by publishing that placeholder outside the CI lane. It sits on
+  the `bootstrap` dist-tag, and `latest` is `0.1.0` — the first release
+  published through trusted publishing, carrying both npm publish and SLSA
+  provenance attestations — so an unqualified install resolves to `0.1.0`
+  today. Dist-tags are mutable; the attestation on each version is not.
 
 ## Release artifact verification
 

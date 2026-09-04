@@ -436,6 +436,23 @@ test("a shorthand binding must be direct and in scope", () => {
     "does not set a literal android.horizon.appId",
   );
 
+  // A binding declared later, in an unrelated block, is not what the plugin
+  // receives — checking only the scope's end let it shadow the real one.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "const options = {android: {}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+        "function later() {",
+        '  const options = {android: {horizon: {appId: "31705015229097839"}}};',
+        "  return options;",
+        "}",
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
+  );
+
   // A binding in a block that encloses the reference is visible, which is how
   // the real config declares its options inside the exported function.
   assert.equal(
@@ -449,6 +466,25 @@ test("a shorthand binding must be direct and in scope", () => {
       "expo-plugin-config",
     ),
     null,
+  );
+});
+
+test("a spread into android is reported rather than read past", () => {
+  // `{horizon: {appId}, ...defaults}` leaves whatever defaults.horizon holds.
+  // Reading the literal and calling it settled asserts a value the build never
+  // sees, so the audit says it cannot tell instead of passing.
+  assert.match(
+    String(
+      inspectHorizonAppIdSource(
+        [
+          "const defaults = {horizon: {}};",
+          'const options = {android: {horizon: {appId: "31705015229097839"}, ...defaults}};',
+          'export default {plugins: [["../app.plugin.js", options]]};',
+        ].join("\n"),
+        "expo-plugin-config",
+      ),
+    ),
+    /spreads an object into android/u,
   );
 });
 

@@ -53,13 +53,6 @@ function decodeXml(value) {
     .replaceAll("&amp;", "&");
 }
 
-function xmlValue(source, tag) {
-  const match = source.match(
-    new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "u"),
-  );
-  return match ? decodeXml(match[1].trim()) : null;
-}
-
 function encodePurlVersion(version) {
   return encodeURIComponent(version).replaceAll("%3A", ":");
 }
@@ -651,9 +644,15 @@ function parseMavenPom(source, context) {
 
   // Managed, profiled and build dependencies are not this artifact's runtime
   // inventory; only the project's own <dependencies> is.
+  // A second container is malformed, and reading only the first silently
+  // dropped everything the later one declared.
+  const containers = document.all("dependencies");
+  if (containers.length > 1) {
+    throw new Error(`Multiple <dependencies> elements in ${context.url}`);
+  }
+
   const found = new Map();
-  for (const declaration of document.first("dependencies")?.all("dependency") ??
-    []) {
+  for (const declaration of containers[0]?.all("dependency") ?? []) {
     const scope = declaration.value("scope") ?? "compile";
     const optional = declaration.value("optional")?.toLowerCase() === "true";
     if (
@@ -755,8 +754,12 @@ function parseNugetNuspec(source, context) {
   // contains all four and is still not a nuspec. Require them in nesting order
   // instead, which is one structural rule rather than a list of rejected shapes.
   const document = parseXmlDocument(source, context, "XML");
-  const metadataElement =
-    document.name === "package" ? document.first("metadata") : undefined;
+  const metadataElements =
+    document.name === "package" ? document.all("metadata") : [];
+  if (metadataElements.length > 1) {
+    throw new Error(`Multiple <metadata> elements in ${context.url}`);
+  }
+  const metadataElement = metadataElements[0];
   if (!metadataElement) {
     throw new PublishedMetadataUnavailableError(
       `Published document is not a nuspec: ${context.url}`,
