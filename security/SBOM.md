@@ -67,6 +67,48 @@ notice plus the addon's own `LICENSE`. Registry-distributed components carry
 their dependencies by coordinate rather than by embedding them, so the consuming
 package manager resolves those licences.
 
+## Coverage policy
+
+SBOM publication began partway through this repository's history, so a release
+without an SBOM asset is not automatically a failure. The boundary is recorded
+as `SBOM_COVERAGE_FLOOR` in `scripts/generate-sbom.mjs`, derived from the
+published releases rather than chosen:
+
+| Component                          | First release required to carry an SBOM         |
+| ---------------------------------- | ----------------------------------------------- |
+| `apple`                            | `3.2.0`                                         |
+| `docs`                             | `docs-3.2.0`                                    |
+| `expo`                             | `expo-iap-5.3.0`                                |
+| `flutter`                          | `flutter-iap-10.3.0`                            |
+| `godot`                            | `godot-iap-3.3.0`                               |
+| `google`                           | `google-3.3.0`                                  |
+| `kmp`                              | `kmp-iap-3.3.0`                                 |
+| `maui`                             | `maui-iap-2.3.0`                                |
+| `react-native`                     | `react-native-iap-16.3.0`                       |
+| `commerce-protocol`, `conformance` | every release — their first already carries one |
+
+A component with no entry is required from its first release. That is what
+keeps a component added later covered without anyone remembering to add it to
+the table.
+
+**What is enforced.** `security-rescan.yml` fails when any stable release at or
+after its component's floor is missing its SBOM. The older check beside it only
+ever reports the newest release per component, so a gap behind that one used to
+become permanent. A floor tag absent from the release list is an error rather
+than a skipped component, so a truncated page cannot narrow the scan in silence.
+
+**Releases before a floor.** These are published without an SBOM and stay that
+way. They are not backfilled: an SBOM generated today resolves today's registry
+metadata, so it would describe something other than what shipped, and a
+plausible-looking artifact that misdescribes a release is worse than its
+absence. Advisory questions about a pre-floor release are answered from the
+tag's committed manifests, which are the same inputs the generator would read.
+
+**When backfill is appropriate.** Only when the SBOM can be generated from the
+exact committed state of that tag and is labelled as generated after the fact.
+`repairSbomDigestForTag` exists for approved repairs of that kind; adding an
+entry there is a deliberate, reviewed act, not routine maintenance.
+
 ## Standards
 
 | Concern            | Standard                                                                                                                                                   |

@@ -15,23 +15,25 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
+  SBOM_COVERAGE_FLOOR,
   __testing as generatorTesting,
   buildSbom,
   componentFromTag,
+  findMissingCoverageTags,
   findMissingLatestSbomTags,
   generateSbom,
   latestSbomAssets,
   listComponentIds,
   normalizeLicense,
-  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
   prepareSbomForExactVulnerabilityScan,
   publishedSbomAssets,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
   repairSbomDigestForTag,
-  sbomRevisionForTag,
   sbomFileName,
+  sbomRevisionForTag,
   verifyPublishedSbom,
   verifySbomGeneratorAttestation,
 } from "./generate-sbom.mjs";
@@ -2174,4 +2176,107 @@ test("every component is reachable from the root of the dependency graph", () =>
   assert.deepEqual(transitive.properties, [
     { name: "openiap:sbom:relationship", value: "transitive" },
   ]);
+});
+
+test("coverage continuity reports mid-train gaps the latest-only scan misses", () => {
+  // findMissingLatestSbomTags stops at the newest release per component, so a
+  // gap behind it becomes permanent. This is that gap.
+  const releases = [
+    {
+      tag_name: "godot-iap-3.3.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
+    },
+    {
+      tag_name: "godot-iap-3.4.0",
+      published_at: "2026-02-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+    {
+      tag_name: "godot-iap-3.5.0",
+      published_at: "2026-03-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+    },
+  ];
+  assert.deepEqual(findMissingLatestSbomTags(releases), []);
+  assert.deepEqual(findMissingCoverageTags(releases), ["godot-iap-3.4.0"]);
+});
+
+test("releases before a component's coverage floor are not gaps", () => {
+  const releases = [
+    {
+      tag_name: "godot-iap-3.2.0",
+      published_at: "2025-12-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+    {
+      tag_name: "godot-iap-3.3.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
+    },
+  ];
+  assert.deepEqual(findMissingCoverageTags(releases), []);
+});
+
+test("a component with no floor entry is covered from its first release", () => {
+  // conformance and commerce-protocol shipped an SBOM with their first
+  // release, so they carry no exemption — and neither does anything added
+  // later, which is what stops a new component from being silently skipped.
+  assert.equal(SBOM_COVERAGE_FLOOR.conformance, undefined);
+  assert.equal(SBOM_COVERAGE_FLOOR["commerce-protocol"], undefined);
+  const releases = [
+    {
+      tag_name: "openiap-conformance-1.0.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+  ];
+  assert.deepEqual(findMissingCoverageTags(releases), [
+    "openiap-conformance-1.0.0",
+  ]);
+});
+
+test("a floor missing from the release list fails loudly", () => {
+  // A truncated page would otherwise narrow the scan in silence.
+  assert.throws(
+    () =>
+      findMissingCoverageTags([
+        {
+          tag_name: "godot-iap-3.4.0",
+          published_at: "2026-02-01T00:00:00Z",
+          draft: false,
+          prerelease: false,
+          assets: [{ name: "godot-iap-3.4.0.cdx.json" }],
+        },
+        {
+          tag_name: "godot-iap-3.5.0",
+          published_at: "2026-03-01T00:00:00Z",
+          draft: false,
+          prerelease: false,
+          assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+        },
+      ]),
+    /coverage floor godot-iap-3\.3\.0 for godot is not in the release list/,
+  );
+});
+
+test("every coverage floor names a real component", () => {
+  for (const componentId of Object.keys(SBOM_COVERAGE_FLOOR)) {
+    assert.ok(
+      generatorTesting.COMPONENTS[componentId],
+      `${componentId} is not a released component`,
+    );
+  }
 });

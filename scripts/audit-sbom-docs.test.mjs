@@ -56,9 +56,15 @@ test("a component missing from the documentation is reported", () => {
 });
 
 test("a component the generator no longer emits is reported as stale", () => {
+  // The row has to sit inside the component table; a row after it belongs to
+  // whatever section follows and is not a component claim.
+  const source = fs.readFileSync(path.join(repoRoot, SBOM_DOC), "utf8");
+  const lastRow = "| `commerce-protocol` |";
+  const insertAt = source.indexOf("\n", source.indexOf(lastRow));
   const markdown =
-    fs.readFileSync(path.join(repoRoot, SBOM_DOC), "utf8") +
-    "\n| `retired` | `openiap-retired` | npm | `retired-<version>` |\n";
+    source.slice(0, insertAt) +
+    "\n| `retired` | `openiap-retired` | npm | `retired-<version>` |" +
+    source.slice(insertAt);
   withDoc(markdown, (failures) => {
     assert.equal(failures.length, 1);
     assert.match(failures[0], /no longer exist: `retired`/);

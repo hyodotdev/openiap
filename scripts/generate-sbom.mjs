@@ -737,6 +737,79 @@ export function sbomRevisionForTag(tag) {
   return LEGACY_SBOM_REPAIRS.get(tag)?.bomVersion ?? 1;
 }
 
+// The first stable release of each component that is required to carry an SBOM.
+// Entries are legacy exemptions only, derived from the published releases: they
+// record where SBOM publication actually began, so earlier releases are not
+// reported as gaps. A component with no entry is required from its very first
+// release, which is what keeps a newly added component covered without anyone
+// remembering to add it here.
+export const SBOM_COVERAGE_FLOOR = {
+  apple: "3.2.0",
+  docs: "docs-3.2.0",
+  expo: "expo-iap-5.3.0",
+  flutter: "flutter-iap-10.3.0",
+  godot: "godot-iap-3.3.0",
+  google: "google-3.3.0",
+  kmp: "kmp-iap-3.3.0",
+  maui: "maui-iap-2.3.0",
+  "react-native": "react-native-iap-16.3.0",
+};
+
+/**
+ * Return every stable release inside the SBOM coverage era whose SBOM asset is
+ * missing. findMissingLatestSbomTags only ever reports the newest release per
+ * component, so a gap in the middle of a release train is permanent once a
+ * newer release ships. This reports all of them.
+ */
+export function findMissingCoverageTags(releases) {
+  const stable = releases
+    .filter(
+      (release) =>
+        !release?.draft && !release?.prerelease && release?.published_at,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(left.published_at) - Date.parse(right.published_at),
+    );
+
+  const present = new Set(
+    stable
+      .map((release) => componentFromTag(release.tag_name)?.componentId)
+      .filter(Boolean),
+  );
+
+  // A truncated release page would silently narrow the scan. A component the
+  // input never mentions is simply out of scope, but one that appears without
+  // its floor means the list is incomplete, and that is an error.
+  const floorPublishedAt = new Map();
+  for (const [componentId, tag] of Object.entries(SBOM_COVERAGE_FLOOR)) {
+    if (!present.has(componentId)) continue;
+    const release = stable.find((entry) => entry.tag_name === tag);
+    if (!release) {
+      throw new Error(
+        `SBOM coverage floor ${tag} for ${componentId} is not in the release list`,
+      );
+    }
+    floorPublishedAt.set(componentId, Date.parse(release.published_at));
+  }
+
+  const missing = [];
+  for (const release of stable) {
+    const resolvedTag = componentFromTag(release.tag_name);
+    if (!resolvedTag) continue;
+    const floor = floorPublishedAt.get(resolvedTag.componentId);
+    if (floor !== undefined && Date.parse(release.published_at) < floor) {
+      continue;
+    }
+    const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    if (!assets.some((entry) => entry?.name === expected)) {
+      missing.push(release.tag_name);
+    }
+  }
+  return missing;
+}
+
 /** Return newest missing releases plus every approved legacy repair. */
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
@@ -1846,6 +1919,13 @@ async function main() {
     const path = process.argv[3];
     const releases = readReleaseList(path);
     const tags = findMissingLatestSbomTags(releases);
+    process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
+    return;
+  }
+
+  if (maybeCommand === "missing-coverage-tags") {
+    const releases = readReleaseList(process.argv[3]);
+    const tags = findMissingCoverageTags(releases);
     process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
     return;
   }

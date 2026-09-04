@@ -12,13 +12,27 @@ import { __testing as sbomTesting } from "./generate-sbom.mjs";
 
 export const SBOM_DOC = "security/SBOM.md";
 
-const MATRIX_ROW = /^\|\s*`([a-z-]+)`\s*\|\s*`([^`]+)`\s*\|/gm;
+// Anchor to the component table's own header rather than matching any table:
+// the document carries other tables whose first column is also a backticked
+// identifier, and reading those as components made this audit report the
+// document against itself.
+const MATRIX_HEADER = /^\|\s*Component\s*\|\s*SBOM name\s*\|.*$/m;
+const MATRIX_ROW = /^\|\s*`([a-z-]+)`\s*\|\s*`([^`]+)`\s*\|/;
 
 export function parseDocumentedComponents(markdown) {
-  return [...markdown.matchAll(MATRIX_ROW)].map(([, id, sbomName]) => ({
-    id,
-    sbomName,
-  }));
+  const header = markdown.match(MATRIX_HEADER);
+  if (!header) return [];
+  const rows = [];
+  const lines = markdown.slice(header.index + header[0].length).split("\n");
+  for (const line of lines) {
+    if (!line.trimStart().startsWith("|")) {
+      if (rows.length > 0) break;
+      continue;
+    }
+    const match = line.match(MATRIX_ROW);
+    if (match) rows.push({ id: match[1], sbomName: match[2] });
+  }
+  return rows;
 }
 
 const describe = (ids) => ids.map((id) => `\`${id}\``).join(", ");
