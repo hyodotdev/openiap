@@ -13,6 +13,12 @@ import { pathToFileURL } from "node:url";
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
+const APPLICATION_ELEMENT =
+  /<application\b(?:[^>]*\/>|[\s\S]*?<\/application\s*>)/;
+// activity-alias precedes activity: the alternation is ordered, and
+// `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
+const NESTED_ELEMENT =
+  /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
 const NAME_ATTRIBUTE = /android:name\s*=\s*"([^"]*)"/;
 const VALUE_ATTRIBUTE = /android:value\s*=\s*"([^"]*)"/;
@@ -33,15 +39,28 @@ const stripXmlComments = (source) => {
 export function inspectMergedManifest(contents) {
   // Comments are not declarations, and android:name must match exactly — a
   // substring test would accept com.example.<the Horizon name>.
-  const elements = [...stripXmlComments(contents).matchAll(META_DATA_ELEMENT)]
-    .map(([element]) => element)
-    .filter(
-      (element) =>
-        element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
-    );
+  const source = stripXmlComments(contents);
+  const named = (text) =>
+    [...text.matchAll(META_DATA_ELEMENT)]
+      .map(([element]) => element)
+      .filter(
+        (element) =>
+          element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
+      );
+
+  // Horizon reads the id from <application>. The same declaration nested in an
+  // activity or service merges somewhere the platform never looks, so scanning
+  // the document globally would accept a manifest that fails at runtime.
+  const application = source.match(APPLICATION_ELEMENT);
+  if (!application) {
+    return "the merged manifest has no <application> element";
+  }
+  const elements = named(application[0].replace(NESTED_ELEMENT, ""));
 
   if (elements.length === 0) {
-    return `the merged manifest declares no ${HORIZON_APP_ID_META_DATA_NAME}`;
+    return named(source).length > 0
+      ? `the merged manifest declares ${HORIZON_APP_ID_META_DATA_NAME} outside <application>`
+      : `the merged manifest declares no ${HORIZON_APP_ID_META_DATA_NAME}`;
   }
   for (const element of elements) {
     const value = element.match(VALUE_ATTRIBUTE)?.[1];

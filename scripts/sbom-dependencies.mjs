@@ -625,6 +625,19 @@ function resolveMavenValue(value, properties, context) {
 }
 
 function parseMavenPom(source, context) {
+  // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
+  // truncated response would otherwise parse as "this artifact declares no
+  // dependencies" and produce a silently empty inventory. Require the project
+  // element in nesting order — one structural rule, the same one the nuspec
+  // reader applies.
+  const projectOpen = source.search(/<project\b/iu);
+  const projectClose = source.search(/<\/project\s*>/iu);
+  if (projectOpen < 0 || !(projectOpen < projectClose)) {
+    throw new PublishedMetadataUnavailableError(
+      `Published document is not a complete POM: ${context.url}`,
+    );
+  }
+
   const properties = new Map();
   const propertiesBlock = source.match(
     /<properties>([\s\S]*?)<\/properties>/u,

@@ -58,7 +58,9 @@ export const FACTS = Object.freeze([
       },
       {
         files: ["packages/kit/Dockerfile"],
-        pattern: /oven\/bun:([\d.]+)/g,
+        // Anchored to the instruction: a comment mentioning the old image
+        // would otherwise satisfy this while the real FROM had moved on.
+        pattern: /^FROM\s+oven\/bun:([\d.]+)/gm,
         role: "runtimeImage",
       },
     ],

@@ -24,8 +24,9 @@ monorepo-wide document would describe an artifact nobody installs.
 The releasable components are defined by `versionSources` in
 `scripts/release-branch-policy.mjs` and mirrored by `COMPONENTS` in
 `scripts/generate-sbom.mjs`. This table is a third copy for readers;
-`bun run audit:sbom-docs` fails when it drifts from either, so a component
-cannot be released without also being described:
+`bun run audit:sbom-docs` fails when its component set or SBOM name drifts
+from either, so a component cannot be released without also being described.
+The distribution and release-tag columns are prose and are not machine-checked:
 
 | Component           | SBOM name                   | Distribution                     | Release tag                           |
 | ------------------- | --------------------------- | -------------------------------- | ------------------------------------- |

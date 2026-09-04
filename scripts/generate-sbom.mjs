@@ -1637,14 +1637,43 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       ]) {
         const pom = await fetcher(`${base}/${path}`);
         if (!pom) continue;
-        const license = pom.match(
-          /<licenses>[\s\S]*?<name>([^<]+)<\/name>/u,
+        // Any 200 body reaches here, and an error page that merely contains
+        // <licenses><name>MIT</name></licenses> is not a declaration by this
+        // artifact. Require a POM document before reading anything from it.
+        const projectOpen = pom.search(/<project\b/iu);
+        if (
+          projectOpen < 0 ||
+          !(projectOpen < pom.search(/<\/project\s*>/iu))
+        ) {
+          continue;
+        }
+        // A POM may declare several licences, and taking the first <name>
+        // after <licenses> silently picked one of them — a guess, which
+        // security/SBOM.md forbids. Read the whole block, and record a licence
+        // only when the declarations agree on a single SPDX id. Scoping to the
+        // block also stops a stray <name> elsewhere in the document from being
+        // read as a licence.
+        const licensesBlock = pom.match(
+          /<licenses>([\s\S]*?)<\/licenses>/u,
         )?.[1];
+        // Dedupe on the normalised declaration, not on an SPDX id: a licence
+        // with no SPDX id — the Android SDK licence, for example — is a real
+        // declaration and recording its name is not a guess. What is forbidden
+        // is choosing between two that disagree.
+        const declared = [
+          ...new Map(
+            [...(licensesBlock ?? "").matchAll(/<name>([^<]+)<\/name>/gu)]
+              .map((match) => normalizeLicense(match[1].trim()))
+              .filter(Boolean)
+              .map((entry) => [JSON.stringify(entry), entry]),
+          ).values(),
+        ];
         const supplier = pom
           .match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1]
           ?.trim();
+        const license = declared.length === 1 ? declared[0] : undefined;
         if (license || supplier) {
-          return { license: normalizeLicense(license), supplier };
+          return { license, supplier };
         }
       }
       return null;

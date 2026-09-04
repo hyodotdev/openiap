@@ -78,12 +78,14 @@ const stripXmlComments = (source) => {
   return current;
 };
 
-const APPLICATION_ELEMENT = /<application\b[\s\S]*?<\/application\s*>/;
+const APPLICATION_ELEMENT =
+  /<application\b(?:[^>]*\/>|[\s\S]*?<\/application\s*>)/;
 // activity-alias precedes activity: the alternation is ordered, and
 // `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
 const NESTED_ELEMENT =
   /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
+const NAME_ATTRIBUTE = /android:name\s*=\s*["']([^"']*)["']/;
 const LITERAL_VALUE = new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`);
 const PLACEHOLDER_VALUE = /android:value\s*=\s*["']\$\{(\w+)\}["']/;
 
@@ -96,7 +98,11 @@ const inspectManifest = (contents, allowPlaceholder) => {
   const direct = application[0].replace(NESTED_ELEMENT, "");
   let declared = false;
   for (const [element] of direct.matchAll(META_DATA_ELEMENT)) {
-    if (!element.includes(HORIZON_APP_ID_META_DATA_NAME)) continue;
+    // Exact match: a substring test also accepts com.example.<the Horizon
+    // name>, which merges under a key the platform never reads.
+    if (element.match(NAME_ATTRIBUTE)?.[1] !== HORIZON_APP_ID_META_DATA_NAME) {
+      continue;
+    }
     declared = true;
     if (LITERAL_VALUE.test(element)) return null;
     if (allowPlaceholder && PLACEHOLDER_VALUE.test(element)) return null;
@@ -106,7 +112,11 @@ const inspectManifest = (contents, allowPlaceholder) => {
       ? "declares the Horizon meta-data without a literal app id or a placeholder"
       : "declares the Horizon meta-data without a literal app id";
   }
-  return source.includes(HORIZON_APP_ID_META_DATA_NAME)
+  const anywhere = [...source.matchAll(META_DATA_ELEMENT)].some(
+    ([element]) =>
+      element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
+  );
+  return anywhere
     ? "declares the Horizon meta-data outside <application>"
     : "declares no Horizon app id meta-data";
 };
@@ -125,6 +135,7 @@ const extractBalancedBlock = (masked, from) => {
   return null;
 };
 
+const ANDROID_KEY = /\bandroid\s*:\s*\{/g;
 const HORIZON_KEY = /\bhorizon\s*:\s*\{/g;
 const APP_ID_ENTRY = new RegExp(
   String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
@@ -136,24 +147,40 @@ const inspectExpoPluginConfig = (contents) => {
   // value is read from the source at the same offset, and a match only counts
   // when the masker left that position intact — a commented-out entry does not.
   const masked = maskTypeScriptCommentsAndStrings(contents);
-  let declared = false;
-  for (const match of masked.matchAll(HORIZON_KEY)) {
+  // Expo reads the id from `android.horizon`. A `horizon` block anywhere else
+  // in the file — a local constant, a commented-out draft, an unrelated
+  // export — supplies nothing to the build, so search only inside `android`.
+  const androidBlocks = [];
+  for (const match of masked.matchAll(ANDROID_KEY)) {
     const span = extractBalancedBlock(
       masked,
       match.index + match[0].length - 1,
     );
-    if (span === null) continue;
-    declared = true;
-    for (const entry of contents
-      .slice(span[0], span[1])
-      .matchAll(APP_ID_ENTRY)) {
-      const at = span[0] + entry.index;
-      if (masked[at] === contents[at]) return null;
+    if (span !== null) androidBlocks.push(span);
+  }
+  if (androidBlocks.length === 0) return "declares no android config block";
+
+  let declared = false;
+  for (const [androidStart, androidEnd] of androidBlocks) {
+    const scope = masked.slice(androidStart, androidEnd);
+    for (const match of scope.matchAll(HORIZON_KEY)) {
+      const span = extractBalancedBlock(
+        masked,
+        androidStart + match.index + match[0].length - 1,
+      );
+      if (span === null) continue;
+      declared = true;
+      for (const entry of contents
+        .slice(span[0], span[1])
+        .matchAll(APP_ID_ENTRY)) {
+        const at = span[0] + entry.index;
+        if (masked[at] === contents[at]) return null;
+      }
     }
   }
   return declared
-    ? "declares horizon config without a literal appId"
-    : "does not set a literal horizon.appId";
+    ? "declares android.horizon without a literal appId"
+    : "does not set a literal android.horizon.appId";
 };
 
 const INSPECTORS = {

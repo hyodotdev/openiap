@@ -181,33 +181,35 @@ test("the Expo plugin config must bind the id to horizon.appId", () => {
       "android: { horizon: { appId: process.env.HORIZON } }",
       "expo-plugin-config",
     ),
-    "declares horizon config without a literal appId",
+    "declares android.horizon without a literal appId",
   );
 });
 
 test("a commented-out Expo appId does not satisfy the audit", () => {
   assert.equal(
     inspectHorizonAppIdSource(
-      "horizon: { // appId: '31705015229097839'\n }",
+      "android: { horizon: { // appId: '31705015229097839'\n } }",
       "expo-plugin-config",
     ),
-    "declares horizon config without a literal appId",
+    "declares android.horizon without a literal appId",
   );
   assert.equal(
     inspectHorizonAppIdSource(
-      "/* horizon: { appId: '31705015229097839' } */",
+      "android: { /* horizon: { appId: '31705015229097839' } */ }",
       "expo-plugin-config",
     ),
-    "does not set a literal horizon.appId",
+    "does not set a literal android.horizon.appId",
   );
 });
 
 test("Expo braces inside strings are not syntax", () => {
   // Both cases came from a Grok review of a revision that counted every brace.
   const braceInString = [
-    "horizon: {",
-    '  note: "needs a } here",',
-    "  appId: '31705015229097839',",
+    "android: {",
+    "  horizon: {",
+    '    note: "needs a } here",',
+    "    appId: '31705015229097839',",
+    "  },",
     "}",
   ].join("\n");
   assert.equal(
@@ -216,15 +218,46 @@ test("Expo braces inside strings are not syntax", () => {
   );
 
   const stretchedIntoDecoy = [
-    "horizon: {",
-    '  note: "{ {",',
-    "  appId: process.env.HORIZON,",
-    "},",
-    "later: { appId: '31705015229097839' },",
+    "android: {",
+    "  horizon: {",
+    '    note: "{ {",',
+    "    appId: process.env.HORIZON,",
+    "  },",
+    "  later: { appId: '31705015229097839' },",
+    "}",
   ].join("\n");
   assert.equal(
     inspectHorizonAppIdSource(stretchedIntoDecoy, "expo-plugin-config"),
-    "declares horizon config without a literal appId",
+    "declares android.horizon without a literal appId",
+  );
+});
+
+test("a meta-data name is compared exactly, not as a substring", () => {
+  // com.example.<the Horizon name> contains the Horizon key but merges under a
+  // key the platform never reads, so a substring test accepted a manifest that
+  // supplies no app id.
+  assert.match(
+    String(
+      inspectHorizonAppIdSource(
+        manifest(
+          '<meta-data android:name="com.example.com.meta.horizon.platform.HORIZON_APP_ID" android:value="31705015229097839" />',
+        ),
+        "android-manifest",
+      ),
+    ),
+    /declares no Horizon app id meta-data/u,
+  );
+});
+
+test("an Expo horizon block outside android supplies nothing", () => {
+  // Expo reads android.horizon. A horizon block elsewhere in the module — a
+  // local constant, an unrelated export — never reaches the build.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "const decoy = {horizon: {appId: '31705015229097839'}};\nexport default {android: {}};",
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
   );
 });
 

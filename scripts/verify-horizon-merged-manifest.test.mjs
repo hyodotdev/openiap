@@ -54,6 +54,27 @@ test("a manifest without the declaration is reported", () => {
   );
 });
 
+test("a declaration nested in an activity is not an application declaration", () => {
+  // Horizon looks the id up on the application. The merger will happily place
+  // it inside an activity, where the platform never sees it, so scanning the
+  // document globally accepted a manifest that throws at runtime.
+  assert.match(
+    String(
+      inspectMergedManifest(
+        [
+          "<manifest><application>",
+          '  <activity android:name=".Main">',
+          '    <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+          '        android:value="31705015229097839" />',
+          "  </activity>",
+          "</application></manifest>",
+        ].join("\n"),
+      ),
+    ),
+    /outside <application>/u,
+  );
+});
+
 test("a commented-out declaration is not a declaration", () => {
   const contents = [
     "<manifest><application>",

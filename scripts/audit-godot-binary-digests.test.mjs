@@ -67,6 +67,42 @@ test("a changed binary is reported with both digests", () => {
   }
 });
 
+test("corrupting a binary and deleting its line does not hide it", () => {
+  // The protected set used to be derived from Mach-O magic, so replacing an
+  // executable with other bytes removed it from the scan; deleting its digest
+  // line then removed it from the recorded set too, and both checks agreed.
+  const file = listTrackedBinaries(repoRoot).find((entry) =>
+    entry.includes("macos/"),
+  );
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = path.join(scratch, "libraries/godot-iap");
+    fs.cpSync(path.join(repoRoot, "libraries/godot-iap"), target, {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(scratch, "libraries/godot-iap", file),
+      "not a Mach-O\n",
+    );
+    const manifest = path.join(scratch, DIGEST_MANIFEST);
+    fs.writeFileSync(
+      manifest,
+      fs
+        .readFileSync(manifest, "utf8")
+        .split("\n")
+        .filter((line) => !line.includes(file))
+        .join("\n"),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.ok(
+      failures.some((failure) => failure.startsWith(`${file} ships in`)),
+      `expected ${file} to be reported, got ${JSON.stringify(failures)}`,
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("a missing manifest is reported instead of passing", () => {
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-empty-"));
   try {

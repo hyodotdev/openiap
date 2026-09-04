@@ -21,6 +21,17 @@ const MACH_O_MAGIC = new Set([
   0xbebafeca, // universal ("fat") archives
 ]);
 
+// Framework metadata that ships beside the executables and is not itself a
+// payload. Everything else under the binary root must carry a digest — the
+// protected set cannot be derived from the bytes, because replacing an
+// executable with non-Mach-O content would then remove it from scrutiny.
+const NON_PAYLOAD = [
+  /\.gdextension$/,
+  /\.gdextension\.uid$/,
+  /(^|\/)Info\.plist$/,
+  /(^|\/)_CodeSignature\/CodeResources$/,
+];
+
 const isMachO = (absolute) => {
   const handle = fs.openSync(absolute, "r");
   try {
@@ -56,6 +67,19 @@ const walk = (dir, acc = []) => {
   }
   return acc;
 };
+
+// Every file under the binary root, relative to GODOT_ROOT.
+export function listBinaryRootFiles(repoRoot) {
+  const root = path.resolve(repoRoot, BINARY_ROOT);
+  return walk(root)
+    .map((file) =>
+      path
+        .relative(path.resolve(repoRoot, GODOT_ROOT), file)
+        .split(path.sep)
+        .join("/"),
+    )
+    .sort();
+}
 
 export function listTrackedBinaries(repoRoot) {
   const root = path.resolve(repoRoot, BINARY_ROOT);
@@ -100,10 +124,13 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
   const present = listTrackedBinaries(repoRoot);
 
   // A binary added to the addon without a digest is the case this exists for.
-  for (const file of present) {
-    if (!recorded.has(file)) {
-      failures.push(`${file} ships in the addon but has no recorded digest`);
-    }
+  // Scan every shipped file rather than only the ones that still look like
+  // Mach-O: corrupting an executable would otherwise drop it from this set,
+  // and deleting its digest line would then leave it unnoticed by both checks.
+  for (const file of listBinaryRootFiles(repoRoot)) {
+    if (recorded.has(file)) continue;
+    if (NON_PAYLOAD.some((pattern) => pattern.test(file))) continue;
+    failures.push(`${file} ships in the addon but has no recorded digest`);
   }
   for (const [file] of recorded) {
     if (!present.includes(file)) {

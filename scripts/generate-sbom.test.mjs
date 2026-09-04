@@ -2046,6 +2046,69 @@ test("registry metadata never guesses suppliers or replaces reviewed values", as
   assert.deepEqual(enriched, reviewed);
 });
 
+test("a POM licence is recorded only when the declarations agree", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      {
+        name: "g:a",
+        version: "1.0",
+        purl: "pkg:maven/g/a@1.0",
+      },
+      { fetcher: async () => body },
+    );
+
+  // Taking the first <name> after <licenses> silently chose one of two
+  // declarations. security/SBOM.md forbids guessing, so record neither.
+  assert.equal(
+    await look(
+      "<project><licenses><license><name>MIT</name></license>" +
+        "<license><name>Apache-2.0</name></license></licenses></project>",
+    ),
+    null,
+  );
+
+  // An error page that merely contains the tags is not a declaration by this
+  // artifact.
+  assert.equal(
+    await look("<html><licenses><name>MIT</name></licenses></html>"),
+    null,
+  );
+
+  assert.deepEqual(
+    await look(
+      "<project><licenses><license><name>MIT</name></license></licenses></project>",
+    ),
+    { license: { license: { id: "MIT" } }, supplier: undefined },
+  );
+});
+
+test("a published POM body that is not a POM fails closed", () => {
+  const { parseMavenPom } = dependencyTesting;
+  const context = { url: "https://repo1.maven.org/maven2/g/a/1/a-1.pom" };
+
+  // fetchText accepts any 200 body. Without a structural check these parse as
+  // "declares no dependencies" and publish an incomplete inventory.
+  for (const body of [
+    "<html><body>CDN warming</body></html>",
+    "<project><modelVersion>4.0.0</modelVersion>",
+    "",
+  ]) {
+    assert.throws(
+      () => parseMavenPom(body, context),
+      /is not a complete POM/u,
+      `accepted ${JSON.stringify(body.slice(0, 24))}`,
+    );
+  }
+
+  assert.deepEqual(
+    parseMavenPom(
+      "<project><modelVersion>4.0.0</modelVersion></project>",
+      context,
+    ),
+    [],
+  );
+});
+
 test("registry license lookup is opt-in while reviewed metadata stays offline", async () => {
   const { document } = await generateSbom("google", {
     root: repoRoot,
