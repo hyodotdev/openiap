@@ -802,7 +802,13 @@ export const SBOM_COVERAGE_FLOOR = {
  * component, so a gap in the middle of a release train is permanent once a
  * newer release ships. This reports all of them.
  */
-export function findMissingCoverageTags(releases) {
+// `floors` is injectable so a test can state the floor map its fixture means.
+// Production callers take the default, which requires every configured floor
+// tag to be present in the release list.
+export function findMissingCoverageTags(
+  releases,
+  floors = SBOM_COVERAGE_FLOOR,
+) {
   const stable = releases
     .filter(
       (release) =>
@@ -813,21 +819,17 @@ export function findMissingCoverageTags(releases) {
         Date.parse(left.published_at) - Date.parse(right.published_at),
     );
 
-  const present = new Set(
-    stable
-      .map((release) => componentFromTag(release.tag_name)?.componentId)
-      .filter(Boolean),
-  );
-
   // Compare versions, not publish dates. Releases are not published in version
   // order — a patch on an older line lands after a newer minor, and recreating
   // a release moves its timestamp — so a date comparison both exempts newer
   // versions published early and reports older ones published late.
   const floorVersion = new Map();
-  for (const [componentId, tag] of Object.entries(SBOM_COVERAGE_FLOOR)) {
-    if (!present.has(componentId)) continue;
-    // A truncated release page would silently narrow the scan, so a component
-    // that appears without its floor means the list is incomplete.
+  for (const [componentId, tag] of Object.entries(floors)) {
+    // Every floored component has, by definition, already published its floor
+    // release. A list that does not contain it is incomplete, and checking
+    // only the components that survived truncation would report success on a
+    // partial scan — the other two commands infer their components from this
+    // same list, so nothing else would notice the absence either.
     if (!stable.some((entry) => entry.tag_name === tag)) {
       throw new Error(
         `SBOM coverage floor ${tag} for ${componentId} is not in the release list`,

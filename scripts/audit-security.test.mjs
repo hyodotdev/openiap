@@ -522,6 +522,42 @@ test("published SBOM audit fails fast and trusts only main", () => {
   assert.doesNotMatch(block, /--signer-workflow/u);
 });
 
+test("the manual audit runs every gate the scheduled rescan runs", () => {
+  // The manual procedure and security-rescan.yml are two copies of the same
+  // audit. When a gate was added to the workflow alone, the documented audit
+  // reported success on a state CI rejects. Derive the expectation from the
+  // workflow so a future gate cannot be added to only one of them.
+  const subcommands = (text) =>
+    new Set(
+      [...text.matchAll(/generate-sbom\.mjs ([a-z-]+)/gu)].map(
+        (match) => match[1],
+      ),
+    );
+
+  const workflow = readFileSync(
+    new URL("../.github/workflows/security-rescan.yml", import.meta.url),
+    "utf8",
+  );
+  const doc = readFileSync(
+    new URL("../.claude/commands/audit-security.md", import.meta.url),
+    "utf8",
+  );
+  const block = doc.match(
+    /## 7\. Published release assets[\s\S]*?```bash\n([\s\S]*?)```/u,
+  )?.[1];
+  assert.ok(block, "published asset audit command is missing");
+
+  const expected = subcommands(workflow);
+  assert.ok(expected.size > 0, "no gates found in security-rescan.yml");
+  const documented = subcommands(block);
+  const missing = [...expected].filter((name) => !documented.has(name));
+  assert.deepEqual(
+    missing,
+    [],
+    `documented audit omits gates the rescan runs: ${missing.join(", ")}`,
+  );
+});
+
 test("manual SBOM audits fail closed on partial or incomplete inventories", () => {
   const source = readFileSync(
     new URL("../.claude/commands/audit-security.md", import.meta.url),

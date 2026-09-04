@@ -2271,7 +2271,10 @@ test("coverage continuity reports mid-train gaps the latest-only scan misses", (
     },
   ];
   assert.deepEqual(findMissingLatestSbomTags(releases), []);
-  assert.deepEqual(findMissingCoverageTags(releases), ["godot-iap-3.4.0"]);
+  assert.deepEqual(
+    findMissingCoverageTags(releases, { godot: "godot-iap-3.3.0" }),
+    ["godot-iap-3.4.0"],
+  );
 });
 
 test("the coverage floor is a version, not a publish date", () => {
@@ -2290,20 +2293,26 @@ test("the coverage floor is a version, not a publish date", () => {
   // 3.4.0 is above the 3.3.0 floor, so its missing SBOM is a gap even though
   // it was published first.
   assert.deepEqual(
-    findMissingCoverageTags([
-      release("godot-iap-3.4.0", "2026-01-01T00:00:00Z", false),
-      release("godot-iap-3.3.0", "2026-01-15T00:00:00Z", true),
-    ]),
+    findMissingCoverageTags(
+      [
+        release("godot-iap-3.4.0", "2026-01-01T00:00:00Z", false),
+        release("godot-iap-3.3.0", "2026-01-15T00:00:00Z", true),
+      ],
+      { godot: "godot-iap-3.3.0" },
+    ),
     ["godot-iap-3.4.0"],
   );
 
   // 3.2.1 is below the floor, so it is exempt even though it was published
   // after it.
   assert.deepEqual(
-    findMissingCoverageTags([
-      release("godot-iap-3.3.0", "2026-01-01T00:00:00Z", true),
-      release("godot-iap-3.2.1", "2026-02-01T00:00:00Z", false),
-    ]),
+    findMissingCoverageTags(
+      [
+        release("godot-iap-3.3.0", "2026-01-01T00:00:00Z", true),
+        release("godot-iap-3.2.1", "2026-02-01T00:00:00Z", false),
+      ],
+      { godot: "godot-iap-3.3.0" },
+    ),
     [],
   );
 });
@@ -2325,7 +2334,10 @@ test("releases before a component's coverage floor are not gaps", () => {
       assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
     },
   ];
-  assert.deepEqual(findMissingCoverageTags(releases), []);
+  assert.deepEqual(
+    findMissingCoverageTags(releases, { godot: "godot-iap-3.3.0" }),
+    [],
+  );
 });
 
 test("a component with no floor entry is covered from its first release", () => {
@@ -2343,7 +2355,7 @@ test("a component with no floor entry is covered from its first release", () => 
       assets: [],
     },
   ];
-  assert.deepEqual(findMissingCoverageTags(releases), [
+  assert.deepEqual(findMissingCoverageTags(releases, {}), [
     "openiap-conformance-1.0.0",
   ]);
 });
@@ -2352,23 +2364,46 @@ test("a floor missing from the release list fails loudly", () => {
   // A truncated page would otherwise narrow the scan in silence.
   assert.throws(
     () =>
+      findMissingCoverageTags(
+        [
+          {
+            tag_name: "godot-iap-3.4.0",
+            published_at: "2026-02-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "godot-iap-3.4.0.cdx.json" }],
+          },
+          {
+            tag_name: "godot-iap-3.5.0",
+            published_at: "2026-03-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+          },
+        ],
+        { godot: "godot-iap-3.3.0" },
+      ),
+    /coverage floor godot-iap-3\.3\.0 for godot is not in the release list/,
+  );
+});
+
+test("the default floor map refuses a list that omits a component", () => {
+  // The injectable `floors` parameter exists for focused fixtures. Production
+  // callers take the default, and a component missing from the list entirely
+  // must not be skipped — the other two commands infer their components from
+  // the same list, so nothing else would notice it was never checked.
+  assert.throws(
+    () =>
       findMissingCoverageTags([
         {
-          tag_name: "godot-iap-3.4.0",
-          published_at: "2026-02-01T00:00:00Z",
+          tag_name: "godot-iap-3.3.0",
+          published_at: "2026-01-01T00:00:00Z",
           draft: false,
           prerelease: false,
-          assets: [{ name: "godot-iap-3.4.0.cdx.json" }],
-        },
-        {
-          tag_name: "godot-iap-3.5.0",
-          published_at: "2026-03-01T00:00:00Z",
-          draft: false,
-          prerelease: false,
-          assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+          assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
         },
       ]),
-    /coverage floor godot-iap-3\.3\.0 for godot is not in the release list/,
+    /coverage floor .+ is not in the release list/u,
   );
 });
 
@@ -2487,6 +2522,33 @@ test("a <dependencies> element is read through its attributes, or fails loudly",
         `<package><metadata><id>X</id><dependencies>
           <dependency id="A" version="1.0.0" />
         </metadata></package>`,
+        context,
+      ),
+    /Unreadable <dependencies> element/u,
+  );
+});
+
+test("a nuspec must nest, not merely contain the four tags", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // Every one of the four tags is present, in the wrong order. Testing for
+  // them independently accepted this and read it as "declares no dependencies".
+  assert.throws(
+    () => parseNugetNuspec("<package><metadata></package></metadata>", context),
+    /is not a complete nuspec/u,
+  );
+
+  // Dependencies are declared inside <metadata>. A block outside it is not
+  // this package's inventory, and must not be silently ignored either.
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        `<package><metadata><id>X</id></metadata>
+          <dependencies><dependency id="A" version="1.0.0" /></dependencies>
+        </package>`,
         context,
       ),
     /Unreadable <dependencies> element/u,

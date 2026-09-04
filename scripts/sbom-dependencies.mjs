@@ -749,31 +749,41 @@ function parseNugetNuspec(source, context) {
   const masked = maskXmlComments(source, context);
   // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
   // truncated response would otherwise parse as "this package declares no
-  // dependencies" and produce a silently empty inventory. A nuspec always has
-  // these two elements; without them the document is not a nuspec.
-  // The closing tag matters as much as the opening ones: a response truncated
-  // mid-document still contains <package> and <metadata>, and would otherwise
-  // read as a package that declares no dependencies.
+  // dependencies" and produce a silently empty inventory. Testing for the four
+  // tags independently is not enough: `<package><metadata></package></metadata>`
+  // contains all four and is still not a nuspec. Require them in nesting order
+  // instead, which is one structural rule rather than a list of rejected shapes.
+  const packageOpen = masked.search(/<package\b/iu);
+  const metadataOpen = masked.search(/<metadata\b/iu);
+  const metadataClose = masked.search(/<\/metadata\s*>/iu);
+  const packageClose = masked.search(/<\/package\s*>/iu);
   if (
-    !/<package\b/iu.test(masked) ||
-    !/<metadata\b/iu.test(masked) ||
-    !/<\/metadata\s*>/iu.test(masked) ||
-    !/<\/package\s*>/iu.test(masked)
+    packageOpen < 0 ||
+    !(packageOpen < metadataOpen) ||
+    !(metadataOpen < metadataClose) ||
+    !(metadataClose < packageClose)
   ) {
     throw new PublishedMetadataUnavailableError(
       `Published document is not a complete nuspec: ${context.url}`,
     );
   }
+  // Dependencies are declared inside <metadata>. Scoping the search there
+  // stops a stray block elsewhere in the document from being read as this
+  // package's inventory.
+  const metadata = masked.slice(metadataOpen, metadataClose);
   // Attributes are legal on this element, so the opening tag is not literally
   // `<dependencies>`. Finding the element but failing to read it must not
   // report "declares none" — that is the same silent empty inventory the
   // completeness gate above exists to prevent.
-  const dependenciesBlock = masked.match(
+  const dependenciesBlock = metadata.match(
     /<dependencies\b[^>]*>([\s\S]*?)<\/dependencies\s*>/u,
   )?.[1];
   if (dependenciesBlock === undefined) {
-    // Self-closing or absent: both genuinely declare none.
-    if (/<dependencies\b[^>]*\/>/u.test(masked)) return [];
+    // Self-closing inside metadata genuinely declares none.
+    if (/<dependencies\b[^>]*\/>/u.test(metadata)) return [];
+    // Present but unreadable, or present outside <metadata>: either way we
+    // found the element and could not read it as this package's inventory,
+    // which must not be reported as "declares none".
     if (/<dependencies\b/u.test(masked)) {
       throw new Error(`Unreadable <dependencies> element in ${context.url}`);
     }
