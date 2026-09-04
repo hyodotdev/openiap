@@ -369,16 +369,24 @@ jobs:
           swift package clean
           swift build --build-tests
 
-      - name: Build KMP Swift bridge
-        working-directory: libraries/kmp-iap/native/InAppPurchaseBridge
-        run: |
-          swift package clean
-          swift build
-
       - name: Analyze
         uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4
         with:
           category: /language:swift
+
+      # After Analyze on purpose, so this compiles without being traced.
+      # The bridge's whole source is `@_exported import OpenIAP` and its
+      # Package.swift pins openiap to a released tag, so tracing it added a
+      # second, older copy of the Apple core to the database — 57 files and
+      # ~18,700 lines for one re-export line. An alert raised against that copy
+      # would name code no pull request can change, since the fix only arrives
+      # when the pin is bumped. Nothing else in CI compiles this package, so
+      # the build itself is kept: it is what proves the manifest still resolves.
+      - name: Build KMP Swift bridge (untraced)
+        working-directory: libraries/kmp-iap/native/InAppPurchaseBridge
+        run: |
+          swift package clean
+          swift build
 
   analyze-swift-wrappers:
     name: Analyze (swift / ${{ matrix.component }})

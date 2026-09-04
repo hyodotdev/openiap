@@ -136,8 +136,11 @@ gates remain independent of that hosted view.
   read-only and grants write permissions per job.
 - CodeQL's traced Kotlin jobs build the Google and KMP Android cores plus the
   React Native, Expo, Flutter, Godot, and MAUI JVM wrappers. Its traced Swift
-  jobs build the Apple core, KMP Swift bridge, and React Native, Expo, Flutter,
-  and Godot wrappers.
+  jobs build the Apple core and the React Native, Expo, Flutter, and Godot
+  wrappers. The KMP Swift bridge is deliberately not among them: its whole
+  source is one `@_exported import`, and its package pins openiap to a released
+  tag, so building it added a second, older copy of the Apple core to the same
+  database instead of new coverage.
 - CodeQL's Kotlin extractor traces JVM compilation, so it cannot analyse
   Kotlin/Native. This is a CodeQL platform limitation, not an OpenIAP
   configuration gap: no CodeQL setting reaches this code. The uncovered shipped
