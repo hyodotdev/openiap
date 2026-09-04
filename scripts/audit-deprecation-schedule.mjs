@@ -30,6 +30,11 @@ const IGNORED_SEGMENTS = new Set([
   "DerivedData",
   "node_modules",
   "obj",
+  // SwiftPM checkout cache. It vendors this repository's own sources, so a
+  // derivedDataPath that "build"/"DerivedData" do not cover (for example the
+  // ios/build-e2e-onside in .claude/commands/e2e-tests.md) otherwise reports
+  // the vendored copy as project source.
+  "SourcePackages",
 ]);
 
 export const completedRemovalRules = [

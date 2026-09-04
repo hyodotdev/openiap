@@ -29,6 +29,7 @@ const SKIPPED_DIRECTORIES = new Set([
   ".git",
   "dist",
   "build",
+  "SourcePackages",
   "Pods",
   ".next",
   ".expo",

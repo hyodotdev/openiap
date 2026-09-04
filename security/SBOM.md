@@ -21,28 +21,51 @@ hand, and none are committed to the repository.
 One SBOM per **releasable component**, not one per repository. A single
 monorepo-wide document would describe an artifact nobody installs.
 
-The component list is not maintained here. It is read from the release
-single-source-of-truth, `scripts/release-branch-policy.mjs`, so a component
+The releasable components are defined by `versionSources` in
+`scripts/release-branch-policy.mjs` and mirrored by `COMPONENTS` in
+`scripts/generate-sbom.mjs`. This table is a third copy for readers;
+`bun run audit:sbom-docs` fails when it drifts from either, so a component
 cannot be released without also being described:
 
-| Component      | SBOM name                | Distribution                     | Release tag                     |
-| -------------- | ------------------------ | -------------------------------- | ------------------------------- |
-| `apple`        | `openiap`                | CocoaPods, Swift Package Manager | `<version>`                     |
-| `google`       | `openiap-google`         | Maven Central                    | `google-<version>`              |
-| `react-native` | `react-native-iap`       | npm                              | `react-native-iap-<version>`    |
-| `expo`         | `expo-iap`               | npm                              | `expo-iap-<version>`            |
-| `conformance`  | `openiap-conformance`    | npm                              | `openiap-conformance-<version>` |
-| `flutter`      | `flutter_inapp_purchase` | pub.dev                          | `flutter-iap-<version>`         |
-| `kmp`          | `kmp-iap`                | Maven Central                    | `kmp-iap-<version>`             |
-| `maui`         | `OpenIap.Maui`           | NuGet                            | `maui-iap-<version>`            |
-| `godot`        | `godot-iap`              | GitHub Release                   | `godot-iap-<version>`           |
-| `docs`         | `openiap-spec`           | GitHub Release                   | `docs-<version>`                |
+| Component           | SBOM name                   | Distribution                     | Release tag                           |
+| ------------------- | --------------------------- | -------------------------------- | ------------------------------------- |
+| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager | `<version>`                           |
+| `google`            | `openiap-google`            | Maven Central                    | `google-<version>`                    |
+| `react-native`      | `react-native-iap`          | npm                              | `react-native-iap-<version>`          |
+| `expo`              | `expo-iap`                  | npm                              | `expo-iap-<version>`                  |
+| `conformance`       | `openiap-conformance`       | npm                              | `openiap-conformance-<version>`       |
+| `flutter`           | `flutter_inapp_purchase`    | pub.dev                          | `flutter-iap-<version>`               |
+| `kmp`               | `kmp-iap`                   | Maven Central                    | `kmp-iap-<version>`                   |
+| `maui`              | `OpenIap.Maui`              | NuGet                            | `maui-iap-<version>`                  |
+| `godot`             | `godot-iap`                 | GitHub Release                   | `godot-iap-<version>`                 |
+| `docs`              | `openiap-spec`              | GitHub Release                   | `docs-<version>`                      |
+| `commerce-protocol` | `openiap-commerce-protocol` | npm                              | `openiap-commerce-protocol-<version>` |
 
 `packages/kit` (IAPKit) is deliberately outside this list. It is a deployed
 service rather than a distributed package: consumers call it over HTTPS and
 never install its dependency tree. Its source dependency graph is covered by
 the repository gates, and its current source image is scanned before deployment
 and by the weekly security workflow — see [README.md](README.md).
+
+## Licence notices
+
+The SBOM records an SPDX identifier per component. For components whose licence
+requires the notice to be redistributed with the binary — MIT, ISC, and the
+Apache and BSD families — the verbatim upstream licence text is committed
+alongside the binary and referenced from the component's `licenseFile`.
+
+`scripts/generate-third-party-notices.mjs` renders those into a
+`THIRD_PARTY_NOTICES.md` shipped inside the release artifact, and prints a
+licence inventory with `--inventory`. It refuses to render when a component
+declares such a licence with no committed text, so the failure mode is a failed
+release rather than a notice with an empty section. Nothing composes or infers
+licence text.
+
+Today this applies to `godot`, the only component that redistributes a
+third-party binary: the addon ZIP embeds `SwiftGodotRuntime` (MIT) and ships its
+notice plus the addon's own `LICENSE`. Registry-distributed components carry
+their dependencies by coordinate rather than by embedding them, so the consuming
+package manager resolves those licences.
 
 ## Standards
 
@@ -77,12 +100,12 @@ consumer-visible descriptor over HTTPS as a required inventory input. With
 `--with-licenses`, the generator also performs best-effort license and supplier
 enrichment:
 
-| Registry                                          | Required inventory input      | Best-effort enrichment       |
-| ------------------------------------------------- | ----------------------------- | ---------------------------- |
-| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs         | License and organization     |
-| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs     | License and organization     |
-| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors          |
-| [registry.npmjs.org](https://registry.npmjs.org/) | —                             | npm license and author data  |
+| Registry                                          | Required inventory input     | Best-effort enrichment      |
+| ------------------------------------------------- | ---------------------------- | --------------------------- |
+| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs        | License and organization    |
+| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs    | License and organization    |
+| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors         |
+| [registry.npmjs.org](https://registry.npmjs.org/) | —                            | npm license and author data |
 
 Failure to read a required POM or nuspec blocks generation because the
 dependency inventory would be incomplete. A metadata-enrichment failure

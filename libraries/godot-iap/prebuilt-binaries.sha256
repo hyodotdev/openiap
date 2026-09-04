@@ -1,0 +1,13 @@
+# SHA-256 of the native binaries that ship inside the godot-iap addon ZIP.
+#
+# These frameworks are committed rather than compiled by CI, so without this
+# manifest nothing records or verifies the bytes users execute. `bun run
+# audit:godot-binaries` recomputes them, and the release refuses to publish a
+# ZIP whose binaries do not match.
+#
+# Regenerate after an intentional rebuild:
+#   bun run audit:godot-binaries --write
+0e9914201189d1409ad294228986b6751e1f4cb9a2bdd2192b98da8852214dd9  addons/godot-iap/bin/ios/GodotIap.framework/GodotIap
+89a1f9306992f6b83be0432c9bdec83454d6cf1393e19b6f4c2b2422bd9253b3  addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime
+cfdb4e4b0ddaab250e609e29467c37b21162e5a71212f6177a8a246e9b3ceb28  addons/godot-iap/bin/macos/GodotIap.framework/GodotIap
+66585c71f205ef0b4c5b663ca9082535a42f447f0a23e033e1e0e01d2db0709a  addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime

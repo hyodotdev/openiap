@@ -9,7 +9,7 @@ echo "Building iOS app..."
 cd "$SCRIPT_DIR"
 
 # Build the Kotlin Multiplatform part first
-./gradlew :composeApp:linkPodDebugFrameworkIosSimulatorArm64
+./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 
 # Build and run the iOS app
 cd iosApp

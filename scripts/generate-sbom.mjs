@@ -424,6 +424,9 @@ const COMPONENTS = {
           name: "SwiftGodotRuntime",
           spdxLicense: "MIT",
           supplier: "Miguel de Icaza",
+          // MIT requires the notice to travel with the binary. Verbatim
+          // upstream text, so the notice generator never has to compose one.
+          licenseFile: "libraries/godot-iap/third-party/SwiftGodot-LICENSE",
         },
         {
           kind: "embedded-binary",
@@ -431,6 +434,7 @@ const COMPONENTS = {
           name: "SwiftGodotRuntime-macOS",
           spdxLicense: "MIT",
           supplier: "Miguel de Icaza",
+          licenseFile: "libraries/godot-iap/third-party/SwiftGodot-LICENSE",
         },
       ],
     },

@@ -13,7 +13,10 @@ import {
   completedRemovalRules,
 } from "./audit-deprecation-schedule.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 test("completed removal inventory covers every coordinated package", () => {
   assert.deepEqual(
@@ -185,7 +188,9 @@ test("repository schema deprecations all target a future removal train", () => {
     ).spec.split(".")[0],
   );
   for (const entry of deprecations.entries) {
-    const removalMajor = Number(/OpenIAP (\d+)\.\d+\.$/.exec(entry.reason)?.[1]);
+    const removalMajor = Number(
+      /OpenIAP (\d+)\.\d+\.$/.exec(entry.reason)?.[1],
+    );
     assert.ok(
       Number.isFinite(removalMajor),
       `${entry.ownerPath} must name its removal train`,
@@ -219,4 +224,31 @@ test("schema deprecation audit rejects malformed spec versions", () => {
     collectSchemaDeprecationFailures({ entries: [], issues: [] }, "not-semver"),
     ["openiap-versions.json: Invalid OpenIAP Spec version: 'not-semver'"],
   );
+});
+
+test("the walker skips SwiftPM checkouts of this repository", () => {
+  // An iOS derivedDataPath outside the "build"/"DerivedData" names — for
+  // example the ios/build-e2e-onside in .claude/commands/e2e-tests.md —
+  // leaves a SourcePackages tree that vendors this repository's own sources.
+  const fixture = path.join(repoRoot, ".tmp-source-packages-fixture");
+  const vendored = path.join(fixture, "SourcePackages", "checkouts", "openiap");
+  const authored = path.join(fixture, "src");
+  try {
+    fs.mkdirSync(vendored, { recursive: true });
+    fs.mkdirSync(authored, { recursive: true });
+    fs.writeFileSync(path.join(vendored, "Vendored.kt"), "val x = Removed\n");
+    fs.writeFileSync(path.join(authored, "Authored.kt"), "val y = Removed\n");
+
+    const matches = collectForbiddenMatches({
+      roots: [".tmp-source-packages-fixture"],
+      tokens: ["Removed"],
+    });
+
+    assert.deepEqual(
+      matches.map((match) => match.file),
+      [".tmp-source-packages-fixture/src/Authored.kt"],
+    );
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
 });

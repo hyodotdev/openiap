@@ -101,6 +101,12 @@ jobs:
       - name: Audit npm override compatibility
         run: bun run audit:overrides
 
+      # security/SBOM.md restates the releasable component list for readers.
+      # Without this the copy drifts, which is how commerce-protocol shipped an
+      # SBOM artifact while the documented matrix said it did not exist.
+      - name: Audit SBOM documentation
+        run: bun run audit:sbom-docs
+
       - name: Verify independent Bun locks
         run: |
           for directory in \
@@ -459,6 +465,17 @@ jobs:
         working-directory: packages/google
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleHorizonDebug
+
+      # The audit checks that the Example declares the app id; only the merged
+      # manifest shows what the build actually resolved it to. Without this a
+      # blank or missing property merges an empty value, which compiles and
+      # installs and then throws inside startConnection on a headset.
+      - name: Verify Horizon app id resolves in the merged manifest
+        working-directory: packages/google
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :Example:processHorizonDebugManifest
+          node "$GITHUB_WORKSPACE/scripts/verify-horizon-merged-manifest.mjs" \
+            Example/build/intermediates/merged_manifests/horizonDebug/processHorizonDebugManifest/AndroidManifest.xml
 
       - name: Build Fire OS flavor
         working-directory: packages/google
