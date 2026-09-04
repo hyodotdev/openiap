@@ -1680,6 +1680,22 @@ const DEPRECATED_NUGET_LICENSE_URL = "https://aka.ms/deprecateLicenseUrl";
 // Callers deep-compare these results, so an explicitly-undefined key reads as
 // a different shape from an absent one. Drop the empties, and return null when
 // the registry stated nothing at all.
+// CycloneDX types externalReferences.url as an iri-reference, so a registry
+// value carrying a space or a control character fails whole-document schema
+// validation at release time. A reference we cannot record validly is dropped:
+// the licence was already absent, and an invalid one blocks the release.
+function usableLicenseUrl(value) {
+  if (typeof value !== "string" || /[\s<>"{}|\\^`]/u.test(value)) {
+    return undefined;
+  }
+  try {
+    new URL(value);
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
 function nonEmpty(fields) {
   const kept = Object.fromEntries(
     Object.entries(fields).filter(
@@ -1741,7 +1757,8 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
                 // name; a bare url is not one, so it travels as an external
                 // reference instead of an invalid licence entry.
                 const url = element.value("url");
-                return url ? { licenseUrl: url } : undefined;
+                const usable = usableLicenseUrl(url);
+                return usable ? { licenseUrl: usable } : undefined;
               })
               .filter(Boolean)
               .map((entry) => [JSON.stringify(entry), entry]),
@@ -1792,7 +1809,7 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         licenseUrl:
           license || !url || url === DEPRECATED_NUGET_LICENSE_URL
             ? undefined
-            : url,
+            : usableLicenseUrl(url),
         supplier: metadata.value("authors") || undefined,
         copyright: metadata.value("copyright") || undefined,
       });

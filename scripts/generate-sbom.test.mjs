@@ -2154,6 +2154,42 @@ test("the XML reader refuses documents that are not well-formed", () => {
   );
 });
 
+test("a licence URL that is not a valid IRI is dropped", async () => {
+  // CycloneDX types externalReferences.url as an iri-reference, so a registry
+  // value carrying whitespace fails whole-document schema validation at
+  // release time. Emitting nothing is the safe answer: the licence was already
+  // absent, and an invalid reference blocks the release.
+  const look = (body, purl) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl },
+      { fetcher: async () => body },
+    );
+
+  assert.equal(
+    await look(
+      `<project><licenses><license><url>https://example.com/My License</url></license></licenses></project>`,
+      "pkg:maven/g/a@1",
+    ),
+    null,
+  );
+  assert.equal(
+    await look(
+      `<package><metadata><id>X</id><licenseUrl>see LICENSE.md</licenseUrl></metadata></package>`,
+      "pkg:nuget/X@1",
+    ),
+    null,
+  );
+  assert.equal(
+    (
+      await look(
+        `<package><metadata><id>X</id><licenseUrl>https://x.test/L</licenseUrl></metadata></package>`,
+        "pkg:nuget/X@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+});
+
 test("a licence known only by URL is an external reference", async () => {
   // CycloneDX requires a licence object to carry an id or a name, so
   // `{license: {url}}` fails schema validation and would block a release.

@@ -272,12 +272,14 @@ License coverage is best-effort where an ecosystem does not publish a standard
 machine-readable value. Current structural gaps include:
 
 - **NuGet packages whose nuspec states no machine-readable licence.** A real
-  `<licenseUrl>` is recorded as `license.url`, so the reference is not lost,
-  but the component still carries no SPDX id. `Xamarin.Android.Google.BillingClient`
-  is the sharper case: its `<licenseUrl>` is NuGet's `aka.ms/deprecateLicenseUrl`
-  placeholder, which states no terms and is dropped, and its `<license>` names a
-  file inside the package rather than an expression. It resolves to no licence
-  at all, correctly.
+  `<licenseUrl>` becomes an `externalReferences` entry of type `license`, so the
+  reference is not lost, but the component still carries no SPDX id. CycloneDX
+  has no licence object for a bare URL, and it types that reference as an
+  IRI, so a value carrying whitespace is dropped rather than emitted invalid.
+  `Xamarin.Android.Google.BillingClient` is the sharper case: its `<licenseUrl>`
+  is NuGet's `aka.ms/deprecateLicenseUrl` placeholder, which states no terms and
+  is dropped, and its `<license>` names a file inside the package rather than an
+  expression. It resolves to no licence at all, correctly.
 - **Dart lockfiles are not committed, deliberately.** `pubspec.lock` pins the
   versions one application resolved; a package published for others to depend
   on must not ship one, because the consumer resolves against their own

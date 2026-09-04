@@ -67,20 +67,6 @@ export const HORIZON_APP_ID_SOURCES = [
 // the merged manifest just as empty.
 const APP_ID = String.raw`\d{10,}`;
 
-const APPLICATION_ELEMENT =
-  /<application\b(?:[^>]*\/>|[\s\S]*?<\/application\s*>)/;
-// activity-alias precedes activity: the alternation is ordered, and
-// `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
-// The self-closing form comes first: without it the lazy body would start at
-// `<provider .../>` and run to a LATER `</provider>`, swallowing every
-// application-level element in between — including the Horizon meta-data.
-const NESTED_ELEMENT =
-  /<(activity-alias|activity|service|receiver|provider)\b(?:[^>]*\/>|[\s\S]*?<\/\1\s*>)/g;
-const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
-const NAME_ATTRIBUTE = /android:name\s*=\s*["']([^"']*)["']/;
-const LITERAL_VALUE = new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`);
-const PLACEHOLDER_VALUE = /android:value\s*=\s*["']\$\{(\w+)\}["']/;
-
 // Horizon reads the id from <application>. A meta-data nested inside an
 // activity or service merges somewhere the platform never looks.
 const allMetaData = (element, found = []) => {
@@ -198,6 +184,20 @@ const directKeyOffsets = (masked, [start, end], name) => {
   return offsets;
 };
 
+// Spread elements at depth 0 of the given block.
+const directSpreadOffsets = (masked, [start, end]) => {
+  const offsets = [];
+  let depth = 0;
+  for (let index = start + 1; index < end - 1; index += 1) {
+    const character = masked[index];
+    if (character === "{") depth += 1;
+    else if (character === "}") depth -= 1;
+    else if (depth === 0 && masked.startsWith("...", index))
+      offsets.push(index);
+  }
+  return offsets;
+};
+
 // A literal appId directly on the horizon object, not nested deeper.
 // `{android: {horizon}}` is shorthand for `{android: {horizon: horizon}}`, so
 // the value can be a binding rather than a literal object. Resolving one level
@@ -207,8 +207,12 @@ const directKeyOffsets = (masked, [start, end], name) => {
 // unrelated function is a different variable, and picking it let a fixture's
 // object stand in for the one the plugin receives.
 function bindingBlock(contents, masked, name, referenceIndex) {
+  // `[^=]*` used to cross a statement boundary: `let options;` followed by
+  // `const metadata = {` matched, and the unrelated object was inspected as
+  // though it were the binding. Allow only a type annotation between the name
+  // and its `=`.
   const pattern = new RegExp(
-    String.raw`\b(?:const|let|var)\s+${name}\b[^=]*=\s*\{`,
+    String.raw`\b(?:const|let|var)\s+${name}\s*(?::[^=;{}]*)?=\s*\{`,
     "g",
   );
   let visible = null;
@@ -328,12 +332,18 @@ const inspectExpoPluginConfig = (contents) => {
     .filter(Boolean);
   if (androidBlocks.length === 0) return "declares no android config block";
 
-  // A spread can replace a key after it was written — `{horizon: {...}, ...d}`
-  // leaves whatever `d.horizon` holds. Reading the literal and calling it
-  // settled would assert a value the build never sees, so say so instead.
+  // A spread AFTER the key replaces it — `{horizon: {...}, ...d}` leaves
+  // whatever `d.horizon` holds — so reading the literal would assert a value
+  // the build never sees. A spread BEFORE the key is harmless: the later
+  // explicit property wins, and that ordering is decidable without evaluating
+  // the module.
   for (const android of androidBlocks) {
-    if (/\.\.\./u.test(masked.slice(android[0], android[1]))) {
-      return "spreads an object into android, so the resolved appId is not readable here";
+    const spreads = directSpreadOffsets(masked, android);
+    if (spreads.length === 0) continue;
+    const keys = directKeyOffsets(masked, android, "horizon");
+    const lastKey = keys.length > 0 ? keys[keys.length - 1] : -1;
+    if (spreads.some((offset) => offset > lastKey)) {
+      return "spreads an object into android after horizon, so the resolved appId is not readable here";
     }
   }
 

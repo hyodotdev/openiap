@@ -469,6 +469,40 @@ test("a shorthand binding must be direct and in scope", () => {
   );
 });
 
+test("a spread before the key is not a problem", () => {
+  // JavaScript guarantees the later explicit property wins, and that ordering
+  // is decidable without evaluating the module — rejecting it would block a
+  // correct config.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "const defaults = {horizon: {}};",
+        'const options = {android: {...defaults, horizon: {appId: "31705015229097839"}}};',
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    null,
+  );
+});
+
+test("an uninitialised declaration does not adopt the next object", () => {
+  // `let options;` followed by `const metadata = {` used to match as one
+  // declaration, so an unrelated object stood in for the plugin's options.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "let options;",
+        'const metadata = {android: {horizon: {appId: "31705015229097839"}}};',
+        "options = {android: {horizon: {}}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "passes no options object to the OpenIAP config plugin",
+  );
+});
+
 test("a spread into android is reported rather than read past", () => {
   // `{horizon: {appId}, ...defaults}` leaves whatever defaults.horizon holds.
   // Reading the literal and calling it settled asserts a value the build never
@@ -490,7 +524,9 @@ test("a spread into android is reported rather than read past", () => {
 
 test("a source the audit cannot read is reported", () => {
   assert.match(
-    String(inspectHorizonAppIdSource("<manifest></manifest>", "android-manifest")),
+    String(
+      inspectHorizonAppIdSource("<manifest></manifest>", "android-manifest"),
+    ),
     /has no <application> element/u,
   );
   assert.match(
