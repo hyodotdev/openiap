@@ -211,17 +211,19 @@ Two checks cover this, and they prove different things:
 | `scripts/verify-horizon-merged-manifest.mjs` | the value the manifest merger actually _resolved_ is a real app id, not empty and not an unresolved placeholder |
 
 The declaration check is static and runs on every pull request. The resolution
-check needs a built variant, and CI runs it for `packages/google` only, because
-that is the one target whose Horizon variant CI already builds.
+check needs a built variant, and CI runs it for both targets that resolve their
+id through a Gradle placeholder:
 
-`libraries/flutter_inapp_purchase/example` also resolves its id through a Gradle
-placeholder, and its resolution is therefore **not** verified in CI — that
-workflow builds no Android variant. Its declaration is checked, and its resolved
-value was verified by hand against a real merge. Closing this properly means
-adding an Android job to the Flutter workflow, not adding a static check that
-reads the build file's text: the value is decided by the manifest merger, and
-approximating that decision from source is what an earlier revision of the audit
-got wrong.
+- `packages/google/Example`, via `:Example:processHorizonDebugManifest`
+- `libraries/flutter_inapp_purchase/example`, via
+  `:app:processDebugManifest -PhorizonEnabled=true`
+
+Both merge the manifest without building an APK. The other examples ship the
+literal in their own manifest or config, so the declaration check covers them.
+
+Do not replace either with a check that reads the build file's text. The value
+is decided by the manifest merger, and approximating that decision from source
+is what an earlier revision of this audit got wrong.
 
 ### Release immutability
 
