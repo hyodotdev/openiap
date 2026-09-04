@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -522,14 +528,54 @@ test("published SBOM audit fails fast and trusts only main", () => {
   assert.doesNotMatch(block, /--signer-workflow/u);
 });
 
+test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
+  // codeql.yml builds this package AFTER `analyze`, so its sources are never
+  // in the database. That is correct only while the package re-exports a
+  // released module and defines nothing itself; real logic added here would
+  // ship without Swift analysis and nothing else would notice.
+  const root = new URL(
+    "../libraries/kmp-iap/native/InAppPurchaseBridge/Sources/",
+    import.meta.url,
+  );
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory()
+        ? walk(new URL(`${entry.name}/`, dir))
+        : entry.name.endsWith(".swift")
+          ? [new URL(entry.name, dir)]
+          : [],
+    );
+
+  const sources = walk(root);
+  assert.ok(sources.length > 0, "the bridge has no Swift sources");
+  for (const source of sources) {
+    for (const line of readFileSync(source, "utf8").split("\n")) {
+      const code = line.trim();
+      if (code === "" || code.startsWith("//")) continue;
+      assert.match(
+        code,
+        /^(?:@_exported\s+)?import\s+\w+$/u,
+        `${source.pathname} defines code, so it needs CodeQL coverage: move it, or build this package between init and analyze`,
+      );
+    }
+  }
+});
+
 test("the manual audit runs every gate the scheduled rescan runs", () => {
   // The manual procedure and security-rescan.yml are two copies of the same
   // audit. When a gate was added to the workflow alone, the documented audit
   // reported success on a state CI rejects. Derive the expectation from the
   // workflow so a future gate cannot be added to only one of them.
+  // A commented-out command is not a gate. Without this the documented audit
+  // could satisfy the comparison while running nothing.
+  const withoutComments = (text) =>
+    text
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("#"))
+      .join("\n");
   const subcommands = (text) =>
     new Set(
-      [...text.matchAll(/generate-sbom\.mjs ([a-z-]+)/gu)].map(
+      [...withoutComments(text).matchAll(/generate-sbom\.mjs ([a-z-]+)/gu)].map(
         (match) => match[1],
       ),
     );
