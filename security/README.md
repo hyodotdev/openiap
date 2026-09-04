@@ -242,7 +242,13 @@ versions are therefore in play, and they are not interchangeable:
 | `toolchain.bun` / `runtimeImage` | 1.4.0   | the `oven/bun` base that compiles the binary serving traffic |
 
 The tests that gate a deploy run on the first; the artifact that serves traffic
-is compiled by the second. Both are declared in `scripts/facts.mjs` and scanned,
+is compiled by the second.
+
+After the deploy, the workflow reads `https://kit.openiap.dev/health` and
+requires the `revision` it reports to be the commit just built. Every earlier
+step proves what was built and pushed; this is the only one that proves what is
+serving, so a rollout that kept the previous machine is visible rather than
+assumed away. Both are declared in `scripts/facts.mjs` and scanned,
 so neither can move without the declared-fact audit failing — but the gap
 between them is a real one, not an artefact of the audit. Closing it means
 agreeing a single version and moving both together.

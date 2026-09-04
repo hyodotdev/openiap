@@ -287,3 +287,26 @@ jobs:
             --config packages/kit/fly.toml \
             --dockerfile packages/kit/Dockerfile \
             "${BUILD_FLAGS[@]}"
+
+      # Everything above proves what was built and pushed. Only this proves
+      # what is serving: the image bakes IAPKIT_REVISION and /health reports
+      # its first 12 characters, so a rollout that silently kept the previous
+      # machine, or a deploy that reported success without replacing it, is
+      # visible here rather than assumed away.
+      - name: Verify the deployed revision is the one just built
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-12 | tr 'A-Z' 'a-z')"
+          for attempt in 1 2 3 4 5 6; do
+            BODY="$(curl -fsS --max-time 20 https://kit.openiap.dev/health || true)"
+            ACTUAL="$(printf '%s' "$BODY" | jq -r '.revision // empty')"
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Serving revision $ACTUAL"
+              exit 0
+            fi
+            echo "attempt $attempt: serving ${ACTUAL:-<none>}, expected $EXPECTED"
+            sleep 10
+          done
+          echo "::error::kit.openiap.dev is serving ${ACTUAL:-<no revision>}, not $EXPECTED"
+          exit 1
