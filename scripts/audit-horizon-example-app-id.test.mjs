@@ -390,6 +390,68 @@ test("shorthand android.horizon resolves its binding", () => {
   );
 });
 
+test("tools:node=removeAll deletes the declaration too", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        '<manifest xmlns:android="http://schemas.android.com/apk/res/android"',
+        '  xmlns:t="http://schemas.android.com/tools">',
+        '  <application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+        '      android:value="31705015229097839" t:node="removeAll"/></application>',
+        "</manifest>",
+      ].join("\n"),
+      "android-manifest",
+    ),
+    "declares the Horizon meta-data without a literal app id",
+  );
+});
+
+test("a shorthand binding must be direct and in scope", () => {
+  // `{android: {experimental: {horizon}}}` is not the path the plugin reads.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        'const horizon = {appId: "31705015229097839"};',
+        "const options = {android: {experimental: {horizon}}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
+  );
+
+  // A same-named binding inside an unrelated function is a different variable.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "function fixture() {",
+        '  const options = {android: {horizon: {appId: "31705015229097839"}}};',
+        "  return options;",
+        "}",
+        "const options = {android: {}};",
+        'export default {plugins: [["../app.plugin.js", options]]};',
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
+  );
+
+  // A binding in a block that encloses the reference is visible, which is how
+  // the real config declares its options inside the exported function.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "export default () => {",
+        '  const options = {android: {horizon: {appId: "31705015229097839"}}};',
+        '  return {plugins: [["../app.plugin.js", options]]};',
+        "};",
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    null,
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {

@@ -1744,10 +1744,23 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         `https://api.nuget.org/v3-flatcontainer/${id}/${entry.version}/${id}.nuspec`,
       );
       if (!nuspec) return null;
-      const expression = nuspec.match(
-        /<license\s+type="expression">([^<]+)<\/license>/u,
-      )?.[1];
-      const url = nuspec.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
+      // Parsed, not pattern-matched: a commented-out <copyright> before the
+      // real one was recorded as the artifact's attribution, which would have
+      // published a false statement in the SBOM.
+      let metadata;
+      try {
+        const document = parseXml(nuspec, { url: id });
+        metadata =
+          document.name === "package" ? document.first("metadata") : undefined;
+      } catch {
+        return null;
+      }
+      if (!metadata) return null;
+      const expression = metadata
+        .all("license")
+        .find((element) => element.attribute("type") === "expression")
+        ?.text.trim();
+      const url = metadata.value("licenseUrl");
       const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
       const raw = expression ?? (fromUrl && decodeURIComponent(fromUrl));
       const license = normalizeLicense(raw);
@@ -1761,10 +1774,8 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
           (url && url !== DEPRECATED_NUGET_LICENSE_URL
             ? { license: { url } }
             : undefined),
-        supplier: nuspec.match(/<authors>([^<]+)<\/authors>/u)?.[1]?.trim(),
-        copyright: nuspec
-          .match(/<copyright>([^<]+)<\/copyright>/u)?.[1]
-          ?.trim(),
+        supplier: metadata.value("authors") || undefined,
+        copyright: metadata.value("copyright") || undefined,
       };
     }
 

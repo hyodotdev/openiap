@@ -31,20 +31,30 @@ const ENTITIES = new Map([
   ["apos", "'"],
 ]);
 
-function decodeEntities(text) {
+function decodeEntities(text, context) {
+  // A bare `&` and an undeclared entity are both malformed. This reader
+  // supports no DTD, so any name outside the predefined five is undeclared,
+  // and passing the reference through unchanged would put markup-looking text
+  // into a value the caller treats as data.
+  if (/&(?!(?:#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);)/u.test(text)) {
+    fail("Unescaped '&' in character data", context);
+  }
   return text.replace(
     /&(#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]*);/gu,
     (raw, body) => {
       if (body.startsWith("#x") || body.startsWith("#X")) {
         const code = Number.parseInt(body.slice(2), 16);
-        return Number.isNaN(code) ? raw : String.fromCodePoint(code);
+        if (Number.isNaN(code)) fail(`Malformed entity ${raw}`, context);
+        return String.fromCodePoint(code);
       }
       if (body.startsWith("#")) {
         const code = Number.parseInt(body.slice(1), 10);
-        return Number.isNaN(code) ? raw : String.fromCodePoint(code);
+        if (Number.isNaN(code)) fail(`Malformed entity ${raw}`, context);
+        return String.fromCodePoint(code);
       }
       const named = ENTITIES.get(body);
-      return named ?? raw;
+      if (named === undefined) fail(`Undeclared entity ${raw}`, context);
+      return named;
     },
   );
 }
@@ -132,8 +142,12 @@ export function parseXml(source, context) {
 
     if (next > index) {
       const text = source.slice(index, next);
+      // XML forbids the literal `]]>` in character data; `-->` is legal there.
+      if (text.includes("]]>")) {
+        fail("Character data contains ]]>", context);
+      }
       if (stack.length > 0) {
-        stack[stack.length - 1].text += decodeEntities(text);
+        stack[stack.length - 1].text += decodeEntities(text, context);
       } else if (text.trim() !== "") {
         fail("Character data outside the root element", context);
       }
@@ -141,8 +155,14 @@ export function parseXml(source, context) {
     index = next;
 
     if (source.startsWith("<!--", index)) {
-      index += 4;
-      skipUntil("-->", "comment");
+      const close = source.indexOf("-->", index + 4);
+      if (close < 0) fail("Unterminated comment", context);
+      // XML forbids `--` inside a comment body, so a document containing one
+      // is malformed however plausible it looks.
+      if (source.slice(index + 4, close).includes("--")) {
+        fail("Comment contains --", context);
+      }
+      index = close + 3;
       continue;
     }
     if (source.startsWith("<![CDATA[", index)) {
@@ -219,12 +239,18 @@ export function parseXml(source, context) {
       if (close < 0) {
         fail(`Attribute ${attribute.name} has an unterminated value`, context);
       }
+      const raw = source.slice(cursor + 1, close);
+      // `<` is never legal in an attribute value, and a repeated attribute is
+      // malformed — silently overwriting it let `id="A" id="B"` read as B.
+      if (raw.includes("<")) {
+        fail(`Attribute ${attribute.name} contains a raw '<'`, context);
+      }
+      if (element.attributes.has(attribute.name)) {
+        fail(`Duplicate attribute ${attribute.name}`, context);
+      }
       // The value is opaque: whatever it contains is character data, never
       // markup. This is the property a regex reader cannot honour.
-      element.attributes.set(
-        attribute.name,
-        decodeEntities(source.slice(cursor + 1, close)),
-      );
+      element.attributes.set(attribute.name, decodeEntities(raw, context));
       cursor = close + 1;
     }
 

@@ -87,6 +87,50 @@ test("the minimum and current Godot versions coexist without a finding", () => {
   assert.deepEqual(failures, []);
 });
 
+test("catches a mirror that has been deleted", () => {
+  // A mirror republishes a fact for readers and is excluded from the
+  // "value still occurs" requirement on purpose, so nothing else notices when
+  // the copy itself disappears.
+  const failures = auditFacts((path) => {
+    const text = readRepoFile(path);
+    if (text === null) return null;
+    return path === "security/README.md"
+      ? text
+          .split("\n")
+          .filter((line) => !line.includes("`toolchain.bun` / `"))
+          .join("\n")
+      : text;
+  });
+  assert.ok(
+    failures.some((entry) =>
+      /toolchain\.bun: the runtimeImage mirror in security\/README\.md matches nothing/u.test(
+        entry,
+      ),
+    ),
+    `expected a mirror failure, got ${JSON.stringify(failures)}`,
+  );
+});
+
+test("a mirror does not satisfy the value-still-occurs requirement", () => {
+  // Adding the README mirror briefly let the Dockerfile's `FROM oven/bun:` line
+  // be deleted without any audit noticing.
+  const failures = auditFacts((path) => {
+    const text = readRepoFile(path);
+    if (text === null) return null;
+    return path === "packages/kit/Dockerfile"
+      ? text.replace(/^FROM\s+oven\/bun:.*$/mu, "FROM node:24-slim AS base")
+      : text;
+  });
+  assert.ok(
+    failures.some((entry) =>
+      /toolchain\.bun: declared runtimeImage="[\d.]+" no longer occurs/u.test(
+        entry,
+      ),
+    ),
+    `expected a missing-value failure, got ${JSON.stringify(failures)}`,
+  );
+});
+
 test("the workflow glob sees .yaml files, which Actions also loads", () => {
   const files = expandFiles([".github/workflows/*.{yml,yaml}"], () => [
     "ci.yml",

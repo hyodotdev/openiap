@@ -16,6 +16,8 @@ on:
       - "scripts/generate-sbom.mjs"
       - "scripts/sbom-dependencies.mjs"
       - "scripts/xml-document.mjs"
+      - "scripts/assert-release-tag.mjs"
+      - "scripts/release-branch-policy.mjs"
   schedule:
     - cron: "23 3 * * *"
   workflow_dispatch:

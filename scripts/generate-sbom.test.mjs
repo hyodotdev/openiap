@@ -1567,21 +1567,32 @@ test("published metadata parsers reject unsupported dependencies", () => {
     ),
     [],
   );
-  for (const malformedComment of [
+  for (const malformed of [
     "<package><metadata><dependencies><!-- nested <!-- -->" +
       '<dependency id="Fake" version="1.0.0" /></dependencies></metadata></package>',
     "<package><metadata><dependencies><!-- unterminated</dependencies></metadata></package>",
-    '<package><metadata><dependencies>--><dependency id="Fake" version="1.0.0" />' +
+    '<package><metadata><dependencies>]]><dependency id="Fake" version="1.0.0" />' +
       "</dependencies></metadata></package>",
   ]) {
     assert.throws(
       () =>
-        parseNugetNuspec(malformedComment, {
+        parseNugetNuspec(malformed, {
           url: "fixture.nuspec",
         }),
-      /Invalid XML comment/u,
+      /is not well-formed XML/u,
     );
   }
+
+  // A stray `-->` is not malformed: XML excludes only `]]>` from character
+  // data. The document genuinely declares this dependency, so read it.
+  assert.deepEqual(
+    parseNugetNuspec(
+      '<package><metadata><dependencies>--><dependency id="Real" version="1.0.0" />' +
+        "</dependencies></metadata></package>",
+      { url: "fixture.nuspec" },
+    ).map((entry) => entry.name),
+    ["Real"],
+  );
   assert.throws(
     () =>
       parseMavenPom(mavenPom([["g", "a", "1.0.0", "unclassified"]]), {
@@ -2111,6 +2122,54 @@ test("a POM licence is recorded only when the declarations agree", async () => {
       "<project><licenses><license><name>MIT</name></license></licenses></project>",
     ),
     { license: { license: { id: "MIT" } }, supplier: undefined },
+  );
+});
+
+test("the XML reader refuses documents that are not well-formed", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // A repeated attribute silently overwrote the first, so `id="A" id="B"` was
+  // read as B. The rest are ordinary well-formedness rules a regex cannot see.
+  for (const body of [
+    `<package><metadata><dependencies><dependency id="A" id="B" version="1"/></dependencies></metadata></package>`,
+    `<package><metadata><id>A &bogus; B</id></metadata></package>`,
+    `<package><metadata><id>A & B</id></metadata></package>`,
+    `<package><metadata><dependencies><dependency id="x < y" version="1"/></dependencies></metadata></package>`,
+    `<package><!-- a -- b --><metadata><id>X</id></metadata></package>`,
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not well-formed XML/u,
+      `accepted ${JSON.stringify(body.slice(0, 40))}`,
+    );
+  }
+
+  // The predefined entities and numeric references still decode.
+  assert.deepEqual(
+    parseNugetNuspec(
+      `<package><metadata><id>A &amp; B &#66;</id><dependencies><dependency id="A" version="1"/></dependencies></metadata></package>`,
+      context,
+    ).map((entry) => entry.name),
+    ["A"],
+  );
+});
+
+test("a nuspec copyright is read from the metadata element", async () => {
+  // Reading the raw text recorded a commented-out value as the artifact's
+  // attribution, which would publish a false statement in the SBOM.
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl: "pkg:nuget/X@1" },
+      { fetcher: async () => body },
+    );
+  assert.deepEqual(
+    await look(
+      `<package><metadata><id>X</id><!-- <copyright>Fake</copyright> --><copyright>Real</copyright></metadata></package>`,
+    ),
+    { license: undefined, supplier: undefined, copyright: "Real" },
   );
 });
 

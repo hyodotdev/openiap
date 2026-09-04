@@ -53,30 +53,6 @@ function decodeXml(value) {
     .replaceAll("&amp;", "&");
 }
 
-function maskXmlComments(source, context) {
-  const chunks = [];
-  let cursor = 0;
-  while (cursor < source.length) {
-    const start = source.indexOf("<!--", cursor);
-    const strayEnd = source.indexOf("-->", cursor);
-    if (strayEnd !== -1 && (start === -1 || strayEnd < start)) {
-      throw new Error(`Invalid XML comment in ${context.url}`);
-    }
-    if (start === -1) {
-      chunks.push(source.slice(cursor));
-      break;
-    }
-    chunks.push(source.slice(cursor, start));
-    const end = source.indexOf("-->", start + 4);
-    if (end === -1 || source.slice(start + 4, end).includes("--")) {
-      throw new Error(`Invalid XML comment in ${context.url}`);
-    }
-    chunks.push(" ".repeat(end + 3 - start));
-    cursor = end + 3;
-  }
-  return chunks.join("");
-}
-
 function xmlValue(source, tag) {
   const match = source.match(
     new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "u"),
@@ -772,7 +748,6 @@ async function extractMavenArtifact(root, source, context) {
 }
 
 function parseNugetNuspec(source, context) {
-  const masked = maskXmlComments(source, context);
   // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
   // truncated response would otherwise parse as "this package declares no
   // dependencies" and produce a silently empty inventory. Testing for the four

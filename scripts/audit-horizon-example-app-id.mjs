@@ -145,9 +145,11 @@ const inspectManifest = (contents, allowPlaceholder) => {
     declared = true;
     // The merger honours the tools namespace, whatever prefix the document
     // binds it to — `xmlns:t=".../tools"` makes `t:node` equivalent.
+    // `remove` deletes this element; `removeAll` deletes every matching one
+    // under the parent. Either way the platform never sees the declaration.
     if (
-      toolsPrefixes(root).some(
-        (prefix) => element.attribute(`${prefix}:node`) === "remove",
+      toolsPrefixes(root).some((prefix) =>
+        ["remove", "removeAll"].includes(element.attribute(`${prefix}:node`)),
       )
     ) {
       continue;
@@ -212,17 +214,55 @@ const directKeyOffsets = (masked, [start, end], name) => {
 // `{android: {horizon}}` is shorthand for `{android: {horizon: horizon}}`, so
 // the value can be a binding rather than a literal object. Resolving one level
 // keeps a legitimate config from being reported as missing the id.
-const bindingBlock = (contents, masked, name) => {
-  const binding = new RegExp(
+// The binding must be visible from where it is referenced: either module
+// scope, or a block that encloses the reference. A same-named binding inside an
+// unrelated function is a different variable, and picking it let a fixture's
+// object stand in for the one the plugin receives.
+function bindingBlock(contents, masked, name, referenceIndex) {
+  const pattern = new RegExp(
     String.raw`\b(?:const|let|var)\s+${name}\b[^=]*=\s*\{`,
-  ).exec(contents);
-  return binding
-    ? extractBalancedBlock(masked, binding.index + binding[0].length - 1)
-    : null;
-};
+    "g",
+  );
+  let visible = null;
+  for (const binding of contents.matchAll(pattern)) {
+    // A commented-out declaration is not a declaration.
+    if (masked[binding.index] !== contents[binding.index]) continue;
 
-const SHORTHAND = (name) =>
-  new RegExp(String.raw`(?:^|[{,])\s*${name}\s*(?=[,}])`, "m");
+    // The innermost block still open at the declaration is its scope.
+    const open = [];
+    for (let index = 0; index < binding.index; index += 1) {
+      if (masked[index] === "{") open.push(index);
+      else if (masked[index] === "}") open.pop();
+    }
+    if (open.length > 0) {
+      const scope = extractBalancedBlock(masked, open[open.length - 1]);
+      if (scope === null || referenceIndex >= scope[1]) continue;
+    }
+    visible = extractBalancedBlock(
+      masked,
+      binding.index + binding[0].length - 1,
+    );
+  }
+  return visible;
+}
+
+// A shorthand property `{ …, horizon, … }` at depth 0 of the given block.
+const directShorthand = (masked, [start, end], name) => {
+  const shorthand = new RegExp(String.raw`${name}\s*(?=[,}])`, "y");
+  let depth = 0;
+  for (let index = start + 1; index < end - 1; index += 1) {
+    const character = masked[index];
+    if (character === "{") depth += 1;
+    else if (character === "}") depth -= 1;
+    else if (depth === 0 && /[A-Za-z_$]/u.test(character)) {
+      const before = masked[index - 1];
+      if (before !== undefined && /[\w$.]/u.test(before)) continue;
+      shorthand.lastIndex = index;
+      if (shorthand.test(masked)) return true;
+    }
+  }
+  return false;
+};
 
 const directAppId = (masked, contents, [start, end]) => {
   let depth = 0;
@@ -263,15 +303,8 @@ const optionsBlock = (contents, masked) => {
     if (contents[after] === "{") return extractBalancedBlock(masked, after);
     const named = contents.slice(after).match(IDENTIFIER);
     if (!named) continue;
-    const binding = new RegExp(
-      String.raw`\b(?:const|let|var)\s+${named[1]}\b[^=]*=\s*\{`,
-    ).exec(contents);
-    if (binding) {
-      return extractBalancedBlock(
-        masked,
-        binding.index + binding[0].length - 1,
-      );
-    }
+    const bound = bindingBlock(contents, masked, named[1], entry.index);
+    if (bound) return bound;
   }
   return null;
 };
@@ -300,12 +333,11 @@ const inspectExpoPluginConfig = (contents) => {
     const spans = directKeyOffsets(masked, android, "horizon")
       .map((offset) => extractBalancedBlock(masked, offset))
       .filter(Boolean);
-    // `{android: {horizon}}` names a binding instead of nesting an object.
-    if (
-      spans.length === 0 &&
-      SHORTHAND("horizon").test(masked.slice(android[0], android[1]))
-    ) {
-      const bound = bindingBlock(contents, masked, "horizon");
+    // `{android: {horizon}}` names a binding instead of nesting an object. The
+    // shorthand must be a DIRECT member of android — `{android: {x: {horizon}}}`
+    // supplies nothing — so the search walks depth like the key lookup does.
+    if (spans.length === 0 && directShorthand(masked, android, "horizon")) {
+      const bound = bindingBlock(contents, masked, "horizon", android[0]);
       if (bound) spans.push(bound);
     }
     for (const span of spans) {

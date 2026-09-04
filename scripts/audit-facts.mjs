@@ -96,6 +96,22 @@ export function auditFacts(readFile) {
       if (!mirror) seen.add(value);
     }
 
+    // A mirror that matches nothing has been deleted or reformatted away. It is
+    // excluded from `seen` on purpose, so without this the audit would report
+    // success on a documentation copy that no longer exists.
+    for (const scanner of fact.scanners) {
+      if (scanner.mirror !== true) continue;
+      const matched = occurrences.some(
+        (occurrence) => occurrence.mirror && occurrence.role === scanner.role,
+      );
+      if (!matched) {
+        failures.push(
+          `${fact.key}: the ${scanner.role} mirror in ${scanner.files.join(", ")} ` +
+            `matches nothing — restore it or remove the scanner`,
+        );
+      }
+    }
+
     for (const [value, role] of allowed) {
       if (!seen.has(value)) {
         failures.push(

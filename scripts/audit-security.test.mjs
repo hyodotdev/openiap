@@ -550,7 +550,12 @@ test("sbom.yml restores every module the generator imports", () => {
     if (seen.has(name)) return;
     seen.add(name);
     const source = readFileSync(new URL(name, scripts), "utf8");
-    for (const match of source.matchAll(/from\s+"\.\/([\w.-]+\.mjs)"/gu)) {
+    // Every local-module form: `from "./x"`, a bare `import "./x"`, and a
+    // dynamic `import("./x")`, in either quote style. Recognising only the
+    // first would let a new module go unrestored.
+    for (const match of source.matchAll(
+      /(?:from\s*|\bimport\s*\(?\s*)['"]\.\/([\w.-]+\.mjs)['"]/gu,
+    )) {
       visit(match[1]);
     }
   };
