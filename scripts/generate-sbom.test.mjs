@@ -2127,7 +2127,7 @@ test("a published POM body that is not a POM fails closed", () => {
   ]) {
     assert.throws(
       () => parseMavenPom(body, context),
-      /is not a complete POM/u,
+      /is not (?:well-formed XML|a POM)/u,
       `accepted ${JSON.stringify(body.slice(0, 24))}`,
     );
   }
@@ -2367,7 +2367,10 @@ test("coverage continuity reports mid-train gaps the latest-only scan misses", (
   ];
   assert.deepEqual(findMissingLatestSbomTags(releases), []);
   assert.deepEqual(
-    findMissingCoverageTags(releases, { godot: "godot-iap-3.3.0" }),
+    findMissingCoverageTags(releases, {
+      floors: { godot: "godot-iap-3.3.0" },
+      components: ["godot"],
+    }),
     ["godot-iap-3.4.0"],
   );
 });
@@ -2393,7 +2396,7 @@ test("the coverage floor is a version, not a publish date", () => {
         release("godot-iap-3.4.0", "2026-01-01T00:00:00Z", false),
         release("godot-iap-3.3.0", "2026-01-15T00:00:00Z", true),
       ],
-      { godot: "godot-iap-3.3.0" },
+      { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
     ),
     ["godot-iap-3.4.0"],
   );
@@ -2406,7 +2409,7 @@ test("the coverage floor is a version, not a publish date", () => {
         release("godot-iap-3.3.0", "2026-01-01T00:00:00Z", true),
         release("godot-iap-3.2.1", "2026-02-01T00:00:00Z", false),
       ],
-      { godot: "godot-iap-3.3.0" },
+      { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
     ),
     [],
   );
@@ -2430,7 +2433,10 @@ test("releases before a component's coverage floor are not gaps", () => {
     },
   ];
   assert.deepEqual(
-    findMissingCoverageTags(releases, { godot: "godot-iap-3.3.0" }),
+    findMissingCoverageTags(releases, {
+      floors: { godot: "godot-iap-3.3.0" },
+      components: ["godot"],
+    }),
     [],
   );
 });
@@ -2450,9 +2456,13 @@ test("a component with no floor entry is covered from its first release", () => 
       assets: [],
     },
   ];
-  assert.deepEqual(findMissingCoverageTags(releases, {}), [
-    "openiap-conformance-1.0.0",
-  ]);
+  assert.deepEqual(
+    findMissingCoverageTags(releases, {
+      floors: {},
+      components: ["conformance"],
+    }),
+    ["openiap-conformance-1.0.0"],
+  );
 });
 
 test("a floor missing from the release list fails loudly", () => {
@@ -2476,17 +2486,18 @@ test("a floor missing from the release list fails loudly", () => {
             assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
           },
         ],
-        { godot: "godot-iap-3.3.0" },
+        { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
       ),
     /coverage floor godot-iap-3\.3\.0 for godot is not in the release list/,
   );
 });
 
-test("the default floor map refuses a list that omits a component", () => {
-  // The injectable `floors` parameter exists for focused fixtures. Production
-  // callers take the default, and a component missing from the list entirely
-  // must not be skipped — the other two commands infer their components from
-  // the same list, so nothing else would notice it was never checked.
+test("the defaults refuse a list that omits any component", () => {
+  // The injectable parameters exist for focused fixtures. Production callers
+  // take the defaults, and a component missing from the list entirely must not
+  // be skipped — the other two commands infer their components from the same
+  // list, so nothing else would notice it was never checked. This holds for a
+  // floorless component as much as a floored one.
   assert.throws(
     () =>
       findMissingCoverageTags([
@@ -2498,7 +2509,7 @@ test("the default floor map refuses a list that omits a component", () => {
           assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
         },
       ]),
-    /coverage floor .+ is not in the release list/u,
+    /(?:coverage floor .+ is not in the release list|no releases for .+ in the release list)/u,
   );
 });
 
@@ -2568,7 +2579,7 @@ test("a published body that is not a nuspec fails closed", () => {
   ]) {
     assert.throws(
       () => parseNugetNuspec(body, context),
-      /is not a complete nuspec/u,
+      /is not (?:well-formed XML|a nuspec)/u,
       `accepted ${JSON.stringify(body.slice(0, 24))}`,
     );
   }
@@ -2619,7 +2630,7 @@ test("a <dependencies> element is read through its attributes, or fails loudly",
         </metadata></package>`,
         context,
       ),
-    /Unreadable <dependencies> element/u,
+    /(?:well-formed XML|<dependencies> outside <metadata>)/u,
   );
 });
 
@@ -2633,7 +2644,7 @@ test("a nuspec must nest, not merely contain the four tags", () => {
   // them independently accepted this and read it as "declares no dependencies".
   assert.throws(
     () => parseNugetNuspec("<package><metadata></package></metadata>", context),
-    /is not a complete nuspec/u,
+    /is not (?:well-formed XML|a nuspec)/u,
   );
 
   // Dependencies are declared inside <metadata>. A block outside it is not
@@ -2646,6 +2657,6 @@ test("a nuspec must nest, not merely contain the four tags", () => {
         </package>`,
         context,
       ),
-    /Unreadable <dependencies> element/u,
+    /(?:well-formed XML|<dependencies> outside <metadata>)/u,
   );
 });

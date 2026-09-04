@@ -19,6 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { maskTypeScriptCommentsAndStrings } from "./audit-purchase-payload-parity.mjs";
+import { parseXml, XmlParseError } from "./xml-document.mjs";
 
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
@@ -94,32 +95,50 @@ const PLACEHOLDER_VALUE = /android:value\s*=\s*["']\$\{(\w+)\}["']/;
 
 // Horizon reads the id from <application>. A meta-data nested inside an
 // activity or service merges somewhere the platform never looks.
+const allMetaData = (element, found = []) => {
+  if (element.name === "meta-data") found.push(element);
+  for (const child of element.children) allMetaData(child, found);
+  return found;
+};
+
+const isHorizon = (element) =>
+  element.attribute("android:name") === HORIZON_APP_ID_META_DATA_NAME;
+
+const LITERAL_APP_ID = new RegExp(`^${APP_ID}$`);
+const PLACEHOLDER_APP_ID = /^\$\{\w+\}$/;
+
 const inspectManifest = (contents, allowPlaceholder) => {
-  const source = stripXmlComments(contents);
-  const application = source.match(APPLICATION_ELEMENT);
-  if (!application) return "has no <application> element";
-  const direct = application[0].replace(NESTED_ELEMENT, "");
-  let declared = false;
-  for (const [element] of direct.matchAll(META_DATA_ELEMENT)) {
-    // Exact match: a substring test also accepts com.example.<the Horizon
-    // name>, which merges under a key the platform never reads.
-    if (element.match(NAME_ATTRIBUTE)?.[1] !== HORIZON_APP_ID_META_DATA_NAME) {
-      continue;
+  // Parsed, not pattern-matched: android:name must be an attribute rather than
+  // text inside another attribute's value, and a self-closing sibling must not
+  // swallow the elements that follow it.
+  let root;
+  try {
+    root = parseXml(contents, {});
+  } catch (error) {
+    if (error instanceof XmlParseError) {
+      return `is not well-formed XML: ${error.message}`;
     }
+    throw error;
+  }
+  const application = root.first("application");
+  if (!application) return "has no <application> element";
+
+  let declared = false;
+  for (const element of application.all("meta-data").filter(isHorizon)) {
     declared = true;
-    if (LITERAL_VALUE.test(element)) return null;
-    if (allowPlaceholder && PLACEHOLDER_VALUE.test(element)) return null;
+    // The merger honours tools:node="remove", so a declaration carrying it is
+    // deleted from the manifest the platform actually reads.
+    if (element.attribute("tools:node") === "remove") continue;
+    const value = element.attribute("android:value") ?? "";
+    if (LITERAL_APP_ID.test(value)) return null;
+    if (allowPlaceholder && PLACEHOLDER_APP_ID.test(value)) return null;
   }
   if (declared) {
     return allowPlaceholder
       ? "declares the Horizon meta-data without a literal app id or a placeholder"
       : "declares the Horizon meta-data without a literal app id";
   }
-  const anywhere = [...source.matchAll(META_DATA_ELEMENT)].some(
-    ([element]) =>
-      element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
-  );
-  return anywhere
+  return allMetaData(root).some(isHorizon)
     ? "declares the Horizon meta-data outside <application>"
     : "declares no Horizon app id meta-data";
 };

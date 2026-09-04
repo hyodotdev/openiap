@@ -58,9 +58,11 @@ export const FACTS = Object.freeze([
       },
       {
         files: ["packages/kit/Dockerfile"],
-        // Anchored to the instruction: a comment mentioning the old image
-        // would otherwise satisfy this while the real FROM had moved on.
-        pattern: /^FROM\s+oven\/bun:([\d.]+)/gm,
+        // Anchored to the instruction so a comment mentioning the old image
+        // cannot satisfy it, but tolerant of the flags a FROM line may carry:
+        // `FROM --platform=linux/amd64 oven/bun:...` is ordinary and must not
+        // slip past by failing to match.
+        pattern: /^FROM\s+(?:--\S+\s+)*oven\/bun:([\d.]+)/gm,
         role: "runtimeImage",
       },
     ],

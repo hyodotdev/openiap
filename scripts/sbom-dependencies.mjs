@@ -13,8 +13,28 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { compareSemVer } from "./release-branch-policy.mjs";
+import { parseXml, XmlParseError } from "./xml-document.mjs";
 
 export class PublishedMetadataUnavailableError extends Error {}
+
+// Published metadata is parsed, not pattern-matched. Regex readers accepted a
+// long tail of documents that hold the right tags in the wrong structure — a
+// closing tag inside a comment, an attribute value containing text that looks
+// like another attribute, a body truncated mid-element — and each one read as
+// "this package declares no dependencies". An unparseable body is missing
+// metadata, not metadata that declares nothing, so this throws.
+function parseXmlDocument(source, context, kind) {
+  try {
+    return parseXml(source, context);
+  } catch (error) {
+    if (error instanceof XmlParseError) {
+      throw new PublishedMetadataUnavailableError(
+        `Published document is not well-formed ${kind}: ${context.url}`,
+      );
+    }
+    throw error;
+  }
+}
 
 function readText(root, relativePath) {
   return readFileSync(resolve(root, relativePath), "utf8");
@@ -630,11 +650,10 @@ function parseMavenPom(source, context) {
   // dependencies" and produce a silently empty inventory. Require the project
   // element in nesting order — one structural rule, the same one the nuspec
   // reader applies.
-  const projectOpen = source.search(/<project\b/iu);
-  const projectClose = source.search(/<\/project\s*>/iu);
-  if (projectOpen < 0 || !(projectOpen < projectClose)) {
+  const document = parseXmlDocument(source, context, "XML");
+  if (document.name !== "project") {
     throw new PublishedMetadataUnavailableError(
-      `Published document is not a complete POM: ${context.url}`,
+      `Published document is not a POM: ${context.url}`,
     );
   }
 
@@ -766,62 +785,41 @@ function parseNugetNuspec(source, context) {
   // tags independently is not enough: `<package><metadata></package></metadata>`
   // contains all four and is still not a nuspec. Require them in nesting order
   // instead, which is one structural rule rather than a list of rejected shapes.
-  const packageOpen = masked.search(/<package\b/iu);
-  const metadataOpen = masked.search(/<metadata\b/iu);
-  const metadataClose = masked.search(/<\/metadata\s*>/iu);
-  const packageClose = masked.search(/<\/package\s*>/iu);
-  if (
-    packageOpen < 0 ||
-    !(packageOpen < metadataOpen) ||
-    !(metadataOpen < metadataClose) ||
-    !(metadataClose < packageClose)
-  ) {
+  const document = parseXmlDocument(source, context, "XML");
+  const metadataElement =
+    document.name === "package" ? document.first("metadata") : undefined;
+  if (!metadataElement) {
     throw new PublishedMetadataUnavailableError(
-      `Published document is not a complete nuspec: ${context.url}`,
+      `Published document is not a nuspec: ${context.url}`,
     );
   }
-  // Dependencies are declared inside <metadata>. Scoping the search there
-  // stops a stray block elsewhere in the document from being read as this
-  // package's inventory.
-  const metadata = masked.slice(metadataOpen, metadataClose);
-  // Attributes are legal on this element, so the opening tag is not literally
-  // `<dependencies>`. Finding the element but failing to read it must not
-  // report "declares none" — that is the same silent empty inventory the
-  // completeness gate above exists to prevent.
-  const dependenciesBlock = metadata.match(
-    /<dependencies\b[^>]*>([\s\S]*?)<\/dependencies\s*>/u,
-  )?.[1];
-  if (dependenciesBlock === undefined) {
-    // Self-closing inside metadata genuinely declares none.
-    if (/<dependencies\b[^>]*\/>/u.test(metadata)) return [];
-    // Present but unreadable, or present outside <metadata>: either way we
-    // found the element and could not read it as this package's inventory,
-    // which must not be reported as "declares none".
-    if (/<dependencies\b/u.test(masked)) {
-      throw new Error(`Unreadable <dependencies> element in ${context.url}`);
-    }
-    return [];
+  // <dependencies> is this package's inventory only as a child of <metadata>.
+  // A sibling elsewhere is a malformed nuspec, not an empty one — and checking
+  // that only when metadata declared none let a self-closing <dependencies />
+  // inside metadata mask a populated one outside.
+  if (document.first("dependencies")) {
+    throw new Error(`<dependencies> outside <metadata> in ${context.url}`);
   }
-  // A present but empty block genuinely declares none.
-  if (!dependenciesBlock) return [];
+  const dependencyGroups = metadataElement.all("dependencies");
+  if (dependencyGroups.length > 1) {
+    throw new Error(`Multiple <dependencies> elements in ${context.url}`);
+  }
+  const dependenciesElement = dependencyGroups[0];
+  // No element at all genuinely declares none; so does a self-closing one,
+  // which the parser gives us as an empty node.
+  if (dependenciesElement === undefined) return [];
 
-  const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;
-  const groups = [...dependenciesBlock.matchAll(groupPattern)];
-  if (groups.length > 0) {
-    const outsideGroups = dependenciesBlock.replace(groupPattern, "");
-    if (/<dependency\b/iu.test(outsideGroups)) {
-      throw new Error(
-        `Mixed grouped and ungrouped NuGet dependencies in ${context.url}`,
-      );
-    }
+  const groups = dependenciesElement.all("group");
+  if (groups.length > 0 && dependenciesElement.all("dependency").length > 0) {
+    throw new Error(
+      `Mixed grouped and ungrouped NuGet dependencies in ${context.url}`,
+    );
   }
   const sections = groups.length
-    ? groups.map((match) => {
-        const targetFramework = match[1].match(
-          /\btargetFramework\s*=\s*["']([^"']+)["']/iu,
-        )?.[1];
+    ? groups.map((group) => {
+        const targetFramework = group.attribute("targetFramework");
         if (
-          !targetFramework ||
+          typeof targetFramework !== "string" ||
           !/^[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
         ) {
           throw new Error(`Invalid NuGet target framework in ${context.url}`);
@@ -832,20 +830,25 @@ function parseNugetNuspec(source, context) {
           : /-(?:ios|maccatalyst|macos|tvos|watchos)/u.test(normalized)
             ? "apple"
             : "";
-        return { body: match[2] ?? "", platform, targetFramework };
+        return {
+          dependencies: group.all("dependency"),
+          platform,
+          targetFramework,
+        };
       })
-    : [{ body: dependenciesBlock, platform: "", targetFramework: "" }];
+    : [
+        {
+          dependencies: dependenciesElement.all("dependency"),
+          platform: "",
+          targetFramework: "",
+        },
+      ];
 
   const found = new Map();
   for (const section of sections) {
-    for (const match of section.body.matchAll(
-      /<dependency\b([^>]*)\/?>(?:<\/dependency>)?/giu,
-    )) {
-      const attributes = match[1];
-      const name = attributes.match(/\bid\s*=\s*["']([^"']+)["']/iu)?.[1];
-      const version = attributes.match(
-        /\bversion\s*=\s*["']([^"']+)["']/iu,
-      )?.[1];
+    for (const declaration of section.dependencies) {
+      const name = declaration.attribute("id");
+      const version = declaration.attribute("version");
       if (!name || !version) {
         throw new Error(
           `Incomplete published NuGet dependency in ${context.url}`,

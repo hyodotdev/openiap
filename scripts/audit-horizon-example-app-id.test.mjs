@@ -93,16 +93,16 @@ test("a commented-out declaration does not satisfy the audit", () => {
   );
 });
 
-test("comment stripping survives an opener spliced together by removal", () => {
-  // Removing the inner `<!-- -->` joins `<!-` and `-` into a new `<!--` that
-  // the first pass never saw, so a single substitution leaves the
-  // commented-out declaration looking active.
+test("a spliced comment opener is rejected, not read as a declaration", () => {
+  // `<!-` is not a legal declaration opener. A regex reader that stripped
+  // comments in one pass spliced `<!-` and `-` into a new `<!--` and hid the
+  // declaration; a parser rejects the document instead of guessing.
   const contents = manifest(
     `<!-<!-- -->- ${HORIZON_META("31705015229097839")} -->`,
   );
-  assert.equal(
-    inspectHorizonAppIdSource(contents, "android-manifest"),
-    "declares no Horizon app id meta-data",
+  assert.match(
+    String(inspectHorizonAppIdSource(contents, "android-manifest")),
+    /is not well-formed XML/u,
   );
 });
 

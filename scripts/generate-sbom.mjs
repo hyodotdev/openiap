@@ -802,12 +802,15 @@ export const SBOM_COVERAGE_FLOOR = {
  * component, so a gap in the middle of a release train is permanent once a
  * newer release ships. This reports all of them.
  */
-// `floors` is injectable so a test can state the floor map its fixture means.
-// Production callers take the default, which requires every configured floor
-// tag to be present in the release list.
+// `floors` and `components` are injectable so a focused fixture can state the
+// set it means. Production callers take the defaults, which require every
+// releasable component to appear in the list: a floored one by its floor tag,
+// a floorless one by any release. Without that, a response missing a component
+// entirely reports no gaps for it, and the other two commands infer their
+// components from the same list — so nothing else would notice either.
 export function findMissingCoverageTags(
   releases,
-  floors = SBOM_COVERAGE_FLOOR,
+  { floors = SBOM_COVERAGE_FLOOR, components = Object.keys(COMPONENTS) } = {},
 ) {
   const stable = releases
     .filter(
@@ -824,7 +827,22 @@ export function findMissingCoverageTags(
   // a release moves its timestamp — so a date comparison both exempts newer
   // versions published early and reports older ones published late.
   const floorVersion = new Map();
+  // A floorless component is required from its first release, which only holds
+  // if the list actually contains it.
+  for (const componentId of components) {
+    if (floors[componentId] !== undefined) continue;
+    const seen = stable.some(
+      (entry) => componentFromTag(entry.tag_name)?.componentId === componentId,
+    );
+    if (!seen) {
+      throw new Error(
+        `no releases for ${componentId} in the release list, so its coverage cannot be checked`,
+      );
+    }
+  }
+
   for (const [componentId, tag] of Object.entries(floors)) {
+    if (!components.includes(componentId)) continue;
     // Every floored component has, by definition, already published its floor
     // release. A list that does not contain it is incomplete, and checking
     // only the components that survived truncation would report success on a
@@ -1660,10 +1678,24 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         // with no SPDX id — the Android SDK licence, for example — is a real
         // declaration and recording its name is not a guess. What is forbidden
         // is choosing between two that disagree.
+        //
+        // Maven allows <name> and <url> independently, so a <license> element
+        // carrying only a <url> is a second set of terms. Counting elements
+        // rather than <name> tags stops it from being invisible here.
+        const licenseElements = [
+          ...(licensesBlock ?? "").matchAll(
+            /<license\b[^>]*>([\s\S]*?)<\/license\s*>/gu,
+          ),
+        ].map((match) => match[1]);
         const declared = [
           ...new Map(
-            [...(licensesBlock ?? "").matchAll(/<name>([^<]+)<\/name>/gu)]
-              .map((match) => normalizeLicense(match[1].trim()))
+            licenseElements
+              .map((element) => {
+                const name = element.match(/<name>([^<]+)<\/name>/u)?.[1];
+                if (name) return normalizeLicense(name.trim());
+                const url = element.match(/<url>([^<]+)<\/url>/u)?.[1];
+                return url ? { license: { url: url.trim() } } : undefined;
+              })
               .filter(Boolean)
               .map((entry) => [JSON.stringify(entry), entry]),
           ).values(),
