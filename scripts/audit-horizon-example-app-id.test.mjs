@@ -525,20 +525,94 @@ test("the reader answers for every shape review has raised", () => {
   assert.match(
     String(
       t(
-        `const bad={android:{}};\nexport default {["plugins"]:[["../app.plugin.js", bad]]};\nconst stale={plugins:[["../app.plugin.js", {android:{horizon:{appId:${id}}}}]]};`,
+        `const bad={android:{}};\nexport default {["plugins"]:[["../app.plugin.js", bad]]};`,
       ),
     ),
-    /more than once/u,
+    /declares no android.horizon block/u,
   );
 
-  // `const` binds the name, not the object's contents.
+  // A `plugins` array the exported config cannot reach is a fixture, whatever
+  // it contains — a stale constant held a complete entry while the export
+  // registered nothing.
   assert.match(
     String(
       t(
-        `const options={android:{horizon:{appId:${id}}}};\noptions.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js", options]]};`,
+        `const good={android:{horizon:{appId:${id}}}};\nconst stale={plugins:[["../app.plugin.js", good]]};\nvoid stale;\nexport default {plugins:[]};`,
       ),
     ),
-    /writes to object properties/u,
+    /registers no OpenIAP config plugin entry/u,
+  );
+
+  // A write through a binding this walk followed makes the literal above not
+  // what the plugin receives — `const` binds the name, not the contents.
+  for (const write of [
+    `options.android.horizon.appId="";`,
+    `(options.android.horizon.appId)="";`,
+    `options.android.horizon.appId+="x";`,
+    `delete options.android.horizon.appId;`,
+    `Reflect.set(options.android.horizon,"appId","");`,
+    `for (options.android.horizon.appId of [""]) {}`,
+  ]) {
+    assert.match(
+      String(
+        t(
+          `const options={android:{horizon:{appId:${id}}}};\n${write}\nexport default {plugins:[["../app.plugin.js", options]]};`,
+        ),
+      ),
+      /writes through the bindings/u,
+      write,
+    );
+  }
+
+  // Mutating something the app id does not travel through is ordinary Expo.
+  assert.equal(
+    t(
+      `export default ({config}: any) => {\n  config.name="Example";\n  const options={android:{horizon:{appId:${id}}}};\n  return {...config, plugins:[["../app.plugin.js", options]]};\n};`,
+    ),
+    null,
+  );
+
+  // A spread of a `const` array, and a `const` plugin path, resolve like any
+  // other binding — refusing them was a false reject, not a boundary.
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js", options]] as const;\nexport default {plugins:[...entries]};`,
+    ),
+    null,
+  );
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst p="../app.plugin.js";\nexport default {plugins:[[p, options]]};`,
+    ),
+    null,
+  );
+
+  // A named function expression binds its own name inside itself, and a `var`
+  // belongs to its function however deeply it is written.
+  assert.match(
+    String(
+      t(
+        `const appId=${id};\nexport default (function appId(){\n  const options={android:{horizon:{appId}}};\n  return {plugins:[["../app.plugin.js", options]]};\n});`,
+      ),
+    ),
+    /without a literal appId/u,
+  );
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nexport default function c(){\n  for (var options of [{android:{}}]) {}\n  return {plugins:[["../app.plugin.js", options]]};\n}`,
+      ),
+    ),
+    /passes no options object/u,
+  );
+
+  // `export default function config() {}` is a declaration, not an assignment;
+  // missing it read an ordinary config as registering nothing.
+  assert.equal(
+    t(
+      `export default function c(){\n  const options={android:{horizon:{appId:${id}}}};\n  return {plugins:[["../app.plugin.js", options]]};\n}`,
+    ),
+    null,
   );
 
   // An enum, a namespace, and a `const` in an earlier switch clause all bind

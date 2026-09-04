@@ -327,7 +327,10 @@ test("the parity audit still carries the audits that ride on it", () => {
   let to = at + 1;
   while (to < ci.length && !ci[to].trim().startsWith("- ")) to += 1;
   assert.ok(
-    !ci.slice(from, to).some((line) => line.trim().startsWith("if:")),
+    !ci
+      .slice(from, to)
+      // YAML accepts `"if": false` as the same key.
+      .some((line) => /^["']?if["']?\s*:/u.test(line.trim())),
     "the parity audit step is conditional, so it can be skipped",
   );
 

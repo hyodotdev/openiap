@@ -175,6 +175,7 @@ const unwrap = (node) =>
 
 // Follow an expression to a node of the wanted kind, through those wrappers and
 // through `const` bindings.
+const followed = new Set();
 const resolve = (node, is, seen = new Set()) => {
   if (!node) return null;
   const bare = unwrap(node);
@@ -182,6 +183,7 @@ const resolve = (node, is, seen = new Set()) => {
   if (ts.isIdentifier(bare)) {
     if (seen.has(bare)) return null;
     seen.add(bare);
+    followed.add(bare.text);
     return resolve(resolveBinding(bare), is, seen);
   }
   return null;
@@ -274,6 +276,43 @@ const headerBinds = (scope, name) => {
   return false;
 };
 
+// A `var` anywhere inside a function belongs to the function, not the block it
+// is written in. Treating only the block's own statements as its declarations
+// let an outer constant answer for a hoisted name.
+const hoistedVar = (scope, name) => {
+  let found = false;
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  const visit = (node) => {
+    if (found) return;
+    if (ts.isFunctionLike(node) && node !== scope) return;
+    const list = ts.isVariableStatement(node)
+      ? node.declarationList
+      : (ts.isForStatement(node) ||
+            ts.isForOfStatement(node) ||
+            ts.isForInStatement(node)) &&
+          node.initializer &&
+          ts.isVariableDeclarationList(node.initializer)
+        ? node.initializer
+        : null;
+    if (
+      list &&
+      !(list.flags & (ts.NodeFlags.Const | ts.NodeFlags.Let)) &&
+      list.declarations.some((one) => named(one.name))
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(scope, visit);
+  return found;
+};
+
 // A parameter is never a value read from its declaration, so it only has to be
 // recognised as a shadow.
 const bindsParameter = (scope, name) => {
@@ -307,7 +346,17 @@ const resolveBinding = (identifier) => {
       if (bound.has(identifier.text)) return bound.get(identifier.text);
     }
     if (headerBinds(scope, identifier.text)) return null;
-    if (ts.isFunctionLike(scope) && bindsParameter(scope, identifier.text)) {
+    if (ts.isFunctionLike(scope)) {
+      if (bindsParameter(scope, identifier.text)) return null;
+      // `var` is function-scoped wherever it is written, so a loop or block
+      // inside this function still binds the name out here.
+      if (hoistedVar(scope, identifier.text)) return null;
+    }
+    // A named function or class expression binds its own name inside itself.
+    if (
+      (ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) &&
+      scope.name?.text === identifier.text
+    ) {
       return null;
     }
   }
@@ -343,18 +392,95 @@ const property = (object, name) => {
 };
 
 /**
+ * Everything the exported config can carry, without running anything.
+ *
+ * A `plugins` array the export cannot reach is a fixture: a stale constant left
+ * by a refactor holds a complete entry while the exported config registers
+ * nothing. Reachability follows object properties, array elements, spreads,
+ * `const` bindings, the values a function returns, and call ARGUMENTS — the
+ * real config returns `helper(expoConfig)`, and the entry is inside that
+ * argument.
+ *
+ * Following arguments is deliberately generous: it keeps the boundary this
+ * audit already documents — it cannot prove the helper passes `plugins` through
+ * — while refusing an object the export never touches.
+ */
+const reachableFromExport = (source) => {
+  // `export default <expr>` is an ExportAssignment; `export default function
+  // config() {}` is a declaration carrying a default modifier. Missing the
+  // second read a perfectly ordinary config as registering nothing.
+  const roots = [];
+  const isDefault = (node) =>
+    node.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword,
+    );
+  const findExport = (node) => {
+    if (ts.isExportAssignment(node) && !node.isExportEquals) {
+      roots.push(node.expression);
+    } else if (
+      (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+      isDefault(node)
+    ) {
+      roots.push(node);
+    } else {
+      ts.forEachChild(node, findExport);
+    }
+  };
+  findExport(source);
+
+  const reached = new Set();
+  const queue = [...roots];
+  const enqueue = (node) => {
+    if (node) queue.push(node);
+  };
+  while (queue.length > 0) {
+    const node = unwrap(queue.pop());
+    if (!node || reached.has(node)) continue;
+    reached.add(node);
+
+    if (ts.isIdentifier(node)) enqueue(resolveBinding(node));
+    else if (ts.isObjectLiteralExpression(node)) {
+      for (const member of node.properties) {
+        if (ts.isPropertyAssignment(member)) enqueue(member.initializer);
+        else if (ts.isShorthandPropertyAssignment(member)) enqueue(member.name);
+        else if (ts.isSpreadAssignment(member)) enqueue(member.expression);
+      }
+    } else if (ts.isArrayLiteralExpression(node)) {
+      for (const element of node.elements) {
+        enqueue(ts.isSpreadElement(element) ? element.expression : element);
+      }
+    } else if (ts.isCallExpression(node)) {
+      for (const argument of node.arguments) enqueue(argument);
+    } else if (
+      ts.isArrowFunction(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isFunctionDeclaration(node)
+    ) {
+      if (node.body && ts.isBlock(node.body)) {
+        const returns = (statement) => {
+          if (ts.isReturnStatement(statement)) enqueue(statement.expression);
+          // A nested function's returns are its own, not this one's.
+          if (!ts.isFunctionLike(statement)) ts.forEachChild(statement, returns);
+        };
+        ts.forEachChild(node.body, returns);
+      } else if (node.body) {
+        enqueue(node.body);
+      }
+    }
+  }
+  return reached;
+};
+
+/**
  * The options the OpenIAP plugin entry names.
  *
- * The tuple has to be a DIRECT element of a `plugins` array, or a fixture
- * elsewhere stands in for the entry the build receives — including one nested
- * inside another plugin's own options. Two candidate tuples are an ambiguity
- * this audit reports rather than picks from.
- *
- * An element this audit cannot resolve to a tuple — a call, a conditional, a
- * spread — is skipped, so a config that registers OpenIAP only through one is
- * reported as registering nothing. Resolving it means evaluating the module.
+ * The tuple has to be a direct element of a `plugins` array the exported config
+ * can reach, or a fixture elsewhere stands in for the entry the build receives.
+ * Two candidate tuples are an ambiguity this audit reports rather than picks
+ * from.
  */
 const pluginOptions = (source) => {
+  const reachable = reachableFromExport(source);
   const keyed = (name, wanted) => {
     if (!name) return false;
     if (ts.isComputedPropertyName(name)) {
@@ -370,31 +496,41 @@ const pluginOptions = (source) => {
 
   const arrays = [];
   const findPluginsValue = (node) => {
-    if (ts.isPropertyAssignment(node) && keyed(node.name, "plugins")) {
-      const array = arrayLiteral(node.initializer);
-      if (array) arrays.push(array);
-    } else if (
-      ts.isShorthandPropertyAssignment(node) &&
-      node.name.text === "plugins"
+    if (
+      ts.isObjectLiteralExpression(node) &&
+      reachable.has(node) &&
+      node.properties.some((member) => keyed(member.name, "plugins"))
     ) {
-      const array = arrayLiteral(node.name);
-      if (array) arrays.push(array);
+      for (const member of node.properties) {
+        if (!keyed(member.name, "plugins")) continue;
+        const array = arrayLiteral(
+          ts.isPropertyAssignment(member) ? member.initializer : member.name,
+        );
+        if (array) arrays.push(array);
+      }
     }
     ts.forEachChild(node, findPluginsValue);
   };
   findPluginsValue(source);
 
+  // A spread of an array resolves the same way its elements do.
+  const elementsOf = (array, seen = new Set()) => {
+    if (seen.has(array)) return [];
+    seen.add(array);
+    return array.elements.flatMap((element) => {
+      if (!ts.isSpreadElement(element)) return [element];
+      const inner = arrayLiteral(element.expression);
+      return inner ? elementsOf(inner, seen) : [];
+    });
+  };
+
   const found = [];
   for (const array of arrays) {
-    for (const element of array.elements) {
+    for (const element of elementsOf(array)) {
       const tuple = arrayLiteral(element);
       if (!tuple || tuple.elements.length < 2) continue;
-      const first = unwrap(tuple.elements[0]);
-      if (
-        (ts.isStringLiteral(first) ||
-          ts.isNoSubstitutionTemplateLiteral(first)) &&
-        /app\.plugin\.js$/u.test(first.text)
-      ) {
+      const path = stringValue(tuple.elements[0]);
+      if (path !== null && /app\.plugin\.js$/u.test(path)) {
         found.push(tuple.elements[1]);
       }
     }
@@ -403,43 +539,100 @@ const pluginOptions = (source) => {
   return found[0];
 };
 
-// `const` binds the name, not the object's contents. A config that writes to a
-// property after building it, or reaches for Object.assign, is not described by
-// the literal this audit reads — and no amount of scope analysis can see that,
-// so the module is refused outright. Our own configs do none of this.
-const mutatesObjects = (source) => {
-  let mutates = false;
+/**
+ * Whether the module writes through any of these bindings.
+ *
+ * `const` binds the name, not the contents: a config can build the right object
+ * and then set `options.android.horizon.appId = ""`. Nothing in the scope walk
+ * sees that. Rooting the check at the bindings this audit actually resolved
+ * keeps it from refusing `config.name = "Example"`, which is ordinary Expo.
+ *
+ * What this does NOT catch: a config that hands the object to something that
+ * mutates it. Proving that needs escape analysis, and none of our configs
+ * mutates anything.
+ */
+const writesThrough = (source, names) => {
+  if (names.size === 0) return false;
+  const rootOf = (node) => {
+    let current = unwrap(node);
+    while (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      current = unwrap(current.expression);
+    }
+    return ts.isIdentifier(current) ? current.text : null;
+  };
+  const targeted = (node) => {
+    const bare = unwrap(node);
+    if (
+      ts.isPropertyAccessExpression(bare) ||
+      ts.isElementAccessExpression(bare)
+    ) {
+      return names.has(rootOf(bare));
+    }
+    // A destructuring assignment target is written as a literal.
+    if (ts.isObjectLiteralExpression(bare)) {
+      return bare.properties.some((member) =>
+        ts.isPropertyAssignment(member) ? targeted(member.initializer) : false,
+      );
+    }
+    if (ts.isArrayLiteralExpression(bare)) {
+      return bare.elements.some((element) => targeted(element));
+    }
+    return false;
+  };
+
+  const MUTATORS = new Set([
+    "assign",
+    "defineProperty",
+    "defineProperties",
+    "setPrototypeOf",
+    "set",
+    "deleteProperty",
+  ]);
+  let writes = false;
   const visit = (node) => {
-    if (mutates) return;
+    if (writes) return;
     if (
       ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      (ts.isPropertyAccessExpression(node.left) ||
-        ts.isElementAccessExpression(node.left))
+      ts.isAssignmentOperator?.(node.operatorToken.kind) !== false &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      targeted(node.left)
     ) {
-      mutates = true;
-      return;
-    }
-    if (ts.isDeleteExpression(node)) {
-      mutates = true;
-      return;
-    }
-    if (
+      writes = true;
+    } else if (
+      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+      (node.operator === ts.SyntaxKind.PlusPlusToken ||
+        node.operator === ts.SyntaxKind.MinusMinusToken) &&
+      targeted(node.operand)
+    ) {
+      writes = true;
+    } else if (ts.isDeleteExpression(node) && targeted(node.expression)) {
+      writes = true;
+    } else if (
+      (ts.isForOfStatement(node) || ts.isForInStatement(node)) &&
+      node.initializer &&
+      !ts.isVariableDeclarationList(node.initializer) &&
+      targeted(node.initializer)
+    ) {
+      writes = true;
+    } else if (
       ts.isCallExpression(node) &&
       ts.isPropertyAccessExpression(node.expression) &&
-      ts.isIdentifier(node.expression.expression) &&
-      node.expression.expression.text === "Object" &&
-      ["assign", "defineProperty", "defineProperties", "setPrototypeOf"].includes(
-        node.expression.name.text,
-      )
+      MUTATORS.has(node.expression.name.text) &&
+      node.arguments.some((argument) => {
+        const bare = unwrap(argument);
+        return names.has(rootOf(bare)) || names.has(bare.getText?.());
+      })
     ) {
-      mutates = true;
-      return;
+      writes = true;
     }
-    ts.forEachChild(node, visit);
+    if (!writes) ts.forEachChild(node, visit);
   };
   visit(source);
-  return mutates;
+  return writes;
 };
 
 const inspectExpoPluginConfig = (contents) => {
@@ -457,10 +650,7 @@ const inspectExpoPluginConfig = (contents) => {
     return "does not parse, so no app id can be read from it";
   }
 
-  if (mutatesObjects(source)) {
-    return "writes to object properties after building them, so what the plugin receives is not readable here";
-  }
-
+  followed.clear();
   const entry = pluginOptions(source);
   if (entry === UNREADABLE) {
     return "registers the OpenIAP config plugin more than once, so which options the build receives is not readable here";
@@ -498,6 +688,11 @@ const inspectExpoPluginConfig = (contents) => {
     appId === UNREADABLE || appId === null ? null : stringValue(appId);
   if (literal === null || !LITERAL_APP_ID.test(literal)) {
     return "declares android.horizon without a literal appId";
+  }
+  // The literal is only what the build receives if nothing wrote through the
+  // bindings this walk followed to reach it.
+  if (writesThrough(source, followed)) {
+    return "writes through the bindings that carry the app id, so the literal above is not what the plugin receives";
   }
   return null;
 };
