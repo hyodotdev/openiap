@@ -82,8 +82,11 @@ const APPLICATION_ELEMENT =
   /<application\b(?:[^>]*\/>|[\s\S]*?<\/application\s*>)/;
 // activity-alias precedes activity: the alternation is ordered, and
 // `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
+// The self-closing form comes first: without it the lazy body would start at
+// `<provider .../>` and run to a LATER `</provider>`, swallowing every
+// application-level element in between — including the Horizon meta-data.
 const NESTED_ELEMENT =
-  /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
+  /<(activity-alias|activity|service|receiver|provider)\b(?:[^>]*\/>|[\s\S]*?<\/\1\s*>)/g;
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
 const NAME_ATTRIBUTE = /android:name\s*=\s*["']([^"']*)["']/;
 const LITERAL_VALUE = new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`);

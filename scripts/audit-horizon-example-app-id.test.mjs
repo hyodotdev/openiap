@@ -261,6 +261,20 @@ test("an Expo horizon block outside android supplies nothing", () => {
   );
 });
 
+test("a self-closing application child does not swallow the declaration", () => {
+  const manifest = [
+    "<manifest><application>",
+    '  <provider android:name="androidx.startup.InitializationProvider" android:exported="false" />',
+    '  <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+    '      android:value="31705015229097839" />',
+    '  <provider android:name=".FileProvider">',
+    '    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/paths" />',
+    "  </provider>",
+    "</application></manifest>",
+  ].join("\n");
+  assert.equal(inspectHorizonAppIdSource(manifest, "android-manifest"), null);
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {

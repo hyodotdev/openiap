@@ -825,7 +825,9 @@ test("every Trivy exception is complete and still in date", () => {
   const exceptions = parseTrivyExceptions(
     readFileSync(resolve(repoRoot, "packages/kit/.trivyignore.yaml"), "utf8"),
   );
-  assert.ok(exceptions.length > 0, "the exception file parsed to nothing");
+  // No lower bound on the count. Every exception carries an expiry and says to
+  // remove it by then, so requiring a non-empty list would make our own test
+  // block the cleanup it asks for. The parser is proven separately, below.
 
   const today = new Date().toISOString().slice(0, 10);
   for (const entry of exceptions) {
@@ -869,6 +871,36 @@ test("every Trivy exception is complete and still in date", () => {
       `${entry.id} carries no statement explaining why it is accepted`,
     );
   }
+});
+
+test("the Trivy exception parser reads entries and an empty list", () => {
+  // Proven against fixtures so the audit above can stop asserting that the
+  // committed file is non-empty.
+  assert.deepEqual(parseTrivyExceptions("vulnerabilities:\n"), []);
+  assert.deepEqual(parseTrivyExceptions("vulnerabilities: []\n"), []);
+
+  const [entry, ...rest] = parseTrivyExceptions(
+    [
+      "vulnerabilities:",
+      "  - id: CVE-2026-14456",
+      "    purls:",
+      "      - pkg:deb/debian/libssl3@3.0.20-1~deb12u2",
+      "    expired_at: 2026-09-14",
+      "    statement: >-",
+      "      Not present in this branch.",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(rest.length, 0);
+  assert.equal(entry.id, "CVE-2026-14456");
+  assert.deepEqual(entry.purls, ["pkg:deb/debian/libssl3@3.0.20-1~deb12u2"]);
+  assert.match(
+    entry.expired_at instanceof Date
+      ? entry.expired_at.toISOString().slice(0, 10)
+      : String(entry.expired_at),
+    /^2026-09-14$/u,
+  );
+  assert.match(String(entry.statement), /Not present in this branch/u);
 });
 
 test("Google releases require complete credentials before version mutation", () => {

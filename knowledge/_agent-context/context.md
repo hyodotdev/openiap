@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-04T12:46:39.000Z
+> Last updated: 2026-09-04T13:33:15.491Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2120,7 +2120,8 @@ chronology of how you got there.
 
 **Reply to review comments like a person.** State the outcome first — fixed,
 already handled, or disagreed — then the reason in a sentence. No restating the
-reviewer's comment back to them, no thanking-and-summarising preamble.
+reviewer's comment back to them, no thanking-and-summarising preamble. Write
+commit hashes bare, never in backticks: GitHub only auto-links plain text.
 
 Bad, and typical of AI-authored prose:
 
@@ -2134,7 +2135,7 @@ scenario you describe, and I have accordingly implemented a fix which...
 Good:
 
 ```text
-Fixed in `abc1234`. The guard only matched the bare tag, so an element with an
+Fixed in abc1234. The guard only matched the bare tag, so an element with an
 attribute fell through to the "declares none" branch. Now it matches through
 attributes and throws when the element is present but unreadable.
 ```

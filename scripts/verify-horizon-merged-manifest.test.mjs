@@ -75,6 +75,24 @@ test("a declaration nested in an activity is not an application declaration", ()
   );
 });
 
+test("a self-closing application child does not swallow the declaration", () => {
+  // Real merged manifests carry a self-closing <provider/> (androidx.startup)
+  // before their own elements. A lazy body that ignores the self-closing form
+  // starts there and runs to a LATER </provider>, deleting everything between
+  // — including the Horizon meta-data — so this valid manifest was rejected.
+  const manifest = [
+    "<manifest><application>",
+    '  <provider android:name="androidx.startup.InitializationProvider" android:exported="false" />',
+    '  <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+    '      android:value="31705015229097839" />',
+    '  <provider android:name=".FileProvider">',
+    '    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/paths" />',
+    "  </provider>",
+    "</application></manifest>",
+  ].join("\n");
+  assert.equal(inspectMergedManifest(manifest), null);
+});
+
 test("a commented-out declaration is not a declaration", () => {
   const contents = [
     "<manifest><application>",
