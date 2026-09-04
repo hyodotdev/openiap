@@ -746,9 +746,20 @@ async function extractMavenArtifact(root, source, context) {
 }
 
 function parseNugetNuspec(source, context) {
-  const dependenciesBlock = maskXmlComments(source, context).match(
+  const masked = maskXmlComments(source, context);
+  // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
+  // truncated response would otherwise parse as "this package declares no
+  // dependencies" and produce a silently empty inventory. A nuspec always has
+  // these two elements; without them the document is not a nuspec.
+  if (!/<package\b/iu.test(masked) || !/<metadata\b/iu.test(masked)) {
+    throw new PublishedMetadataUnavailableError(
+      `Published document is not a nuspec: ${context.url}`,
+    );
+  }
+  const dependenciesBlock = masked.match(
     /<dependencies>([\s\S]*?)<\/dependencies>/u,
   )?.[1];
+  // A nuspec with no dependencies block genuinely declares none.
   if (!dependenciesBlock) return [];
 
   const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;

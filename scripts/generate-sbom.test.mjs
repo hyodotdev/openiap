@@ -40,10 +40,10 @@ import {
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import { parse as parseYaml } from "yaml";
 import {
+  PublishedMetadataUnavailableError,
   __testing as dependencyTesting,
   extractDirectDependencies,
   mergeResolved,
-  PublishedMetadataUnavailableError,
 } from "./sbom-dependencies.mjs";
 import { versionSources } from "./release-branch-policy.mjs";
 
@@ -1499,7 +1499,7 @@ test("published metadata parsers reject unsupported dependencies", () => {
   assert.throws(
     () =>
       parseNugetNuspec(
-        '<package><dependencies><dependency id="A" /></dependencies></package>',
+        '<package><metadata><dependencies><dependency id="A" /></dependencies></metadata></package>',
         { url: "fixture.nuspec" },
       ),
     /Incomplete published NuGet dependency/u,
@@ -1507,27 +1507,27 @@ test("published metadata parsers reject unsupported dependencies", () => {
   assert.throws(
     () =>
       parseNugetNuspec(
-        '<package><dependencies><group targetFramework="net10.0-android36.0">' +
+        '<package><metadata><dependencies><group targetFramework="net10.0-android36.0">' +
           '<dependency id="A" version="1.0.0" /></group>' +
-          '<dependency id="B" version="2.0.0" /></dependencies></package>',
+          '<dependency id="B" version="2.0.0" /></dependencies></metadata></package>',
         { url: "fixture.nuspec" },
       ),
     /Mixed grouped and ungrouped NuGet dependencies/u,
   );
   assert.deepEqual(
     parseNugetNuspec(
-      '<package><dependencies><!-- <dependency id="Fake" version="1.0.0" /> -->' +
-        '<group targetFramework="net10.0-ios26.0" /></dependencies></package>',
+      '<package><metadata><dependencies><!-- <dependency id="Fake" version="1.0.0" /> -->' +
+        '<group targetFramework="net10.0-ios26.0" /></dependencies></metadata></package>',
       { url: "fixture.nuspec" },
     ),
     [],
   );
   for (const malformedComment of [
-    "<package><dependencies><!-- nested <!-- -->" +
-      '<dependency id="Fake" version="1.0.0" /></dependencies></package>',
-    "<package><dependencies><!-- unterminated</dependencies></package>",
-    '<package><dependencies>--><dependency id="Fake" version="1.0.0" />' +
-      "</dependencies></package>",
+    "<package><metadata><dependencies><!-- nested <!-- -->" +
+      '<dependency id="Fake" version="1.0.0" /></dependencies></metadata></package>',
+    "<package><metadata><dependencies><!-- unterminated</dependencies></metadata></package>",
+    '<package><metadata><dependencies>--><dependency id="Fake" version="1.0.0" />' +
+      "</dependencies></metadata></package>",
   ]) {
     assert.throws(
       () =>
@@ -2347,5 +2347,36 @@ test("the godot SBOM matches the dependency contract the addon ships", async () 
     fromSbom,
     declared,
     "the godot SBOM and GodotIap.gdap disagree about the shipped Android dependencies",
+  );
+});
+
+test("a published body that is not a nuspec fails closed", () => {
+  // fetchText accepts any 200, so an error page or a truncated response used
+  // to parse as "declares no dependencies". For an aggregate source such as
+  // maui that silently halved the inventory while the workflow's
+  // components-are-non-empty gate still passed on the other source.
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+  for (const body of [
+    "<html><body>404 Not Found</body></html>",
+    "",
+    "<package><metad",
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not a nuspec/u,
+      `accepted ${JSON.stringify(body.slice(0, 24))}`,
+    );
+  }
+
+  // A real nuspec that declares no dependencies still means none.
+  assert.deepEqual(
+    parseNugetNuspec(
+      "<package><metadata><id>X</id></metadata></package>",
+      context,
+    ),
+    [],
   );
 });
