@@ -171,14 +171,14 @@ test("a templated manifest still needs the declaration itself", () => {
 test("the Expo plugin config must bind the id to horizon.appId", () => {
   assert.equal(
     inspectHorizonAppIdSource(
-      "android: { horizon: { appId: '31705015229097839' } }",
+      "const o = {android: {horizon: {appId: '31705015229097839'}}};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
     null,
   );
   assert.equal(
     inspectHorizonAppIdSource(
-      "android: { horizon: { appId: process.env.HORIZON } }",
+      "const o = {android: {horizon: {appId: process.env.HORIZON}}};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
     "declares android.horizon without a literal appId",
@@ -188,14 +188,14 @@ test("the Expo plugin config must bind the id to horizon.appId", () => {
 test("a commented-out Expo appId does not satisfy the audit", () => {
   assert.equal(
     inspectHorizonAppIdSource(
-      "android: { horizon: { // appId: '31705015229097839'\n } }",
+      "const o = {android: {horizon: { // appId: '31705015229097839'\n }}};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
     "declares android.horizon without a literal appId",
   );
   assert.equal(
     inspectHorizonAppIdSource(
-      "android: { /* horizon: { appId: '31705015229097839' } */ }",
+      "const o = {android: { /* horizon: { appId: '31705015229097839' } */ }};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
     "does not set a literal android.horizon.appId",
@@ -205,12 +205,15 @@ test("a commented-out Expo appId does not satisfy the audit", () => {
 test("Expo braces inside strings are not syntax", () => {
   // Both cases came from a Grok review of a revision that counted every brace.
   const braceInString = [
-    "android: {",
-    "  horizon: {",
-    '    note: "needs a } here",',
-    "    appId: '31705015229097839',",
+    "const o = {",
+    "  android: {",
+    "    horizon: {",
+    '      note: "needs a } here",',
+    "      appId: '31705015229097839',",
+    "    },",
     "  },",
-    "}",
+    "};",
+    "export default {plugins: [['../app.plugin.js', o]]};",
   ].join("\n");
   assert.equal(
     inspectHorizonAppIdSource(braceInString, "expo-plugin-config"),
@@ -218,13 +221,16 @@ test("Expo braces inside strings are not syntax", () => {
   );
 
   const stretchedIntoDecoy = [
-    "android: {",
-    "  horizon: {",
-    '    note: "{ {",',
-    "    appId: process.env.HORIZON,",
+    "const o = {",
+    "  android: {",
+    "    horizon: {",
+    '      note: "{ {",',
+    "      appId: process.env.HORIZON,",
+    "    },",
+    "    later: { appId: '31705015229097839' },",
     "  },",
-    "  later: { appId: '31705015229097839' },",
-    "}",
+    "};",
+    "export default {plugins: [['../app.plugin.js', o]]};",
   ].join("\n");
   assert.equal(
     inspectHorizonAppIdSource(stretchedIntoDecoy, "expo-plugin-config"),
@@ -254,7 +260,11 @@ test("an Expo horizon block outside android supplies nothing", () => {
   // local constant, an unrelated export — never reaches the build.
   assert.equal(
     inspectHorizonAppIdSource(
-      "const decoy = {horizon: {appId: '31705015229097839'}};\nexport default {android: {}};",
+      [
+        "const decoy = {android: {horizon: {appId: '31705015229097839'}}};",
+        "const options = {android: {}};",
+        "export default {plugins: [['../app.plugin.js', options]]};",
+      ].join("\n"),
       "expo-plugin-config",
     ),
     "does not set a literal android.horizon.appId",
@@ -273,6 +283,41 @@ test("a self-closing application child does not swallow the declaration", () => 
     "</application></manifest>",
   ].join("\n");
   assert.equal(inspectHorizonAppIdSource(manifest, "android-manifest"), null);
+});
+
+test("only the object the plugin receives counts", () => {
+  // A complete android.horizon block in a constant the plugin never receives
+  // supplies nothing to the build — a stale object left by a refactor looks
+  // exactly like this.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      [
+        "const stale = {android: {horizon: {appId: '31705015229097839'}}};",
+        "const options = {android: {}};",
+        "export default {plugins: [['../app.plugin.js', options]]};",
+      ].join("\n"),
+      "expo-plugin-config",
+    ),
+    "does not set a literal android.horizon.appId",
+  );
+
+  // An inline options object is read the same way.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "export default {plugins: [['../app.plugin.js', {android: {horizon: {appId: '31705015229097839'}}}]]};",
+      "expo-plugin-config",
+    ),
+    null,
+  );
+
+  // A config that never passes options is reported, not silently accepted.
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "const options = {android: {horizon: {appId: '31705015229097839'}}};\nexport default {};",
+      "expo-plugin-config",
+    ),
+    "passes no options object to the OpenIAP config plugin",
+  );
 });
 
 test("a missing source file is reported instead of silently passing", () => {

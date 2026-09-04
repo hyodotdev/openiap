@@ -129,8 +129,19 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
   // and deleting its digest line would then leave it unnoticed by both checks.
   for (const file of listBinaryRootFiles(repoRoot)) {
     if (recorded.has(file)) continue;
-    if (NON_PAYLOAD.some((pattern) => pattern.test(file))) continue;
-    failures.push(`${file} ships in the addon but has no recorded digest`);
+    // The exclusion is by name, so it has to be checked against content too:
+    // a Mach-O copied to Payload.gdextension would otherwise be excused by
+    // its extension, which is the same mistake as deriving the protected set
+    // from the bytes — only inverted.
+    const isExcluded = NON_PAYLOAD.some((pattern) => pattern.test(file));
+    if (isExcluded && !isMachO(path.resolve(repoRoot, GODOT_ROOT, file))) {
+      continue;
+    }
+    failures.push(
+      isExcluded
+        ? `${file} is executable code under a name the digest audit excuses`
+        : `${file} ships in the addon but has no recorded digest`,
+    );
   }
   for (const [file] of recorded) {
     if (!present.includes(file)) {

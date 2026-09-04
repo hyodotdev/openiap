@@ -164,19 +164,53 @@ const APP_ID_ENTRY = new RegExp(
   "g",
 );
 
+// The plugin entry names the options the build actually receives — either an
+// inline object or an identifier bound to one. Anything else in the module is
+// a decoy: a stale constant left by a refactor supplies nothing.
+const PLUGIN_ENTRY = /\[\s*['"][^'"]*app\.plugin\.js['"]\s*,\s*/g;
+const IDENTIFIER = /^([A-Za-z_$][\w$]*)/;
+
+// The plugin path is a string literal, which the masker blanks out, so the
+// entry is located in the source. Offsets are preserved, so brace matching
+// still runs over the masked text where a brace in a string is not syntax.
+const optionsBlock = (contents, masked) => {
+  for (const entry of contents.matchAll(PLUGIN_ENTRY)) {
+    const after = entry.index + entry[0].length;
+    if (contents[after] === "{") return extractBalancedBlock(masked, after);
+    const named = contents.slice(after).match(IDENTIFIER);
+    if (!named) continue;
+    const binding = new RegExp(
+      String.raw`\b(?:const|let|var)\s+${named[1]}\b[^=]*=\s*\{`,
+    ).exec(contents);
+    if (binding) {
+      return extractBalancedBlock(
+        masked,
+        binding.index + binding[0].length - 1,
+      );
+    }
+  }
+  return null;
+};
+
 const inspectExpoPluginConfig = (contents) => {
   // Structure comes from masked text so a brace in a string is not syntax; the
   // value is read from the source at the same offset, and a match only counts
   // when the masker left that position intact — a commented-out entry does not.
   const masked = maskTypeScriptCommentsAndStrings(contents);
-  // Expo reads the id from `android.horizon`. A `horizon` block anywhere else
-  // in the file — a local constant, a commented-out draft, an unrelated
-  // export — supplies nothing to the build, so search only inside `android`.
+  const options = optionsBlock(contents, masked);
+  if (options === null) {
+    return "passes no options object to the OpenIAP config plugin";
+  }
+  const optionsText = masked.slice(options[0], options[1]);
+
+  // Expo reads the id from `android.horizon` of those options. A `horizon`
+  // block anywhere else — a local constant, a commented-out draft, an
+  // unrelated export — supplies nothing to the build.
   const androidBlocks = [];
-  for (const match of masked.matchAll(ANDROID_KEY)) {
+  for (const match of optionsText.matchAll(ANDROID_KEY)) {
     const span = extractBalancedBlock(
       masked,
-      match.index + match[0].length - 1,
+      options[0] + match.index + match[0].length - 1,
     );
     if (span !== null) androidBlocks.push(span);
   }

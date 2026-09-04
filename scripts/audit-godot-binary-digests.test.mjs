@@ -103,6 +103,31 @@ test("corrupting a binary and deleting its line does not hide it", () => {
   }
 });
 
+test("an excused name does not excuse executable content", () => {
+  // The exclusion list is by filename, so a Mach-O copied to a name it excuses
+  // would slip past — the same mistake as deriving the protected set from the
+  // bytes, inverted.
+  const donor = listTrackedBinaries(repoRoot)[0];
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = path.join(scratch, "libraries/godot-iap");
+    fs.cpSync(path.join(repoRoot, "libraries/godot-iap"), target, {
+      recursive: true,
+    });
+    fs.copyFileSync(
+      path.join(scratch, "libraries/godot-iap", donor),
+      path.join(target, "addons/godot-iap/bin/Payload.gdextension"),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.ok(
+      failures.some((failure) => failure.includes("Payload.gdextension")),
+      `expected the disguised binary to be reported, got ${JSON.stringify(failures)}`,
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("a missing manifest is reported instead of passing", () => {
   const empty = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-empty-"));
   try {
