@@ -51,13 +51,34 @@ export const HORIZON_APP_ID_SOURCES = [
 const APP_ID = String.raw`\d{10,}`;
 const APP_ID_LITERAL = new RegExp(`^["']${APP_ID}["']$`);
 
-const stripXmlComments = (source) => source.replace(/<!--[\s\S]*?-->/g, "");
-const stripLineComments = (source) =>
-  source.replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+// Replace to a fixpoint: one pass over `<!-- <!-- -->` leaves a bare `<!--`,
+// so a single substitution is not a complete strip.
+const replaceToFixpoint = (source, pattern) => {
+  let previous;
+  let current = source;
+  do {
+    previous = current;
+    current = previous.replace(pattern, "");
+  } while (current !== previous);
+  return current;
+};
+
+const stripXmlComments = (source) =>
+  replaceToFixpoint(source, /<!--[\s\S]*?-->/g);
+
+// Kotlin, Groovy, and the Expo TypeScript config all use both comment forms,
+// and a commented-out declaration is not the active one.
+const stripCodeComments = (source) =>
+  replaceToFixpoint(source, /\/\*[\s\S]*?\*\//g).replace(
+    /(^|[^:])\/\/[^\n]*/g,
+    "$1",
+  );
 
 const APPLICATION_ELEMENT = /<application\b[\s\S]*?<\/application\s*>/;
+// activity-alias precedes activity: the alternation is ordered, and
+// `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
 const NESTED_ELEMENT =
-  /<(activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
+  /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
 
 // Horizon reads the id from <application>. A meta-data nested inside an
@@ -83,28 +104,53 @@ const inspectAndroidManifest = (contents) => {
 };
 
 const APP_ID_PROPERTY = /(?:HORIZON|OPENIAP)_APP_ID"\s*\)/;
-const ELVIS_CONTINUATION = /^\s*\?:/;
-const ELVIS_OPERAND = /\?:\s*([^\n]+?)\s*$/;
+const CONTINUATION = /^\s*(?:\?:|\.|\)|,)/;
+const ASSIGNMENT = /(?:^|\s)(?:val|var|def)\s+\w+\s*=|^\s*\w+\s*=[^=]/;
+const STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g;
 
-// Both Gradle examples resolve the id through an elvis chain. Only the value
-// that terminates the chain reaches manifestPlaceholders, so that is what must
-// be a literal — a literal anywhere else in the file is not the fallback.
-const inspectGradleFallback = (contents) => {
-  const source = stripLineComments(contents);
-  const start = source.search(APP_ID_PROPERTY);
-  if (start === -1) return "reads no Horizon app id property";
-  const lines = source.slice(start).split("\n");
-  const chain = [lines[0]];
-  for (let index = 1; index < lines.length; index += 1) {
-    if (!ELVIS_CONTINUATION.test(lines[index])) break;
-    chain.push(lines[index]);
+const balanceOf = (line) =>
+  (line.match(/\(/g)?.length ?? 0) - (line.match(/\)/g)?.length ?? 0);
+
+// Both Gradle examples resolve the id inside one statement, but they do not
+// share a shape: one is an elvis chain, the other a listOf(...).firstOrNull.
+// Rather than pattern-match either, take the whole statement that reads a
+// Horizon app id property and require the value it ends on to be a literal id.
+// A literal elsewhere in the file is not the fallback.
+export const extractAppIdStatement = (source) => {
+  const match = source.search(APP_ID_PROPERTY);
+  if (match === -1) return null;
+  const lines = source.split("\n");
+  const offsets = [];
+  let cursor = 0;
+  for (const line of lines) {
+    offsets.push(cursor);
+    cursor += line.length + 1;
   }
-  const operands = chain
-    .map((line) => line.match(ELVIS_OPERAND))
-    .filter(Boolean)
-    .map((match) => match[1].trim());
-  if (operands.length === 0) return "has no fallback for the Horizon app id";
-  const terminal = operands[operands.length - 1];
+  let index = offsets.findLastIndex((offset) => offset <= match);
+
+  // The property read can sit inside a multi-line expression, so walk back to
+  // the assignment that owns it before reading forward.
+  let first = index;
+  while (first > 0 && !ASSIGNMENT.test(lines[first])) first -= 1;
+
+  const statement = [lines[first]];
+  let depth = balanceOf(lines[first]);
+  for (let next = first + 1; next < lines.length; next += 1) {
+    if (depth <= 0 && !CONTINUATION.test(lines[next])) break;
+    statement.push(lines[next]);
+    depth += balanceOf(lines[next]);
+  }
+  return statement.join("\n");
+};
+
+const inspectGradleFallback = (contents) => {
+  const statement = extractAppIdStatement(stripCodeComments(contents));
+  if (statement === null) return "reads no Horizon app id property";
+  const literals = statement.match(STRING_LITERAL) ?? [];
+  // Property names are quoted too; the fallback is the last literal, which is
+  // the value the statement resolves to when every lookup misses.
+  const terminal = literals[literals.length - 1];
+  if (terminal === undefined) return "has no fallback for the Horizon app id";
   if (APP_ID_LITERAL.test(terminal)) return null;
   return terminal === '""' || terminal === "''"
     ? "falls back to an empty app id"
@@ -116,7 +162,7 @@ const EXPO_HORIZON_APP_ID = new RegExp(
 );
 
 const inspectExpoPluginConfig = (contents) =>
-  EXPO_HORIZON_APP_ID.test(stripLineComments(contents))
+  EXPO_HORIZON_APP_ID.test(stripCodeComments(contents))
     ? null
     : "does not set a literal horizon.appId";
 

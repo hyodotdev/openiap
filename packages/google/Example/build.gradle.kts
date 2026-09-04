@@ -61,11 +61,14 @@ android {
 
         // Ships the shared example app id like the framework examples; an empty
         // value would only surface as a startConnection crash on device.
-        val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
-            ?: localProperties.getProperty("EXAMPLE_OPENIAP_APP_ID")
-            ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
-            ?: (project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?)
-            ?: "31705015229097839"
+        // Blank counts as absent: getProperty returns "" for a key with no
+        // value, and "" is non-null, so elvis alone would keep it.
+        val appId = listOf(
+            localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),
+            localProperties.getProperty("EXAMPLE_OPENIAP_APP_ID"),
+            project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?,
+            project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?,
+        ).firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"
         buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
         // Ensure placeholder exists for all variants (play included)
         manifestPlaceholders["HORIZON_APP_ID"] = appId
@@ -93,9 +96,10 @@ android {
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
 
             // Dynamically inject the Horizon App ID into AndroidManifest
-            val appId = localProperties.getProperty("EXAMPLE_HORIZON_APP_ID")
-                ?: (project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?)
-                ?: "31705015229097839"
+            val appId = listOf(
+                localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),
+                project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?,
+            ).firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"
             manifestPlaceholders["HORIZON_APP_ID"] = appId
         }
 

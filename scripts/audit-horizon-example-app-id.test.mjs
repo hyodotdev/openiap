@@ -230,6 +230,72 @@ test("a short number is not accepted as a Horizon app id", () => {
   );
 });
 
+test("meta-data inside an activity-alias does not satisfy the audit", () => {
+  const contents = manifest(
+    `<activity-alias android:name=".Alias" android:targetActivity=".Main">${HORIZON_META("31705015229097839")}</activity-alias>`,
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares the Horizon meta-data outside <application>",
+  );
+});
+
+test("comment stripping survives an opener spliced together by removal", () => {
+  // Removing the inner `<!-- -->` joins `<!-` and `-` into a new `<!--` that
+  // the first pass never saw, so a single substitution leaves the
+  // commented-out declaration looking active.
+  const contents = manifest(
+    `<!-<!-- -->- ${HORIZON_META("31705015229097839")} -->`,
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares no Horizon app id meta-data",
+  );
+});
+
+test("a Gradle fallback inside a block comment does not satisfy the audit", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      '/*\nval appId = localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"\n*/',
+      "gradle-fallback",
+    ),
+    "reads no Horizon app id property",
+  );
+});
+
+test("an Expo appId inside a block comment does not satisfy the audit", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "/* horizon: { appId: '31705015229097839' } */",
+      "expo-plugin-config",
+    ),
+    "does not set a literal horizon.appId",
+  );
+});
+
+test("the Gradle inspector reads the statement, not one syntax", () => {
+  // The two Gradle examples do not share a shape. Both must resolve, and both
+  // must fail when the value the statement ends on is blank.
+  const elvis =
+    'val appId = localProperties.getProperty("HORIZON_APP_ID")\n    ?: "31705015229097839"';
+  const listOf = [
+    "val appId = listOf(",
+    '    localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),',
+    '    project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?,',
+    ').firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"',
+  ].join("\n");
+  for (const statement of [elvis, listOf]) {
+    assert.equal(inspectHorizonAppIdSource(statement, "gradle-fallback"), null);
+    assert.equal(
+      inspectHorizonAppIdSource(
+        statement.replace('"31705015229097839"', '""'),
+        "gradle-fallback",
+      ),
+      "falls back to an empty app id",
+    );
+  }
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {
