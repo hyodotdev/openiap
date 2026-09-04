@@ -210,6 +210,26 @@ test("the Expo plugin config must bind the id to horizon.appId", () => {
   );
 });
 
+test("a short number is not accepted as a Horizon app id", () => {
+  // Horizon app ids are long. Without this the digit-count constraint is
+  // unpinned and can be weakened to \\d+ with every other test still green.
+  assert.equal(
+    inspectHorizonAppIdSource(manifest(HORIZON_META("0")), "android-manifest"),
+    "declares the Horizon meta-data without a literal app id",
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(
+      'localProperties.getProperty("HORIZON_APP_ID") ?: "12345"',
+      "gradle-fallback",
+    ),
+    'falls back to "12345" instead of a literal Horizon app id',
+  );
+  assert.equal(
+    inspectHorizonAppIdSource("horizon: { appId: '42' }", "expo-plugin-config"),
+    "does not set a literal horizon.appId",
+  );
+});
+
 test("a missing source file is reported instead of silently passing", () => {
   const emptyRoot = fs.mkdtempSync(path.join(os.tmpdir(), "horizon-audit-"));
   try {
