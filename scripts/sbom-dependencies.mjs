@@ -764,10 +764,22 @@ function parseNugetNuspec(source, context) {
       `Published document is not a complete nuspec: ${context.url}`,
     );
   }
+  // Attributes are legal on this element, so the opening tag is not literally
+  // `<dependencies>`. Finding the element but failing to read it must not
+  // report "declares none" — that is the same silent empty inventory the
+  // completeness gate above exists to prevent.
   const dependenciesBlock = masked.match(
-    /<dependencies>([\s\S]*?)<\/dependencies>/u,
+    /<dependencies\b[^>]*>([\s\S]*?)<\/dependencies\s*>/u,
   )?.[1];
-  // A nuspec with no dependencies block genuinely declares none.
+  if (dependenciesBlock === undefined) {
+    // Self-closing or absent: both genuinely declare none.
+    if (/<dependencies\b[^>]*\/>/u.test(masked)) return [];
+    if (/<dependencies\b/u.test(masked)) {
+      throw new Error(`Unreadable <dependencies> element in ${context.url}`);
+    }
+    return [];
+  }
+  // A present but empty block genuinely declares none.
   if (!dependenciesBlock) return [];
 
   const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;

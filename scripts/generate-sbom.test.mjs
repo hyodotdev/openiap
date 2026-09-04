@@ -2451,4 +2451,44 @@ test("a published body that is not a nuspec fails closed", () => {
     ),
     [],
   );
+  assert.deepEqual(
+    parseNugetNuspec(
+      "<package><metadata><id>X</id><dependencies /></metadata></package>",
+      context,
+    ),
+    [],
+  );
+});
+
+test("a <dependencies> element is read through its attributes, or fails loudly", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // The nuspec schema puts no attributes on this element, but XML permits them
+  // and a namespace declaration is the obvious one. Matching only the bare tag
+  // read a package that declares dependencies as one that declares none.
+  assert.deepEqual(
+    parseNugetNuspec(
+      `<package><metadata><id>X</id>
+        <dependencies xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+          <dependency id="A" version="1.0.0" />
+        </dependencies></metadata></package>`,
+      context,
+    ),
+    [{ name: "A", version: "1.0.0", purl: "pkg:nuget/A@1.0.0" }],
+  );
+
+  // Present but unreadable is not the same as absent.
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        `<package><metadata><id>X</id><dependencies>
+          <dependency id="A" version="1.0.0" />
+        </metadata></package>`,
+        context,
+      ),
+    /Unreadable <dependencies> element/u,
+  );
 });
