@@ -162,6 +162,8 @@ const inspectManifest = (contents, allowPlaceholder) => {
 // "write the id plainly" is a cost we can pay.
 
 const UNREADABLE = Symbol("unreadable");
+// A binding that exists but whose value is not its declaration's text.
+const OPAQUE = { declaration: null, initialiser: null };
 
 // Wrappers that do not change the value at runtime.
 const unwrap = (node) =>
@@ -183,7 +185,7 @@ const resolve = (node, is, seen = new Set()) => {
   if (ts.isIdentifier(bare)) {
     if (seen.has(bare)) return null;
     seen.add(bare);
-    followed.add(bare.text);
+    for (const declaration of bindingChain(bare)) followed.add(declaration);
     return resolve(resolveBinding(bare), is, seen);
   }
   return null;
@@ -216,21 +218,25 @@ const stringValue = (node) => {
  */
 const declarationsIn = (node) => {
   const bound = new Map();
-  const declare = (name, initialiser) => {
+  const declare = (name, declaration, initialiser) => {
     if (ts.isIdentifier(name)) {
-      bound.set(name.text, initialiser ?? null);
+      bound.set(name.text, { declaration, initialiser: initialiser ?? null });
       return;
     }
     // A binding pattern names several things and none of them is this text.
     for (const element of name.elements ?? []) {
-      if (element.name) declare(element.name, null);
+      if (element.name) declare(element.name, declaration, null);
     }
   };
 
   if (ts.isVariableStatement(node)) {
     const constant = Boolean(node.declarationList.flags & ts.NodeFlags.Const);
     for (const declaration of node.declarationList.declarations) {
-      declare(declaration.name, constant ? declaration.initializer : null);
+      declare(
+        declaration.name,
+        declaration,
+        constant ? declaration.initializer : null,
+      );
     }
   } else if (
     (ts.isFunctionDeclaration(node) ||
@@ -239,14 +245,14 @@ const declarationsIn = (node) => {
       ts.isModuleDeclaration(node)) &&
     node.name
   ) {
-    declare(node.name, null);
+    declare(node.name, node, null);
   } else if (ts.isImportDeclaration(node) && node.importClause) {
-    if (node.importClause.name) declare(node.importClause.name, null);
+    if (node.importClause.name) declare(node.importClause.name, node, null);
     for (const element of node.importClause.namedBindings?.elements ?? []) {
-      declare(element.name, null);
+      declare(element.name, node, null);
     }
     if (node.importClause.namedBindings?.name) {
-      declare(node.importClause.namedBindings.name, null);
+      declare(node.importClause.namedBindings.name, node, null);
     }
   }
   return bound;
@@ -333,7 +339,7 @@ const bindsParameter = (scope, name) => {
  * is a different variable, and a parameter, loop variable or catch binding
  * shadows anything outside it.
  */
-const resolveBinding = (identifier) => {
+const lookup = (identifier) => {
   for (let scope = identifier.parent; scope; scope = scope.parent) {
     // A switch body is one scope across every clause, not one per clause.
     const statements = ts.isSourceFile(scope) || ts.isBlock(scope) || ts.isModuleBlock(scope)
@@ -345,22 +351,41 @@ const resolveBinding = (identifier) => {
       const bound = declarationsIn(statement);
       if (bound.has(identifier.text)) return bound.get(identifier.text);
     }
-    if (headerBinds(scope, identifier.text)) return null;
+    if (headerBinds(scope, identifier.text)) return OPAQUE;
     if (ts.isFunctionLike(scope)) {
-      if (bindsParameter(scope, identifier.text)) return null;
+      if (bindsParameter(scope, identifier.text)) return OPAQUE;
       // `var` is function-scoped wherever it is written, so a loop or block
       // inside this function still binds the name out here.
-      if (hoistedVar(scope, identifier.text)) return null;
+      if (hoistedVar(scope, identifier.text)) return OPAQUE;
     }
     // A named function or class expression binds its own name inside itself.
     if (
       (ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) &&
       scope.name?.text === identifier.text
     ) {
-      return null;
+      return OPAQUE;
     }
   }
   return null;
+};
+
+const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
+
+// Every declaration an identifier can stand for, following `const x = y` links.
+// Comparing declarations rather than names is what lets a write through an
+// alias count, and a same-named parameter elsewhere not count.
+const bindingChain = (identifier, seen = new Set()) => {
+  const chain = new Set();
+  let current = identifier;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    const found = lookup(current);
+    if (!found || found === OPAQUE) break;
+    if (found.declaration) chain.add(found.declaration);
+    const next = found.initialiser ? unwrap(found.initialiser) : null;
+    current = next && ts.isIdentifier(next) ? next : null;
+  }
+  return chain;
 };
 
 /**
@@ -422,6 +447,20 @@ const reachableFromExport = (source) => {
       isDefault(node)
     ) {
       roots.push(node);
+    } else if (ts.isExportDeclaration(node) && node.exportClause) {
+      for (const element of node.exportClause.elements ?? []) {
+        if (element.name.text === "default") roots.push(element.propertyName ?? element.name);
+      }
+    } else if (
+      // Expo allows a `.ts` config to use CommonJS.
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isPropertyAccessExpression(node.left) &&
+      ts.isIdentifier(node.left.expression) &&
+      node.left.expression.text === "module" &&
+      node.left.name.text === "exports"
+    ) {
+      roots.push(node.right);
     } else {
       ts.forEachChild(node, findExport);
     }
@@ -495,32 +534,46 @@ const pluginOptions = (source) => {
   };
 
   const arrays = [];
+  let unreadable = false;
   const findPluginsValue = (node) => {
     if (
       ts.isObjectLiteralExpression(node) &&
       reachable.has(node) &&
       node.properties.some((member) => keyed(member.name, "plugins"))
     ) {
+      // A spread after `plugins` replaces it, exactly as one does deeper in
+      // the options object.
+      let seen = false;
+      let replaced = false;
       for (const member of node.properties) {
+        if (ts.isSpreadAssignment(member)) {
+          if (seen) replaced = true;
+          continue;
+        }
         if (!keyed(member.name, "plugins")) continue;
+        seen = true;
+        replaced = false;
         const array = arrayLiteral(
           ts.isPropertyAssignment(member) ? member.initializer : member.name,
         );
         if (array) arrays.push(array);
       }
+      if (replaced) unreadable = true;
     }
     ts.forEachChild(node, findPluginsValue);
   };
   findPluginsValue(source);
+  if (unreadable) return UNREADABLE;
 
   // A spread of an array resolves the same way its elements do.
-  const elementsOf = (array, seen = new Set()) => {
-    if (seen.has(array)) return [];
-    seen.add(array);
+  const elementsOf = (array, open = []) => {
+    // `open` is the path being expanded, so a cycle stops while `[...a, ...a]`
+    // still yields both — it registers twice at runtime.
+    if (open.includes(array)) return [];
     return array.elements.flatMap((element) => {
       if (!ts.isSpreadElement(element)) return [element];
       const inner = arrayLiteral(element.expression);
-      return inner ? elementsOf(inner, seen) : [];
+      return inner ? elementsOf(inner, [...open, array]) : [];
     });
   };
 
@@ -544,15 +597,38 @@ const pluginOptions = (source) => {
  *
  * `const` binds the name, not the contents: a config can build the right object
  * and then set `options.android.horizon.appId = ""`. Nothing in the scope walk
- * sees that. Rooting the check at the bindings this audit actually resolved
- * keeps it from refusing `config.name = "Example"`, which is ordinary Expo.
+ * sees that.
  *
- * What this does NOT catch: a config that hands the object to something that
- * mutates it. Proving that needs escape analysis, and none of our configs
- * mutates anything.
+ * Bindings are compared by DECLARATION, not by name, so `const alias = options`
+ * followed by a write through `alias` counts, while an unrelated parameter
+ * called `options` in some helper does not.
+ *
+ * What this does NOT catch: a config that hands the object to a function that
+ * mutates it. Proving that needs escape analysis, and it is documented rather
+ * than guessed at.
  */
-const writesThrough = (source, names) => {
-  if (names.size === 0) return false;
+const OBJECT_MUTATORS = new Set([
+  "assign",
+  "defineProperty",
+  "defineProperties",
+  "setPrototypeOf",
+  "set",
+  "deleteProperty",
+]);
+const ARRAY_MUTATORS = new Set([
+  "push",
+  "pop",
+  "shift",
+  "unshift",
+  "splice",
+  "sort",
+  "reverse",
+  "fill",
+  "copyWithin",
+]);
+
+const writesThrough = (source, bindings) => {
+  if (bindings.size === 0) return false;
   const rootOf = (node) => {
     let current = unwrap(node);
     while (
@@ -561,42 +637,45 @@ const writesThrough = (source, names) => {
     ) {
       current = unwrap(current.expression);
     }
-    return ts.isIdentifier(current) ? current.text : null;
+    return ts.isIdentifier(current) ? current : null;
   };
+  const tracked = (node) => {
+    const root = rootOf(node);
+    if (!root) return false;
+    for (const declaration of bindingChain(root)) {
+      if (bindings.has(declaration)) return true;
+    }
+    return false;
+  };
+  // A write target is a property access, or a destructuring pattern holding one.
   const targeted = (node) => {
     const bare = unwrap(node);
     if (
       ts.isPropertyAccessExpression(bare) ||
       ts.isElementAccessExpression(bare)
     ) {
-      return names.has(rootOf(bare));
+      return tracked(bare);
     }
-    // A destructuring assignment target is written as a literal.
     if (ts.isObjectLiteralExpression(bare)) {
-      return bare.properties.some((member) =>
-        ts.isPropertyAssignment(member) ? targeted(member.initializer) : false,
-      );
+      return bare.properties.some((member) => {
+        if (ts.isPropertyAssignment(member)) return targeted(member.initializer);
+        if (ts.isSpreadAssignment(member)) return targeted(member.expression);
+        return false;
+      });
     }
     if (ts.isArrayLiteralExpression(bare)) {
-      return bare.elements.some((element) => targeted(element));
+      return bare.elements.some((element) =>
+        targeted(ts.isSpreadElement(element) ? element.expression : element),
+      );
     }
     return false;
   };
 
-  const MUTATORS = new Set([
-    "assign",
-    "defineProperty",
-    "defineProperties",
-    "setPrototypeOf",
-    "set",
-    "deleteProperty",
-  ]);
   let writes = false;
   const visit = (node) => {
     if (writes) return;
     if (
       ts.isBinaryExpression(node) &&
-      ts.isAssignmentOperator?.(node.operatorToken.kind) !== false &&
       node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
       node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
       targeted(node.left)
@@ -620,14 +699,21 @@ const writesThrough = (source, names) => {
       writes = true;
     } else if (
       ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression) &&
-      MUTATORS.has(node.expression.name.text) &&
-      node.arguments.some((argument) => {
-        const bare = unwrap(argument);
-        return names.has(rootOf(bare)) || names.has(bare.getText?.());
-      })
+      ts.isPropertyAccessExpression(node.expression)
     ) {
-      writes = true;
+      const method = node.expression.name.text;
+      const receiver = unwrap(node.expression.expression);
+      const builtin =
+        ts.isIdentifier(receiver) &&
+        (receiver.text === "Object" || receiver.text === "Reflect");
+      // Only the TARGET of Object.assign/Reflect.set is written; the rest are
+      // sources. `Object.assign({}, options)` copies out of ours.
+      if (builtin && OBJECT_MUTATORS.has(method)) {
+        const target = node.arguments[0];
+        if (target && (tracked(target) || targeted(target))) writes = true;
+      } else if (ARRAY_MUTATORS.has(method) && tracked(receiver)) {
+        writes = true;
+      }
     }
     if (!writes) ts.forEachChild(node, visit);
   };
@@ -653,7 +739,7 @@ const inspectExpoPluginConfig = (contents) => {
   followed.clear();
   const entry = pluginOptions(source);
   if (entry === UNREADABLE) {
-    return "registers the OpenIAP config plugin more than once, so which options the build receives is not readable here";
+    return "does not resolve to one OpenIAP plugin entry — it registers more than one, or a spread could replace the plugins array";
   }
   if (entry === undefined) {
     return "registers no OpenIAP config plugin entry";

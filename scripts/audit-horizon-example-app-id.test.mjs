@@ -643,6 +643,75 @@ test("the reader answers for every shape review has raised", () => {
     null,
   );
 
+  // A write through an ALIAS of the binding counts; an unrelated parameter of
+  // the same name does not. Comparing spellings got both of these wrong.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst alias=options;\nalias.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nfunction f(options){ options.name="x"; }\nvoid f;\nexport default {plugins:[["../app.plugin.js",options]]};`,
+    ),
+    null,
+  );
+
+  // Mutating the entries array removes the plugin; copying out of the options
+  // object does not touch it.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nentries.pop();\nexport default {plugins:entries};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nvoid Object.assign({}, options);\nexport default {plugins:[["../app.plugin.js",options]]};`,
+    ),
+    null,
+  );
+
+  // A spread after `plugins`, and a conditional export, both leave more than
+  // one possible answer.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nexport default {plugins:[["../app.plugin.js",options]], ...config};`,
+      ),
+    ),
+    /does not resolve to one OpenIAP plugin entry/u,
+  );
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nexport default {plugins:[...entries,...entries]};`,
+      ),
+    ),
+    /does not resolve to one OpenIAP plugin entry/u,
+  );
+
+  // Expo allows a `.ts` config to use CommonJS, and `export {x as default}` is
+  // a default export like any other.
+  for (const form of [
+    `export {config as default};`,
+    `export default config;`,
+    `module.exports=config;`,
+  ]) {
+    assert.equal(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst config={plugins:[["../app.plugin.js",options]]};\n${form}`,
+      ),
+      null,
+      form,
+    );
+  }
+
   // A comment between the plugin path and its options is not markup.
   assert.equal(
     t(
