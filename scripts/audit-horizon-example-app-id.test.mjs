@@ -509,6 +509,66 @@ test("the reader answers for every shape review has raised", () => {
     null,
   );
 
+  // The tuple must be a DIRECT element of a `plugins` array: one nested inside
+  // another plugin's options is that plugin's data, not a registration.
+  assert.match(
+    String(
+      t(
+        `const good={android:{horizon:{appId:${id}}}};\nexport default {plugins:[["other-plugin",{fixture:["../app.plugin.js", good]}]]};`,
+      ),
+    ),
+    /registers no OpenIAP config plugin entry/u,
+  );
+
+  // A computed `["plugins"]` key is still `plugins`; missing it let a stale
+  // object elsewhere supply the entry instead.
+  assert.match(
+    String(
+      t(
+        `const bad={android:{}};\nexport default {["plugins"]:[["../app.plugin.js", bad]]};\nconst stale={plugins:[["../app.plugin.js", {android:{horizon:{appId:${id}}}}]]};`,
+      ),
+    ),
+    /more than once/u,
+  );
+
+  // `const` binds the name, not the object's contents.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\noptions.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js", options]]};`,
+      ),
+    ),
+    /writes to object properties/u,
+  );
+
+  // An enum, a namespace, and a `const` in an earlier switch clause all bind
+  // the name; none of them resolves to an outer constant of the same name.
+  assert.match(
+    String(
+      t(
+        `const appId=${id};\nexport default () => {\n  enum appId { X }\n  const options={android:{horizon:{appId}}};\n  return {plugins:[["../app.plugin.js", options]]};\n};`,
+      ),
+    ),
+    /without a literal appId/u,
+  );
+  assert.match(
+    String(
+      t(
+        `const appId=${id};\nexport default () => {\n  switch (0 as number) {\n    case 0:\n      const appId = "";\n    case 1:\n      const options={android:{horizon:{appId}}};\n      return {plugins:[["../app.plugin.js", options]]};\n  }\n  return {};\n};`,
+      ),
+    ),
+    /without a literal appId/u,
+  );
+
+  // A loop binding belongs to its own body. Counting it as the enclosing
+  // block's shadowed a real constant declared beside it.
+  assert.equal(
+    t(
+      `for (const options of []) {}\nconst options={android:{horizon:{appId:${id}}}};\nexport default {plugins:[["../app.plugin.js", options]]};`,
+    ),
+    null,
+  );
+
   // A comment between the plugin path and its options is not markup.
   assert.equal(
     t(
@@ -659,5 +719,28 @@ test("a missing source file is reported instead of silently passing", () => {
     }
   } finally {
     fs.rmSync(emptyRoot, { recursive: true, force: true });
+  }
+});
+
+test("shapes this audit refuses on purpose", () => {
+  const t = (src) => inspectHorizonAppIdSource(src, "expo-plugin-config");
+  const id = '"31705015229097839"';
+
+  // Each of these is valid TypeScript that a build would accept, and each is
+  // reported. Reading them means evaluating the module — running a helper,
+  // choosing a branch, calling a getter — and this audit reads a fixed list of
+  // files this repository owns, none of which is written this way. The failure
+  // it must never have is passing when the id is absent, so it errs here.
+  for (const source of [
+    // The array comes back from a helper.
+    `const options={android:{horizon:{appId:${id}}}};\nconst make=()=>[["../app.plugin.js", options]];\nexport default {plugins: make()};`,
+    // Both branches register the same valid options.
+    `const g={android:{horizon:{appId:${id}}}};\nexport default {plugins:[ flag ? ["../app.plugin.js", g] : ["../app.plugin.js", g] ]};`,
+    // A getter returns the id.
+    `const options={android:{horizon:{ get appId(){ return ${id}; } }}};\nexport default {plugins:[["../app.plugin.js", options]]};`,
+    // The id arrives through the prototype.
+    `const options={android:{horizon:{ __proto__:{appId:${id}} }}};\nexport default {plugins:[["../app.plugin.js", options]]};`,
+  ]) {
+    assert.notEqual(t(source), null, source);
   }
 });

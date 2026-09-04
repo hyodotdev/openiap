@@ -201,15 +201,18 @@ const stringValue = (node) => {
 };
 
 /**
- * The names a node introduces into the scope it belongs to.
+ * The names a statement introduces into the scope that contains it.
  *
  * Only a plain `const x = <expression>` yields a value. Everything else — a
- * `let`, a loop or catch binding, a destructuring pattern, a parameter, an
- * import, a function or class declaration — binds the name to something whose
- * value is not the declaration's text, so it resolves to nothing rather than
- * falling through to an outer constant of the same name.
+ * `let`, a destructuring pattern, an import, a function, class, enum or
+ * namespace declaration — binds the name to something whose value is not the
+ * declaration's text, so it resolves to nothing rather than falling through to
+ * an outer constant of the same name.
+ *
+ * A loop or catch binding is NOT here: it belongs to its own body, and counting
+ * it as the enclosing block's shadowed a real constant declared beside it.
  */
-const bindingsIn = (node) => {
+const declarationsIn = (node) => {
   const bound = new Map();
   const declare = (name, initialiser) => {
     if (ts.isIdentifier(name)) {
@@ -221,30 +224,17 @@ const bindingsIn = (node) => {
       if (element.name) declare(element.name, null);
     }
   };
-  const fromList = (list, constant) => {
-    for (const declaration of list.declarations) {
-      declare(declaration.name, constant ? declaration.initializer : null);
-    }
-  };
 
   if (ts.isVariableStatement(node)) {
-    fromList(
-      node.declarationList,
-      Boolean(node.declarationList.flags & ts.NodeFlags.Const),
-    );
+    const constant = Boolean(node.declarationList.flags & ts.NodeFlags.Const);
+    for (const declaration of node.declarationList.declarations) {
+      declare(declaration.name, constant ? declaration.initializer : null);
+    }
   } else if (
-    (ts.isForStatement(node) ||
-      ts.isForOfStatement(node) ||
-      ts.isForInStatement(node)) &&
-    node.initializer &&
-    ts.isVariableDeclarationList(node.initializer)
-  ) {
-    // A loop binding takes a new value each iteration, `const` included.
-    fromList(node.initializer, false);
-  } else if (ts.isCatchClause(node) && node.variableDeclaration) {
-    declare(node.variableDeclaration.name, null);
-  } else if (
-    (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+    (ts.isFunctionDeclaration(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isEnumDeclaration(node) ||
+      ts.isModuleDeclaration(node)) &&
     node.name
   ) {
     declare(node.name, null);
@@ -258,6 +248,30 @@ const bindingsIn = (node) => {
     }
   }
   return bound;
+};
+
+// A loop or catch header binds for its own body only, and never to a value: a
+// loop variable takes a new one each iteration, `const` included.
+const headerBinds = (scope, name) => {
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  if (
+    (ts.isForStatement(scope) ||
+      ts.isForOfStatement(scope) ||
+      ts.isForInStatement(scope)) &&
+    scope.initializer &&
+    ts.isVariableDeclarationList(scope.initializer)
+  ) {
+    return scope.initializer.declarations.some((one) => named(one.name));
+  }
+  if (ts.isCatchClause(scope) && scope.variableDeclaration) {
+    return named(scope.variableDeclaration.name);
+  }
+  return false;
 };
 
 // A parameter is never a value read from its declaration, so it only has to be
@@ -282,18 +296,17 @@ const bindsParameter = (scope, name) => {
  */
 const resolveBinding = (identifier) => {
   for (let scope = identifier.parent; scope; scope = scope.parent) {
-    const statements = ts.isSourceFile(scope)
+    // A switch body is one scope across every clause, not one per clause.
+    const statements = ts.isSourceFile(scope) || ts.isBlock(scope) || ts.isModuleBlock(scope)
       ? scope.statements
-      : ts.isBlock(scope) || ts.isModuleBlock(scope) || ts.isCaseClause(scope)
-        ? scope.statements
+      : ts.isCaseBlock(scope)
+        ? scope.clauses.flatMap((clause) => clause.statements)
         : null;
     for (const statement of statements ?? []) {
-      const bound = bindingsIn(statement);
+      const bound = declarationsIn(statement);
       if (bound.has(identifier.text)) return bound.get(identifier.text);
     }
-    // A loop or catch header binds for its own body.
-    const header = bindingsIn(scope);
-    if (header.has(identifier.text)) return header.get(identifier.text);
+    if (headerBinds(scope, identifier.text)) return null;
     if (ts.isFunctionLike(scope) && bindsParameter(scope, identifier.text)) {
       return null;
     }
@@ -332,22 +345,39 @@ const property = (object, name) => {
 /**
  * The options the OpenIAP plugin entry names.
  *
- * The tuple has to be reached through a `plugins` value, or an unused fixture
- * elsewhere in the module stands in for the entry the build receives. Two
- * candidate tuples are an ambiguity this audit reports rather than picks from.
+ * The tuple has to be a DIRECT element of a `plugins` array, or a fixture
+ * elsewhere stands in for the entry the build receives — including one nested
+ * inside another plugin's own options. Two candidate tuples are an ambiguity
+ * this audit reports rather than picks from.
+ *
+ * An element this audit cannot resolve to a tuple — a call, a conditional, a
+ * spread — is skipped, so a config that registers OpenIAP only through one is
+ * reported as registering nothing. Resolving it means evaluating the module.
  */
 const pluginOptions = (source) => {
+  const keyed = (name, wanted) => {
+    if (!name) return false;
+    if (ts.isComputedPropertyName(name)) {
+      const computed = unwrap(name.expression);
+      return (
+        (ts.isStringLiteral(computed) ||
+          ts.isNoSubstitutionTemplateLiteral(computed)) &&
+        computed.text === wanted
+      );
+    }
+    return name.text === wanted;
+  };
+
   const arrays = [];
   const findPluginsValue = (node) => {
-    if (
-      (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
-      node.name &&
-      !ts.isComputedPropertyName(node.name) &&
+    if (ts.isPropertyAssignment(node) && keyed(node.name, "plugins")) {
+      const array = arrayLiteral(node.initializer);
+      if (array) arrays.push(array);
+    } else if (
+      ts.isShorthandPropertyAssignment(node) &&
       node.name.text === "plugins"
     ) {
-      const array = arrayLiteral(
-        ts.isPropertyAssignment(node) ? node.initializer : node.name,
-      );
+      const array = arrayLiteral(node.name);
       if (array) arrays.push(array);
     }
     ts.forEachChild(node, findPluginsValue);
@@ -355,23 +385,61 @@ const pluginOptions = (source) => {
   findPluginsValue(source);
 
   const found = [];
-  const findEntry = (node) => {
-    if (ts.isArrayLiteralExpression(node) && node.elements.length >= 2) {
-      const entry = unwrap(node.elements[0]);
+  for (const array of arrays) {
+    for (const element of array.elements) {
+      const tuple = arrayLiteral(element);
+      if (!tuple || tuple.elements.length < 2) continue;
+      const first = unwrap(tuple.elements[0]);
       if (
-        (ts.isStringLiteral(entry) ||
-          ts.isNoSubstitutionTemplateLiteral(entry)) &&
-        /app\.plugin\.js$/u.test(entry.text)
+        (ts.isStringLiteral(first) ||
+          ts.isNoSubstitutionTemplateLiteral(first)) &&
+        /app\.plugin\.js$/u.test(first.text)
       ) {
-        found.push(node.elements[1]);
-        return;
+        found.push(tuple.elements[1]);
       }
     }
-    ts.forEachChild(node, findEntry);
-  };
-  for (const array of arrays) findEntry(array);
+  }
   if (found.length > 1) return UNREADABLE;
   return found[0];
+};
+
+// `const` binds the name, not the object's contents. A config that writes to a
+// property after building it, or reaches for Object.assign, is not described by
+// the literal this audit reads — and no amount of scope analysis can see that,
+// so the module is refused outright. Our own configs do none of this.
+const mutatesObjects = (source) => {
+  let mutates = false;
+  const visit = (node) => {
+    if (mutates) return;
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      (ts.isPropertyAccessExpression(node.left) ||
+        ts.isElementAccessExpression(node.left))
+    ) {
+      mutates = true;
+      return;
+    }
+    if (ts.isDeleteExpression(node)) {
+      mutates = true;
+      return;
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === "Object" &&
+      ["assign", "defineProperty", "defineProperties", "setPrototypeOf"].includes(
+        node.expression.name.text,
+      )
+    ) {
+      mutates = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return mutates;
 };
 
 const inspectExpoPluginConfig = (contents) => {
@@ -387,6 +455,10 @@ const inspectExpoPluginConfig = (contents) => {
   // the id. Refusing it is the same rule the XML reader follows.
   if (source.parseDiagnostics?.length) {
     return "does not parse, so no app id can be read from it";
+  }
+
+  if (mutatesObjects(source)) {
+    return "writes to object properties after building them, so what the plugin receives is not readable here";
   }
 
   const entry = pluginOptions(source);
