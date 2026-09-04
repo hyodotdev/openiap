@@ -11,6 +11,13 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
+const manifest = (body) =>
+  `<manifest><application>${body}</application></manifest>`;
+const HORIZON_META = (value) => `
+  <meta-data
+      android:name="com.meta.horizon.platform.HORIZON_APP_ID"
+      android:value="${value}" />`;
+
 test("every Horizon example in this repository resolves an app id", () => {
   assert.deepEqual(collectHorizonExampleAppIdFailures(repoRoot), []);
 });
@@ -28,28 +35,124 @@ test("the audit covers every library that ships a Horizon example", () => {
   );
 });
 
-test("a manifest without the app id is rejected", () => {
+test("every source declares a kind the audit knows how to inspect", () => {
+  for (const source of HORIZON_APP_ID_SOURCES) {
+    const issue = inspectHorizonAppIdSource("", source.kind);
+    assert.equal(
+      /unknown source kind/.test(String(issue)),
+      false,
+      `${source.library} declares an uninspectable kind: ${source.kind}`,
+    );
+  }
+});
+
+test("a manifest that binds the id to the Horizon meta-data passes", () => {
   assert.equal(
     inspectHorizonAppIdSource(
-      '<meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" />',
+      manifest(HORIZON_META("31705015229097839")),
+      "android-manifest",
     ),
-    "declares no literal Horizon app id",
+    null,
   );
 });
 
-test("an empty Gradle fallback is rejected even when a literal id is nearby", () => {
-  const issue = inspectHorizonAppIdSource(
-    'def id = localProperties.getProperty("HORIZON_APP_ID") ?: ""\n// 31705015229097839',
+test("a manifest with no Horizon meta-data is rejected", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(manifest("<activity/>"), "android-manifest"),
+    "declares no Horizon app id meta-data",
   );
-  assert.match(String(issue), /falls back to an empty app id/);
+});
+
+test("a numeric literal unbound from the declaration does not satisfy the audit", () => {
+  // The declaration is present but valueless; the id only appears in a comment.
+  const contents = manifest(`
+    <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" />
+    <!-- app id is 31705015229097839 -->`);
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares the Horizon meta-data without a literal app id",
+  );
+});
+
+test("an id bound to some other meta-data does not satisfy the audit", () => {
+  const contents = manifest(`
+    <meta-data android:name="com.example.OTHER_ID" android:value="31705015229097839" />
+    <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="" />`);
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares the Horizon meta-data without a literal app id",
+  );
+});
+
+test("a commented-out declaration does not satisfy the audit", () => {
+  const contents = manifest(`<!-- ${HORIZON_META("31705015229097839")} -->`);
+  assert.equal(
+    inspectHorizonAppIdSource(contents, "android-manifest"),
+    "declares no Horizon app id meta-data",
+  );
+});
+
+test("an unresolved manifest placeholder does not satisfy the audit", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      manifest(HORIZON_META("${HORIZON_APP_ID}")),
+      "android-manifest",
+    ),
+    "declares the Horizon meta-data without a literal app id",
+  );
+});
+
+test("a second Horizon meta-data block can supply the id", () => {
+  const contents = manifest(
+    `${HORIZON_META("")}${HORIZON_META("31705015229097839")}`,
+  );
+  assert.equal(inspectHorizonAppIdSource(contents, "android-manifest"), null);
+});
+
+test("an empty Gradle fallback is rejected even when a literal id is nearby", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      'def id = localProperties.getProperty("HORIZON_APP_ID") ?: ""\n// 31705015229097839',
+      "gradle-fallback",
+    ),
+    "falls back to an empty app id",
+  );
 });
 
 test("a Gradle fallback to a literal id passes", () => {
   assert.equal(
     inspectHorizonAppIdSource(
       'localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"',
+      "gradle-fallback",
     ),
     null,
+  );
+});
+
+test("a Gradle file with the id only in an unrelated place is rejected", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      'def unrelated = "31705015229097839"\n',
+      "gradle-fallback",
+    ),
+    "does not fall back to a literal Horizon app id",
+  );
+});
+
+test("the Expo plugin config must bind the id to horizon.appId", () => {
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "android: { horizon: { appId: '31705015229097839' } }",
+      "expo-plugin-config",
+    ),
+    null,
+  );
+  assert.equal(
+    inspectHorizonAppIdSource(
+      "android: { horizon: { appId: process.env.HORIZON } }\nconst other = '31705015229097839'",
+      "expo-plugin-config",
+    ),
+    "does not set a literal horizon.appId",
   );
 });
 
