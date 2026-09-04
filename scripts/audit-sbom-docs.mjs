@@ -8,7 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { versionSources } from "./release-branch-policy.mjs";
-import { __testing as sbomTesting } from "./generate-sbom.mjs";
+import {
+  SBOM_COVERAGE_FLOOR,
+  __testing as sbomTesting,
+} from "./generate-sbom.mjs";
 
 export const SBOM_DOC = "security/SBOM.md";
 
@@ -18,6 +21,28 @@ export const SBOM_DOC = "security/SBOM.md";
 // document against itself.
 const MATRIX_HEADER = /^\|\s*Component\s*\|\s*SBOM name\s*\|.*$/m;
 const MATRIX_ROW = /^\|\s*`([a-z-]+)`\s*\|\s*`([^`]+)`\s*\|/;
+
+// The coverage-floor table is a second copy of SBOM_COVERAGE_FLOOR.
+const FLOOR_HEADER =
+  /^\|\s*Component\s*\|\s*First release required to carry an SBOM\s*\|.*$/m;
+const FLOOR_ROW = /^\|\s*`([a-z-]+)`\s*\|\s*`([^`]+)`\s*\|/;
+
+export function parseDocumentedFloors(markdown) {
+  const header = markdown.match(FLOOR_HEADER);
+  if (!header) return null;
+  const rows = new Map();
+  for (const line of markdown
+    .slice(header.index + header[0].length)
+    .split("\n")) {
+    if (!line.trimStart().startsWith("|")) {
+      if (rows.size > 0) break;
+      continue;
+    }
+    const match = line.match(FLOOR_ROW);
+    if (match) rows.set(match[1], match[2]);
+  }
+  return rows;
+}
 
 export function parseDocumentedComponents(markdown) {
   const header = markdown.match(MATRIX_HEADER);
@@ -87,6 +112,34 @@ export function collectSbomDocFailures(repoRoot) {
       failures.push(
         `${SBOM_DOC} lists \`${row.id}\` as \`${row.sbomName}\`, but the generator emits \`${definition.sbomName}\``,
       );
+    }
+  }
+
+  // The floor table is policy documentation readers act on, so it drifts
+  // silently unless it is compared with the map the audit actually uses.
+  const documentedFloors = parseDocumentedFloors(
+    fs.readFileSync(docPath, "utf8"),
+  );
+  if (!documentedFloors) {
+    failures.push(`${SBOM_DOC} has no coverage-floor table`);
+  } else {
+    const declared = new Map(Object.entries(SBOM_COVERAGE_FLOOR));
+    for (const [id, tag] of declared) {
+      if (!documentedFloors.has(id)) {
+        failures.push(`${SBOM_DOC} omits the coverage floor for \`${id}\``);
+      } else if (documentedFloors.get(id) !== tag) {
+        failures.push(
+          `${SBOM_DOC} lists the \`${id}\` floor as \`${documentedFloors.get(id)}\`, ` +
+            `but the generator uses \`${tag}\``,
+        );
+      }
+    }
+    for (const id of documentedFloors.keys()) {
+      if (!declared.has(id)) {
+        failures.push(
+          `${SBOM_DOC} documents a coverage floor for \`${id}\`, which has none`,
+        );
+      }
     }
   }
 

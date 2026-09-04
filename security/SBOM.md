@@ -282,8 +282,9 @@ machine-readable value. Current structural gaps include:
   versions one application resolved; a package published for others to depend
   on must not ship one, because the consumer resolves against their own
   constraints. The SBOM therefore records the constraint from `pubspec.yaml`
-  rather than a resolved version, and says so with a `versionRange` rather than
-  implying a pin.
+  rather than a resolved version, and says so: the constraint is the component's
+  `version`, marked with an `openiap:sbom:version-constraint` property rather
+  than implying a pin.
 - **pub.dev packages record the license of the version pub.dev analysed**, not
   of the version constraint the SBOM lists. Dart lockfiles are not committed
   (see below), so `^1.2.0` in the SBOM is a constraint while `license:` comes

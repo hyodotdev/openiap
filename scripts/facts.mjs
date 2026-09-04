@@ -57,6 +57,20 @@ export const FACTS = Object.freeze([
         role: "pinned",
       },
       {
+        // The security README republishes both roles for readers; without a
+        // scanner it drifts silently when either version moves.
+        files: ["security/README.md"],
+        pattern: /`toolchain\.bun` \/ `pinned`\s*\|\s*([\d.]+)/g,
+        role: "pinned",
+        mirror: true,
+      },
+      {
+        files: ["security/README.md"],
+        pattern: /`toolchain\.bun` \/ `runtimeImage`\s*\|\s*([\d.]+)/g,
+        role: "runtimeImage",
+        mirror: true,
+      },
+      {
         files: ["packages/kit/Dockerfile"],
         // Anchored to the instruction so a comment mentioning the old image
         // cannot satisfy it, but tolerant of the flags a FROM line may carry:

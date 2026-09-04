@@ -297,8 +297,8 @@ in its configured languages.
 
 Published release SBOMs are not treated as a substitute for the repository
 gate. A weekly read-only job re-verifies and scans every published stable
-release that carries an SBOM; the newest stable release of each component must
-carry one. Declared version constraints are logged and omitted from the
+release that carries an SBOM. Every stable release at or after its component's
+coverage floor must carry one, not merely the newest. Declared version constraints are logged and omitted from the
 exact-version scan copy instead of being misread as installed versions; the
 signed SBOM is never changed. The same workflow rebuilds the current Kit source
 image and fails on HIGH/CRITICAL vulnerabilities or an end-of-life base, while

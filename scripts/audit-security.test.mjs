@@ -571,10 +571,20 @@ test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
   // in the database. That is correct only while the package re-exports a
   // released module and defines nothing itself; real logic added here would
   // ship without Swift analysis and nothing else would notice.
-  const root = new URL(
-    "../libraries/kmp-iap/native/InAppPurchaseBridge/Sources/",
+  // The scanned directory comes from Package.swift, not a fixed path: a target
+  // pointed elsewhere would otherwise leave stale import-only files here and
+  // ship real Swift with no analysis.
+  const packageRoot = new URL(
+    "../libraries/kmp-iap/native/InAppPurchaseBridge/",
     import.meta.url,
   );
+  const manifest = readFileSync(new URL("Package.swift", packageRoot), "utf8");
+  assert.doesNotMatch(
+    manifest,
+    /\bpath\s*:/u,
+    "Package.swift sets an explicit target path; point this guard at it",
+  );
+  const root = new URL("Sources/", packageRoot);
   const walk = (dir) =>
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory()
@@ -610,7 +620,10 @@ test("the manual audit runs every gate the scheduled rescan runs", () => {
     text
       .split("\n")
       .filter((line) => !line.trimStart().startsWith("#"))
-      .join("\n");
+      .join("\n")
+      // A command wrapped with a trailing backslash puts the subcommand on the
+      // next line, where the pattern below would not see it.
+      .replace(/\s*\\\n\s*/gu, " ");
   const subcommands = (text) =>
     new Set(
       [...withoutComments(text).matchAll(/generate-sbom\.mjs ([a-z-]+)/gu)].map(

@@ -19,6 +19,8 @@ const MACH_O_MAGIC = new Set([
   0xcffaedfe, // 64-bit, both byte orders
   0xcafebabe,
   0xbebafeca, // universal ("fat") archives
+  0xcafebabf,
+  0xbfbafeca, // 64-bit universal archives
 ]);
 
 // Framework metadata that ships beside the executables and is not itself a

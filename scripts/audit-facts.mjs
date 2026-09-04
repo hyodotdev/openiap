@@ -55,6 +55,10 @@ export function scanFact(fact, readFile) {
           // A scanner may claim one role, so an occurrence can be checked
           // against that role rather than against the whole allowed set.
           role: scanner.role,
+          // A mirror republishes the fact for readers. It must agree with the
+          // registry, but it does not prove the fact still has a real home —
+          // otherwise deleting the load-bearing site would go unnoticed.
+          mirror: scanner.mirror === true,
         });
       }
     }
@@ -75,7 +79,7 @@ export function auditFacts(readFile) {
     for (const file of missing) {
       failures.push(`${fact.key}: scanned file is missing: ${file}`);
     }
-    for (const { file, line, value, role } of occurrences) {
+    for (const { file, line, value, role, mirror } of occurrences) {
       if (!allowed.has(value)) {
         failures.push(
           `${fact.key}: ${file}:${line} declares "${value}" but the ` +
@@ -89,7 +93,7 @@ export function auditFacts(readFile) {
             `carries the ${role} role, which is "${fact.values[role]}"`,
         );
       }
-      seen.add(value);
+      if (!mirror) seen.add(value);
     }
 
     for (const [value, role] of allowed) {
