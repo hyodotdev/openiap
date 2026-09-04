@@ -426,6 +426,7 @@ test("the reader answers for every shape review has raised", () => {
     // A spread AFTER the winning assignment can replace it.
     `const d={appId:""};\nconst options={android:{horizon:{appId:${id}, ...d}}};`,
     `const options={android:{horizon:{appId:${id}, [k]:1}}};`,
+    `const options={android:{horizon:{["appId"]:""}}};`,
     // Only `const` means the declaration's text is the value received.
     `let android={horizon:{appId:${id}}};\nandroid={};\nconst options={android};`,
     // A parameter shadows anything outside its function.
@@ -467,6 +468,8 @@ test("the reader answers for every shape review has raised", () => {
     `const options={k:process.env.X, xs:[1,2], android:{horizon:{appId:${id}}}};`,
     `const horizon={appId:${id}};\nconst options={android:{horizon}};`,
     `const options={android:{horizon:{appId:${id}}}} satisfies Opts;`,
+    // A computed key whose expression is a literal is just that name.
+    `const options={android:{horizon:{["appId"]:${id}}}};`,
     // A no-substitution template, a `const` binding, and a later explicit key
     // that wins over an earlier spread all have definite values.
     "const options={android:{horizon:{appId:`31705015229097839`}}};",
@@ -711,6 +714,77 @@ test("the reader answers for every shape review has raised", () => {
       form,
     );
   }
+
+  // An alias reached through a property or a destructuring pattern is the same
+  // object, so a write through it is a write to the id.
+  for (const alias of [
+    `const horizon=options.android.horizon;\nhorizon.appId="";`,
+    `const {android}=options;\nandroid.horizon.appId="";`,
+  ]) {
+    assert.match(
+      String(
+        t(
+          `const options={android:{horizon:{appId:${id}}}};\n${alias}\nexport default {plugins:[["../app.plugin.js",options]]};`,
+        ),
+      ),
+      /writes through the bindings/u,
+      alias,
+    );
+  }
+
+  // A write that cannot reach the id is not a write to it, and appending a
+  // plugin cannot remove ours.
+  for (const harmless of [
+    `options.ios={supportsTablet:false};`,
+    `options.extra={channel:"dev"};`,
+  ]) {
+    assert.equal(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\n${harmless}\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      ),
+      null,
+      harmless,
+    );
+  }
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nentries.push("expo-router");\nexport default {plugins:entries};`,
+    ),
+    null,
+  );
+
+  // Only the exported object's OWN `plugins` is the plugins array: a discarded
+  // branch, a spread that replaces it, and unrelated data named `plugins` are
+  // each answered correctly.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nif (process.env.X) {\n  module.exports={plugins:[["../app.plugin.js",options]]};\n} else {\n  module.exports={plugins:[]};\n}`,
+      ),
+    ),
+    /does not resolve to one OpenIAP plugin entry/u,
+  );
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst base={plugins:[["../app.plugin.js",options]]};\nexport default {...base, plugins:[]};`,
+      ),
+    ),
+    /registers no OpenIAP config plugin entry/u,
+  );
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst extraBase={channel:"dev"};\nexport default {plugins:[["../app.plugin.js",options]], extra:{plugins:[], ...extraBase}};`,
+    ),
+    null,
+  );
+  // A guard clause returning a different object is ordinary.
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nexport default () => {\n  if (!process.env.X) return {};\n  return {plugins:[["../app.plugin.js",options]]};\n};`,
+    ),
+    null,
+  );
 
   // A comment between the plugin path and its options is not markup.
   assert.equal(

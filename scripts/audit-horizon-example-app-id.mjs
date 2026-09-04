@@ -177,7 +177,11 @@ const unwrap = (node) =>
 
 // Follow an expression to a node of the wanted kind, through those wrappers and
 // through `const` bindings.
-const followed = new Set();
+// The properties still to be walked below whatever is being resolved right now,
+// so a binding records the path from itself down to the app id. Without it,
+// `options` recorded an empty path and every write to it looked relevant.
+let descent = [];
+const followed = new Map();
 const resolve = (node, is, seen = new Set()) => {
   if (!node) return null;
   const bare = unwrap(node);
@@ -185,7 +189,11 @@ const resolve = (node, is, seen = new Set()) => {
   if (ts.isIdentifier(bare)) {
     if (seen.has(bare)) return null;
     seen.add(bare);
-    for (const declaration of bindingChain(bare)) followed.add(declaration);
+    for (const [declaration, path] of bindingChain(bare)) {
+      if (!followed.has(declaration)) {
+        followed.set(declaration, [...path, ...descent]);
+      }
+    }
     return resolve(resolveBinding(bare), is, seen);
   }
   return null;
@@ -371,21 +379,60 @@ const lookup = (identifier) => {
 
 const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
 
-// Every declaration an identifier can stand for, following `const x = y` links.
-// Comparing declarations rather than names is what lets a write through an
-// alias count, and a same-named parameter elsewhere not count.
+/**
+ * Every declaration an identifier can stand for, with the property path from
+ * each one down to this identifier's value.
+ *
+ * Comparing declarations rather than names is what lets a write through an
+ * alias count while a same-named parameter elsewhere does not. The path matters
+ * too: `const horizon = options.android.horizon` reaches the same object two
+ * levels down, so a write to `horizon.appId` is a write to
+ * `options.android.horizon.appId`.
+ */
 const bindingChain = (identifier, seen = new Set()) => {
-  const chain = new Set();
+  const chain = new Map();
   let current = identifier;
+  let prefix = [];
   while (current && !seen.has(current)) {
     seen.add(current);
     const found = lookup(current);
     if (!found || found === OPAQUE) break;
-    if (found.declaration) chain.add(found.declaration);
-    const next = found.initialiser ? unwrap(found.initialiser) : null;
+    if (found.declaration && !chain.has(found.declaration)) {
+      chain.set(found.declaration, prefix);
+    }
+    // A destructured name has no initialiser of its own; its value comes from
+    // the declaration's, one property down.
+    let next = found.initialiser ?? null;
+    if (
+      next === null &&
+      found.declaration &&
+      ts.isVariableDeclaration(found.declaration) &&
+      !ts.isIdentifier(found.declaration.name)
+    ) {
+      next = found.declaration.initializer ?? null;
+      prefix = [current.text, ...prefix];
+    }
+    next = next ? unwrap(next) : null;
+    // `const horizon = options.android.horizon` is an alias two levels down.
+    const steps = [];
+    while (next && ts.isPropertyAccessExpression(next)) {
+      steps.unshift(next.name.text);
+      next = unwrap(next.expression);
+    }
+    if (steps.length > 0) prefix = [...steps, ...prefix];
     current = next && ts.isIdentifier(next) ? next : null;
   }
   return chain;
+};
+
+// Two property paths can touch the same value only when one is a prefix of the
+// other. `options.ios = {}` cannot disturb `options.android.horizon.appId`.
+const pathsMeet = (left, right) => {
+  const shared = Math.min(left.length, right.length);
+  for (let index = 0; index < shared; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
 };
 
 /**
@@ -401,11 +448,30 @@ const property = (object, name) => {
   let value = null;
   let shadowed = false;
   for (const member of object.properties) {
-    if (ts.isSpreadAssignment(member) || ts.isComputedPropertyName(member.name)) {
+    if (ts.isSpreadAssignment(member)) {
       shadowed = true;
       continue;
     }
     if (!member.name) continue;
+    // `["plugins"]` is just `plugins`; only a key whose value is not a literal
+    // could name anything.
+    if (ts.isComputedPropertyName(member.name)) {
+      const computed = unwrap(member.name.expression);
+      const literal =
+        ts.isStringLiteral(computed) ||
+        ts.isNoSubstitutionTemplateLiteral(computed)
+          ? computed.text
+          : null;
+      if (literal === null) {
+        shadowed = true;
+        continue;
+      }
+      if (literal !== name) continue;
+      if (ts.isPropertyAssignment(member)) value = member.initializer;
+      else return UNREADABLE;
+      shadowed = false;
+      continue;
+    }
     // `name.text` is the DECODED property name, so `"appId"` is `appId`.
     if (member.name.text !== name) continue;
     if (ts.isPropertyAssignment(member)) value = member.initializer;
@@ -417,23 +483,21 @@ const property = (object, name) => {
 };
 
 /**
- * Everything the exported config can carry, without running anything.
+ * The config object the module exports.
  *
- * A `plugins` array the export cannot reach is a fixture: a stale constant left
- * by a refactor holds a complete entry while the exported config registers
- * nothing. Reachability follows object properties, array elements, spreads,
- * `const` bindings, the values a function returns, and call ARGUMENTS — the
- * real config returns `helper(expoConfig)`, and the entry is inside that
- * argument.
+ * Only the exported object's OWN `plugins` is the plugins array. Scanning every
+ * object in the module for one meant a stale constant, a discarded branch, or
+ * unrelated `extra: {plugins: …}` data could answer for the real thing.
  *
- * Following arguments is deliberately generous: it keeps the boundary this
- * audit already documents — it cannot prove the helper passes `plugins` through
- * — while refusing an object the export never touches.
+ * Resolution follows wrappers, `const` bindings, the values a function returns,
+ * and call ARGUMENTS — the real config returns `helper(expoConfig)`, so the
+ * config is inside that argument. Following arguments keeps the boundary this
+ * audit already documents: it cannot prove the helper passes `plugins` through.
+ *
+ * More than one answer — two `module.exports` branches, a conditional export —
+ * is an ambiguity this reports rather than picks from.
  */
-const reachableFromExport = (source) => {
-  // `export default <expr>` is an ExportAssignment; `export default function
-  // config() {}` is a declaration carrying a default modifier. Missing the
-  // second read a perfectly ordinary config as registering nothing.
+const configObjects = (source) => {
   const roots = [];
   const isDefault = (node) =>
     node.modifiers?.some(
@@ -449,7 +513,9 @@ const reachableFromExport = (source) => {
       roots.push(node);
     } else if (ts.isExportDeclaration(node) && node.exportClause) {
       for (const element of node.exportClause.elements ?? []) {
-        if (element.name.text === "default") roots.push(element.propertyName ?? element.name);
+        if (element.name.text === "default") {
+          roots.push(element.propertyName ?? element.name);
+        }
       }
     } else if (
       // Expo allows a `.ts` config to use CommonJS.
@@ -467,125 +533,77 @@ const reachableFromExport = (source) => {
   };
   findExport(source);
 
-  const reached = new Set();
+  const found = new Set();
+  const seen = new Set();
   const queue = [...roots];
-  const enqueue = (node) => {
-    if (node) queue.push(node);
-  };
   while (queue.length > 0) {
     const node = unwrap(queue.pop());
-    if (!node || reached.has(node)) continue;
-    reached.add(node);
+    if (!node || seen.has(node)) continue;
+    seen.add(node);
 
-    if (ts.isIdentifier(node)) enqueue(resolveBinding(node));
-    else if (ts.isObjectLiteralExpression(node)) {
-      for (const member of node.properties) {
-        if (ts.isPropertyAssignment(member)) enqueue(member.initializer);
-        else if (ts.isShorthandPropertyAssignment(member)) enqueue(member.name);
-        else if (ts.isSpreadAssignment(member)) enqueue(member.expression);
-      }
-    } else if (ts.isArrayLiteralExpression(node)) {
-      for (const element of node.elements) {
-        enqueue(ts.isSpreadElement(element) ? element.expression : element);
-      }
-    } else if (ts.isCallExpression(node)) {
-      for (const argument of node.arguments) enqueue(argument);
-    } else if (
+    if (ts.isObjectLiteralExpression(node)) found.add(node);
+    else if (ts.isIdentifier(node)) queue.push(resolveBinding(node));
+    else if (ts.isCallExpression(node)) queue.push(...node.arguments);
+    else if (
       ts.isArrowFunction(node) ||
       ts.isFunctionExpression(node) ||
       ts.isFunctionDeclaration(node)
     ) {
       if (node.body && ts.isBlock(node.body)) {
         const returns = (statement) => {
-          if (ts.isReturnStatement(statement)) enqueue(statement.expression);
-          // A nested function's returns are its own, not this one's.
+          if (ts.isReturnStatement(statement)) queue.push(statement.expression);
           if (!ts.isFunctionLike(statement)) ts.forEachChild(statement, returns);
         };
         ts.forEachChild(node.body, returns);
       } else if (node.body) {
-        enqueue(node.body);
+        queue.push(node.body);
       }
     }
   }
-  return reached;
+  return [...found];
 };
 
 /**
  * The options the OpenIAP plugin entry names.
  *
- * The tuple has to be a direct element of a `plugins` array the exported config
- * can reach, or a fixture elsewhere stands in for the entry the build receives.
- * Two candidate tuples are an ambiguity this audit reports rather than picks
- * from.
+ * `property` already answers the hard part: the last assignment of `plugins`
+ * wins, and a spread after it is UNREADABLE — the same rule that applies deeper
+ * in the options object.
  */
 const pluginOptions = (source) => {
-  const reachable = reachableFromExport(source);
-  const keyed = (name, wanted) => {
-    if (!name) return false;
-    if (ts.isComputedPropertyName(name)) {
-      const computed = unwrap(name.expression);
-      return (
-        (ts.isStringLiteral(computed) ||
-          ts.isNoSubstitutionTemplateLiteral(computed)) &&
-        computed.text === wanted
-      );
-    }
-    return name.text === wanted;
-  };
+  // A function can return more than one object — a guard clause returning `{}`
+  // is ordinary. Only the ones that carry `plugins` are candidate configs, and
+  // more than one of those is a genuine ambiguity.
+  const carriers = configObjects(source).filter(
+    (config) => property(config, "plugins") !== null,
+  );
+  if (carriers.length === 0) return undefined;
+  if (carriers.length > 1) return UNREADABLE;
 
-  const arrays = [];
-  let unreadable = false;
-  const findPluginsValue = (node) => {
-    if (
-      ts.isObjectLiteralExpression(node) &&
-      reachable.has(node) &&
-      node.properties.some((member) => keyed(member.name, "plugins"))
-    ) {
-      // A spread after `plugins` replaces it, exactly as one does deeper in
-      // the options object.
-      let seen = false;
-      let replaced = false;
-      for (const member of node.properties) {
-        if (ts.isSpreadAssignment(member)) {
-          if (seen) replaced = true;
-          continue;
-        }
-        if (!keyed(member.name, "plugins")) continue;
-        seen = true;
-        replaced = false;
-        const array = arrayLiteral(
-          ts.isPropertyAssignment(member) ? member.initializer : member.name,
-        );
-        if (array) arrays.push(array);
-      }
-      if (replaced) unreadable = true;
-    }
-    ts.forEachChild(node, findPluginsValue);
-  };
-  findPluginsValue(source);
-  if (unreadable) return UNREADABLE;
+  const value = property(carriers[0], "plugins");
+  if (value === UNREADABLE) return UNREADABLE;
+  if (value === null) return undefined;
+  const array = arrayLiteral(value);
+  if (array === null) return undefined;
 
-  // A spread of an array resolves the same way its elements do.
-  const elementsOf = (array, open = []) => {
-    // `open` is the path being expanded, so a cycle stops while `[...a, ...a]`
-    // still yields both — it registers twice at runtime.
-    if (open.includes(array)) return [];
-    return array.elements.flatMap((element) => {
+  // A spread of an array contributes its elements. `open` is the path being
+  // expanded, so a cycle stops while `[...a, ...a]` still yields both.
+  const elementsOf = (node, open = []) => {
+    if (open.includes(node)) return [];
+    return node.elements.flatMap((element) => {
       if (!ts.isSpreadElement(element)) return [element];
       const inner = arrayLiteral(element.expression);
-      return inner ? elementsOf(inner, [...open, array]) : [];
+      return inner ? elementsOf(inner, [...open, node]) : [];
     });
   };
 
   const found = [];
-  for (const array of arrays) {
-    for (const element of elementsOf(array)) {
-      const tuple = arrayLiteral(element);
-      if (!tuple || tuple.elements.length < 2) continue;
-      const path = stringValue(tuple.elements[0]);
-      if (path !== null && /app\.plugin\.js$/u.test(path)) {
-        found.push(tuple.elements[1]);
-      }
+  for (const element of elementsOf(array)) {
+    const tuple = arrayLiteral(element);
+    if (!tuple || tuple.elements.length < 2) continue;
+    const path = stringValue(tuple.elements[0]);
+    if (path !== null && /app\.plugin\.js$/u.test(path)) {
+      found.push(tuple.elements[1]);
     }
   }
   if (found.length > 1) return UNREADABLE;
@@ -615,11 +633,10 @@ const OBJECT_MUTATORS = new Set([
   "set",
   "deleteProperty",
 ]);
+// Adding an entry cannot remove ours, so `push` and `unshift` are not here.
 const ARRAY_MUTATORS = new Set([
-  "push",
   "pop",
   "shift",
-  "unshift",
   "splice",
   "sort",
   "reverse",
@@ -629,21 +646,29 @@ const ARRAY_MUTATORS = new Set([
 
 const writesThrough = (source, bindings) => {
   if (bindings.size === 0) return false;
+  // The root identifier of a write target, and the property path from it.
   const rootOf = (node) => {
+    const steps = [];
     let current = unwrap(node);
     while (
       ts.isPropertyAccessExpression(current) ||
       ts.isElementAccessExpression(current)
     ) {
+      if (ts.isPropertyAccessExpression(current)) steps.unshift(current.name.text);
+      else steps.unshift(null); // a computed step could be any property
       current = unwrap(current.expression);
     }
-    return ts.isIdentifier(current) ? current : null;
+    return ts.isIdentifier(current) ? { root: current, steps } : null;
   };
   const tracked = (node) => {
-    const root = rootOf(node);
-    if (!root) return false;
-    for (const declaration of bindingChain(root)) {
-      if (bindings.has(declaration)) return true;
+    const target = rootOf(node);
+    if (!target) return false;
+    for (const [declaration, prefix] of bindingChain(target.root)) {
+      const read = bindings.get(declaration);
+      if (read === undefined) continue;
+      // A computed step could name anything, so treat it as meeting the path.
+      const written = [...prefix, ...target.steps];
+      if (written.includes(null) || pathsMeet(written, read)) return true;
     }
     return false;
   };
@@ -737,6 +762,10 @@ const inspectExpoPluginConfig = (contents) => {
   }
 
   followed.clear();
+  // The plugin entry and everything above it: a write anywhere in the options
+  // object could disturb the id, so the path starts at the top and shortens as
+  // the walk descends.
+  descent = ["android", "horizon", "appId"];
   const entry = pluginOptions(source);
   if (entry === UNREADABLE) {
     return "does not resolve to one OpenIAP plugin entry — it registers more than one, or a spread could replace the plugins array";
@@ -754,6 +783,7 @@ const inspectExpoPluginConfig = (contents) => {
   // unrelated export — supplies nothing to the build.
   for (const key of ["android", "horizon"]) {
     const where = key === "android" ? "the plugin options" : "android";
+    descent = descent.slice(1);
     const value = property(block, key);
     if (value === UNREADABLE) {
       return `composes ${where} in a way this audit cannot read; write the Horizon app id as a plain literal`;
@@ -769,6 +799,7 @@ const inspectExpoPluginConfig = (contents) => {
     }
   }
 
+  descent = [];
   const appId = property(block, "appId");
   const literal =
     appId === UNREADABLE || appId === null ? null : stringValue(appId);
