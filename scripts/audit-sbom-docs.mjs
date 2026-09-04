@@ -95,6 +95,17 @@ export function collectSbomDocFailures(repoRoot) {
   const documented = parseDocumentedComponents(
     fs.readFileSync(docPath, "utf8"),
   );
+  // Two rows for one component give the reader contradictory answers even when
+  // both are individually correct, so a duplicate is a failure of its own.
+  const counts = new Map();
+  for (const row of documented) {
+    counts.set(row.id, (counts.get(row.id) ?? 0) + 1);
+  }
+  for (const [id, count] of counts) {
+    if (count > 1) {
+      failures.push(`${SBOM_DOC} lists \`${id}\` ${count} times`);
+    }
+  }
   const documentedIds = documented.map((row) => row.id).sort();
   const undocumented = generated.filter((id) => !documentedIds.includes(id));
   const stale = documentedIds.filter((id) => !generated.includes(id));

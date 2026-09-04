@@ -491,6 +491,77 @@ test("a spread after any verified property is reported", () => {
   );
 });
 
+test("a spread is judged by whether its source declares the key", () => {
+  const t = (src) =>
+    inspectHorizonAppIdSource(
+      `${src}\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      "expo-plugin-config",
+    );
+  // Composition that cannot touch android is ordinary config, not a hazard.
+  assert.equal(
+    t(
+      'const extra = flag ? {enableLocalDev:true} : {iapkitApiKey:"k"};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...extra};',
+    ),
+    null,
+  );
+  // One ternary arm carrying android is enough to make the result unreadable.
+  assert.match(
+    String(
+      t(
+        'const extra = flag ? {enableLocalDev:true} : {android:{}};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...extra};',
+      ),
+    ),
+    /options after android/u,
+  );
+  // The key can be declared with any value, not only an object. Matching
+  // `key: {` alone read `{appId: ""}` as declaring nothing.
+  assert.match(
+    String(
+      t(
+        'const d={appId:""};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};',
+      ),
+    ),
+    /horizon after appId/u,
+  );
+  // A spread of an inline literal resolves the same way.
+  assert.match(
+    String(
+      t(
+        'const options={android:{horizon:{appId:"31705015229097839"}, ...{horizon:{}}}};',
+      ),
+    ),
+    /android after horizon/u,
+  );
+  assert.equal(
+    t(
+      'const options={android:{horizon:{appId:"31705015229097839"}, ...{other:1}}};',
+    ),
+    null,
+  );
+  // The name appearing as a value is not a declaration of that key.
+  assert.equal(
+    t(
+      'const d={other:appId};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};',
+    ),
+    null,
+  );
+});
+
+test("a horizon nested inside horizon is not a direct member", () => {
+  // The key walker resumed past the matched `{`, so brace depth never counted
+  // the value it had just matched: everything inside `horizon: {…}` read as a
+  // direct member of android, and the closing brace drove depth negative.
+  assert.match(
+    String(
+      inspectHorizonAppIdSource(
+        'const options={android:{horizon:{horizon:{appId:"31705015229097839"}}}};\nexport default {plugins:[["../app.plugin.js",options]]};',
+        "expo-plugin-config",
+      ),
+    ),
+    /without a literal appId/u,
+  );
+});
+
 test("a spread before a shorthand horizon is not a problem", () => {
   // `lastKey` recognised only `horizon: …`, so the shorthand form was reported
   // as unsafe even though the later property still wins.

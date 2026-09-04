@@ -175,13 +175,48 @@ const directKeyOffsets = (masked, [start, end], name) => {
       const match = key.exec(masked);
       if (match && match.index === index) {
         offsets.push(index + match[0].length - 1);
-        index = match.index + match[0].length - 1;
+        // Resume ON the matched `{`, not past it. Skipping it left depth at 0
+        // inside the value, so a nested `horizon` counted as a direct member
+        // and the closing brace drove depth negative.
+        index = match.index + match[0].length - 2;
       }
       continue;
     }
     depth += 1;
   }
   return offsets;
+};
+
+// Does an object literal declare this key, in any value shape? The spread
+// resolver needs that question, and `directKeyOffsets` answers a narrower one —
+// it only matches `key: {`, so a source spreading `{appId: ""}` read as
+// declaring nothing and the overwrite it performs went unreported. A nested
+// spread cannot be resolved here, so it counts as maybe-declaring.
+const declaresKey = (masked, [start, end], name) => {
+  const key = new RegExp(String.raw`(?:\b|["'])${name}["']?\s*[:,}]`, "g");
+  let depth = 0;
+  for (let index = start + 1; index < end - 1; index += 1) {
+    const character = masked[index];
+    if (character === "}") {
+      depth -= 1;
+      continue;
+    }
+    if (character === "{") {
+      depth += 1;
+      continue;
+    }
+    if (depth !== 0) continue;
+    if (masked.startsWith("...", index)) return true;
+    key.lastIndex = index;
+    const match = key.exec(masked);
+    if (!match || match.index !== index) continue;
+    // `{other: appId}` mentions the name as a value, not as a key.
+    let before = index - 1;
+    while (before > start && /\s/u.test(masked[before])) before -= 1;
+    if (masked[before] === ":") continue;
+    return true;
+  }
+  return false;
 };
 
 // Spread elements at depth 0 of the given block.
@@ -198,6 +233,62 @@ const directSpreadOffsets = (masked, [start, end]) => {
   return offsets;
 };
 
+// A spread only matters if what it spreads can carry the key. Resolve the
+// source when it is written as object literals — inline, a binding, or a
+// ternary of them — and let it through when no branch declares that key.
+// Ordinary config composition spreads unrelated options, and rejecting that
+// blocked correct work.
+const spreadCanCarry = (contents, masked, offset, key) => {
+  const literals = [];
+  let cursor = offset + 3;
+  while (cursor < masked.length && /\s/u.test(masked[cursor])) cursor += 1;
+
+  // An inline literal, or both arms of an inline ternary of them.
+  while (masked[cursor] === "{") {
+    const span = extractBalancedBlock(masked, cursor);
+    if (!span) return true;
+    literals.push(span);
+    cursor = span[1];
+    while (cursor < masked.length && /[\s?:]/u.test(masked[cursor])) cursor += 1;
+  }
+
+  const source =
+    literals.length > 0
+      ? ""
+      : (masked.slice(offset + 3).match(/^\s*([^,}]*)/u)?.[1] ?? "");
+  const named = source.trim().match(/^([A-Za-z_$][\w$]*)$/u);
+  if (named) {
+    // Every top-level object literal in the declaration's initialiser, so both
+    // arms of `flag ? {a} : {b}` are considered. bindingBlock is deliberately
+    // stricter — it resolves the options object, where a ternary would be
+    // ambiguous rather than merely additive.
+    const declaration = new RegExp(
+      String.raw`\b(?:const|let|var)\s+${named[1]}\b[^=]*=`,
+      "g",
+    );
+    let found = false;
+    for (const match of contents.matchAll(declaration)) {
+      if (masked[match.index] !== contents[match.index]) continue;
+      if (match.index > offset) continue;
+      found = true;
+      let index = match.index + match[0].length;
+      while (index < masked.length && masked[index] !== ";" && masked[index] !== "\n") {
+        if (masked[index] === "{") {
+          const span = extractBalancedBlock(masked, index);
+          if (!span) return true;
+          literals.push(span);
+          index = span[1];
+          continue;
+        }
+        index += 1;
+      }
+    }
+    if (!found) return true;
+  }
+  if (literals.length === 0) return true;
+  return literals.some((span) => declaresKey(masked, span, key));
+};
+
 // A literal appId directly on the horizon object, not nested deeper.
 // `{android: {horizon}}` is shorthand for `{android: {horizon: horizon}}`, so
 // the value can be a binding rather than a literal object. Resolving one level
@@ -207,18 +298,40 @@ const directSpreadOffsets = (masked, [start, end]) => {
 // unrelated function is a different variable, and picking it let a fixture's
 // object stand in for the one the plugin receives.
 function bindingBlock(contents, masked, name, referenceIndex) {
-  // `[^=]*` used to cross a statement boundary: `let options;` followed by
-  // `const metadata = {` matched, and the unrelated object was inspected as
-  // though it were the binding. Allow only a type annotation between the name
-  // and its `=`.
-  const pattern = new RegExp(
-    String.raw`\b(?:const|let|var)\s+${name}\s*(?::[^=;]*)?=\s*\{`,
-    "g",
-  );
+  // A regex cannot span a type annotation: `[^=]*` crossed a statement
+  // boundary, and `[^=;]*` stopped at the semicolons inside a type literal.
+  // Find the declaration, then walk any annotation by nesting depth.
+  const pattern = new RegExp(String.raw`\b(?:const|let|var)\s+${name}\b`, "g");
+  // From just past the name, skip whitespace and any `: <type>` annotation,
+  // then require `= {`. Returns the offset of that `{`, or -1.
+  const initialiserAt = (from) => {
+    let index = from;
+    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
+    if (masked[index] === ":") {
+      index += 1;
+      let depth = 0;
+      while (index < masked.length) {
+        const character = masked[index];
+        if ("{([<".includes(character)) depth += 1;
+        else if ("})]>".includes(character)) depth -= 1;
+        else if (depth === 0 && character === "=") break;
+        else if (depth === 0 && (character === ";" || character === ",")) return -1;
+        index += 1;
+      }
+    }
+    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
+    if (masked[index] !== "=") return -1;
+    index += 1;
+    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
+    return masked[index] === "{" ? index : -1;
+  };
+
   let visible = null;
   for (const binding of contents.matchAll(pattern)) {
     // A commented-out declaration is not a declaration.
     if (masked[binding.index] !== contents[binding.index]) continue;
+    const opening = initialiserAt(binding.index + binding[0].length);
+    if (opening < 0) continue;
 
     // The innermost block still open at the declaration is its scope.
     const open = [];
@@ -235,10 +348,7 @@ function bindingBlock(contents, masked, name, referenceIndex) {
       if (scope === null) continue;
       if (referenceIndex <= scope[0] || referenceIndex >= scope[1]) continue;
     }
-    visible = extractBalancedBlock(
-      masked,
-      binding.index + binding[0].length - 1,
-    );
+    visible = extractBalancedBlock(masked, opening);
   }
   return visible;
 }
@@ -343,10 +453,19 @@ const inspectExpoPluginConfig = (contents) => {
   // later explicit property, and that ordering is decidable without evaluating
   // the module. This has to hold at every level on the path — options, android
   // and horizon — because a spread at any of them can replace what is below.
-  const spreadAfter = (block, keyOffset) =>
-    directSpreadOffsets(masked, block).some((offset) => offset > keyOffset);
+  const spreadAfter = (block, keyOffset, key) =>
+    directSpreadOffsets(masked, block).some(
+      (offset) =>
+        offset > keyOffset && spreadCanCarry(contents, masked, offset, key),
+    );
 
-  if (spreadAfter(options, Math.max(-1, ...androidBlocks.map(([at]) => at)))) {
+  if (
+    spreadAfter(
+      options,
+      Math.max(-1, ...androidBlocks.map(([at]) => at)),
+      "android",
+    )
+  ) {
     return "spreads an object into the plugin options after android, so the resolved appId is not readable here";
   }
 
@@ -356,7 +475,7 @@ const inspectExpoPluginConfig = (contents) => {
       ...directKeyOffsets(masked, android, "horizon"),
       ...directShorthandOffsets(masked, android, "horizon"),
     ];
-    if (spreadAfter(android, Math.max(-1, ...horizonKeys))) {
+    if (spreadAfter(android, Math.max(-1, ...horizonKeys), "horizon")) {
       return "spreads an object into android after horizon, so the resolved appId is not readable here";
     }
     const spans = horizonKeys
@@ -373,7 +492,7 @@ const inspectExpoPluginConfig = (contents) => {
       declared = true;
       const at = directAppIdOffset(masked, contents, span);
       if (at < 0) continue;
-      if (spreadAfter(span, at)) {
+      if (spreadAfter(span, at, "appId")) {
         return "spreads an object into horizon after appId, so the resolved appId is not readable here";
       }
       return null;

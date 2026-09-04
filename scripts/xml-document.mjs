@@ -122,7 +122,9 @@ export function parseXml(source, context) {
 
   const stack = [];
   let root = null;
-  let index = 0;
+  // A byte-order mark is legal before the declaration and is not markup, so it
+  // must not push `<?xml` off offset zero.
+  let index = source.charCodeAt(0) === 0xfeff ? 1 : 0;
 
   const skipUntil = (marker, what) => {
     const at = source.indexOf(marker, index);
@@ -184,8 +186,15 @@ export function parseXml(source, context) {
       // as a well-formed document with no dependencies.
       const target = readName(source, index + 2);
       if (!target) fail("Processing instruction has no target", context);
-      if (target.name.toLowerCase() === "xml" && index !== 0) {
-        fail("XML declaration is not at the start of the document", context);
+      const atStart = index === (source.charCodeAt(0) === 0xfeff ? 1 : 0);
+      if (target.name.toLowerCase() === "xml") {
+        if (!atStart) {
+          fail("XML declaration is not at the start of the document", context);
+        }
+        // `<?xml?>` with no version is not a declaration.
+        if (!/^<\?xml\s+version\s*=/u.test(source.slice(index))) {
+          fail("XML declaration has no version", context);
+        }
       }
       index += 2;
       skipUntil("?>", "processing instruction");

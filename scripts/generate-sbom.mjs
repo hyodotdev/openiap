@@ -819,6 +819,11 @@ export function parseTrivyExceptions(contents) {
 export const UNRELEASED_COMPONENTS = new Set([]);
 
 export const SBOM_COVERAGE_FLOOR = {
+  // Every released component is anchored to the first release required to
+  // carry an SBOM. "Covered from its first release" cannot be proved from a
+  // release list that might be missing that release — a response holding only
+  // openiap-conformance-2.0.0 satisfied a floorless component while 1.0.0 and
+  // 1.0.1 were absent.
   apple: "3.2.0",
   docs: "docs-3.2.0",
   expo: "expo-iap-5.3.0",
@@ -828,6 +833,8 @@ export const SBOM_COVERAGE_FLOOR = {
   kmp: "kmp-iap-3.3.0",
   maui: "maui-iap-2.3.0",
   "react-native": "react-native-iap-16.3.0",
+  conformance: "openiap-conformance-1.0.0",
+  "commerce-protocol": "openiap-commerce-protocol-0.1.0",
 };
 
 /**
@@ -1776,7 +1783,11 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         ];
         const supplier = project.first("organization")?.value("name");
         const only = declared.length === 1 ? declared[0] : undefined;
-        // `licenseUrl: null` marks a declaration we counted but cannot record.
+        // `licenseUrl: null` marks a declaration counted for ambiguity that
+        // cannot be recorded. Both are recorded only when the document declares
+        // exactly one set of terms: an external reference of type `license` is
+        // read as the component's licence, so emitting one of two declarations
+        // would answer a question the document leaves open.
         const license = only && "licenseUrl" in only ? undefined : only;
         const licenseUrl = only?.licenseUrl ?? undefined;
         const result = nonEmpty({ license, licenseUrl, supplier });

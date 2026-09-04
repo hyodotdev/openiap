@@ -47,7 +47,15 @@ test("a component missing from the documentation is reported", () => {
   const markdown = fs
     .readFileSync(path.join(repoRoot, SBOM_DOC), "utf8")
     .split("\n")
-    .filter((line) => !line.includes("`commerce-protocol`"))
+    // Only the component-matrix row; the coverage-floor table names the same
+    // component and dropping that too would report a second, different gap.
+    .filter(
+      (line) =>
+        !(
+          line.includes("`commerce-protocol`") &&
+          line.includes("`openiap-commerce-protocol`")
+        ),
+    )
     .join("\n");
   withDoc(markdown, (failures) => {
     assert.equal(failures.length, 1);

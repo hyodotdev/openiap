@@ -2213,6 +2213,35 @@ test("a licence URL that is not a valid IRI is dropped", async () => {
   );
 });
 
+test("two declared licences record neither an id nor a reference", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "a", version: "1", purl: "pkg:maven/g/a@1" },
+      { fetcher: async () => body },
+    );
+
+  // An externalReference of type `license` reads as the component's licence, so
+  // emitting the second declaration's URL would answer "which terms?" when the
+  // document declares two and settles nothing.
+  const both = await look(
+    "<project><licenses>" +
+      "<license><name>MIT</name></license>" +
+      "<license><url>https://x.test/APACHE</url></license>" +
+      "</licenses></project>",
+  );
+  assert.equal(both, null);
+
+  // A URL we cannot use is still a second declaration, so it must not collapse
+  // back to a bare MIT claim.
+  const unusable = await look(
+    "<project><licenses>" +
+      "<license><name>MIT</name></license>" +
+      "<license><url>https://x.test/A B</url></license>" +
+      "</licenses></project>",
+  );
+  assert.equal(unusable, null);
+});
+
 test("a licence known only by URL is an external reference", async () => {
   // CycloneDX requires a licence object to carry an id or a name, so
   // `{license: {url}}` fails schema validation and would block a release.
@@ -2695,12 +2724,15 @@ test("releases before a component's coverage floor are not gaps", () => {
   );
 });
 
-test("a component with no floor entry is covered from its first release", () => {
-  // conformance and commerce-protocol shipped an SBOM with their first
-  // release, so they carry no exemption — and neither does anything added
-  // later, which is what stops a new component from being silently skipped.
-  assert.equal(SBOM_COVERAGE_FLOOR.conformance, undefined);
-  assert.equal(SBOM_COVERAGE_FLOOR["commerce-protocol"], undefined);
+test("every released component is anchored to a floor", () => {
+  // "Covered from its first release" cannot be proved from a list that might
+  // be missing that release: a response holding only conformance 2.0.0
+  // satisfied a floorless component while 1.0.0 and 1.0.1 were absent.
+  assert.equal(SBOM_COVERAGE_FLOOR.conformance, "openiap-conformance-1.0.0");
+  assert.equal(
+    SBOM_COVERAGE_FLOOR["commerce-protocol"],
+    "openiap-commerce-protocol-0.1.0",
+  );
   const releases = [
     {
       tag_name: "openiap-conformance-1.0.0",

@@ -86,11 +86,13 @@ published releases rather than chosen:
 | `kmp`                              | `kmp-iap-3.3.0`                                 |
 | `maui`                             | `maui-iap-2.3.0`                                |
 | `react-native`                     | `react-native-iap-16.3.0`                       |
-| `commerce-protocol`, `conformance` | every release — their first already carries one |
+| `conformance`                      | `openiap-conformance-1.0.0`                     |
+| `commerce-protocol`                | `openiap-commerce-protocol-0.1.0`               |
 
-A component with no entry is required from its first release. That is what
-keeps a component added later covered without anyone remembering to add it to
-the table.
+Every released component is anchored here. "Covered from its first release"
+cannot be proved from a release list that might be missing that release, so a
+component without an entry is one that has not shipped yet — and it belongs in
+`UNRELEASED_COMPONENTS` until it does.
 
 **What is enforced.** `security-rescan.yml` fails when any stable release at or
 after its component's floor is missing its SBOM. The older check beside it only
