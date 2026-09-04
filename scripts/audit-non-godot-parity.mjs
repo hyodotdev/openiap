@@ -1989,7 +1989,9 @@ function walk(dir, acc = []) {
       entry.name === "bin" ||
       entry.name === "obj" ||
       entry.name === "Pods" ||
-      entry.name === "DerivedData"
+      entry.name === "DerivedData" ||
+      // SwiftPM checkout cache; it vendors this repository's own sources.
+      entry.name === "SourcePackages"
     ) {
       continue;
     }
