@@ -101,6 +101,12 @@ jobs:
       - name: Audit npm override compatibility
         run: bun run audit:overrides
 
+      # security/SBOM.md restates the releasable component list for readers.
+      # Without this the copy drifts, which is how commerce-protocol shipped an
+      # SBOM artifact while the documented matrix said it did not exist.
+      - name: Audit SBOM documentation
+        run: bun run audit:sbom-docs
+
       - name: Verify independent Bun locks
         run: |
           for directory in \

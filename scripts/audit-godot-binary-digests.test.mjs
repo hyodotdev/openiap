@@ -1,0 +1,79 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+import {
+  DIGEST_MANIFEST,
+  collectGodotBinaryDigestFailures,
+  digestOf,
+  listTrackedBinaries,
+  parseDigestManifest,
+} from "./audit-godot-binary-digests.mjs";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+
+test("the shipped Godot binaries match their recorded digests", () => {
+  assert.deepEqual(collectGodotBinaryDigestFailures(repoRoot), []);
+});
+
+test("every binary that ships is covered", () => {
+  const covered = new Set(
+    parseDigestManifest(
+      fs.readFileSync(path.join(repoRoot, DIGEST_MANIFEST), "utf8"),
+    )
+      .filter((entry) => entry.digest)
+      .map((entry) => entry.file),
+  );
+  const shipped = listTrackedBinaries(repoRoot);
+  assert.ok(shipped.length > 0, "no binaries were discovered");
+  for (const file of shipped) {
+    assert.ok(covered.has(file), `${file} has no recorded digest`);
+  }
+});
+
+test("comments and blank lines are ignored, malformed lines are not", () => {
+  const entries = parseDigestManifest(
+    ["# header", "", `${"a".repeat(64)}  bin/x`, "garbage line"].join("\n"),
+  );
+  assert.deepEqual(entries, [
+    { digest: "a".repeat(64), file: "bin/x" },
+    { malformed: "garbage line" },
+  ]);
+});
+
+test("a changed binary is reported with both digests", () => {
+  const file = listTrackedBinaries(repoRoot)[0];
+  const real = digestOf(repoRoot, file);
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    // Copy the addon tree, then rewrite the manifest with one wrong digest.
+    const source = path.join(repoRoot, "libraries/godot-iap");
+    const target = path.join(scratch, "libraries/godot-iap");
+    fs.cpSync(source, target, { recursive: true });
+    const manifest = path.join(scratch, DIGEST_MANIFEST);
+    fs.writeFileSync(
+      manifest,
+      fs.readFileSync(manifest, "utf8").replace(real, "0".repeat(64)),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.equal(failures.length, 1);
+    assert.match(
+      failures[0],
+      new RegExp(`^${file} changed: recorded 0{64}, found ${real}$`),
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("a missing manifest is reported instead of passing", () => {
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-empty-"));
+  try {
+    assert.deepEqual(collectGodotBinaryDigestFailures(empty), [
+      `${DIGEST_MANIFEST} is missing`,
+    ]);
+  } finally {
+    fs.rmSync(empty, { recursive: true, force: true });
+  }
+});

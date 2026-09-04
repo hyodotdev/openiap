@@ -114,6 +114,10 @@ jobs:
           fi
           bash scripts/verify-ios-toolchain.sh
 
+      - name: Verify prebuilt binary digests
+        working-directory: .
+        run: node scripts/audit-godot-binary-digests.mjs
+
       - name: Verify macOS Frameworks
         if: ${{ inputs.notarize_macos }}
         run: |
@@ -130,7 +134,9 @@ jobs:
     needs: [validate-android, validate-ios]
     permissions:
       actions: write
+      attestations: write # bind the published ZIP to this workflow run
       contents: write
+      id-token: write
     runs-on: macos-26
     defaults:
       run:
@@ -339,6 +345,13 @@ jobs:
           cp scripts/fix_ios_embed.sh dist/addons/godot-iap/scripts/
           chmod +x dist/addons/godot-iap/scripts/fix_ios_embed.sh
 
+          # The ZIP is a primary distribution channel, so the licences have to
+          # travel in it. The generator fails rather than emitting an empty
+          # notice when an embedded component has no committed licence text.
+          cp LICENSE dist/addons/godot-iap/LICENSE
+          node "$GITHUB_WORKSPACE/scripts/generate-third-party-notices.mjs" \
+            godot dist/addons/godot-iap/THIRD_PARTY_NOTICES.md
+
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.release.aar
           cp android/build/outputs/aar/godot-iap-release.aar dist/addons/godot-iap/android/GodotIap.debug.aar
 
@@ -405,6 +418,14 @@ jobs:
           cd dist
           zip -yr "../godot-iap-$VERSION.zip" addons
 
+      # The ZIP is a primary distribution channel. Without this the only
+      # attested artifact is the SBOM, which records no hash for the ZIP it
+      # describes, so a replaced asset would verify clean.
+      - name: Attest release zip provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: libraries/godot-iap/godot-iap-${{ steps.version.outputs.VERSION }}.zip
+
       - name: Notarize macOS frameworks
         if: ${{ inputs.notarize_macos }}
         env:
@@ -460,6 +481,11 @@ jobs:
           test -x "$VERIFY_DIR/addons/godot-iap/scripts/fix_ios_embed.sh"
           test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/GodotIap.framework"
           test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework"
+          # MIT requires the notice to ship with the binary it covers.
+          test -s "$VERIFY_DIR/addons/godot-iap/LICENSE"
+          test -s "$VERIFY_DIR/addons/godot-iap/THIRD_PARTY_NOTICES.md"
+          grep -q 'SwiftGodotRuntime' "$VERIFY_DIR/addons/godot-iap/THIRD_PARTY_NOTICES.md"
+          grep -q 'Permission is hereby granted' "$VERIFY_DIR/addons/godot-iap/THIRD_PARTY_NOTICES.md"
           bash scripts/verify-ios-toolchain.sh "$VERIFY_DIR/addons/godot-iap/bin/ios"
           if [ "$NOTARIZE_MACOS" = "true" ]; then
             grep -q '^include_tags = \["ios", "macos"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
@@ -568,6 +594,30 @@ jobs:
           draft: false
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      # Download what the release actually serves and check it against the
+      # bytes this run built and attested. Everything before this verifies a
+      # local file; only this verifies the artifact a user receives.
+      - name: Verify published release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: godot-iap-${{ steps.version.outputs.VERSION }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          LOCAL_ZIP="libraries/godot-iap/godot-iap-$VERSION.zip"
+          EXPECTED="$(shasum -a 256 "$LOCAL_ZIP" | cut -d' ' -f1)"
+          PUBLISHED_DIR="$(mktemp -d)"
+          gh release download "$RELEASE_TAG" \
+            --pattern "godot-iap-$VERSION.zip" \
+            --dir "$PUBLISHED_DIR"
+          PUBLISHED="$PUBLISHED_DIR/godot-iap-$VERSION.zip"
+          ACTUAL="$(shasum -a 256 "$PUBLISHED" | cut -d' ' -f1)"
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::published asset digest $ACTUAL does not match the built artifact $EXPECTED"
+            exit 1
+          fi
+          gh attestation verify "$PUBLISHED" --repo "$GITHUB_REPOSITORY"
+          echo "Published godot-iap-$VERSION.zip verified: sha256:$ACTUAL"
 
       - name: Dispatch SBOM
         env:
