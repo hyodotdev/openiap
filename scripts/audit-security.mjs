@@ -265,6 +265,40 @@ export function parseOsvIgnoredVulnerabilities(source) {
   return ignored;
 }
 
+// `bun audit` reaches a remote advisory service, and that call fails
+// intermittently. The failure is a transport error rather than a verdict, so it
+// is retried; anything else, including a real advisory, still fails the audit.
+const TRANSPORT_FAILURE =
+  /ConnectionClosed|ConnectionRefused|Timeout|ECONNRESET|ETIMEDOUT|socket hang up|audit request failed/i;
+
+export const isTransportFailure = (result) =>
+  TRANSPORT_FAILURE.test(`${result?.stdout ?? ""}${result?.stderr ?? ""}`);
+
+const sleepSync = (milliseconds) => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+};
+
+export const BUN_AUDIT_ATTEMPTS = 3;
+
+export function runBunAudit(
+  run,
+  directory,
+  { attempts = BUN_AUDIT_ATTEMPTS, sleep = sleepSync } = {},
+) {
+  let result;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    result = run("bun", ["audit", "--json"], {
+      cwd: directory,
+      encoding: "utf8",
+    });
+    // Only a transport error is worth repeating. A non-zero status carrying a
+    // verdict, or any other output, is the answer.
+    if (!isTransportFailure(result) || attempt === attempts) return result;
+    sleep(attempt * 2000);
+  }
+  return result;
+}
+
 export function auditDependencies(
   run = spawnSync,
   projects = BUN_PROJECTS,
@@ -272,14 +306,12 @@ export function auditDependencies(
   osvLockfiles = projects === BUN_PROJECTS
     ? OSV_LOCKFILES
     : projects.map(({ lockfile }) => lockfile),
+  auditOptions = {},
 ) {
   const findings = [];
   let ignoredCount = 0;
   for (const { directory, lockfile } of projects) {
-    const result = run("bun", ["audit", "--json"], {
-      cwd: resolve(repoRoot, directory),
-      encoding: "utf8",
-    });
+    const result = runBunAudit(run, resolve(repoRoot, directory), auditOptions);
     if (result.error) throw result.error;
     if (result.signal) {
       throw new Error(`${lockfile}: bun audit terminated by ${result.signal}`);

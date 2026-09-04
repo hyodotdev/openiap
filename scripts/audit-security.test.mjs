@@ -5,15 +5,18 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 import {
-  auditWorkflowFiles,
+  BUN_AUDIT_ATTEMPTS,
   auditDependencies,
+  auditWorkflowFiles,
   extractExternalUrls,
   findUnpinnedDockerBases,
   findWorkflowDependencyFindings,
   findWorkflowRunInterpolations,
+  isTransportFailure,
   listWorkflowFiles,
   parseBunAuditOutput,
   parseOsvIgnoredVulnerabilities,
+  runBunAudit,
   summarizeAdvisories,
 } from "./audit-security.mjs";
 
@@ -638,10 +641,7 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     wrappers,
     /github\.event_name != 'pull_request'\s+&& \(matrix\.component == 'godot' && 'macos-26' \|\| 'xcode-27'\)/u,
   );
-  assert.match(
-    wrappers,
-    /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u,
-  );
+  assert.match(wrappers, /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u);
   assert.match(
     wrappers,
     /EXPECTED_XCODE_MAJOR: \$\{\{ github\.event_name == 'pull_request' && '26' \|\| '27' \}\}/u,
@@ -697,4 +697,51 @@ FROM base AS runtime
     ),
     ["alpine:latest"],
   );
+});
+
+test("a transport failure is retried, a verdict is not", () => {
+  // bun audit reaches a remote advisory service; that call fails
+  // intermittently and blocked this repository's CI three times. Only the
+  // transport error repeats — a real advisory must still fail the audit.
+  let transient = 0;
+  const flaky = () => {
+    transient += 1;
+    return transient < 3
+      ? {
+          status: 1,
+          stdout: "",
+          stderr: "ConnectionClosed: audit request failed",
+        }
+      : { status: 0, stdout: '{"advisories":{}}', stderr: "" };
+  };
+  const recovered = runBunAudit(flaky, "/tmp", { sleep: () => {} });
+  assert.equal(transient, 3);
+  assert.equal(recovered.stdout, '{"advisories":{}}');
+
+  let verdicts = 0;
+  const advisory = () => {
+    verdicts += 1;
+    return { status: 1, stdout: '{"advisories":{"pkg":[]}}', stderr: "" };
+  };
+  runBunAudit(advisory, "/tmp", { sleep: () => {} });
+  assert.equal(verdicts, 1, "a verdict must not be retried");
+});
+
+test("a persistent transport failure still fails after its attempts", () => {
+  let calls = 0;
+  const down = () => {
+    calls += 1;
+    return { status: 1, stdout: "", stderr: "Timeout: audit request failed" };
+  };
+  const result = runBunAudit(down, "/tmp", { sleep: () => {} });
+  assert.equal(calls, BUN_AUDIT_ATTEMPTS);
+  assert.ok(isTransportFailure(result), "the transport failure must survive");
+});
+
+test("transport detection does not swallow an ordinary failure", () => {
+  assert.equal(
+    isTransportFailure({ stdout: "", stderr: "bun: command not found" }),
+    false,
+  );
+  assert.equal(isTransportFailure({ stdout: "", stderr: "" }), false);
 });

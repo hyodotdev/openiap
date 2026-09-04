@@ -54,6 +54,33 @@ test("a manifest without the declaration is reported", () => {
   );
 });
 
+test("a commented-out declaration is not a declaration", () => {
+  const contents = [
+    "<manifest><application>",
+    "  <!--",
+    '  <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+    '      android:value="31705015229097839" />',
+    "  -->",
+    "</application></manifest>",
+  ].join("\n");
+  assert.match(
+    String(inspectMergedManifest(contents)),
+    /declares no com\.meta\.horizon\.platform\.HORIZON_APP_ID/,
+  );
+});
+
+test("android:name must match exactly, not by substring", () => {
+  const contents = `<manifest><application>
+    <meta-data
+        android:name="com.example.com.meta.horizon.platform.HORIZON_APP_ID"
+        android:value="31705015229097839" />
+  </application></manifest>`;
+  assert.match(
+    String(inspectMergedManifest(contents)),
+    /declares no com\.meta\.horizon\.platform\.HORIZON_APP_ID/,
+  );
+});
+
 test("a missing manifest is reported instead of passing", () => {
   const missing = path.join(
     fs.mkdtempSync(path.join(os.tmpdir(), "horizon-merged-")),

@@ -14,13 +14,31 @@ export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
 const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
+const NAME_ATTRIBUTE = /android:name\s*=\s*"([^"]*)"/;
 const VALUE_ATTRIBUTE = /android:value\s*=\s*"([^"]*)"/;
 const APP_ID = /^\d{10,}$/;
 
+// Replace to a fixpoint: removing an inner `<!-- -->` can splice `<!-` and `-`
+// into a new opener the pass never saw, so one substitution is not a strip.
+const stripXmlComments = (source) => {
+  let previous;
+  let current = source;
+  do {
+    previous = current;
+    current = previous.replace(/<!--[\s\S]*?-->/g, "");
+  } while (current !== previous);
+  return current;
+};
+
 export function inspectMergedManifest(contents) {
-  const elements = [...contents.matchAll(META_DATA_ELEMENT)]
+  // Comments are not declarations, and android:name must match exactly — a
+  // substring test would accept com.example.<the Horizon name>.
+  const elements = [...stripXmlComments(contents).matchAll(META_DATA_ELEMENT)]
     .map(([element]) => element)
-    .filter((element) => element.includes(HORIZON_APP_ID_META_DATA_NAME));
+    .filter(
+      (element) =>
+        element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
+    );
 
   if (elements.length === 0) {
     return `the merged manifest declares no ${HORIZON_APP_ID_META_DATA_NAME}`;

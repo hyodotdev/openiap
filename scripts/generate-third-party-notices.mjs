@@ -65,9 +65,18 @@ export function collectNoticeFailures(repoRoot, componentId) {
       );
       continue;
     }
-    if (!fs.existsSync(path.resolve(repoRoot, component.licenseFile))) {
+    const licensePath = path.resolve(repoRoot, component.licenseFile);
+    if (!fs.existsSync(licensePath)) {
       failures.push(
         `${component.name}: licenseFile ${component.licenseFile} does not exist`,
+      );
+      continue;
+    }
+    // An empty file is not a notice. Without this the generator renders a
+    // blank fenced block, which is the empty section it exists to refuse.
+    if (fs.readFileSync(licensePath, "utf8").trim() === "") {
+      failures.push(
+        `${component.name}: licenseFile ${component.licenseFile} is empty`,
       );
     }
   }

@@ -42,7 +42,7 @@
     "graph:impact": "node scripts/graph-impact.mjs",
     "audit:sbom-docs": "node --test scripts/audit-sbom-docs.test.mjs && node scripts/audit-sbom-docs.mjs",
     "audit:godot-binaries": "node --test scripts/audit-godot-binary-digests.test.mjs && node scripts/audit-godot-binary-digests.mjs",
-    "licenses:inventory": "node scripts/generate-third-party-notices.mjs",
+    "licenses:inventory": "node scripts/generate-third-party-notices.mjs godot --inventory",
     "audit:horizon-app-id": "node --test scripts/audit-horizon-example-app-id.test.mjs scripts/verify-horizon-merged-manifest.test.mjs && node scripts/audit-horizon-example-app-id.mjs"
   },
   "devDependencies": {
