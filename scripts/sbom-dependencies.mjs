@@ -751,9 +751,16 @@ function parseNugetNuspec(source, context) {
   // truncated response would otherwise parse as "this package declares no
   // dependencies" and produce a silently empty inventory. A nuspec always has
   // these two elements; without them the document is not a nuspec.
-  if (!/<package\b/iu.test(masked) || !/<metadata\b/iu.test(masked)) {
+  // The closing tag matters as much as the opening ones: a response truncated
+  // mid-document still contains <package> and <metadata>, and would otherwise
+  // read as a package that declares no dependencies.
+  if (
+    !/<package\b/iu.test(masked) ||
+    !/<metadata\b/iu.test(masked) ||
+    !/<\/package\s*>/iu.test(masked)
+  ) {
     throw new PublishedMetadataUnavailableError(
-      `Published document is not a nuspec: ${context.url}`,
+      `Published document is not a complete nuspec: ${context.url}`,
     );
   }
   const dependenciesBlock = masked.match(

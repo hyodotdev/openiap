@@ -32,6 +32,7 @@ import { fileURLToPath } from "node:url";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
   commerceProtocolManifest,
+  compareSemVer,
   validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
@@ -778,27 +779,33 @@ export function findMissingCoverageTags(releases) {
       .filter(Boolean),
   );
 
-  // A truncated release page would silently narrow the scan. A component the
-  // input never mentions is simply out of scope, but one that appears without
-  // its floor means the list is incomplete, and that is an error.
-  const floorPublishedAt = new Map();
+  // Compare versions, not publish dates. Releases are not published in version
+  // order — a patch on an older line lands after a newer minor, and recreating
+  // a release moves its timestamp — so a date comparison both exempts newer
+  // versions published early and reports older ones published late.
+  const floorVersion = new Map();
   for (const [componentId, tag] of Object.entries(SBOM_COVERAGE_FLOOR)) {
     if (!present.has(componentId)) continue;
-    const release = stable.find((entry) => entry.tag_name === tag);
-    if (!release) {
+    // A truncated release page would silently narrow the scan, so a component
+    // that appears without its floor means the list is incomplete.
+    if (!stable.some((entry) => entry.tag_name === tag)) {
       throw new Error(
         `SBOM coverage floor ${tag} for ${componentId} is not in the release list`,
       );
     }
-    floorPublishedAt.set(componentId, Date.parse(release.published_at));
+    const resolved = componentFromTag(tag);
+    if (!resolved) {
+      throw new Error(`SBOM coverage floor ${tag} is not a recognised tag`);
+    }
+    floorVersion.set(componentId, resolved.version);
   }
 
   const missing = [];
   for (const release of stable) {
     const resolvedTag = componentFromTag(release.tag_name);
     if (!resolvedTag) continue;
-    const floor = floorPublishedAt.get(resolvedTag.componentId);
-    if (floor !== undefined && Date.parse(release.published_at) < floor) {
+    const floor = floorVersion.get(resolvedTag.componentId);
+    if (floor !== undefined && compareSemVer(resolvedTag.version, floor) < 0) {
       continue;
     }
     const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);

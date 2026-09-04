@@ -2246,6 +2246,40 @@ test("coverage continuity reports mid-train gaps the latest-only scan misses", (
   assert.deepEqual(findMissingCoverageTags(releases), ["godot-iap-3.4.0"]);
 });
 
+test("the coverage floor is a version, not a publish date", () => {
+  // Releases are not published in version order: a patch on an older line
+  // lands after a newer minor, and recreating a release moves its timestamp.
+  // Comparing dates exempted newer versions published early and reported older
+  // ones published late — both the opposite of the documented rule.
+  const release = (tag, at, hasSbom) => ({
+    tag_name: tag,
+    published_at: at,
+    draft: false,
+    prerelease: false,
+    assets: hasSbom ? [{ name: `${tag}.cdx.json` }] : [],
+  });
+
+  // 3.4.0 is above the 3.3.0 floor, so its missing SBOM is a gap even though
+  // it was published first.
+  assert.deepEqual(
+    findMissingCoverageTags([
+      release("godot-iap-3.4.0", "2026-01-01T00:00:00Z", false),
+      release("godot-iap-3.3.0", "2026-01-15T00:00:00Z", true),
+    ]),
+    ["godot-iap-3.4.0"],
+  );
+
+  // 3.2.1 is below the floor, so it is exempt even though it was published
+  // after it.
+  assert.deepEqual(
+    findMissingCoverageTags([
+      release("godot-iap-3.3.0", "2026-01-01T00:00:00Z", true),
+      release("godot-iap-3.2.1", "2026-02-01T00:00:00Z", false),
+    ]),
+    [],
+  );
+});
+
 test("releases before a component's coverage floor are not gaps", () => {
   const releases = [
     {
@@ -2363,10 +2397,15 @@ test("a published body that is not a nuspec fails closed", () => {
     "<html><body>404 Not Found</body></html>",
     "",
     "<package><metad",
+    // Truncated mid-document: both opening tags are present, so requiring
+    // them alone was not enough to tell this from "declares no dependencies".
+    '<package><metadata><id>X</id><dependencies><dependency id="A" version="1.0.0"',
+    // An error page that happens to use both words.
+    "<html>package metadata not found</html>",
   ]) {
     assert.throws(
       () => parseNugetNuspec(body, context),
-      /is not a nuspec/u,
+      /is not a complete nuspec/u,
       `accepted ${JSON.stringify(body.slice(0, 24))}`,
     );
   }
