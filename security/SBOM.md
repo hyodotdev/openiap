@@ -47,6 +47,26 @@ never install its dependency tree. Its source dependency graph is covered by
 the repository gates, and its current source image is scanned before deployment
 and by the weekly security workflow — see [README.md](README.md).
 
+## Licence notices
+
+The SBOM records an SPDX identifier per component. For components whose licence
+requires the notice to be redistributed with the binary — MIT, ISC, and the
+Apache and BSD families — the verbatim upstream licence text is committed
+alongside the binary and referenced from the component's `licenseFile`.
+
+`scripts/generate-third-party-notices.mjs` renders those into a
+`THIRD_PARTY_NOTICES.md` shipped inside the release artifact, and prints a
+licence inventory with `--inventory`. It refuses to render when a component
+declares such a licence with no committed text, so the failure mode is a failed
+release rather than a notice with an empty section. Nothing composes or infers
+licence text.
+
+Today this applies to `godot`, the only component that redistributes a
+third-party binary: the addon ZIP embeds `SwiftGodotRuntime` (MIT) and ships its
+notice plus the addon's own `LICENSE`. Registry-distributed components carry
+their dependencies by coordinate rather than by embedding them, so the consuming
+package manager resolves those licences.
+
 ## Standards
 
 | Concern            | Standard                                                                                                                                                   |

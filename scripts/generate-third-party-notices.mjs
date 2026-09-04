@@ -159,6 +159,10 @@ if (
     console.error(`unknown component ${JSON.stringify(componentId)}`);
     process.exit(2);
   }
+  if (process.argv.includes("--inventory")) {
+    process.stdout.write(renderInventory(componentId));
+    process.exit(0);
+  }
   let notices;
   try {
     notices = renderNotices(repoRoot, componentId);

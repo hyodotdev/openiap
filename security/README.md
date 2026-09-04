@@ -137,8 +137,27 @@ gates remain independent of that hosted view.
 - CodeQL's traced Kotlin jobs build the Google and KMP Android cores plus the
   React Native, Expo, Flutter, Godot, and MAUI JVM wrappers. Its traced Swift
   jobs build the Apple core, KMP Swift bridge, and React Native, Expo, Flutter,
-  and Godot wrappers. KMP Kotlin/Native remains covered by its compile/test lane
-  and review because CodeQL's Kotlin extractor traces JVM compilation.
+  and Godot wrappers.
+- CodeQL's Kotlin extractor traces JVM compilation, so it cannot analyse
+  Kotlin/Native. This is a CodeQL platform limitation, not an OpenIAP
+  configuration gap: no CodeQL setting reaches this code. The uncovered shipped
+  surface is exactly `libraries/kmp-iap/library/src/iosMain` — 4 files, 1,931
+  lines, 13% of the library's main-source Kotlin. `commonMain` (7,337 lines) is
+  covered, because it compiles into the traced Android target.
+  Three things bound the residual risk, each independently checkable:
+  - The uncovered code performs no security-relevant operation. Searching
+    `iosMain` for URL loading, Keychain or `SecItem`, file and defaults writes,
+    crypto, and unsafe interop (`memScoped`, `usePinned`, `refTo`, `cstr`)
+    returns no hits, and the repository defines no custom cinterop `.def` file.
+  - Every StoreKit call, receipt read, JWS fetch, and IAPKit HTTP request runs
+    in `packages/apple`, which the traced Swift job does analyse. The one place
+    `iosMain` touches a secret forwards the API key and JWS straight into that
+    module without storing, logging, or reshaping them.
+  - `ci-kmp-iap.yml` runs `:library:iosSimulatorArm64Test`, which compiles
+    `iosMain` for a real Kotlin/Native target and runs the `iosTest` suite.
+    A Kotlin linter would not change this: Detekt and ktlint find style and
+    complexity issues, not the taint flows CodeQL is here for, so adding one
+    would grow the toolchain without closing the gap.
 - OpenIAP does not claim continuous fuzzing. Security-boundary changes require
   explicit negative regression tests, but the whole repository is not under a
   fuzzing service.
@@ -149,6 +168,46 @@ gates remain independent of that hosted view.
   has no npm provenance. Version 1.0.1 is the first provenance-verified release;
   tag, registry-integrity, reproducibility, and SBOM evidence for 1.0.0 do not
   retroactively create npm build provenance.
+
+## Release artifact verification
+
+What each lane proves about the bytes a consumer actually receives. The
+distinction that matters is whether a check runs against the _published_
+artifact or against a local copy that was never at risk.
+
+| Lane                                                             | Attested                                       | Post-publication check                                                     |
+| ---------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
+| npm (`react-native`, `expo`, `conformance`, `commerce-protocol`) | npm provenance, bound to the published tarball | `scripts/verify-npm-release-provenance.mjs`                                |
+| GitHub Release (`godot`)                                         | `attest-build-provenance` over the ZIP         | downloads the served asset, compares SHA-256, runs `gh attestation verify` |
+| Maven Central (`google`, `kmp`)                                  | no                                             | none                                                                       |
+| pub.dev (`flutter`)                                              | no                                             | none                                                                       |
+| NuGet (`maui`)                                                   | no                                             | none                                                                       |
+| CocoaPods / SwiftPM (`apple`)                                    | no                                             | none                                                                       |
+| SBOM artifacts (all components)                                  | `attest-build-provenance` over the `.cdx.json` | `sbom.yml` re-verifies an existing SBOM before replacing it                |
+
+The `curl`-based HTTP status checks in the Maven, pub.dev, and NuGet lanes are
+**pre-publish** guards that stop a duplicate upload. They answer "does this
+coordinate already exist", not "are the published bytes the bytes CI built", and
+should not be read as post-publication verification.
+
+Closing the remaining rows means downloading each published artifact and
+comparing it to the build output. That is straightforward for Maven Central,
+which serves the uploaded file verbatim, and less so for registries that may
+re-archive on ingest. None of it is implemented yet, and an existence check must
+not be relabelled as verification in the meantime.
+
+### Release immutability
+
+GitHub's immutable releases would stop a published asset being replaced after
+the fact, which is the threat the digest and attestation checks above only
+_detect_. It is deliberately **not enabled**, for a mechanical reason: SBOMs are
+attached by `sbom.yml` after the release exists, so turning immutability on today
+would make every SBOM upload fail.
+
+Enabling it requires moving SBOM generation into each release job so the release
+is created complete. Until then the compensating controls are the attestation
+and post-publication digest check on the lanes that have them, and `sbom.yml`
+verifying an existing SBOM's attestation before it would replace one.
 
 ## Scanning posture
 

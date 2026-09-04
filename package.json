@@ -41,7 +41,8 @@
     "audit:facts": "node --test scripts/audit-facts.test.mjs scripts/graph-impact.test.mjs && node scripts/audit-facts.mjs",
     "graph:impact": "node scripts/graph-impact.mjs",
     "audit:sbom-docs": "node --test scripts/audit-sbom-docs.test.mjs && node scripts/audit-sbom-docs.mjs",
-    "audit:godot-binaries": "node --test scripts/audit-godot-binary-digests.test.mjs && node scripts/audit-godot-binary-digests.mjs"
+    "audit:godot-binaries": "node --test scripts/audit-godot-binary-digests.test.mjs && node scripts/audit-godot-binary-digests.mjs",
+    "licenses:inventory": "node scripts/generate-third-party-notices.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
