@@ -12,6 +12,7 @@ import { collectGeneratedSyncDrift } from "../specs/client/scripts/verify-genera
 import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
+import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
 import {
   collectPurchasePayloadParityFailures,
   extractBalancedAfterMarker,
@@ -57,6 +58,14 @@ execFileSync(
   [
     "--test",
     path.resolve(root, "scripts/audit-purchase-payload-parity.test.mjs"),
+  ],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
+  [
+    "--test",
+    path.resolve(root, "scripts/audit-horizon-example-app-id.test.mjs"),
   ],
   { stdio: "inherit" },
 );
@@ -5581,13 +5590,11 @@ function checkFrameworkDependencyHygiene() {
       /^\s*git checkout\b/,
       packageIndex + 1,
     );
-    if (
-      !(
-        guardIndex >= 0 &&
-        packageIndex === guardIndex + 1 &&
-        checkoutIndex > packageIndex
-      )
-    ) {
+    if (!(
+      guardIndex >= 0 &&
+      packageIndex === guardIndex + 1 &&
+      checkoutIndex > packageIndex
+    )) {
       fail(
         `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
       );
@@ -9302,6 +9309,9 @@ checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();
 for (const issue of collectPurchasePayloadParityFailures(root)) {
+  fail(issue);
+}
+for (const issue of collectHorizonExampleAppIdFailures(root)) {
   fail(issue);
 }
 checkGqlRuntimeExports();

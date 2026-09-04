@@ -4,5 +4,11 @@
     <application
         android:allowBackup="true"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true" />
+        android:usesCleartextTraffic="true">
+        <!-- Horizon OS (Meta Quest): the billing client reads the app id from
+             the manifest, and startConnection throws without it. -->
+        <meta-data
+            android:name="com.meta.horizon.platform.HORIZON_APP_ID"
+            android:value="31705015229097839" />
+    </application>
 </manifest>

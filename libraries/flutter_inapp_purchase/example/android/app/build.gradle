@@ -79,9 +79,11 @@ android {
         missingDimensionStrategy 'platform', openIapFlavor
 
         // Configure Horizon App ID if enabled
+        // Ships the shared example app id like the other OpenIAP examples; an
+        // empty value would only surface as a startConnection crash on device.
         def horizonAppId = ""
         if (horizonEnabled) {
-            horizonAppId = localProperties.getProperty("HORIZON_APP_ID") ?: ""
+            horizonAppId = localProperties.getProperty("HORIZON_APP_ID") ?: "31705015229097839"
         }
         manifestPlaceholders = [HORIZON_APP_ID: horizonAppId]
     }
