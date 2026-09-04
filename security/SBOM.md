@@ -100,12 +100,13 @@ consumer-visible descriptor over HTTPS as a required inventory input. With
 `--with-licenses`, the generator also performs best-effort license and supplier
 enrichment:
 
-| Registry                                          | Required inventory input     | Best-effort enrichment      |
-| ------------------------------------------------- | ---------------------------- | --------------------------- |
-| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs        | License and organization    |
-| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs    | License and organization    |
-| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors         |
-| [registry.npmjs.org](https://registry.npmjs.org/) | —                            | npm license and author data |
+| Registry                                          | Required inventory input     | Best-effort enrichment         |
+| ------------------------------------------------- | ---------------------------- | ------------------------------ |
+| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs        | License and organization       |
+| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs    | License and organization       |
+| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors            |
+| [registry.npmjs.org](https://registry.npmjs.org/) | —                            | npm license and author data    |
+| [pub.dev](https://pub.dev/help/api)               | —                            | Dart license tag and publisher |
 
 Failure to read a required POM or nuspec blocks generation because the
 dependency inventory would be incomplete. A metadata-enrichment failure
@@ -221,10 +222,14 @@ security inventory.
 License coverage is best-effort where an ecosystem does not publish a standard
 machine-readable value. Current structural gaps include:
 
-- **pub.dev packages** — Dart declares licensing in a `LICENSE` file, and
-  package metadata exposes no standard license field.
 - **NuGet packages whose nuspec carries only a license URL** that does not map
   to an SPDX identifier, such as `Xamarin.Android.Google.BillingClient`.
+- **pub.dev packages record the license of the version pub.dev analysed**, not
+  of the version constraint the SBOM lists. Dart lockfiles are not committed
+  (see below), so `^1.2.0` in the SBOM is a constraint while `license:` comes
+  from whatever pub.dev most recently scored. That is the same point-in-time
+  caveat `--with-licenses` carries generally, but it is worth stating because
+  the identifier looks exact.
 
 `bun run sbom <component> --with-licenses` prints the resolved count for a
 component, so current coverage is checkable rather than quoted here — a fixed

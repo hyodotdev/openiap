@@ -1054,6 +1054,12 @@ function dependencyComponent(entry) {
   if (entry.licenses?.length) {
     component.licenses = entry.licenses;
   }
+  // Attribution evidence the registry states outright; CycloneDX carries it as
+  // a first-class field, and it is the one datum a NOTICE file needs that a
+  // licence identifier does not supply.
+  if (entry.copyright) {
+    component.copyright = entry.copyright;
+  }
   if (entry.hashes?.length) {
     component.hashes = entry.hashes;
   }
@@ -1488,6 +1494,10 @@ async function fetchPublishedText(
  * Registry availability and metadata can change, so enriched output is not
  * byte-identical across runs.
  */
+// NuGet replaced per-package licenceUrls with this single placeholder when it
+// deprecated the field; it identifies no terms.
+const DEPRECATED_NUGET_LICENSE_URL = "https://aka.ms/deprecateLicenseUrl";
+
 async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
   try {
     if (entry.purl.startsWith("pkg:maven/")) {
@@ -1530,9 +1540,21 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       const url = nuspec.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
       const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
       const raw = expression ?? (fromUrl && decodeURIComponent(fromUrl));
+      const license = normalizeLicense(raw);
       return {
-        license: normalizeLicense(raw),
+        // A licenceUrl that maps to no SPDX id is still a statement of where
+        // the terms are, so it is recorded as a url rather than dropped. The
+        // exception is NuGet's own placeholder for a retired licenceUrl, which
+        // states nothing.
+        license:
+          license ??
+          (url && url !== DEPRECATED_NUGET_LICENSE_URL
+            ? { license: { url } }
+            : undefined),
         supplier: nuspec.match(/<authors>([^<]+)<\/authors>/u)?.[1]?.trim(),
+        copyright: nuspec
+          .match(/<copyright>([^<]+)<\/copyright>/u)?.[1]
+          ?.trim(),
       };
     }
 
@@ -1553,13 +1575,44 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         supplier: typeof author === "string" ? author : author?.name,
       };
     }
+    if (entry.purl.startsWith("pkg:pub/")) {
+      // pub.dev states the licence as a score tag rather than a metadata
+      // field. Only tags that resolve to a known SPDX id are kept, so the
+      // classification tags it also emits (osi-approved, fsf-libre) drop out
+      // on their own, and an ambiguous package yields no licence at all
+      // rather than a guess.
+      const scored = await fetcher(
+        `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/score`,
+      );
+      const resolved = scored
+        ? [
+            ...new Set(
+              (JSON.parse(scored).tags ?? [])
+                .filter((tag) => tag.startsWith("license:"))
+                .map((tag) => normalizeLicense(tag.slice("license:".length)))
+                .filter((license) => license?.license?.id)
+                .map((license) => license.license.id),
+            ),
+          ]
+        : [];
+      const published = await fetcher(
+        `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/publisher`,
+      );
+      return {
+        // Two different declared licences is a question for a human, not a
+        // coin flip.
+        license:
+          resolved.length === 1 ? { license: { id: resolved[0] } } : undefined,
+        supplier: published
+          ? JSON.parse(published).publisherId || undefined
+          : undefined,
+      };
+    }
   } catch {
     // Network failure, timeout, or malformed registry response.
     return null;
   }
 
-  // pub.dev has no standard license field in package metadata; Dart packages
-  // declare licensing in a LICENSE file that the API does not expose.
   return null;
 }
 
@@ -1578,6 +1631,9 @@ async function attachRegistryMetadata(
           : {}),
         ...(found.supplier && !entry.supplier
           ? { supplier: found.supplier }
+          : {}),
+        ...(found.copyright && !entry.copyright
+          ? { copyright: found.copyright }
           : {}),
       };
     }),

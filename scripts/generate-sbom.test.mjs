@@ -1840,6 +1840,107 @@ test("a registry license only becomes an SPDX id when it really is one", () => {
   assert.equal(normalizeLicense(undefined), null);
 });
 
+const pubFetcher = (tags, publisherId) => async (url) =>
+  url.includes("/score")
+    ? JSON.stringify({ tags })
+    : publisherId === null
+      ? null
+      : JSON.stringify({ publisherId });
+
+const lookupPub = (tags, publisherId = "dart.dev") =>
+  generatorTesting.lookupComponentMetadata(
+    { name: "http", version: "^1.2.0", purl: "pkg:pub/http@%5E1.2.0" },
+    { fetcher: pubFetcher(tags, publisherId) },
+  );
+
+test("pub.dev licences come from score tags that resolve to an SPDX id", async () => {
+  // pub.dev states the licence as a score tag rather than a metadata field,
+  // alongside classification tags that are not licences.
+  assert.deepEqual(
+    await lookupPub([
+      "license:bsd-3-clause",
+      "license:fsf-libre",
+      "license:osi-approved",
+    ]),
+    { license: { license: { id: "BSD-3-Clause" } }, supplier: "dart.dev" },
+  );
+});
+
+test("a pub.dev tag that is not a licence never becomes one", async () => {
+  // osi-approved and fsf-libre resolve to no known SPDX id, so they drop out
+  // on their own rather than needing a list of tags to ignore.
+  assert.deepEqual(
+    await lookupPub(["license:osi-approved", "license:fsf-libre"]),
+    {
+      license: undefined,
+      supplier: "dart.dev",
+    },
+  );
+  assert.deepEqual(await lookupPub([]), {
+    license: undefined,
+    supplier: "dart.dev",
+  });
+});
+
+test("two declared pub.dev licences yield none rather than a guess", async () => {
+  assert.deepEqual(await lookupPub(["license:mit", "license:bsd-3-clause"]), {
+    license: undefined,
+    supplier: "dart.dev",
+  });
+  // The same licence stated twice is still one licence.
+  assert.deepEqual(await lookupPub(["license:mit", "license:mit"]), {
+    license: { license: { id: "MIT" } },
+    supplier: "dart.dev",
+  });
+});
+
+test("a pub.dev publisher lookup failure does not discard the licence", async () => {
+  assert.deepEqual(await lookupPub(["license:mit"], null), {
+    license: { license: { id: "MIT" } },
+    supplier: undefined,
+  });
+});
+
+const lookupNuspec = (body) =>
+  generatorTesting.lookupComponentMetadata(
+    { name: "X", version: "1.0.0", purl: "pkg:nuget/X@1.0.0" },
+    {
+      fetcher: async () => `<package><metadata>${body}</metadata></package>`,
+    },
+  );
+
+test("a nuspec copyright is recorded rather than discarded", async () => {
+  const found = await lookupNuspec(
+    '<license type="expression">MIT</license>' +
+      "<copyright>Copyright \u00a9 Example 2026</copyright>",
+  );
+  assert.equal(found.copyright, "Copyright \u00a9 Example 2026");
+  assert.deepEqual(found.license, { license: { id: "MIT" } });
+});
+
+test("a licence url with no SPDX id is recorded as a url, not dropped", async () => {
+  assert.deepEqual(
+    (
+      await lookupNuspec(
+        "<licenseUrl>https://example.test/LICENSE</licenseUrl>",
+      )
+    ).license,
+    { license: { url: "https://example.test/LICENSE" } },
+  );
+});
+
+test("NuGet's deprecated licence-url placeholder states nothing", async () => {
+  // Recording it would assert terms that the placeholder explicitly does not
+  // carry. The copyright beside it is still real and is kept.
+  const found = await lookupNuspec(
+    '<license type="file">LICENSE.md</license>' +
+      "<licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>" +
+      "<copyright>\u00a9 Microsoft Corporation.</copyright>",
+  );
+  assert.equal(found.license, undefined);
+  assert.equal(found.copyright, "\u00a9 Microsoft Corporation.");
+});
+
 test("registry metadata never guesses suppliers or replaces reviewed values", async () => {
   const lookedUp = await generatorTesting.lookupComponentMetadata(
     {
