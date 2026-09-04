@@ -716,6 +716,7 @@ test("a transport failure is retried, a verdict is not", () => {
   };
   const recovered = runBunAudit(flaky, "/tmp", { sleep: () => {} });
   assert.equal(transient, 3);
+  assert.ok(BUN_AUDIT_ATTEMPTS >= 3, "too few attempts to ride out a blip");
   assert.equal(recovered.stdout, '{"advisories":{}}');
 
   let verdicts = 0;
@@ -725,6 +726,15 @@ test("a transport failure is retried, a verdict is not", () => {
   };
   runBunAudit(advisory, "/tmp", { sleep: () => {} });
   assert.equal(verdicts, 1, "a verdict must not be retried");
+});
+
+test("the healthy path never sleeps", () => {
+  // The backoff only costs time when the service is actually failing.
+  const slept = [];
+  runBunAudit(() => ({ status: 0, stdout: "{}", stderr: "" }), "/tmp", {
+    sleep: (ms) => slept.push(ms),
+  });
+  assert.deepEqual(slept, []);
 });
 
 test("a persistent transport failure still fails after its attempts", () => {
