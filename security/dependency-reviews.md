@@ -12,7 +12,25 @@ maintainer action, not a maintenance chore.
 
 ## Scope
 
-The set is derived, not curated. Regenerate it with:
+[`ASSURANCE.md`](ASSURANCE.md#dependency-and-license-policy) names five
+triggers. This register currently covers **one** of them, and says which so the
+gap is visible rather than implied:
+
+| Trigger                                                          | Tracked here                 |
+| ---------------------------------------------------------------- | ---------------------------- |
+| custom terms, a missing license, or a non-SPDX license URL       | yes — derived from the SBOMs |
+| copyleft or source-available licenses                            | no                           |
+| packages from a Git branch, mutable URL, or unpublished tarball  | no                           |
+| lifecycle scripts or binaries that execute during installation   | no                           |
+| an override crossing a dependency's declared major-version range | no                           |
+
+The four untracked triggers have no derived source today. Each needs its own
+signal — an SPDX category list, a lockfile resolution audit, an install-script
+scan, and the `overrides` block against declared ranges — and none is inferable
+from the SBOM. They are named here so the register is not read as covering the
+whole policy.
+
+The tracked set is derived, not curated. Regenerate it with:
 
 ```bash
 bun run sbom <component> --with-licenses --stdout

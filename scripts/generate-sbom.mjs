@@ -1675,17 +1675,25 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
             ),
           ]
         : [];
-      const published = await fetcher(
-        `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/publisher`,
-      );
+      // Parsed on its own: a malformed publisher body must not discard a
+      // licence the score document did state.
+      let supplier;
+      try {
+        const published = await fetcher(
+          `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/publisher`,
+        );
+        supplier = published
+          ? JSON.parse(published).publisherId || undefined
+          : undefined;
+      } catch {
+        supplier = undefined;
+      }
       return {
         // Two different declared licences is a question for a human, not a
         // coin flip.
         license:
           resolved.length === 1 ? { license: { id: resolved[0] } } : undefined,
-        supplier: published
-          ? JSON.parse(published).publisherId || undefined
-          : undefined,
+        supplier,
       };
     }
   } catch {

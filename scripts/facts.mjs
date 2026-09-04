@@ -46,14 +46,20 @@ export const FACTS = Object.freeze([
     // mention, so it needs its own scanner to be visible here at all.
     values: { pinned: "1.3.13", runtimeImage: "1.4.0" },
     scanners: [
-      { files: [WORKFLOWS], pattern: /bun-version:\s*["']?([\d.]+)/g },
+      {
+        files: [WORKFLOWS],
+        pattern: /bun-version:\s*["']?([\d.]+)/g,
+        role: "pinned",
+      },
       {
         files: ["package.json"],
         pattern: /"packageManager":\s*"bun@([\d.]+)"/g,
+        role: "pinned",
       },
       {
         files: ["packages/kit/Dockerfile"],
         pattern: /oven\/bun:([\d.]+)/g,
+        role: "runtimeImage",
       },
     ],
   },

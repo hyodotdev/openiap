@@ -829,10 +829,12 @@ test("every Trivy exception is complete and still in date", () => {
 
   const today = new Date().toISOString().slice(0, 10);
   for (const entry of exceptions) {
+    // A prefix test accepts "CVE-invalid"; these are the real identifier
+    // shapes, so a typo cannot masquerade as an advisory.
     assert.match(
       String(entry.id ?? ""),
-      /^(CVE|GHSA)-/u,
-      `exception ${JSON.stringify(entry)} has no advisory id`,
+      /^(?:CVE-\d{4}-\d{4,}|GHSA-[23456789cfghjmpqrvwx]{4}(?:-[23456789cfghjmpqrvwx]{4}){2})$/u,
+      `exception ${JSON.stringify(entry)} has no well-formed advisory id`,
     );
     assert.ok(
       Array.isArray(entry.purls) && entry.purls.length > 0,
@@ -846,6 +848,17 @@ test("every Trivy exception is complete and still in date", () => {
       expiry,
       /^\d{4}-\d{2}-\d{2}$/u,
       `${entry.id} has no expiry date, so it would never be rechecked`,
+    );
+    // The shape alone accepts 2026-99-99, which would also satisfy the lexical
+    // comparison below and so never expire. Round-tripping proves it is a day
+    // that exists.
+    const parsed = new Date(`${expiry}T00:00:00Z`);
+    assert.equal(
+      Number.isNaN(parsed.getTime())
+        ? "invalid"
+        : parsed.toISOString().slice(0, 10),
+      expiry,
+      `${entry.id} has an expiry that is not a real date: ${expiry}`,
     );
     assert.ok(
       expiry >= today,
@@ -1939,6 +1952,21 @@ test("a pub.dev publisher lookup failure does not discard the licence", async ()
     license: { license: { id: "MIT" } },
     supplier: undefined,
   });
+
+  // A malformed publisher body used to throw into the outer catch, which
+  // returned null and lost a licence the score document had already stated.
+  assert.deepEqual(
+    await generatorTesting.lookupComponentMetadata(
+      { name: "http", version: "^1.2.0", purl: "pkg:pub/http@%5E1.2.0" },
+      {
+        fetcher: async (url) =>
+          url.includes("/score")
+            ? JSON.stringify({ tags: ["license:mit"] })
+            : "not json at all",
+      },
+    ),
+    { license: { license: { id: "MIT" } }, supplier: undefined },
+  );
 });
 
 const lookupNuspec = (body) =>
