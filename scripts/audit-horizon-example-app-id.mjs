@@ -9,7 +9,14 @@
 // that depends on which properties are set and how the expression
 // short-circuits, and reading it out of the build file's text can only
 // approximate it. `scripts/verify-horizon-merged-manifest.mjs` checks the value
-// the manifest merger actually produced, and CI runs it on a built variant.
+// the manifest merger actually produced.
+//
+// That merger check runs in CI for packages/google only, because it is the one
+// target whose Horizon variant CI already builds. A "templated-manifest" source
+// therefore has its declaration verified here and its resolved value verified
+// only where such a job exists; security/README.md records which. Do not close
+// that gap by re-adding a Gradle text check — the value is decided by the
+// merger, not by the build file's source.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -19,8 +26,9 @@ export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
 // "android-manifest"    — the manifest carries the literal id
-// "templated-manifest"  — the manifest carries a Gradle placeholder, and the
-//                         resolved value is verified against a built variant
+// "templated-manifest"  — the manifest carries a Gradle placeholder; the
+//                         resolved value needs a merger check on a built
+//                         variant, which exists for packages/google today
 // "expo-plugin-config"  — the config plugin binds the id
 export const HORIZON_APP_ID_SOURCES = [
   {

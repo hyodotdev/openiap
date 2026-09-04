@@ -196,6 +196,33 @@ which serves the uploaded file verbatim, and less so for registries that may
 re-archive on ingest. None of it is implemented yet, and an existence check must
 not be relabelled as verification in the meantime.
 
+### Horizon app id resolution
+
+The Horizon billing client reads `com.meta.horizon.platform.HORIZON_APP_ID` from
+the merged Android manifest and throws inside `startConnection` when it is
+absent, so an example that omits it compiles, installs, and fails only on a
+headset.
+
+Two checks cover this, and they prove different things:
+
+| Check                                        | Proves                                                                                                          |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder         |
+| `scripts/verify-horizon-merged-manifest.mjs` | the value the manifest merger actually _resolved_ is a real app id, not empty and not an unresolved placeholder |
+
+The declaration check is static and runs on every pull request. The resolution
+check needs a built variant, and CI runs it for `packages/google` only, because
+that is the one target whose Horizon variant CI already builds.
+
+`libraries/flutter_inapp_purchase/example` also resolves its id through a Gradle
+placeholder, and its resolution is therefore **not** verified in CI — that
+workflow builds no Android variant. Its declaration is checked, and its resolved
+value was verified by hand against a real merge. Closing this properly means
+adding an Android job to the Flutter workflow, not adding a static check that
+reads the build file's text: the value is decided by the manifest merger, and
+approximating that decision from source is what an earlier revision of the audit
+got wrong.
+
 ### Release immutability
 
 GitHub's immutable releases would stop a published asset being replaced after
