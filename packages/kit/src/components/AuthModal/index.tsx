@@ -191,7 +191,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {"Sign in to IAPKit"}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            {"Manage your in-app purchases and tax compliance"}
+            {"Verify purchases and manage entitlements"}
           </p>
         </div>
 
