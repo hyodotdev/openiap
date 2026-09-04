@@ -101,6 +101,7 @@ or deployment model. Published SBOM license metadata is evidence of declared
 licenses, not legal advice.
 
 [`dependency-reviews.md`](dependency-reviews.md) records which dependencies
-currently trip these triggers and whether each has been reviewed, so an
-outstanding review is visible rather than implicit. It also carries the log for
-the policy review cadence above.
+trip the custom-terms, missing-license, or non-SPDX-license-URL trigger and
+whether each has been reviewed, so an outstanding review is visible rather than
+implicit. It names the other four triggers as not yet derived, so that limit is
+visible too. It also carries the log for the policy review cadence above.
