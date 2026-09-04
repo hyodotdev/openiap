@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { maskTypeScriptCommentsAndStrings } from "./audit-purchase-payload-parity.mjs";
+import ts from "typescript";
 import { parseXml, XmlParseError } from "./xml-document.mjs";
 
 export const HORIZON_APP_ID_META_DATA_NAME =
@@ -142,253 +142,151 @@ const inspectManifest = (contents, allowPlaceholder) => {
     : "declares no Horizon app id meta-data";
 };
 
-// Brace-balanced over masked text, so a brace inside a string neither truncates
-// the block nor stretches it into a later one.
-const extractBalancedBlock = (masked, from) => {
-  let depth = 0;
-  for (let index = from; index < masked.length; index += 1) {
-    if (masked[index] === "{") depth += 1;
-    else if (masked[index] === "}") {
-      depth -= 1;
-      if (depth === 0) return [from, index + 1];
-    }
-  }
-  return null;
-};
-
 // ── Reading the Expo config ────────────────────────────────────────────────
 //
-// This audit reads one config file that this repository owns. Earlier versions
-// tried to resolve what a config would evaluate to — spreads, ternaries,
-// bindings, reassignment — and every review round found another shape that
-// either slipped past or was wrongly refused, because that job is evaluation,
-// not reading.
+// Earlier versions read this config out of masked source text, matching keys by
+// regex and tracking brace depth by hand. Every review round found another
+// shape it mis-read: a ternary arm taken for a value, a quoted key made
+// invisible because the masker blanks strings with their quotes, an escaped key
+// that JavaScript decodes to a different name, a string literal whose escaped
+// delimiter ended it early.
 //
-// So the reader models one shape and reports everything else: plain object
-// literals, plain keys, and a literal app id. "Write it plainly" is a cost this
-// repository can pay for its own example; guessing what a config resolves to is
-// how an unverified app id shipped looking verified.
+// None of that is necessary. The masker this file already used is built on the
+// TypeScript compiler, so a real parser was a dependency all along. Reading the
+// syntax tree makes those questions the parser's, not ours.
+//
+// What is left is a policy, and it is deliberately narrow: follow
+// `android.horizon.appId` through object literals and `const` bindings, and
+// report anything else. Resolving what a config would evaluate to is
+// evaluation, and this audit reads a fixed list of files this repository owns —
+// "write the id plainly" is a cost we can pay.
 
-// The masker blanks a string with its quotes, so a string literal looks like
-// whitespace here. Stopping at a quote in the source keeps a skip from walking
-// straight over a value; a blanked comment has no quote and is skipped.
-const skipSpace = (contents, masked, index) => {
-  while (index < masked.length && /\s/u.test(masked[index])) {
-    const quote = contents[index];
-    if (quote === '"' || quote === "'" || quote === "`") break;
-    index += 1;
-  }
-  return index;
-};
+const UNREADABLE = Symbol("unreadable");
 
-const NAME = /[A-Za-z_$][\w$]*/y;
-
-// A dotted path such as `process.env.X` is a value, not a structure to follow.
-const readName = (masked, start) => {
-  NAME.lastIndex = start;
-  const named = NAME.exec(masked);
-  if (!named || named.index !== start) return -1;
-  let index = start + named[0].length;
-  for (;;) {
-    if (masked[index] !== ".") return index;
-    NAME.lastIndex = index + 1;
-    const next = NAME.exec(masked);
-    if (!next || next.index !== index + 1) return index;
-    index = index + 1 + next[0].length;
+// Follow an expression to an object literal, through the wrappers TypeScript
+// allows around one and through a single `const` binding.
+const objectLiteral = (node, seen = new Set()) => {
+  if (!node) return null;
+  if (ts.isObjectLiteralExpression(node)) return node;
+  if (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isTypeAssertionExpression(node)
+  ) {
+    return objectLiteral(node.expression, seen);
   }
-};
-
-// End offset of one value, or -1 for anything this reader does not model.
-const readValue = (contents, masked, start) => {
-  const opening = masked[start];
-  if (opening === "{" || opening === "[") {
-    const closing = opening === "{" ? "}" : "]";
-    let depth = 0;
-    for (let index = start; index < masked.length; index += 1) {
-      if (masked[index] === opening) depth += 1;
-      else if (masked[index] === closing) {
-        depth -= 1;
-        if (depth === 0) return index + 1;
-      }
-    }
-    return -1;
+  if (ts.isIdentifier(node)) {
+    if (seen.has(node)) return null;
+    seen.add(node);
+    return objectLiteral(resolveBinding(node), seen);
   }
-  const quote = contents[start];
-  if (quote === '"' || quote === "'") {
-    const close = contents.indexOf(quote, start + 1);
-    return close < 0 ? -1 : close + 1;
-  }
-  return readName(masked, start);
+  return null;
 };
 
 /**
- * Members of a plain object literal, keyed by property name, or null when the
- * literal holds anything this reader does not model.
+ * The initialiser an identifier resolves to, or null.
  *
- * A later key wins, matching the language. Requiring a `,` or `}` right after
- * each value is what makes the reader strict: `a ? b : c`, `f(x)`, a template
- * literal and a spread all continue past the value with something else, so each
- * is reported instead of half-read.
+ * Scope is resolved the way the language does it — innermost enclosing scope
+ * first — so a same-named binding inside an unrelated function is a different
+ * variable, and a parameter shadows anything outside its function. Only `const`
+ * resolves: `let x = {…}; x = {}` means the declaration's text is not the value
+ * the plugin receives.
  */
-const readMembers = (contents, masked, start) => {
-  if (masked[start] !== "{") return null;
-  const members = new Map();
-  let index = skipSpace(contents, masked, start + 1);
-  while (index < masked.length && masked[index] !== "}") {
-    let key;
-    let after;
-    const quote = contents[index];
-    if (quote === '"' || quote === "'") {
-      // The masker blanks a string with its quotes, so a quoted key is only
-      // visible in the source.
-      const close = contents.indexOf(quote, index + 1);
-      if (close < 0) return null;
-      key = contents.slice(index + 1, close);
-      after = close + 1;
-    } else {
-      const end = readName(masked, index);
-      if (end < 0 || masked.slice(index, end).includes(".")) return null;
-      key = masked.slice(index, end);
-      after = end;
-    }
-
-    after = skipSpace(contents, masked, after);
-    if (masked[after] === "," || masked[after] === "}") {
-      members.set(key, { shorthand: true, start: index, end: after });
-      index = after;
-    } else if (masked[after] === ":") {
-      const valueStart = skipSpace(contents, masked, after + 1);
-      const valueEnd = readValue(contents, masked, valueStart);
-      if (valueEnd < 0) return null;
-      members.set(key, { shorthand: false, start: valueStart, end: valueEnd });
-      index = valueEnd;
-    } else {
-      return null;
-    }
-
-    index = skipSpace(contents, masked, index);
-    if (masked[index] === ",") index = skipSpace(contents, masked, index + 1);
-    else if (masked[index] !== "}") return null;
-  }
-  return masked[index] === "}" ? members : null;
-};
-
-// A literal appId directly on the horizon object, not nested deeper.
-// `{android: {horizon}}` is shorthand for `{android: {horizon: horizon}}`, so
-// the value can be a binding rather than a literal object. Resolving one level
-// keeps a legitimate config from being reported as missing the id.
-// The binding must be visible from where it is referenced: either module
-// scope, or a block that encloses the reference. A same-named binding inside an
-// unrelated function is a different variable, and picking it let a fixture's
-// object stand in for the one the plugin receives.
-function bindingBlock(contents, masked, name, referenceIndex) {
-  // A regex cannot span a type annotation: `[^=]*` crossed a statement
-  // boundary, and `[^=;]*` stopped at the semicolons inside a type literal.
-  // Find the declaration, then walk any annotation by nesting depth.
-  const pattern = new RegExp(String.raw`\b(?:const|let|var)\s+${name}\b`, "g");
-  // From just past the name, skip whitespace and any `: <type>` annotation,
-  // then require `= {`. Returns the offset of that `{`, or -1.
-  const initialiserAt = (from) => {
-    let index = from;
-    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
-    if (masked[index] === ":") {
-      index += 1;
-      let depth = 0;
-      while (index < masked.length) {
-        const character = masked[index];
-        if ("{([<".includes(character)) depth += 1;
-        else if ("})]>".includes(character)) depth -= 1;
-        else if (depth === 0 && character === "=") break;
-        else if (depth === 0 && (character === ";" || character === ",")) return -1;
-        index += 1;
+const resolveBinding = (identifier) => {
+  for (let scope = identifier.parent; scope; scope = scope.parent) {
+    const statements = ts.isSourceFile(scope)
+      ? scope.statements
+      : ts.isBlock(scope) || ts.isModuleBlock(scope)
+        ? scope.statements
+        : null;
+    for (const statement of statements ?? []) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (!ts.isIdentifier(declaration.name)) continue;
+        if (declaration.name.text !== identifier.text) continue;
+        if (!(statement.declarationList.flags & ts.NodeFlags.Const)) return null;
+        return declaration.initializer ?? null;
       }
     }
-    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
-    if (masked[index] !== "=") return -1;
-    index += 1;
-    while (index < masked.length && /\s/u.test(masked[index])) index += 1;
-    return masked[index] === "{" ? index : -1;
-  };
-
-  let visible = null;
-  for (const binding of contents.matchAll(pattern)) {
-    // A commented-out declaration is not a declaration.
-    if (masked[binding.index] !== contents[binding.index]) continue;
-    const opening = initialiserAt(binding.index + binding[0].length);
-    if (opening < 0) continue;
-
-    // The innermost block still open at the declaration is its scope.
-    const open = [];
-    for (let index = 0; index < binding.index; index += 1) {
-      if (masked[index] === "{") open.push(index);
-      else if (masked[index] === "}") open.pop();
+    if (ts.isFunctionLike(scope)) {
+      for (const parameter of scope.parameters ?? []) {
+        if (
+          ts.isIdentifier(parameter.name) &&
+          parameter.name.text === identifier.text
+        ) {
+          return null;
+        }
+      }
     }
-    // The reference must fall inside the declaration's scope AND after the
-    // declaration itself. Checking only the end let a binding declared later,
-    // in an unrelated block, shadow the one the plugin actually receives.
-    if (referenceIndex < binding.index) continue;
-    if (open.length > 0) {
-      const scope = extractBalancedBlock(masked, open[open.length - 1]);
-      if (scope === null) continue;
-      if (referenceIndex <= scope[0] || referenceIndex >= scope[1]) continue;
-    }
-    visible = extractBalancedBlock(masked, opening);
-  }
-  return visible;
-}
-
-// The plugin entry names the options the build actually receives — either an
-// inline object or an identifier bound to one. Anything else in the module is
-// a decoy: a stale constant left by a refactor supplies nothing.
-//
-// What this cannot prove: that the tuple is still in the exported `plugins`
-// array. The real config assembles that array through a binding and pushes to
-// it conditionally, so following it would mean evaluating the module rather
-// than reading it. A tuple left behind while the exported array is emptied
-// therefore still passes. This audit catches a forgotten or malformed app id,
-// which is the accident that actually happens; proving what the build resolves
-// is the merged-manifest verifier's job, and Expo has no such gate today.
-const PLUGIN_ENTRY = /\[\s*['"][^'"]*app\.plugin\.js['"]\s*,\s*/g;
-const IDENTIFIER = /^([A-Za-z_$][\w$]*)/;
-
-// The plugin path is a string literal, which the masker blanks out, so the
-// entry is located in the source. Offsets are preserved, so brace matching
-// still runs over the masked text where a brace in a string is not syntax.
-const optionsBlock = (contents, masked) => {
-  for (const entry of contents.matchAll(PLUGIN_ENTRY)) {
-    // The masker blanks comments and string bodies, so an entry the masker
-    // did not leave intact is commented out and supplies nothing.
-    if (masked[entry.index] !== contents[entry.index]) continue;
-    const after = entry.index + entry[0].length;
-    if (contents[after] === "{") return extractBalancedBlock(masked, after);
-    const named = contents.slice(after).match(IDENTIFIER);
-    if (!named) continue;
-    const bound = bindingBlock(contents, masked, named[1], entry.index);
-    if (bound) return bound;
   }
   return null;
 };
 
-// A value that is an object: written inline, or a name bound to one.
-const objectFor = (contents, masked, key, member, referenceIndex) => {
-  if (member.shorthand) {
-    return bindingBlock(contents, masked, key, referenceIndex);
+/**
+ * The winning value of a property, UNREADABLE when the object is composed in a
+ * way this audit does not model, or null when the key is absent.
+ *
+ * The last assignment of a key wins, matching the language. A spread AFTER that
+ * assignment can replace it, and deciding whether it does means resolving the
+ * spread's source — so it is reported. A spread before the winning assignment
+ * loses to it and is harmless.
+ */
+const property = (object, name) => {
+  let value = null;
+  for (const member of object.properties) {
+    if (ts.isSpreadAssignment(member)) {
+      if (value !== null) return UNREADABLE;
+      continue;
+    }
+    if (!member.name || ts.isComputedPropertyName(member.name)) {
+      if (value !== null) return UNREADABLE;
+      continue;
+    }
+    // `name.text` is the DECODED property name, so `"appId"` is `appId`.
+    if (member.name.text !== name) continue;
+    if (ts.isPropertyAssignment(member)) value = member.initializer;
+    else if (ts.isShorthandPropertyAssignment(member)) value = member.name;
+    else return UNREADABLE;
   }
-  if (masked[member.start] === "{") return [member.start, member.end];
-  const named = contents.slice(member.start, member.end);
-  if (!/^[A-Za-z_$][\w$]*$/u.test(named)) return null;
-  return bindingBlock(contents, masked, named, member.start);
+  return value;
 };
 
-const UNREADABLE =
-  "; write the Horizon app id as a plain literal so it can be verified";
+// The tuple the plugin is registered with names the options the build receives.
+const pluginOptions = (source) => {
+  let options;
+  const visit = (node) => {
+    if (options !== undefined) return;
+    if (ts.isArrayLiteralExpression(node) && node.elements.length >= 2) {
+      const [entry, second] = node.elements;
+      if (
+        (ts.isStringLiteral(entry) ||
+          ts.isNoSubstitutionTemplateLiteral(entry)) &&
+        /app\.plugin\.js$/u.test(entry.text)
+      ) {
+        options = second;
+        return;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return options;
+};
 
 const inspectExpoPluginConfig = (contents) => {
-  // Structure comes from masked text so a brace in a string is not syntax; a
-  // quoted key and the app id itself are read from the source at the same
-  // offset, because the masker blanks a string with its quotes.
-  const masked = maskTypeScriptCommentsAndStrings(contents);
-  let block = optionsBlock(contents, masked);
+  const source = ts.createSourceFile(
+    "app.config.ts",
+    contents,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const entry = pluginOptions(source);
+  if (entry === undefined) {
+    return "registers no OpenIAP config plugin entry";
+  }
+  let block = objectLiteral(entry);
   if (block === null) {
     return "passes no options object to the OpenIAP config plugin";
   }
@@ -396,36 +294,33 @@ const inspectExpoPluginConfig = (contents) => {
   // Expo reads the id from `android.horizon` of those options. A `horizon`
   // block anywhere else — a local constant, a commented-out draft, an
   // unrelated export — supplies nothing to the build.
-  for (const [key, where] of [
-    ["android", "the plugin options"],
-    ["horizon", "android"],
-  ]) {
-    const members = readMembers(contents, masked, block[0]);
-    if (members === null) return `builds ${where} from a shape this audit cannot read${UNREADABLE}`;
-    const member = members.get(key);
-    if (!member) return `declares no ${key === "android" ? "android config block" : "android.horizon block"}`;
-    const resolved = objectFor(contents, masked, key, member, block[0]);
-    if (resolved === null) return `sets ${where === "android" ? "android.horizon" : "android"} to something this audit cannot read as an object${UNREADABLE}`;
-    block = resolved;
+  for (const key of ["android", "horizon"]) {
+    const value = property(block, key);
+    if (value === UNREADABLE) {
+      return `composes ${key === "android" ? "the plugin options" : "android"} in a way this audit cannot read; write the Horizon app id as a plain literal`;
+    }
+    if (value === null) {
+      return key === "android"
+        ? "declares no android config block"
+        : "declares no android.horizon block";
+    }
+    block = objectLiteral(value);
+    if (block === null) {
+      return `sets ${key === "android" ? "android" : "android.horizon"} to something this audit cannot read as an object; write the Horizon app id as a plain literal`;
+    }
   }
 
-  const members = readMembers(contents, masked, block[0]);
-  if (members === null) {
-    return `builds android.horizon from a shape this audit cannot read${UNREADABLE}`;
-  }
-  const member = members.get("appId");
-  if (!member || member.shorthand) {
-    return "declares android.horizon without a literal appId";
-  }
-  const quoted = /^(['"])([^'"]*)\1$/u.exec(
-    contents.slice(member.start, member.end),
-  );
-  if (!quoted || !LITERAL_APP_ID.test(quoted[2])) {
+  const appId = property(block, "appId");
+  if (
+    appId === UNREADABLE ||
+    appId === null ||
+    !ts.isStringLiteral(appId) ||
+    !LITERAL_APP_ID.test(appId.text)
+  ) {
     return "declares android.horizon without a literal appId";
   }
   return null;
 };
-
 const INSPECTORS = {
   "android-manifest": (contents) => inspectManifest(contents, false),
   "templated-manifest": (contents) => inspectManifest(contents, true),

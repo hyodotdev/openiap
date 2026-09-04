@@ -363,10 +363,6 @@ jobs:
       - name: Audit CI path filters
         run: npm run audit:ci-paths
 
-      # security/README.md listed this audit as enforced while nothing ran it.
-      - name: Audit Horizon example app ids
-        run: npm run audit:horizon-app-id
-
       - name: Audit declared facts
         run: npm run audit:facts
 

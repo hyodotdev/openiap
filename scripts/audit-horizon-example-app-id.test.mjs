@@ -316,7 +316,7 @@ test("only the object the plugin receives counts", () => {
       "const options = {android: {horizon: {appId: '31705015229097839'}}};\nexport default {};",
       "expo-plugin-config",
     ),
-    "passes no options object to the OpenIAP config plugin",
+    "registers no OpenIAP config plugin entry",
   );
 });
 
@@ -370,7 +370,7 @@ test("a commented-out plugin entry supplies no options", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "passes no options object to the OpenIAP config plugin",
+    "registers no OpenIAP config plugin entry",
   );
 });
 
@@ -406,88 +406,99 @@ test("tools:node=removeAll deletes the declaration too", () => {
   );
 });
 
-test("something runs this audit", () => {
-  // It was listed in security/README.md as an enforced check while no workflow
-  // and no hook invoked it: five rounds of review hardened a guard that gated
-  // nothing. Asserting the wiring is the only thing that keeps it wired.
-  const script = JSON.parse(
-    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
-  ).scripts["audit:horizon-app-id"];
-  assert.ok(script, "package.json declares no audit:horizon-app-id script");
-
-  const ci = fs.readFileSync(
-    path.join(repoRoot, ".github/workflows/ci.yml"),
+test("the parity audit is what runs this one", () => {
+  // I read the absence of `audit:horizon-app-id` from the workflows and the
+  // hook as "nothing runs this audit" and wired a second invocation. Wrong:
+  // the parity audit — which CI and the hook both run — executes these test
+  // files and calls the collector. The enforcement is real but indirect, so
+  // this pins it rather than duplicating it.
+  const parity = fs.readFileSync(
+    path.join(repoRoot, "scripts/audit-non-godot-parity.mjs"),
     "utf8",
   );
-  assert.match(ci, /run: npm run audit:horizon-app-id/u);
+  assert.match(parity, /collectHorizonExampleAppIdFailures\(root\)/u);
+  assert.match(parity, /scripts\/audit-horizon-example-app-id\.test\.mjs/u);
+  assert.match(parity, /scripts\/verify-horizon-merged-manifest\.test\.mjs/u);
 
-  // The hook must also fire for every file the audit reads, or an edit to one
-  // of them reaches CI unchecked.
-  const hook = fs.readFileSync(path.join(repoRoot, ".husky/pre-commit"), "utf8");
-  const line = hook
-    .split("\n")
-    .find(
-      (entry) =>
-        entry.includes("grep -qE") &&
-        entry.includes("audit-horizon-example-app-id"),
+  for (const caller of [".github/workflows/ci.yml", ".husky/pre-commit"]) {
+    assert.match(
+      fs.readFileSync(path.join(repoRoot, caller), "utf8"),
+      /node scripts\/audit-non-godot-parity\.mjs/u,
+      `${caller} no longer runs the parity audit`,
     );
-  assert.ok(line, "the pre-commit hook has no Horizon path filter");
-  const filter = new RegExp(line.slice(line.indexOf("'") + 1, line.lastIndexOf("'")), "u");
-  for (const source of HORIZON_APP_ID_SOURCES) {
-    assert.match(source.file, filter);
   }
-  assert.match(hook, /bun run audit:horizon-app-id/u);
 });
 
-test("a shape the reader does not model is reported, not resolved", () => {
-  const t = (src) =>
-    inspectHorizonAppIdSource(
-      `${src}\nexport default {plugins:[["../app.plugin.js",options]]};`,
-      "expo-plugin-config",
-    );
-  const id = '"31705015229097839"';
 
-  // Every one of these was, at some point, either read past or resolved by a
-  // heuristic that guessed what the config would evaluate to. Each round of
-  // review found the next shape, because resolving them is evaluation. The
-  // audit reads a fixed list of files this repository owns, so the answer is
-  // to write the id plainly rather than to model more of the language.
-  for (const src of [
-    // A spread can replace what it follows, and its source may be reassigned,
-    // parenthesised, conditional, or quoted.
-    `const options={android:{horizon:{appId:${id}}}, ...extra};`,
-    `let extra={};\nextra={android:{}};\nconst options={android:{horizon:{appId:${id}}}, ...extra};`,
-    `const options={android:{horizon:{appId:${id}}}, ...(flag ? {a:1} : {b:2})};`,
-    `const extra={"appId":""};\nconst options={android:{horizon:{appId:${id}, ...extra}}};`,
-    // A ternary arm is not a value this reader can choose between.
+test("the reader answers for every shape review has raised", () => {
+  const t = (src) => inspectHorizonAppIdSource(src, "expo-plugin-config");
+  const tail = `\nexport default {plugins:[["../app.plugin.js",options]]};`;
+  const id = '"31705015229097839"';
+  const quote = String.fromCharCode(39);
+  const backslash = String.fromCharCode(92);
+
+  // Each of these was, at some point, read wrongly by a reader that matched
+  // keys with regexes and counted braces by hand. They are answered by the
+  // parser now, not by another special case.
+  const reported = [
+    // A ternary arm is not a value that can be chosen between.
     `const android={};\nconst options={android: true ? android : {horizon:{appId:${id}}}};`,
     `const appId="";\nconst options={android:{horizon:{appId: true ? appId : ${id}}}};`,
-    // Neither is a call, a template literal, or a computed key.
+    `const good={android:{horizon:{appId:${id}}}};\nexport default {plugins:[["../app.plugin.js", good ? {} : good]]};`,
+    // A spread AFTER the winning assignment can replace it.
+    `const d={appId:""};\nconst options={android:{horizon:{appId:${id}, ...d}}};`,
+    `const options={android:{horizon:{appId:${id}, [k]:1}}};`,
+    // Only `const` means the declaration's text is the value received.
+    `let android={horizon:{appId:${id}}};\nandroid={};\nconst options={android};`,
+    // A parameter shadows anything outside its function.
+    `const android={horizon:{appId:${id}}};\nexport default function config(android){\n  const options={android};\n  return {plugins:[["../app.plugin.js",options]]};\n}`,
+    // `options` is a string; the block after it is not its initialiser.
+    `const options = "ignored"\n{ android: {horizon: {appId: ${id}}} }\nexport default {plugins:[["../app.plugin.js",options]]};`,
+    // JavaScript decodes the later key to `appId`, so it wins and is empty.
+    `const options={android:{horizon:{appId:${id}, "app${backslash}u0049d":""}}};`,
+    // Not a plain string literal.
+    "const options={android:{horizon:{appId:`31705015229097839`}}};",
     `const options={android:{horizon:{appId: load()}}};`,
-    "const options={android:{horizon:{appId: `31705015229097839`}}};",
-    `const options={android:{horizon:{["appId"]:${id}}}};`,
-  ]) {
-    assert.notEqual(t(src), null, src);
+    `const options={android:{horizon:{appId:"123"}}};`,
+    // The path is direct: a horizon nested inside horizon is not it.
+    `const options={android:{horizon:{horizon:{appId:${id}}}}};`,
+    // The later duplicate wins, and it is empty.
+    `const options={android:{horizon:{appId:${id}}, horizon:{}}};`,
+    `const options=options;`,
+  ];
+  for (const source of reported) {
+    assert.notEqual(t(source.includes("plugins") ? source : source + tail), null, source);
   }
 
-  // The plain shape still reads, including a quoted key, a later duplicate that
-  // wins, and values elsewhere in the object that are not plain literals.
-  assert.equal(t(`const options={android:{horizon:{appId:${id}}}};`), null);
-  assert.equal(t(`const options={android:{horizon:{"appId":${id}}}};`), null);
+  // And these are ordinary configs a maintainer would write, which earlier
+  // readers refused: a comment holding a quote, an escaped delimiter inside an
+  // unrelated string, a spread that loses to a later assignment, a same-named
+  // binding in an unrelated function.
+  const accepted = [
+    `const options={android:{horizon:{appId:${id}}}};`,
+    `const options={android:{horizon:{"appId":${id}}}};`,
+    `const options={android: /* "Quest" */ {horizon:{appId:${id}}}};`,
+    `const options={localPath:${quote}/tmp/user${backslash}${quote}s/openiap${quote}, android:{horizon:{appId:${id}}}};`,
+    `const d={appId:""};\nconst options={android:{horizon:{...d, appId:${id}}}};`,
+    `const options={android:{horizon:{}, horizon:{appId:${id}}}};`,
+    `const options={k:process.env.X, xs:[1,2], android:{horizon:{appId:${id}}}};`,
+    `const horizon={appId:${id}};\nconst options={android:{horizon}};`,
+    `const options={android:{horizon:{appId:${id}}}} satisfies Opts;`,
+    `const android={horizon:{appId:${id}}};\nfunction other(android){ return android; }\nconst options={android};`,
+  ];
+  for (const source of accepted) {
+    assert.equal(t(source + tail), null, source);
+  }
+
+  // A comment between the plugin path and its options is not markup.
   assert.equal(
-    t(`const options={android:{horizon:{}, horizon:{appId:${id}}}};`),
-    null,
-  );
-  assert.equal(
-    t(`const options={k:process.env.X, xs:[1,2], android:{horizon:{appId:${id}}}};`),
-    null,
-  );
-  // A duplicate that loses is not read.
-  assert.notEqual(
-    t(`const options={android:{horizon:{appId:${id}}, horizon:{}}};`),
+    t(
+      `export default {plugins:[["../app.plugin.js", /* options */ {android:{horizon:{appId:${id}}}}]]};`,
+    ),
     null,
   );
 });
+
 
 test("a shorthand binding must be direct and in scope", () => {
   // `{android: {experimental: {horizon}}}` is not the path the plugin reads.
