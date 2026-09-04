@@ -156,137 +156,121 @@ const extractBalancedBlock = (masked, from) => {
   return null;
 };
 
-// Property lookups walk brace depth so only DIRECT members count: the plugin
-// reads `android.horizon.appId`, and `android.decoy.horizon.appId` supplies
-// nothing. A regex alone cannot tell the two apart.
-const directKeyOffsets = (masked, [start, end], name) => {
-  const key = new RegExp(String.raw`\b${name}\s*:\s*\{`, "g");
-  const offsets = [];
-  let depth = 0;
-  for (let index = start + 1; index < end - 1; index += 1) {
-    const character = masked[index];
-    if (character === "}") {
-      depth -= 1;
-      continue;
-    }
-    if (character !== "{") {
-      if (depth !== 0) continue;
-      key.lastIndex = index;
-      const match = key.exec(masked);
-      if (match && match.index === index) {
-        offsets.push(index + match[0].length - 1);
-        // Resume ON the matched `{`, not past it. Skipping it left depth at 0
-        // inside the value, so a nested `horizon` counted as a direct member
-        // and the closing brace drove depth negative.
-        index = match.index + match[0].length - 2;
-      }
-      continue;
-    }
-    depth += 1;
+// ── Reading the Expo config ────────────────────────────────────────────────
+//
+// This audit reads one config file that this repository owns. Earlier versions
+// tried to resolve what a config would evaluate to — spreads, ternaries,
+// bindings, reassignment — and every review round found another shape that
+// either slipped past or was wrongly refused, because that job is evaluation,
+// not reading.
+//
+// So the reader models one shape and reports everything else: plain object
+// literals, plain keys, and a literal app id. "Write it plainly" is a cost this
+// repository can pay for its own example; guessing what a config resolves to is
+// how an unverified app id shipped looking verified.
+
+// The masker blanks a string with its quotes, so a string literal looks like
+// whitespace here. Stopping at a quote in the source keeps a skip from walking
+// straight over a value; a blanked comment has no quote and is skipped.
+const skipSpace = (contents, masked, index) => {
+  while (index < masked.length && /\s/u.test(masked[index])) {
+    const quote = contents[index];
+    if (quote === '"' || quote === "'" || quote === "`") break;
+    index += 1;
   }
-  return offsets;
+  return index;
 };
 
-// Does an object literal declare this key, in any value shape? The spread
-// resolver needs that question, and `directKeyOffsets` answers a narrower one —
-// it only matches `key: {`, so a source spreading `{appId: ""}` read as
-// declaring nothing and the overwrite it performs went unreported. A nested
-// spread cannot be resolved here, so it counts as maybe-declaring.
-const declaresKey = (masked, [start, end], name) => {
-  const key = new RegExp(String.raw`(?:\b|["'])${name}["']?\s*[:,}]`, "g");
-  let depth = 0;
-  for (let index = start + 1; index < end - 1; index += 1) {
-    const character = masked[index];
-    if (character === "}") {
-      depth -= 1;
-      continue;
-    }
-    if (character === "{") {
-      depth += 1;
-      continue;
-    }
-    if (depth !== 0) continue;
-    if (masked.startsWith("...", index)) return true;
-    key.lastIndex = index;
-    const match = key.exec(masked);
-    if (!match || match.index !== index) continue;
-    // `{other: appId}` mentions the name as a value, not as a key.
-    let before = index - 1;
-    while (before > start && /\s/u.test(masked[before])) before -= 1;
-    if (masked[before] === ":") continue;
-    return true;
+const NAME = /[A-Za-z_$][\w$]*/y;
+
+// A dotted path such as `process.env.X` is a value, not a structure to follow.
+const readName = (masked, start) => {
+  NAME.lastIndex = start;
+  const named = NAME.exec(masked);
+  if (!named || named.index !== start) return -1;
+  let index = start + named[0].length;
+  for (;;) {
+    if (masked[index] !== ".") return index;
+    NAME.lastIndex = index + 1;
+    const next = NAME.exec(masked);
+    if (!next || next.index !== index + 1) return index;
+    index = index + 1 + next[0].length;
   }
-  return false;
 };
 
-// Spread elements at depth 0 of the given block.
-const directSpreadOffsets = (masked, [start, end]) => {
-  const offsets = [];
-  let depth = 0;
-  for (let index = start + 1; index < end - 1; index += 1) {
-    const character = masked[index];
-    if (character === "{") depth += 1;
-    else if (character === "}") depth -= 1;
-    else if (depth === 0 && masked.startsWith("...", index))
-      offsets.push(index);
-  }
-  return offsets;
-};
-
-// A spread only matters if what it spreads can carry the key. Resolve the
-// source when it is written as object literals — inline, a binding, or a
-// ternary of them — and let it through when no branch declares that key.
-// Ordinary config composition spreads unrelated options, and rejecting that
-// blocked correct work.
-const spreadCanCarry = (contents, masked, offset, key) => {
-  const literals = [];
-  let cursor = offset + 3;
-  while (cursor < masked.length && /\s/u.test(masked[cursor])) cursor += 1;
-
-  // An inline literal, or both arms of an inline ternary of them.
-  while (masked[cursor] === "{") {
-    const span = extractBalancedBlock(masked, cursor);
-    if (!span) return true;
-    literals.push(span);
-    cursor = span[1];
-    while (cursor < masked.length && /[\s?:]/u.test(masked[cursor])) cursor += 1;
-  }
-
-  const source =
-    literals.length > 0
-      ? ""
-      : (masked.slice(offset + 3).match(/^\s*([^,}]*)/u)?.[1] ?? "");
-  const named = source.trim().match(/^([A-Za-z_$][\w$]*)$/u);
-  if (named) {
-    // Every top-level object literal in the declaration's initialiser, so both
-    // arms of `flag ? {a} : {b}` are considered. bindingBlock is deliberately
-    // stricter — it resolves the options object, where a ternary would be
-    // ambiguous rather than merely additive.
-    const declaration = new RegExp(
-      String.raw`\b(?:const|let|var)\s+${named[1]}\b[^=]*=`,
-      "g",
-    );
-    let found = false;
-    for (const match of contents.matchAll(declaration)) {
-      if (masked[match.index] !== contents[match.index]) continue;
-      if (match.index > offset) continue;
-      found = true;
-      let index = match.index + match[0].length;
-      while (index < masked.length && masked[index] !== ";" && masked[index] !== "\n") {
-        if (masked[index] === "{") {
-          const span = extractBalancedBlock(masked, index);
-          if (!span) return true;
-          literals.push(span);
-          index = span[1];
-          continue;
-        }
-        index += 1;
+// End offset of one value, or -1 for anything this reader does not model.
+const readValue = (contents, masked, start) => {
+  const opening = masked[start];
+  if (opening === "{" || opening === "[") {
+    const closing = opening === "{" ? "}" : "]";
+    let depth = 0;
+    for (let index = start; index < masked.length; index += 1) {
+      if (masked[index] === opening) depth += 1;
+      else if (masked[index] === closing) {
+        depth -= 1;
+        if (depth === 0) return index + 1;
       }
     }
-    if (!found) return true;
+    return -1;
   }
-  if (literals.length === 0) return true;
-  return literals.some((span) => declaresKey(masked, span, key));
+  const quote = contents[start];
+  if (quote === '"' || quote === "'") {
+    const close = contents.indexOf(quote, start + 1);
+    return close < 0 ? -1 : close + 1;
+  }
+  return readName(masked, start);
+};
+
+/**
+ * Members of a plain object literal, keyed by property name, or null when the
+ * literal holds anything this reader does not model.
+ *
+ * A later key wins, matching the language. Requiring a `,` or `}` right after
+ * each value is what makes the reader strict: `a ? b : c`, `f(x)`, a template
+ * literal and a spread all continue past the value with something else, so each
+ * is reported instead of half-read.
+ */
+const readMembers = (contents, masked, start) => {
+  if (masked[start] !== "{") return null;
+  const members = new Map();
+  let index = skipSpace(contents, masked, start + 1);
+  while (index < masked.length && masked[index] !== "}") {
+    let key;
+    let after;
+    const quote = contents[index];
+    if (quote === '"' || quote === "'") {
+      // The masker blanks a string with its quotes, so a quoted key is only
+      // visible in the source.
+      const close = contents.indexOf(quote, index + 1);
+      if (close < 0) return null;
+      key = contents.slice(index + 1, close);
+      after = close + 1;
+    } else {
+      const end = readName(masked, index);
+      if (end < 0 || masked.slice(index, end).includes(".")) return null;
+      key = masked.slice(index, end);
+      after = end;
+    }
+
+    after = skipSpace(contents, masked, after);
+    if (masked[after] === "," || masked[after] === "}") {
+      members.set(key, { shorthand: true, start: index, end: after });
+      index = after;
+    } else if (masked[after] === ":") {
+      const valueStart = skipSpace(contents, masked, after + 1);
+      const valueEnd = readValue(contents, masked, valueStart);
+      if (valueEnd < 0) return null;
+      members.set(key, { shorthand: false, start: valueStart, end: valueEnd });
+      index = valueEnd;
+    } else {
+      return null;
+    }
+
+    index = skipSpace(contents, masked, index);
+    if (masked[index] === ",") index = skipSpace(contents, masked, index + 1);
+    else if (masked[index] !== "}") return null;
+  }
+  return masked[index] === "}" ? members : null;
 };
 
 // A literal appId directly on the horizon object, not nested deeper.
@@ -353,51 +337,6 @@ function bindingBlock(contents, masked, name, referenceIndex) {
   return visible;
 }
 
-// Offsets of a shorthand property `{ …, horizon, … }` at depth 0 of the block.
-const directShorthandOffsets = (masked, [start, end], name) => {
-  const shorthand = new RegExp(String.raw`${name}\s*(?=[,}])`, "y");
-  const offsets = [];
-  let depth = 0;
-  for (let index = start + 1; index < end - 1; index += 1) {
-    const character = masked[index];
-    if (character === "{") depth += 1;
-    else if (character === "}") depth -= 1;
-    else if (depth === 0 && /[A-Za-z_$]/u.test(character)) {
-      const before = masked[index - 1];
-      if (before !== undefined && /[\w$.]/u.test(before)) continue;
-      shorthand.lastIndex = index;
-      if (shorthand.test(masked)) offsets.push(index);
-    }
-  }
-  return offsets;
-};
-
-const directShorthand = (masked, block, name) =>
-  directShorthandOffsets(masked, block, name).length > 0;
-
-// Offset of a literal appId directly on the horizon object, or -1. The caller
-// compares it with any spread position, so it needs the offset, not a boolean.
-const directAppIdOffset = (masked, contents, [start, end]) => {
-  let depth = 0;
-  for (let index = start + 1; index < end - 1; index += 1) {
-    const character = masked[index];
-    if (character === "{") depth += 1;
-    else if (character === "}") depth -= 1;
-    else if (depth === 0) {
-      APP_ID_ENTRY.lastIndex = index;
-      const match = APP_ID_ENTRY.exec(contents);
-      if (match && match.index === index && masked[index] === contents[index]) {
-        return index;
-      }
-    }
-  }
-  return -1;
-};
-const APP_ID_ENTRY = new RegExp(
-  String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
-  "g",
-);
-
 // The plugin entry names the options the build actually receives — either an
 // inline object or an identifier bound to one. Anything else in the module is
 // a decoy: a stale constant left by a refactor supplies nothing.
@@ -430,77 +369,61 @@ const optionsBlock = (contents, masked) => {
   return null;
 };
 
+// A value that is an object: written inline, or a name bound to one.
+const objectFor = (contents, masked, key, member, referenceIndex) => {
+  if (member.shorthand) {
+    return bindingBlock(contents, masked, key, referenceIndex);
+  }
+  if (masked[member.start] === "{") return [member.start, member.end];
+  const named = contents.slice(member.start, member.end);
+  if (!/^[A-Za-z_$][\w$]*$/u.test(named)) return null;
+  return bindingBlock(contents, masked, named, member.start);
+};
+
+const UNREADABLE =
+  "; write the Horizon app id as a plain literal so it can be verified";
+
 const inspectExpoPluginConfig = (contents) => {
-  // Structure comes from masked text so a brace in a string is not syntax; the
-  // value is read from the source at the same offset, and a match only counts
-  // when the masker left that position intact — a commented-out entry does not.
+  // Structure comes from masked text so a brace in a string is not syntax; a
+  // quoted key and the app id itself are read from the source at the same
+  // offset, because the masker blanks a string with its quotes.
   const masked = maskTypeScriptCommentsAndStrings(contents);
-  const options = optionsBlock(contents, masked);
-  if (options === null) {
+  let block = optionsBlock(contents, masked);
+  if (block === null) {
     return "passes no options object to the OpenIAP config plugin";
   }
 
   // Expo reads the id from `android.horizon` of those options. A `horizon`
   // block anywhere else — a local constant, a commented-out draft, an
   // unrelated export — supplies nothing to the build.
-  const androidBlocks = directKeyOffsets(masked, options, "android")
-    .map((offset) => extractBalancedBlock(masked, offset))
-    .filter(Boolean);
-  if (androidBlocks.length === 0) return "declares no android config block";
-
-  // A spread AFTER the property it would overwrite replaces it, so the literal
-  // we read is not what the build receives. A spread BEFORE it loses to the
-  // later explicit property, and that ordering is decidable without evaluating
-  // the module. This has to hold at every level on the path — options, android
-  // and horizon — because a spread at any of them can replace what is below.
-  const spreadAfter = (block, keyOffset, key) =>
-    directSpreadOffsets(masked, block).some(
-      (offset) =>
-        offset > keyOffset && spreadCanCarry(contents, masked, offset, key),
-    );
-
-  if (
-    spreadAfter(
-      options,
-      Math.max(-1, ...androidBlocks.map(([at]) => at)),
-      "android",
-    )
-  ) {
-    return "spreads an object into the plugin options after android, so the resolved appId is not readable here";
+  for (const [key, where] of [
+    ["android", "the plugin options"],
+    ["horizon", "android"],
+  ]) {
+    const members = readMembers(contents, masked, block[0]);
+    if (members === null) return `builds ${where} from a shape this audit cannot read${UNREADABLE}`;
+    const member = members.get(key);
+    if (!member) return `declares no ${key === "android" ? "android config block" : "android.horizon block"}`;
+    const resolved = objectFor(contents, masked, key, member, block[0]);
+    if (resolved === null) return `sets ${where === "android" ? "android.horizon" : "android"} to something this audit cannot read as an object${UNREADABLE}`;
+    block = resolved;
   }
 
-  let declared = false;
-  for (const android of androidBlocks) {
-    const horizonKeys = [
-      ...directKeyOffsets(masked, android, "horizon"),
-      ...directShorthandOffsets(masked, android, "horizon"),
-    ];
-    if (spreadAfter(android, Math.max(-1, ...horizonKeys), "horizon")) {
-      return "spreads an object into android after horizon, so the resolved appId is not readable here";
-    }
-    const spans = horizonKeys
-      .map((offset) => extractBalancedBlock(masked, offset))
-      .filter(Boolean);
-    // `{android: {horizon}}` names a binding instead of nesting an object. The
-    // shorthand must be a DIRECT member of android — `{android: {x: {horizon}}}`
-    // supplies nothing — so the search walks depth like the key lookup does.
-    if (spans.length === 0 && directShorthand(masked, android, "horizon")) {
-      const bound = bindingBlock(contents, masked, "horizon", android[0]);
-      if (bound) spans.push(bound);
-    }
-    for (const span of spans) {
-      declared = true;
-      const at = directAppIdOffset(masked, contents, span);
-      if (at < 0) continue;
-      if (spreadAfter(span, at, "appId")) {
-        return "spreads an object into horizon after appId, so the resolved appId is not readable here";
-      }
-      return null;
-    }
+  const members = readMembers(contents, masked, block[0]);
+  if (members === null) {
+    return `builds android.horizon from a shape this audit cannot read${UNREADABLE}`;
   }
-  return declared
-    ? "declares android.horizon without a literal appId"
-    : "does not set a literal android.horizon.appId";
+  const member = members.get("appId");
+  if (!member || member.shorthand) {
+    return "declares android.horizon without a literal appId";
+  }
+  const quoted = /^(['"])([^'"]*)\1$/u.exec(
+    contents.slice(member.start, member.end),
+  );
+  if (!quoted || !LITERAL_APP_ID.test(quoted[2])) {
+    return "declares android.horizon without a literal appId";
+  }
+  return null;
 };
 
 const INSPECTORS = {

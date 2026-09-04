@@ -198,7 +198,7 @@ test("a commented-out Expo appId does not satisfy the audit", () => {
       "const o = {android: { /* horizon: { appId: '31705015229097839' } */ }};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 });
 
@@ -267,7 +267,7 @@ test("an Expo horizon block outside android supplies nothing", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 });
 
@@ -298,7 +298,7 @@ test("only the object the plugin receives counts", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 
   // An inline options object is read the same way.
@@ -329,7 +329,7 @@ test("only a direct android.horizon.appId counts", () => {
       "const o = {android: {decoy: {horizon: {appId: '31705015229097839'}}}};\nexport default {plugins: [['../app.plugin.js', o]]};",
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
   assert.equal(
     inspectHorizonAppIdSource(
@@ -406,6 +406,89 @@ test("tools:node=removeAll deletes the declaration too", () => {
   );
 });
 
+test("something runs this audit", () => {
+  // It was listed in security/README.md as an enforced check while no workflow
+  // and no hook invoked it: five rounds of review hardened a guard that gated
+  // nothing. Asserting the wiring is the only thing that keeps it wired.
+  const script = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"),
+  ).scripts["audit:horizon-app-id"];
+  assert.ok(script, "package.json declares no audit:horizon-app-id script");
+
+  const ci = fs.readFileSync(
+    path.join(repoRoot, ".github/workflows/ci.yml"),
+    "utf8",
+  );
+  assert.match(ci, /run: npm run audit:horizon-app-id/u);
+
+  // The hook must also fire for every file the audit reads, or an edit to one
+  // of them reaches CI unchecked.
+  const hook = fs.readFileSync(path.join(repoRoot, ".husky/pre-commit"), "utf8");
+  const line = hook
+    .split("\n")
+    .find(
+      (entry) =>
+        entry.includes("grep -qE") &&
+        entry.includes("audit-horizon-example-app-id"),
+    );
+  assert.ok(line, "the pre-commit hook has no Horizon path filter");
+  const filter = new RegExp(line.slice(line.indexOf("'") + 1, line.lastIndexOf("'")), "u");
+  for (const source of HORIZON_APP_ID_SOURCES) {
+    assert.match(source.file, filter);
+  }
+  assert.match(hook, /bun run audit:horizon-app-id/u);
+});
+
+test("a shape the reader does not model is reported, not resolved", () => {
+  const t = (src) =>
+    inspectHorizonAppIdSource(
+      `${src}\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      "expo-plugin-config",
+    );
+  const id = '"31705015229097839"';
+
+  // Every one of these was, at some point, either read past or resolved by a
+  // heuristic that guessed what the config would evaluate to. Each round of
+  // review found the next shape, because resolving them is evaluation. The
+  // audit reads a fixed list of files this repository owns, so the answer is
+  // to write the id plainly rather than to model more of the language.
+  for (const src of [
+    // A spread can replace what it follows, and its source may be reassigned,
+    // parenthesised, conditional, or quoted.
+    `const options={android:{horizon:{appId:${id}}}, ...extra};`,
+    `let extra={};\nextra={android:{}};\nconst options={android:{horizon:{appId:${id}}}, ...extra};`,
+    `const options={android:{horizon:{appId:${id}}}, ...(flag ? {a:1} : {b:2})};`,
+    `const extra={"appId":""};\nconst options={android:{horizon:{appId:${id}, ...extra}}};`,
+    // A ternary arm is not a value this reader can choose between.
+    `const android={};\nconst options={android: true ? android : {horizon:{appId:${id}}}};`,
+    `const appId="";\nconst options={android:{horizon:{appId: true ? appId : ${id}}}};`,
+    // Neither is a call, a template literal, or a computed key.
+    `const options={android:{horizon:{appId: load()}}};`,
+    "const options={android:{horizon:{appId: `31705015229097839`}}};",
+    `const options={android:{horizon:{["appId"]:${id}}}};`,
+  ]) {
+    assert.notEqual(t(src), null, src);
+  }
+
+  // The plain shape still reads, including a quoted key, a later duplicate that
+  // wins, and values elsewhere in the object that are not plain literals.
+  assert.equal(t(`const options={android:{horizon:{appId:${id}}}};`), null);
+  assert.equal(t(`const options={android:{horizon:{"appId":${id}}}};`), null);
+  assert.equal(
+    t(`const options={android:{horizon:{}, horizon:{appId:${id}}}};`),
+    null,
+  );
+  assert.equal(
+    t(`const options={k:process.env.X, xs:[1,2], android:{horizon:{appId:${id}}}};`),
+    null,
+  );
+  // A duplicate that loses is not read.
+  assert.notEqual(
+    t(`const options={android:{horizon:{appId:${id}}, horizon:{}}};`),
+    null,
+  );
+});
+
 test("a shorthand binding must be direct and in scope", () => {
   // `{android: {experimental: {horizon}}}` is not the path the plugin reads.
   assert.equal(
@@ -417,7 +500,7 @@ test("a shorthand binding must be direct and in scope", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 
   // A same-named binding inside an unrelated function is a different variable.
@@ -433,7 +516,7 @@ test("a shorthand binding must be direct and in scope", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 
   // A binding declared later, in an unrelated block, is not what the plugin
@@ -450,7 +533,7 @@ test("a shorthand binding must be direct and in scope", () => {
       ].join("\n"),
       "expo-plugin-config",
     ),
-    "does not set a literal android.horizon.appId",
+    "declares no android.horizon block",
   );
 
   // A binding in a block that encloses the reference is visible, which is how
@@ -469,83 +552,7 @@ test("a shorthand binding must be direct and in scope", () => {
   );
 });
 
-test("a spread after any verified property is reported", () => {
-  const t = (src) => inspectHorizonAppIdSource(src, "expo-plugin-config");
-  // Nested: the spread replaces appId inside horizon.
-  assert.match(
-    String(
-      t(
-        'const d={appId:""};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};\nexport default {plugins:[["../app.plugin.js",options]]};',
-      ),
-    ),
-    /horizon after appId/u,
-  );
-  // Root: the spread replaces android itself.
-  assert.match(
-    String(
-      t(
-        'const o={android:{}};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...o};\nexport default {plugins:[["../app.plugin.js",options]]};',
-      ),
-    ),
-    /options after android/u,
-  );
-});
 
-test("a spread is judged by whether its source declares the key", () => {
-  const t = (src) =>
-    inspectHorizonAppIdSource(
-      `${src}\nexport default {plugins:[["../app.plugin.js",options]]};`,
-      "expo-plugin-config",
-    );
-  // Composition that cannot touch android is ordinary config, not a hazard.
-  assert.equal(
-    t(
-      'const extra = flag ? {enableLocalDev:true} : {iapkitApiKey:"k"};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...extra};',
-    ),
-    null,
-  );
-  // One ternary arm carrying android is enough to make the result unreadable.
-  assert.match(
-    String(
-      t(
-        'const extra = flag ? {enableLocalDev:true} : {android:{}};\nconst options={android:{horizon:{appId:"31705015229097839"}}, ...extra};',
-      ),
-    ),
-    /options after android/u,
-  );
-  // The key can be declared with any value, not only an object. Matching
-  // `key: {` alone read `{appId: ""}` as declaring nothing.
-  assert.match(
-    String(
-      t(
-        'const d={appId:""};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};',
-      ),
-    ),
-    /horizon after appId/u,
-  );
-  // A spread of an inline literal resolves the same way.
-  assert.match(
-    String(
-      t(
-        'const options={android:{horizon:{appId:"31705015229097839"}, ...{horizon:{}}}};',
-      ),
-    ),
-    /android after horizon/u,
-  );
-  assert.equal(
-    t(
-      'const options={android:{horizon:{appId:"31705015229097839"}, ...{other:1}}};',
-    ),
-    null,
-  );
-  // The name appearing as a value is not a declaration of that key.
-  assert.equal(
-    t(
-      'const d={other:appId};\nconst options={android:{horizon:{appId:"31705015229097839", ...d}}};',
-    ),
-    null,
-  );
-});
 
 test("a horizon nested inside horizon is not a direct member", () => {
   // The key walker resumed past the matched `{`, so brace depth never counted
@@ -562,22 +569,6 @@ test("a horizon nested inside horizon is not a direct member", () => {
   );
 });
 
-test("a spread before a shorthand horizon is not a problem", () => {
-  // `lastKey` recognised only `horizon: …`, so the shorthand form was reported
-  // as unsafe even though the later property still wins.
-  assert.equal(
-    inspectHorizonAppIdSource(
-      [
-        "const defaults = {};",
-        'const horizon = {appId: "31705015229097839"};',
-        "const options = {android: {...defaults, horizon}};",
-        'export default {plugins: [["../app.plugin.js", options]]};',
-      ].join("\n"),
-      "expo-plugin-config",
-    ),
-    null,
-  );
-});
 
 test("an object-shaped type annotation is read, not refused", () => {
   assert.equal(
@@ -594,22 +585,6 @@ test("an object-shaped type annotation is read, not refused", () => {
   );
 });
 
-test("a spread before the key is not a problem", () => {
-  // JavaScript guarantees the later explicit property wins, and that ordering
-  // is decidable without evaluating the module — rejecting it would block a
-  // correct config.
-  assert.equal(
-    inspectHorizonAppIdSource(
-      [
-        "const defaults = {horizon: {}};",
-        'const options = {android: {...defaults, horizon: {appId: "31705015229097839"}}};',
-        'export default {plugins: [["../app.plugin.js", options]]};',
-      ].join("\n"),
-      "expo-plugin-config",
-    ),
-    null,
-  );
-});
 
 test("an uninitialised declaration does not adopt the next object", () => {
   // `let options;` followed by `const metadata = {` used to match as one
@@ -628,24 +603,6 @@ test("an uninitialised declaration does not adopt the next object", () => {
   );
 });
 
-test("a spread into android is reported rather than read past", () => {
-  // `{horizon: {appId}, ...defaults}` leaves whatever defaults.horizon holds.
-  // Reading the literal and calling it settled asserts a value the build never
-  // sees, so the audit says it cannot tell instead of passing.
-  assert.match(
-    String(
-      inspectHorizonAppIdSource(
-        [
-          "const defaults = {horizon: {}};",
-          'const options = {android: {horizon: {appId: "31705015229097839"}, ...defaults}};',
-          'export default {plugins: [["../app.plugin.js", options]]};',
-        ].join("\n"),
-        "expo-plugin-config",
-      ),
-    ),
-    /spreads an object into android/u,
-  );
-});
 
 test("a source the audit cannot read is reported", () => {
   assert.match(

@@ -89,6 +89,14 @@ if git diff --cached --name-only --diff-filter=ACMR \
   bun run audit:ci-paths
 fi
 
+# The Horizon app id lives in example manifests and one Expo config; a bad edit
+# there ships a build that cannot reach the Meta store.
+if git diff --cached --name-only --diff-filter=ACMR \
+  | grep -qE '(AndroidManifest\.xml$|example/app\.config\.ts$|^scripts/(audit-horizon-example-app-id|verify-horizon-merged-manifest)(\.test)?\.mjs$)'; then
+  echo "🥽 Horizon app id audit…"
+  bun run audit:horizon-app-id
+fi
+
 # Paths-aware kit pre-commit gate. Only runs when staged changes touch
 # packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
 # aren't blocked.
