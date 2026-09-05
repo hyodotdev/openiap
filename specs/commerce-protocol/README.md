@@ -21,14 +21,14 @@ Where the contract sits:
 
 ```mermaid
 flowchart TB
-  stores["Apple · Google · Meta Horizon · Amazon<br/>store-native notifications and APIs"]
+  stores["Apple / Google / Meta / Amazon<br/>the stores"]
   backend["A backend that implements this specification<br/>IAPKit, another provider, or the adopter's own — in any language<br/><br/>verify → normalize → lifecycle → entitle"]
-  app["The adopter's backend or app"]
-  consumers["Any consumer<br/>analytics · CRM · data pipeline · subscriber experience"]
+  app["developer backend / app"]
+  consumers["any consumer<br/>analytics · subscriber experience · data pipeline"]
 
-  stores -->|"notifications"| backend
+  stores -->|"store-native notifications and APIs"| backend
   app <-->|"operations (§4): verify, status, entitlements, bind, erase, capabilities<br/>over REST (§6) or GraphQL (§7)"| backend
-  backend -->|"events (§9): signed webhooks"| consumers
+  backend -->|"OpenIAP Commerce Protocol events (§9)"| consumers
 ```
 
 ## Reviewing a change

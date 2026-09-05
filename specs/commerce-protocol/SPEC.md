@@ -651,33 +651,30 @@ transitions at least one store can actually report, and nothing speculative.
 | `subscription.paused`                | The subscription was paused                                                                                                                                                                                                                                              |
 | `subscription.resumed`               | A paused subscription resumed                                                                                                                                                                                                                                            |
 
-The state each of those events lands in, and the ones that move no state at
-all:
+The state each lifecycle event names, as the GraphQL contract enforces it. The
+specification says where an event lands, not where it came from:
 
 ```mermaid
-stateDiagram-v2
-  direction LR
-  state "any prior state" as Prior
-
-  Prior --> Active: started / renewed / recovered / resumed
-  Prior --> InGracePeriod: entered_grace_period
-  Prior --> InBillingRetry: entered_billing_retry
-  Prior --> Paused: paused
-  Prior --> Expired: expired
-  Prior --> Revoked: revoked
-  Prior --> Refunded: refunded
-
-  note right of Active
-    canceled, uncanceled, product_changed, price_changed
-    and deferred move no state. canceled flips willRenew
-    only; access continues until expiresAt.
-  end note
-
-  note left of InBillingRetry
-    Entitled: Active and InGracePeriod, while now is
-    before expiresAt. Every other state: not entitled.
-    Read subscription.active. Never re-derive it from state.
-  end note
+flowchart LR
+  subgraph lands ["names a state — the snapshot MUST agree"]
+    direction LR
+    e1["started<br/>renewed<br/>recovered<br/>resumed"] --> Active
+    e2["entered_grace_period"] --> InGracePeriod
+    e3["entered_billing_retry"] --> InBillingRetry
+    e4["paused"] --> Paused
+    e5["expired"] --> Expired
+    e6["revoked"] --> Revoked
+    e7["refunded"] --> Refunded
+  end
+  subgraph none ["names no state — the snapshot keeps the state that actually followed the store transition"]
+    direction LR
+    e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
+  end
+  subgraph predicate ["entitled? (§2.3) — read subscription.active; a consumer MUST NOT recompute it from state and ignore active"]
+    direction LR
+    p1["Active, InGracePeriod: yes while now is before expiresAt; with no expiresAt, yes.<br/>For InGracePeriod, expiresAt is the end of the grace window."]
+    p2["InBillingRetry, Paused, Expired, Revoked, Refunded, Unknown: no"]
+  end
 ```
 
 ### Entitlement delta
@@ -835,16 +832,21 @@ sequenceDiagram
   participant Emitter as Backend (emitter)
   participant Consumer as Consumer endpoint
 
+  Note over Emitter,Consumer: Delivery is duplicate-capable and unordered, with no exactly-once guarantee (§9.4.4). This is one attempt.
+
   Store->>Emitter: store-native notification
-  Emitter->>Emitter: normalize (§9.2), derive lifecycle and entitlement events (§9.1)
-  Emitter->>Consumer: POST one event as raw UTF-8 JSON<br/>openiap-signature: v1=hex (several, comma-separated, during rotation)<br/>openiap-timestamp: Unix seconds<br/>openiap-event-id, openiap-delivery-id
-  Note over Consumer: reject if abs(now − timestamp) > 300 s<br/>signed = timestamp + "." + the exact body bytes received<br/>HMAC-SHA256 with the shared secret, constant-time compare,<br/>any presented v1= against any currently valid secret<br/>take eventId from the body, deduplicate on it, ack before slow work
+  Emitter->>Emitter: normalize (§9.2); derive the lifecycle and entitlement events (§9.1)
+  Emitter->>Consumer: POST to the consumer's HTTPS URL — Content-Type: application/json, no Content-Encoding<br/>body: one event, the exact UTF-8 bytes<br/>openiap-signature: v1=lowercase hex (several, comma-separated, during rotation)<br/>openiap-timestamp: exactly one, Unix seconds, base-10, no sign<br/>openiap-event-id · openiap-delivery-id
+  Note over Consumer: MUST: reject if abs(now − timestamp) > 300 s<br/>MUST: signed = ascii(timestamp) + "." + the exact body bytes received; HMAC-SHA256 with the shared secret<br/>MUST: split openiap-signature on "," and trim; accept if any presented v1= matches any valid secret, compared in constant time<br/>MUST: take eventId from the parsed body, not the header; be idempotent on it<br/>SHOULD: acknowledge before slow downstream work
   alt 2xx
-    Consumer-->>Emitter: delivered
-  else 408, 429, 5xx, timeout, connection error
-    Consumer-->>Emitter: retry with exponential backoff — same body and eventId,<br/>fresh timestamp, recomputed signature, same delivery-id — then dead-letter
+    Consumer-->>Emitter: 2xx
+    Note over Emitter: delivered
+  else 408, 429, 5xx — or no response (timeout, connection error)
+    Consumer-->>Emitter: 408 / 429 / 5xx, or nothing
+    Note over Emitter: retry with exponential backoff: same body and eventId, fresh openiap-timestamp,<br/>recomputed signature, same openiap-delivery-id; eventually stop and dead-letter
   else 3xx, or any other 4xx
-    Consumer-->>Emitter: permanent failure — no redirect is followed, nothing is retried
+    Consumer-->>Emitter: 3xx / other 4xx
+    Note over Emitter: permanent failure — a redirect is not followed, nothing is retried
   end
 ```
 
