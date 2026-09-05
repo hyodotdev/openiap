@@ -94,6 +94,19 @@ jobs:
       - name: Android consumer build smoke test
         run: bash scripts/verify-android-consumer-build.sh
 
+      # The static audit checks that the example declares the Horizon
+      # meta-data; only the merged manifest shows what the build resolved it
+      # to. A blank or missing property merges an empty value, which compiles
+      # and installs and then throws inside startConnection on a headset.
+      # Merging the manifest is enough — no APK is needed.
+      - name: Verify Horizon app id resolves in the merged manifest
+        working-directory: libraries/flutter_inapp_purchase/example
+        run: |
+          flutter pub get
+          ./android/gradlew -p android :app:processDebugManifest -PhorizonEnabled=true
+          node "$GITHUB_WORKSPACE/scripts/verify-horizon-merged-manifest.mjs" \
+            build/app/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
+
   apple-xcode-27:
     name: Apple examples (Flutter 3.44 + Xcode 27)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

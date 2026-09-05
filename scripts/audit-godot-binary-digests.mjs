@@ -19,7 +19,20 @@ const MACH_O_MAGIC = new Set([
   0xcffaedfe, // 64-bit, both byte orders
   0xcafebabe,
   0xbebafeca, // universal ("fat") archives
+  0xcafebabf,
+  0xbfbafeca, // 64-bit universal archives
 ]);
+
+// Framework metadata that ships beside the executables and is not itself a
+// payload. Everything else under the binary root must carry a digest — the
+// protected set cannot be derived from the bytes, because replacing an
+// executable with non-Mach-O content would then remove it from scrutiny.
+const NON_PAYLOAD = [
+  /\.gdextension$/,
+  /\.gdextension\.uid$/,
+  /(^|\/)Info\.plist$/,
+  /(^|\/)_CodeSignature\/CodeResources$/,
+];
 
 const isMachO = (absolute) => {
   const handle = fs.openSync(absolute, "r");
@@ -57,6 +70,19 @@ const walk = (dir, acc = []) => {
   return acc;
 };
 
+// Every file under the binary root, relative to GODOT_ROOT.
+export function listBinaryRootFiles(repoRoot) {
+  const root = path.resolve(repoRoot, BINARY_ROOT);
+  return walk(root)
+    .map((file) =>
+      path
+        .relative(path.resolve(repoRoot, GODOT_ROOT), file)
+        .split(path.sep)
+        .join("/"),
+    )
+    .sort();
+}
+
 export function listTrackedBinaries(repoRoot) {
   const root = path.resolve(repoRoot, BINARY_ROOT);
   return walk(root)
@@ -78,6 +104,17 @@ export function digestOf(repoRoot, relativeFile) {
     .digest("hex");
 }
 
+// Everything the audit requires a digest for — not only what looks like a
+// Mach-O. A framework resource such as PrivacyInfo.xcprivacy is neither
+// excused nor renderable otherwise, so `--write` could not produce a manifest
+// the audit accepts.
+export function listFilesRequiringDigests(repoRoot) {
+  return listBinaryRootFiles(repoRoot).filter((file) => {
+    if (!NON_PAYLOAD.some((pattern) => pattern.test(file))) return true;
+    // An excused name still needs a digest when it holds executable code.
+    return isMachO(path.resolve(repoRoot, GODOT_ROOT, file));
+  });
+}
 export function collectGodotBinaryDigestFailures(repoRoot) {
   const manifestPath = path.resolve(repoRoot, DIGEST_MANIFEST);
   if (!fs.existsSync(manifestPath)) {
@@ -97,13 +134,30 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
       .filter((entry) => entry.digest)
       .map((entry) => [entry.file, entry.digest]),
   );
-  const present = listTrackedBinaries(repoRoot);
+  // The same set the renderer writes. Using the Mach-O-only list here meant a
+  // recorded framework resource was reported as no longer existing, so the
+  // documented `--write` recovery could not produce a passing manifest.
+  const present = listFilesRequiringDigests(repoRoot);
 
   // A binary added to the addon without a digest is the case this exists for.
-  for (const file of present) {
-    if (!recorded.has(file)) {
-      failures.push(`${file} ships in the addon but has no recorded digest`);
+  // Scan every shipped file rather than only the ones that still look like
+  // Mach-O: corrupting an executable would otherwise drop it from this set,
+  // and deleting its digest line would then leave it unnoticed by both checks.
+  for (const file of listBinaryRootFiles(repoRoot)) {
+    if (recorded.has(file)) continue;
+    // The exclusion is by name, so it has to be checked against content too:
+    // a Mach-O copied to Payload.gdextension would otherwise be excused by
+    // its extension, which is the same mistake as deriving the protected set
+    // from the bytes — only inverted.
+    const isExcluded = NON_PAYLOAD.some((pattern) => pattern.test(file));
+    if (isExcluded && !isMachO(path.resolve(repoRoot, GODOT_ROOT, file))) {
+      continue;
     }
+    failures.push(
+      isExcluded
+        ? `${file} is executable code under a name the digest audit excuses`
+        : `${file} ships in the addon but has no recorded digest`,
+    );
   }
   for (const [file] of recorded) {
     if (!present.includes(file)) {
@@ -124,7 +178,7 @@ export function collectGodotBinaryDigestFailures(repoRoot) {
 }
 
 export function renderDigestManifest(repoRoot, header) {
-  const lines = listTrackedBinaries(repoRoot).map(
+  const lines = listFilesRequiringDigests(repoRoot).map(
     (file) => `${digestOf(repoRoot, file)}  ${file}`,
   );
   return `${header.trimEnd()}\n${lines.join("\n")}\n`;

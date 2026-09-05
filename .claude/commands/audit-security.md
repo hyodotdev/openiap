@@ -228,6 +228,18 @@ if [ -s "$SECURITY_AUDIT_ROOT/missing-tags.txt" ]; then
   exit 1
 fi
 
+# The check above reports only the newest release per component, and the
+# enumeration below only walks assets that already exist, so a mid-train gap
+# is invisible to both. Without this the manual audit passes on a state
+# `security-rescan.yml` rejects.
+node scripts/generate-sbom.mjs missing-coverage-tags \
+  "$SECURITY_AUDIT_ROOT/releases.json" \
+  > "$SECURITY_AUDIT_ROOT/coverage-gaps.txt"
+if [ -s "$SECURITY_AUDIT_ROOT/coverage-gaps.txt" ]; then
+  cat "$SECURITY_AUDIT_ROOT/coverage-gaps.txt"
+  exit 1
+fi
+
 node scripts/generate-sbom.mjs published-release-assets \
   "$SECURITY_AUDIT_ROOT/releases.json" \
   > "$SECURITY_AUDIT_ROOT/published-assets.tsv"

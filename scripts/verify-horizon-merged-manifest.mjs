@@ -10,41 +10,53 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { parseXml, XmlParseError } from "./xml-document.mjs";
+
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
-const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
-const NAME_ATTRIBUTE = /android:name\s*=\s*"([^"]*)"/;
-const VALUE_ATTRIBUTE = /android:value\s*=\s*"([^"]*)"/;
 const APP_ID = /^\d{10,}$/;
 
-// Replace to a fixpoint: removing an inner `<!-- -->` can splice `<!-` and `-`
-// into a new opener the pass never saw, so one substitution is not a strip.
-const stripXmlComments = (source) => {
-  let previous;
-  let current = source;
-  do {
-    previous = current;
-    current = previous.replace(/<!--[\s\S]*?-->/g, "");
-  } while (current !== previous);
-  return current;
+// Every meta-data element in the subtree, at any depth.
+const allMetaData = (element, found = []) => {
+  if (element.name === "meta-data") found.push(element);
+  for (const child of element.children) allMetaData(child, found);
+  return found;
 };
 
+const isHorizon = (element) =>
+  element.attribute("android:name") === HORIZON_APP_ID_META_DATA_NAME;
+
 export function inspectMergedManifest(contents) {
-  // Comments are not declarations, and android:name must match exactly — a
-  // substring test would accept com.example.<the Horizon name>.
-  const elements = [...stripXmlComments(contents).matchAll(META_DATA_ELEMENT)]
-    .map(([element]) => element)
-    .filter(
-      (element) =>
-        element.match(NAME_ATTRIBUTE)?.[1] === HORIZON_APP_ID_META_DATA_NAME,
-    );
+  // Parsed, not pattern-matched: android:name must be an attribute, not text
+  // that appears inside some other attribute's value, and a self-closing
+  // sibling must not swallow the elements after it.
+  let root;
+  try {
+    root = parseXml(contents, {});
+  } catch (error) {
+    if (error instanceof XmlParseError) {
+      return `the merged manifest is not well-formed XML: ${error.message}`;
+    }
+    throw error;
+  }
+
+  // Horizon reads the id from <application>. The same declaration nested in an
+  // activity or service merges somewhere the platform never looks, so scanning
+  // the document globally would accept a manifest that fails at runtime.
+  const application = root.first("application");
+  if (!application) {
+    return "the merged manifest has no <application> element";
+  }
+  const elements = application.all("meta-data").filter(isHorizon);
 
   if (elements.length === 0) {
-    return `the merged manifest declares no ${HORIZON_APP_ID_META_DATA_NAME}`;
+    return allMetaData(root).some(isHorizon)
+      ? `the merged manifest declares ${HORIZON_APP_ID_META_DATA_NAME} outside <application>`
+      : `the merged manifest declares no ${HORIZON_APP_ID_META_DATA_NAME}`;
   }
   for (const element of elements) {
-    const value = element.match(VALUE_ATTRIBUTE)?.[1];
+    const value = element.attribute("android:value");
     if (value === undefined)
       return "the Horizon meta-data has no android:value";
     if (value === "") {

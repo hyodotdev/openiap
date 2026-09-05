@@ -281,3 +281,62 @@ test("rejects gating a job that guards the markdown corpus", () => {
     },
   );
 });
+
+test("the parity audit still carries the audits that ride on it", () => {
+  // These audits have no invocation of their own: audit-non-godot-parity.mjs
+  // imports their collectors and runs their test files, and CI and the hook run
+  // that. Reading the absence of their own npm scripts from the workflows as
+  // absence of enforcement is a mistake I made and acted on, so it is written
+  // down here — in a suite the parity audit does NOT launch, because a test
+  // that only runs from inside the thing it guards disappears with it.
+  const repoRoot = path.resolve(import.meta.dirname, "..");
+  const parity = fs.readFileSync(
+    path.join(repoRoot, "scripts/audit-non-godot-parity.mjs"),
+    "utf8",
+  );
+  for (const carried of [
+    "collectHorizonExampleAppIdFailures(root)",
+    "scripts/audit-horizon-example-app-id.test.mjs",
+    "scripts/verify-horizon-merged-manifest.test.mjs",
+  ]) {
+    assert.ok(
+      parity.includes(carried),
+      `audit-non-godot-parity.mjs no longer carries ${carried}`,
+    );
+  }
+
+  // The command has to BE the audit, not merely mention it: `echo 'node
+  // scripts/audit-non-godot-parity.mjs'` satisfies a substring match and runs
+  // nothing. The step must also be unconditional, since `if: false` would skip
+  // it while the command still reads correctly.
+  //
+  // What this cannot prove: that CI executes the step. A job-level condition, a
+  // disabled workflow or a changed default branch all leave these files intact.
+  // A static test can require the command to be there and to be unguarded; only
+  // a run proves it ran.
+  const command = "node scripts/audit-non-godot-parity.mjs";
+  const ci = fs
+    .readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8")
+    .split("\n");
+  const at = ci.findIndex((line) => line.trim() === `run: ${command}`);
+  assert.notEqual(at, -1, "ci.yml has no step whose command is exactly the parity audit");
+  // Walk back to the step's `- name:` and forward to the next step, and require
+  // no condition in between.
+  let from = at;
+  while (from > 0 && !ci[from].trim().startsWith("- ")) from -= 1;
+  let to = at + 1;
+  while (to < ci.length && !ci[to].trim().startsWith("- ")) to += 1;
+  assert.ok(
+    !ci
+      .slice(from, to)
+      // YAML accepts `"if": false` as the same key.
+      .some((line) => /^["']?if["']?\s*:/u.test(line.trim())),
+    "the parity audit step is conditional, so it can be skipped",
+  );
+
+  const hook = fs.readFileSync(path.join(repoRoot, ".husky/pre-commit"), "utf8");
+  assert.ok(
+    hook.split("\n").some((line) => line.trim() === command),
+    "the pre-commit hook has no line that is exactly the parity audit",
+  );
+});

@@ -287,3 +287,30 @@ jobs:
             --config packages/kit/fly.toml \
             --dockerfile packages/kit/Dockerfile \
             "${BUILD_FLAGS[@]}"
+
+      # Everything above proves what was built and pushed; this samples what is
+      # serving. It is a smoke check, not proof that every machine rolled: a
+      # single public GET reaches one instance, so it catches a deploy that
+      # replaced nothing, not a partial rollout.
+      - name: Verify the deployed revision is the one just built
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          EXPECTED="$(printf '%s' "$GITHUB_SHA" | cut -c1-12 | tr '[:upper:]' '[:lower:]')"
+          ACTUAL=""
+          for attempt in 1 2 3 4 5 6; do
+            # `|| true` on both: a non-2xx response and a body that is not JSON
+            # are both retryable states, and under `set -eo pipefail` either
+            # would otherwise end the step before the diagnostic below.
+            BODY="$(curl -fsS --max-time 20 https://kit.openiap.dev/health || true)"
+            ACTUAL="$(printf '%s' "$BODY" | jq -r '.revision // empty' 2>/dev/null || true)"
+            ACTUAL="$(printf '%s' "$ACTUAL" | tr '[:upper:]' '[:lower:]')"
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "Sampled instance is serving $ACTUAL"
+              exit 0
+            fi
+            echo "attempt $attempt: sampled ${ACTUAL:-<no revision>}, expected $EXPECTED"
+            sleep 10
+          done
+          echo "::error::kit.openiap.dev sampled ${ACTUAL:-<no revision>}, not $EXPECTED"
+          exit 1

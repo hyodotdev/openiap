@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -522,6 +528,144 @@ test("published SBOM audit fails fast and trusts only main", () => {
   assert.doesNotMatch(block, /--signer-workflow/u);
 });
 
+test("sbom.yml restores every module the generator imports", () => {
+  // sbom.yml runs the current generator against a released tag's tree, so it
+  // copies the generator files in by name. A new module reachable from the
+  // entry point but missing from that list fails with ERR_MODULE_NOT_FOUND
+  // before any SBOM is produced — for every tag that predates the file.
+  const workflow = readFileSync(
+    new URL("../.github/workflows/sbom.yml", import.meta.url),
+    "utf8",
+  );
+  const listed = new Set(
+    [...workflow.matchAll(/^\s*(scripts\/[\w.-]+\.mjs)\s*\\?$/gmu)].map(
+      (match) => match[1],
+    ),
+  );
+  assert.ok(listed.size > 0, "no generator files found in sbom.yml");
+
+  const scripts = new URL("../scripts/", import.meta.url);
+  const seen = new Set();
+  const visit = (name) => {
+    if (seen.has(name)) return;
+    seen.add(name);
+    const source = readFileSync(new URL(name, scripts), "utf8");
+    // Every local-module form: `from "./x"`, a bare `import "./x"`, and a
+    // dynamic `import("./x")`, in either quote style. Recognising only the
+    // first would let a new module go unrestored.
+    for (const match of source.matchAll(
+      /(?:from\s*|\bimport\s*\(?\s*)['"]\.\/([\w.-]+\.mjs)['"]/gu,
+    )) {
+      visit(match[1]);
+    }
+  };
+  visit("generate-sbom.mjs");
+
+  const missing = [...seen]
+    .map((name) => `scripts/${name}`)
+    .filter((path) => !listed.has(path));
+  assert.deepEqual(
+    missing,
+    [],
+    `sbom.yml does not restore: ${missing.join(", ")}`,
+  );
+});
+
+test("the KMP Swift bridge stays a re-export CodeQL need not analyse", () => {
+  // codeql.yml builds this package AFTER `analyze`, so its sources are never
+  // in the database. That is correct only while the package re-exports a
+  // released module and defines nothing itself; real logic added here would
+  // ship without Swift analysis and nothing else would notice.
+  // The scanned directory comes from Package.swift, not a fixed path: a target
+  // pointed elsewhere would otherwise leave stale import-only files here and
+  // ship real Swift with no analysis.
+  const packageRoot = new URL(
+    "../libraries/kmp-iap/native/InAppPurchaseBridge/",
+    import.meta.url,
+  );
+  const manifest = readFileSync(new URL("Package.swift", packageRoot), "utf8");
+  assert.doesNotMatch(
+    manifest,
+    /\bpath\s*:/u,
+    "Package.swift sets an explicit target path; point this guard at it",
+  );
+  const root = new URL("Sources/", packageRoot);
+  const walk = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory()
+        ? walk(new URL(`${entry.name}/`, dir))
+        : [new URL(entry.name, dir)],
+    );
+
+  const sources = walk(root);
+  assert.ok(sources.length > 0, "the bridge has no sources");
+  for (const source of sources) {
+    // SwiftPM builds C, Objective-C and C++ sources in the same target without
+    // an explicit path, and CodeQL never sees them because this package is
+    // built after `analyze`.
+    assert.match(
+      source.pathname,
+      /\.swift$/u,
+      `${source.pathname} is compiled but not analysed: move it, or build this package between init and analyze`,
+    );
+    for (const line of readFileSync(source, "utf8").split("\n")) {
+      const code = line.trim();
+      if (code === "" || code.startsWith("//")) continue;
+      assert.match(
+        code,
+        /^(?:@_exported\s+)?import\s+\w+$/u,
+        `${source.pathname} defines code, so it needs CodeQL coverage: move it, or build this package between init and analyze`,
+      );
+    }
+  }
+});
+
+test("the manual audit runs every gate the scheduled rescan runs", () => {
+  // The manual procedure and security-rescan.yml are two copies of the same
+  // audit. When a gate was added to the workflow alone, the documented audit
+  // reported success on a state CI rejects. Derive the expectation from the
+  // workflow so a future gate cannot be added to only one of them.
+  // A commented-out command is not a gate. Without this the documented audit
+  // could satisfy the comparison while running nothing.
+  const withoutComments = (text) =>
+    text
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("#"))
+      .join("\n")
+      // A command wrapped with a trailing backslash puts the subcommand on the
+      // next line, where the pattern below would not see it.
+      .replace(/\s*\\\n\s*/gu, " ");
+  const subcommands = (text) =>
+    new Set(
+      [...withoutComments(text).matchAll(/generate-sbom\.mjs ([a-z-]+)/gu)].map(
+        (match) => match[1],
+      ),
+    );
+
+  const workflow = readFileSync(
+    new URL("../.github/workflows/security-rescan.yml", import.meta.url),
+    "utf8",
+  );
+  const doc = readFileSync(
+    new URL("../.claude/commands/audit-security.md", import.meta.url),
+    "utf8",
+  );
+  const block = doc.match(
+    /## 7\. Published release assets[\s\S]*?```bash\n([\s\S]*?)```/u,
+  )?.[1];
+  assert.ok(block, "published asset audit command is missing");
+
+  const expected = subcommands(workflow);
+  assert.ok(expected.size > 0, "no gates found in security-rescan.yml");
+  const documented = subcommands(block);
+  const missing = [...expected].filter((name) => !documented.has(name));
+  assert.deepEqual(
+    missing,
+    [],
+    `documented audit omits gates the rescan runs: ${missing.join(", ")}`,
+  );
+});
+
 test("manual SBOM audits fail closed on partial or incomplete inventories", () => {
   const source = readFileSync(
     new URL("../.claude/commands/audit-security.md", import.meta.url),
@@ -716,6 +860,7 @@ test("a transport failure is retried, a verdict is not", () => {
   };
   const recovered = runBunAudit(flaky, "/tmp", { sleep: () => {} });
   assert.equal(transient, 3);
+  assert.ok(BUN_AUDIT_ATTEMPTS >= 3, "too few attempts to ride out a blip");
   assert.equal(recovered.stdout, '{"advisories":{}}');
 
   let verdicts = 0;
@@ -725,6 +870,15 @@ test("a transport failure is retried, a verdict is not", () => {
   };
   runBunAudit(advisory, "/tmp", { sleep: () => {} });
   assert.equal(verdicts, 1, "a verdict must not be retried");
+});
+
+test("the healthy path never sleeps", () => {
+  // The backoff only costs time when the service is actually failing.
+  const slept = [];
+  runBunAudit(() => ({ status: 0, stdout: "{}", stderr: "" }), "/tmp", {
+    sleep: (ms) => slept.push(ms),
+  });
+  assert.deepEqual(slept, []);
 });
 
 test("a persistent transport failure still fails after its attempts", () => {

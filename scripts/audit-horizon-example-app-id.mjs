@@ -11,24 +11,23 @@
 // approximate it. `scripts/verify-horizon-merged-manifest.mjs` checks the value
 // the manifest merger actually produced.
 //
-// That merger check runs in CI for packages/google only, because it is the one
-// target whose Horizon variant CI already builds. A "templated-manifest" source
-// therefore has its declaration verified here and its resolved value verified
-// only where such a job exists; security/README.md records which. Do not close
-// that gap by re-adding a Gradle text check — the value is decided by the
-// merger, not by the build file's source.
+// CI runs that merger check for every "templated-manifest" source, each on its
+// own workflow; security/README.md lists them. Do not fold it back in here by
+// reading the build file's text — the value is decided by the merger, not by
+// the source.
 import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { maskTypeScriptCommentsAndStrings } from "./audit-purchase-payload-parity.mjs";
+import ts from "typescript";
+import { parseXml, XmlParseError } from "./xml-document.mjs";
 
 export const HORIZON_APP_ID_META_DATA_NAME =
   "com.meta.horizon.platform.HORIZON_APP_ID";
 
 // "android-manifest"    — the manifest carries the literal id
-// "templated-manifest"  — the manifest carries a Gradle placeholder; the
-//                         resolved value needs a merger check on a built
-//                         variant, which exists for packages/google today
+// "templated-manifest"  — the manifest carries a Gradle placeholder, and the
+//                         resolved value is checked against a merged manifest
+//                         in that target's own CI workflow
 // "expo-plugin-config"  — the config plugin binds the id
 export const HORIZON_APP_ID_SOURCES = [
   {
@@ -68,94 +67,797 @@ export const HORIZON_APP_ID_SOURCES = [
 // the merged manifest just as empty.
 const APP_ID = String.raw`\d{10,}`;
 
-// Replace to a fixpoint: removing an inner `<!-- -->` can splice `<!-` and `-`
-// into a new opener the pass never saw, so one substitution is not a strip.
-const stripXmlComments = (source) => {
-  let previous;
-  let current = source;
-  do {
-    previous = current;
-    current = previous.replace(/<!--[\s\S]*?-->/g, "");
-  } while (current !== previous);
-  return current;
-};
-
-const APPLICATION_ELEMENT = /<application\b[\s\S]*?<\/application\s*>/;
-// activity-alias precedes activity: the alternation is ordered, and
-// `activity\b` would otherwise claim the prefix and mis-pair the closing tag.
-const NESTED_ELEMENT =
-  /<(activity-alias|activity|service|receiver|provider)\b[\s\S]*?<\/\1\s*>/g;
-const META_DATA_ELEMENT = /<meta-data\b[\s\S]*?(?:\/>|<\/meta-data\s*>)/g;
-const LITERAL_VALUE = new RegExp(`android:value\\s*=\\s*["']${APP_ID}["']`);
-const PLACEHOLDER_VALUE = /android:value\s*=\s*["']\$\{(\w+)\}["']/;
-
 // Horizon reads the id from <application>. A meta-data nested inside an
 // activity or service merges somewhere the platform never looks.
+const allMetaData = (element, found = []) => {
+  if (element.name === "meta-data") found.push(element);
+  for (const child of element.children) allMetaData(child, found);
+  return found;
+};
+
+const isHorizon = (element) =>
+  element.attribute("android:name") === HORIZON_APP_ID_META_DATA_NAME;
+
+const TOOLS_NAMESPACE = "http://schemas.android.com/tools";
+
+// Prefixes bound to the tools namespace anywhere in the document.
+const toolsPrefixes = (root) => {
+  const found = new Set();
+  const visit = (element) => {
+    for (const [name, value] of element.attributes) {
+      if (name.startsWith("xmlns:") && value === TOOLS_NAMESPACE) {
+        found.add(name.slice("xmlns:".length));
+      }
+    }
+    for (const child of element.children) visit(child);
+  };
+  visit(root);
+  return [...found];
+};
+
+const LITERAL_APP_ID = new RegExp(`^${APP_ID}$`);
+const PLACEHOLDER_APP_ID = /^\$\{\w+\}$/;
+
 const inspectManifest = (contents, allowPlaceholder) => {
-  const source = stripXmlComments(contents);
-  const application = source.match(APPLICATION_ELEMENT);
+  // Parsed, not pattern-matched: android:name must be an attribute rather than
+  // text inside another attribute's value, and a self-closing sibling must not
+  // swallow the elements that follow it.
+  let root;
+  try {
+    root = parseXml(contents, {});
+  } catch (error) {
+    if (error instanceof XmlParseError) {
+      return `is not well-formed XML: ${error.message}`;
+    }
+    throw error;
+  }
+  const application = root.first("application");
   if (!application) return "has no <application> element";
-  const direct = application[0].replace(NESTED_ELEMENT, "");
+
   let declared = false;
-  for (const [element] of direct.matchAll(META_DATA_ELEMENT)) {
-    if (!element.includes(HORIZON_APP_ID_META_DATA_NAME)) continue;
+  for (const element of application.all("meta-data").filter(isHorizon)) {
     declared = true;
-    if (LITERAL_VALUE.test(element)) return null;
-    if (allowPlaceholder && PLACEHOLDER_VALUE.test(element)) return null;
+    // The merger honours the tools namespace, whatever prefix the document
+    // binds it to — `xmlns:t=".../tools"` makes `t:node` equivalent.
+    // `remove` deletes this element; `removeAll` deletes every matching one
+    // under the parent. Either way the platform never sees the declaration.
+    if (
+      toolsPrefixes(root).some((prefix) =>
+        ["remove", "removeAll"].includes(element.attribute(`${prefix}:node`)),
+      )
+    ) {
+      continue;
+    }
+    const value = element.attribute("android:value") ?? "";
+    if (LITERAL_APP_ID.test(value)) return null;
+    if (allowPlaceholder && PLACEHOLDER_APP_ID.test(value)) return null;
   }
   if (declared) {
     return allowPlaceholder
       ? "declares the Horizon meta-data without a literal app id or a placeholder"
       : "declares the Horizon meta-data without a literal app id";
   }
-  return source.includes(HORIZON_APP_ID_META_DATA_NAME)
+  return allMetaData(root).some(isHorizon)
     ? "declares the Horizon meta-data outside <application>"
     : "declares no Horizon app id meta-data";
 };
 
-// Brace-balanced over masked text, so a brace inside a string neither truncates
-// the block nor stretches it into a later one.
-const extractBalancedBlock = (masked, from) => {
-  let depth = 0;
-  for (let index = from; index < masked.length; index += 1) {
-    if (masked[index] === "{") depth += 1;
-    else if (masked[index] === "}") {
-      depth -= 1;
-      if (depth === 0) return [from, index + 1];
+// ── Reading the Expo config ────────────────────────────────────────────────
+//
+// Earlier versions read this config out of masked source text, matching keys by
+// regex and tracking brace depth by hand. Every review round found another
+// shape it mis-read: a ternary arm taken for a value, a quoted key made
+// invisible because the masker blanks strings with their quotes, an escaped key
+// that JavaScript decodes to a different name, a string literal whose escaped
+// delimiter ended it early.
+//
+// None of that is necessary. The masker this file already used is built on the
+// TypeScript compiler, so a real parser was a dependency all along. Reading the
+// syntax tree makes those questions the parser's, not ours.
+//
+// What is left is a policy, and it is deliberately narrow: follow
+// `android.horizon.appId` through object literals and `const` bindings, and
+// report anything else. Resolving what a config would evaluate to is
+// evaluation, and this audit reads a fixed list of files this repository owns —
+// "write the id plainly" is a cost we can pay.
+
+const UNREADABLE = Symbol("unreadable");
+// A binding that exists but whose value is not its declaration's text.
+const OPAQUE = { declaration: null, initialiser: null };
+
+// Wrappers that do not change the value at runtime.
+const unwrap = (node) =>
+  ts.isParenthesizedExpression(node) ||
+  ts.isAsExpression(node) ||
+  ts.isSatisfiesExpression(node) ||
+  ts.isTypeAssertionExpression(node) ||
+  ts.isNonNullExpression(node)
+    ? unwrap(node.expression)
+    : node;
+
+// Follow an expression to a node of the wanted kind, through those wrappers and
+// through `const` bindings.
+const followed = new Set();
+const resolve = (node, is, seen = new Set()) => {
+  if (!node) return null;
+  const bare = unwrap(node);
+  if (is(bare)) return bare;
+  if (ts.isIdentifier(bare)) {
+    if (seen.has(bare)) return null;
+    seen.add(bare);
+    for (const declaration of bindingChain(bare)) followed.add(declaration);
+    return resolve(resolveBinding(bare), is, seen);
+  }
+  return null;
+};
+
+const objectLiteral = (node) => resolve(node, ts.isObjectLiteralExpression);
+const arrayLiteral = (node) => resolve(node, ts.isArrayLiteralExpression);
+// A template with no substitutions has a definite value; one with them does not.
+const stringValue = (node) => {
+  const literal = resolve(
+    node,
+    (candidate) =>
+      ts.isStringLiteral(candidate) ||
+      ts.isNoSubstitutionTemplateLiteral(candidate),
+  );
+  return literal === null ? null : literal.text;
+};
+
+/**
+ * The names a statement introduces into the scope that contains it.
+ *
+ * Only a plain `const x = <expression>` yields a value. Everything else — a
+ * `let`, a destructuring pattern, an import, a function, class, enum or
+ * namespace declaration — binds the name to something whose value is not the
+ * declaration's text, so it resolves to nothing rather than falling through to
+ * an outer constant of the same name.
+ *
+ * A loop or catch binding is NOT here: it belongs to its own body, and counting
+ * it as the enclosing block's shadowed a real constant declared beside it.
+ */
+const declarationsIn = (node) => {
+  const bound = new Map();
+  const declare = (name, declaration, initialiser) => {
+    if (ts.isIdentifier(name)) {
+      bound.set(name.text, { declaration, initialiser: initialiser ?? null });
+      return;
+    }
+    for (const element of name.elements ?? []) {
+      if (!element.name) continue;
+      // A destructured name reaches into the same objects, so writing through
+      // it writes to the originals — an array rest included: the array is new,
+      // its elements are not.
+      declare(element.name, declaration, null);
+    }
+  };
+
+  if (ts.isVariableStatement(node)) {
+    const constant = Boolean(node.declarationList.flags & ts.NodeFlags.Const);
+    for (const declaration of node.declarationList.declarations) {
+      declare(
+        declaration.name,
+        declaration,
+        constant ? declaration.initializer : null,
+      );
+    }
+  } else if (
+    (ts.isFunctionDeclaration(node) ||
+      ts.isClassDeclaration(node) ||
+      ts.isEnumDeclaration(node) ||
+      ts.isModuleDeclaration(node)) &&
+    node.name
+  ) {
+    declare(node.name, node, null);
+  } else if (ts.isImportDeclaration(node) && node.importClause) {
+    if (node.importClause.name) declare(node.importClause.name, node, null);
+    for (const element of node.importClause.namedBindings?.elements ?? []) {
+      declare(element.name, node, null);
+    }
+    if (node.importClause.namedBindings?.name) {
+      declare(node.importClause.namedBindings.name, node, null);
+    }
+  }
+  return bound;
+};
+
+// A loop or catch header binds for its own body only, and never to a value: a
+// loop variable takes a new one each iteration, `const` included.
+const headerBinds = (scope, name) => {
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  if (
+    (ts.isForStatement(scope) ||
+      ts.isForOfStatement(scope) ||
+      ts.isForInStatement(scope)) &&
+    scope.initializer &&
+    ts.isVariableDeclarationList(scope.initializer)
+  ) {
+    return scope.initializer.declarations.some((one) => named(one.name));
+  }
+  if (ts.isCatchClause(scope) && scope.variableDeclaration) {
+    return named(scope.variableDeclaration.name);
+  }
+  return false;
+};
+
+// A `var` anywhere inside a function belongs to the function, not the block it
+// is written in. Treating only the block's own statements as its declarations
+// let an outer constant answer for a hoisted name.
+const hoistedVar = (scope, name) => {
+  let found = false;
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  const visit = (node) => {
+    if (found) return;
+    if (ts.isFunctionLike(node) && node !== scope) return;
+    const list = ts.isVariableStatement(node)
+      ? node.declarationList
+      : (ts.isForStatement(node) ||
+            ts.isForOfStatement(node) ||
+            ts.isForInStatement(node)) &&
+          node.initializer &&
+          ts.isVariableDeclarationList(node.initializer)
+        ? node.initializer
+        : null;
+    if (
+      list &&
+      !(list.flags & (ts.NodeFlags.Const | ts.NodeFlags.Let)) &&
+      list.declarations.some((one) => named(one.name))
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(scope, visit);
+  return found;
+};
+
+// A parameter is never a value read from its declaration, so it only has to be
+// recognised as a shadow.
+const bindsParameter = (scope, name) => {
+  const named = (binding) =>
+    ts.isIdentifier(binding)
+      ? binding.text === name
+      : (binding.elements ?? []).some(
+          (element) => element.name && named(element.name),
+        );
+  return (scope.parameters ?? []).some((parameter) => named(parameter.name));
+};
+
+/**
+ * The initialiser an identifier resolves to, or null.
+ *
+ * Scope is resolved the way the language does — the innermost enclosing scope
+ * that binds the name wins — so a same-named binding in an unrelated function
+ * is a different variable, and a parameter, loop variable or catch binding
+ * shadows anything outside it.
+ */
+const lookup = (identifier) => {
+  for (let scope = identifier.parent; scope; scope = scope.parent) {
+    // A switch body is one scope across every clause, not one per clause.
+    const statements = ts.isSourceFile(scope) || ts.isBlock(scope) || ts.isModuleBlock(scope)
+      ? scope.statements
+      : ts.isCaseBlock(scope)
+        ? scope.clauses.flatMap((clause) => clause.statements)
+        : null;
+    for (const statement of statements ?? []) {
+      const bound = declarationsIn(statement);
+      if (bound.has(identifier.text)) return bound.get(identifier.text);
+    }
+    if (headerBinds(scope, identifier.text)) return OPAQUE;
+    if (ts.isFunctionLike(scope)) {
+      if (bindsParameter(scope, identifier.text)) return OPAQUE;
+      // `var` is function-scoped wherever it is written, so a loop or block
+      // inside this function still binds the name out here.
+      if (hoistedVar(scope, identifier.text)) return OPAQUE;
+    }
+    // A named function or class expression binds its own name inside itself.
+    if (
+      (ts.isFunctionExpression(scope) || ts.isClassExpression(scope)) &&
+      scope.name?.text === identifier.text
+    ) {
+      return OPAQUE;
     }
   }
   return null;
 };
 
-const HORIZON_KEY = /\bhorizon\s*:\s*\{/g;
-const APP_ID_ENTRY = new RegExp(
-  String.raw`\bappId\s*:\s*['"]${APP_ID}['"]`,
-  "g",
-);
+const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
 
-const inspectExpoPluginConfig = (contents) => {
-  // Structure comes from masked text so a brace in a string is not syntax; the
-  // value is read from the source at the same offset, and a match only counts
-  // when the masker left that position intact — a commented-out entry does not.
-  const masked = maskTypeScriptCommentsAndStrings(contents);
-  let declared = false;
-  for (const match of masked.matchAll(HORIZON_KEY)) {
-    const span = extractBalancedBlock(
-      masked,
-      match.index + match[0].length - 1,
+// Every identifier a literal refers to, ignoring the names of its own
+// properties — those are keys, not values.
+const referencedIn = (literal) => {
+  const found = [];
+  const visit = (node) => {
+    if (ts.isIdentifier(node)) {
+      found.push(node);
+      return;
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+      visit(node.expression);
+      return;
+    }
+    if (
+      (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+      node.name &&
+      !ts.isComputedPropertyName(node.name)
+    ) {
+      if (ts.isPropertyAssignment(node)) visit(node.initializer);
+      else found.push(node.name);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  for (const child of ts.isObjectLiteralExpression(literal)
+    ? literal.properties
+    : literal.elements) {
+    visit(child);
+  }
+  return found;
+};
+
+/**
+ * Every declaration an identifier can stand for.
+ *
+ * `const alias = options`, `const horizon = options.android.horizon`,
+ * `const {android} = options` and `const copy = {...options}` all reach the
+ * same objects, so a write through any of them is a write to ours. A shallow
+ * copy counts because its members are the very same objects: `const [...copy]
+ * = entries` builds a new array, but `copy[0]` IS `entries[0]`.
+ *
+ * Comparing declarations rather than names is what lets all of that count while
+ * a same-named parameter in some helper does not.
+ */
+const bindingChain = (identifier, seen = new Set()) => {
+  const chain = new Set();
+  const queue = [identifier];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (!current || seen.has(current)) continue;
+    seen.add(current);
+    const found = lookup(current);
+    if (!found || found === OPAQUE) continue;
+    if (found.declaration) chain.add(found.declaration);
+
+    let next = found.initialiser ?? null;
+    if (
+      next === null &&
+      found.declaration &&
+      ts.isVariableDeclaration(found.declaration)
+    ) {
+      next = found.declaration.initializer ?? null;
+    }
+    next = next ? unwrap(next) : null;
+    if (!next) continue;
+
+    // A literal built from other values keeps those values: a spread, and a
+    // member that simply refers to one. `{android: options.android}` holds the
+    // very object we read, so following only spreads was arbitrary.
+    if (
+      ts.isObjectLiteralExpression(next) ||
+      ts.isArrayLiteralExpression(next)
+    ) {
+      queue.push(...referencedIn(next));
+      continue;
+    }
+
+    while (
+      ts.isPropertyAccessExpression(next) ||
+      ts.isElementAccessExpression(next)
+    ) {
+      next = unwrap(next.expression);
+    }
+    if (ts.isIdentifier(next)) queue.push(next);
+  }
+  return chain;
+};
+
+/**
+ * The winning value of a property, UNREADABLE when the object is composed in a
+ * way this audit does not model, or null when the key is absent.
+ *
+ * The last assignment of a key wins, matching the language. A spread or a
+ * computed key that follows it can replace it, and deciding whether it does
+ * means resolving its source — but a later explicit assignment wins over both,
+ * so the check is positional rather than blanket.
+ */
+const property = (object, name) => {
+  let value = null;
+  let shadowed = false;
+  for (const member of object.properties) {
+    if (ts.isSpreadAssignment(member)) {
+      shadowed = true;
+      continue;
+    }
+    if (!member.name) continue;
+    // `["plugins"]` is just `plugins`; only a key whose value is not a literal
+    // could name anything.
+    if (ts.isComputedPropertyName(member.name)) {
+      const computed = unwrap(member.name.expression);
+      const literal =
+        ts.isStringLiteral(computed) ||
+        ts.isNoSubstitutionTemplateLiteral(computed)
+          ? computed.text
+          : null;
+      if (literal === null) {
+        shadowed = true;
+        continue;
+      }
+      if (literal !== name) continue;
+      if (ts.isPropertyAssignment(member)) value = member.initializer;
+      else return UNREADABLE;
+      shadowed = false;
+      continue;
+    }
+    // `name.text` is the DECODED property name, so `"appId"` is `appId`.
+    if (member.name.text !== name) continue;
+    if (ts.isPropertyAssignment(member)) value = member.initializer;
+    else if (ts.isShorthandPropertyAssignment(member)) value = member.name;
+    else return UNREADABLE;
+    shadowed = false;
+  }
+  return shadowed ? UNREADABLE : value;
+};
+
+/**
+ * The config object the module exports.
+ *
+ * Only the exported object's OWN `plugins` is the plugins array. Scanning every
+ * object in the module for one meant a stale constant, a discarded branch, or
+ * unrelated `extra: {plugins: …}` data could answer for the real thing.
+ *
+ * Resolution follows wrappers, `const` bindings, the values a function returns,
+ * and call ARGUMENTS — the real config returns `helper(expoConfig)`, so the
+ * config is inside that argument. Following arguments keeps the boundary this
+ * audit already documents: it cannot prove the helper passes `plugins` through.
+ *
+ * More than one answer — two `module.exports` branches, a conditional export —
+ * is an ambiguity this reports rather than picks from.
+ */
+const configObjects = (source) => {
+  const roots = [];
+  const isDefault = (node) =>
+    node.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword,
     );
-    if (span === null) continue;
-    declared = true;
-    for (const entry of contents
-      .slice(span[0], span[1])
-      .matchAll(APP_ID_ENTRY)) {
-      const at = span[0] + entry.index;
-      if (masked[at] === contents[at]) return null;
+  const findExport = (node) => {
+    if (ts.isExportAssignment(node) && !node.isExportEquals) {
+      roots.push(node.expression);
+    } else if (
+      (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+      isDefault(node)
+    ) {
+      roots.push(node);
+    } else if (ts.isExportDeclaration(node) && node.exportClause) {
+      for (const element of node.exportClause.elements ?? []) {
+        if (element.name.text === "default") {
+          roots.push(element.propertyName ?? element.name);
+        }
+      }
+    } else if (
+      // Expo allows a `.ts` config to use CommonJS.
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isPropertyAccessExpression(node.left) &&
+      ts.isIdentifier(node.left.expression) &&
+      node.left.expression.text === "module" &&
+      node.left.name.text === "exports"
+    ) {
+      roots.push(node.right);
+    } else {
+      ts.forEachChild(node, findExport);
+    }
+  };
+  findExport(source);
+
+  const found = new Set();
+  const seen = new Set();
+  const queue = [...roots];
+  while (queue.length > 0) {
+    const next = queue.pop();
+    const node = next ? unwrap(next) : null;
+    if (!node || seen.has(node)) continue;
+    seen.add(node);
+
+    if (ts.isObjectLiteralExpression(node)) found.add(node);
+    else if (ts.isIdentifier(node)) {
+      // Record the binding chain as well as following it, so a write through a
+      // binding that holds the config counts: `config.plugins.length = 0`
+      // empties the very array this reads.
+      resolve(node, () => false);
+      const bound = resolveBinding(node);
+      if (bound) queue.push(bound);
+    }
+    else if (ts.isCallExpression(node)) queue.push(...node.arguments);
+    else if (
+      ts.isArrowFunction(node) ||
+      ts.isFunctionExpression(node) ||
+      ts.isFunctionDeclaration(node)
+    ) {
+      if (node.body && ts.isBlock(node.body)) {
+        const returns = (statement) => {
+          if (ts.isReturnStatement(statement)) queue.push(statement.expression);
+          if (!ts.isFunctionLike(statement)) ts.forEachChild(statement, returns);
+        };
+        ts.forEachChild(node.body, returns);
+      } else if (node.body) {
+        queue.push(node.body);
+      }
     }
   }
-  return declared
-    ? "declares horizon config without a literal appId"
-    : "does not set a literal horizon.appId";
+  return [...found];
+};
+
+/**
+ * The options the OpenIAP plugin entry names.
+ *
+ * `property` already answers the hard part: the last assignment of `plugins`
+ * wins, and a spread after it is UNREADABLE — the same rule that applies deeper
+ * in the options object.
+ */
+const pluginOptions = (source) => {
+  // A function can return more than one object — a guard clause returning `{}`
+  // is ordinary. Only the ones that carry `plugins` are candidate configs, and
+  // more than one of those is a genuine ambiguity.
+  const carriers = configObjects(source).filter(
+    (config) => property(config, "plugins") !== null,
+  );
+  if (carriers.length === 0) return undefined;
+  if (carriers.length > 1) return UNREADABLE;
+
+  const value = property(carriers[0], "plugins");
+  if (value === UNREADABLE) return UNREADABLE;
+  if (value === null) return undefined;
+  const array = arrayLiteral(value);
+  if (array === null) return undefined;
+
+  // A spread of an array contributes its elements. `open` is the path being
+  // expanded, so a cycle stops while `[...a, ...a]` still yields both.
+  const elementsOf = (node, open = []) => {
+    if (open.includes(node)) return [];
+    return node.elements.flatMap((element) => {
+      if (!ts.isSpreadElement(element)) return [element];
+      const inner = arrayLiteral(element.expression);
+      return inner ? elementsOf(inner, [...open, node]) : [];
+    });
+  };
+
+  const found = [];
+  for (const element of elementsOf(array)) {
+    const tuple = arrayLiteral(element);
+    if (!tuple || tuple.elements.length < 2) continue;
+    const path = stringValue(tuple.elements[0]);
+    if (path !== null && /app\.plugin\.js$/u.test(path)) {
+      found.push(tuple.elements[1]);
+    }
+  }
+  if (found.length > 1) return UNREADABLE;
+  return found[0];
+};
+
+/**
+ * Whether the module writes through any of these bindings.
+ *
+ * `const` binds the name, not the contents: a config can build the right object
+ * and then set `options.android.horizon.appId = ""`. Nothing in the walk that
+ * READ the literal can see that.
+ *
+ * The rule is deliberately blunt. Any direct mutation through a binding this
+ * walk followed — the exported config, the plugins array, the tuple, the
+ * options object, or an alias of one — makes the config unreadable, whatever
+ * the mutation touches. Earlier versions tried to decide which property a write
+ * could reach, and every round of review found the next thing they got wrong in
+ * one direction or the other: matching by name, by path, by array slot, by what
+ * a rest pattern carries. Being right about that means modelling a JavaScript
+ * heap.
+ *
+ * So this is a policy about the source, not an evaluation of it: tracked config
+ * objects are built once and not mutated. `options.ios = {}` is refused even
+ * though it cannot reach the id — a refusal is visible and the fix is to build
+ * the property in the literal, which is how the config is already written. A
+ * hole is silent.
+ *
+ * What it still cannot see: an alias a CALL produced — `Object.assign({},
+ * options)` returns one — or a write made by a function the object is passed
+ * to. Both need escape analysis, and neither is the accident this exists to
+ * catch: a forgotten or malformed app id.
+ */
+const OBJECT_MUTATORS = new Set([
+  "assign",
+  "defineProperty",
+  "defineProperties",
+  "setPrototypeOf",
+  "set",
+  "deleteProperty",
+]);
+const ARRAY_MUTATORS = new Set([
+  "push",
+  "pop",
+  "shift",
+  "unshift",
+  "splice",
+  "sort",
+  "reverse",
+  "fill",
+  "copyWithin",
+]);
+
+const writesThrough = (source, bindings) => {
+  if (bindings.size === 0) return false;
+  const rootOf = (node) => {
+    let current = unwrap(node);
+    while (
+      ts.isPropertyAccessExpression(current) ||
+      ts.isElementAccessExpression(current)
+    ) {
+      current = unwrap(current.expression);
+    }
+    return ts.isIdentifier(current) ? current : null;
+  };
+  const tracked = (node) => {
+    const root = rootOf(node);
+    if (!root) return false;
+    for (const declaration of bindingChain(root)) {
+      if (bindings.has(declaration)) return true;
+    }
+    return false;
+  };
+  // A write target is a property access, or a destructuring pattern holding one.
+  const targeted = (node) => {
+    const bare = unwrap(node);
+    if (
+      ts.isPropertyAccessExpression(bare) ||
+      ts.isElementAccessExpression(bare)
+    ) {
+      return tracked(bare);
+    }
+    if (ts.isObjectLiteralExpression(bare)) {
+      return bare.properties.some((member) => {
+        if (ts.isPropertyAssignment(member)) return targeted(member.initializer);
+        if (ts.isSpreadAssignment(member)) return targeted(member.expression);
+        return false;
+      });
+    }
+    if (ts.isArrayLiteralExpression(bare)) {
+      return bare.elements.some((element) =>
+        targeted(ts.isSpreadElement(element) ? element.expression : element),
+      );
+    }
+    return false;
+  };
+
+  let writes = false;
+  const visit = (node) => {
+    if (writes) return;
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+      targeted(node.left)
+    ) {
+      writes = true;
+    } else if (
+      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+      (node.operator === ts.SyntaxKind.PlusPlusToken ||
+        node.operator === ts.SyntaxKind.MinusMinusToken) &&
+      targeted(node.operand)
+    ) {
+      writes = true;
+    } else if (ts.isDeleteExpression(node) && targeted(node.expression)) {
+      writes = true;
+    } else if (
+      (ts.isForOfStatement(node) || ts.isForInStatement(node)) &&
+      node.initializer &&
+      !ts.isVariableDeclarationList(node.initializer) &&
+      targeted(node.initializer)
+    ) {
+      writes = true;
+    } else if (
+      ts.isCallExpression(node) &&
+      (ts.isPropertyAccessExpression(node.expression) ||
+        ts.isElementAccessExpression(node.expression))
+    ) {
+      // `entries["pop"]()` calls the same method as `entries.pop()`.
+      const named = ts.isPropertyAccessExpression(node.expression)
+        ? node.expression.name
+        : node.expression.argumentExpression
+          ? unwrap(node.expression.argumentExpression)
+          : null;
+      const method =
+        named &&
+        (ts.isIdentifier(named) ||
+          ts.isStringLiteral(named) ||
+          ts.isNoSubstitutionTemplateLiteral(named))
+          ? named.text
+          : null;
+      const receiver = unwrap(node.expression.expression);
+      const builtin =
+        ts.isIdentifier(receiver) &&
+        (receiver.text === "Object" || receiver.text === "Reflect");
+      if (builtin && OBJECT_MUTATORS.has(method)) {
+        // Only the TARGET of Object.assign/Reflect.set is written.
+        const target = node.arguments[0];
+        if (target && (tracked(target) || targeted(target))) writes = true;
+      } else if (ARRAY_MUTATORS.has(method) && tracked(receiver)) {
+        writes = true;
+      }
+    }
+    if (!writes) ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return writes;
+};
+
+const inspectExpoPluginConfig = (contents) => {
+  const source = ts.createSourceFile(
+    "app.config.ts",
+    contents,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  // The parser recovers from a syntax error and hands back a tree anyway, so a
+  // truncated config would read as a well-formed one that happens to declare
+  // the id. Refusing it is the same rule the XML reader follows.
+  if (source.parseDiagnostics?.length) {
+    return "does not parse, so no app id can be read from it";
+  }
+
+  followed.clear();
+  const entry = pluginOptions(source);
+  if (entry === UNREADABLE) {
+    return "does not resolve to one OpenIAP plugin entry — it registers more than one, or a spread could replace the plugins array";
+  }
+  if (entry === undefined) {
+    return "registers no OpenIAP config plugin entry";
+  }
+  let block = objectLiteral(entry);
+  if (block === null) {
+    return "passes no options object to the OpenIAP config plugin";
+  }
+
+  // Expo reads the id from `android.horizon` of those options. A `horizon`
+  // block anywhere else — a local constant, a commented-out draft, an
+  // unrelated export — supplies nothing to the build.
+  for (const key of ["android", "horizon"]) {
+    const where = key === "android" ? "the plugin options" : "android";
+    const value = property(block, key);
+    if (value === UNREADABLE) {
+      return `composes ${where} in a way this audit cannot read; write the Horizon app id as a plain literal`;
+    }
+    if (value === null) {
+      return key === "android"
+        ? "declares no android config block"
+        : "declares no android.horizon block";
+    }
+    block = objectLiteral(value);
+    if (block === null) {
+      return `sets ${key === "android" ? "android" : "android.horizon"} to something this audit cannot read as an object; write the Horizon app id as a plain literal`;
+    }
+  }
+
+  const appId = property(block, "appId");
+  const literal =
+    appId === UNREADABLE || appId === null ? null : stringValue(appId);
+  if (literal === null || !LITERAL_APP_ID.test(literal)) {
+    return "declares android.horizon without a literal appId";
+  }
+  // The literal is only what the build receives if nothing wrote through the
+  // bindings this walk followed to reach it.
+  if (writesThrough(source, followed)) {
+    return "writes through the bindings that carry the app id, so the literal above is not what the plugin receives";
+  }
+  return null;
 };
 
 const INSPECTORS = {

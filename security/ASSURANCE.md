@@ -31,9 +31,10 @@ evidence from the reviewed source commit rather than claiming a second scan:
 - CodeQL analysis of the hosted/web, C#, workflow, JVM Kotlin core/wrapper, and
   Swift core/wrapper surfaces;
 - a valid, attested CycloneDX SBOM for each published stable release carrying
-  one; the newest stable release of every releasable component must have one,
-  with weekly identity verification and exact-version vulnerability scanning
-  for those assets; older releases without an SBOM use the documented fallback;
+  one; every stable release at or after its component's coverage floor must
+  have one, with weekly identity verification and exact-version vulnerability
+  scanning for those assets; releases before that floor use the documented
+  fallback;
   and
 - the acknowledgment and active-exploitation timelines in
   [`SECURITY.md`](../SECURITY.md).
@@ -99,3 +100,9 @@ artifact or hosted service:
 Do not merge a dependency whose obligations cannot be met by the distribution
 or deployment model. Published SBOM license metadata is evidence of declared
 licenses, not legal advice.
+
+[`dependency-reviews.md`](dependency-reviews.md) records which dependencies
+trip the custom-terms, missing-license, or non-SPDX-license-URL trigger and
+whether each has been reviewed, so an outstanding review is visible rather than
+implicit. It names the other four triggers as not yet derived, so that limit is
+visible too. It also carries the log for the policy review cadence above.

@@ -49,6 +49,7 @@ jobs:
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
           scripts/generate-sbom.test.mjs
+          scripts/xml-document.test.mjs
 
       - name: Audit the release sync script
         run: node scripts/audit-release-sync-script.mjs

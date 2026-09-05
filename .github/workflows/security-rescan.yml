@@ -51,6 +51,17 @@ jobs:
             exit 1
           fi
 
+          # The check above only ever reports the newest release per component,
+          # so a gap behind it becomes permanent. This one covers every stable
+          # release from the point each component started publishing SBOMs.
+          node scripts/generate-sbom.mjs missing-coverage-tags \
+            "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/coverage-gaps.txt"
+          if [ -s "$RUNNER_TEMP/coverage-gaps.txt" ]; then
+            echo "::error::Stable releases inside the SBOM coverage era are missing their SBOM:"
+            cat "$RUNNER_TEMP/coverage-gaps.txt"
+            exit 1
+          fi
+
           node scripts/generate-sbom.mjs published-release-assets \
             "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/published-sboms.tsv"
           PUBLISHED_DIR="$RUNNER_TEMP/published-sboms"

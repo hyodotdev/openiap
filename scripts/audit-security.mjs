@@ -278,7 +278,13 @@ const sleepSync = (milliseconds) => {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 };
 
-export const BUN_AUDIT_ATTEMPTS = 3;
+export const BUN_AUDIT_ATTEMPTS = 4;
+// Exponential rather than linear: the first CI failure this retry was written
+// for came back within seconds, but a later one outlasted a 2s/4s window. This
+// spans about a minute while costing nothing on the normal path, which
+// succeeds on the first attempt and never sleeps. It does not make the audit
+// immune to a real outage — that still fails closed, and is re-run.
+export const BUN_AUDIT_BACKOFF_MS = [5_000, 15_000, 40_000];
 
 export function runBunAudit(
   run,
@@ -294,7 +300,7 @@ export function runBunAudit(
     // Only a transport error is worth repeating. A non-zero status carrying a
     // verdict, or any other output, is the answer.
     if (!isTransportFailure(result) || attempt === attempts) return result;
-    sleep(attempt * 2000);
+    sleep(BUN_AUDIT_BACKOFF_MS[attempt - 1] ?? 40_000);
   }
   return result;
 }

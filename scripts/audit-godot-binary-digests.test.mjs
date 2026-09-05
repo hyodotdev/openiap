@@ -6,12 +6,31 @@ import test from "node:test";
 import {
   DIGEST_MANIFEST,
   collectGodotBinaryDigestFailures,
+  renderDigestManifest,
   digestOf,
   listTrackedBinaries,
   parseDigestManifest,
 } from "./audit-godot-binary-digests.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
+
+// The collector reads the digest manifest and the binary root, nothing else.
+// Copying the whole addon pulled in build output — 8 GB in a checkout that has
+// built Godot — three times per run.
+const stageFixture = (scratch) => {
+  const target = path.join(scratch, "libraries/godot-iap");
+  fs.mkdirSync(path.join(target, "addons/godot-iap"), { recursive: true });
+  fs.copyFileSync(
+    path.join(repoRoot, DIGEST_MANIFEST),
+    path.join(scratch, DIGEST_MANIFEST),
+  );
+  fs.cpSync(
+    path.join(repoRoot, "libraries/godot-iap/addons/godot-iap/bin"),
+    path.join(target, "addons/godot-iap/bin"),
+    { recursive: true },
+  );
+  return target;
+};
 
 test("the shipped Godot binaries match their recorded digests", () => {
   assert.deepEqual(collectGodotBinaryDigestFailures(repoRoot), []);
@@ -48,9 +67,7 @@ test("a changed binary is reported with both digests", () => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
   try {
     // Copy the addon tree, then rewrite the manifest with one wrong digest.
-    const source = path.join(repoRoot, "libraries/godot-iap");
-    const target = path.join(scratch, "libraries/godot-iap");
-    fs.cpSync(source, target, { recursive: true });
+    stageFixture(scratch);
     const manifest = path.join(scratch, DIGEST_MANIFEST);
     fs.writeFileSync(
       manifest,
@@ -61,6 +78,100 @@ test("a changed binary is reported with both digests", () => {
     assert.match(
       failures[0],
       new RegExp(`^${file} changed: recorded 0{64}, found ${real}$`),
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("corrupting a binary and deleting its line does not hide it", () => {
+  // The protected set used to be derived from Mach-O magic, so replacing an
+  // executable with other bytes removed it from the scan; deleting its digest
+  // line then removed it from the recorded set too, and both checks agreed.
+  const file = listTrackedBinaries(repoRoot).find((entry) =>
+    entry.includes("macos/"),
+  );
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = stageFixture(scratch);
+    fs.writeFileSync(
+      path.join(scratch, "libraries/godot-iap", file),
+      "not a Mach-O\n",
+    );
+    const manifest = path.join(scratch, DIGEST_MANIFEST);
+    fs.writeFileSync(
+      manifest,
+      fs
+        .readFileSync(manifest, "utf8")
+        .split("\n")
+        .filter((line) => !line.includes(file))
+        .join("\n"),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.ok(
+      failures.some((failure) => failure.startsWith(`${file} ships in`)),
+      `expected ${file} to be reported, got ${JSON.stringify(failures)}`,
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("an excused name does not excuse executable content", () => {
+  // The exclusion list is by filename, so a Mach-O copied to a name it excuses
+  // would slip past — the same mistake as deriving the protected set from the
+  // bytes, inverted.
+  const donor = listTrackedBinaries(repoRoot)[0];
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = stageFixture(scratch);
+    fs.copyFileSync(
+      path.join(scratch, "libraries/godot-iap", donor),
+      path.join(target, "addons/godot-iap/bin/Payload.gdextension"),
+    );
+    const failures = collectGodotBinaryDigestFailures(scratch);
+    assert.ok(
+      failures.some((failure) => failure.includes("Payload.gdextension")),
+      `expected the disguised binary to be reported, got ${JSON.stringify(failures)}`,
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("--write produces a manifest the audit accepts", () => {
+  // The renderer emitted every file needing a digest while the collector still
+  // enumerated only Mach-O, so a recorded framework resource was reported as
+  // no longer existing and the documented recovery could not converge.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "godot-digests-"));
+  try {
+    const target = stageFixture(scratch);
+    const resource = path.join(
+      target,
+      "addons/godot-iap/bin/ios/GodotIap.framework/PrivacyInfo.xcprivacy",
+    );
+    fs.mkdirSync(path.dirname(resource), { recursive: true });
+    fs.writeFileSync(resource, "privacy\n");
+
+    assert.ok(
+      collectGodotBinaryDigestFailures(scratch).some((failure) =>
+        failure.includes("PrivacyInfo.xcprivacy"),
+      ),
+      "an unrecorded resource should be reported",
+    );
+
+    fs.writeFileSync(
+      path.join(scratch, DIGEST_MANIFEST),
+      renderDigestManifest(scratch, "# test"),
+    );
+    assert.deepEqual(collectGodotBinaryDigestFailures(scratch), []);
+
+    fs.writeFileSync(resource, "tampered\n");
+    assert.ok(
+      collectGodotBinaryDigestFailures(scratch).some((failure) =>
+        failure.includes("PrivacyInfo.xcprivacy"),
+      ),
+      "a changed resource should be reported",
     );
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });

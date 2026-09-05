@@ -30,8 +30,10 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
+import { parseXml } from "./xml-document.mjs";
 import {
   commerceProtocolManifest,
+  compareSemVer,
   validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
@@ -737,6 +739,195 @@ export function sbomRevisionForTag(tag) {
   return LEGACY_SBOM_REPAIRS.get(tag)?.bomVersion ?? 1;
 }
 
+// The first stable release of each component that is required to carry an SBOM.
+// Entries are legacy exemptions only, derived from the published releases: they
+// record where SBOM publication actually began, so earlier releases are not
+// reported as gaps. A component with no entry is required from its very first
+// release, which is what keeps a newly added component covered without anyone
+// remembering to add it here.
+/**
+ * Read the Trivy exception list without a YAML dependency. The release
+ * automation CI job installs nothing, so a parser import there would fail to
+ * resolve; the file is a flat list of scalar fields plus one folded block, so
+ * this reads exactly that shape and nothing more.
+ */
+export function parseTrivyExceptions(contents) {
+  const entries = [];
+  let current = null;
+  let folding = null;
+  let inVulnerabilities = false;
+  for (const raw of contents.split("\n")) {
+    if (/^vulnerabilities:/u.test(raw)) {
+      inVulnerabilities = !/^vulnerabilities:\s*\[\s*\]\s*$/u.test(raw);
+      continue;
+    }
+    if (/^\S/u.test(raw)) inVulnerabilities = false;
+    const item = raw.match(/^\s*-\s+id:\s*(\S+)\s*$/);
+    if (item) {
+      current = { id: item[1], purls: [] };
+      entries.push(current);
+      folding = null;
+      continue;
+    }
+    // Reached only for a line this reader does not recognise as an entry.
+    // Skipping it silently made every lifecycle check below vacuous — a YAML
+    // flow entry parsed to no exceptions at all — so refuse instead.
+    if (!current) {
+      if (
+        inVulnerabilities &&
+        raw.trim() !== "" &&
+        !raw.trim().startsWith("#")
+      ) {
+        throw new Error(
+          `Unsupported Trivy exception syntax: ${raw.trim().slice(0, 80)}`,
+        );
+      }
+      continue;
+    }
+    const purl = raw.match(/^\s*-\s+(pkg:\S+)\s*$/);
+    if (purl) {
+      current.purls.push(purl[1]);
+      continue;
+    }
+    const scalar = raw.match(/^\s{4}(\w+):\s*(.*)$/);
+    if (scalar) {
+      const [, key, rawValue] = scalar;
+      const value = rawValue.trim();
+      folding = value === ">-" || value === "|" ? key : null;
+      // A key with no value on its line introduces a nested list.
+      current[key] = folding ? "" : value === "" ? [] : value;
+      continue;
+    }
+    if (folding && raw.trim() !== "") {
+      current[folding] = `${current[folding]} ${raw.trim()}`.trim();
+      continue;
+    }
+    if (inVulnerabilities && raw.trim() !== "" && !raw.trim().startsWith("#")) {
+      throw new Error(
+        `Unsupported Trivy exception syntax: ${raw.trim().slice(0, 80)}`,
+      );
+    }
+  }
+  return entries;
+}
+
+// A component merged before its first release has no releases to find and no
+// floor tag to name, so requiring either would leave no state the audit can
+// pass between merging it and publishing. Listing it here is the explicit,
+// reviewable way to say "not shipped yet"; the entry comes out when it ships
+// and the floor goes in.
+export const UNRELEASED_COMPONENTS = new Set([]);
+
+export const SBOM_COVERAGE_FLOOR = {
+  // Every released component is anchored to the first release required to
+  // carry an SBOM. "Covered from its first release" cannot be proved from a
+  // release list that might be missing that release — a response holding only
+  // openiap-conformance-2.0.0 satisfied a floorless component while 1.0.0 and
+  // 1.0.1 were absent.
+  apple: "3.2.0",
+  docs: "docs-3.2.0",
+  expo: "expo-iap-5.3.0",
+  flutter: "flutter-iap-10.3.0",
+  godot: "godot-iap-3.3.0",
+  google: "google-3.3.0",
+  kmp: "kmp-iap-3.3.0",
+  maui: "maui-iap-2.3.0",
+  "react-native": "react-native-iap-16.3.0",
+  conformance: "openiap-conformance-1.0.0",
+  "commerce-protocol": "openiap-commerce-protocol-0.1.0",
+};
+
+/**
+ * Return every stable release inside the SBOM coverage era whose SBOM asset is
+ * missing. findMissingLatestSbomTags only ever reports the newest release per
+ * component, so a gap in the middle of a release train is permanent once a
+ * newer release ships. This reports all of them.
+ */
+// `floors` and `components` are injectable so a focused fixture can state the
+// set it means. Production callers take the defaults, which require every
+// releasable component to appear in the list: a floored one by its floor tag,
+// a floorless one by any release. Without that, a response missing a component
+// entirely reports no gaps for it, and the other two commands infer their
+// components from the same list — so nothing else would notice either.
+export function findMissingCoverageTags(
+  releases,
+  { floors = SBOM_COVERAGE_FLOOR, components = Object.keys(COMPONENTS) } = {},
+) {
+  const stable = releases
+    .filter(
+      (release) =>
+        !release?.draft && !release?.prerelease && release?.published_at,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(left.published_at) - Date.parse(right.published_at),
+    );
+
+  // Compare versions, not publish dates. Releases are not published in version
+  // order — a patch on an older line lands after a newer minor, and recreating
+  // a release moves its timestamp — so a date comparison both exempts newer
+  // versions published early and reports older ones published late.
+  const floorVersion = new Map();
+  // A floorless component is required from its first release, which only holds
+  // if the list actually contains it.
+  for (const componentId of components) {
+    if (floors[componentId] !== undefined) continue;
+    if (UNRELEASED_COMPONENTS.has(componentId)) continue;
+    const seen = stable.some(
+      (entry) => componentFromTag(entry.tag_name)?.componentId === componentId,
+    );
+    if (!seen) {
+      throw new Error(
+        `no releases for ${componentId} in the release list, so its coverage cannot be checked. ` +
+          `If it has not shipped yet, add it to SBOM_COVERAGE_FLOOR when it does; ` +
+          `otherwise the release list is incomplete.`,
+      );
+    }
+  }
+
+  for (const [componentId, tag] of Object.entries(floors)) {
+    if (!components.includes(componentId)) continue;
+    // Every floored component has, by definition, already published its floor
+    // release. A list that does not contain it is incomplete, and checking
+    // only the components that survived truncation would report success on a
+    // partial scan — the other two commands infer their components from this
+    // same list, so nothing else would notice the absence either.
+    if (!stable.some((entry) => entry.tag_name === tag)) {
+      throw new Error(
+        `SBOM coverage floor ${tag} for ${componentId} is not in the release list`,
+      );
+    }
+    const resolved = componentFromTag(tag);
+    if (!resolved) {
+      throw new Error(`SBOM coverage floor ${tag} is not a recognised tag`);
+    }
+    // A floor naming another component's tag would satisfy the presence check
+    // above while that component had no release in the list at all.
+    if (resolved.componentId !== componentId) {
+      throw new Error(
+        `SBOM coverage floor ${tag} belongs to ${resolved.componentId}, not ${componentId}`,
+      );
+    }
+    floorVersion.set(componentId, resolved.version);
+  }
+
+  const missing = [];
+  for (const release of stable) {
+    const resolvedTag = componentFromTag(release.tag_name);
+    if (!resolvedTag) continue;
+    const floor = floorVersion.get(resolvedTag.componentId);
+    if (floor !== undefined && compareSemVer(resolvedTag.version, floor) < 0) {
+      continue;
+    }
+    const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    if (!assets.some((entry) => entry?.name === expected)) {
+      missing.push(release.tag_name);
+    }
+  }
+  return missing;
+}
+
 /** Return newest missing releases plus every approved legacy repair. */
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
@@ -1053,6 +1244,15 @@ function dependencyComponent(entry) {
   }
   if (entry.licenses?.length) {
     component.licenses = entry.licenses;
+  }
+  // Attribution evidence the registry states outright; CycloneDX carries it as
+  // a first-class field, and it is the one datum a NOTICE file needs that a
+  // licence identifier does not supply.
+  if (entry.copyright) {
+    component.copyright = entry.copyright;
+  }
+  if (entry.externalReferences?.length) {
+    component.externalReferences = entry.externalReferences;
   }
   if (entry.hashes?.length) {
     component.hashes = entry.hashes;
@@ -1488,6 +1688,38 @@ async function fetchPublishedText(
  * Registry availability and metadata can change, so enriched output is not
  * byte-identical across runs.
  */
+// NuGet replaced per-package licenceUrls with this single placeholder when it
+// deprecated the field; it identifies no terms.
+const DEPRECATED_NUGET_LICENSE_URL = "https://aka.ms/deprecateLicenseUrl";
+
+// Callers deep-compare these results, so an explicitly-undefined key reads as
+// a different shape from an absent one. Drop the empties, and return null when
+// the registry stated nothing at all.
+// CycloneDX types externalReferences.url as an iri-reference, so a registry
+// value carrying a space or a control character fails whole-document schema
+// validation at release time. A reference we cannot record validly is dropped:
+// the licence was already absent, and an invalid one blocks the release.
+function usableLicenseUrl(value) {
+  if (typeof value !== "string" || /[\s<>"{}|\\^`]/u.test(value)) {
+    return undefined;
+  }
+  try {
+    new URL(value);
+    return value;
+  } catch {
+    return undefined;
+  }
+}
+
+function nonEmpty(fields) {
+  const kept = Object.fromEntries(
+    Object.entries(fields).filter(
+      ([, value]) => value !== undefined && value !== null,
+    ),
+  );
+  return Object.keys(kept).length > 0 ? kept : null;
+}
+
 async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
   try {
     if (entry.purl.startsWith("pkg:maven/")) {
@@ -1505,15 +1737,72 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       ]) {
         const pom = await fetcher(`${base}/${path}`);
         if (!pom) continue;
-        const license = pom.match(
-          /<licenses>[\s\S]*?<name>([^<]+)<\/name>/u,
-        )?.[1];
-        const supplier = pom
-          .match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1]
-          ?.trim();
-        if (license || supplier) {
-          return { license: normalizeLicense(license), supplier };
+        // Parsed, not pattern-matched. Reading the raw body recorded a
+        // licence out of an XML comment, and out of a <project> nested inside
+        // an error page.
+        let project;
+        try {
+          project = parseXml(pom, { url: `${base}/${path}` });
+        } catch {
+          continue;
         }
+        if (project.name !== "project") continue;
+        // A POM may declare several licences, and taking the first <name>
+        // after <licenses> silently picked one of them — a guess, which
+        // security/SBOM.md forbids. Read the whole block, and record a licence
+        // only when the declarations agree on a single SPDX id. Scoping to the
+        // block also stops a stray <name> elsewhere in the document from being
+        // read as a licence.
+
+        // Dedupe on the normalised declaration, not on an SPDX id: a licence
+        // with no SPDX id — the Android SDK licence, for example — is a real
+        // declaration and recording its name is not a guess. What is forbidden
+        // is choosing between two that disagree.
+        //
+        // Maven allows <name> and <url> independently, so a <license> element
+        // carrying only a <url> is a second set of terms. Counting elements
+        // rather than <name> tags stops it from being invisible here.
+        const declared = [
+          ...new Map(
+            (project.first("licenses")?.all("license") ?? [])
+              .map((element) => {
+                const name = element.value("name");
+                if (name) return normalizeLicense(name);
+                // CycloneDX requires a licence object to carry an id or a
+                // name; a bare url is not one, so it travels as an external
+                // reference instead of an invalid licence entry. A url we
+                // cannot use is still a declaration — dropping it outright
+                // would turn "MIT and something else" into a bare MIT claim.
+                const url = element.value("url");
+                if (!url) return undefined;
+                return { licenseUrl: usableLicenseUrl(url) ?? null };
+              })
+              .filter(Boolean)
+              .map((entry) => [JSON.stringify(entry), entry]),
+          ).values(),
+        ];
+        const supplier = project.first("organization")?.value("name");
+        const only = declared.length === 1 ? declared[0] : undefined;
+        // Maven's model descriptor settles what several licences mean: "If
+        // multiple licenses are listed, it is assumed that the user can select
+        // any of them, not that they must accept all." That is an SPDX `OR`,
+        // and CycloneDX carries it as an expression — but only when every
+        // operand is a known id, which is also what `normalizeLicense` requires.
+        const ids = declared.map((entry) => entry.license?.id);
+        const alternatives =
+          declared.length > 1 && ids.every(Boolean)
+            ? { expression: ids.join(" OR ") }
+            : undefined;
+        // `licenseUrl: null` marks a declaration counted but not recordable. A
+        // declaration this reader cannot name leaves the set unstatable, so it
+        // records nothing rather than narrowing to the ones it could read. An
+        // external reference of type `license` is read as the component's
+        // licence, so it too is recorded only for a single declaration.
+        const license =
+          alternatives ?? (only && "licenseUrl" in only ? undefined : only);
+        const licenseUrl = only?.licenseUrl ?? undefined;
+        const result = nonEmpty({ license, licenseUrl, supplier });
+        if (result) return result;
       }
       return null;
     }
@@ -1524,16 +1813,39 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
         `https://api.nuget.org/v3-flatcontainer/${id}/${entry.version}/${id}.nuspec`,
       );
       if (!nuspec) return null;
-      const expression = nuspec.match(
-        /<license\s+type="expression">([^<]+)<\/license>/u,
-      )?.[1];
-      const url = nuspec.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
+      // Parsed, not pattern-matched: a commented-out <copyright> before the
+      // real one was recorded as the artifact's attribution, which would have
+      // published a false statement in the SBOM.
+      let metadata;
+      try {
+        const document = parseXml(nuspec, { url: id });
+        metadata =
+          document.name === "package" ? document.first("metadata") : undefined;
+      } catch {
+        return null;
+      }
+      if (!metadata) return null;
+      const expression = metadata
+        .all("license")
+        .find((element) => element.attribute("type") === "expression")
+        ?.text.trim();
+      const url = metadata.value("licenseUrl");
       const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
       const raw = expression ?? (fromUrl && decodeURIComponent(fromUrl));
-      return {
-        license: normalizeLicense(raw),
-        supplier: nuspec.match(/<authors>([^<]+)<\/authors>/u)?.[1]?.trim(),
-      };
+      const license = normalizeLicense(raw);
+      return nonEmpty({
+        license,
+        // A licenceUrl that maps to no SPDX id still says where the terms are,
+        // but CycloneDX has no licence object carrying only a url — it belongs
+        // in externalReferences. NuGet's placeholder for a retired licenceUrl
+        // states nothing, so it is dropped.
+        licenseUrl:
+          license || !url || url === DEPRECATED_NUGET_LICENSE_URL
+            ? undefined
+            : usableLicenseUrl(url),
+        supplier: metadata.value("authors") || undefined,
+        copyright: metadata.value("copyright") || undefined,
+      });
     }
 
     if (entry.purl.startsWith("pkg:npm/")) {
@@ -1546,20 +1858,59 @@ async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
       const metadata = JSON.parse(raw);
       const license = metadata.license;
       const author = metadata.author;
-      return {
+      return nonEmpty({
         license: normalizeLicense(
           typeof license === "string" ? license : license?.type,
         ),
         supplier: typeof author === "string" ? author : author?.name,
-      };
+      });
+    }
+    if (entry.purl.startsWith("pkg:pub/")) {
+      // pub.dev states the licence as a score tag rather than a metadata
+      // field. Only tags that resolve to a known SPDX id are kept, so the
+      // classification tags it also emits (osi-approved, fsf-libre) drop out
+      // on their own, and an ambiguous package yields no licence at all
+      // rather than a guess.
+      const scored = await fetcher(
+        `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/score`,
+      );
+      const resolved = scored
+        ? [
+            ...new Set(
+              (JSON.parse(scored).tags ?? [])
+                .filter((tag) => tag.startsWith("license:"))
+                .map((tag) => normalizeLicense(tag.slice("license:".length)))
+                .filter((license) => license?.license?.id)
+                .map((license) => license.license.id),
+            ),
+          ]
+        : [];
+      // Parsed on its own: a malformed publisher body must not discard a
+      // licence the score document did state.
+      let supplier;
+      try {
+        const published = await fetcher(
+          `https://pub.dev/api/packages/${encodeURIComponent(entry.name)}/publisher`,
+        );
+        supplier = published
+          ? JSON.parse(published).publisherId || undefined
+          : undefined;
+      } catch {
+        supplier = undefined;
+      }
+      return nonEmpty({
+        // Two different declared licences is a question for a human, not a
+        // coin flip.
+        license:
+          resolved.length === 1 ? { license: { id: resolved[0] } } : undefined,
+        supplier,
+      });
     }
   } catch {
     // Network failure, timeout, or malformed registry response.
     return null;
   }
 
-  // pub.dev has no standard license field in package metadata; Dart packages
-  // declare licensing in a LICENSE file that the API does not expose.
   return null;
 }
 
@@ -1578,6 +1929,17 @@ async function attachRegistryMetadata(
           : {}),
         ...(found.supplier && !entry.supplier
           ? { supplier: found.supplier }
+          : {}),
+        ...(found.copyright && !entry.copyright
+          ? { copyright: found.copyright }
+          : {}),
+        ...(found.licenseUrl && !entry.licenses?.length
+          ? {
+              externalReferences: [
+                ...(entry.externalReferences ?? []),
+                { url: found.licenseUrl, type: "license" },
+              ],
+            }
           : {}),
       };
     }),
@@ -1790,6 +2152,13 @@ async function main() {
     const path = process.argv[3];
     const releases = readReleaseList(path);
     const tags = findMissingLatestSbomTags(releases);
+    process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
+    return;
+  }
+
+  if (maybeCommand === "missing-coverage-tags") {
+    const releases = readReleaseList(process.argv[3]);
+    const tags = findMissingCoverageTags(releases);
     process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
     return;
   }

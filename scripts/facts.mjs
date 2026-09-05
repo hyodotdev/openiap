@@ -40,12 +40,44 @@ export const FACTS = Object.freeze([
   },
   {
     key: "toolchain.bun",
-    values: { pinned: "1.3.13" },
+    // `pinned` is the toolchain CI installs and tests against. `runtimeImage`
+    // is the Bun inside the IAPKit container, which compiles the binary that
+    // actually serves traffic — a separate role, and one the workflows never
+    // mention, so it needs its own scanner to be visible here at all.
+    values: { pinned: "1.3.13", runtimeImage: "1.4.0" },
     scanners: [
-      { files: [WORKFLOWS], pattern: /bun-version:\s*["']?([\d.]+)/g },
+      {
+        files: [WORKFLOWS],
+        pattern: /bun-version:\s*["']?([\d.]+)/g,
+        role: "pinned",
+      },
       {
         files: ["package.json"],
         pattern: /"packageManager":\s*"bun@([\d.]+)"/g,
+        role: "pinned",
+      },
+      {
+        // The security README republishes both roles for readers; without a
+        // scanner it drifts silently when either version moves.
+        files: ["security/README.md"],
+        pattern: /`toolchain\.bun` \/ `pinned`\s*\|\s*([\d.]+)/g,
+        role: "pinned",
+        mirror: true,
+      },
+      {
+        files: ["security/README.md"],
+        pattern: /`toolchain\.bun` \/ `runtimeImage`\s*\|\s*([\d.]+)/g,
+        role: "runtimeImage",
+        mirror: true,
+      },
+      {
+        files: ["packages/kit/Dockerfile"],
+        // Anchored to the instruction so a comment mentioning the old image
+        // cannot satisfy it, but tolerant of the flags a FROM line may carry:
+        // `FROM --platform=linux/amd64 oven/bun:...` is ordinary and must not
+        // slip past by failing to match.
+        pattern: /^FROM\s+(?:--\S+\s+)*oven\/bun:([\d.]+)/gm,
+        role: "runtimeImage",
       },
     ],
   },

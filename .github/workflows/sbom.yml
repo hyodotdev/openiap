@@ -15,6 +15,9 @@ on:
       - ".github/workflows/sbom.yml"
       - "scripts/generate-sbom.mjs"
       - "scripts/sbom-dependencies.mjs"
+      - "scripts/xml-document.mjs"
+      - "scripts/assert-release-tag.mjs"
+      - "scripts/release-branch-policy.mjs"
   schedule:
     - cron: "23 3 * * *"
   workflow_dispatch:
@@ -107,6 +110,7 @@ jobs:
           git checkout "$GENERATOR_COMMIT" -- \
             scripts/generate-sbom.mjs \
             scripts/sbom-dependencies.mjs \
+            scripts/xml-document.mjs \
             scripts/release-branch-policy.mjs \
             scripts/assert-release-tag.mjs \
             scripts/install-security-tool.sh

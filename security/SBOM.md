@@ -24,8 +24,9 @@ monorepo-wide document would describe an artifact nobody installs.
 The releasable components are defined by `versionSources` in
 `scripts/release-branch-policy.mjs` and mirrored by `COMPONENTS` in
 `scripts/generate-sbom.mjs`. This table is a third copy for readers;
-`bun run audit:sbom-docs` fails when it drifts from either, so a component
-cannot be released without also being described:
+`bun run audit:sbom-docs` fails when its component set or SBOM name drifts
+from either, so a component cannot be released without also being described.
+The distribution and release-tag columns are prose and are not machine-checked:
 
 | Component           | SBOM name                   | Distribution                     | Release tag                           |
 | ------------------- | --------------------------- | -------------------------------- | ------------------------------------- |
@@ -67,6 +68,56 @@ notice plus the addon's own `LICENSE`. Registry-distributed components carry
 their dependencies by coordinate rather than by embedding them, so the consuming
 package manager resolves those licences.
 
+## Coverage policy
+
+SBOM publication began partway through this repository's history, so a release
+without an SBOM asset is not automatically a failure. The boundary is recorded
+as `SBOM_COVERAGE_FLOOR` in `scripts/generate-sbom.mjs`, derived from the
+published releases rather than chosen:
+
+| Component                          | First release required to carry an SBOM         |
+| ---------------------------------- | ----------------------------------------------- |
+| `apple`                            | `3.2.0`                                         |
+| `docs`                             | `docs-3.2.0`                                    |
+| `expo`                             | `expo-iap-5.3.0`                                |
+| `flutter`                          | `flutter-iap-10.3.0`                            |
+| `godot`                            | `godot-iap-3.3.0`                               |
+| `google`                           | `google-3.3.0`                                  |
+| `kmp`                              | `kmp-iap-3.3.0`                                 |
+| `maui`                             | `maui-iap-2.3.0`                                |
+| `react-native`                     | `react-native-iap-16.3.0`                       |
+| `conformance`                      | `openiap-conformance-1.0.0`                     |
+| `commerce-protocol`                | `openiap-commerce-protocol-0.1.0`               |
+
+Every released component is anchored here. "Covered from its first release"
+cannot be proved from a release list that might be missing that release, so a
+component without an entry is one that has not shipped yet — and it belongs in
+`UNRELEASED_COMPONENTS` until it does.
+
+**What is enforced.** `security-rescan.yml` fails when any stable release at or
+after its component's floor is missing its SBOM. The older check beside it only
+ever reports the newest release per component, so a gap behind that one used to
+become permanent. A floor tag absent from the release list is an error rather
+than a skipped component, and a component with no floor must still appear in
+the list, so a truncated page cannot narrow the scan in silence. The cost is
+that a component added to the generator before its first release fails this
+check until that release exists; the error says so and names the remedy.
+
+**Releases before a floor.** These are published without an SBOM and stay that
+way. They are not backfilled: an SBOM generated today resolves today's registry
+metadata, so it would describe something other than what shipped, and a
+plausible-looking artifact that misdescribes a release is worse than its
+absence. Advisory questions about a pre-floor release are answered from the
+tag's committed manifests. For Apple, the docs site and Godot those are the
+inputs the generator reads. Google, KMP and MAUI resolve their published POM or
+nuspec instead, so a manifest answer for those three describes what the tag
+declared rather than what publishing produced.
+
+**When backfill is appropriate.** Only when the SBOM can be generated from the
+exact committed state of that tag and is labelled as generated after the fact.
+`repairSbomDigestForTag` exists for approved repairs of that kind; adding an
+entry there is a deliberate, reviewed act, not routine maintenance.
+
 ## Standards
 
 | Concern            | Standard                                                                                                                                                   |
@@ -100,12 +151,13 @@ consumer-visible descriptor over HTTPS as a required inventory input. With
 `--with-licenses`, the generator also performs best-effort license and supplier
 enrichment:
 
-| Registry                                          | Required inventory input     | Best-effort enrichment      |
-| ------------------------------------------------- | ---------------------------- | --------------------------- |
-| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs        | License and organization    |
-| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs    | License and organization    |
-| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors         |
-| [registry.npmjs.org](https://registry.npmjs.org/) | —                            | npm license and author data |
+| Registry                                          | Required inventory input     | Best-effort enrichment         |
+| ------------------------------------------------- | ---------------------------- | ------------------------------ |
+| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs        | License and organization       |
+| [Google Maven](https://maven.google.com/)         | Android/Google Maven POMs    | License and organization       |
+| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec` dependencies | License and authors            |
+| [registry.npmjs.org](https://registry.npmjs.org/) | —                            | npm license and author data    |
+| [pub.dev](https://pub.dev/help/api)               | —                            | Dart license tag and publisher |
 
 Failure to read a required POM or nuspec blocks generation because the
 dependency inventory would be incomplete. A metadata-enrichment failure
@@ -213,7 +265,11 @@ enrichment is disabled.
 Licenses are never guessed. A registry value is emitted as an SPDX identifier
 only when it is a recognised one; anything else is recorded as a free-text
 license name, because downstream tooling treats `license.id` as authoritative
-and a confident wrong identifier is worse than an absent one. A lookup failure
+and a confident wrong identifier is worse than an absent one. A Maven POM that
+lists several licences declares alternatives — "the user can select any of
+them, not that they must accept all" — so those become an SPDX `OR` expression,
+and only when every operand is a recognised identifier; one operand this reader
+cannot name leaves the whole set unstated rather than narrowed to the rest. A lookup failure
 preserves reviewed local metadata and leaves any remaining field empty rather
 than failing the release — license data is compliance metadata, not part of the
 security inventory.
@@ -221,10 +277,28 @@ security inventory.
 License coverage is best-effort where an ecosystem does not publish a standard
 machine-readable value. Current structural gaps include:
 
-- **pub.dev packages** — Dart declares licensing in a `LICENSE` file, and
-  package metadata exposes no standard license field.
-- **NuGet packages whose nuspec carries only a license URL** that does not map
-  to an SPDX identifier, such as `Xamarin.Android.Google.BillingClient`.
+- **NuGet packages whose nuspec states no machine-readable licence.** A real
+  `<licenseUrl>` becomes an `externalReferences` entry of type `license`, so the
+  reference is not lost, but the component still carries no SPDX id. CycloneDX
+  has no licence object for a bare URL, and it types that reference as an
+  IRI, so a value carrying whitespace is dropped rather than emitted invalid.
+  `Xamarin.Android.Google.BillingClient` is the sharper case: its `<licenseUrl>`
+  is NuGet's `aka.ms/deprecateLicenseUrl` placeholder, which states no terms and
+  is dropped, and its `<license>` names a file inside the package rather than an
+  expression. It resolves to no licence at all, correctly.
+- **Dart lockfiles are not committed, deliberately.** `pubspec.lock` pins the
+  versions one application resolved; a package published for others to depend
+  on must not ship one, because the consumer resolves against their own
+  constraints. The SBOM therefore records the constraint from `pubspec.yaml`
+  rather than a resolved version, and says so: the constraint is the component's
+  `version`, marked with an `openiap:sbom:version-constraint` property rather
+  than implying a pin.
+- **pub.dev packages record the license of the version pub.dev analysed**, not
+  of the version constraint the SBOM lists. Dart lockfiles are not committed
+  (see below), so `^1.2.0` in the SBOM is a constraint while `license:` comes
+  from whatever pub.dev most recently scored. That is the same point-in-time
+  caveat `--with-licenses` carries generally, but it is worth stating because
+  the identifier looks exact.
 
 `bun run sbom <component> --with-licenses` prints the resolved count for a
 component, so current coverage is checkable rather than quoted here — a fixed

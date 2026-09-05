@@ -52,6 +52,13 @@ export function scanFact(fact, readFile) {
           file,
           line: text.slice(0, match.index).split("\n").length,
           value: match[1],
+          // A scanner may claim one role, so an occurrence can be checked
+          // against that role rather than against the whole allowed set.
+          role: scanner.role,
+          // A mirror republishes the fact for readers. It must agree with the
+          // registry, but it does not prove the fact still has a real home —
+          // otherwise deleting the load-bearing site would go unnoticed.
+          mirror: scanner.mirror === true,
         });
       }
     }
@@ -72,14 +79,55 @@ export function auditFacts(readFile) {
     for (const file of missing) {
       failures.push(`${fact.key}: scanned file is missing: ${file}`);
     }
-    for (const { file, line, value } of occurrences) {
+    for (const { file, line, value, role, mirror } of occurrences) {
       if (!allowed.has(value)) {
         failures.push(
           `${fact.key}: ${file}:${line} declares "${value}" but the ` +
             `registry allows ${JSON.stringify(fact.values)}`,
         );
+      } else if (role !== undefined && fact.values[role] !== value) {
+        // Without this, two roles could swap files and still pass: both
+        // values are allowed and both are still seen somewhere.
+        failures.push(
+          `${fact.key}: ${file}:${line} declares "${value}" but that site ` +
+            `carries the ${role} role, which is "${fact.values[role]}"`,
+        );
       }
-      seen.add(value);
+      if (!mirror) seen.add(value);
+    }
+
+    // A mirror that matches nothing has been deleted or reformatted away. It is
+    // excluded from `seen` on purpose, so without this the audit would report
+    // success on a documentation copy that no longer exists.
+    for (const scanner of fact.scanners) {
+      if (scanner.mirror !== true) continue;
+      const matched = occurrences.some(
+        (occurrence) => occurrence.mirror && occurrence.role === scanner.role,
+      );
+      if (!matched) {
+        failures.push(
+          `${fact.key}: the ${scanner.role} mirror in ${scanner.files.join(", ")} ` +
+            `matches nothing — restore it or remove the scanner`,
+        );
+      }
+    }
+
+    // When every scanner names its role, require each declared role to be
+    // observed through a scanner carrying that role. Keying only by value let
+    // one occurrence satisfy two roles once their versions converged, so a
+    // routine upgrade could hide the loss of a real declaration site.
+    if (fact.scanners.every((scanner) => scanner.role !== undefined)) {
+      for (const [role] of Object.entries(fact.values)) {
+        const observed = occurrences.some(
+          (occurrence) => !occurrence.mirror && occurrence.role === role,
+        );
+        if (!observed) {
+          failures.push(
+            `${fact.key}: no non-mirror site declares the ${role} role any more — ` +
+              `update or remove it from scripts/facts.mjs`,
+          );
+        }
+      }
     }
 
     for (const [value, role] of allowed) {

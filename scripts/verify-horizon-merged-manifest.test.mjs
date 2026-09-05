@@ -54,6 +54,66 @@ test("a manifest without the declaration is reported", () => {
   );
 });
 
+test("a declaration nested in an activity is not an application declaration", () => {
+  // Horizon looks the id up on the application. The merger will happily place
+  // it inside an activity, where the platform never sees it, so scanning the
+  // document globally accepted a manifest that throws at runtime.
+  assert.match(
+    String(
+      inspectMergedManifest(
+        [
+          "<manifest><application>",
+          '  <activity android:name=".Main">',
+          '    <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+          '        android:value="31705015229097839" />',
+          "  </activity>",
+          "</application></manifest>",
+        ].join("\n"),
+      ),
+    ),
+    /outside <application>/u,
+  );
+});
+
+test("a self-closing application child does not swallow the declaration", () => {
+  // Real merged manifests carry a self-closing <provider/> (androidx.startup)
+  // before their own elements. A lazy body that ignores the self-closing form
+  // starts there and runs to a LATER </provider>, deleting everything between
+  // — including the Horizon meta-data — so this valid manifest was rejected.
+  const manifest = [
+    "<manifest><application>",
+    '  <provider android:name="androidx.startup.InitializationProvider" android:exported="false" />',
+    '  <meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"',
+    '      android:value="31705015229097839" />',
+    '  <provider android:name=".FileProvider">',
+    '    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/paths" />',
+    "  </provider>",
+    "</application></manifest>",
+  ].join("\n");
+  assert.equal(inspectMergedManifest(manifest), null);
+});
+
+test("an unreadable manifest is reported, not read past", () => {
+  // Each of these branches decides whether CI blocks a Horizon build, and none
+  // of them was exercised.
+  assert.match(
+    String(inspectMergedManifest("<manifest><application>")),
+    /is not well-formed XML/u,
+  );
+  assert.match(
+    String(inspectMergedManifest("<manifest/>")),
+    /has no <application> element/u,
+  );
+  assert.match(
+    String(
+      inspectMergedManifest(
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID"/></application></manifest>',
+      ),
+    ),
+    /has no android:value/u,
+  );
+});
+
 test("a commented-out declaration is not a declaration", () => {
   const contents = [
     "<manifest><application>",

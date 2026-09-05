@@ -136,8 +136,13 @@ gates remain independent of that hosted view.
   read-only and grants write permissions per job.
 - CodeQL's traced Kotlin jobs build the Google and KMP Android cores plus the
   React Native, Expo, Flutter, Godot, and MAUI JVM wrappers. Its traced Swift
-  jobs build the Apple core, KMP Swift bridge, and React Native, Expo, Flutter,
-  and Godot wrappers.
+  jobs build the Apple core and the React Native, Expo, Flutter, and Godot
+  wrappers. The KMP Swift bridge is compiled in the same job but after the
+  analysis step, so it is checked without being traced. Its whole source is one
+  `@_exported import` and its package pins openiap to a released tag, so tracing
+  it put a second, older copy of the Apple core in the database rather than new
+  coverage — and an alert against that copy would name code no pull request can
+  change. Nothing else in CI compiles the package, so the build itself stays.
 - CodeQL's Kotlin extractor traces JVM compilation, so it cannot analyse
   Kotlin/Native. This is a CodeQL platform limitation, not an OpenIAP
   configuration gap: no CodeQL setting reaches this code. The uncovered shipped
@@ -168,6 +173,14 @@ gates remain independent of that hosted view.
   has no npm provenance. Version 1.0.1 is the first provenance-verified release;
   tag, registry-integrity, reproducibility, and SBOM evidence for 1.0.0 do not
   retroactively create npm build provenance.
+- `openiap-commerce-protocol@0.0.0-bootstrap.0` has no npm provenance either.
+  It is a publicly installable version but not a project release: npm cannot
+  register a trusted publisher for a package that does not exist, so the name
+  was claimed by publishing that placeholder outside the CI lane. It sits on
+  the `bootstrap` dist-tag, and `latest` is `0.1.0` — the first release
+  published through trusted publishing, carrying both npm publish and SLSA
+  provenance attestations — so an unqualified install resolves to `0.1.0`
+  today. Dist-tags are mutable; the attestation on each version is not.
 
 ## Release artifact verification
 
@@ -205,23 +218,48 @@ headset.
 
 Two checks cover this, and they prove different things:
 
-| Check                                        | Proves                                                                                                          |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder         |
-| `scripts/verify-horizon-merged-manifest.mjs` | the value the manifest merger actually _resolved_ is a real app id, not empty and not an unresolved placeholder |
+| Check                                        | Proves                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bun run audit:horizon-app-id`               | every example _declares_ the meta-data under `<application>`, with a literal id or a Gradle placeholder. For Expo it parses the config and follows `android.horizon.appId` through object literals and `const` bindings. Anything whose value needs the module to run — a helper call, a conditional, a getter, a prototype, a spread that could replace the value — is reported rather than resolved, and any direct mutation through a binding the walk followed — the exported config, the plugins array, the tuple, the options object, or an alias of one — refuses the config, whatever the mutation touches, since `const` binds the name and not the contents. An alias includes an object or array literal built from the tracked value — a shallow copy such as `{...options}` or `const [...copy] = entries`, and an ordinary member such as `{android: options.android}` — because each holds the very same object; a mutator called through a bracket is the same mutator. That is a policy about the source rather than an evaluation of it: `options.ios = {}` is refused too, and the fix is to build the property in the literal. Only the exported object's own `plugins` counts. It does not see a write through an alias a CALL produced — `Object.assign({}, options)` returns one — nor a write made by a function the object is passed to; both need escape analysis. The `plugins` array must be one the exported config can reach, so a stale constant holding a complete entry does not answer for an export that registers nothing. For the same reason it cannot prove that entry is still in the exported `plugins` array |
+| `scripts/verify-horizon-merged-manifest.mjs` | the manifest merger _resolved_ a value under `<application>` that is non-empty, not an unresolved placeholder, and shaped like an app id. Nothing offline can prove the id is registered with Meta                                                                            |
 
 The declaration check is static and runs on every pull request. The resolution
-check needs a built variant, and CI runs it for `packages/google` only, because
-that is the one target whose Horizon variant CI already builds.
+check needs a built variant, and CI runs it for both targets that resolve their
+id through a Gradle placeholder:
 
-`libraries/flutter_inapp_purchase/example` also resolves its id through a Gradle
-placeholder, and its resolution is therefore **not** verified in CI — that
-workflow builds no Android variant. Its declaration is checked, and its resolved
-value was verified by hand against a real merge. Closing this properly means
-adding an Android job to the Flutter workflow, not adding a static check that
-reads the build file's text: the value is decided by the manifest merger, and
-approximating that decision from source is what an earlier revision of the audit
-got wrong.
+- `packages/google/Example`, via `:Example:processHorizonDebugManifest`
+- `libraries/flutter_inapp_purchase/example`, via
+  `:app:processDebugManifest -PhorizonEnabled=true`
+
+Both merge the manifest without building an APK. The other examples ship the
+literal in their own manifest or config, so the declaration check covers them.
+
+Do not replace either with a check that reads the build file's text. The value
+is decided by the manifest merger, and approximating that decision from source
+is what an earlier revision of this audit got wrong.
+
+### IAPKit toolchain boundary
+
+IAPKit deploys with `flyctl deploy --remote-only`, so the image is built by
+Fly's builder from `packages/kit/Dockerfile`, not by CI. Two different Bun
+versions are therefore in play, and they are not interchangeable:
+
+| Role                             | Version | What it touches                                              |
+| -------------------------------- | ------- | ------------------------------------------------------------ |
+| `toolchain.bun` / `pinned`       | 1.3.13  | what CI installs to lint, typecheck and test                 |
+| `toolchain.bun` / `runtimeImage` | 1.4.0   | the `oven/bun` base that compiles the binary serving traffic |
+
+The tests that gate a deploy run on the first; the artifact that serves traffic
+is compiled by the second.
+
+After the deploy, the workflow reads `https://kit.openiap.dev/health` and
+requires the `revision` it reports to be the commit just built. Every earlier
+step proves what was built and pushed; this is the only one that proves what is
+serving, so a rollout that kept the previous machine is visible rather than
+assumed away. Both are declared in `scripts/facts.mjs` and scanned,
+so neither can move without the declared-fact audit failing — but the gap
+between them is a real one, not an artefact of the audit. Closing it means
+agreeing a single version and moving both together.
 
 ### Release immutability
 
@@ -235,6 +273,22 @@ Enabling it requires moving SBOM generation into each release job so the release
 is created complete. Until then the compensating controls are the attestation
 and post-publication digest check on the lanes that have them, and `sbom.yml`
 verifying an existing SBOM's attestation before it would replace one.
+
+### What "immutable tag" means here
+
+`knowledge/internal/06-git-deployment.md` calls release tags immutable. That
+describes what the tag is _used for_ — npm provenance binds to the workflow run
+and the commit SHA behind the tag, so a published attestation cannot be changed
+by anything done to the tag afterwards. It does not describe an enforced
+protection: this repository has no rulesets and `main` carries no branch
+protection, so a maintainer with write access can move or delete a tag.
+
+The consequence is bounded but real. Published provenance stays true, and the
+post-publication checks on the lanes that have them compare against what the
+release actually serves. What a moved tag would break is the repository's own
+record agreeing with that attestation. Tag protection is a repository setting,
+not a file in this tree, so it is recorded here rather than changed by a pull
+request.
 
 ## Scanning posture
 
@@ -251,8 +305,8 @@ in its configured languages.
 
 Published release SBOMs are not treated as a substitute for the repository
 gate. A weekly read-only job re-verifies and scans every published stable
-release that carries an SBOM; the newest stable release of each component must
-carry one. Declared version constraints are logged and omitted from the
+release that carries an SBOM. Every stable release at or after its component's
+coverage floor must carry one, not merely the newest. Declared version constraints are logged and omitted from the
 exact-version scan copy instead of being misread as installed versions; the
 signed SBOM is never changed. The same workflow rebuilds the current Kit source
 image and fails on HIGH/CRITICAL vulnerabilities or an end-of-life base, while

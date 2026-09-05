@@ -26,6 +26,54 @@ is English. When non-English repository-authored text is found in the active
 work scope, edit the existing artifact in place when possible instead of adding
 a duplicate translation.
 
+## Public GitHub Communication Style
+
+Write like a maintainer explaining the change to a colleague, not like a report.
+This applies to pull request titles and bodies, review comments and replies,
+issue comments, and release text. It is a release requirement, not a preference:
+a description nobody reads is a description that does not review the change.
+
+**Lead with the point.** First sentence says what changed and why it matters.
+No preamble, no restating the title, no "This PR introduces...".
+
+**Short sentences, ordinary words.** Say "broken" not "exhibits a defect",
+"fixed" not "remediated", "we can't prove X" not "X is not substantiable".
+If a sentence needs a second read, split it.
+
+**Length is a budget.** A PR body is under 60 lines. A review reply is one to
+three sentences. Detail that does not change what the reader does next belongs
+in the commit message or the code comment, not here.
+
+**Group, do not enumerate.** Nine findings of the same shape are one paragraph
+naming the shape, not nine table rows. Reach for a table only when the reader
+will compare columns.
+
+**Say what a reviewer needs.** What broke, what it cost, what changed, how it
+was verified. Skip the investigation narrative, the options considered, and the
+chronology of how you got there.
+
+**Reply to review comments like a person.** State the outcome first — fixed,
+already handled, or disagreed — then the reason in a sentence. No restating the
+reviewer's comment back to them, no thanking-and-summarising preamble. Write
+commit hashes bare, never in backticks: GitHub only auto-links plain text.
+
+Bad, and typical of AI-authored prose:
+
+```text
+Thank you for the thorough review! You raise an excellent point regarding the
+validation logic. Upon careful investigation of the code path in question, I
+was able to determine that the guard clause does indeed fail to account for the
+scenario you describe, and I have accordingly implemented a fix which...
+```
+
+Good:
+
+```text
+Fixed in abc1234. The guard only matched the bare tag, so an element with an
+attribute fell through to the "declares none" branch. Now it matches through
+attributes and throws when the element is present but unreadable.
+```
+
 ## Git Commit Message Format
 
 ### Rules

@@ -15,32 +15,35 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
+  SBOM_COVERAGE_FLOOR,
   __testing as generatorTesting,
   buildSbom,
   componentFromTag,
+  findMissingCoverageTags,
   findMissingLatestSbomTags,
   generateSbom,
   latestSbomAssets,
   listComponentIds,
   normalizeLicense,
-  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
+  parseTrivyExceptions,
   prepareSbomForExactVulnerabilityScan,
   publishedSbomAssets,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
   repairSbomDigestForTag,
-  sbomRevisionForTag,
   sbomFileName,
+  sbomRevisionForTag,
   verifyPublishedSbom,
   verifySbomGeneratorAttestation,
 } from "./generate-sbom.mjs";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
+  PublishedMetadataUnavailableError,
   __testing as dependencyTesting,
   extractDirectDependencies,
   mergeResolved,
-  PublishedMetadataUnavailableError,
 } from "./sbom-dependencies.mjs";
 import { versionSources } from "./release-branch-policy.mjs";
 
@@ -812,10 +815,92 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
   for (const workflow of [deploy, source]) {
     assert.match(workflow, /--ignorefile packages\/kit\/\.trivyignore\.yaml/u);
   }
-  assert.match(trivyExceptions, /id: CVE-2026-14456/u);
-  assert.match(trivyExceptions, /pkg:deb\/debian\/libssl3@3\.0\.20-1~deb12u2/u);
-  assert.match(trivyExceptions, /expired_at: 2026-09-14/u);
-  assert.match(trivyExceptions, /statement: >-/u);
+  assert.match(trivyExceptions, /vulnerabilities:/u);
+});
+
+test("every Trivy exception is complete and still in date", () => {
+  // Asserting the current CVE's text would pin a snapshot: removing a properly
+  // expired exception would fail this test, and a new one could be added with
+  // no expiry at all. These are the properties that actually matter.
+  const exceptions = parseTrivyExceptions(
+    readFileSync(resolve(repoRoot, "packages/kit/.trivyignore.yaml"), "utf8"),
+  );
+  // No lower bound on the count. Every exception carries an expiry and says to
+  // remove it by then, so requiring a non-empty list would make our own test
+  // block the cleanup it asks for. The parser is proven separately, below.
+
+  const today = new Date().toISOString().slice(0, 10);
+  for (const entry of exceptions) {
+    // A prefix test accepts "CVE-invalid"; these are the real identifier
+    // shapes, so a typo cannot masquerade as an advisory.
+    assert.match(
+      String(entry.id ?? ""),
+      /^(?:CVE-\d{4}-\d{4,}|GHSA-[23456789cfghjmpqrvwx]{4}(?:-[23456789cfghjmpqrvwx]{4}){2})$/u,
+      `exception ${JSON.stringify(entry)} has no well-formed advisory id`,
+    );
+    assert.ok(
+      Array.isArray(entry.purls) && entry.purls.length > 0,
+      `${entry.id} names no package, so it would suppress the advisory everywhere`,
+    );
+    const expiry =
+      entry.expired_at instanceof Date
+        ? entry.expired_at.toISOString().slice(0, 10)
+        : String(entry.expired_at ?? "");
+    assert.match(
+      expiry,
+      /^\d{4}-\d{2}-\d{2}$/u,
+      `${entry.id} has no expiry date, so it would never be rechecked`,
+    );
+    // The shape alone accepts 2026-99-99, which would also satisfy the lexical
+    // comparison below and so never expire. Round-tripping proves it is a day
+    // that exists.
+    const parsed = new Date(`${expiry}T00:00:00Z`);
+    assert.equal(
+      Number.isNaN(parsed.getTime())
+        ? "invalid"
+        : parsed.toISOString().slice(0, 10),
+      expiry,
+      `${entry.id} has an expiry that is not a real date: ${expiry}`,
+    );
+    assert.ok(
+      expiry >= today,
+      `${entry.id} expired on ${expiry}: recheck the vendor classification or remove it`,
+    );
+    assert.ok(
+      String(entry.statement ?? "").trim().length > 0,
+      `${entry.id} carries no statement explaining why it is accepted`,
+    );
+  }
+});
+
+test("the Trivy exception parser reads entries and an empty list", () => {
+  // Proven against fixtures so the audit above can stop asserting that the
+  // committed file is non-empty.
+  assert.deepEqual(parseTrivyExceptions("vulnerabilities:\n"), []);
+  assert.deepEqual(parseTrivyExceptions("vulnerabilities: []\n"), []);
+
+  const [entry, ...rest] = parseTrivyExceptions(
+    [
+      "vulnerabilities:",
+      "  - id: CVE-2026-14456",
+      "    purls:",
+      "      - pkg:deb/debian/libssl3@3.0.20-1~deb12u2",
+      "    expired_at: 2026-09-14",
+      "    statement: >-",
+      "      Not present in this branch.",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(rest.length, 0);
+  assert.equal(entry.id, "CVE-2026-14456");
+  assert.deepEqual(entry.purls, ["pkg:deb/debian/libssl3@3.0.20-1~deb12u2"]);
+  assert.match(
+    entry.expired_at instanceof Date
+      ? entry.expired_at.toISOString().slice(0, 10)
+      : String(entry.expired_at),
+    /^2026-09-14$/u,
+  );
+  assert.match(String(entry.statement), /Not present in this branch/u);
 });
 
 test("Google releases require complete credentials before version mutation", () => {
@@ -1459,7 +1544,7 @@ test("published metadata parsers reject unsupported dependencies", () => {
   assert.throws(
     () =>
       parseNugetNuspec(
-        '<package><dependencies><dependency id="A" /></dependencies></package>',
+        '<package><metadata><dependencies><dependency id="A" /></dependencies></metadata></package>',
         { url: "fixture.nuspec" },
       ),
     /Incomplete published NuGet dependency/u,
@@ -1467,36 +1552,47 @@ test("published metadata parsers reject unsupported dependencies", () => {
   assert.throws(
     () =>
       parseNugetNuspec(
-        '<package><dependencies><group targetFramework="net10.0-android36.0">' +
+        '<package><metadata><dependencies><group targetFramework="net10.0-android36.0">' +
           '<dependency id="A" version="1.0.0" /></group>' +
-          '<dependency id="B" version="2.0.0" /></dependencies></package>',
+          '<dependency id="B" version="2.0.0" /></dependencies></metadata></package>',
         { url: "fixture.nuspec" },
       ),
     /Mixed grouped and ungrouped NuGet dependencies/u,
   );
   assert.deepEqual(
     parseNugetNuspec(
-      '<package><dependencies><!-- <dependency id="Fake" version="1.0.0" /> -->' +
-        '<group targetFramework="net10.0-ios26.0" /></dependencies></package>',
+      '<package><metadata><dependencies><!-- <dependency id="Fake" version="1.0.0" /> -->' +
+        '<group targetFramework="net10.0-ios26.0" /></dependencies></metadata></package>',
       { url: "fixture.nuspec" },
     ),
     [],
   );
-  for (const malformedComment of [
-    "<package><dependencies><!-- nested <!-- -->" +
-      '<dependency id="Fake" version="1.0.0" /></dependencies></package>',
-    "<package><dependencies><!-- unterminated</dependencies></package>",
-    '<package><dependencies>--><dependency id="Fake" version="1.0.0" />' +
-      "</dependencies></package>",
+  for (const malformed of [
+    "<package><metadata><dependencies><!-- nested <!-- -->" +
+      '<dependency id="Fake" version="1.0.0" /></dependencies></metadata></package>',
+    "<package><metadata><dependencies><!-- unterminated</dependencies></metadata></package>",
+    '<package><metadata><dependencies>]]><dependency id="Fake" version="1.0.0" />' +
+      "</dependencies></metadata></package>",
   ]) {
     assert.throws(
       () =>
-        parseNugetNuspec(malformedComment, {
+        parseNugetNuspec(malformed, {
           url: "fixture.nuspec",
         }),
-      /Invalid XML comment/u,
+      /is not well-formed XML/u,
     );
   }
+
+  // A stray `-->` is not malformed: XML excludes only `]]>` from character
+  // data. The document genuinely declares this dependency, so read it.
+  assert.deepEqual(
+    parseNugetNuspec(
+      '<package><metadata><dependencies>--><dependency id="Real" version="1.0.0" />' +
+        "</dependencies></metadata></package>",
+      { url: "fixture.nuspec" },
+    ).map((entry) => entry.name),
+    ["Real"],
+  );
   assert.throws(
     () =>
       parseMavenPom(mavenPom([["g", "a", "1.0.0", "unclassified"]]), {
@@ -1840,6 +1936,117 @@ test("a registry license only becomes an SPDX id when it really is one", () => {
   assert.equal(normalizeLicense(undefined), null);
 });
 
+const pubFetcher = (tags, publisherId) => async (url) =>
+  url.includes("/score")
+    ? JSON.stringify({ tags })
+    : publisherId === null
+      ? null
+      : JSON.stringify({ publisherId });
+
+const lookupPub = (tags, publisherId = "dart.dev") =>
+  generatorTesting.lookupComponentMetadata(
+    { name: "http", version: "^1.2.0", purl: "pkg:pub/http@%5E1.2.0" },
+    { fetcher: pubFetcher(tags, publisherId) },
+  );
+
+test("pub.dev licences come from score tags that resolve to an SPDX id", async () => {
+  // pub.dev states the licence as a score tag rather than a metadata field,
+  // alongside classification tags that are not licences.
+  assert.deepEqual(
+    await lookupPub([
+      "license:bsd-3-clause",
+      "license:fsf-libre",
+      "license:osi-approved",
+    ]),
+    { license: { license: { id: "BSD-3-Clause" } }, supplier: "dart.dev" },
+  );
+});
+
+test("a pub.dev tag that is not a licence never becomes one", async () => {
+  // osi-approved and fsf-libre resolve to no known SPDX id, so they drop out
+  // on their own rather than needing a list of tags to ignore.
+  assert.deepEqual(
+    await lookupPub(["license:osi-approved", "license:fsf-libre"]),
+    {
+      supplier: "dart.dev",
+    },
+  );
+  assert.deepEqual(await lookupPub([]), {
+    supplier: "dart.dev",
+  });
+});
+
+test("two declared pub.dev licences yield none rather than a guess", async () => {
+  assert.deepEqual(await lookupPub(["license:mit", "license:bsd-3-clause"]), {
+    supplier: "dart.dev",
+  });
+  // The same licence stated twice is still one licence.
+  assert.deepEqual(await lookupPub(["license:mit", "license:mit"]), {
+    license: { license: { id: "MIT" } },
+    supplier: "dart.dev",
+  });
+});
+
+test("a pub.dev publisher lookup failure does not discard the licence", async () => {
+  assert.deepEqual(await lookupPub(["license:mit"], null), {
+    license: { license: { id: "MIT" } },
+  });
+
+  // A malformed publisher body used to throw into the outer catch, which
+  // returned null and lost a licence the score document had already stated.
+  assert.deepEqual(
+    await generatorTesting.lookupComponentMetadata(
+      { name: "http", version: "^1.2.0", purl: "pkg:pub/http@%5E1.2.0" },
+      {
+        fetcher: async (url) =>
+          url.includes("/score")
+            ? JSON.stringify({ tags: ["license:mit"] })
+            : "not json at all",
+      },
+    ),
+    { license: { license: { id: "MIT" } } },
+  );
+});
+
+const lookupNuspec = (body) =>
+  generatorTesting.lookupComponentMetadata(
+    { name: "X", version: "1.0.0", purl: "pkg:nuget/X@1.0.0" },
+    {
+      fetcher: async () => `<package><metadata>${body}</metadata></package>`,
+    },
+  );
+
+test("a nuspec copyright is recorded rather than discarded", async () => {
+  const found = await lookupNuspec(
+    '<license type="expression">MIT</license>' +
+      "<copyright>Copyright \u00a9 Example 2026</copyright>",
+  );
+  assert.equal(found.copyright, "Copyright \u00a9 Example 2026");
+  assert.deepEqual(found.license, { license: { id: "MIT" } });
+});
+
+test("a licence url with no SPDX id becomes an external reference", async () => {
+  // CycloneDX requires a licence object to carry an id or a name, so a bare
+  // url cannot travel as one without failing schema validation.
+  const found = await lookupNuspec(
+    "<licenseUrl>https://example.test/LICENSE</licenseUrl>",
+  );
+  assert.equal(found.license, undefined);
+  assert.equal(found.licenseUrl, "https://example.test/LICENSE");
+});
+
+test("NuGet's deprecated licence-url placeholder states nothing", async () => {
+  // Recording it would assert terms that the placeholder explicitly does not
+  // carry. The copyright beside it is still real and is kept.
+  const found = await lookupNuspec(
+    '<license type="file">LICENSE.md</license>' +
+      "<licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>" +
+      "<copyright>\u00a9 Microsoft Corporation.</copyright>",
+  );
+  assert.equal(found.license, undefined);
+  assert.equal(found.copyright, "\u00a9 Microsoft Corporation.");
+});
+
 test("registry metadata never guesses suppliers or replaces reviewed values", async () => {
   const lookedUp = await generatorTesting.lookupComponentMetadata(
     {
@@ -1856,7 +2063,6 @@ test("registry metadata never guesses suppliers or replaces reviewed values", as
     license: {
       license: { name: "Android Software Development Kit License" },
     },
-    supplier: undefined,
   });
 
   const reviewed = {
@@ -1875,6 +2081,415 @@ test("registry metadata never guesses suppliers or replaces reviewed values", as
     }),
   });
   assert.deepEqual(enriched, reviewed);
+});
+
+test("a POM licence is recorded only when the declarations agree", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      {
+        name: "g:a",
+        version: "1.0",
+        purl: "pkg:maven/g/a@1.0",
+      },
+      { fetcher: async () => body },
+    );
+
+  // Taking the first <name> after <licenses> silently chose one of two
+  // declarations. Maven defines them as alternatives, so the pair is recorded
+  // as an expression rather than narrowed — see the alternatives test below.
+  assert.deepEqual(
+    await look(
+      "<project><licenses><license><name>MIT</name></license>" +
+        "<license><name>Apache-2.0</name></license></licenses></project>",
+    ),
+    { license: { expression: "MIT OR Apache-2.0" } },
+  );
+
+  // An error page that merely contains the tags is not a declaration by this
+  // artifact.
+  assert.equal(
+    await look("<html><licenses><name>MIT</name></licenses></html>"),
+    null,
+  );
+
+  assert.deepEqual(
+    await look(
+      "<project><licenses><license><name>MIT</name></license></licenses></project>",
+    ),
+    { license: { license: { id: "MIT" } } },
+  );
+});
+
+test("a long-form target framework moniker is valid", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = { url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec" };
+  const nuspec = (framework) =>
+    `<package><metadata><id>X</id><dependencies>` +
+    `<group targetFramework="${framework}">` +
+    `<dependency id="Dep" version="1.0.0" /></group>` +
+    `</dependencies></metadata></package>`;
+
+  // `.NETStandard2.0` is the long spelling of `netstandard2.0`. Requiring the
+  // first character to be alphanumeric threw the whole document away, and
+  // microsoft.maui.controls — which this repository depends on — uses it.
+  for (const framework of [
+    ".NETStandard2.0",
+    ".NETFramework4.7.2",
+    "net9.0",
+    "net9.0-windows10.0.19041",
+  ]) {
+    assert.equal(parseNugetNuspec(nuspec(framework), context).length, 1, framework);
+  }
+
+  // A `<group>` with no targetFramework is the fallback group, which NuGet's
+  // own reference documents and its official example uses.
+  assert.equal(
+    parseNugetNuspec(
+      `<package><metadata><id>X</id><dependencies>` +
+        `<group><dependency id="A" version="1.0.0"/></group>` +
+        `<group targetFramework="net9.0"><dependency id="B" version="1.0.0"/></group>` +
+        `</dependencies></metadata></package>`,
+      context,
+    ).length,
+    2,
+  );
+
+  // A dependency is optional only when every group carrying it is
+  // framework-scoped, whichever order the document lists them in.
+  const scoped = (first, second) =>
+    parseNugetNuspec(
+      `<package><metadata><id>X</id><dependencies>${first}${second}` +
+        `</dependencies></metadata></package>`,
+      context,
+    )[0].scope;
+  const tfm = `<group targetFramework="net9.0"><dependency id="A" version="1"/></group>`;
+  const other = `<group targetFramework="net8.0"><dependency id="A" version="1"/></group>`;
+  const fallback = `<group><dependency id="A" version="1"/></group>`;
+  assert.equal(scoped(tfm, fallback), undefined);
+  assert.equal(scoped(fallback, tfm), undefined);
+  assert.equal(scoped(tfm, other), "optional");
+
+  for (const framework of ["net 9.0", "-net9.0"]) {
+    assert.throws(() => parseNugetNuspec(nuspec(framework), context), /target framework/u);
+  }
+});
+
+test("the XML reader refuses documents that are not well-formed", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // A repeated attribute silently overwrote the first, so `id="A" id="B"` was
+  // read as B. The rest are ordinary well-formedness rules a regex cannot see.
+  for (const body of [
+    `<package><metadata><dependencies><dependency id="A" id="B" version="1"/></dependencies></metadata></package>`,
+    `<package><metadata><id>A &bogus; B</id></metadata></package>`,
+    `<package><metadata><id>A & B</id></metadata></package>`,
+    `<package><metadata><dependencies><dependency id="x < y" version="1"/></dependencies></metadata></package>`,
+    // `&#65A;` is not a decimal reference; truncating it to 65 substituted data
+    // for a document the reader should have refused.
+    `<package><metadata><id>&#65A;</id></metadata></package>`,
+    `<package><!-- a -- b --><metadata><id>X</id></metadata></package>`,
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not well-formed XML/u,
+      `accepted ${JSON.stringify(body.slice(0, 40))}`,
+    );
+  }
+
+  // The predefined entities and numeric references still decode.
+  assert.deepEqual(
+    parseNugetNuspec(
+      `<package><metadata><id>A &amp; B &#66;</id><dependencies><dependency id="A" version="1"/></dependencies></metadata></package>`,
+      context,
+    ).map((entry) => entry.name),
+    ["A"],
+  );
+});
+
+
+test("an unusable licence URL still counts as a declaration", async () => {
+  // Dropping it outright turned "MIT and something else" into a bare MIT
+  // claim — the guess security/SBOM.md forbids.
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "g:a", version: "1", purl: "pkg:maven/g/a@1" },
+      { fetcher: async () => body },
+    );
+  assert.equal(
+    await look(
+      `<project><licenses><license><name>MIT</name></license>` +
+        `<license><url>https://x.test/My License</url></license></licenses></project>`,
+    ),
+    null,
+  );
+  assert.deepEqual(
+    await look(
+      `<project><licenses><license><name>MIT</name></license></licenses></project>`,
+    ),
+    { license: { license: { id: "MIT" } } },
+  );
+});
+
+test("a licence URL that is not a valid IRI is dropped", async () => {
+  // CycloneDX types externalReferences.url as an iri-reference, so a registry
+  // value carrying whitespace fails whole-document schema validation at
+  // release time. Emitting nothing is the safe answer: the licence was already
+  // absent, and an invalid reference blocks the release.
+  const look = (body, purl) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl },
+      { fetcher: async () => body },
+    );
+
+  assert.equal(
+    await look(
+      `<project><licenses><license><url>https://example.com/My License</url></license></licenses></project>`,
+      "pkg:maven/g/a@1",
+    ),
+    null,
+  );
+  assert.equal(
+    await look(
+      `<package><metadata><id>X</id><licenseUrl>see LICENSE.md</licenseUrl></metadata></package>`,
+      "pkg:nuget/X@1",
+    ),
+    null,
+  );
+  assert.equal(
+    (
+      await look(
+        `<package><metadata><id>X</id><licenseUrl>https://x.test/L</licenseUrl></metadata></package>`,
+        "pkg:nuget/X@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+});
+
+test("several declared licences are alternatives, not a discard", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "a", version: "1", purl: "pkg:maven/g/a@1" },
+      { fetcher: async () => body },
+    );
+  const project = (...licenses) =>
+    `<project><licenses>${licenses.join("")}</licenses></project>`;
+  const license = (name, url) =>
+    `<license>${name ? `<name>${name}</name>` : ""}${url ? `<url>${url}</url>` : ""}</license>`;
+
+  // Maven's model descriptor: "If multiple licenses are listed, it is assumed
+  // that the user can select any of them, not that they must accept all."
+  assert.deepEqual(
+    await look(
+      project(
+        license("MIT", "https://x.test/M"),
+        license("Apache-2.0", "https://x.test/A"),
+      ),
+    ),
+    { license: { expression: "MIT OR Apache-2.0" } },
+  );
+
+  // An operand this reader cannot name leaves the set unstatable. Narrowing to
+  // the ones it could read would turn "MIT or something else" into bare MIT.
+  assert.equal(
+    await look(project(license("MIT"), license("Weird Corp EULA v3"))),
+    null,
+  );
+  // A bare URL is a declaration with no id, so the set is unstatable too — and
+  // a URL this reader cannot use is still that declaration.
+  assert.equal(
+    await look(project(license("MIT"), license(null, "https://x.test/A"))),
+    null,
+  );
+  assert.equal(
+    await look(project(license("MIT"), license(null, "https://x.test/A B"))),
+    null,
+  );
+});
+
+test("a licence known only by URL is an external reference", async () => {
+  // CycloneDX requires a licence object to carry an id or a name, so
+  // `{license: {url}}` fails schema validation and would block a release.
+  const look = (body, purl) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl },
+      { fetcher: async () => body },
+    );
+
+  assert.equal(
+    (
+      await look(
+        `<package><metadata><id>X</id><licenseUrl>https://x.test/L</licenseUrl></metadata></package>`,
+        "pkg:nuget/X@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+  assert.equal(
+    (
+      await look(
+        `<project><licenses><license><url>https://x.test/L</url></license></licenses></project>`,
+        "pkg:maven/g/a@1",
+      )
+    ).licenseUrl,
+    "https://x.test/L",
+  );
+
+  // It reaches the component as an externalReferences entry, never a licence.
+  const [component] = await generatorTesting.attachRegistryMetadata(
+    [{ name: "X", version: "1", purl: "pkg:nuget/X@1" }],
+    { lookup: async () => ({ licenseUrl: "https://x.test/L" }) },
+  );
+  assert.equal(component.licenses, undefined);
+  assert.deepEqual(component.externalReferences, [
+    { url: "https://x.test/L", type: "license" },
+  ]);
+});
+
+test("a nuspec copyright is read from the metadata element", async () => {
+  // Reading the raw text recorded a commented-out value as the artifact's
+  // attribution, which would publish a false statement in the SBOM.
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "X", version: "1", purl: "pkg:nuget/X@1" },
+      { fetcher: async () => body },
+    );
+  assert.deepEqual(
+    await look(
+      `<package><metadata><id>X</id><!-- <copyright>Fake</copyright> --><copyright>Real</copyright></metadata></package>`,
+    ),
+    { copyright: "Real" },
+  );
+});
+
+test("a declaration must be a DOCTYPE, before the root", () => {
+  const { parseNugetNuspec, parseMavenPom } = dependencyTesting;
+  const context = { url: "fixture" };
+
+  // Skipping any `<!Name …>` accepted junk inside the root and a DOCTYPE after
+  // it, and the callers read that success as structural validation.
+  for (const body of [
+    "<package><metadata><!garbage><id>X</id></metadata></package>",
+    "<package><metadata><id>X</id></metadata></package><!DOCTYPE x>",
+    // Before the root, but not a DOCTYPE — the only declaration this reads.
+    "<!ENTITY x 'y'><package><metadata><id>X</id></metadata></package>",
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not well-formed XML/u,
+      `accepted ${JSON.stringify(body.slice(0, 40))}`,
+    );
+  }
+
+  // A DOCTYPE in its legal position is fine — Maven Central serves POMs with
+  // one.
+  assert.deepEqual(
+    parseMavenPom(
+      '<?xml version="1.0"?><!DOCTYPE project><project><modelVersion>4.0.0</modelVersion></project>',
+      context,
+    ),
+    [],
+  );
+});
+
+test("a dependencies container below a wrapper is refused", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  // `<files><dependencies>…</dependencies></files>` is well-formed XML that a
+  // direct-child check does not see, so it read as "declares none".
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        "<package><metadata><id>X</id></metadata><files><dependencies>" +
+          '<dependency id="Hidden" version="1"/></dependencies></files></package>',
+        { url: "fixture" },
+      ),
+    /<dependencies> outside <metadata>/u,
+  );
+});
+
+test("a duplicate container is refused, not silently half-read", () => {
+  const { parseMavenPom, parseNugetNuspec } = dependencyTesting;
+  const context = { url: "fixture" };
+
+  // Reading only the first container dropped everything the second declared.
+  assert.throws(
+    () =>
+      parseMavenPom(
+        "<project><dependencies/><dependencies><dependency><groupId>g</groupId>" +
+          "<artifactId>a</artifactId><version>1</version></dependency></dependencies></project>",
+        context,
+      ),
+    /Multiple <dependencies> elements/u,
+  );
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        "<package><metadata><id>X</id></metadata><metadata><dependencies>" +
+          '<dependency id="Hidden" version="1"/></dependencies></metadata></package>',
+        context,
+      ),
+    /Multiple <metadata> elements/u,
+  );
+});
+
+test("a POM is read from its structure, not its text", () => {
+  const { parseMavenPom } = dependencyTesting;
+  const context = { url: "https://repo1.maven.org/maven2/g/a/1/a-1.pom" };
+
+  // The published httpmime 4.5.6 POM carries a commented-out dependency with
+  // no version. Reading the raw text threw `Incomplete runtime dependency` on
+  // a document Maven Central actually serves.
+  assert.deepEqual(
+    parseMavenPom(
+      `<project><dependencies>
+        <!-- <dependency><groupId>g</groupId><artifactId>old</artifactId></dependency> -->
+        <dependency><groupId>g</groupId><artifactId>a</artifactId><version>1.0</version></dependency>
+      </dependencies></project>`,
+      context,
+    ).map((entry) => entry.name),
+    ["g:a"],
+  );
+
+  // The opening tag is not literally `<dependency>` when it carries whitespace.
+  assert.deepEqual(
+    parseMavenPom(
+      `<project><dependencies><dependency >
+        <groupId>g</groupId><artifactId>a</artifactId><version>1.0</version>
+      </dependency></dependencies></project>`,
+      context,
+    ).map((entry) => entry.name),
+    ["g:a"],
+  );
+});
+
+test("a published POM body that is not a POM fails closed", () => {
+  const { parseMavenPom } = dependencyTesting;
+  const context = { url: "https://repo1.maven.org/maven2/g/a/1/a-1.pom" };
+
+  // fetchText accepts any 200 body. Without a structural check these parse as
+  // "declares no dependencies" and publish an incomplete inventory.
+  for (const body of [
+    "<html><body>CDN warming</body></html>",
+    "<project><modelVersion>4.0.0</modelVersion>",
+    "",
+  ]) {
+    assert.throws(
+      () => parseMavenPom(body, context),
+      /is not (?:well-formed XML|a POM)/u,
+      `accepted ${JSON.stringify(body.slice(0, 24))}`,
+    );
+  }
+
+  assert.deepEqual(
+    parseMavenPom(
+      "<project><modelVersion>4.0.0</modelVersion></project>",
+      context,
+    ),
+    [],
+  );
 });
 
 test("registry license lookup is opt-in while reviewed metadata stays offline", async () => {
@@ -2073,4 +2688,413 @@ test("every component is reachable from the root of the dependency graph", () =>
   assert.deepEqual(transitive.properties, [
     { name: "openiap:sbom:relationship", value: "transitive" },
   ]);
+});
+
+test("coverage continuity reports mid-train gaps the latest-only scan misses", () => {
+  // findMissingLatestSbomTags stops at the newest release per component, so a
+  // gap behind it becomes permanent. This is that gap.
+  const releases = [
+    {
+      tag_name: "godot-iap-3.3.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
+    },
+    {
+      tag_name: "godot-iap-3.4.0",
+      published_at: "2026-02-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+    {
+      tag_name: "godot-iap-3.5.0",
+      published_at: "2026-03-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+    },
+  ];
+  assert.deepEqual(findMissingLatestSbomTags(releases), []);
+  assert.deepEqual(
+    findMissingCoverageTags(releases, {
+      floors: { godot: "godot-iap-3.3.0" },
+      components: ["godot"],
+    }),
+    ["godot-iap-3.4.0"],
+  );
+});
+
+test("the coverage floor is a version, not a publish date", () => {
+  // Releases are not published in version order: a patch on an older line
+  // lands after a newer minor, and recreating a release moves its timestamp.
+  // Comparing dates exempted newer versions published early and reported older
+  // ones published late — both the opposite of the documented rule.
+  const release = (tag, at, hasSbom) => ({
+    tag_name: tag,
+    published_at: at,
+    draft: false,
+    prerelease: false,
+    assets: hasSbom ? [{ name: `${tag}.cdx.json` }] : [],
+  });
+
+  // 3.4.0 is above the 3.3.0 floor, so its missing SBOM is a gap even though
+  // it was published first.
+  assert.deepEqual(
+    findMissingCoverageTags(
+      [
+        release("godot-iap-3.4.0", "2026-01-01T00:00:00Z", false),
+        release("godot-iap-3.3.0", "2026-01-15T00:00:00Z", true),
+      ],
+      { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
+    ),
+    ["godot-iap-3.4.0"],
+  );
+
+  // 3.2.1 is below the floor, so it is exempt even though it was published
+  // after it.
+  assert.deepEqual(
+    findMissingCoverageTags(
+      [
+        release("godot-iap-3.3.0", "2026-01-01T00:00:00Z", true),
+        release("godot-iap-3.2.1", "2026-02-01T00:00:00Z", false),
+      ],
+      { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
+    ),
+    [],
+  );
+});
+
+test("releases before a component's coverage floor are not gaps", () => {
+  const releases = [
+    {
+      tag_name: "godot-iap-3.2.0",
+      published_at: "2025-12-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+    {
+      tag_name: "godot-iap-3.3.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
+    },
+  ];
+  assert.deepEqual(
+    findMissingCoverageTags(releases, {
+      floors: { godot: "godot-iap-3.3.0" },
+      components: ["godot"],
+    }),
+    [],
+  );
+});
+
+test("every released component is anchored to a floor", () => {
+  // "Covered from its first release" cannot be proved from a list that might
+  // be missing that release: a response holding only conformance 2.0.0
+  // satisfied a floorless component while 1.0.0 and 1.0.1 were absent.
+  assert.equal(SBOM_COVERAGE_FLOOR.conformance, "openiap-conformance-1.0.0");
+  assert.equal(
+    SBOM_COVERAGE_FLOOR["commerce-protocol"],
+    "openiap-commerce-protocol-0.1.0",
+  );
+  const releases = [
+    {
+      tag_name: "openiap-conformance-1.0.0",
+      published_at: "2026-01-01T00:00:00Z",
+      draft: false,
+      prerelease: false,
+      assets: [],
+    },
+  ];
+  assert.deepEqual(
+    findMissingCoverageTags(releases, {
+      floors: {},
+      components: ["conformance"],
+    }),
+    ["openiap-conformance-1.0.0"],
+  );
+});
+
+test("a floor missing from the release list fails loudly", () => {
+  // A truncated page would otherwise narrow the scan in silence.
+  assert.throws(
+    () =>
+      findMissingCoverageTags(
+        [
+          {
+            tag_name: "godot-iap-3.4.0",
+            published_at: "2026-02-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "godot-iap-3.4.0.cdx.json" }],
+          },
+          {
+            tag_name: "godot-iap-3.5.0",
+            published_at: "2026-03-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "godot-iap-3.5.0.cdx.json" }],
+          },
+        ],
+        { floors: { godot: "godot-iap-3.3.0" }, components: ["godot"] },
+      ),
+    /coverage floor godot-iap-3\.3\.0 for godot is not in the release list/,
+  );
+});
+
+test("the defaults refuse a list that omits any component", () => {
+  // The injectable parameters exist for focused fixtures. Production callers
+  // take the defaults, and a component missing from the list entirely must not
+  // be skipped — the other two commands infer their components from the same
+  // list, so nothing else would notice it was never checked. This holds for a
+  // floorless component as much as a floored one.
+  assert.throws(
+    () =>
+      findMissingCoverageTags([
+        {
+          tag_name: "godot-iap-3.3.0",
+          published_at: "2026-01-01T00:00:00Z",
+          draft: false,
+          prerelease: false,
+          assets: [{ name: "godot-iap-3.3.0.cdx.json" }],
+        },
+      ]),
+    /(?:coverage floor .+ is not in the release list|no releases for .+ in the release list)/u,
+  );
+});
+
+test("a POM licence is read from the document, not its text", async () => {
+  const look = (body) =>
+    generatorTesting.lookupComponentMetadata(
+      { name: "g:a", version: "1.0", purl: "pkg:maven/g/a@1.0" },
+      { fetcher: async () => body },
+    );
+
+  // A licence inside a comment is not a declaration.
+  assert.equal(
+    await look(
+      "<project><!-- <licenses><license><name>MIT</name></license></licenses> --></project>",
+    ),
+    null,
+  );
+
+  // Nor is a <project> nested inside an error page.
+  assert.equal(
+    await look(
+      "<html><project><licenses><license><name>MIT</name></license></licenses></project></html>",
+    ),
+    null,
+  );
+
+  assert.deepEqual(
+    await look(
+      "<project><licenses><license><name>MIT</name></license></licenses></project>",
+    ),
+    { license: { license: { id: "MIT" } } },
+  );
+});
+
+test("a coverage floor must belong to its own component", () => {
+  // A floor naming another component's tag satisfies the presence check while
+  // the component it is supposed to cover has no release in the list at all.
+  assert.throws(
+    () =>
+      findMissingCoverageTags(
+        [
+          {
+            tag_name: "google-9.0.0",
+            published_at: "2026-01-01T00:00:00Z",
+            draft: false,
+            prerelease: false,
+            assets: [{ name: "google-9.0.0.cdx.json" }],
+          },
+        ],
+        { floors: { godot: "google-9.0.0" }, components: ["godot"] },
+      ),
+    /belongs to google, not godot/u,
+  );
+});
+
+test("the Trivy reader refuses syntax it cannot read", () => {
+  // Skipping an unrecognised entry returned no exceptions at all, which made
+  // every lifecycle, expiry and package-scope check below vacuous.
+  assert.throws(
+    () =>
+      parseTrivyExceptions(
+        "vulnerabilities:\n  - { id: CVE-2026-12345, expired_at: 2099-01-01, statement: ok }\n",
+      ),
+    /Unsupported Trivy exception syntax/u,
+  );
+  assert.throws(
+    () =>
+      parseTrivyExceptions(
+        "vulnerabilities:\n  - id: CVE-2026-99999 # temporary\n    statement: forever\n",
+      ),
+    /Unsupported Trivy exception syntax/u,
+  );
+});
+
+test("every coverage floor names a real component", () => {
+  for (const componentId of Object.keys(SBOM_COVERAGE_FLOOR)) {
+    assert.ok(
+      generatorTesting.COMPONENTS[componentId],
+      `${componentId} is not a released component`,
+    );
+  }
+});
+
+test("the godot SBOM matches the dependency contract the addon ships", async () => {
+  // GodotIap.gdap is what a consumer's Gradle resolves; the SBOM is what the
+  // release tells an auditor it ships. Both are derived from the same version
+  // sources but by different code, so nothing stopped them diverging.
+  const gdap = readFileSync(
+    resolve(
+      repoRoot,
+      "libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap",
+    ),
+    "utf8",
+  );
+  const remote = gdap.match(/^remote=\[(.*)\]$/m);
+  assert.ok(remote, "GodotIap.gdap declares no remote dependency list");
+  const declared = [...remote[1].matchAll(/"([^"]+)"/g)]
+    .map((match) => match[1])
+    .sort();
+
+  // withLicenses is off, so this resolves from committed manifests only.
+  const { document } = await generateSbom("godot", { root: repoRoot });
+  const fromSbom = (document.components ?? [])
+    .filter((component) => component.purl?.startsWith("pkg:maven/"))
+    .map((component) => `${component.name}:${component.version}`)
+    .sort();
+
+  assert.deepEqual(
+    fromSbom,
+    declared,
+    "the godot SBOM and GodotIap.gdap disagree about the shipped Android dependencies",
+  );
+});
+
+test("a published body that is not a nuspec fails closed", () => {
+  // fetchText accepts any 200, so an error page or a truncated response used
+  // to parse as "declares no dependencies". For an aggregate source such as
+  // maui that silently halved the inventory while the workflow's
+  // components-are-non-empty gate still passed on the other source.
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+  for (const body of [
+    "<html><body>404 Not Found</body></html>",
+    "",
+    "<package><metad",
+    // Truncated mid-document: both opening tags are present, so requiring
+    // them alone was not enough to tell this from "declares no dependencies".
+    '<package><metadata><id>X</id><dependencies><dependency id="A" version="1.0.0"',
+    // An error page that happens to use both words.
+    "<html>package metadata not found</html>",
+    // Closes <package> but never </metadata>: the document ended early, so an
+    // empty <dependencies> here is truncation, not a package with none.
+    "<package><metadata><dependencies></dependencies></package>",
+    // Ends mid-dependency-list.
+    '<package><metadata><dependencies><dependency id="A" version="1.0" /></package>',
+  ]) {
+    assert.throws(
+      () => parseNugetNuspec(body, context),
+      /is not (?:well-formed XML|a nuspec)/u,
+      `accepted ${JSON.stringify(body.slice(0, 24))}`,
+    );
+  }
+
+  // A real nuspec that declares no dependencies still means none.
+  assert.deepEqual(
+    parseNugetNuspec(
+      "<package><metadata><id>X</id></metadata></package>",
+      context,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    parseNugetNuspec(
+      "<package><metadata><id>X</id><dependencies /></metadata></package>",
+      context,
+    ),
+    [],
+  );
+});
+
+test("a <dependencies> element is read through its attributes, or fails loudly", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // The nuspec schema puts no attributes on this element, but XML permits them
+  // and a namespace declaration is the obvious one. Matching only the bare tag
+  // read a package that declares dependencies as one that declares none.
+  assert.deepEqual(
+    parseNugetNuspec(
+      `<package><metadata><id>X</id>
+        <dependencies xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+          <dependency id="A" version="1.0.0" />
+        </dependencies></metadata></package>`,
+      context,
+    ),
+    [{ name: "A", version: "1.0.0", purl: "pkg:nuget/A@1.0.0" }],
+  );
+
+  // Present but unreadable is not the same as absent.
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        `<package><metadata><id>X</id><dependencies>
+          <dependency id="A" version="1.0.0" />
+        </metadata></package>`,
+        context,
+      ),
+    /(?:well-formed XML|<dependencies> outside <metadata>)/u,
+  );
+});
+
+test("CDATA outside the root element is not a document", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  // An error page prefixed to a real document would otherwise be ignored and
+  // the rest accepted as this package's metadata.
+  assert.throws(
+    () =>
+      parseNugetNuspec("<![CDATA[error]]><package><metadata/></package>", {
+        url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+      }),
+    /is not well-formed XML/u,
+  );
+});
+
+test("a nuspec must nest, not merely contain the four tags", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
+
+  // Every one of the four tags is present, in the wrong order. Testing for
+  // them independently accepted this and read it as "declares no dependencies".
+  assert.throws(
+    () => parseNugetNuspec("<package><metadata></package></metadata>", context),
+    /is not (?:well-formed XML|a nuspec)/u,
+  );
+
+  // Dependencies are declared inside <metadata>. A block outside it is not
+  // this package's inventory, and must not be silently ignored either.
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        `<package><metadata><id>X</id></metadata>
+          <dependencies><dependency id="A" version="1.0.0" /></dependencies>
+        </package>`,
+        context,
+      ),
+    /(?:well-formed XML|<dependencies> outside <metadata>)/u,
+  );
 });

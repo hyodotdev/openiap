@@ -32,6 +32,13 @@ apply the English-only public communication policy in
 Inspect the complete public title/body payload before sending it, even when the
 maintainer requested the work in another language.
 
+## Public GitHub Style Guard
+
+Write issue comments the way a maintainer would, following
+`knowledge/internal/06-git-deployment.md#public-github-communication-style`.
+Lead with the verdict, give the reason in a sentence or two, and stop. No
+investigation narrative, no restating the report back to the reporter.
+
 ## Instructions
 
 When this command is executed, perform the following:
@@ -56,21 +63,21 @@ gh issue edit $ISSUE_NUMBER --repo hyodotdev/openiap --add-label "<label1>,<labe
 
 **Label selection guide:**
 
-| Condition | Label |
-|-----------|-------|
-| Bug report / crash | `🐛 bug` |
-| New feature request | `🎯 feature` |
-| Mentions `packages/apple` or iOS | `📱 iOS` |
-| Mentions `packages/google` or Android | `🤖 android` |
-| Mentions `packages/docs` | `📖 documentation` |
-| Mentions `specs/client` | `⬡ gql` |
-| Mentions `react-native-iap` | `react-native-iap` |
-| Mentions `expo-iap` | `expo-iap` |
-| Mentions `flutter_inapp_purchase` | `flutter-iap` |
-| Mentions `godot-iap` | `godot-iap` |
-| Mentions `kmp-iap` | `kmp-iap` |
-| Affects multiple platforms | `cross-platform` |
-| Breaking change | `⚡️ breaking` |
+| Condition                             | Label              |
+| ------------------------------------- | ------------------ |
+| Bug report / crash                    | `🐛 bug`           |
+| New feature request                   | `🎯 feature`       |
+| Mentions `packages/apple` or iOS      | `📱 iOS`           |
+| Mentions `packages/google` or Android | `🤖 android`       |
+| Mentions `packages/docs`              | `📖 documentation` |
+| Mentions `specs/client`               | `⬡ gql`            |
+| Mentions `react-native-iap`           | `react-native-iap` |
+| Mentions `expo-iap`                   | `expo-iap`         |
+| Mentions `flutter_inapp_purchase`     | `flutter-iap`      |
+| Mentions `godot-iap`                  | `godot-iap`        |
+| Mentions `kmp-iap`                    | `kmp-iap`          |
+| Affects multiple platforms            | `cross-platform`   |
+| Breaking change                       | `⚡️ breaking`      |
 
 ### 3. Analyze and Decide
 
@@ -100,16 +107,16 @@ git checkout -b fix/<library>-<short-description>
 3. Implement the fix
 4. Run appropriate build/test commands based on changed packages:
 
-| Package | Commands |
-|---------|----------|
-| `specs/client/` | `cd specs/client && bun run test` |
-| `packages/docs/` | `cd packages/docs && bun run lint && bun run typecheck` |
-| `packages/apple/` | `cd packages/apple && swift build` |
-| `packages/google/` | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
-| `libraries/react-native-iap/` | `cd libraries/react-native-iap && yarn typecheck && yarn lint` |
-| `libraries/expo-iap/` | `cd libraries/expo-iap && bun run lint:tsc && bun run lint` |
-| `libraries/flutter_inapp_purchase/` | `cd libraries/flutter_inapp_purchase && flutter analyze && flutter test` |
-| `libraries/kmp-iap/` | `cd libraries/kmp-iap && ./gradlew :library:build` |
+| Package                             | Commands                                                                                                                                                         |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `specs/client/`                     | `cd specs/client && bun run test`                                                                                                                                |
+| `packages/docs/`                    | `cd packages/docs && bun run lint && bun run typecheck`                                                                                                          |
+| `packages/apple/`                   | `cd packages/apple && swift build`                                                                                                                               |
+| `packages/google/`                  | `cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin && ./gradlew :openiap:compileHorizonDebugKotlin && ./gradlew :openiap:compileAmazonDebugKotlin` |
+| `libraries/react-native-iap/`       | `cd libraries/react-native-iap && yarn typecheck && yarn lint`                                                                                                   |
+| `libraries/expo-iap/`               | `cd libraries/expo-iap && bun run lint:tsc && bun run lint`                                                                                                      |
+| `libraries/flutter_inapp_purchase/` | `cd libraries/flutter_inapp_purchase && flutter analyze && flutter test`                                                                                         |
+| `libraries/kmp-iap/`                | `cd libraries/kmp-iap && ./gradlew :library:build`                                                                                                               |
 
 #### 4c. Commit and push
 
@@ -160,6 +167,7 @@ gh api -X POST repos/hyodotdev/openiap/issues/<PR_NUMBER>/labels \
 Always comment on the issue with your findings:
 
 **If fixed with PR:**
+
 ```bash
 gh issue comment $ISSUE_NUMBER --repo hyodotdev/openiap --body "$(cat <<'EOF'
 <Root cause analysis>
@@ -178,6 +186,7 @@ EOF
 ```
 
 **If needs more info:**
+
 ```bash
 gh issue comment $ISSUE_NUMBER --repo hyodotdev/openiap --body "<questions and what info is needed>"
 ```
@@ -185,6 +194,7 @@ gh issue comment $ISSUE_NUMBER --repo hyodotdev/openiap --body "<questions and w
 ### 6. Report
 
 Summarize what was done:
+
 - Issue classification
 - Labels added
 - Action taken (PR created / comment posted / closed)

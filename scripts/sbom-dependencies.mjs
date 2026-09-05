@@ -13,8 +13,28 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { compareSemVer } from "./release-branch-policy.mjs";
+import { parseXml, XmlParseError } from "./xml-document.mjs";
 
 export class PublishedMetadataUnavailableError extends Error {}
+
+// Published metadata is parsed, not pattern-matched. Regex readers accepted a
+// long tail of documents that hold the right tags in the wrong structure — a
+// closing tag inside a comment, an attribute value containing text that looks
+// like another attribute, a body truncated mid-element — and each one read as
+// "this package declares no dependencies". An unparseable body is missing
+// metadata, not metadata that declares nothing, so this throws.
+function parseXmlDocument(source, context, kind) {
+  try {
+    return parseXml(source, context);
+  } catch (error) {
+    if (error instanceof XmlParseError) {
+      throw new PublishedMetadataUnavailableError(
+        `Published document is not well-formed ${kind}: ${context.url}`,
+      );
+    }
+    throw error;
+  }
+}
 
 function readText(root, relativePath) {
   return readFileSync(resolve(root, relativePath), "utf8");
@@ -31,37 +51,6 @@ function decodeXml(value) {
     .replaceAll("&quot;", '"')
     .replaceAll("&apos;", "'")
     .replaceAll("&amp;", "&");
-}
-
-function maskXmlComments(source, context) {
-  const chunks = [];
-  let cursor = 0;
-  while (cursor < source.length) {
-    const start = source.indexOf("<!--", cursor);
-    const strayEnd = source.indexOf("-->", cursor);
-    if (strayEnd !== -1 && (start === -1 || strayEnd < start)) {
-      throw new Error(`Invalid XML comment in ${context.url}`);
-    }
-    if (start === -1) {
-      chunks.push(source.slice(cursor));
-      break;
-    }
-    chunks.push(source.slice(cursor, start));
-    const end = source.indexOf("-->", start + 4);
-    if (end === -1 || source.slice(start + 4, end).includes("--")) {
-      throw new Error(`Invalid XML comment in ${context.url}`);
-    }
-    chunks.push(" ".repeat(end + 3 - start));
-    cursor = end + 3;
-  }
-  return chunks.join("");
-}
-
-function xmlValue(source, tag) {
-  const match = source.match(
-    new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "u"),
-  );
-  return match ? decodeXml(match[1].trim()) : null;
 }
 
 function encodePurlVersion(version) {
@@ -624,36 +613,48 @@ function resolveMavenValue(value, properties, context) {
   return resolvedValue;
 }
 
+// Every descendant with this tag name.
+function collectElements(element, name, found = []) {
+  if (element.name === name) found.push(element);
+  for (const child of element.children) collectElements(child, name, found);
+  return found;
+}
+
 function parseMavenPom(source, context) {
-  const properties = new Map();
-  const propertiesBlock = source.match(
-    /<properties>([\s\S]*?)<\/properties>/u,
-  )?.[1];
-  if (propertiesBlock) {
-    for (const match of propertiesBlock.matchAll(
-      /<([A-Za-z_][\w.-]*)>([^<]+)<\/\1>/gu,
-    )) {
-      properties.set(match[1], decodeXml(match[2].trim()));
-    }
+  // Parsed, not pattern-matched. Reading the raw document counted dependencies
+  // inside comments — the published httpmime 4.5.6 POM carries a commented-out
+  // one with no version, which threw — and matched only the exact opening tag
+  // `<dependency>`, so `<dependency >` read as no dependencies at all.
+  const document = parseXmlDocument(source, context, "XML");
+  if (document.name !== "project") {
+    throw new PublishedMetadataUnavailableError(
+      `Published document is not a POM: ${context.url}`,
+    );
   }
 
-  const profiles = source.match(/<profiles>([\s\S]*?)<\/profiles>/u)?.[1];
-  if (profiles && /<dependency\b/u.test(profiles)) {
+  const properties = new Map();
+  for (const property of document.first("properties")?.children ?? []) {
+    properties.set(property.name, property.text.trim());
+  }
+
+  const profiles = document.first("profiles");
+  if (profiles && collectElements(profiles, "dependency").length > 0) {
     throw new Error(`Unsupported profiled Maven dependency in ${context.url}`);
   }
 
-  const withoutManaged = source
-    .replace(/<dependencyManagement>[\s\S]*?<\/dependencyManagement>/gu, "")
-    .replace(/<profiles>[\s\S]*?<\/profiles>/gu, "")
-    .replace(/<build>[\s\S]*?<\/build>/gu, "");
-  const found = new Map();
+  // Managed, profiled and build dependencies are not this artifact's runtime
+  // inventory; only the project's own <dependencies> is.
+  // A second container is malformed, and reading only the first silently
+  // dropped everything the later one declared.
+  const containers = document.all("dependencies");
+  if (containers.length > 1) {
+    throw new Error(`Multiple <dependencies> elements in ${context.url}`);
+  }
 
-  for (const match of withoutManaged.matchAll(
-    /<dependency>([\s\S]*?)<\/dependency>/gu,
-  )) {
-    const block = match[1];
-    const scope = xmlValue(block, "scope") ?? "compile";
-    const optional = xmlValue(block, "optional")?.toLowerCase() === "true";
+  const found = new Map();
+  for (const declaration of containers[0]?.all("dependency") ?? []) {
+    const scope = declaration.value("scope") ?? "compile";
+    const optional = declaration.value("optional")?.toLowerCase() === "true";
     if (
       !["compile", "runtime", "test", "provided", "system", "import"].includes(
         scope,
@@ -665,16 +666,16 @@ function parseMavenPom(source, context) {
       continue;
     }
 
-    const group = xmlValue(block, "groupId");
-    const artifact = xmlValue(block, "artifactId");
-    const rawVersion = xmlValue(block, "version");
+    const group = declaration.value("groupId");
+    const artifact = declaration.value("artifactId");
+    const rawVersion = declaration.value("version");
     if (!group || !artifact || !rawVersion) {
       throw new Error(`Incomplete runtime dependency in ${context.url}`);
     }
     const version = resolveMavenValue(rawVersion, properties, context);
     const qualifiers = [];
-    const type = xmlValue(block, "type");
-    const classifier = xmlValue(block, "classifier");
+    const type = declaration.value("type");
+    const classifier = declaration.value("classifier");
     if (type && type !== "jar") qualifiers.push(["type", type]);
     if (classifier) qualifiers.push(["classifier", classifier]);
     const qualifier = qualifiers.length
@@ -746,29 +747,65 @@ async function extractMavenArtifact(root, source, context) {
 }
 
 function parseNugetNuspec(source, context) {
-  const dependenciesBlock = maskXmlComments(source, context).match(
-    /<dependencies>([\s\S]*?)<\/dependencies>/u,
-  )?.[1];
-  if (!dependenciesBlock) return [];
+  // fetchText accepts any 200 body, so an error page, a CDN placeholder, or a
+  // truncated response would otherwise parse as "this package declares no
+  // dependencies" and produce a silently empty inventory. Testing for the four
+  // tags independently is not enough: `<package><metadata></package></metadata>`
+  // contains all four and is still not a nuspec. Require them in nesting order
+  // instead, which is one structural rule rather than a list of rejected shapes.
+  const document = parseXmlDocument(source, context, "XML");
+  const metadataElements =
+    document.name === "package" ? document.all("metadata") : [];
+  if (metadataElements.length > 1) {
+    throw new Error(`Multiple <metadata> elements in ${context.url}`);
+  }
+  const metadataElement = metadataElements[0];
+  if (!metadataElement) {
+    throw new PublishedMetadataUnavailableError(
+      `Published document is not a nuspec: ${context.url}`,
+    );
+  }
+  // <dependencies> is this package's inventory only as a child of <metadata>.
+  // A sibling elsewhere is a malformed nuspec, not an empty one — and checking
+  // that only when metadata declared none let a self-closing <dependencies />
+  // inside metadata mask a populated one outside.
+  // Any descendant container that is not metadata's own child is a malformed
+  // nuspec — `<files><dependencies>…</dependencies></files>` is well-formed XML
+  // that a direct-child check does not see, and it would read as none declared.
+  if (
+    collectElements(document, "dependencies").some(
+      (element) => !metadataElement.all("dependencies").includes(element),
+    )
+  ) {
+    throw new Error(`<dependencies> outside <metadata> in ${context.url}`);
+  }
+  const dependencyGroups = metadataElement.all("dependencies");
+  if (dependencyGroups.length > 1) {
+    throw new Error(`Multiple <dependencies> elements in ${context.url}`);
+  }
+  const dependenciesElement = dependencyGroups[0];
+  // No element at all genuinely declares none; so does a self-closing one,
+  // which the parser gives us as an empty node.
+  if (dependenciesElement === undefined) return [];
 
-  const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;
-  const groups = [...dependenciesBlock.matchAll(groupPattern)];
-  if (groups.length > 0) {
-    const outsideGroups = dependenciesBlock.replace(groupPattern, "");
-    if (/<dependency\b/iu.test(outsideGroups)) {
-      throw new Error(
-        `Mixed grouped and ungrouped NuGet dependencies in ${context.url}`,
-      );
-    }
+  const groups = dependenciesElement.all("group");
+  if (groups.length > 0 && dependenciesElement.all("dependency").length > 0) {
+    throw new Error(
+      `Mixed grouped and ungrouped NuGet dependencies in ${context.url}`,
+    );
   }
   const sections = groups.length
-    ? groups.map((match) => {
-        const targetFramework = match[1].match(
-          /\btargetFramework\s*=\s*["']([^"']+)["']/iu,
-        )?.[1];
+    ? groups.map((group) => {
+        // A `<group>` with no targetFramework is the fallback group, and
+        // NuGet's own reference documents it. Requiring the attribute threw
+        // away every nuspec that has one.
+        const targetFramework = group.attribute("targetFramework") ?? "";
         if (
-          !targetFramework ||
-          !/^[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
+          targetFramework !== "" &&
+          // A moniker may be written in its long form, which starts with a
+          // dot: `.NETStandard2.0` is as valid as `netstandard2.0`, and
+          // rejecting it threw away a whole real nuspec.
+          !/^\.?[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
         ) {
           throw new Error(`Invalid NuGet target framework in ${context.url}`);
         }
@@ -778,20 +815,25 @@ function parseNugetNuspec(source, context) {
           : /-(?:ios|maccatalyst|macos|tvos|watchos)/u.test(normalized)
             ? "apple"
             : "";
-        return { body: match[2] ?? "", platform, targetFramework };
+        return {
+          dependencies: group.all("dependency"),
+          platform,
+          targetFramework,
+        };
       })
-    : [{ body: dependenciesBlock, platform: "", targetFramework: "" }];
+    : [
+        {
+          dependencies: dependenciesElement.all("dependency"),
+          platform: "",
+          targetFramework: "",
+        },
+      ];
 
   const found = new Map();
   for (const section of sections) {
-    for (const match of section.body.matchAll(
-      /<dependency\b([^>]*)\/?>(?:<\/dependency>)?/giu,
-    )) {
-      const attributes = match[1];
-      const name = attributes.match(/\bid\s*=\s*["']([^"']+)["']/iu)?.[1];
-      const version = attributes.match(
-        /\bversion\s*=\s*["']([^"']+)["']/iu,
-      )?.[1];
+    for (const declaration of section.dependencies) {
+      const name = declaration.attribute("id");
+      const version = declaration.attribute("version");
       if (!name || !version) {
         throw new Error(
           `Incomplete published NuGet dependency in ${context.url}`,
@@ -823,15 +865,21 @@ function parseNugetNuspec(source, context) {
             (property) => [`${property.name}\0${property.value}`, property],
           ),
         );
-        found.set(key, {
+        // A dependency is optional only when EVERY group carrying it is
+        // framework-scoped. Spreading `existing` kept its scope, so the
+        // answer depended on which group the document listed first.
+        const merged = {
           ...existing,
           ...(mergedProperties.size
             ? { properties: [...mergedProperties.values()] }
             : {}),
-          ...(existing.scope === "optional" && entry.scope === "optional"
-            ? { scope: "optional" }
-            : {}),
-        });
+        };
+        if (existing.scope === "optional" && entry.scope === "optional") {
+          merged.scope = "optional";
+        } else {
+          delete merged.scope;
+        }
+        found.set(key, merged);
       } else {
         found.set(key, entry);
       }
