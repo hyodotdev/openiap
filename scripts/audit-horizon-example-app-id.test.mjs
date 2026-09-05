@@ -732,27 +732,6 @@ test("the reader answers for every shape review has raised", () => {
     );
   }
 
-  // A write that cannot reach the id is not a write to it, and appending a
-  // plugin cannot remove ours.
-  for (const harmless of [
-    `options.ios={supportsTablet:false};`,
-    `options.extra={channel:"dev"};`,
-  ]) {
-    assert.equal(
-      t(
-        `const options={android:{horizon:{appId:${id}}}};\n${harmless}\nexport default {plugins:[["../app.plugin.js",options]]};`,
-      ),
-      null,
-      harmless,
-    );
-  }
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nentries.push("expo-router");\nexport default {plugins:entries};`,
-    ),
-    null,
-  );
-
   // Only the exported object's OWN `plugins` is the plugins array: a discarded
   // branch, a spread that replaces it, and unrelated data named `plugins` are
   // each answered correctly.
@@ -804,13 +783,6 @@ test("the reader answers for every shape review has raised", () => {
       alias,
     );
   }
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\noptions["ios"]={supportsTablet:false};\nexport default {plugins:[["../app.plugin.js",options]]};`,
-    ),
-    null,
-  );
-
   // Emptying the entries array removes the plugin. The array's path is the
   // whole of it, not the path down to the app id.
   assert.match(
@@ -836,13 +808,6 @@ test("the reader answers for every shape review has raised", () => {
       write,
     );
   }
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\nconst config={plugins:[["../app.plugin.js",options]]};\nconfig.name="x";\nexport default config;`,
-    ),
-    null,
-  );
-
   // Object rest copies the properties, so `copy.android` is still
   // `options.android`. Array rest builds a new array, which aliases nothing.
   assert.match(
@@ -860,21 +825,7 @@ test("the reader answers for every shape review has raised", () => {
     null,
   );
 
-  // The slot is found wherever the entry sits, and nothing leaks between
-  // inspections — `descent` and `entrySlot` live at module scope, and the
-  // audit inspects six sources in a loop.
-  {
-    const first = `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`;
-    const second = `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["expo-router",{}],["../app.plugin.js",options]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`;
-    assert.equal(t(first), null);
-    assert.match(String(t(second)), /writes through the bindings/u);
-    // Same answers in the other order.
-    assert.match(String(t(second)), /writes through the bindings/u);
-    assert.equal(t(first), null);
-  }
-
-  // The slot rule belongs to the plugins array, not to every tracked array: a
-  // binding holding ONE tuple has no slots of its own.
+  // A write through a binding holding one tuple counts like any other.
   assert.match(
     String(
       t(
@@ -884,36 +835,11 @@ test("the reader answers for every shape review has raised", () => {
     /writes through the bindings/u,
   );
 
-  // A rest does not carry what its siblings took, so writing that name lands on
-  // a new property of a new object.
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\nconst {android, ...rest}=options;\nrest.android={...android};\nexport default {plugins:[["../app.plugin.js",options]]};`,
-    ),
-    null,
-  );
-
   // Object rest keeps every property it did not name.
   assert.match(
     String(
       t(
         `const options={android:{horizon:{appId:${id}}}};\nconst {ios, ...rest}=options;\nrest.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js",options]]};`,
-      ),
-    ),
-    /writes through the bindings/u,
-  );
-
-  // Changing a DIFFERENT plugin in the array leaves ours alone.
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`,
-    ),
-    null,
-  );
-  assert.match(
-    String(
-      t(
-        `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[0][1]={};\nexport default {plugins:entries};`,
       ),
     ),
     /writes through the bindings/u,
@@ -1092,5 +1018,52 @@ test("shapes this audit refuses on purpose", () => {
     `const options={android:{horizon:{ __proto__:{appId:${id}} }}};\nexport default {plugins:[["../app.plugin.js", options]]};`,
   ]) {
     assert.notEqual(t(source), null, source);
+  }
+});
+
+test("mutating a tracked binding makes the config unreadable", () => {
+  const t = (src) => inspectHorizonAppIdSource(src, "expo-plugin-config");
+  const id = '"31705015229097839"';
+  const options = `const options={android:{horizon:{appId:${id}}}};`;
+  const tail = `\nexport default {plugins:[["../app.plugin.js",options]]};`;
+
+  // The rule is blunt on purpose. Earlier versions tried to decide which
+  // property a write could reach — by name, by path, by array slot, by what a
+  // rest pattern carries — and each attempt was wrong in one direction or the
+  // other. These three passed the precise version while the app id was empty
+  // at runtime; being right about them means modelling a JavaScript heap.
+  for (const source of [
+    // The excluded property is put back, re-aliasing the original.
+    `${options}\nconst {android,...rest}=options;\nrest.android=android;\nrest.android.horizon.appId="";${tail}`,
+    // `unshift` moves every entry, so a remembered slot is stale.
+    `${options}\nconst entries=[["../app.plugin.js",options],"expo-router"];\nentries.unshift("prefix");\nentries[1]=["other",{}];\nexport default {plugins:entries};`,
+    // Two properties holding the same object.
+    `const android={horizon:{appId:${id}}};\nconst options={android,other:android};\noptions.other.horizon.appId="";${tail}`,
+  ]) {
+    assert.notEqual(t(source), null, source);
+  }
+
+  // The cost of the rule, accepted: a write that cannot reach the id is still
+  // refused. The fix is to build the property in the literal, which is how the
+  // repository's own config is written, and a refusal says so.
+  for (const source of [
+    `${options}\noptions.ios={supportsTablet:false};${tail}`,
+    `${options}\noptions["ios"]={supportsTablet:false};${tail}`,
+    `${options}\nconst config={plugins:[["../app.plugin.js",options]]};\nconfig.name="x";\nexport default config;`,
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nentries.push("expo-router");\nexport default {plugins:entries};`,
+    `${options}\nconst {android,...rest}=options;\nrest.android={...android};${tail}`,
+  ]) {
+    assert.notEqual(t(source), null, source);
+  }
+
+  // What is NOT ours stays untouched: a different binding, a new array, and an
+  // object we are only read from.
+  for (const source of [
+    `${options}\nfunction f(options){ options.name="x"; }\nvoid f;${tail}`,
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy.length=0;\nexport default {plugins:entries};`,
+    `${options}\nvoid Object.assign({},options);${tail}`,
+    `${options}\nnew Map().set("copy",options);${tail}`,
+  ]) {
+    assert.equal(t(source), null, source);
   }
 });
