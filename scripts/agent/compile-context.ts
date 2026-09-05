@@ -265,7 +265,7 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   // Combine all external docs for llms-full.txt
   let fullContent = `# OpenIAP Complete Reference
 
-> OpenIAP: Unified in-app purchase specification for iOS & Android
+> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
 > Generated: ${generatedAt}
@@ -679,7 +679,7 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
   // Generate llms.txt (quick reference - condensed version)
   let quickContent = `# OpenIAP Quick Reference
 
-> OpenIAP: Unified in-app purchase specification for iOS & Android
+> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
 > Generated: ${generatedAt}

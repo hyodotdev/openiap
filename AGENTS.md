@@ -30,9 +30,8 @@ openiap/
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── specs/             # Publishable specifications; never deployed services
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract + multiplatform code generation
-│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
+│   ├── client/             # Client GraphQL contract + multiplatform code generation
+│   └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
