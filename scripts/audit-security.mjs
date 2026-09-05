@@ -504,18 +504,39 @@ export function auditDependencies(
 export function findActionFamilyDrift(sources) {
   const pinned = new Map();
   for (const [filename, source] of sources) {
-    const uses =
-      source.match(
-        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_/.-]+)?@[0-9a-f]{40}/gu,
-      ) ?? [];
-    for (const reference of uses) {
-      const [path, sha] = reference.split("@");
-      const family = path.split("/").slice(0, 2).join("/");
-      if (!pinned.has(family)) pinned.set(family, new Map());
-      const shas = pinned.get(family);
-      if (!shas.has(sha)) shas.set(sha, new Set());
-      shas.get(sha).add(`${filename} (${path})`);
+    let document;
+    try {
+      document = parseDocument(source);
+      if (document.errors.length > 0) continue;
+    } catch {
+      continue;
     }
+    // Only real `uses:` values count. Scanning the raw text also matched a SHA
+    // left in a YAML comment or quoted inside a `run:` block, and reported
+    // drift against a reference the workflow never resolves.
+    visit(document, {
+      Pair(_, pair) {
+        const key = resolveYamlScalar(pair.key, document);
+        const value = resolveYamlScalar(pair.value, document);
+        if (key.value !== "uses" || typeof value.value !== "string") return;
+        const reference = value.value;
+        if (reference.startsWith("./") || reference.startsWith("docker://")) {
+          return;
+        }
+        const separator = reference.lastIndexOf("@");
+        if (separator < 0) return;
+        const path = reference.slice(0, separator);
+        const sha = reference.slice(separator + 1);
+        if (!/^[0-9a-f]{40}$/u.test(sha)) return;
+        const segments = path.split("/");
+        if (segments.length < 2) return;
+        const family = segments.slice(0, 2).join("/");
+        if (!pinned.has(family)) pinned.set(family, new Map());
+        const shas = pinned.get(family);
+        if (!shas.has(sha)) shas.set(sha, new Set());
+        shas.get(sha).add(`${filename} (${path})`);
+      },
+    });
   }
 
   const findings = [];

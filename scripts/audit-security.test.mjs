@@ -904,14 +904,31 @@ test("transport detection does not swallow an ordinary failure", () => {
 test("actions from one repository must be pinned to one commit", () => {
   const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
   const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
-  const uses = (path, sha) => `      - uses: ${path}@${sha} # v4\n`;
+  // Real YAML: the check reads `uses:` values from the parsed document, so a
+  // bare fragment would parse to nothing.
+  const workflow = (...refs) =>
+    [
+      "on: push",
+      "jobs:",
+      "  a:",
+      "    steps:",
+      ...refs.map((reference) => `      - uses: ${reference} # v4`),
+      "",
+    ].join("\n");
+  const uses = (path, sha) => `${path}@${sha}`;
 
   // The real failure this prevents: Dependabot bumped codeql-action/init on
   // its own, and every Analyze job died with "Loaded a configuration file for
   // version 4.37.9, but running version 4.37.8". Grouping in dependabot.yml
   // stops it arriving split; this catches it if it arrives split anyway.
   const drifted = findActionFamilyDrift([
-    ["codeql.yml", uses("github/codeql-action/init", NEW) + uses("github/codeql-action/analyze", OLD)],
+    [
+      "codeql.yml",
+      workflow(
+        uses("github/codeql-action/init", NEW),
+        uses("github/codeql-action/analyze", OLD),
+      ),
+    ],
   ]);
   assert.equal(drifted.length, 1);
   assert.match(drifted[0], /github\/codeql-action is pinned to 2 different commits/u);
@@ -921,7 +938,13 @@ test("actions from one repository must be pinned to one commit", () => {
   // A repository can publish a root action alongside sub-actions, so a missing
   // subpath is still the same family. Requiring one missed this entirely.
   const rootDrift = findActionFamilyDrift([
-    ["codeql.yml", uses("github/codeql-action", OLD) + uses("github/codeql-action/init", NEW)],
+    [
+      "codeql.yml",
+      workflow(
+        uses("github/codeql-action", OLD),
+        uses("github/codeql-action/init", NEW),
+      ),
+    ],
   ]);
   assert.equal(rootDrift.length, 1);
   assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
@@ -932,8 +955,10 @@ test("actions from one repository must be pinned to one commit", () => {
     findActionFamilyDrift([
       [
         "call.yml",
-        `    uses: hyodotdev/openiap/.github/workflows/a.yml@${OLD}\n` +
-          `    uses: hyodotdev/openiap/.github/workflows/b.yml@${NEW}\n`,
+        workflow(
+          uses("hyodotdev/openiap/.github/workflows/a.yml", OLD),
+          uses("hyodotdev/openiap/.github/workflows/b.yml", NEW),
+        ),
       ],
     ]).length,
     1,
@@ -944,9 +969,32 @@ test("actions from one repository must be pinned to one commit", () => {
     findActionFamilyDrift([
       [
         "w.yml",
-        "      - uses: ./.github/actions/a\n" +
-          "      - uses: ./.github/actions/b\n" +
-          `      - uses: docker://alpine@sha256:${"a".repeat(64)}\n`,
+        workflow(
+          "./.github/actions/a",
+          "./.github/actions/b",
+          `docker://alpine@sha256:${"a".repeat(64)}`,
+        ),
+      ],
+    ]),
+    [],
+  );
+
+  // A SHA in a comment or a shell line is not a reference the workflow
+  // resolves; matching raw text reported drift against both.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        [
+          "on: push",
+          "jobs:",
+          "  a:",
+          "    steps:",
+          `      # was actions/checkout@${OLD}`,
+          `      - run: echo "pinned actions/checkout@${OLD}"`,
+          `      - uses: actions/checkout@${NEW} # v4`,
+          "",
+        ].join("\n"),
       ],
     ]),
     [],
@@ -955,8 +1003,8 @@ test("actions from one repository must be pinned to one commit", () => {
   // A single-path action agreeing with itself is not a finding.
   assert.deepEqual(
     findActionFamilyDrift([
-      ["a.yml", uses("actions/checkout", NEW)],
-      ["b.yml", uses("actions/checkout", NEW)],
+      ["a.yml", workflow(uses("actions/checkout", NEW))],
+      ["b.yml", workflow(uses("actions/checkout", NEW))],
     ]),
     [],
   );
@@ -964,8 +1012,8 @@ test("actions from one repository must be pinned to one commit", () => {
   // Across files counts too — upload-sarif lives in a different workflow.
   assert.equal(
     findActionFamilyDrift([
-      ["codeql.yml", uses("github/codeql-action/init", NEW)],
-      ["scorecard.yml", uses("github/codeql-action/upload-sarif", OLD)],
+      ["codeql.yml", workflow(uses("github/codeql-action/init", NEW))],
+      ["scorecard.yml", workflow(uses("github/codeql-action/upload-sarif", OLD))],
     ]).length,
     1,
   );
@@ -974,8 +1022,14 @@ test("actions from one repository must be pinned to one commit", () => {
   // happens to sit at a different commit from an unrelated one.
   assert.deepEqual(
     findActionFamilyDrift([
-      ["codeql.yml", uses("github/codeql-action/init", NEW) + uses("github/codeql-action/analyze", NEW)],
-      ["ci.yml", uses("gradle/actions/setup-gradle", OLD)],
+      [
+        "codeql.yml",
+        workflow(
+          uses("github/codeql-action/init", NEW),
+          uses("github/codeql-action/analyze", NEW),
+        ),
+      ],
+      ["ci.yml", workflow(uses("gradle/actions/setup-gradle", OLD))],
     ]),
     [],
   );
