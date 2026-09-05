@@ -87,11 +87,63 @@ export function findDuplicateRootPaths(root = repositoryRoot) {
     .sort((left, right) => left.canonical.localeCompare(right.canonical));
 }
 
+/**
+ * Paths the structure diagram in AGENTS.md claims exist.
+ *
+ * That diagram is the map every agent reads before touching anything, and it
+ * drifted: it showed `specs/openiap/client` long after the umbrella directory
+ * was removed — a layout this very audit rejects on disk. Enforcing the
+ * filesystem while leaving the documented tree unchecked meant the rule and
+ * the map could disagree indefinitely.
+ *
+ * Depth comes from the indent before the branch character, so a nested entry
+ * is resolved against its parent rather than read as a top-level name.
+ */
+export function findDocumentedTreePaths(markdown) {
+  // CRLF counts: a checkout with Windows line endings would otherwise match
+  // nothing and the audit would pass having checked nothing at all.
+  const block = markdown.match(/```text\r?\n([\s\S]*?)```/u);
+  if (!block) return null;
+
+  const paths = [];
+  const parents = [];
+  for (const line of block[1].split(/\r?\n/u)) {
+    const branch = line.match(/^([\s│]*)(?:├──|└──)\s+(\S+)/u);
+    if (!branch) continue;
+    const depth = Math.floor(branch[1].length / 4);
+    const name = branch[2].replace(/\/$/u, "");
+    parents.length = depth;
+    parents[depth] = name;
+    paths.push(parents.slice(0, depth + 1).join("/"));
+  }
+  return paths;
+}
+
 export function auditRepositoryLayout(root = repositoryRoot) {
   const violations = findDuplicateRootPaths(root).map(
     ({ duplicate, canonical }) =>
       `remove duplicate root ${duplicate}/; use ${canonical}/ instead`,
   );
+
+  const agentsPath = path.join(root, "AGENTS.md");
+  if (fs.existsSync(agentsPath)) {
+    const documented = findDocumentedTreePaths(
+      fs.readFileSync(agentsPath, "utf8"),
+    );
+    if (documented === null) {
+      // Returning an empty list here would pass silently, which is the one
+      // outcome this check must never have.
+      violations.push("AGENTS.md has no readable structure diagram");
+    } else {
+      for (const entry of documented) {
+        if (!fs.existsSync(path.join(root, entry))) {
+          violations.push(
+            `AGENTS.md documents ${entry}/, which does not exist`,
+          );
+        }
+      }
+    }
+  }
 
   const legacyGqlPath = path.join(root, "packages", "gql");
   if (fs.existsSync(legacyGqlPath)) {

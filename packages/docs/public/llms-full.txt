@@ -1,9 +1,9 @@
 # OpenIAP Complete Reference
 
-> OpenIAP: Unified in-app purchase specification for iOS & Android
+> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-02T01:55:36.595Z
+> Generated: 2026-09-05T04:10:09.550Z
 
 ## Table of Contents
 1. Installation

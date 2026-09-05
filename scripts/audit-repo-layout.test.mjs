@@ -5,7 +5,10 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { auditRepositoryLayout } from "./audit-repo-layout.mjs";
+import {
+  auditRepositoryLayout,
+  findDocumentedTreePaths,
+} from "./audit-repo-layout.mjs";
 
 function withTemporaryRepository(run) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-layout-"));
@@ -215,4 +218,91 @@ test("keeps lockfile workspace names aligned with package manifests", () => {
     );
     assert.equal(entry.name, manifest.name, workspacePath || "<root>");
   }
+});
+
+test("the structure diagram in AGENTS.md must match the tree", () => {
+  const tree = (specs) =>
+    [
+      "```text",
+      "openiap/",
+      "├── packages/",
+      "│   ├── docs/          # Documentation site",
+      "│   └── kit/           # Purchase validation",
+      ...specs,
+      "```",
+      "",
+    ].join("\n");
+
+  // Depth has to come from the indent: `client/` nested under `openiap/` is
+  // `specs/openiap/client`, not `specs/client`. Reading the leaf name alone
+  // made every nested entry look like a top-level directory.
+  assert.deepEqual(
+    findDocumentedTreePaths(
+      tree([
+        "├── specs/",
+        "│   └── openiap/",
+        "│       ├── client/",
+        "│       └── commerce-protocol/",
+      ]),
+    ),
+    [
+      "packages",
+      "packages/docs",
+      "packages/kit",
+      "specs",
+      "specs/openiap",
+      "specs/openiap/client",
+      "specs/openiap/commerce-protocol",
+    ],
+  );
+
+  // A sibling after a deeper branch returns to its own depth.
+  assert.deepEqual(
+    findDocumentedTreePaths(
+      tree(["├── specs/", "│   └── client/", "└── scripts/"]),
+    ).slice(-3),
+    ["specs", "specs/client", "scripts"],
+  );
+
+  // CRLF is the same diagram. Matching only LF returned nothing, and the audit
+  // then passed having read nothing.
+  assert.deepEqual(
+    findDocumentedTreePaths(
+      tree(["├── specs/", "│   └── client/"]).replace(/\n/gu, "\r\n"),
+    ).slice(-2),
+    ["specs", "specs/client"],
+  );
+
+  // No diagram is null, not an empty list: the caller has to tell "nothing
+  // documented" apart from "nothing readable".
+  assert.equal(findDocumentedTreePaths("no code block here"), null);
+});
+
+test("a documented directory that does not exist is a violation", () => {
+  withTemporaryRepository((root) => {
+    // The real drift: AGENTS.md kept documenting specs/openiap/client long
+    // after the umbrella directory was removed — a layout this same audit
+    // rejects on disk, so the rule and the map disagreed.
+    fs.writeFileSync(
+      path.join(root, "AGENTS.md"),
+      ["```text", "openiap/", "├── specs/", "│   └── openiap/", "```", ""].join(
+        "\n",
+      ),
+    );
+    assert.deepEqual(auditRepositoryLayout(root), [
+      "AGENTS.md documents specs/, which does not exist",
+      "AGENTS.md documents specs/openiap/, which does not exist",
+    ]);
+  });
+});
+
+test("an unreadable structure diagram is a violation, not a pass", () => {
+  withTemporaryRepository((root) => {
+    // The failure mode this guards: a diagram the parser cannot read makes the
+    // check vacuous, and a vacuous check reads exactly like a clean one.
+    fs.writeFileSync(path.join(root, "AGENTS.md"), "# no diagram here\n");
+    assert.deepEqual(auditRepositoryLayout(root), [
+      "AGENTS.md has no readable structure diagram",
+    ]);
+  });
 });
