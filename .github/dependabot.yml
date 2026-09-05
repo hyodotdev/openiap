@@ -39,6 +39,19 @@ updates:
     labels:
       - "💨 ci"
       - "📦 update packages"
+    groups:
+      # Several actions live at different paths in ONE repository and refuse to
+      # run at mixed versions: CodeQL fails with "Loaded a configuration file
+      # for version X, but running version Y" when init and analyze disagree.
+      # Ungrouped, Dependabot opens one PR per path, and each is broken on its
+      # own. scripts/audit-security.mjs enforces the same invariant on the
+      # workflows themselves.
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
+      gradle-actions:
+        patterns:
+          - "gradle/actions*"
 
   # packages/kit Dockerfile base image
   - package-ecosystem: "docker"

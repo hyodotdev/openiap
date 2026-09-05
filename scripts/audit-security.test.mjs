@@ -15,6 +15,8 @@ import {
   auditDependencies,
   auditWorkflowFiles,
   extractExternalUrls,
+  LOCKSTEP_EXEMPT,
+  findActionFamilyDrift,
   findUnpinnedDockerBases,
   findWorkflowDependencyFindings,
   findWorkflowRunInterpolations,
@@ -898,4 +900,262 @@ test("transport detection does not swallow an ordinary failure", () => {
     false,
   );
   assert.equal(isTransportFailure({ stdout: "", stderr: "" }), false);
+});
+
+test("actions from one repository must be pinned to one commit", () => {
+  const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
+  const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
+  // Synthetic fixtures pass their own exemption map. Reading the production
+  // one would make these tests fail the day a real family is exempted — the
+  // trap this whole mechanism exists to avoid.
+  const none = new Map();
+  // Real YAML: the check reads `uses:` values from the parsed document, so a
+  // bare fragment would parse to nothing.
+  const workflow = (...refs) =>
+    [
+      "on: push",
+      "jobs:",
+      "  a:",
+      "    steps:",
+      ...refs.map((reference) => `      - uses: ${reference} # v4`),
+      "",
+    ].join("\n");
+  const uses = (path, sha) => `${path}@${sha}`;
+
+  // The real failure this prevents: Dependabot bumped codeql-action/init on
+  // its own, and every Analyze job died with "Loaded a configuration file for
+  // version 4.37.9, but running version 4.37.8". Grouping in dependabot.yml
+  // stops it arriving split; this catches it if it arrives split anyway.
+  const drifted = findActionFamilyDrift([
+    [
+      "codeql.yml",
+      workflow(
+        uses("github/codeql-action/init", NEW),
+        uses("github/codeql-action/analyze", OLD),
+      ),
+    ],
+  ], none);
+  assert.equal(drifted.length, 1);
+  assert.match(drifted[0], /github\/codeql-action is pinned to 2 different commits/u);
+  // It has to say WHERE, or the reader cannot act on it.
+  assert.match(drifted[0], /codeql\.yml/u);
+
+  // A repository can publish a root action alongside sub-actions, so a missing
+  // subpath is still the same family. Requiring one missed this entirely.
+  const rootDrift = findActionFamilyDrift([
+    [
+      "codeql.yml",
+      workflow(
+        uses("github/codeql-action", OLD),
+        uses("github/codeql-action/init", NEW),
+      ),
+    ],
+  ], none);
+  assert.equal(rootDrift.length, 1);
+  assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
+
+  // A reusable workflow is a reference from the same repository, so two of
+  // them at different commits is drift. The subpath has dots in it.
+  assert.equal(
+    findActionFamilyDrift([
+      [
+        "call.yml",
+        workflow(
+          uses("hyodotdev/openiap/.github/workflows/a.yml", OLD),
+          uses("hyodotdev/openiap/.github/workflows/b.yml", NEW),
+        ),
+      ],
+    ], none).length,
+    1,
+  );
+
+  // A local action has no owner, and a docker digest is not a git commit.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        workflow(
+          "./.github/actions/a",
+          "./.github/actions/b",
+          `docker://alpine@sha256:${"a".repeat(64)}`,
+        ),
+      ],
+    ], none),
+    [],
+  );
+
+  // A SHA in a comment or a shell line is not a reference the workflow
+  // resolves; matching raw text reported drift against both.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        [
+          "on: push",
+          "jobs:",
+          "  a:",
+          "    steps:",
+          `      # was actions/checkout@${OLD}`,
+          `      - run: echo "pinned actions/checkout@${OLD}"`,
+          `      - uses: actions/checkout@${NEW} # v4`,
+          "",
+        ].join("\n"),
+      ],
+    ], none),
+    [],
+  );
+
+  // GitHub resolves an action reference case-insensitively, so a differently
+  // cased owner is the same repository, not a second family.
+  assert.equal(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        workflow(
+          uses("GitHub/codeql-action/init", OLD),
+          uses("github/codeql-action/analyze", NEW),
+        ),
+      ],
+    ], none).length,
+    1,
+  );
+
+  // A single-path action agreeing with itself is not a finding.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      ["a.yml", workflow(uses("actions/checkout", NEW))],
+      ["b.yml", workflow(uses("actions/checkout", NEW))],
+    ], none),
+    [],
+  );
+
+  // Across files counts too — upload-sarif lives in a different workflow.
+  assert.equal(
+    findActionFamilyDrift([
+      ["codeql.yml", workflow(uses("github/codeql-action/init", NEW))],
+      ["scorecard.yml", workflow(uses("github/codeql-action/upload-sarif", OLD))],
+    ], none).length,
+    1,
+  );
+
+  // Agreement is not a finding, and neither is a single-path action that
+  // happens to sit at a different commit from an unrelated one.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      [
+        "codeql.yml",
+        workflow(
+          uses("github/codeql-action/init", NEW),
+          uses("github/codeql-action/analyze", NEW),
+        ),
+      ],
+      ["ci.yml", workflow(uses("gradle/actions/setup-gradle", OLD))],
+    ], none),
+    [],
+  );
+
+  // The repository's own workflows satisfy it.
+  const root = resolve(import.meta.dirname, "..");
+  assert.deepEqual(
+    findActionFamilyDrift(
+      listWorkflowFiles().map((path) => [
+        path,
+        readFileSync(resolve(root, path), "utf8"),
+      ]),
+    ),
+    [],
+  );
+});
+
+test("the workflow audit actually reports action-family drift", async () => {
+  // Calling findActionFamilyDrift directly proves the function; it does not
+  // prove auditWorkflowFiles consults it. Dropping it from the aggregate left
+  // every direct test passing, so this drives the real entry point.
+  const root = resolve(import.meta.dirname, "..");
+  const scratch = mkdtempSync(resolve(root, "scripts/.drift-fixture-"));
+  const relative = scratch.slice(root.length + 1);
+  const workflow = (sha) =>
+    [
+      "name: fixture",
+      "permissions: read-all",
+      "on: push",
+      "jobs:",
+      "  a:",
+      "    runs-on: ubuntu-latest",
+      "    permissions: read-all",
+      "    steps:",
+      // A family nobody would exempt: auditWorkflowFiles reads the production
+      // map, so naming a real one would couple this test to it.
+      `      - uses: example-org/example-action@${sha} # v1`,
+      "",
+    ].join("\n");
+
+  try {
+    writeFileSync(
+      resolve(scratch, "one.yml"),
+      workflow("db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"),
+    );
+    writeFileSync(
+      resolve(scratch, "two.yml"),
+      workflow("cdf488f595d80d6e07e03d4674febd5ab45fa938"),
+    );
+    await assert.rejects(
+      auditWorkflowFiles([`${relative}/one.yml`, `${relative}/two.yml`]),
+      /pinned to 2 different commits/u,
+    );
+    // And it passes when they agree, so the rejection is the drift.
+    writeFileSync(
+      resolve(scratch, "one.yml"),
+      workflow("cdf488f595d80d6e07e03d4674febd5ab45fa938"),
+    );
+    await auditWorkflowFiles([`${relative}/one.yml`, `${relative}/two.yml`]);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test("a family can be exempted from lockstep by name", () => {
+  const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
+  const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
+  const split = [
+    [
+      "legacy.yml",
+      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${OLD} # v4.2.2`, ""].join("\n"),
+    ],
+    [
+      "hosted.yml",
+      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${NEW} # v5.0.0`, ""].join("\n"),
+    ],
+  ];
+
+  // Sharing a repository does not always mean sharing a runtime:
+  // actions/checkout v5 requires a newer runner than a self-hosted box may
+  // have, so a repo can need both. Pass an explicit empty map rather than
+  // relying on the production default — asserting that default is empty would
+  // fail this test the day someone adds a legitimate exemption, which is the
+  // sort of trap this audit exists to remove.
+  const none = new Map();
+  assert.equal(findActionFamilyDrift(split, none).length, 1);
+  assert.match(
+    findActionFamilyDrift(split, none)[0],
+    /add the family to LOCKSTEP_EXEMPT/u,
+  );
+
+  // Named, it passes — and the name is the whole mechanism.
+  assert.deepEqual(
+    findActionFamilyDrift(
+      split,
+      new Map([["actions/checkout", "v5 needs a newer runner"]]),
+    ),
+    [],
+  );
+
+  // Whatever production exempts, every entry must carry its reason.
+  for (const [family, reason] of LOCKSTEP_EXEMPT) {
+    assert.equal(typeof family, "string");
+    assert.ok(
+      typeof reason === "string" && reason.trim().length > 0,
+      `LOCKSTEP_EXEMPT entry ${family} has no reason`,
+    );
+  }
 });

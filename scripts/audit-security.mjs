@@ -487,6 +487,96 @@ export function auditDependencies(
   );
 }
 
+/**
+ * Actions from ONE repository that must run at the same version.
+ *
+ * A repository can publish a root action and sub-actions together, so the
+ * subpath is optional: `github/codeql-action@sha` and
+ * `github/codeql-action/init@sha` are the same family and requiring a subpath
+ * missed drift between them entirely.
+ *
+ * The rule is repo-wide, because the point is to catch a family nobody has
+ * noticed is coupled yet. A split is sometimes legitimate, though —
+ * `actions/checkout@v5` needs runner 2.327.1 or newer, so a repository with an
+ * older self-hosted runner may have to pin two versions — so a family can be
+ * exempted by name, with the reason recorded beside it.
+ *
+ * CodeQL refuses a mixed set outright — "Loaded a configuration file for
+ * version 4.37.9, but running version 4.37.8" — and that is exactly what an
+ * ungrouped Dependabot run produces, since it treats each path as its own
+ * dependency and opens a PR per path. `.github/dependabot.yml` groups them so
+ * they arrive together; this checks the result rather than trusting it.
+ */
+/**
+ * Families allowed to run at more than one version, and why.
+ *
+ * Empty today. An entry states that the split is intended, so the next reader
+ * sees a decision rather than an unexplained hole.
+ */
+export const LOCKSTEP_EXEMPT = new Map();
+
+export function findActionFamilyDrift(sources, exempt = LOCKSTEP_EXEMPT) {
+  const pinned = new Map();
+  for (const [filename, source] of sources) {
+    let workflow;
+    try {
+      workflow = parseYaml(source);
+    } catch {
+      continue;
+    }
+
+    // Only the two places a workflow can name an action: a job calling a
+    // reusable workflow, and a step. Visiting every `uses:` key also picked up
+    // `env: { uses: … }`, which is a variable, not a reference.
+    const references = [];
+    for (const job of Object.values(workflow?.jobs ?? {})) {
+      if (typeof job?.uses === "string") references.push(job.uses);
+      for (const step of Array.isArray(job?.steps) ? job.steps : []) {
+        if (typeof step?.uses === "string") references.push(step.uses);
+      }
+    }
+
+    for (const reference of references) {
+      if (reference.startsWith("./") || reference.startsWith("docker://")) {
+        continue;
+      }
+      const separator = reference.lastIndexOf("@");
+      if (separator < 0) continue;
+      const path = reference.slice(0, separator);
+      const sha = reference.slice(separator + 1);
+      if (!/^[0-9a-f]{40}$/u.test(sha)) continue;
+      const segments = path.split("/");
+      if (segments.length < 2) continue;
+      // GitHub resolves an action reference case-insensitively, so
+      // `GitHub/codeql-action` and `github/codeql-action` are one repository
+      // and drift between them counts.
+      const family = segments.slice(0, 2).join("/").toLowerCase();
+      if (!pinned.has(family)) pinned.set(family, new Map());
+      const shas = pinned.get(family);
+      if (!shas.has(sha)) shas.set(sha, new Set());
+      shas.get(sha).add(`${filename} (${path})`);
+    }
+  }
+
+  const findings = [];
+  for (const [family, shas] of [...pinned].sort()) {
+    if (shas.size < 2 || exempt.has(family)) continue;
+    const where = [...shas]
+      .map(
+        ([sha, places]) =>
+          `${sha.slice(0, 12)} in ${[...places].sort().join(", ")}`,
+      )
+      .sort()
+      .join("; ");
+    findings.push(
+      `${family} is pinned to ${shas.size} different commits: ${where}. ` +
+        "Bump them together, or add the family to LOCKSTEP_EXEMPT with the " +
+        "reason if the split is intended.",
+    );
+  }
+  return findings;
+}
+
 export async function auditWorkflowFiles(paths) {
   const runExpressions = paths.flatMap((path) =>
     findWorkflowRunInterpolations(
@@ -500,7 +590,10 @@ export async function auditWorkflowFiles(paths) {
       path,
     ),
   );
-  const findings = [...runExpressions, ...dependencyFindings];
+  const drift = findActionFamilyDrift(
+    paths.map((path) => [path, readFileSync(resolve(repoRoot, path), "utf8")]),
+  );
+  const findings = [...runExpressions, ...dependencyFindings, ...drift];
   if (findings.length > 0) {
     throw new Error(findings.join("\n"));
   }
