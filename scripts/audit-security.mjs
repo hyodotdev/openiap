@@ -518,42 +518,44 @@ export const LOCKSTEP_EXEMPT = new Map();
 export function findActionFamilyDrift(sources, exempt = LOCKSTEP_EXEMPT) {
   const pinned = new Map();
   for (const [filename, source] of sources) {
-    let document;
+    let workflow;
     try {
-      document = parseDocument(source);
-      if (document.errors.length > 0) continue;
+      workflow = parseYaml(source);
     } catch {
       continue;
     }
-    // Only real `uses:` values count. Scanning the raw text also matched a SHA
-    // left in a YAML comment or quoted inside a `run:` block, and reported
-    // drift against a reference the workflow never resolves.
-    visit(document, {
-      Pair(_, pair) {
-        const key = resolveYamlScalar(pair.key, document);
-        const value = resolveYamlScalar(pair.value, document);
-        if (key.value !== "uses" || typeof value.value !== "string") return;
-        const reference = value.value;
-        if (reference.startsWith("./") || reference.startsWith("docker://")) {
-          return;
-        }
-        const separator = reference.lastIndexOf("@");
-        if (separator < 0) return;
-        const path = reference.slice(0, separator);
-        const sha = reference.slice(separator + 1);
-        if (!/^[0-9a-f]{40}$/u.test(sha)) return;
-        const segments = path.split("/");
-        if (segments.length < 2) return;
-        // GitHub resolves an action reference case-insensitively, so
-        // `GitHub/codeql-action` and `github/codeql-action` are one repository
-        // and drift between them counts.
-        const family = segments.slice(0, 2).join("/").toLowerCase();
-        if (!pinned.has(family)) pinned.set(family, new Map());
-        const shas = pinned.get(family);
-        if (!shas.has(sha)) shas.set(sha, new Set());
-        shas.get(sha).add(`${filename} (${path})`);
-      },
-    });
+
+    // Only the two places a workflow can name an action: a job calling a
+    // reusable workflow, and a step. Visiting every `uses:` key also picked up
+    // `env: { uses: … }`, which is a variable, not a reference.
+    const references = [];
+    for (const job of Object.values(workflow?.jobs ?? {})) {
+      if (typeof job?.uses === "string") references.push(job.uses);
+      for (const step of Array.isArray(job?.steps) ? job.steps : []) {
+        if (typeof step?.uses === "string") references.push(step.uses);
+      }
+    }
+
+    for (const reference of references) {
+      if (reference.startsWith("./") || reference.startsWith("docker://")) {
+        continue;
+      }
+      const separator = reference.lastIndexOf("@");
+      if (separator < 0) continue;
+      const path = reference.slice(0, separator);
+      const sha = reference.slice(separator + 1);
+      if (!/^[0-9a-f]{40}$/u.test(sha)) continue;
+      const segments = path.split("/");
+      if (segments.length < 2) continue;
+      // GitHub resolves an action reference case-insensitively, so
+      // `GitHub/codeql-action` and `github/codeql-action` are one repository
+      // and drift between them counts.
+      const family = segments.slice(0, 2).join("/").toLowerCase();
+      if (!pinned.has(family)) pinned.set(family, new Map());
+      const shas = pinned.get(family);
+      if (!shas.has(sha)) shas.set(sha, new Set());
+      shas.get(sha).add(`${filename} (${path})`);
+    }
   }
 
   const findings = [];

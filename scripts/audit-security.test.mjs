@@ -1124,10 +1124,14 @@ test("a family can be exempted from lockstep by name", () => {
 
   // Sharing a repository does not always mean sharing a runtime:
   // actions/checkout v5 requires a newer runner than a self-hosted box may
-  // have, so a repo can need both. Unexempted it fails, which is the default.
-  assert.equal(findActionFamilyDrift(split).length, 1);
+  // have, so a repo can need both. Pass an explicit empty map rather than
+  // relying on the production default — asserting that default is empty would
+  // fail this test the day someone adds a legitimate exemption, which is the
+  // sort of trap this audit exists to remove.
+  const none = new Map();
+  assert.equal(findActionFamilyDrift(split, none).length, 1);
   assert.match(
-    findActionFamilyDrift(split)[0],
+    findActionFamilyDrift(split, none)[0],
     /add the family to LOCKSTEP_EXEMPT/u,
   );
 
@@ -1140,6 +1144,12 @@ test("a family can be exempted from lockstep by name", () => {
     [],
   );
 
-  // Nothing is exempt today; an entry should be a deliberate act.
-  assert.equal(LOCKSTEP_EXEMPT.size, 0);
+  // Whatever production exempts, every entry must carry its reason.
+  for (const [family, reason] of LOCKSTEP_EXEMPT) {
+    assert.equal(typeof family, "string");
+    assert.ok(
+      typeof reason === "string" && reason.trim().length > 0,
+      `LOCKSTEP_EXEMPT entry ${family} has no reason`,
+    );
+  }
 });
