@@ -15,6 +15,7 @@ import {
   auditDependencies,
   auditWorkflowFiles,
   extractExternalUrls,
+  LOCKSTEP_EXEMPT,
   findActionFamilyDrift,
   findUnpinnedDockerBases,
   findWorkflowDependencyFindings,
@@ -1105,4 +1106,40 @@ test("the workflow audit actually reports action-family drift", async () => {
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
+});
+
+test("a family can be exempted from lockstep by name", () => {
+  const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
+  const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
+  const split = [
+    [
+      "legacy.yml",
+      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${OLD} # v4.2.2`, ""].join("\n"),
+    ],
+    [
+      "hosted.yml",
+      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${NEW} # v5.0.0`, ""].join("\n"),
+    ],
+  ];
+
+  // Sharing a repository does not always mean sharing a runtime:
+  // actions/checkout v5 requires a newer runner than a self-hosted box may
+  // have, so a repo can need both. Unexempted it fails, which is the default.
+  assert.equal(findActionFamilyDrift(split).length, 1);
+  assert.match(
+    findActionFamilyDrift(split)[0],
+    /add the family to LOCKSTEP_EXEMPT/u,
+  );
+
+  // Named, it passes — and the name is the whole mechanism.
+  assert.deepEqual(
+    findActionFamilyDrift(
+      split,
+      new Map([["actions/checkout", "v5 needs a newer runner"]]),
+    ),
+    [],
+  );
+
+  // Nothing is exempt today; an entry should be a deliberate act.
+  assert.equal(LOCKSTEP_EXEMPT.size, 0);
 });

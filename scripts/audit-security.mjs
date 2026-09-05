@@ -495,10 +495,11 @@ export function auditDependencies(
  * `github/codeql-action/init@sha` are the same family and requiring a subpath
  * missed drift between them entirely.
  *
- * The rule is repo-wide and has no exemption: two versions of one action across
- * different workflows is refused even where it would run. That is deliberate —
- * nothing here needs a split today, and a rule with no escape hatch is honest
- * about being a policy. Add one when a real case appears, not before.
+ * The rule is repo-wide, because the point is to catch a family nobody has
+ * noticed is coupled yet. A split is sometimes legitimate, though —
+ * `actions/checkout@v5` needs runner 2.327.1 or newer, so a repository with an
+ * older self-hosted runner may have to pin two versions — so a family can be
+ * exempted by name, with the reason recorded beside it.
  *
  * CodeQL refuses a mixed set outright — "Loaded a configuration file for
  * version 4.37.9, but running version 4.37.8" — and that is exactly what an
@@ -506,7 +507,15 @@ export function auditDependencies(
  * dependency and opens a PR per path. `.github/dependabot.yml` groups them so
  * they arrive together; this checks the result rather than trusting it.
  */
-export function findActionFamilyDrift(sources) {
+/**
+ * Families allowed to run at more than one version, and why.
+ *
+ * Empty today. An entry states that the split is intended, so the next reader
+ * sees a decision rather than an unexplained hole.
+ */
+export const LOCKSTEP_EXEMPT = new Map();
+
+export function findActionFamilyDrift(sources, exempt = LOCKSTEP_EXEMPT) {
   const pinned = new Map();
   for (const [filename, source] of sources) {
     let document;
@@ -549,7 +558,7 @@ export function findActionFamilyDrift(sources) {
 
   const findings = [];
   for (const [family, shas] of [...pinned].sort()) {
-    if (shas.size < 2) continue;
+    if (shas.size < 2 || exempt.has(family)) continue;
     const where = [...shas]
       .map(
         ([sha, places]) =>
@@ -559,8 +568,8 @@ export function findActionFamilyDrift(sources) {
       .join("; ");
     findings.push(
       `${family} is pinned to ${shas.size} different commits: ${where}. ` +
-        "Bump them together; if the split is deliberate, this policy has no " +
-        "exemption yet and needs one adding here.",
+        "Bump them together, or add the family to LOCKSTEP_EXEMPT with the " +
+        "reason if the split is intended.",
     );
   }
   return findings;
