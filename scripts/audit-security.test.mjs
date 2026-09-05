@@ -905,6 +905,10 @@ test("transport detection does not swallow an ordinary failure", () => {
 test("actions from one repository must be pinned to one commit", () => {
   const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
   const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
+  // Synthetic fixtures pass their own exemption map. Reading the production
+  // one would make these tests fail the day a real family is exempted — the
+  // trap this whole mechanism exists to avoid.
+  const none = new Map();
   // Real YAML: the check reads `uses:` values from the parsed document, so a
   // bare fragment would parse to nothing.
   const workflow = (...refs) =>
@@ -930,7 +934,7 @@ test("actions from one repository must be pinned to one commit", () => {
         uses("github/codeql-action/analyze", OLD),
       ),
     ],
-  ]);
+  ], none);
   assert.equal(drifted.length, 1);
   assert.match(drifted[0], /github\/codeql-action is pinned to 2 different commits/u);
   // It has to say WHERE, or the reader cannot act on it.
@@ -946,7 +950,7 @@ test("actions from one repository must be pinned to one commit", () => {
         uses("github/codeql-action/init", NEW),
       ),
     ],
-  ]);
+  ], none);
   assert.equal(rootDrift.length, 1);
   assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
 
@@ -961,7 +965,7 @@ test("actions from one repository must be pinned to one commit", () => {
           uses("hyodotdev/openiap/.github/workflows/b.yml", NEW),
         ),
       ],
-    ]).length,
+    ], none).length,
     1,
   );
 
@@ -976,7 +980,7 @@ test("actions from one repository must be pinned to one commit", () => {
           `docker://alpine@sha256:${"a".repeat(64)}`,
         ),
       ],
-    ]),
+    ], none),
     [],
   );
 
@@ -997,7 +1001,7 @@ test("actions from one repository must be pinned to one commit", () => {
           "",
         ].join("\n"),
       ],
-    ]),
+    ], none),
     [],
   );
 
@@ -1012,7 +1016,7 @@ test("actions from one repository must be pinned to one commit", () => {
           uses("github/codeql-action/analyze", NEW),
         ),
       ],
-    ]).length,
+    ], none).length,
     1,
   );
 
@@ -1021,7 +1025,7 @@ test("actions from one repository must be pinned to one commit", () => {
     findActionFamilyDrift([
       ["a.yml", workflow(uses("actions/checkout", NEW))],
       ["b.yml", workflow(uses("actions/checkout", NEW))],
-    ]),
+    ], none),
     [],
   );
 
@@ -1030,7 +1034,7 @@ test("actions from one repository must be pinned to one commit", () => {
     findActionFamilyDrift([
       ["codeql.yml", workflow(uses("github/codeql-action/init", NEW))],
       ["scorecard.yml", workflow(uses("github/codeql-action/upload-sarif", OLD))],
-    ]).length,
+    ], none).length,
     1,
   );
 
@@ -1046,7 +1050,7 @@ test("actions from one repository must be pinned to one commit", () => {
         ),
       ],
       ["ci.yml", workflow(uses("gradle/actions/setup-gradle", OLD))],
-    ]),
+    ], none),
     [],
   );
 
@@ -1080,7 +1084,9 @@ test("the workflow audit actually reports action-family drift", async () => {
       "    runs-on: ubuntu-latest",
       "    permissions: read-all",
       "    steps:",
-      `      - uses: github/codeql-action/init@${sha} # v4`,
+      // A family nobody would exempt: auditWorkflowFiles reads the production
+      // map, so naming a real one would couple this test to it.
+      `      - uses: example-org/example-action@${sha} # v1`,
       "",
     ].join("\n");
 
