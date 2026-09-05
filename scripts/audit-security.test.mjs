@@ -926,6 +926,32 @@ test("actions from one repository must be pinned to one commit", () => {
   assert.equal(rootDrift.length, 1);
   assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
 
+  // A reusable workflow is a reference from the same repository, so two of
+  // them at different commits is drift. The subpath has dots in it.
+  assert.equal(
+    findActionFamilyDrift([
+      [
+        "call.yml",
+        `    uses: hyodotdev/openiap/.github/workflows/a.yml@${OLD}\n` +
+          `    uses: hyodotdev/openiap/.github/workflows/b.yml@${NEW}\n`,
+      ],
+    ]).length,
+    1,
+  );
+
+  // A local action has no owner, and a docker digest is not a git commit.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        "      - uses: ./.github/actions/a\n" +
+          "      - uses: ./.github/actions/b\n" +
+          `      - uses: docker://alpine@sha256:${"a".repeat(64)}\n`,
+      ],
+    ]),
+    [],
+  );
+
   // A single-path action agreeing with itself is not a finding.
   assert.deepEqual(
     findActionFamilyDrift([

@@ -506,7 +506,7 @@ export function findActionFamilyDrift(sources) {
   for (const [filename, source] of sources) {
     const uses =
       source.match(
-        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_/-]+)?@[0-9a-f]{40}/gu,
+        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_/.-]+)?@[0-9a-f]{40}/gu,
       ) ?? [];
     for (const reference of uses) {
       const [path, sha] = reference.split("@");
