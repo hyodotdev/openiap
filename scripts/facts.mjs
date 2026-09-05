@@ -44,7 +44,7 @@ export const FACTS = Object.freeze([
     // is the Bun inside the IAPKit container, which compiles the binary that
     // actually serves traffic — a separate role, and one the workflows never
     // mention, so it needs its own scanner to be visible here at all.
-    values: { pinned: "1.3.13", runtimeImage: "1.4.0" },
+    values: { pinned: "1.3.13", runtimeImage: "1.4.1" },
     scanners: [
       {
         files: [WORKFLOWS],

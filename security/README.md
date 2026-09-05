@@ -247,7 +247,7 @@ versions are therefore in play, and they are not interchangeable:
 | Role                             | Version | What it touches                                              |
 | -------------------------------- | ------- | ------------------------------------------------------------ |
 | `toolchain.bun` / `pinned`       | 1.3.13  | what CI installs to lint, typecheck and test                 |
-| `toolchain.bun` / `runtimeImage` | 1.4.0   | the `oven/bun` base that compiles the binary serving traffic |
+| `toolchain.bun` / `runtimeImage` | 1.4.1   | the `oven/bun` base that compiles the binary serving traffic |
 
 The tests that gate a deploy run on the first; the artifact that serves traffic
 is compiled by the second.
