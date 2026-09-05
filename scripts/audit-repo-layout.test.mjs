@@ -264,7 +264,18 @@ test("the structure diagram in AGENTS.md must match the tree", () => {
     ["specs", "specs/client", "scripts"],
   );
 
-  assert.deepEqual(findDocumentedTreePaths("no code block here"), []);
+  // CRLF is the same diagram. Matching only LF returned nothing, and the audit
+  // then passed having read nothing.
+  assert.deepEqual(
+    findDocumentedTreePaths(
+      tree(["├── specs/", "│   └── client/"]).replace(/\n/gu, "\r\n"),
+    ).slice(-2),
+    ["specs", "specs/client"],
+  );
+
+  // No diagram is null, not an empty list: the caller has to tell "nothing
+  // documented" apart from "nothing readable".
+  assert.equal(findDocumentedTreePaths("no code block here"), null);
 });
 
 test("a documented directory that does not exist is a violation", () => {
@@ -281,6 +292,17 @@ test("a documented directory that does not exist is a violation", () => {
     assert.deepEqual(auditRepositoryLayout(root), [
       "AGENTS.md documents specs/, which does not exist",
       "AGENTS.md documents specs/openiap/, which does not exist",
+    ]);
+  });
+});
+
+test("an unreadable structure diagram is a violation, not a pass", () => {
+  withTemporaryRepository((root) => {
+    // The failure mode this guards: a diagram the parser cannot read makes the
+    // check vacuous, and a vacuous check reads exactly like a clean one.
+    fs.writeFileSync(path.join(root, "AGENTS.md"), "# no diagram here\n");
+    assert.deepEqual(auditRepositoryLayout(root), [
+      "AGENTS.md has no readable structure diagram",
     ]);
   });
 });

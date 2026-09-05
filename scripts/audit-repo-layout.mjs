@@ -100,12 +100,14 @@ export function findDuplicateRootPaths(root = repositoryRoot) {
  * is resolved against its parent rather than read as a top-level name.
  */
 export function findDocumentedTreePaths(markdown) {
-  const block = markdown.match(/```text\n([\s\S]*?)```/u);
-  if (!block) return [];
+  // CRLF counts: a checkout with Windows line endings would otherwise match
+  // nothing and the audit would pass having checked nothing at all.
+  const block = markdown.match(/```text\r?\n([\s\S]*?)```/u);
+  if (!block) return null;
 
   const paths = [];
   const parents = [];
-  for (const line of block[1].split("\n")) {
+  for (const line of block[1].split(/\r?\n/u)) {
     const branch = line.match(/^([\s│]*)(?:├──|└──)\s+(\S+)/u);
     if (!branch) continue;
     const depth = Math.floor(branch[1].length / 4);
@@ -125,13 +127,20 @@ export function auditRepositoryLayout(root = repositoryRoot) {
 
   const agentsPath = path.join(root, "AGENTS.md");
   if (fs.existsSync(agentsPath)) {
-    for (const documented of findDocumentedTreePaths(
+    const documented = findDocumentedTreePaths(
       fs.readFileSync(agentsPath, "utf8"),
-    )) {
-      if (!fs.existsSync(path.join(root, documented))) {
-        violations.push(
-          `AGENTS.md documents ${documented}/, which does not exist`,
-        );
+    );
+    if (documented === null) {
+      // Returning an empty list here would pass silently, which is the one
+      // outcome this check must never have.
+      violations.push("AGENTS.md has no readable structure diagram");
+    } else {
+      for (const entry of documented) {
+        if (!fs.existsSync(path.join(root, entry))) {
+          violations.push(
+            `AGENTS.md documents ${entry}/, which does not exist`,
+          );
+        }
       }
     }
   }
