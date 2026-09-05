@@ -808,8 +808,7 @@ test("the reader answers for every shape review has raised", () => {
       write,
     );
   }
-  // Object rest copies the properties, so `copy.android` is still
-  // `options.android`. Array rest builds a new array, which aliases nothing.
+  // A rest keeps the very same members, whichever kind of pattern it is.
   assert.match(
     String(
       t(
@@ -1052,9 +1051,12 @@ test("mutating a tracked binding makes the config unreadable", () => {
     assert.notEqual(t(source), null, source);
   }
 
-  // A shallow copy keeps the very same members, so a write through one reaches
-  // ours. A mutator called through a bracket is the same mutator.
+  // A literal built from other values keeps those values, whether they arrive
+  // by spread or as an ordinary member. A mutator called through a bracket is
+  // the same mutator.
   for (const source of [
+    `${options}\nconst copy={android:options.android};\ncopy.android.horizon.appId="";${tail}`,
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nconst copy=[entries[0]];\ncopy[0][1]={};\nexport default {plugins:entries};`,
     `${options}\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy[0][1]={};\nexport default {plugins:entries};`,
     `${options}\nconst copy={...options};\ncopy.android.horizon.appId="";${tail}`,
     `${options}\nconst entries=[["../app.plugin.js",options]];\nentries["pop"]();\nexport default {plugins:entries};`,

@@ -374,6 +374,38 @@ const lookup = (identifier) => {
 
 const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
 
+// Every identifier a literal refers to, ignoring the names of its own
+// properties — those are keys, not values.
+const referencedIn = (literal) => {
+  const found = [];
+  const visit = (node) => {
+    if (ts.isIdentifier(node)) {
+      found.push(node);
+      return;
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+      visit(node.expression);
+      return;
+    }
+    if (
+      (ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) &&
+      node.name &&
+      !ts.isComputedPropertyName(node.name)
+    ) {
+      if (ts.isPropertyAssignment(node)) visit(node.initializer);
+      else found.push(node.name);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  for (const child of ts.isObjectLiteralExpression(literal)
+    ? literal.properties
+    : literal.elements) {
+    visit(child);
+  }
+  return found;
+};
+
 /**
  * Every declaration an identifier can stand for.
  *
@@ -408,17 +440,14 @@ const bindingChain = (identifier, seen = new Set()) => {
     next = next ? unwrap(next) : null;
     if (!next) continue;
 
-    // A shallow copy keeps the members it spread in.
-    if (ts.isObjectLiteralExpression(next)) {
-      for (const member of next.properties) {
-        if (ts.isSpreadAssignment(member)) queue.push(unwrap(member.expression));
-      }
-      continue;
-    }
-    if (ts.isArrayLiteralExpression(next)) {
-      for (const element of next.elements) {
-        if (ts.isSpreadElement(element)) queue.push(unwrap(element.expression));
-      }
+    // A literal built from other values keeps those values: a spread, and a
+    // member that simply refers to one. `{android: options.android}` holds the
+    // very object we read, so following only spreads was arbitrary.
+    if (
+      ts.isObjectLiteralExpression(next) ||
+      ts.isArrayLiteralExpression(next)
+    ) {
+      queue.push(...referencedIn(next));
       continue;
     }
 
