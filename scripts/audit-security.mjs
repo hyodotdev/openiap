@@ -488,8 +488,12 @@ export function auditDependencies(
 }
 
 /**
- * Actions that live at different paths in ONE repository and must run at the
- * same version.
+ * Actions from ONE repository that must run at the same version.
+ *
+ * A repository can publish a root action and sub-actions together, so the
+ * subpath is optional: `github/codeql-action@sha` and
+ * `github/codeql-action/init@sha` are the same family and requiring a subpath
+ * missed drift between them entirely.
  *
  * CodeQL refuses a mixed set outright — "Loaded a configuration file for
  * version 4.37.9, but running version 4.37.8" — and that is exactly what an
@@ -502,7 +506,7 @@ export function findActionFamilyDrift(sources) {
   for (const [filename, source] of sources) {
     const uses =
       source.match(
-        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_/-]+@[0-9a-f]{40}/gu,
+        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+(?:\/[a-zA-Z0-9_/-]+)?@[0-9a-f]{40}/gu,
       ) ?? [];
     for (const reference of uses) {
       const [path, sha] = reference.split("@");

@@ -918,6 +918,23 @@ test("actions from one repository must be pinned to one commit", () => {
   // It has to say WHERE, or the reader cannot act on it.
   assert.match(drifted[0], /codeql\.yml/u);
 
+  // A repository can publish a root action alongside sub-actions, so a missing
+  // subpath is still the same family. Requiring one missed this entirely.
+  const rootDrift = findActionFamilyDrift([
+    ["codeql.yml", uses("github/codeql-action", OLD) + uses("github/codeql-action/init", NEW)],
+  ]);
+  assert.equal(rootDrift.length, 1);
+  assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
+
+  // A single-path action agreeing with itself is not a finding.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      ["a.yml", uses("actions/checkout", NEW)],
+      ["b.yml", uses("actions/checkout", NEW)],
+    ]),
+    [],
+  );
+
   // Across files counts too — upload-sarif lives in a different workflow.
   assert.equal(
     findActionFamilyDrift([
