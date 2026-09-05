@@ -487,6 +487,50 @@ export function auditDependencies(
   );
 }
 
+/**
+ * Actions that live at different paths in ONE repository and must run at the
+ * same version.
+ *
+ * CodeQL refuses a mixed set outright — "Loaded a configuration file for
+ * version 4.37.9, but running version 4.37.8" — and that is exactly what an
+ * ungrouped Dependabot run produces, since it treats each path as its own
+ * dependency and opens a PR per path. `.github/dependabot.yml` groups them so
+ * they arrive together; this checks the result rather than trusting it.
+ */
+export function findActionFamilyDrift(sources) {
+  const pinned = new Map();
+  for (const [filename, source] of sources) {
+    const uses =
+      source.match(
+        /[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_/-]+@[0-9a-f]{40}/gu,
+      ) ?? [];
+    for (const reference of uses) {
+      const [path, sha] = reference.split("@");
+      const family = path.split("/").slice(0, 2).join("/");
+      if (!pinned.has(family)) pinned.set(family, new Map());
+      const shas = pinned.get(family);
+      if (!shas.has(sha)) shas.set(sha, new Set());
+      shas.get(sha).add(`${filename} (${path})`);
+    }
+  }
+
+  const findings = [];
+  for (const [family, shas] of [...pinned].sort()) {
+    if (shas.size < 2) continue;
+    const where = [...shas]
+      .map(
+        ([sha, places]) =>
+          `${sha.slice(0, 12)} in ${[...places].sort().join(", ")}`,
+      )
+      .sort()
+      .join("; ");
+    findings.push(
+      `${family} is pinned to ${shas.size} different commits: ${where}`,
+    );
+  }
+  return findings;
+}
+
 export async function auditWorkflowFiles(paths) {
   const runExpressions = paths.flatMap((path) =>
     findWorkflowRunInterpolations(
@@ -500,7 +544,10 @@ export async function auditWorkflowFiles(paths) {
       path,
     ),
   );
-  const findings = [...runExpressions, ...dependencyFindings];
+  const drift = findActionFamilyDrift(
+    paths.map((path) => [path, readFileSync(resolve(repoRoot, path), "utf8")]),
+  );
+  const findings = [...runExpressions, ...dependencyFindings, ...drift];
   if (findings.length > 0) {
     throw new Error(findings.join("\n"));
   }

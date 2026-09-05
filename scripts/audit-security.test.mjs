@@ -15,6 +15,7 @@ import {
   auditDependencies,
   auditWorkflowFiles,
   extractExternalUrls,
+  findActionFamilyDrift,
   findUnpinnedDockerBases,
   findWorkflowDependencyFindings,
   findWorkflowRunInterpolations,
@@ -898,4 +899,98 @@ test("transport detection does not swallow an ordinary failure", () => {
     false,
   );
   assert.equal(isTransportFailure({ stdout: "", stderr: "" }), false);
+});
+
+test("actions from one repository must be pinned to one commit", () => {
+  const OLD = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
+  const NEW = "cdf488f595d80d6e07e03d4674febd5ab45fa938";
+  const uses = (path, sha) => `      - uses: ${path}@${sha} # v4\n`;
+
+  // The real failure this prevents: Dependabot bumped codeql-action/init on
+  // its own, and every Analyze job died with "Loaded a configuration file for
+  // version 4.37.9, but running version 4.37.8". Grouping in dependabot.yml
+  // stops it arriving split; this catches it if it arrives split anyway.
+  const drifted = findActionFamilyDrift([
+    ["codeql.yml", uses("github/codeql-action/init", NEW) + uses("github/codeql-action/analyze", OLD)],
+  ]);
+  assert.equal(drifted.length, 1);
+  assert.match(drifted[0], /github\/codeql-action is pinned to 2 different commits/u);
+  // It has to say WHERE, or the reader cannot act on it.
+  assert.match(drifted[0], /codeql\.yml/u);
+
+  // Across files counts too — upload-sarif lives in a different workflow.
+  assert.equal(
+    findActionFamilyDrift([
+      ["codeql.yml", uses("github/codeql-action/init", NEW)],
+      ["scorecard.yml", uses("github/codeql-action/upload-sarif", OLD)],
+    ]).length,
+    1,
+  );
+
+  // Agreement is not a finding, and neither is a single-path action that
+  // happens to sit at a different commit from an unrelated one.
+  assert.deepEqual(
+    findActionFamilyDrift([
+      ["codeql.yml", uses("github/codeql-action/init", NEW) + uses("github/codeql-action/analyze", NEW)],
+      ["ci.yml", uses("gradle/actions/setup-gradle", OLD)],
+    ]),
+    [],
+  );
+
+  // The repository's own workflows satisfy it.
+  const root = resolve(import.meta.dirname, "..");
+  assert.deepEqual(
+    findActionFamilyDrift(
+      listWorkflowFiles().map((path) => [
+        path,
+        readFileSync(resolve(root, path), "utf8"),
+      ]),
+    ),
+    [],
+  );
+});
+
+test("the workflow audit actually reports action-family drift", async () => {
+  // Calling findActionFamilyDrift directly proves the function; it does not
+  // prove auditWorkflowFiles consults it. Dropping it from the aggregate left
+  // every direct test passing, so this drives the real entry point.
+  const root = resolve(import.meta.dirname, "..");
+  const scratch = mkdtempSync(resolve(root, "scripts/.drift-fixture-"));
+  const relative = scratch.slice(root.length + 1);
+  const workflow = (sha) =>
+    [
+      "name: fixture",
+      "permissions: read-all",
+      "on: push",
+      "jobs:",
+      "  a:",
+      "    runs-on: ubuntu-latest",
+      "    permissions: read-all",
+      "    steps:",
+      `      - uses: github/codeql-action/init@${sha} # v4`,
+      "",
+    ].join("\n");
+
+  try {
+    writeFileSync(
+      resolve(scratch, "one.yml"),
+      workflow("db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28"),
+    );
+    writeFileSync(
+      resolve(scratch, "two.yml"),
+      workflow("cdf488f595d80d6e07e03d4674febd5ab45fa938"),
+    );
+    await assert.rejects(
+      auditWorkflowFiles([`${relative}/one.yml`, `${relative}/two.yml`]),
+      /pinned to 2 different commits/u,
+    );
+    // And it passes when they agree, so the rejection is the drift.
+    writeFileSync(
+      resolve(scratch, "one.yml"),
+      workflow("cdf488f595d80d6e07e03d4674febd5ab45fa938"),
+    );
+    await auditWorkflowFiles([`${relative}/one.yml`, `${relative}/two.yml`]);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
