@@ -836,15 +836,15 @@ sequenceDiagram
   Note over Emitter,Consumer: Delivery is duplicate-capable and unordered, with no exactly-once guarantee (§9.4.4). This is one attempt.
 
   Store->>Emitter: store-native notification
-  Emitter->>Emitter: normalize (§9.2); derive the lifecycle and entitlement events (§9.1)
+  Emitter->>Emitter: normalize (§9.2), then derive the lifecycle and entitlement events (§9.1)
   Emitter->>Consumer: POST to the consumer's HTTPS URL — Content-Type: application/json, no Content-Encoding<br/>body: one event, the exact UTF-8 bytes<br/>openiap-signature: v1=lowercase hex (several, comma-separated, during rotation)<br/>openiap-timestamp: exactly one, Unix seconds, base-10, no sign<br/>openiap-event-id · openiap-delivery-id
-  Note over Consumer: MUST: reject if abs(now − timestamp) > 300 s<br/>MUST: signed = ascii(timestamp) + "." + the exact body bytes received; HMAC-SHA256 with the shared secret<br/>MUST: split openiap-signature on "," and trim; accept if any presented v1= matches any valid secret, compared in constant time<br/>MUST: take eventId from the parsed body, not the header; be idempotent on it<br/>SHOULD: acknowledge before slow downstream work
+  Note over Consumer: MUST: reject if abs(now − timestamp) > 300 s<br/>MUST: signed = ascii(timestamp) + "." + the exact body bytes received, then HMAC-SHA256 with the shared secret<br/>MUST: split openiap-signature on "," and trim — accept if any presented v1= matches any valid secret, compared in constant time<br/>MUST: take eventId from the parsed body, not the header — be idempotent on it<br/>SHOULD: acknowledge before slow downstream work
   alt 2xx
     Consumer-->>Emitter: 2xx
     Note over Emitter: delivered
   else 408, 429, 5xx — or no response (timeout, connection error)
     Consumer-->>Emitter: 408 / 429 / 5xx, or nothing
-    Note over Emitter: retry with exponential backoff: same body and eventId, fresh openiap-timestamp,<br/>recomputed signature, same openiap-delivery-id; eventually stop and dead-letter
+    Note over Emitter: retry with exponential backoff: same body and eventId, fresh openiap-timestamp,<br/>recomputed signature, same openiap-delivery-id — eventually stop and dead-letter
   else 3xx, or any other 4xx
     Consumer-->>Emitter: 3xx / other 4xx
     Note over Emitter: permanent failure — a redirect is not followed, nothing is retried
