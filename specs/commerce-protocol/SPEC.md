@@ -651,6 +651,35 @@ transitions at least one store can actually report, and nothing speculative.
 | `subscription.paused`                | The subscription was paused                                                                                                                                                                                                                                              |
 | `subscription.resumed`               | A paused subscription resumed                                                                                                                                                                                                                                            |
 
+The state each of those events lands in, and the ones that move no state at
+all:
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  state "any prior state" as Prior
+
+  Prior --> Active: started / renewed / recovered / resumed
+  Prior --> InGracePeriod: entered_grace_period
+  Prior --> InBillingRetry: entered_billing_retry
+  Prior --> Paused: paused
+  Prior --> Expired: expired
+  Prior --> Revoked: revoked
+  Prior --> Refunded: refunded
+
+  note right of Active
+    canceled, uncanceled, product_changed, price_changed
+    and deferred move no state. canceled flips willRenew
+    only; access continues until expiresAt.
+  end note
+
+  note left of InBillingRetry
+    Entitled: Active and InGracePeriod, while now is
+    before expiresAt. Every other state: not entitled.
+    Read subscription.active. Never re-derive it from state.
+  end note
+```
+
 ### Entitlement delta
 
 | Event                 | Meaning                 |
@@ -797,6 +826,27 @@ endpoint, WebSocket, push relay, or long-poll feed for shipped applications: a
 project-wide event feed and its signing secret must never reach a distributed
 app. An application that needs device push gets it from its own authenticated
 backend, downstream of this contract.
+
+One delivery, end to end. §9.4.1–9.4.4 below state each step normatively:
+
+```mermaid
+sequenceDiagram
+  participant Store
+  participant Emitter as Backend (emitter)
+  participant Consumer as Consumer endpoint
+
+  Store->>Emitter: store-native notification
+  Emitter->>Emitter: normalize (§9.2), derive lifecycle and entitlement events (§9.1)
+  Emitter->>Consumer: POST one event as raw UTF-8 JSON<br/>openiap-signature: v1=hex (several, comma-separated, during rotation)<br/>openiap-timestamp: Unix seconds<br/>openiap-event-id, openiap-delivery-id
+  Note over Consumer: reject if abs(now − timestamp) > 300 s<br/>signed = timestamp + "." + the exact body bytes received<br/>HMAC-SHA256 with the shared secret, constant-time compare,<br/>any presented v1= against any currently valid secret<br/>take eventId from the body, deduplicate on it, ack before slow work
+  alt 2xx
+    Consumer-->>Emitter: delivered
+  else 408, 429, 5xx, timeout, connection error
+    Consumer-->>Emitter: retry with exponential backoff — same body and eventId,<br/>fresh timestamp, recomputed signature, same delivery-id — then dead-letter
+  else 3xx, or any other 4xx
+    Consumer-->>Emitter: permanent failure — no redirect is followed, nothing is retried
+  end
+```
 
 #### 9.4.1 Request
 
@@ -1318,6 +1368,29 @@ An adopter may replace the backend behind this contract — a self-hosted
 deployment for a managed one, a managed one for their own — and their downstream
 integrations SHOULD survive it. What follows is what actually carries across, and
 what does not.
+
+What a swap looks like from the consumer's side:
+
+```mermaid
+flowchart LR
+  consumer["A consumer written against this specification<br/>— unchanged by the swap"]
+  A["Backend A<br/>before"]
+  B["Backend B<br/>after"]
+  A -- "events (§9)" --> consumer
+  B -- "events (§9)" --> consumer
+
+  subgraph carries ["Carries across"]
+    c1["event types · envelope shape · entitlement predicate"]
+    c2["signature scheme · per-store semantics"]
+    c3["sourceStoreEventId — the store's own notification id"]
+    c4["userId, when the adopter assigns it"]
+  end
+  subgraph breaks ["Does not carry across"]
+    n1["eventId and projectId — emitter-assigned, a new id space"]
+    n2["eventId deduplication history — a cutover overlap is processed twice"]
+    n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
+  end
+```
 
 **Carries across.** Event types, envelope shape, the entitlement predicate,
 signature scheme, and per-store semantics are all defined here, not by a backend.
