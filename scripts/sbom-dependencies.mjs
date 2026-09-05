@@ -865,15 +865,21 @@ function parseNugetNuspec(source, context) {
             (property) => [`${property.name}\0${property.value}`, property],
           ),
         );
-        found.set(key, {
+        // A dependency is optional only when EVERY group carrying it is
+        // framework-scoped. Spreading `existing` kept its scope, so the
+        // answer depended on which group the document listed first.
+        const merged = {
           ...existing,
           ...(mergedProperties.size
             ? { properties: [...mergedProperties.values()] }
             : {}),
-          ...(existing.scope === "optional" && entry.scope === "optional"
-            ? { scope: "optional" }
-            : {}),
-        });
+        };
+        if (existing.scope === "optional" && entry.scope === "optional") {
+          merged.scope = "optional";
+        } else {
+          delete merged.scope;
+        }
+        found.set(key, merged);
       } else {
         found.set(key, entry);
       }

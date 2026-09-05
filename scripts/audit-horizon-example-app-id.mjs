@@ -181,9 +181,12 @@ const unwrap = (node) =>
 // so a binding records the path from itself down to the app id. Without it,
 // `options` recorded an empty path and every write to it looked relevant.
 let descent = [];
-// The slot our entry occupies in the plugins array, when it is determinable.
-// A write to a DIFFERENT slot changes another plugin, not ours.
+// The slot our entry occupies in the plugins array, when it is determinable,
+// and the bindings that hold THAT array. A write to a different slot changes
+// another plugin — but only for the array itself: applying it to every tracked
+// array let a write through a binding holding one tuple pass as another's.
 let entrySlot = null;
+let entryContainers = new Set();
 const followed = new Map();
 const resolve = (node, is, seen = new Set()) => {
   if (!node) return null;
@@ -232,12 +235,13 @@ const declarationsIn = (node) => {
   // A destructured name is reached by a property path, and it is the SOURCE
   // property that names it: `const {android: target}` reaches `android`, not
   // `target`. Rebuilding the path from the local name missed writes through it.
-  const declare = (name, declaration, initialiser, path = []) => {
+  const declare = (name, declaration, initialiser, path = [], excluded) => {
     if (ts.isIdentifier(name)) {
       bound.set(name.text, {
         declaration,
         initialiser: initialiser ?? null,
         path,
+        excluded,
       });
       return;
     }
@@ -245,10 +249,20 @@ const declarationsIn = (node) => {
       if (!element.name) continue;
       if (element.dotDotDotToken) {
         // `const {...copy} = options` copies the properties, so `copy.android`
-        // is still `options.android` — the same path, not one below it. An
-        // array rest builds a NEW array, which aliases nothing.
+        // is still `options.android` — the same path, not one below it. But a
+        // rest does not carry what its siblings took: in
+        // `const {android, ...rest}`, `rest.android` is a new property of a new
+        // object. An array rest builds a NEW array, which aliases nothing.
         if (ts.isObjectBindingPattern(name)) {
-          declare(element.name, declaration, null, path);
+          const taken = new Set();
+          for (const sibling of name.elements) {
+            if (sibling === element || sibling.dotDotDotToken) continue;
+            const key = sibling.propertyName ?? sibling.name;
+            if (ts.isIdentifier(key) || ts.isStringLiteral(key)) {
+              taken.add(key.text);
+            }
+          }
+          declare(element.name, declaration, null, path, taken);
         }
         continue;
       }
@@ -414,7 +428,7 @@ const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
  * levels down, so a write to `horizon.appId` is a write to
  * `options.android.horizon.appId`.
  */
-const bindingChain = (identifier, seen = new Set()) => {
+const bindingChain = (identifier, seen = new Set(), excludedAt = new Map()) => {
   const chain = new Map();
   let current = identifier;
   let prefix = [];
@@ -424,6 +438,9 @@ const bindingChain = (identifier, seen = new Set()) => {
     if (!found || found === OPAQUE) break;
     if (found.declaration && !chain.has(found.declaration)) {
       chain.set(found.declaration, prefix);
+    }
+    if (found.excluded && found.excluded.size > 0) {
+      excludedAt.set(prefix.length, found.excluded);
     }
     // A destructured name has no initialiser of its own; its value comes from
     // the declaration's, down the path the pattern named.
@@ -626,6 +643,7 @@ const configObjects = (source) => {
  */
 const pluginOptions = (source) => {
   entrySlot = null;
+  entryContainers = new Set();
   // A binding holding the CONFIG is one property above the plugins array.
   descent = ["plugins"];
   // A function can return more than one object — a guard clause returning `{}`
@@ -641,10 +659,15 @@ const pluginOptions = (source) => {
   if (value === UNREADABLE) return UNREADABLE;
   if (value === null) return undefined;
   // A binding holding the ARRAY has no path: any write into it can remove the
-  // entry, so every one is relevant except a write to another slot.
+  // entry, so every one is relevant except a write to another slot. Only the
+  // bindings resolved right here hold that array.
   descent = [];
+  const before = new Set(followed.keys());
   const array = arrayLiteral(value);
   if (array === null) return undefined;
+  for (const declaration of followed.keys()) {
+    if (!before.has(declaration)) entryContainers.add(declaration);
+  }
 
   // A spread of an array contributes its elements. `open` is the path being
   // expanded, so a cycle stops while `[...a, ...a]` still yields both.
@@ -743,15 +766,25 @@ const writesThrough = (source, bindings) => {
   const tracked = (node) => {
     const target = rootOf(node);
     if (!target) return false;
-    for (const [declaration, prefix] of bindingChain(target.root)) {
+    const excludedAt = new Map();
+    for (const [declaration, prefix] of bindingChain(
+      target.root,
+      new Set(),
+      excludedAt,
+    )) {
       const read = bindings.get(declaration);
       if (read === undefined) continue;
       const written = [...prefix, ...target.steps];
+      // A rest binding does not carry what its siblings took, so a write to one
+      // of those names lands on a new property of a new object.
+      const skipped = excludedAt.get(prefix.length);
+      if (skipped && skipped.has(written[prefix.length])) continue;
       // A container binding has an empty path, so every write into it counts —
       // except one to a slot we know is not ours.
       if (
         read.length === 0 &&
         entrySlot !== null &&
+        entryContainers.has(declaration) &&
         written.length > 0 &&
         /^\d+$/u.test(written[0] ?? "") &&
         written[0] !== entrySlot

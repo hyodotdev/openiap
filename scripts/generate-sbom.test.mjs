@@ -2154,6 +2154,21 @@ test("a long-form target framework moniker is valid", () => {
     2,
   );
 
+  // A dependency is optional only when every group carrying it is
+  // framework-scoped, whichever order the document lists them in.
+  const scoped = (first, second) =>
+    parseNugetNuspec(
+      `<package><metadata><id>X</id><dependencies>${first}${second}` +
+        `</dependencies></metadata></package>`,
+      context,
+    )[0].scope;
+  const tfm = `<group targetFramework="net9.0"><dependency id="A" version="1"/></group>`;
+  const other = `<group targetFramework="net8.0"><dependency id="A" version="1"/></group>`;
+  const fallback = `<group><dependency id="A" version="1"/></group>`;
+  assert.equal(scoped(tfm, fallback), undefined);
+  assert.equal(scoped(fallback, tfm), undefined);
+  assert.equal(scoped(tfm, other), "optional");
+
   for (const framework of ["net 9.0", "-net9.0"]) {
     assert.throws(() => parseNugetNuspec(nuspec(framework), context), /target framework/u);
   }

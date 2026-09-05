@@ -873,6 +873,26 @@ test("the reader answers for every shape review has raised", () => {
     assert.equal(t(first), null);
   }
 
+  // The slot rule belongs to the plugins array, not to every tracked array: a
+  // binding holding ONE tuple has no slots of its own.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst plugin=["../app.plugin.js",options];\nconst entries=[plugin,["expo-router",{}]];\nplugin[1]={};\nexport default {plugins:entries};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+
+  // A rest does not carry what its siblings took, so writing that name lands on
+  // a new property of a new object.
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst {android, ...rest}=options;\nrest.android={...android};\nexport default {plugins:[["../app.plugin.js",options]]};`,
+    ),
+    null,
+  );
+
   // Object rest keeps every property it did not name.
   assert.match(
     String(
