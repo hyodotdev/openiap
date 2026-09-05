@@ -667,7 +667,10 @@ const pluginOptions = (source) => {
  * the property in the literal, which is how the config is already written. A
  * hole is silent.
  *
- * What it still cannot see: a write made by a function the object is passed to.
+ * What it still cannot see: an alias a CALL produced — `Object.assign({},
+ * options)` returns one — or a write made by a function the object is passed
+ * to. Both need escape analysis, and neither is the accident this exists to
+ * catch: a forgotten or malformed app id.
  */
 const OBJECT_MUTATORS = new Set([
   "assign",
