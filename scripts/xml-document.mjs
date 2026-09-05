@@ -209,7 +209,8 @@ export function parseXml(source, context) {
       // read that success as structural validation.
       const declaration = readName(source, index + 2);
       if (!declaration) fail("Malformed declaration", context);
-      if (declaration.name.toUpperCase() !== "DOCTYPE") {
+      // XML spells it in upper case; `<!doctype …>` is not a declaration.
+      if (declaration.name !== "DOCTYPE") {
         fail(`Unsupported declaration <!${declaration.name}>`, context);
       }
       if (root !== null || stack.length > 0 || doctype) {
@@ -217,7 +218,19 @@ export function parseXml(source, context) {
       }
       doctype = true;
       index += 2;
-      skipUntil(">", "declaration");
+      // A system or public identifier is quoted, and may contain `>`.
+      for (;;) {
+        const quote = source.slice(index).search(/["'>]/u);
+        if (quote < 0) fail("Unterminated declaration", context);
+        const at = index + quote;
+        if (source[at] === ">") {
+          index = at + 1;
+          break;
+        }
+        const close = source.indexOf(source[at], at + 1);
+        if (close < 0) fail("Unterminated declaration", context);
+        index = close + 1;
+      }
       continue;
     }
 

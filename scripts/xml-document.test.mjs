@@ -11,6 +11,9 @@ test("the XML reader refuses documents that only look well-formed", () => {
     ["no space between attributes", `<root a="1"b="2"/>`],
     ["a comment ending in -", `<root><!-- x ---></root>`],
     ["a repeated DOCTYPE", `<!DOCTYPE a><!DOCTYPE b><root/>`],
+    // XML spells DOCTYPE in upper case.
+    ["a lower-case doctype", `<!doctype a><root/>`],
+    ["an unterminated quoted identifier", `<!DOCTYPE a SYSTEM "oops<root/>`],
   ]) {
     assert.throws(() => parseXml(source), XmlParseError, why);
   }
@@ -21,6 +24,8 @@ test("the XML reader refuses documents that only look well-formed", () => {
     `<root a="1" b="2"/>`,
     `<root><!-- x --></root>`,
     `<!DOCTYPE a><root/>`,
+    // A system identifier is quoted and may hold a `>`.
+    `<!DOCTYPE a SYSTEM "http://x/a>b.dtd"><root/>`,
   ]) {
     assert.ok(parseXml(source));
   }
