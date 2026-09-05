@@ -23,11 +23,13 @@ Where the contract sits:
 flowchart TB
   stores["Apple / Google / Meta / Amazon<br/>the stores"]
   backend["A backend that implements this specification<br/>IAPKit, another provider, or the adopter's own — in any language<br/><br/>verify → normalize → lifecycle → entitle"]
-  app["developer backend / app"]
+  app["shipped application<br/>verification role (§5)"]
+  server["the adopter's backend<br/>server role (§5)"]
   consumers["any consumer<br/>analytics · subscriber experience · data pipeline"]
 
   stores -->|"store-native notifications and APIs"| backend
-  app <-->|"operations (§4): verify, status, entitlements, bind, erase, capabilities<br/>over REST (§6) or GraphQL (§7)"| backend
+  app -->|"verifyPurchase, providerCapabilities (§4.1, §4.6)<br/>over REST (§6) or GraphQL (§7)"| backend
+  server -->|"those, plus subscriptionStatus, entitlements, bindPurchase, eraseUser (§4.2–§4.5)<br/>server role only — never a shipped app"| backend
   backend -->|"OpenIAP Commerce Protocol events (§9)"| consumers
 ```
 
