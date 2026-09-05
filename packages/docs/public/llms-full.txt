@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-05T04:10:09.550Z
+> Generated: 2026-09-05T07:23:55.623Z
 
 ## Table of Contents
 1. Installation
@@ -2683,6 +2683,32 @@ transitions at least one store can actually report, and nothing speculative.
 | `subscription.paused`                | The subscription was paused                                                                                                                                                                                                                                              |
 | `subscription.resumed`               | A paused subscription resumed                                                                                                                                                                                                                                            |
 
+The following maps each lifecycle event to the snapshot state it names, as the
+GraphQL contract enforces it:
+
+```mermaid
+flowchart LR
+  subgraph lands ["names a state — when a snapshot is present, its state MUST agree"]
+    direction LR
+    e1["started<br/>renewed<br/>recovered<br/>resumed"] --> Active
+    e2["entered_grace_period"] --> InGracePeriod
+    e3["entered_billing_retry"] --> InBillingRetry
+    e4["paused"] --> Paused
+    e5["expired"] --> Expired
+    e6["revoked"] --> Revoked
+    e7["refunded"] --> Refunded
+  end
+  subgraph none ["names no state — the contract pairs no state with these, so a snapshot keeps the state that actually followed the store transition"]
+    direction LR
+    e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
+  end
+  subgraph predicate ["entitled? (§2.3) — read subscription.active; a consumer MUST NOT recompute it from state and ignore active"]
+    direction LR
+    p1["Active, InGracePeriod: yes while now is before expiresAt; with no expiresAt, yes.<br/>For InGracePeriod, expiresAt is the end of the grace window."]
+    p2["InBillingRetry, Paused, Expired, Revoked, Refunded, Unknown: no"]
+  end
+```
+
 ### Entitlement delta
 
 | Event                 | Meaning                 |
@@ -2829,6 +2855,33 @@ endpoint, WebSocket, push relay, or long-poll feed for shipped applications: a
 project-wide event feed and its signing secret must never reach a distributed
 app. An application that needs device push gets it from its own authenticated
 backend, downstream of this contract.
+
+The following sequence summarizes one delivery under §9.4.1–9.4.4, which state
+each step normatively:
+
+```mermaid
+sequenceDiagram
+  participant Store
+  participant Emitter as Backend (emitter)
+  participant Consumer as Consumer endpoint
+
+  Note over Emitter,Consumer: Delivery is duplicate-capable and unordered, with no exactly-once guarantee (§9.4.4). This is one attempt.
+
+  Store->>Emitter: store-native notification
+  Emitter->>Emitter: normalize (§9.2), then derive the lifecycle and entitlement events (§9.1)
+  Emitter->>Consumer: POST to the consumer's HTTPS URL — Content-Type: application/json, Content-Encoding absent or identity<br/>body: one event, the exact UTF-8 bytes<br/>openiap-signature: v1=lowercase hex (several, comma-separated, during rotation)<br/>openiap-timestamp: exactly one, Unix seconds, base-10, no sign<br/>openiap-event-id · openiap-delivery-id
+  Note over Consumer: MUST: reject if abs(now − timestamp) > 300 s<br/>MUST: signed = ascii(timestamp) + "." + the exact body bytes received, then HMAC-SHA256 with the shared secret<br/>MUST: split openiap-signature on "," and trim — accept if any presented v1= matches any valid secret, compared in constant time<br/>MUST: take eventId from the parsed body, not the header — be idempotent on it<br/>SHOULD: acknowledge before slow downstream work
+  alt 2xx
+    Consumer-->>Emitter: 2xx
+    Note over Emitter: delivered
+  else 408, 429, 5xx — or no response (timeout, connection error)
+    Consumer-->>Emitter: 408 / 429 / 5xx, or nothing
+    Note over Emitter: retry with exponential backoff: same body and eventId, fresh openiap-timestamp,<br/>recomputed signature, same openiap-delivery-id — eventually stop and dead-letter
+  else 3xx, or any other 4xx
+    Consumer-->>Emitter: 3xx / other 4xx
+    Note over Emitter: permanent failure — a redirect is not followed, nothing is retried
+  end
+```
 
 #### 9.4.1 Request
 
@@ -3350,6 +3403,30 @@ An adopter may replace the backend behind this contract — a self-hosted
 deployment for a managed one, a managed one for their own — and their downstream
 integrations SHOULD survive it. What follows is what actually carries across, and
 what does not.
+
+The following shows what a swap carries across and what it does not, from the
+consumer's side:
+
+```mermaid
+flowchart LR
+  consumer["A consumer written against this specification<br/>— unchanged by the swap"]
+  A["Backend A<br/>before"]
+  B["Backend B<br/>after"]
+  A -- "events (§9)" --> consumer
+  B -- "events (§9)" --> consumer
+
+  subgraph carries ["Carries across"]
+    c1["event types · envelope shape · entitlement predicate"]
+    c2["signature scheme · per-store semantics"]
+    c3["sourceStoreEventId — the store's own notification id"]
+    c4["userId, when the adopter assigns it"]
+  end
+  subgraph breaks ["Does not carry across"]
+    n1["eventId and projectId — emitter-assigned, a new id space"]
+    n2["a consumer deduplicating only on eventId processes a cutover overlap twice"]
+    n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
+  end
+```
 
 **Carries across.** Event types, envelope shape, the entitlement predicate,
 signature scheme, and per-store semantics are all defined here, not by a backend.

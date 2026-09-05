@@ -17,6 +17,22 @@ it does not sit in the path of anyone's commerce.
 
 **[Read the specification →](./SPEC.md)**
 
+The contract sits between the stores and everything downstream of a backend:
+
+```mermaid
+flowchart TB
+  stores["Apple / Google / Meta / Amazon<br/>the stores"]
+  backend["A backend that implements this spec<br/>IAPKit, another provider, or the adopter's own — in any language<br/><br/>verify → normalize → lifecycle → entitle"]
+  app["shipped application<br/>verification role (§5)"]
+  server["the adopter's backend<br/>server role (§5)"]
+  consumers["any consumer<br/>data pipeline / CRM / analytics"]
+
+  stores -->|"store-native notifications and APIs"| backend
+  app -->|"verifyPurchase, providerCapabilities (§4.1, §4.6)<br/>over REST (§6) or GraphQL (§7)"| backend
+  server -->|"those, plus subscriptionStatus, entitlements, bindPurchase, eraseUser (§4.2–§4.5)<br/>server role only — never a shipped app"| backend
+  backend -->|"OpenIAP Commerce Protocol events (§9)"| consumers
+```
+
 ## Reviewing a change
 
 Review only the authored surfaces, in this order:
