@@ -799,7 +799,10 @@ function parseNugetNuspec(source, context) {
         const targetFramework = group.attribute("targetFramework");
         if (
           typeof targetFramework !== "string" ||
-          !/^[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
+          // A moniker may be written in its long form, which starts with a
+          // dot: `.NETStandard2.0` is as valid as `netstandard2.0`, and
+          // rejecting it threw away a whole real nuspec.
+          !/^\.?[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
         ) {
           throw new Error(`Invalid NuGet target framework in ${context.url}`);
         }

@@ -786,6 +786,42 @@ test("the reader answers for every shape review has raised", () => {
     null,
   );
 
+  // A destructured name is reached by the SOURCE property, and bracket access
+  // names a property as surely as a dot does. Two reviewers found the first of
+  // these independently.
+  for (const alias of [
+    `const {android: target}=options;\ntarget.horizon.appId="";`,
+    `const {android:{horizon}}=options;\nhorizon.appId="";`,
+    `const horizon=options["android"]["horizon"];\nhorizon.appId="";`,
+  ]) {
+    assert.match(
+      String(
+        t(
+          `const options={android:{horizon:{appId:${id}}}};\n${alias}\nexport default {plugins:[["../app.plugin.js",options]]};`,
+        ),
+      ),
+      /writes through the bindings/u,
+      alias,
+    );
+  }
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\noptions["ios"]={supportsTablet:false};\nexport default {plugins:[["../app.plugin.js",options]]};`,
+    ),
+    null,
+  );
+
+  // Emptying the entries array removes the plugin. The array's path is the
+  // whole of it, not the path down to the app id.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nentries.length=0;\nexport default {plugins:entries};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+
   // A comment between the plugin path and its options is not markup.
   assert.equal(
     t(

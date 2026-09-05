@@ -226,14 +226,27 @@ const stringValue = (node) => {
  */
 const declarationsIn = (node) => {
   const bound = new Map();
-  const declare = (name, declaration, initialiser) => {
+  // A destructured name is reached by a property path, and it is the SOURCE
+  // property that names it: `const {android: target}` reaches `android`, not
+  // `target`. Rebuilding the path from the local name missed writes through it.
+  const declare = (name, declaration, initialiser, path = []) => {
     if (ts.isIdentifier(name)) {
-      bound.set(name.text, { declaration, initialiser: initialiser ?? null });
+      bound.set(name.text, {
+        declaration,
+        initialiser: initialiser ?? null,
+        path,
+      });
       return;
     }
-    // A binding pattern names several things and none of them is this text.
     for (const element of name.elements ?? []) {
-      if (element.name) declare(element.name, declaration, null);
+      if (!element.name) continue;
+      const key = element.propertyName ?? element.name;
+      const step =
+        ts.isObjectBindingPattern(name) &&
+        (ts.isIdentifier(key) || ts.isStringLiteral(key))
+          ? key.text
+          : null; // an array pattern or a computed key names an unknown step
+      declare(element.name, declaration, null, [...path, step]);
     }
   };
 
@@ -401,7 +414,7 @@ const bindingChain = (identifier, seen = new Set()) => {
       chain.set(found.declaration, prefix);
     }
     // A destructured name has no initialiser of its own; its value comes from
-    // the declaration's, one property down.
+    // the declaration's, down the path the pattern named.
     let next = found.initialiser ?? null;
     if (
       next === null &&
@@ -410,14 +423,33 @@ const bindingChain = (identifier, seen = new Set()) => {
       !ts.isIdentifier(found.declaration.name)
     ) {
       next = found.declaration.initializer ?? null;
-      prefix = [current.text, ...prefix];
+      prefix = [...(found.path ?? []), ...prefix];
     }
     next = next ? unwrap(next) : null;
-    // `const horizon = options.android.horizon` is an alias two levels down.
+    // `const horizon = options.android.horizon` — and its bracket spelling —
+    // is an alias two levels down.
     const steps = [];
-    while (next && ts.isPropertyAccessExpression(next)) {
-      steps.unshift(next.name.text);
-      next = unwrap(next.expression);
+    for (;;) {
+      if (next && ts.isPropertyAccessExpression(next)) {
+        steps.unshift(next.name.text);
+        next = unwrap(next.expression);
+        continue;
+      }
+      if (next && ts.isElementAccessExpression(next)) {
+        const argument = next.argumentExpression
+          ? unwrap(next.argumentExpression)
+          : null;
+        steps.unshift(
+          argument &&
+            (ts.isStringLiteral(argument) ||
+              ts.isNoSubstitutionTemplateLiteral(argument))
+            ? argument.text
+            : null,
+        );
+        next = unwrap(next.expression);
+        continue;
+      }
+      break;
     }
     if (steps.length > 0) prefix = [...steps, ...prefix];
     current = next && ts.isIdentifier(next) ? next : null;
@@ -654,8 +686,22 @@ const writesThrough = (source, bindings) => {
       ts.isPropertyAccessExpression(current) ||
       ts.isElementAccessExpression(current)
     ) {
-      if (ts.isPropertyAccessExpression(current)) steps.unshift(current.name.text);
-      else steps.unshift(null); // a computed step could be any property
+      if (ts.isPropertyAccessExpression(current)) {
+        steps.unshift(current.name.text);
+      } else {
+        // `options["ios"]` names a property as surely as `options.ios`; only a
+        // computed one could be anything.
+        const argument = current.argumentExpression
+          ? unwrap(current.argumentExpression)
+          : null;
+        steps.unshift(
+          argument &&
+            (ts.isStringLiteral(argument) ||
+              ts.isNoSubstitutionTemplateLiteral(argument))
+            ? argument.text
+            : null,
+        );
+      }
       current = unwrap(current.expression);
     }
     return ts.isIdentifier(current) ? { root: current, steps } : null;
@@ -762,10 +808,10 @@ const inspectExpoPluginConfig = (contents) => {
   }
 
   followed.clear();
-  // The plugin entry and everything above it: a write anywhere in the options
-  // object could disturb the id, so the path starts at the top and shortens as
-  // the walk descends.
-  descent = ["android", "horizon", "appId"];
+  // Bindings resolved while finding the entry are the config and the plugins
+  // array. Any write into those can remove the entry, so their path is empty —
+  // giving them the options path let `entries.length = 0` look irrelevant.
+  descent = [];
   const entry = pluginOptions(source);
   if (entry === UNREADABLE) {
     return "does not resolve to one OpenIAP plugin entry — it registers more than one, or a spread could replace the plugins array";
@@ -773,6 +819,9 @@ const inspectExpoPluginConfig = (contents) => {
   if (entry === undefined) {
     return "registers no OpenIAP config plugin entry";
   }
+  // From here the walk is inside the options object, so a write only matters if
+  // its path can meet the one down to the app id.
+  descent = ["android", "horizon", "appId"];
   let block = objectLiteral(entry);
   if (block === null) {
     return "passes no options object to the OpenIAP config plugin";

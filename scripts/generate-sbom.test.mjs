@@ -2120,6 +2120,32 @@ test("a POM licence is recorded only when the declarations agree", async () => {
   );
 });
 
+test("a long-form target framework moniker is valid", () => {
+  const { parseNugetNuspec } = dependencyTesting;
+  const context = { url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec" };
+  const nuspec = (framework) =>
+    `<package><metadata><id>X</id><dependencies>` +
+    `<group targetFramework="${framework}">` +
+    `<dependency id="Dep" version="1.0.0" /></group>` +
+    `</dependencies></metadata></package>`;
+
+  // `.NETStandard2.0` is the long spelling of `netstandard2.0`. Requiring the
+  // first character to be alphanumeric threw the whole document away, and
+  // microsoft.maui.controls — which this repository depends on — uses it.
+  for (const framework of [
+    ".NETStandard2.0",
+    ".NETFramework4.7.2",
+    "net9.0",
+    "net9.0-windows10.0.19041",
+  ]) {
+    assert.equal(parseNugetNuspec(nuspec(framework), context).length, 1, framework);
+  }
+
+  for (const framework of ["", "net 9.0", "-net9.0"]) {
+    assert.throws(() => parseNugetNuspec(nuspec(framework), context), /target framework/u);
+  }
+});
+
 test("the XML reader refuses documents that are not well-formed", () => {
   const { parseNugetNuspec } = dependencyTesting;
   const context = {
@@ -2154,6 +2180,7 @@ test("the XML reader refuses documents that are not well-formed", () => {
     ["A"],
   );
 });
+
 
 test("an unusable licence URL still counts as a declaration", async () => {
   // Dropping it outright turned "MIT and something else" into a bare MIT

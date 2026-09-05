@@ -122,6 +122,7 @@ export function parseXml(source, context) {
 
   const stack = [];
   let root = null;
+  let doctype = false;
   // A byte-order mark is legal before the declaration and is not markup, so it
   // must not push `<?xml` off offset zero.
   let index = source.charCodeAt(0) === 0xfeff ? 1 : 0;
@@ -161,8 +162,9 @@ export function parseXml(source, context) {
       if (close < 0) fail("Unterminated comment", context);
       // XML forbids `--` inside a comment body, so a document containing one
       // is malformed however plausible it looks.
-      if (source.slice(index + 4, close).includes("--")) {
-        fail("Comment contains --", context);
+      const body = source.slice(index + 4, close);
+      if (body.includes("--") || body.endsWith("-")) {
+        fail("Comment contains -- or ends with -", context);
       }
       index = close + 3;
       continue;
@@ -192,8 +194,8 @@ export function parseXml(source, context) {
           fail("XML declaration is not at the start of the document", context);
         }
         // `<?xml?>` with no version is not a declaration.
-        if (!/^<\?xml\s+version\s*=/u.test(source.slice(index))) {
-          fail("XML declaration has no version", context);
+        if (!/^<\?xml\s+version\s*=\s*["']/u.test(source.slice(index))) {
+          fail("XML declaration has no quoted version", context);
         }
       }
       index += 2;
@@ -210,9 +212,10 @@ export function parseXml(source, context) {
       if (declaration.name.toUpperCase() !== "DOCTYPE") {
         fail(`Unsupported declaration <!${declaration.name}>`, context);
       }
-      if (root !== null || stack.length > 0) {
-        fail("DOCTYPE is not before the root element", context);
+      if (root !== null || stack.length > 0 || doctype) {
+        fail("DOCTYPE is repeated or not before the root element", context);
       }
+      doctype = true;
       index += 2;
       skipUntil(">", "declaration");
       continue;
@@ -242,9 +245,15 @@ export function parseXml(source, context) {
     let cursor = named.end;
 
     for (;;) {
+      const before = cursor;
       while (cursor < source.length && /\s/u.test(source[cursor])) cursor += 1;
       if (cursor >= source.length) fail("Unterminated opening tag", context);
       if (source[cursor] === ">" || source.startsWith("/>", cursor)) break;
+      // `a="1"b="2"` is malformed; without this the second attribute simply
+      // appeared, which is how a mangled document read as a valid one.
+      if (cursor === before && cursor > named.end) {
+        fail(`Missing space before an attribute in <${named.name}>`, context);
+      }
 
       const attribute = readName(source, cursor);
       if (!attribute) fail(`Malformed attribute in <${named.name}>`, context);

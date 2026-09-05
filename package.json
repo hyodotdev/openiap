@@ -28,7 +28,7 @@
     "audit:dependencies": "node scripts/audit-security.mjs dependencies",
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",
     "sbom": "node scripts/generate-sbom.mjs",
-    "sbom:test": "node --test scripts/generate-sbom.test.mjs",
+    "sbom:test": "node --test scripts/generate-sbom.test.mjs scripts/xml-document.test.mjs",
     "clean": "rm -rf packages/*/node_modules specs/*/node_modules node_modules",
     "generate": "cd specs/client && bun run generate",
     "version:sync": "bun scripts/sync-versions.mjs",
