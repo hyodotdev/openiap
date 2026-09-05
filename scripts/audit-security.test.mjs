@@ -1000,6 +1000,21 @@ test("actions from one repository must be pinned to one commit", () => {
     [],
   );
 
+  // GitHub resolves an action reference case-insensitively, so a differently
+  // cased owner is the same repository, not a second family.
+  assert.equal(
+    findActionFamilyDrift([
+      [
+        "w.yml",
+        workflow(
+          uses("GitHub/codeql-action/init", OLD),
+          uses("github/codeql-action/analyze", NEW),
+        ),
+      ],
+    ]).length,
+    1,
+  );
+
   // A single-path action agreeing with itself is not a finding.
   assert.deepEqual(
     findActionFamilyDrift([

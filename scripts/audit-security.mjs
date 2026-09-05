@@ -530,7 +530,10 @@ export function findActionFamilyDrift(sources) {
         if (!/^[0-9a-f]{40}$/u.test(sha)) return;
         const segments = path.split("/");
         if (segments.length < 2) return;
-        const family = segments.slice(0, 2).join("/");
+        // GitHub resolves an action reference case-insensitively, so
+        // `GitHub/codeql-action` and `github/codeql-action` are one repository
+        // and drift between them counts.
+        const family = segments.slice(0, 2).join("/").toLowerCase();
         if (!pinned.has(family)) pinned.set(family, new Map());
         const shas = pinned.get(family);
         if (!shas.has(sha)) shas.set(sha, new Set());
