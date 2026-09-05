@@ -796,9 +796,12 @@ function parseNugetNuspec(source, context) {
   }
   const sections = groups.length
     ? groups.map((group) => {
-        const targetFramework = group.attribute("targetFramework");
+        // A `<group>` with no targetFramework is the fallback group, and
+        // NuGet's own reference documents it. Requiring the attribute threw
+        // away every nuspec that has one.
+        const targetFramework = group.attribute("targetFramework") ?? "";
         if (
-          typeof targetFramework !== "string" ||
+          targetFramework !== "" &&
           // A moniker may be written in its long form, which starts with a
           // dot: `.NETStandard2.0` is as valid as `netstandard2.0`, and
           // rejecting it threw away a whole real nuspec.

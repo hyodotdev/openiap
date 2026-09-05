@@ -822,6 +822,60 @@ test("the reader answers for every shape review has raised", () => {
     /writes through the bindings/u,
   );
 
+  // A binding holding the exported config is one property above the plugins
+  // array, so emptying or replacing that array counts and renaming the app
+  // does not.
+  for (const write of [`config.plugins.length=0;`, `config.plugins=[];`]) {
+    assert.match(
+      String(
+        t(
+          `const options={android:{horizon:{appId:${id}}}};\nconst config={plugins:[["../app.plugin.js",options]]};\n${write}\nexport default config;`,
+        ),
+      ),
+      /writes through the bindings/u,
+      write,
+    );
+  }
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst config={plugins:[["../app.plugin.js",options]]};\nconfig.name="x";\nexport default config;`,
+    ),
+    null,
+  );
+
+  // Object rest copies the properties, so `copy.android` is still
+  // `options.android`. Array rest builds a new array, which aliases nothing.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst {...copy}=options;\ncopy.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy.length=0;\nexport default {plugins:entries};`,
+    ),
+    null,
+  );
+
+  // Changing a DIFFERENT plugin in the array leaves ours alone.
+  assert.equal(
+    t(
+      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`,
+    ),
+    null,
+  );
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[0][1]={};\nexport default {plugins:entries};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+
   // A comment between the plugin path and its options is not markup.
   assert.equal(
     t(

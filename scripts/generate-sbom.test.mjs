@@ -2141,7 +2141,20 @@ test("a long-form target framework moniker is valid", () => {
     assert.equal(parseNugetNuspec(nuspec(framework), context).length, 1, framework);
   }
 
-  for (const framework of ["", "net 9.0", "-net9.0"]) {
+  // A `<group>` with no targetFramework is the fallback group, which NuGet's
+  // own reference documents and its official example uses.
+  assert.equal(
+    parseNugetNuspec(
+      `<package><metadata><id>X</id><dependencies>` +
+        `<group><dependency id="A" version="1.0.0"/></group>` +
+        `<group targetFramework="net9.0"><dependency id="B" version="1.0.0"/></group>` +
+        `</dependencies></metadata></package>`,
+      context,
+    ).length,
+    2,
+  );
+
+  for (const framework of ["net 9.0", "-net9.0"]) {
     assert.throws(() => parseNugetNuspec(nuspec(framework), context), /target framework/u);
   }
 });

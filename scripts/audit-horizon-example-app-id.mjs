@@ -181,6 +181,9 @@ const unwrap = (node) =>
 // so a binding records the path from itself down to the app id. Without it,
 // `options` recorded an empty path and every write to it looked relevant.
 let descent = [];
+// The slot our entry occupies in the plugins array, when it is determinable.
+// A write to a DIFFERENT slot changes another plugin, not ours.
+let entrySlot = null;
 const followed = new Map();
 const resolve = (node, is, seen = new Set()) => {
   if (!node) return null;
@@ -240,6 +243,15 @@ const declarationsIn = (node) => {
     }
     for (const element of name.elements ?? []) {
       if (!element.name) continue;
+      if (element.dotDotDotToken) {
+        // `const {...copy} = options` copies the properties, so `copy.android`
+        // is still `options.android` — the same path, not one below it. An
+        // array rest builds a NEW array, which aliases nothing.
+        if (ts.isObjectBindingPattern(name)) {
+          declare(element.name, declaration, null, path);
+        }
+        continue;
+      }
       const key = element.propertyName ?? element.name;
       const step =
         ts.isObjectBindingPattern(name) &&
@@ -418,6 +430,7 @@ const bindingChain = (identifier, seen = new Set()) => {
     let next = found.initialiser ?? null;
     if (
       next === null &&
+      found.path !== undefined &&
       found.declaration &&
       ts.isVariableDeclaration(found.declaration) &&
       !ts.isIdentifier(found.declaration.name)
@@ -442,7 +455,8 @@ const bindingChain = (identifier, seen = new Set()) => {
         steps.unshift(
           argument &&
             (ts.isStringLiteral(argument) ||
-              ts.isNoSubstitutionTemplateLiteral(argument))
+              ts.isNoSubstitutionTemplateLiteral(argument) ||
+              ts.isNumericLiteral(argument))
             ? argument.text
             : null,
         );
@@ -569,12 +583,20 @@ const configObjects = (source) => {
   const seen = new Set();
   const queue = [...roots];
   while (queue.length > 0) {
-    const node = unwrap(queue.pop());
+    const next = queue.pop();
+    const node = next ? unwrap(next) : null;
     if (!node || seen.has(node)) continue;
     seen.add(node);
 
     if (ts.isObjectLiteralExpression(node)) found.add(node);
-    else if (ts.isIdentifier(node)) queue.push(resolveBinding(node));
+    else if (ts.isIdentifier(node)) {
+      // Record the binding chain as well as following it, so a write through a
+      // binding that holds the config counts: `config.plugins.length = 0`
+      // empties the very array this reads.
+      resolve(node, () => false);
+      const bound = resolveBinding(node);
+      if (bound) queue.push(bound);
+    }
     else if (ts.isCallExpression(node)) queue.push(...node.arguments);
     else if (
       ts.isArrowFunction(node) ||
@@ -603,6 +625,9 @@ const configObjects = (source) => {
  * in the options object.
  */
 const pluginOptions = (source) => {
+  entrySlot = null;
+  // A binding holding the CONFIG is one property above the plugins array.
+  descent = ["plugins"];
   // A function can return more than one object — a guard clause returning `{}`
   // is ordinary. Only the ones that carry `plugins` are candidate configs, and
   // more than one of those is a genuine ambiguity.
@@ -615,6 +640,9 @@ const pluginOptions = (source) => {
   const value = property(carriers[0], "plugins");
   if (value === UNREADABLE) return UNREADABLE;
   if (value === null) return undefined;
+  // A binding holding the ARRAY has no path: any write into it can remove the
+  // entry, so every one is relevant except a write to another slot.
+  descent = [];
   const array = arrayLiteral(value);
   if (array === null) return undefined;
 
@@ -629,15 +657,20 @@ const pluginOptions = (source) => {
     });
   };
 
+  const expanded = elementsOf(array);
+  // The slot is only knowable when the array is written out: a spread that
+  // resolves elsewhere shifts everything after it.
+  const literal = expanded.length === array.elements.length;
   const found = [];
-  for (const element of elementsOf(array)) {
+  expanded.forEach((element, index) => {
     const tuple = arrayLiteral(element);
-    if (!tuple || tuple.elements.length < 2) continue;
+    if (!tuple || tuple.elements.length < 2) return;
     const path = stringValue(tuple.elements[0]);
     if (path !== null && /app\.plugin\.js$/u.test(path)) {
       found.push(tuple.elements[1]);
+      if (literal) entrySlot = String(index);
     }
-  }
+  });
   if (found.length > 1) return UNREADABLE;
   return found[0];
 };
@@ -697,7 +730,8 @@ const writesThrough = (source, bindings) => {
         steps.unshift(
           argument &&
             (ts.isStringLiteral(argument) ||
-              ts.isNoSubstitutionTemplateLiteral(argument))
+              ts.isNoSubstitutionTemplateLiteral(argument) ||
+              ts.isNumericLiteral(argument))
             ? argument.text
             : null,
         );
@@ -712,8 +746,19 @@ const writesThrough = (source, bindings) => {
     for (const [declaration, prefix] of bindingChain(target.root)) {
       const read = bindings.get(declaration);
       if (read === undefined) continue;
-      // A computed step could name anything, so treat it as meeting the path.
       const written = [...prefix, ...target.steps];
+      // A container binding has an empty path, so every write into it counts —
+      // except one to a slot we know is not ours.
+      if (
+        read.length === 0 &&
+        entrySlot !== null &&
+        written.length > 0 &&
+        /^\d+$/u.test(written[0] ?? "") &&
+        written[0] !== entrySlot
+      ) {
+        continue;
+      }
+      // A computed step could name anything, so treat it as meeting the path.
       if (written.includes(null) || pathsMeet(written, read)) return true;
     }
     return false;
@@ -821,6 +866,8 @@ const inspectExpoPluginConfig = (contents) => {
   }
   // From here the walk is inside the options object, so a write only matters if
   // its path can meet the one down to the app id.
+  // entrySlot stays: the write check runs at the end, and only container
+  // bindings (an empty read path) consult it.
   descent = ["android", "horizon", "appId"];
   let block = objectLiteral(entry);
   if (block === null) {
