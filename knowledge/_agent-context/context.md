@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-05T07:06:39.280Z
+> Last updated: 2026-09-05T07:09:17.460Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -5866,7 +5866,8 @@ project-wide event feed and its signing secret must never reach a distributed
 app. An application that needs device push gets it from its own authenticated
 backend, downstream of this contract.
 
-One delivery, end to end. §9.4.1–9.4.4 below state each step normatively:
+The following sequence summarizes one delivery under §9.4.1–9.4.4, which state
+each step normatively:
 
 ```mermaid
 sequenceDiagram
@@ -6413,7 +6414,8 @@ deployment for a managed one, a managed one for their own — and their downstre
 integrations SHOULD survive it. What follows is what actually carries across, and
 what does not.
 
-What a swap looks like from the consumer's side:
+The following shows what a swap carries across and what it does not, from the
+consumer's side:
 
 ```mermaid
 flowchart LR
@@ -6431,7 +6433,7 @@ flowchart LR
   end
   subgraph breaks ["Does not carry across"]
     n1["eventId and projectId — emitter-assigned, a new id space"]
-    n2["eventId deduplication history — a cutover overlap is processed twice"]
+    n2["a consumer deduplicating only on eventId processes a cutover overlap twice"]
     n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
   end
 ```
