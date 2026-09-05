@@ -495,6 +495,11 @@ export function auditDependencies(
  * `github/codeql-action/init@sha` are the same family and requiring a subpath
  * missed drift between them entirely.
  *
+ * The rule is repo-wide and has no exemption: two versions of one action across
+ * different workflows is refused even where it would run. That is deliberate —
+ * nothing here needs a split today, and a rule with no escape hatch is honest
+ * about being a policy. Add one when a real case appears, not before.
+ *
  * CodeQL refuses a mixed set outright — "Loaded a configuration file for
  * version 4.37.9, but running version 4.37.8" — and that is exactly what an
  * ungrouped Dependabot run produces, since it treats each path as its own
@@ -553,7 +558,9 @@ export function findActionFamilyDrift(sources) {
       .sort()
       .join("; ");
     findings.push(
-      `${family} is pinned to ${shas.size} different commits: ${where}`,
+      `${family} is pinned to ${shas.size} different commits: ${where}. ` +
+        "Bump them together; if the split is deliberate, this policy has no " +
+        "exemption yet and needs one adding here.",
     );
   }
   return findings;
