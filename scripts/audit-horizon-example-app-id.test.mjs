@@ -818,13 +818,6 @@ test("the reader answers for every shape review has raised", () => {
     ),
     /writes through the bindings/u,
   );
-  assert.equal(
-    t(
-      `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy.length=0;\nexport default {plugins:entries};`,
-    ),
-    null,
-  );
-
   // A write through a binding holding one tuple counts like any other.
   assert.match(
     String(
@@ -1052,6 +1045,19 @@ test("mutating a tracked binding makes the config unreadable", () => {
     `${options}\nconst config={plugins:[["../app.plugin.js",options]]};\nconfig.name="x";\nexport default config;`,
     `${options}\nconst entries=[["../app.plugin.js",options]];\nentries.push("expo-router");\nexport default {plugins:entries};`,
     `${options}\nconst {android,...rest}=options;\nrest.android={...android};${tail}`,
+    // A shallow copy is tracked whatever it is used for, so emptying the copy
+    // is refused even though the original array is untouched.
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy.length=0;\nexport default {plugins:entries};`,
+  ]) {
+    assert.notEqual(t(source), null, source);
+  }
+
+  // A shallow copy keeps the very same members, so a write through one reaches
+  // ours. A mutator called through a bracket is the same mutator.
+  for (const source of [
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy[0][1]={};\nexport default {plugins:entries};`,
+    `${options}\nconst copy={...options};\ncopy.android.horizon.appId="";${tail}`,
+    `${options}\nconst entries=[["../app.plugin.js",options]];\nentries["pop"]();\nexport default {plugins:entries};`,
   ]) {
     assert.notEqual(t(source), null, source);
   }
@@ -1060,7 +1066,6 @@ test("mutating a tracked binding makes the config unreadable", () => {
   // object we are only read from.
   for (const source of [
     `${options}\nfunction f(options){ options.name="x"; }\nvoid f;${tail}`,
-    `${options}\nconst entries=[["../app.plugin.js",options]];\nconst [...copy]=entries;\ncopy.length=0;\nexport default {plugins:entries};`,
     `${options}\nvoid Object.assign({},options);${tail}`,
     `${options}\nnew Map().set("copy",options);${tail}`,
   ]) {

@@ -218,24 +218,17 @@ const stringValue = (node) => {
  */
 const declarationsIn = (node) => {
   const bound = new Map();
-  const declare = (name, declaration, initialiser, aliases = true) => {
+  const declare = (name, declaration, initialiser) => {
     if (ts.isIdentifier(name)) {
-      bound.set(name.text, {
-        declaration,
-        initialiser: initialiser ?? null,
-        aliases,
-      });
+      bound.set(name.text, { declaration, initialiser: initialiser ?? null });
       return;
     }
     for (const element of name.elements ?? []) {
       if (!element.name) continue;
-      // A destructured name reaches into the same object, so writing
-      // through it writes to the original. An ARRAY rest is the exception:
-      // it builds a new array, which stands for nothing.
-      const aliases = !(
-        element.dotDotDotToken && ts.isArrayBindingPattern(name)
-      );
-      declare(element.name, declaration, null, aliases);
+      // A destructured name reaches into the same objects, so writing through
+      // it writes to the originals — an array rest included: the array is new,
+      // its elements are not.
+      declare(element.name, declaration, null);
     }
   };
 
@@ -384,39 +377,58 @@ const resolveBinding = (identifier) => lookup(identifier)?.initialiser ?? null;
 /**
  * Every declaration an identifier can stand for.
  *
- * `const alias = options`, `const horizon = options.android.horizon` and
- * `const {android} = options` all reach the same object, so a write through any
- * of them is a write to it. Comparing declarations rather than names is what
- * lets that count while a same-named parameter in some helper does not.
+ * `const alias = options`, `const horizon = options.android.horizon`,
+ * `const {android} = options` and `const copy = {...options}` all reach the
+ * same objects, so a write through any of them is a write to ours. A shallow
+ * copy counts because its members are the very same objects: `const [...copy]
+ * = entries` builds a new array, but `copy[0]` IS `entries[0]`.
  *
- * An ARRAY rest is the exception: `const [...copy] = entries` builds a new
- * array, so it stands for nothing.
+ * Comparing declarations rather than names is what lets all of that count while
+ * a same-named parameter in some helper does not.
  */
 const bindingChain = (identifier, seen = new Set()) => {
   const chain = new Set();
-  let current = identifier;
-  while (current && !seen.has(current)) {
+  const queue = [identifier];
+  while (queue.length > 0) {
+    const current = queue.pop();
+    if (!current || seen.has(current)) continue;
     seen.add(current);
     const found = lookup(current);
-    if (!found || found === OPAQUE) break;
+    if (!found || found === OPAQUE) continue;
     if (found.declaration) chain.add(found.declaration);
+
     let next = found.initialiser ?? null;
     if (
       next === null &&
-      found.aliases &&
       found.declaration &&
       ts.isVariableDeclaration(found.declaration)
     ) {
       next = found.declaration.initializer ?? null;
     }
     next = next ? unwrap(next) : null;
+    if (!next) continue;
+
+    // A shallow copy keeps the members it spread in.
+    if (ts.isObjectLiteralExpression(next)) {
+      for (const member of next.properties) {
+        if (ts.isSpreadAssignment(member)) queue.push(unwrap(member.expression));
+      }
+      continue;
+    }
+    if (ts.isArrayLiteralExpression(next)) {
+      for (const element of next.elements) {
+        if (ts.isSpreadElement(element)) queue.push(unwrap(element.expression));
+      }
+      continue;
+    }
+
     while (
-      next &&
-      (ts.isPropertyAccessExpression(next) || ts.isElementAccessExpression(next))
+      ts.isPropertyAccessExpression(next) ||
+      ts.isElementAccessExpression(next)
     ) {
       next = unwrap(next.expression);
     }
-    current = next && ts.isIdentifier(next) ? next : null;
+    if (ts.isIdentifier(next)) queue.push(next);
   }
   return chain;
 };
@@ -720,9 +732,22 @@ const writesThrough = (source, bindings) => {
       writes = true;
     } else if (
       ts.isCallExpression(node) &&
-      ts.isPropertyAccessExpression(node.expression)
+      (ts.isPropertyAccessExpression(node.expression) ||
+        ts.isElementAccessExpression(node.expression))
     ) {
-      const method = node.expression.name.text;
+      // `entries["pop"]()` calls the same method as `entries.pop()`.
+      const named = ts.isPropertyAccessExpression(node.expression)
+        ? node.expression.name
+        : node.expression.argumentExpression
+          ? unwrap(node.expression.argumentExpression)
+          : null;
+      const method =
+        named &&
+        (ts.isIdentifier(named) ||
+          ts.isStringLiteral(named) ||
+          ts.isNoSubstitutionTemplateLiteral(named))
+          ? named.text
+          : null;
       const receiver = unwrap(node.expression.expression);
       const builtin =
         ts.isIdentifier(receiver) &&
