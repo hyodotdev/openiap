@@ -860,6 +860,29 @@ test("the reader answers for every shape review has raised", () => {
     null,
   );
 
+  // The slot is found wherever the entry sits, and nothing leaks between
+  // inspections — `descent` and `entrySlot` live at module scope, and the
+  // audit inspects six sources in a loop.
+  {
+    const first = `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["../app.plugin.js",options],["expo-router",{}]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`;
+    const second = `const options={android:{horizon:{appId:${id}}}};\nconst entries=[["expo-router",{}],["../app.plugin.js",options]];\nentries[1][1]={foo:1};\nexport default {plugins:entries};`;
+    assert.equal(t(first), null);
+    assert.match(String(t(second)), /writes through the bindings/u);
+    // Same answers in the other order.
+    assert.match(String(t(second)), /writes through the bindings/u);
+    assert.equal(t(first), null);
+  }
+
+  // Object rest keeps every property it did not name.
+  assert.match(
+    String(
+      t(
+        `const options={android:{horizon:{appId:${id}}}};\nconst {ios, ...rest}=options;\nrest.android.horizon.appId="";\nexport default {plugins:[["../app.plugin.js",options]]};`,
+      ),
+    ),
+    /writes through the bindings/u,
+  );
+
   // Changing a DIFFERENT plugin in the array leaves ours alone.
   assert.equal(
     t(
