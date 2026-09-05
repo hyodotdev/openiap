@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-05T07:14:38.387Z
+> Generated: 2026-09-05T07:23:55.623Z
 
 ## Table of Contents
 1. Installation
@@ -2683,12 +2683,12 @@ transitions at least one store can actually report, and nothing speculative.
 | `subscription.paused`                | The subscription was paused                                                                                                                                                                                                                                              |
 | `subscription.resumed`               | A paused subscription resumed                                                                                                                                                                                                                                            |
 
-The state each lifecycle event names, as the GraphQL contract enforces it. The
-specification says where an event lands, not where it came from:
+The following maps each lifecycle event to the snapshot state it names, as the
+GraphQL contract enforces it:
 
 ```mermaid
 flowchart LR
-  subgraph lands ["names a state — the snapshot MUST agree"]
+  subgraph lands ["names a state — when a snapshot is present, its state MUST agree"]
     direction LR
     e1["started<br/>renewed<br/>recovered<br/>resumed"] --> Active
     e2["entered_grace_period"] --> InGracePeriod
@@ -2698,7 +2698,7 @@ flowchart LR
     e6["revoked"] --> Revoked
     e7["refunded"] --> Refunded
   end
-  subgraph none ["names no state — the snapshot keeps the state that actually followed the store transition"]
+  subgraph none ["names no state — the contract pairs no state with these, so a snapshot keeps the state that actually followed the store transition"]
     direction LR
     e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
   end
@@ -2869,7 +2869,7 @@ sequenceDiagram
 
   Store->>Emitter: store-native notification
   Emitter->>Emitter: normalize (§9.2), then derive the lifecycle and entitlement events (§9.1)
-  Emitter->>Consumer: POST to the consumer's HTTPS URL — Content-Type: application/json, no Content-Encoding<br/>body: one event, the exact UTF-8 bytes<br/>openiap-signature: v1=lowercase hex (several, comma-separated, during rotation)<br/>openiap-timestamp: exactly one, Unix seconds, base-10, no sign<br/>openiap-event-id · openiap-delivery-id
+  Emitter->>Consumer: POST to the consumer's HTTPS URL — Content-Type: application/json, Content-Encoding absent or identity<br/>body: one event, the exact UTF-8 bytes<br/>openiap-signature: v1=lowercase hex (several, comma-separated, during rotation)<br/>openiap-timestamp: exactly one, Unix seconds, base-10, no sign<br/>openiap-event-id · openiap-delivery-id
   Note over Consumer: MUST: reject if abs(now − timestamp) > 300 s<br/>MUST: signed = ascii(timestamp) + "." + the exact body bytes received, then HMAC-SHA256 with the shared secret<br/>MUST: split openiap-signature on "," and trim — accept if any presented v1= matches any valid secret, compared in constant time<br/>MUST: take eventId from the parsed body, not the header — be idempotent on it<br/>SHOULD: acknowledge before slow downstream work
   alt 2xx
     Consumer-->>Emitter: 2xx
