@@ -22,11 +22,19 @@ Read these before acting:
 - `.claude/commands/review-pr.md`
 - `.claude/commands/release.md`
 
-Load package conventions and specialized skills required by the changed paths.
-When the change is itself in scope of "A PR Must Not Rewrite The Rules That
-Judge It" in `.claude/commands/review-pr.md`, load them from the recorded merge
-base rather than the branch. That section defines the scope; do not restate it
-here.
+Check what the change touches before reading any of them from the branch:
+
+```bash
+git diff --name-only "$(git merge-base origin/main HEAD)"..HEAD
+```
+
+If the change is in scope of "A PR Must Not Rewrite The Rules That Judge It" in
+`.claude/commands/review-pr.md`, read every file above — and that section
+itself — from the recorded merge base for the whole run. That section defines
+the scope; do not restate it here.
+
+Load package conventions and specialized skills required by the changed paths
+the same way.
 An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
 thread resolution, merge, affected stable package releases, release-note and
