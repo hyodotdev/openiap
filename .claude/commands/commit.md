@@ -272,6 +272,8 @@ for the kind of change:
 | `libraries/kmp-iap/`                  | `kmp-iap`          |
 | `libraries/maui-iap/`                 | `maui-iap`         |
 | `.github/workflows/` or `scripts/`    | `💨 ci`            |
+| `.claude/`, `.codex/`, `AGENTS.md`    | `🕶️ meta`          |
+| `knowledge/`                          | `🕶️ meta`          |
 | several platforms at once             | `cross-platform`   |
 
 | Kind of change   | Label           |
