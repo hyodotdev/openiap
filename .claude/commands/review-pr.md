@@ -270,8 +270,9 @@ gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies \
 ```bash
 # Get unresolved thread IDs
 after=null
+incomplete=0
 while :; do
-page="$(gh api graphql -F pr="$PR_NUMBER" -F after="$after" -f query='
+if ! page="$(gh api graphql -F pr="$PR_NUMBER" -F after="$after" -f query='
 query($pr: Int!, $after: String) {
   repository(owner: "hyodotdev", name: "openiap") {
     pullRequest(number: $pr) {
@@ -288,16 +289,22 @@ query($pr: Int!, $after: String) {
       }
     }
   }
-}')"
+}')"; then incomplete=1; break; fi
+  # A failed fetch must not read as "no more pages".
+  if ! printf '%s\n' "$page" \
+    | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo' >/dev/null; then
+    incomplete=1; break
+  fi
   printf '%s\n' "$page" | jq -r '
     .data.repository.pullRequest.reviewThreads.nodes[]
     | select(.isResolved == false)
     | "\(.id)\t\(.path)\t\(.comments.nodes[0].databaseId)"'
-  printf '%s\n' "$page" \
-    | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' >/dev/null || break
+  [ "$(printf '%s\n' "$page" \
+    | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" = "true" ] || break
   after="$(printf '%s\n' "$page" \
     | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
 done
+[ "$incomplete" = 0 ] || echo "thread listing incomplete — do not call this round clean" >&2
 
 # Resolve a specific thread
 gh api graphql -f threadId="$THREAD_ID" -f query='
@@ -311,7 +318,10 @@ mutation($threadId: ID!) {
 Resolved threads count against the page size, so a long-running PR can push
 actionable ones past it. Both loops above page with `after` until
 `hasNextPage` is false; a round is not clean until the last page has been read.
-`-F after=null` sends a real JSON null, which is what the first page needs.
+`-F after=null` sends a real JSON null, which is what the first page needs. A
+failed fetch is not the end of the list: both loops check the request and the
+response shape, and say the listing is incomplete rather than letting an error
+read as "no more pages".
 
 **Thread Resolution Rules:**
 
@@ -325,8 +335,9 @@ Outdated sweep (run once per round before fetching open findings):
 ```bash
 PR_NUMBER=...
 after=null
+incomplete=0
 while :; do
-page="$(gh api graphql -f query='
+if ! page="$(gh api graphql -f query='
 query($owner:String!,$name:String!,$pr:Int!,$after:String) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$pr) {
@@ -336,7 +347,13 @@ query($owner:String!,$name:String!,$pr:Int!,$after:String) {
       }
     }
   }
-}' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER -F after="$after")"
+}' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER -F after="$after")"; then
+  incomplete=1; break
+fi
+if ! printf '%s\n' "$page" \
+  | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo' >/dev/null; then
+  incomplete=1; break
+fi
 printf '%s\n' "$page" | jq -r '
   .data.repository.pullRequest.reviewThreads.nodes[]
   | select(.isResolved == false)
@@ -347,11 +364,12 @@ printf '%s\n' "$page" | jq -r '
       resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } }
     }' -F id="$tid" >/dev/null && echo "auto-resolved outdated $tid"
 done
-printf '%s\n' "$page" \
-  | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' >/dev/null || break
+[ "$(printf '%s\n' "$page" \
+  | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" = "true" ] || break
 after="$(printf '%s\n' "$page" \
   | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
 done
+[ "$incomplete" = 0 ] || echo "outdated sweep incomplete — do not call this round clean" >&2
 ```
 
 Threads that the author has already replied to still show up in the "unresolved" list on the next round — that is intentional so the reviewer can confirm the fix landed and either agree (resolve manually / mark fixed) or push back. Resolving them as soon as the author replies would silence legitimate follow-up feedback.

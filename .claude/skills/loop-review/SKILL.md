@@ -10,7 +10,9 @@ file first and follow it fully.
 
 Use Claude Code's matching skills or commands for each delegated phase:
 
-- `/review-self` for pre-PR stabilization and exact-head fallback review.
+- `/review-self` for pre-PR stabilization, and for exact-head fallback review
+  only when Codex is unavailable too — `review-pr` runs the Codex fallback
+  first.
 - `/commit --all --pr` for commit, push, PR, labels, and preview.
 - `/review-pr <PR>` for review threads, CodeRabbit, CI polling, and cleanup.
 - `/e2e-tests` for the device-regression gate — hand back to the user to run it

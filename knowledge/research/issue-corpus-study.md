@@ -145,8 +145,11 @@ publication if no correction round opens. If coding stops before publication —
 the pilot gate fails, or the study is abandoned — the archive is deleted when
 that decision is recorded. An archive still unpublished twelve months after its
 export is not simply deleted, which would destroy the evidence the release rests
-on: coding stops there, the corpus is re-exported and re-frozen, and the old
-archive is deleted once the new one is in place.
+on: coding stops there and the corpus is re-exported and re-frozen. The old
+archive goes only after the two are reconciled, because a thread can be edited
+or deleted between exports — every record whose content hash moved is recoded
+against the new evidence, every record that disappeared is marked as resting on
+withheld evidence, and both counts are reported with the results.
 
 ## Coding scheme
 
