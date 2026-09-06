@@ -96,11 +96,12 @@ flawed third-party payment integrations were traced to SDK design,
 documentation and sample code [[2]](#ref-2), and a decade after the
 cashier-as-a-service results the same class of flaw was still being reported
 [[13]](#ref-13). One result shaped this document's form
-more than the others: Chen et al. found payment-integration requirements that
-developers cannot enforce because the guidance itself loses sight of the
-parameters a check would need [[22]](#ref-22). An obligation written only as
-advice is not an obligation. It has to be something an implementation can
-fail.
+more than the others: Chen et al. found payment-integration requirements a
+developer cannot enforce, because the parameters a check would need are not
+available to the party asked to perform it, and because guidance omits checks
+that are required [[22]](#ref-22). The conclusion we draw from that is ours,
+not theirs: an obligation written only as advice is one an implementation
+cannot be failed against, so this contract states what can be checked.
 
 The event rules come from the same place. Repeated messages need
 application-level handling and often remembered state, and an operation that
@@ -109,12 +110,16 @@ is naturally idempotent is a different thing from one made idempotent
 missing events, stale snapshots or ambiguous ordering, which is why the
 contract addresses those separately.
 
-Three of the design choices here have a source. Test vectors are derived from
-the contract rather than from an implementation [[8]](#ref-8), because a
-structural description alone says nothing about whether an answer means what
-the prose requires [[15]](#ref-15). Expected outcomes are reviewed separately
-from the implementations, since two of them agreeing is not evidence when
-both are wrong [[9]](#ref-9). And an unavailable verifier and an incomplete
+Three of the design choices here have a source, though the choices remain
+ours. Deriving tests from a model rather than from an implementation is an
+established method [[8]](#ref-8), and generating stateful requests from a
+service's own specification finds real defects [[15]](#ref-15) — in that work,
+through server errors. Reading the answer for whether it means what the prose
+requires is a further step those results do not take, and it is why the
+vectors here carry expected outcomes rather than only well-formed requests.
+Those outcomes are reviewed apart from the implementations because independent
+implementations can share an error, which is a finding [[9]](#ref-9); reviewing
+them separately is our response to it, not a remedy that paper establishes. And an unavailable verifier and an incomplete
 read get explicit rules rather than being left to each implementer, because
 catastrophic failures concentrate in already-signalled errors that were
 mishandled — 92% against 25% for non-catastrophic ones, in five distributed
@@ -420,10 +425,10 @@ three failures did not appear in the cases you exercised. Account authority, dup
 portability are untested by them, and Table 1 is where to look next.
 
 If one fails, the smallest useful step is still not adoption. For the
-verification case it is §4.1's separation of a rejected verdict from an
+verification case it is SPEC §4.1's separation of a rejected verdict from an
 operation error, so an unreachable verifier stops producing a negative
-purchase verdict. For the other two it is the entitlement predicate in §2.3,
-which §4.3 answers at a stated read time: evaluate access from state and
+purchase verdict. For the other two it is the entitlement predicate in
+SPEC §2.3, which SPEC §4.3 answers at a stated read time: evaluate access from state and
 expiry, and stop reading a lifecycle label as an access decision. Both are changes inside your
 own code.
 
@@ -443,7 +448,7 @@ their versioning and deprecation commitments, and you can hold them to all of
 it.
 What that documentation describes is how to use one service. Its semantics are
 that service's own commitment rather than an obligation any other provider has
-taken on, so what you can hold it to, you cannot hold anyone else to. This contract is the third option: the same
+taken on. This contract is the third option: the same
 decisions written as a specification any provider can implement, with one set
 of checks that runs against all of them. It is younger and less proven than either
 alternative, and it does not run anything for you. A relevant analogue in shape
