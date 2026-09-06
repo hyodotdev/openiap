@@ -13,6 +13,20 @@ Review and address PR review comments for this repository.
 
 - `$ARGUMENTS` - PR number (e.g., `65`) or PR URL
 
+## Labels Are Part Of The Review
+
+Check them first, every round, before reading a single thread:
+
+```bash
+gh pr view $PR_NUMBER --json labels -q '[.labels[].name]'
+```
+
+An empty array means whoever opened the PR did not finish it. Add the labels
+from the guide in `.claude/commands/commit.md` step 8 — review is the last point
+where a missing label is cheap to fix, and a PR that reaches merge unlabeled
+stays that way. A PR whose diff has moved on since it was opened may also need a
+label the original set does not cover.
+
 ## Project-Specific Build Commands
 
 Based on changed files, run these checks BEFORE committing:
@@ -159,9 +173,9 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
    and schedule another 5-minute wake-up.
 3. If CodeRabbit is unavailable for the current head → run or reuse the
    head-specific `$review-self` fallback above.
-4. If no unresolved threads exist, CI is terminal and successful, and
-   unavailable CodeRabbit coverage has a clean fallback for the current head → the
-   PR is clean. Clean up temporary review automation comments, including
+4. If no unresolved threads exist, the PR carries labels, CI is terminal and
+   successful, and unavailable CodeRabbit coverage has a clean fallback for the
+   current head → the PR is clean. Clean up temporary review automation comments, including
    terminal skip/unavailable notices, end the loop, and report completion to
    the user.
 
