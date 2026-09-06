@@ -199,6 +199,15 @@ function readSavedSidebarCollapsed() {
   return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
 }
 
+/** The protocol's own pages, with or without a trailing slash: `/docs/commerce-
+ * protocol/` renders the landing page, which must not link back to itself. */
+function isCommerceProtocolPage(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, '');
+  return (
+    path.startsWith('/docs/commerce-protocol/') || path === '/docs/webhooks'
+  );
+}
+
 function Docs() {
   const { pathname } = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1106,8 +1115,7 @@ function Docs() {
         {/* The protocol's own pages are reached from its landing page, not from
             this sidebar, so a reader who arrives at one directly needs a way
             back into that section. */}
-        {(pathname.startsWith('/docs/commerce-protocol/') ||
-          pathname === '/docs/webhooks') && (
+        {isCommerceProtocolPage(pathname) && (
           <Link to="/docs/commerce-protocol" className="docs-section-backlink">
             ← Commerce Protocol
           </Link>

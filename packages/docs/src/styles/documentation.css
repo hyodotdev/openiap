@@ -1621,7 +1621,11 @@
 /* The Commerce Protocol is a separate specification with its own top-level
    navigation, so its entry in this sidebar is a doorway rather than a section:
    it must read as leaving these docs, not as opening another list. */
-.docs-nav-doorway-item {
+/* `.docs-nav li { margin: 0 }` outranks a bare class, and the sidebar takes
+   its colours from the page theme — `--sidebar-*` is declared but unused, so
+   those variables would have put a white border and grey caption on a #f5f5f5
+   sidebar in light mode. */
+.docs-nav .docs-nav-doorway-item {
   margin-top: 1rem;
 }
 
@@ -1629,7 +1633,7 @@
   display: block;
   white-space: normal;
   padding: 0.6rem 0.75rem;
-  border: 1px solid var(--sidebar-border, var(--border-color));
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent-color) 6%, transparent);
   text-decoration: none;
@@ -1655,7 +1659,7 @@
   margin-top: 0.15rem;
   font-size: 0.75rem;
   line-height: 1.35;
-  color: var(--sidebar-text-muted, var(--text-secondary));
+  color: var(--text-secondary);
 }
 
 /* Shown only on the protocol's own pages, which the docs sidebar no longer
