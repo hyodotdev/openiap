@@ -80,8 +80,11 @@ export function parsePage(raw) {
     if (typeof node.isResolved !== "boolean") {
       throw new Error(`thread ${node.id} has no boolean isResolved`);
     }
-    if (node.isOutdated !== undefined && typeof node.isOutdated !== "boolean") {
-      throw new Error(`thread ${node.id} has a non-boolean isOutdated`);
+    // GitHub declares isOutdated as Boolean! and the query asks for it, so an
+    // absent one is a broken response, not a thread that is merely current —
+    // exempting it would drop the thread from the --outdated sweep in silence.
+    if (typeof node.isOutdated !== "boolean") {
+      throw new Error(`thread ${node.id} has no boolean isOutdated`);
     }
   }
   return { nodes, pageInfo };

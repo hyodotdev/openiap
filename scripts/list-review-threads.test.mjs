@@ -44,6 +44,7 @@ for (const [name, body] of [
   ["a missing isResolved", page({ pageInfo: last, nodes: [thread({ isResolved: undefined })] })],
   ["a string isResolved", page({ pageInfo: last, nodes: [thread({ isResolved: "false" })] })],
   ["a string isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: "true" })] })],
+  ["an omitted isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: undefined })] })],
   ["a next page with no cursor", page({ pageInfo: { hasNextPage: true, endCursor: null }, nodes: [] })],
 ]) {
   test(`${name} is refused, not treated as the end of the list`, () => {
@@ -166,6 +167,17 @@ test("the CLI exits non-zero and prints nothing when a later page fails", () => 
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /thread listing incomplete: GraphQL error: rate limited/);
   assert.match(result.stderr, /do not call this round clean/);
+});
+
+test("an omitted isOutdated fails the sweep rather than emptying it", () => {
+  // The dangerous shape: a valid-looking unresolved thread that --outdated
+  // would silently drop, leaving the sweep unable to tell missing data from
+  // nothing to do.
+  const body = page({ pageInfo: last, nodes: [thread({ isOutdated: undefined })] });
+  const result = runCli([body], ["439", "--outdated"]);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /no boolean isOutdated/);
 });
 
 test("the CLI rejects a missing or non-numeric PR", () => {
