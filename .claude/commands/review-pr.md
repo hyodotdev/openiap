@@ -179,7 +179,7 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
    terminal skip/unavailable notices, end the loop, and report completion to
    the user.
 
-Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call to stop the loop once all threads are resolved.
+Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call only when the whole gate in item 4 holds for the current head — no unresolved threads, labels present, CI terminal and successful, CodeRabbit clean or covered by the fallback. Resolved threads alone are not the gate.
 
 On a surface with no scheduler, finish the current round, say plainly that
 automatic re-entry could not be scheduled, and hand the next poll back to the
@@ -215,7 +215,9 @@ gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
       or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
       or (
         .user.login == "coderabbitai[bot]"
+        and (.body | length < 800)
         and (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i"))
+        and (.body | test("walkthrough|actionable comments posted|<!-- (cr-|fingerprinting)"; "i") | not)
       )
     )
   | .id' | while read comment_id; do
@@ -247,7 +249,8 @@ gh api graphql -F pr="$PR_NUMBER" -f query='
 query($pr: Int!) {
   repository(owner: "hyodotdev", name: "openiap") {
     pullRequest(number: $pr) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: 100) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id
           isResolved
@@ -269,6 +272,11 @@ mutation($threadId: ID!) {
   }
 }'
 ```
+
+Resolved threads count against the page size, so a long-running PR can push
+actionable ones past it. When `pageInfo.hasNextPage` is true, fetch the next page
+with `after: "<endCursor>"` before calling the round clean; the same applies to
+the outdated sweep below.
 
 **Thread Resolution Rules:**
 

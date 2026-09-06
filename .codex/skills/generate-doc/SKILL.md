@@ -116,7 +116,10 @@ versions in this order:
 5. Reuse the explicit maintainer-selected OpenIAP Spec/docs target from the
    coordinated release plan or unreleased card. If no explicit coordinated spec
    target exists, ask; never infer or auto-align it from Apple and Google
-   versions.
+   versions. The note reports the `spec` value that is actually committed in
+   `openiap-versions.json` — the version writers derive that floor from the
+   native keys — so a plan naming a spec target that floor does not carry is a
+   stop-and-ask, not a value to compute your way out of.
 
 Before naming any package's next major, inspect the canonical deprecation and
 migration schedule. The release train must include every public removal already
