@@ -132,8 +132,12 @@ git diff --name-only "$(git merge-base origin/main HEAD)"..HEAD
 ```
 
 A path in the scope above means every governing file is read from the merge
-base for the rest of the run. The decision rests on that command rather than on
-anything the branch can rewrite. A branch that can edit its reviewer's
+base for the rest of the run.
+
+This is a procedure, not an enforcement: a branch could rewrite this paragraph
+too, and stopping one that is actually hostile needs something outside the
+branch — a protected workflow, or a person reading the diff. What the rule buys
+is that an ordinary change to the rules cannot quietly grade itself. A branch that can edit its reviewer's
 instructions can edit them into approving itself, and the fallback below reads
 exactly those files.
 
