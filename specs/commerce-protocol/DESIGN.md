@@ -86,9 +86,9 @@ settlement, or amount to a complete commerce platform.
 
 ## 2. What this reasoning rests on
 
-The boundaries below are not invented here. Two decades of results say that
-integrations fail at the seams rather than in the cryptography: logic flaws
-at the merchant-cashier boundary let shoppers pay nothing without breaking
+The boundaries below are not invented here. Two decades of results show integrations
+failing at the seams with the cryptography intact: logic flaws at the
+merchant-cashier boundary let shoppers pay nothing without breaking
 anything [[12]](#ref-12); automatically rewriting apps so on-device checks
 returned success defeated in-app billing [[11]](#ref-11), and a later attack
 reached the same result by instrumenting the running app [[1]](#ref-1);
@@ -384,22 +384,23 @@ states exactly what the current tests do and do not establish; the
 [research agenda](https://github.com/hyodotdev/openiap/blob/main/knowledge/research/research-agenda.md)
 states what would settle the open questions.
 
-Some work stays with you, and one gap is worth naming precisely. The gate is
-per user and product, so an entitlement event carries both. What the contract
-does not define is how rights compose when more than one thing can supply the
-same access. A product change moves one subscription from one product to
-another, and the lifecycle vectors model that as a single gate transitioning
-rather than the outgoing product's rights closing and the incoming product's
-opening. Even when a refund identifies a transaction, nothing says
-which grant loses authority while a later period or a second purchase is
-still valid. Family
-sharing separates the purchaser from the beneficiary, and a promotional grant
-has no purchase behind it at all; neither appears in the contract. Account
-merging is declared out of scope. A single subscription per user avoids only the
-part that comes from holding several at once; a product change or a refunded
-earlier renewal still raises the question. Wherever more than one grant, or
-one grant's history, can bear on the same access, the composition rules are
-yours to write, and they are the part most likely to go wrong.
+Some work stays with you, and one gap is worth naming precisely. For a read,
+the contract does compose: §4.3 returns every product the user may access right
+now, deduplicated, together with the subscription records whose open gates
+produced them, so a second still-active record is accounted for. The gap is in
+attribution and in the event model. The gate is per user and product, so an
+entitlement event carries both, but a product change moves one subscription
+from one product to another and the lifecycle vectors model that as a single
+gate transitioning rather than the outgoing product's rights closing and the
+incoming product's opening. Even when a refund identifies a transaction,
+nothing says which grant loses authority while a later period or a second
+purchase is still valid. Family sharing separates the purchaser from the
+beneficiary, and a promotional grant has no purchase behind it at all; neither
+appears in the contract. Account merging is declared out of scope. A single
+subscription per user avoids only the part that comes from holding several at
+once; a product change or a refunded earlier renewal still raises the question.
+So the aggregate is given to you and the attribution is not: which grant a
+right came from, and what a later correction does to it, are rules you write.
 
 The contract also does not define a complete store transition machine,
 universal purchase correlation, or historical-data migration. Where an expiry
@@ -415,15 +416,15 @@ rejection. Find your cancellation handler and confirm it does not close
 access before the paid period ends. Write one test that delivers a valid
 entitlement snapshot after its own expiry and assert your gate stays closed.
 Passing all three does not mean the integration is right; it means these
-three failures are not present. Account authority, duplicate effects and
+three failures did not appear in the cases you exercised. Account authority, duplicate effects and
 portability are untested by them, and Table 1 is where to look next.
 
 If one fails, the smallest useful step is still not adoption. For the
-verification case it is §3.1's separation of a rejected verdict from an
+verification case it is §4.1's separation of a rejected verdict from an
 operation error, so an unreachable verifier stops producing a negative
-purchase verdict. For the other two it is the entitlement predicate in §4.3:
-evaluate access from state and expiry at a stated evaluation time, and stop
-reading a lifecycle label as an access decision. Both are changes inside your
+purchase verdict. For the other two it is the entitlement predicate in §2.3,
+which §4.3 answers at a stated read time: evaluate access from state and
+expiry, and stop reading a lifecycle label as an access decision. Both are changes inside your
 own code.
 
 Adopt the contract itself when you verify on a server for more than one
@@ -440,13 +441,13 @@ that decision for you and documents it well. The mature ones publish their
 cancellation, expiration and grace semantics, their duplicate handling, and
 their versioning and deprecation commitments, and you can hold them to all of
 it.
-What that documentation describes is how to use one service, so its semantics
-belong to that service and the expectations you build from them are not
-reusable against another. This contract is the third option: the same
+What that documentation describes is how to use one service. Its semantics are
+that service's own commitment rather than an obligation any other provider has
+taken on, so what you can hold it to, you cannot hold anyone else to. This contract is the third option: the same
 decisions written as a specification any provider can implement, with one set
 of checks that runs against all of them. It is younger and less proven than either
-alternative, and it does not run anything for you. The
-closest thing to it in shape is TM Forum's Product Inventory Management API
+alternative, and it does not run anything for you. A relevant analogue in shape
+is TM Forum's Product Inventory Management API
 [[24]](#ref-24), a standard carrying a conformance profile and a test kit,
 though what it standardizes is product inventory and its lifecycle
 notifications for telecommunications rather than store purchase evidence and
