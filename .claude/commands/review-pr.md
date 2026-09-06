@@ -268,8 +268,15 @@ gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies \
 ### Resolving Threads
 
 ```bash
-# Get unresolved thread IDs (id, path, first comment id — one per line)
-node scripts/list-review-threads.mjs "$PR_NUMBER"
+# Get unresolved thread IDs (id, path, first comment id — one per line).
+# The exit status is the gate: non-zero means the listing is incomplete, so
+# capture it rather than letting the next command overwrite $?.
+set -o pipefail
+if ! threads="$(node scripts/list-review-threads.mjs "$PR_NUMBER")"; then
+  echo "listing failed — this round is not clean" >&2
+else
+  printf '%s\n' "$threads"
+fi
 
 # Resolve a specific thread
 gh api graphql -f threadId="$THREAD_ID" -f query='
@@ -301,7 +308,14 @@ Outdated sweep (run once per round before fetching open findings):
 
 ```bash
 PR_NUMBER=...
-node scripts/list-review-threads.mjs "$PR_NUMBER" --outdated | cut -f1 | while read tid; do
+set -o pipefail
+# Capture first: piping the listing straight into `while` would discard its
+# exit status and sweep an incomplete list as if it were the whole one.
+outdated="$(node scripts/list-review-threads.mjs "$PR_NUMBER" --outdated | cut -f1)" || {
+  echo "outdated sweep skipped — the listing was incomplete" >&2
+  outdated=""
+}
+printf '%s\n' "$outdated" | while read tid; do
   [ -n "$tid" ] && gh api graphql -f threadId="$tid" -f query='
     mutation($threadId: ID!) {
       resolveReviewThread(input: {threadId: $threadId}) { thread { id isResolved } }

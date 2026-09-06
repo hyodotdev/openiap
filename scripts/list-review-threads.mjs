@@ -63,8 +63,12 @@ export function parsePage(raw) {
   if (!pageInfo || typeof pageInfo.hasNextPage !== "boolean") {
     throw new Error("pageInfo.hasNextPage is not a boolean");
   }
-  if (pageInfo.hasNextPage && !pageInfo.endCursor) {
-    throw new Error("another page is promised with no cursor to reach it");
+  if (pageInfo.hasNextPage) {
+    // A truthy non-string cursor (true, 7, {}) would be coerced into the next
+    // request instead of being caught here.
+    if (typeof pageInfo.endCursor !== "string" || pageInfo.endCursor === "") {
+      throw new Error("another page is promised with no usable cursor to reach it");
+    }
   }
   for (const node of nodes) {
     if (!node || typeof node !== "object") {
@@ -118,11 +122,17 @@ function fetchPage(pr, after) {
 
 export function listThreads(pr, { outdatedOnly = false, fetch = fetchPage } = {}) {
   const collected = [];
+  const seen = new Set();
   let after = null;
   for (;;) {
     const { nodes, pageInfo } = parsePage(fetch(pr, after));
     collected.push(...selectThreads(nodes, { outdatedOnly }));
     if (!pageInfo.hasNextPage) return collected;
+    // A cursor that comes back a second time would page forever.
+    if (seen.has(pageInfo.endCursor)) {
+      throw new Error(`cursor ${pageInfo.endCursor} repeated — paging in a cycle`);
+    }
+    seen.add(pageInfo.endCursor);
     after = pageInfo.endCursor;
   }
 }

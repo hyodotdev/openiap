@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   formatThread,
@@ -96,4 +101,75 @@ test("a failure on a later page fails the whole listing", () => {
     () => listThreads(439, { fetch: () => pages.shift() }),
     /rate limited/,
   );
+});
+
+for (const cursor of [true, 7, {}, [], ""]) {
+  test(`a ${JSON.stringify(cursor)} cursor is not a usable next page`, () => {
+    assert.throws(
+      () => parsePage(page({ pageInfo: { hasNextPage: true, endCursor: cursor }, nodes: [] })),
+      /no usable cursor/,
+    );
+  });
+}
+
+test("a repeated cursor is a cycle, not an endless listing", () => {
+  const stuck = page({ pageInfo: { hasNextPage: true, endCursor: "c1" }, nodes: [] });
+  assert.throws(
+    () => listThreads(439, { fetch: () => stuck }),
+    /paging in a cycle/,
+  );
+});
+
+// The CLI's own contract: a library test cannot see process.exit.
+const scriptPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "list-review-threads.mjs",
+);
+
+function runCli(pages, args = ["439"]) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "thread-cli-"));
+  fs.writeFileSync(path.join(dir, "pages.json"), JSON.stringify(pages));
+  fs.writeFileSync(
+    path.join(dir, "gh"),
+    [
+      "#!/usr/bin/env node",
+      "const fs = require('fs');",
+      `const dir = ${JSON.stringify(dir)};`,
+      "const pages = JSON.parse(fs.readFileSync(dir + '/pages.json', 'utf8'));",
+      "const at = fs.existsSync(dir + '/n') ? Number(fs.readFileSync(dir + '/n', 'utf8')) : 0;",
+      "fs.writeFileSync(dir + '/n', String(at + 1));",
+      "process.stdout.write(pages[at] ?? pages[pages.length - 1]);",
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
+    encoding: "utf8",
+    env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  return result;
+}
+
+test("the CLI prints the threads and exits zero when every page reads", () => {
+  const result = runCli([page({ pageInfo: last, nodes: [thread({ id: "open" })] })]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "open\ta.md\t11\n");
+});
+
+test("the CLI exits non-zero and prints nothing when a later page fails", () => {
+  const result = runCli([
+    page({ pageInfo: { hasNextPage: true, endCursor: "c1" }, nodes: [thread({ id: "p1" })] }),
+    JSON.stringify({ errors: [{ message: "rate limited" }] }),
+  ]);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /thread listing incomplete: GraphQL error: rate limited/);
+  assert.match(result.stderr, /do not call this round clean/);
+});
+
+test("the CLI rejects a missing or non-numeric PR", () => {
+  const result = runCli([page({ pageInfo: last, nodes: [] })], ["not-a-number"]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /usage:/);
 });
