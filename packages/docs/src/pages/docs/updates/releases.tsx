@@ -30,6 +30,11 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const androidGradleCompatibilityReleases = [
+  ['react-native-iap 16.5.1', 'react-native-iap-16.5.1'],
+  ['expo-iap 5.5.1', 'expo-iap-5.5.1'],
+] as const;
+
 const androidIapOptOutReleases = [
   ['flutter_inapp_purchase 10.6.0', 'flutter-iap-10.6.0'],
 ] as const;
@@ -306,6 +311,103 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'android-gradle-compatibility-2026-09-07',
+      date: new Date('2026-09-07'),
+      element: (
+        <div
+          key="android-gradle-compatibility-2026-09-07"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="android-gradle-compatibility-2026-09-07" level="h4">
+            September 7, 2026 - react-native-iap 16.5.1 / expo-iap 5.5.1: AGP 9
+            compatibility
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Android library builds now support AGP 9&apos;s built-in Kotlin
+            while retaining the Kotlin Android plugin on AGP 8 and AGP 9 opt-out
+            projects (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/438"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #438
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.5.1</strong> - fixes missing
+              Nitro-generated Kotlin classes and native build and packaging
+              errors with the AGP 9 DSL.
+            </li>
+            <li>
+              <strong>expo-iap 5.5.1</strong> - fixes compilation of the logging
+              helper when Android BuildConfig generation is disabled by default.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Upgrading a whole app to AGP 9 also requires compatible React
+              Native, Expo, Nitro, and other Gradle plugins.
+            </li>
+            <li>
+              Both packages now deprecate <code>kitApi.status()</code> and{' '}
+              <code>kitApi.entitlements()</code> compatibility reads; new
+              account reads must authenticate the user on a developer backend
+              and use the secret-only IAPKit <code>/v2</code> endpoints.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {androidGradleCompatibilityReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // September 3, 2026 - Android IAP opt-out for Apple-only Flutter apps
     {
       id: 'android-iap-opt-out-2026-09-03',
