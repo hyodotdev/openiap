@@ -47,9 +47,12 @@ Inspect the complete commit message, PR title, and PR body before sending them.
 Write the PR title and body for a human reviewer, following
 `knowledge/internal/06-git-deployment.md#public-github-communication-style`.
 Lead with what changed and why it matters, keep sentences short and the words
-ordinary, and stay under 60 lines. Group findings of the same shape into one
-paragraph instead of enumerating each. Reread the body before sending and cut
-anything that does not change what the reviewer does next.
+ordinary, and keep the body to a few short paragraphs — ten lines is normal,
+thirty is the ceiling. Drop the `## Summary` / `## Changes` / test-plan
+scaffolding unless the change genuinely spans packages. Group findings of the
+same shape into one paragraph instead of enumerating each. Reread the body
+before sending and cut anything that does not change what the reviewer does
+next.
 
 ### Internal Workflow Guard
 
@@ -196,17 +199,12 @@ requested a prerelease train. Never target prerelease version-only commits at
 ```bash
 PR_BASE=main # set to next only for an explicit prerelease train
 gh pr create --base "$PR_BASE" --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
-<One or two sentences: what changed and why it matters. No preamble.>
+<What changed and why it matters, in a sentence or two. No preamble.>
 
-## What changed
-
-<A short paragraph per theme, or a few bullets. Group related changes rather
-than listing every file. Name the user-visible effect, not the implementation
-narrative.>
-
-## Checks
-
-<The commands that were run and their result, on one line each.>
+<One short paragraph per remaining theme, only if the first paragraph does not
+already cover it. Name the user-visible effect, not the implementation
+narrative. Add a one-line `Checks:` when a reviewer cannot see the result in
+CI. Headings only for a change that spans packages.>
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
@@ -369,45 +367,18 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ## Example PR Body
 
+The same change, written for someone who has to review it. Everything a
+reviewer does not need in order to act is in the commit messages.
+
 ```markdown
-## Summary
+Win-back offers (iOS 18+), JWS promotional offers back-deployed to iOS 15, and
+`ProductStatusAndroid` for Billing 8.0 status codes. The GraphQL types are the
+source; Apple, Google and the docs follow from the regenerated output.
 
-- Add Win-Back offers support for iOS 18+
-- Add ProductStatusAndroid for Billing 8.0+ status codes
-- Add JWS promotional offers for WWDC 2025
+`fetchProducts` now returns a status on Android, so a partial result is
+distinguishable from an empty catalogue.
 
-## Changes
-
-### GraphQL Schema (specs/client)
-
-- `WinBackOfferInputIOS` - Win-back offer input type
-- `ProductStatusAndroid` - Product fetch status enum
-- `PromotionalOfferJWSInputIOS` - JWS format promo offers
-
-### iOS (packages/apple)
-
-- Implement win-back offer handling in purchase flow
-- Add JWS promotional offer support (back-deployed to iOS 15)
-- Add introductory offer eligibility override
-
-### Android (packages/google)
-
-- Map ProductStatusAndroid from BillingResult
-- Return status in fetchProducts response
-
-### Documentation (packages/docs)
-
-- Release notes for v1.3.13
-- Type documentation updates
-- Example code updates
-
-## Test plan
-
-- [x] `swift build` passes
-- [x] `./gradlew :openiap:compilePlayDebugKotlin` passes
-- [x] `./gradlew :openiap:compileHorizonDebugKotlin` passes
-- [x] `./gradlew :openiap:compileAmazonDebugKotlin` passes
-- [x] `bun run typecheck` passes (docs)
+Checks: swift build, the three Gradle flavor compiles, docs typecheck.
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
