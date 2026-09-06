@@ -29,7 +29,6 @@ hr { border: none; border-top: 0.6pt solid var(--rule); margin: 14pt 0; }
   font-family: Georgia, serif; font-size: 8.5pt; color: #7a828d; } }
 figure.mermaid { margin: 10pt 0 4pt; text-align: center; break-inside: avoid; }
 figure.mermaid svg { max-width: 100%; height: auto; }
-p > strong:first-child { }
 
 /* A reference's anchor and its entry must not be split across a page: the
    anchor is an empty <a id> paragraph that Marked emits just above the text. */

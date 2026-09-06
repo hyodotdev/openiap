@@ -109,6 +109,24 @@ Recording the miner's commit is not enough: GitHub threads are editable, so
 the archived copy is the object of study and it has to be fixed and
 verifiable. This is a precondition, not future work.
 
+### What the archive may hold, and what may be released
+
+An in-app purchase tracker is not ordinary issue text. Reporters paste purchase
+tokens, order and transaction ids, receipt payloads, signed JWS blobs, sandbox
+account addresses and raw store logs into bodies and comments. Public origin is
+not consent to republish, and some of those values still authenticate.
+
+So the raw archive stays private: not committed, not published, not copied into
+a transcript, an issue or a commit. Before release the corpus is reduced to what
+the coding needs — the failure, the resolution, and the coded variables — and
+anything matching a credential, token, receipt or address pattern is removed by
+rule, with the removal recorded; a coder who meets one the rule missed removes
+it and extends the rule. The issue number stays, so this is not anonymisation:
+anyone can open the thread. What the release avoids is republishing those
+strings in a form easier to mine than the tracker itself, and what the retention
+rule avoids is holding them longer than the study needs — the raw archive is
+deleted once the coded corpus and the agreement figures are published.
+
 ## Coding scheme
 
 The seed is [`misuse-catalog.md`](misuse-catalog.md), which already names ten
@@ -140,9 +158,13 @@ Each issue receives:
 - **Store** and **platform** as two separate variables, because a store and
   the operating system it runs on are not the same axis and a single issue can
   name one without the other.
-- **Framework**, from the source repository for the five library
-  repositories, and from issue evidence for the monorepo, whose 92 issues
-  reference every framework and the backend service.
+- **Framework**, multi-valued. An issue in a library repository carries that
+  library. A monorepo issue carries every framework its evidence names, and
+  `none` when it is about the backend or the specification rather than a
+  framework. A distribution by framework therefore counts an issue once per
+  framework it carries, states that denominator, and reports how many issues
+  carry more than one, so the overlap is visible rather than absorbed into a
+  single primary label.
 
 `candidateCategories` in the mined records is a keyword triage aid used for
 stratified sampling only. It never becomes a label. Its distribution
