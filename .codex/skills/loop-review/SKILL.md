@@ -23,12 +23,10 @@ Read these before acting:
 - `.claude/commands/release.md`
 
 Load package conventions and specialized skills required by the changed paths.
-When the change itself touches those files — `.claude/commands/`,
-`.claude/skills/`, `.codex/skills/`, `.cursor/rules/`, `knowledge/internal/` or
-`AGENTS.md` — load them from the recorded merge base, not the branch. The rule
-and its reasoning live in `.claude/commands/review-pr.md`, under "A PR Must Not
-Rewrite The Rules That Judge It"; a branch that can edit the instructions and
-the conventions it is judged against can edit them into approving itself.
+When the change is itself in scope of "A PR Must Not Rewrite The Rules That
+Judge It" in `.claude/commands/review-pr.md`, load them from the recorded merge
+base rather than the branch. That section defines the scope; do not restate it
+here.
 An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
 thread resolution, merge, affected stable package releases, release-note and
