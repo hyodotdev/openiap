@@ -6132,8 +6132,11 @@ function checkFrameworkDependencyHygiene() {
       "`$review-self` round",
       "### Cleanup Review Automation Comments",
       '.body == "@coderabbitai review"',
-      'or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))',
-      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i")',
+      '(.body | contains("CodeRabbit review command invocation"))',
+      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i")',
+      // Pins the exclusions, not just the matches: without them the cleanup
+      // deletes CodeRabbit findings that carry the invocation marker.
+      'test("analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)"; "i") | not',
       "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     ],
     "review-pr must preserve the requested five-minute polling cadence",

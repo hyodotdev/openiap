@@ -205,10 +205,14 @@ Delete temporary top-level comments that only record review automation activity:
 
 Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command and terminal unavailability noise left in the PR timeline.
 
-The filter below decides that by structure, not by size. A genuine "Review
+The filter below decides that by structure, not by size, and the exclusion list
+applies to every bot branch. Two shapes make that necessary: a genuine "Review
 skipped — too many files" notice runs to 17,000 characters because it embeds the
-file list, while a walkthrough that merely mentions a skipped review must
-survive, so the marker exclusions do the work and there is no length cutoff.
+file list, and a reply to `@coderabbitai review` carries the invocation marker
+whether it is a bare "review triggered" acknowledgement or a full answer with an
+analysis chain and a finding in it. So the positive phrases say what noise looks
+like, and `analysis chain|script executed|actionable comments posted|walkthrough`
+plus the CodeRabbit HTML markers say what must never be deleted.
 
 Use the issue comments API because PR conversation comments are issue comments:
 
@@ -217,11 +221,13 @@ gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
   .[]
   | select(
       .body == "@coderabbitai review"
-      or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
       or (
         .user.login == "coderabbitai[bot]"
-        and (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i"))
-        and (.body | test("walkthrough|actionable comments posted|<!-- (cr-|fingerprinting)"; "i") | not)
+        and (
+          (.body | contains("CodeRabbit review command invocation"))
+          or (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i"))
+        )
+        and (.body | test("analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)"; "i") | not)
       )
     )
   | .id' | while read comment_id; do
