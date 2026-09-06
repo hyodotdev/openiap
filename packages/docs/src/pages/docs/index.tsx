@@ -7,6 +7,7 @@ import type {
 import { createPortal } from 'react-dom';
 import { Bookmark } from 'lucide-react';
 import {
+  Link,
   Route,
   Routes,
   Navigate,
@@ -196,6 +197,15 @@ function readSavedSidebarCollapsed() {
   }
 
   return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+}
+
+/** The protocol's own pages, with or without a trailing slash: `/docs/commerce-
+ * protocol/` renders the landing page, which must not link back to itself. */
+function isCommerceProtocolPage(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, '');
+  return (
+    path.startsWith('/docs/commerce-protocol/') || path === '/docs/webhooks'
+  );
 }
 
 function Docs() {
@@ -440,37 +450,6 @@ function Docs() {
                 Ecosystem
               </NavLink>
             </li>
-            <MenuDropdown
-              title="Commerce Protocol"
-              titleTo="/docs/commerce-protocol"
-              items={[
-                { to: '/docs/commerce-protocol/profiles', label: 'Profiles' },
-                {
-                  to: '/docs/commerce-protocol/operations',
-                  label: 'Operations',
-                },
-                { to: '/docs/commerce-protocol/rest', label: 'REST' },
-                { to: '/docs/commerce-protocol/graphql', label: 'GraphQL' },
-                { to: '/docs/webhooks', label: 'Events & Webhooks' },
-                {
-                  to: '/docs/commerce-protocol/authentication',
-                  label: 'Authentication',
-                },
-                {
-                  to: '/docs/commerce-protocol/capabilities',
-                  label: 'Capabilities',
-                },
-                {
-                  to: '/docs/commerce-protocol/conformance',
-                  label: 'Conformance',
-                },
-                {
-                  to: '/docs/commerce-protocol/versioning',
-                  label: 'Versioning',
-                },
-              ]}
-              onItemClick={closeSidebar}
-            />
             <MenuDropdown
               title="Life Cycle"
               titleTo="/docs/lifecycle"
@@ -819,6 +798,23 @@ function Docs() {
                 Errors
               </NavLink>
             </li>
+            {/* Deliberately not a section of these docs: the server-side spec
+                has its own top-level navigation, and this is the doorway to
+                it, not an entry in this list. */}
+            <li className="docs-nav-doorway-item">
+              <NavLink
+                to="/docs/commerce-protocol"
+                className="docs-nav-doorway"
+                onClick={closeSidebar}
+              >
+                <span className="docs-nav-doorway__label">
+                  Commerce Protocol
+                </span>
+                <span className="docs-nav-doorway__hint">
+                  The server side, specified separately
+                </span>
+              </NavLink>
+            </li>
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Setup Guide</h3>
           <ul>
@@ -1116,6 +1112,14 @@ function Docs() {
         </button>
       </div>
       <main className="docs-content">
+        {/* The protocol's own pages are reached from its landing page, not from
+            this sidebar, so a reader who arrives at one directly needs a way
+            back into that section. */}
+        {isCommerceProtocolPage(pathname) && (
+          <Link to="/docs/commerce-protocol" className="docs-section-backlink">
+            ← Commerce Protocol
+          </Link>
+        )}
         <Routes>
           <Route
             index
