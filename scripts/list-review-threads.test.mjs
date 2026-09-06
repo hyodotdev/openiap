@@ -10,6 +10,8 @@ import {
   formatThread,
   listThreads,
   parsePage,
+  replyTarget,
+  requireReplyTargets,
   selectThreads,
 } from "./list-review-threads.mjs";
 
@@ -46,8 +48,6 @@ for (const [name, body] of [
   ["a string isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: "true" })] })],
   ["an omitted isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: undefined })] })],
   ["a missing path", page({ pageInfo: last, nodes: [thread({ path: undefined })] })],
-  ["an empty comments connection", page({ pageInfo: last, nodes: [thread({ comments: { nodes: [] } })] })],
-  ["a null first comment id", page({ pageInfo: last, nodes: [thread({ comments: { nodes: [{ databaseId: null }] } })] })],
   ["a next page with no cursor", page({ pageInfo: { hasNextPage: true, endCursor: null }, nodes: [] })],
 ]) {
   test(`${name} is refused, not treated as the end of the list`, () => {
@@ -73,6 +73,39 @@ test("selection keeps unresolved threads and can narrow to outdated ones", () =>
 
 test("a thread renders as id, path and first comment id", () => {
   assert.equal(formatThread(thread()), "PRRT_1\ta.md\t11");
+});
+
+test("fullDatabaseId is preferred, since databaseId is nullable and deprecated", () => {
+  assert.equal(
+    replyTarget(thread({ comments: { nodes: [{ databaseId: 11, fullDatabaseId: "9007199254740993" }] } })),
+    "9007199254740993",
+  );
+  assert.equal(replyTarget(thread()), "11");
+  assert.equal(replyTarget(thread({ comments: { nodes: [] } })), null);
+  assert.equal(replyTarget(thread({ comments: { nodes: [{ databaseId: null }] } })), null);
+});
+
+test("only a thread that will be replied to needs a reply target", () => {
+  const unanswerable = thread({ comments: { nodes: [] } });
+  // A resolved one is never replied to, so it must not abort the listing.
+  assert.doesNotThrow(() =>
+    listThreads(439, {
+      fetch: () => page({ pageInfo: last, nodes: [{ ...unanswerable, isResolved: true }] }),
+    }),
+  );
+  // The outdated sweep resolves by thread id and replies to nothing.
+  assert.doesNotThrow(() =>
+    listThreads(439, {
+      outdatedOnly: true,
+      fetch: () => page({ pageInfo: last, nodes: [{ ...unanswerable, isOutdated: true }] }),
+    }),
+  );
+  // An unresolved one the workflow would answer must fail visibly.
+  assert.throws(
+    () => listThreads(439, { fetch: () => page({ pageInfo: last, nodes: [unanswerable] }) }),
+    /no comment to reply to/,
+  );
+  assert.throws(() => requireReplyTargets([unanswerable]), /no comment to reply to/);
 });
 
 test("every page is read before the listing is reported", () => {

@@ -30,7 +30,7 @@ query($owner: String!, $name: String!, $pr: Int!, $after: String) {
           isResolved
           isOutdated
           path
-          comments(first: 1) { nodes { databaseId } }
+          comments(first: 1) { nodes { databaseId fullDatabaseId } }
         }
       }
     }
@@ -89,12 +89,6 @@ export function parsePage(raw) {
     if (typeof node.path !== "string" || node.path === "") {
       throw new Error(`thread ${node.id} has no path`);
     }
-    // The workflow replies to the first comment by its database id, so a thread
-    // without one cannot be answered — that is an incomplete listing, not a row
-    // with a blank field.
-    if (typeof node.comments?.nodes?.[0]?.databaseId !== "number") {
-      throw new Error(`thread ${node.id} has no first comment id`);
-    }
   }
   return { nodes, pageInfo };
 }
@@ -106,8 +100,37 @@ export function selectThreads(nodes, { outdatedOnly = false } = {}) {
     .filter((node) => (outdatedOnly ? node.isOutdated === true : true));
 }
 
+/**
+ * The id the workflow replies to. `databaseId` is nullable and deprecated, so
+ * prefer `fullDatabaseId`, which is a string and loses no precision. Returns
+ * null when the thread carries no first comment at all.
+ */
+export function replyTarget(node) {
+  const comment = node.comments?.nodes?.[0];
+  if (!comment) return null;
+  if (typeof comment.fullDatabaseId === "string" && comment.fullDatabaseId !== "") {
+    return comment.fullDatabaseId;
+  }
+  if (typeof comment.databaseId === "number") return String(comment.databaseId);
+  return null;
+}
+
+/**
+ * Only a thread that will actually be replied to needs a reply target. A
+ * resolved thread with no comment id must not abort the listing, and the
+ * outdated sweep resolves by thread id without replying at all.
+ */
+export function requireReplyTargets(threads) {
+  for (const node of threads) {
+    if (replyTarget(node) === null) {
+      throw new Error(`thread ${node.id} has no comment to reply to`);
+    }
+  }
+  return threads;
+}
+
 export function formatThread(node) {
-  return [node.id, node.path, node.comments.nodes[0].databaseId].join("\t");
+  return [node.id, node.path, replyTarget(node) ?? ""].join("\t");
 }
 
 function fetchPage(pr, after) {
@@ -137,7 +160,8 @@ export function listThreads(pr, { outdatedOnly = false, fetch = fetchPage } = {}
   let after = null;
   for (;;) {
     const { nodes, pageInfo } = parsePage(fetch(pr, after));
-    collected.push(...selectThreads(nodes, { outdatedOnly }));
+    const selected = selectThreads(nodes, { outdatedOnly });
+    collected.push(...(outdatedOnly ? selected : requireReplyTargets(selected)));
     if (!pageInfo.hasNextPage) return collected;
     // A cursor that comes back a second time would page forever.
     if (seen.has(pageInfo.endCursor)) {
