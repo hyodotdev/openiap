@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -44,30 +45,52 @@ describe("review workflow fallback contract", () => {
     expect(reviewPr).not.toContain("Copilot");
   });
 
-  test("review-pr removes only temporary CodeRabbit automation noise", () => {
+  test("review-pr deletes automation noise and keeps every substantive comment", () => {
+    // Pinning the block verbatim froze a defect once: the invocation-marker
+    // branch deleted CodeRabbit replies that carried findings. Run the filter
+    // the file actually ships, over comment shapes taken from real PRs.
     const reviewPr = readRepositoryFile(".claude/commands/review-pr.md");
-    const cleanupScript = reviewPr.match(
-      /### Cleanup Review Automation Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
-    )?.[1];
+    const cleanupScript =
+      reviewPr.match(
+        /### Cleanup Review Automation Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
+      )?.[1] ?? "";
 
-    expect(normalizeWhitespace(cleanupScript ?? "")).toBe(
-      normalizeWhitespace(`gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
-  .[]
-  | select(
-      .body == "@coderabbitai review"
-      or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
-      or (
-        .user.login == "coderabbitai[bot]"
-        and (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i"))
-      )
-    )
-  | .id' | while read comment_id; do
-  [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"
-done`),
+    expect(cleanupScript).toContain("--paginate");
+    expect(cleanupScript).toContain(
+      'gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"',
     );
     expect(normalizeWhitespace(reviewPr)).toContain(
       "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     );
+
+    const filter = cleanupScript.match(/--jq '([\s\S]*?)'\s*\|\s*while read/)?.[1];
+    expect(filter).toBeTruthy();
+
+    const fixture = JSON.parse(
+      readRepositoryFile("scripts/agent/tests/fixtures/coderabbit-cleanup-comments.json"),
+    ) as Array<{ id: number; keep: boolean; why: string; body: string }>;
+    // A real "too many files" notice embeds the file list and runs past 17k
+    // characters, so the filter must not decide anything by length.
+    for (const comment of fixture) {
+      comment.body = comment.body.replace("FILLER_16K", "x".repeat(16000));
+    }
+
+    const input = JSON.stringify(fixture);
+    const result = spawnSync("jq", ["-r", filter ?? ""], { input, encoding: "utf8" });
+    if (result.error) {
+      throw new Error(
+        "jq is required to verify the cleanup filter; install it or run this suite on a runner that has it",
+      );
+    }
+    expect(result.stderr).toBe("");
+
+    const deleted = result.stdout.split("\n").filter(Boolean).map(Number);
+    const expected = fixture.filter((c) => !c.keep).map((c) => c.id);
+    expect(deleted.sort()).toEqual(expected.sort());
+
+    for (const comment of fixture.filter((c) => c.keep)) {
+      expect(deleted).not.toContain(comment.id); // ${comment.why}
+    }
   });
 
   test("review-self exposes a non-recursive single-round fallback", () => {
