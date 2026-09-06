@@ -86,6 +86,15 @@ export function parsePage(raw) {
     if (typeof node.isOutdated !== "boolean") {
       throw new Error(`thread ${node.id} has no boolean isOutdated`);
     }
+    if (typeof node.path !== "string" || node.path === "") {
+      throw new Error(`thread ${node.id} has no path`);
+    }
+    // The workflow replies to the first comment by its database id, so a thread
+    // without one cannot be answered — that is an incomplete listing, not a row
+    // with a blank field.
+    if (typeof node.comments?.nodes?.[0]?.databaseId !== "number") {
+      throw new Error(`thread ${node.id} has no first comment id`);
+    }
   }
   return { nodes, pageInfo };
 }
@@ -98,8 +107,7 @@ export function selectThreads(nodes, { outdatedOnly = false } = {}) {
 }
 
 export function formatThread(node) {
-  const comment = node.comments?.nodes?.[0]?.databaseId ?? "";
-  return [node.id, node.path ?? "", comment].join("\t");
+  return [node.id, node.path, node.comments.nodes[0].databaseId].join("\t");
 }
 
 function fetchPage(pr, after) {

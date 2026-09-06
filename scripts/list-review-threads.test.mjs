@@ -45,6 +45,9 @@ for (const [name, body] of [
   ["a string isResolved", page({ pageInfo: last, nodes: [thread({ isResolved: "false" })] })],
   ["a string isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: "true" })] })],
   ["an omitted isOutdated", page({ pageInfo: last, nodes: [thread({ isOutdated: undefined })] })],
+  ["a missing path", page({ pageInfo: last, nodes: [thread({ path: undefined })] })],
+  ["an empty comments connection", page({ pageInfo: last, nodes: [thread({ comments: { nodes: [] } })] })],
+  ["a null first comment id", page({ pageInfo: last, nodes: [thread({ comments: { nodes: [{ databaseId: null }] } })] })],
   ["a next page with no cursor", page({ pageInfo: { hasNextPage: true, endCursor: null }, nodes: [] })],
 ]) {
   test(`${name} is refused, not treated as the end of the list`, () => {
@@ -70,10 +73,6 @@ test("selection keeps unresolved threads and can narrow to outdated ones", () =>
 
 test("a thread renders as id, path and first comment id", () => {
   assert.equal(formatThread(thread()), "PRRT_1\ta.md\t11");
-  assert.equal(
-    formatThread(thread({ path: undefined, comments: { nodes: [] } })),
-    "PRRT_1\t\t",
-  );
 });
 
 test("every page is read before the listing is reported", () => {
