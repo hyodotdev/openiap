@@ -2,10 +2,7 @@ import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 apply plugin: 'com.android.library'
-// AGP 9 ships built-in Kotlin support and registers the `kotlin` extension
-// itself. Applying the Kotlin plugin on top of it fails configuration with
-// "Cannot add extension with name 'kotlin'". Only apply it when nothing has
-// registered that extension yet.
+// AGP 9 registers Kotlin itself unless the consumer opts out.
 if (project.extensions.findByName('kotlin') == null) {
   apply plugin: 'kotlin-android'
 }
@@ -85,6 +82,9 @@ if (useManagedAndroidSdkVersions) {
 
 android {
   namespace = "expo.modules.iap"
+  buildFeatures {
+    buildConfig = true
+  }
   defaultConfig {
     versionCode = 1
     versionName = expoIapPackageVersion
