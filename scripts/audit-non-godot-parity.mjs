@@ -6134,6 +6134,11 @@ function checkFrameworkDependencyHygiene() {
       'codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high"',
       "`$review-self` round",
       "### Cleanup Review Automation Comments",
+      // The thread listing lives in a tested script; four review rounds found
+      // four ways for the inline jq loop to report a clean round with threads
+      // unread.
+      'node scripts/list-review-threads.mjs "$PR_NUMBER"',
+      "Do\nnot inline it again",
       '.body == "@coderabbitai review"',
       '(.body | contains("CodeRabbit review command invocation"))',
       'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i")',

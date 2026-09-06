@@ -1,0 +1,146 @@
+#!/usr/bin/env node
+
+// Lists a pull request's review threads, page by page, and refuses to report a
+// partial listing as a complete one. This was a jq loop inside
+// `.claude/commands/review-pr.md` until four review rounds found four ways for
+// it to exit zero while unread threads remained: a failed second fetch, an
+// empty `pageInfo`, a null `nodes`, and a malformed entry that `select()`
+// quietly dropped. Prose cannot be tested; this can.
+//
+//   node scripts/list-review-threads.mjs <pr>              unresolved threads
+//   node scripts/list-review-threads.mjs <pr> --outdated   unresolved and outdated
+//
+// Prints one thread per line as `id<TAB>path<TAB>firstCommentDatabaseId`, and
+// exits non-zero with a reason if any page is missing or malformed.
+
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const scriptPath = fileURLToPath(import.meta.url);
+
+const QUERY = `
+query($owner: String!, $name: String!, $pr: Int!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $pr) {
+      reviewThreads(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id
+          isResolved
+          isOutdated
+          path
+          comments(first: 1) { nodes { databaseId } }
+        }
+      }
+    }
+  }
+}`;
+
+/**
+ * Validates one page and returns it. Every failure throws: a page that cannot
+ * be trusted must not be mistaken for the end of the list, and an entry that
+ * cannot be read must not be mistaken for a resolved thread.
+ */
+export function parsePage(raw) {
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw new Error("response was not JSON");
+  }
+  if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+    throw new Error(`GraphQL error: ${payload.errors[0]?.message ?? "unknown"}`);
+  }
+  const threads = payload?.data?.repository?.pullRequest?.reviewThreads;
+  if (!threads || typeof threads !== "object") {
+    throw new Error("response carried no reviewThreads");
+  }
+  const { nodes, pageInfo } = threads;
+  if (!Array.isArray(nodes)) {
+    throw new Error("reviewThreads.nodes is not an array");
+  }
+  if (!pageInfo || typeof pageInfo.hasNextPage !== "boolean") {
+    throw new Error("pageInfo.hasNextPage is not a boolean");
+  }
+  if (pageInfo.hasNextPage && !pageInfo.endCursor) {
+    throw new Error("another page is promised with no cursor to reach it");
+  }
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") {
+      throw new Error("a thread entry is not an object");
+    }
+    if (typeof node.id !== "string" || node.id === "") {
+      throw new Error("a thread has no id");
+    }
+    if (typeof node.isResolved !== "boolean") {
+      throw new Error(`thread ${node.id} has no boolean isResolved`);
+    }
+    if (node.isOutdated !== undefined && typeof node.isOutdated !== "boolean") {
+      throw new Error(`thread ${node.id} has a non-boolean isOutdated`);
+    }
+  }
+  return { nodes, pageInfo };
+}
+
+/** Unresolved threads, optionally narrowed to the ones GitHub marks outdated. */
+export function selectThreads(nodes, { outdatedOnly = false } = {}) {
+  return nodes
+    .filter((node) => node.isResolved === false)
+    .filter((node) => (outdatedOnly ? node.isOutdated === true : true));
+}
+
+export function formatThread(node) {
+  const comment = node.comments?.nodes?.[0]?.databaseId ?? "";
+  return [node.id, node.path ?? "", comment].join("\t");
+}
+
+function fetchPage(pr, after) {
+  return execFileSync(
+    "gh",
+    [
+      "api",
+      "graphql",
+      "-F",
+      "owner=hyodotdev",
+      "-F",
+      "name=openiap",
+      "-F",
+      `pr=${pr}`,
+      "-F",
+      `after=${after ?? "null"}`,
+      "-f",
+      `query=${QUERY}`,
+    ],
+    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+  );
+}
+
+export function listThreads(pr, { outdatedOnly = false, fetch = fetchPage } = {}) {
+  const collected = [];
+  let after = null;
+  for (;;) {
+    const { nodes, pageInfo } = parsePage(fetch(pr, after));
+    collected.push(...selectThreads(nodes, { outdatedOnly }));
+    if (!pageInfo.hasNextPage) return collected;
+    after = pageInfo.endCursor;
+  }
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+  const pr = Number(process.argv[2]);
+  const outdatedOnly = process.argv.includes("--outdated");
+  if (!Number.isInteger(pr) || pr <= 0) {
+    console.error("usage: node scripts/list-review-threads.mjs <pr> [--outdated]");
+    process.exit(2);
+  }
+  try {
+    for (const thread of listThreads(pr, { outdatedOnly })) {
+      console.log(formatThread(thread));
+    }
+  } catch (error) {
+    console.error(`thread listing incomplete: ${error.message}`);
+    console.error("do not call this round clean");
+    process.exit(1);
+  }
+}
