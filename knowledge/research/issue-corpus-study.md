@@ -15,7 +15,7 @@ a result.
 **Research question:** When developers integrate in-app purchases, which
 failures do they actually hit, how are those failures distributed across
 store, platform and framework, and where does responsibility sit — the SDK,
-the store, or the integration?
+the verification provider, the store, or the integration?
 
 ## Why this topic and not the protocol paper
 
@@ -129,10 +129,22 @@ Deleting the archive on publication would break the promise to make the coding
 disputable, because the threads it was coded from are editable and the raw
 hashes cannot reconstruct what was deleted. So the release carries, for every
 coded issue, the redacted excerpt its codes rest on and that excerpt's content
-hash: that is the evidence a disputant reads. The raw archive stays private
-until the coded corpus is published and any correction round on it has closed,
-and is deleted then, or twelve months after publication if no correction round
-opens.
+hash: that is the evidence a disputant reads.
+
+Redaction can still take the decisive detail with it — a code can turn on two
+identifiers matching, or on one field inside a receipt. Where it does, the
+excerpt records the property the code needed rather than the value that carried
+it: that two ids matched, that the environment field said sandbox. A code whose
+basis cannot survive that treatment is marked as resting on withheld evidence,
+so a reader can see which classifications they cannot check from the release
+alone, and the count of them is reported.
+
+The raw archive stays private until the coded corpus is published and any
+correction round on it closes, and is deleted then, or twelve months after
+publication if no correction round opens. If coding stops before publication —
+the pilot gate fails, or the study is abandoned — the archive is deleted when
+that decision is recorded, and in no case is it kept longer than twelve months
+after the export it came from.
 
 ## Coding scheme
 
@@ -158,10 +170,13 @@ Each issue receives:
   issue appearing twice in the archive, is excluded.
 - **Failure mode**, one or more codebook entries. Multiple labels are
   allowed; agreement on a multi-label variable is measured per label.
-- **Attributed responsibility**: integration, SDK, store, shared, or
-  undetermined. Assigned from the archived resolution, never from the
-  reporter's opinion, and reported as *attributed*, not as established cause,
-  unless the independent audit below is run.
+- **Attributed responsibility**: integration, SDK, provider, store, shared, or
+  undetermined. The mapping is fixed: the app's own use of the API is
+  integration, framework or native SDK code is SDK, IAPKit or the specification
+  is provider, store behavior or store documentation is store. Assigned from the
+  archived resolution, never from the reporter's opinion, and reported as
+  *attributed*, not as established cause, unless the independent audit below is
+  run.
 - **Store** and **platform** as two separate variables, because a store and
   the operating system it runs on are not the same axis and a single issue can
   name one without the other.
