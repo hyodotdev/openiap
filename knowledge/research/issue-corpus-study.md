@@ -123,9 +123,16 @@ anything matching a credential, token, receipt or address pattern is removed by
 rule, with the removal recorded; a coder who meets one the rule missed removes
 it and extends the rule. The issue number stays, so this is not anonymisation:
 anyone can open the thread. What the release avoids is republishing those
-strings in a form easier to mine than the tracker itself, and what the retention
-rule avoids is holding them longer than the study needs — the raw archive is
-deleted once the coded corpus and the agreement figures are published.
+strings in a form easier to mine than the tracker itself.
+
+Deleting the archive on publication would break the promise to make the coding
+disputable, because the threads it was coded from are editable and the raw
+hashes cannot reconstruct what was deleted. So the release carries, for every
+coded issue, the redacted excerpt its codes rest on and that excerpt's content
+hash: that is the evidence a disputant reads. The raw archive stays private
+until the coded corpus is published and any correction round on it has closed,
+and is deleted then, or twelve months after publication if no correction round
+opens.
 
 ## Coding scheme
 
@@ -159,12 +166,16 @@ Each issue receives:
   the operating system it runs on are not the same axis and a single issue can
   name one without the other.
 - **Framework**, multi-valued. An issue in a library repository carries that
-  library. A monorepo issue carries every framework its evidence names, and
-  `none` when it is about the backend or the specification rather than a
-  framework. A distribution by framework therefore counts an issue once per
-  framework it carries, states that denominator, and reports how many issues
-  carry more than one, so the overlap is visible rather than absorbed into a
-  single primary label.
+  library. A monorepo issue carries every framework its evidence names; failing
+  that, `native` when the evidence points at the Apple or Google package with no
+  consuming framework named, `backend` when it is about IAPKit or the
+  specification, and `undetermined` when the evidence settles neither. Those
+  three are values, not absences: a large share of monorepo issues name no
+  framework at all, and a rule that let those fall out of the variable would
+  quietly shrink the denominator. A distribution by framework
+  counts an issue once per framework it carries, states that denominator, and
+  reports the `native`, `backend` and `undetermined` counts beside it together
+  with how many issues carry more than one framework.
 
 `candidateCategories` in the mined records is a keyword triage aid used for
 stratified sampling only. It never becomes a label. Its distribution
