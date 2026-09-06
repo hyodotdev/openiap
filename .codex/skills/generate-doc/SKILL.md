@@ -211,8 +211,11 @@ project decision recorded from issue #206.
 For docs-only release-note edits, run:
 
 ```bash
-cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,js,jsx,css,json}"
-cd packages/docs && bun run build
+# Subshells: a bare `cd` would leave the next line inside packages/docs, where
+# the second `cd` fails and the root audits do not resolve.
+set -e
+(cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,js,jsx,css,json}")
+(cd packages/docs && bun run build)
 bun run audit:docs
 bun run audit:release-state
 git diff --check

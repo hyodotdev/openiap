@@ -181,6 +181,11 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
 
 Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call to stop the loop once all threads are resolved.
 
+On a surface with no scheduler, finish the current round, say plainly that
+automatic re-entry could not be scheduled, and hand the next poll back to the
+user. Never emulate the wait with `sleep`, a `while` loop, or an abandoned
+background process.
+
 Guard against infinite loops: if a reviewer keeps flagging the same finding after two fix attempts, stop scheduling wake-ups and hand back to the user with a summary of what remains disputed.
 
 ### Cleanup Review Automation Comments
@@ -238,10 +243,10 @@ gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies \
 
 ```bash
 # Get unresolved thread IDs
-gh api graphql -f query='
-query {
+gh api graphql -F pr="$PR_NUMBER" -f query='
+query($pr: Int!) {
   repository(owner: "hyodotdev", name: "openiap") {
-    pullRequest(number: $PR_NUMBER) {
+    pullRequest(number: $pr) {
       reviewThreads(first: 50) {
         nodes {
           id
@@ -257,9 +262,9 @@ query {
 }'
 
 # Resolve a specific thread
-gh api graphql -f query='
-mutation {
-  resolveReviewThread(input: {threadId: "$THREAD_ID"}) {
+gh api graphql -f threadId="$THREAD_ID" -f query='
+mutation($threadId: ID!) {
+  resolveReviewThread(input: {threadId: $threadId}) {
     thread { id isResolved }
   }
 }'

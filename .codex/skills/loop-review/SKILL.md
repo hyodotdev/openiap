@@ -91,9 +91,11 @@ minutes through the product's recurring wake-up mechanism.
 For every round:
 
 1. Fetch unresolved threads, review status, current head SHA, and required CI.
-2. Fix all valid findings in one coherent batch; push, reply to the exact inline
-   comments, and resolve only fixed or outdated threads under the command rules.
-3. Rerun the checks affected by the batch plus all previously failing checks.
+2. Fix all valid findings in one coherent batch, then rerun the checks affected
+   by it plus all previously failing checks. Verification comes before
+   publication: a reply saying "fixed" must already have evidence behind it.
+3. Push, reply to the exact inline comments, and resolve only fixed or outdated
+   threads under the command rules.
 4. Request CodeRabbit again after a head change.
 5. If CodeRabbit is unavailable, use the exact-head one-pass `$review-self`
    fallback defined by `review-pr`; never substitute another reviewer.

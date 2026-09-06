@@ -147,8 +147,10 @@ link; `/showcase` lists everything.
 
 ## 6. Close the loop
 
-- Reply to the submission thread (discussion #350, PR, or email) confirming
-  the app is listed, and note that updates or removal are available anytime.
+- Reply to the submission thread (discussion #350, PR, or email) only once the
+  card is live on openiap.dev, and say so from the deployed page rather than a
+  local build. Until then the work is prepared, not listed. Note that updates or
+  removal are available anytime.
 - Public GitHub replies must be in English — see
   `knowledge/internal/06-git-deployment.md`.
 - Commit with a lowercase subject after the tag, e.g.

@@ -192,8 +192,9 @@ git push -u origin <branch-name>
 
 ### 6a. Record The Preview Before Opening The PR
 
-Record it before step 7, not after: once the PR URL exists the run feels
-finished, and this is the step that gets dropped.
+Record and compress it here, before the PR exists. Uploading needs the PR and so
+happens in step 7a, but a recording made only after the URL is in hand never
+gets made — that is how this step used to be lost.
 
 For every PR that adds a new feature, visible behavior change, UI change,
 documentation page, example flow, or developer workflow:
@@ -202,20 +203,10 @@ documentation page, example flow, or developer workflow:
    Extension for web/docs/dashboard previews.
 2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
    resolution / frame rate when needed.
-3. Upload the compressed recording to the GitHub PR as a PR body attachment or a
-   clearly labeled attached `Preview` comment.
-   Never commit one-off PR preview recordings, including under
-   `.github/pr-previews/`. Create them in a temporary or ignored local path,
-   upload them as GitHub attachments, verify the attachment, then delete the
-   local files. Only commit media that is itself product documentation or an
-   example asset intended to ship with the repository.
-   If browser or extension permissions block the attachment, stop and ask the
-   maintainer to enable file uploads; do not force-add the recording as a Git
-   fallback.
-4. Link/embed the GitHub-hosted recording in the PR body or preview comment.
 
-If there is no visual or interactive surface, add a short PR note explaining why
-recording is not applicable and include the best terminal/API proof instead.
+Write it to a temporary or ignored local path. Never commit one-off PR preview
+recordings, including under `.github/pr-previews/`; only media that is itself
+product documentation or a shipped example asset belongs in the repository.
 Never include secrets, private customer data, or browser profile details in the
 recording.
 
@@ -228,6 +219,9 @@ requested a prerelease train. Never target prerelease version-only commits at
 ```bash
 PR_BASE=main # set to next only for an explicit prerelease train
 PR_LABELS="<comma-separated, from the guide in step 8>"
+# If --label fails with a Projects (classic) GraphQL error, create the PR
+# without it and apply the labels through the REST call in
+# `.claude/commands/resolve-issue.md` step 4e.
 gh pr create --base "$PR_BASE" --label "$PR_LABELS" \
   --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 <What changed and why it matters, in a sentence or two. No preamble.>
@@ -241,6 +235,18 @@ CI. Headings only for a change that spans packages.>
 EOF
 )"
 ```
+
+### 7a. Attach The Recording
+
+Upload the step 6a recording to the PR as a body attachment or a clearly
+labeled `Preview` comment, embed the GitHub-hosted link, and confirm it renders.
+Delete the local file afterwards. The PR is not handed off until this is done.
+If browser or extension permissions block the upload, stop and ask the
+maintainer to enable file uploads; never force-add the recording as a Git
+fallback.
+
+If there is no visual or interactive surface, add a short PR note explaining why
+recording is not applicable and include the best terminal or API proof instead.
 
 ### 8. Verify the Labels Landed
 
@@ -423,5 +429,5 @@ git commit -m "docs: update documentation"
 git add .
 git commit -m "chore: update skills and knowledge"
 git push -u origin feat/my-feature
-gh pr create --title "feat: add new feature" --body "..."
+gh pr create --label "<labels from step 8>" --title "feat: add new feature" --body "..."
 ```
