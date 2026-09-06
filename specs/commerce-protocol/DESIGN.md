@@ -86,22 +86,22 @@ settlement, or amount to a complete commerce platform.
 
 ## 2. What this reasoning rests on
 
-The boundaries below are not invented here. Two decades of results show integrations
-failing at the seams with the cryptography intact: logic flaws at the
-merchant-cashier boundary let shoppers pay nothing without breaking
+The boundaries below are not invented here. Two decades of results show
+integrations failing at the seams with the cryptography intact: logic flaws
+at the merchant-cashier boundary let shoppers pay nothing without breaking
 anything [[12]](#ref-12); automatically rewriting apps so on-device checks
 returned success defeated in-app billing [[11]](#ref-11), and a later attack
 reached the same result by instrumenting the running app [[1]](#ref-1);
 flawed third-party payment integrations were traced to SDK design,
 documentation and sample code [[2]](#ref-2), and a decade after the
 cashier-as-a-service results the same class of flaw was still being reported
-[[13]](#ref-13). One result shaped this document's form
-more than the others: Chen et al. found payment-integration requirements a
-developer cannot enforce, because the parameters a check would need are not
-available to the party asked to perform it, and because guidance omits checks
-that are required [[22]](#ref-22). The conclusion we draw from that is ours,
-not theirs: an obligation written only as advice is one an implementation
-cannot be failed against, so this contract states what can be checked.
+[[13]](#ref-13). One result shaped this document's form more than the
+others: Chen et al. found payment-integration requirements a developer
+cannot enforce, because the parameters a check would need are not available
+to the party asked to perform it, and because guidance omits checks that are
+required [[22]](#ref-22). The conclusion we draw from that is ours, not
+theirs: an obligation written only as advice is one an implementation cannot
+be failed against, so this contract states what can be checked.
 
 The event rules come from the same place. Repeated messages need
 application-level handling and often remembered state, and an operation that
@@ -114,12 +114,14 @@ Three of the design choices here have a source, though the choices remain
 ours. Deriving tests from a model rather than from an implementation is an
 established method [[8]](#ref-8), and generating stateful requests from a
 service's own specification finds real defects [[15]](#ref-15) — in that work,
-through server errors. Reading the answer for whether it means what the prose
-requires is a further step those results do not take, and it is why the
-vectors here carry expected outcomes rather than only well-formed requests.
-Those outcomes are reviewed apart from the implementations because independent
-implementations can share an error, which is a finding [[9]](#ref-9); reviewing
-them separately is our response to it, not a remedy that paper establishes. And an unavailable verifier and an incomplete
+through server errors. The vectors here carry expected outcomes drawn from the
+normative prose, so they check required behavior rather than only request
+validity or a server error. Those outcomes are reviewed apart from the
+implementations because independent implementations can share an error, which
+is a finding [[9]](#ref-9); reviewing them separately is our response to it,
+not a remedy that paper establishes.
+
+And an unavailable verifier and an incomplete
 read get explicit rules rather than being left to each implementer, because
 catastrophic failures concentrate in already-signalled errors that were
 mishandled — 92% against 25% for non-catastrophic ones, in five distributed
@@ -328,9 +330,10 @@ Provider delivery is duplicate-capable and unordered. An event can be
 accepted zero times if delivery permanently fails or its retry budget is
 exhausted. The emitter preserves event identity and body across retries,
 while transport signing, an HMAC-SHA256 [[20]](#ref-20) over the attempt's
-timestamp and the exact body bytes, uses the current attempt's timestamp. Consumers
-deduplicate within the emitter's identity context and handle substantive
-effects idempotently. Retries do not supply an exactly-once guarantee.
+timestamp and the exact body bytes, uses the current attempt's timestamp.
+Consumers deduplicate within the emitter's identity context and handle
+substantive effects idempotently. Retries do not supply an exactly-once
+guarantee.
 
 When a consumer can correlate a stable purchase, an older snapshot cannot
 overwrite newer state. This does not make every effect of an older event
@@ -390,8 +393,8 @@ states exactly what the current tests do and do not establish; the
 states what would settle the open questions.
 
 Some work stays with you, and one gap is worth naming precisely. For a read,
-the contract does compose: §4.3 returns every product the user may access right
-now, deduplicated, together with the subscription records whose open gates
+the contract does compose: SPEC §4.3 returns every product the user may access
+right now, deduplicated, together with the subscription records whose open gates
 produced them, so a second still-active record is accounted for. The gap is in
 attribution and in the event model. The gate is per user and product, so an
 entitlement event carries both, but a product change moves one subscription
@@ -415,22 +418,22 @@ old observation current.
 ## 6. When this is worth adopting
 
 Start by reading Table 1 against the code you already have. That costs an
-hour and needs no adoption at all. Find where
-your verification call fails and confirm the failure does not become a
-rejection. Find your cancellation handler and confirm it does not close
-access before the paid period ends. Write one test that delivers a valid
-entitlement snapshot after its own expiry and assert your gate stays closed.
-Passing all three does not mean the integration is right; it means these
-three failures did not appear in the cases you exercised. Account authority, duplicate effects and
+hour and needs no adoption at all. Find where your verification call fails
+and confirm the failure does not become a rejection. Find your cancellation
+handler and confirm it does not close access before the paid period ends.
+Write one test that delivers a valid entitlement snapshot after its own
+expiry and assert your gate stays closed. Passing all three does not mean
+the integration is right; it means these three failures did not appear in
+the cases you exercised. Account authority, duplicate effects and
 portability are untested by them, and Table 1 is where to look next.
 
 If one fails, the smallest useful step is still not adoption. For the
 verification case it is SPEC §4.1's separation of a rejected verdict from an
 operation error, so an unreachable verifier stops producing a negative
-purchase verdict. For the other two it is the entitlement predicate in
-SPEC §2.3, which SPEC §4.3 answers at a stated read time: evaluate access from state and
-expiry, and stop reading a lifecycle label as an access decision. Both are changes inside your
-own code.
+purchase verdict. For the other two it is the entitlement predicate in SPEC
+§2.3, which SPEC §4.3 answers at a stated read time: evaluate access from
+state and expiry, and stop reading a lifecycle label as an access decision.
+Both are changes inside your own code.
 
 Adopt the contract itself when you verify on a server for more than one
 store, and want one decision to hold across stores whose evidence,
@@ -444,15 +447,14 @@ authoritative but store-specific by construction, so using them directly
 leaves the cross-store decision to you. A hosted entitlement service makes
 that decision for you and documents it well. The mature ones publish their
 cancellation, expiration and grace semantics, their duplicate handling, and
-their versioning and deprecation commitments, and you can hold them to all of
-it.
-What that documentation describes is how to use one service. Its semantics are
-that service's own commitment rather than an obligation any other provider has
-taken on. This contract is the third option: the same
-decisions written as a specification any provider can implement, with one set
-of checks that runs against all of them. It is younger and less proven than either
-alternative, and it does not run anything for you. A relevant analogue in shape
-is TM Forum's Product Inventory Management API
+their versioning and deprecation commitments, and you can hold them to all
+of it. What that documentation describes is how to use one service. Its
+semantics are that service's own commitment rather than an obligation any
+other provider has taken on. This contract is the third option: the same
+decisions written as a specification any provider can implement, with one
+set of checks that runs against all of them. It is younger and less proven
+than either alternative, and it does not run anything for you. A relevant
+analogue in shape is TM Forum's Product Inventory Management API
 [[24]](#ref-24), a standard carrying a conformance profile and a test kit,
 though what it standardizes is product inventory and its lifecycle
 notifications for telecommunications rather than store purchase evidence and
@@ -498,9 +500,10 @@ Vendor documentation; accessed 5 September 2026.
 
 <a id="ref-4"></a>
 
-[4] Apple. _status._ App Store Server Notifications documentation.
-Vendor documentation; accessed 5 September 2026 through its Markdown representation.
-[Status definition](https://developer.apple.com/documentation/appstoreservernotifications/status).
+[4] Apple. _status._ App Store Server Notifications documentation. Vendor
+documentation; accessed 5 September 2026 through its Markdown
+representation. [Status
+definition](https://developer.apple.com/documentation/appstoreservernotifications/status).
 
 <a id="ref-5"></a>
 
