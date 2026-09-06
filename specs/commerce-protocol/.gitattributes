@@ -6,3 +6,7 @@ generated/bindings/* text eol=lf linguist-generated=true
 generated/openapi/*.json text eol=lf linguist-generated=true
 generated/commerce-protocol.graphql text eol=lf linguist-generated=true
 schema/*.graphql text eol=lf
+
+# Hashed by scripts/build-whitepaper.sh and byte-compared by
+# `bun audit:whitepaper`, so a CRLF checkout would fail the comparison.
+DESIGN.md text eol=lf

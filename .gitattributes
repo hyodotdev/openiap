@@ -1,0 +1,7 @@
+# Hashed by scripts/build-whitepaper.sh and byte-compared by
+# `bun audit:whitepaper`, so a CRLF checkout would fail the comparison.
+scripts/build-whitepaper.sh text eol=lf
+scripts/whitepaper.css text eol=lf
+scripts/mermaid.json text eol=lf
+scripts/whitepaper.sha256 text eol=lf
+packages/docs/public/commerce-protocol-rationale.pdf binary

@@ -17,6 +17,11 @@ it does not sit in the path of anyone's commerce.
 
 **[Read the specification →](./SPEC.md)**
 
+[DESIGN.md](./DESIGN.md) explains why the boundaries sit where they do. It is
+background, not normative: where the two disagree, `SPEC.md` is right. It is
+also published as a PDF at
+<https://www.openiap.dev/commerce-protocol-rationale.pdf>.
+
 The contract sits between the stores and everything downstream of a backend:
 
 ```mermaid
@@ -59,6 +64,7 @@ validators and drift checks.
 | ------------------------- | --------------------------------------------------------------------------- |
 | `schema/`                 | Authored type, operation, and validation contract layers — edit these       |
 | `SPEC.md`                 | Normative meaning, operations, bindings, transport, and compatibility rules |
+| `DESIGN.md`               | Why the boundaries sit where they do — background, never normative          |
 | `generated/`              | Compiler output: schemas, binding manifests, OpenAPI, and vectors           |
 | `examples/`               | Canonical documents that must validate                                      |
 | `vectors/signatures.json` | Signature vectors every implementation must reproduce                       |

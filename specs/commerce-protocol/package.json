@@ -53,6 +53,7 @@
     "README.md",
     "CONVENTION.md",
     "SPEC.md",
+    "DESIGN.md",
     "schema",
     "generated",
     "examples",

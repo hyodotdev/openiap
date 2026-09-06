@@ -24,6 +24,7 @@
     "audit:docs": "bun run scripts/audit-docs.ts",
     "audit:schema-semver": "bun run --cwd specs/client audit:schema-semver",
     "audit:research": "node --test scripts/audit-research.test.mjs && node scripts/audit-research.mjs",
+    "audit:whitepaper": "node --test scripts/audit-whitepaper.test.mjs && node scripts/audit-whitepaper.mjs",
     "research:mine-issues": "node --test scripts/mine-iap-issues.test.mjs && node scripts/mine-iap-issues.mjs",
     "audit:dependencies": "node scripts/audit-security.mjs dependencies",
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",

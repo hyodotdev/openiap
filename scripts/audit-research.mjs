@@ -17,6 +17,7 @@ const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 const BIBLIOGRAPHY = "knowledge/research/bibliography.md";
 const BACKLOG = "knowledge/research/backlog.md";
 const MISUSE_CATALOG = "knowledge/research/misuse-catalog.md";
+const DESIGN_RATIONALE = "specs/commerce-protocol/DESIGN.md";
 const RESEARCH_PAGE = "packages/docs/src/pages/docs/foundation/research.tsx";
 const DOCS_PAGES_ROOT = "packages/docs/src/pages/docs";
 const DOCS_SRC_ROOT = "packages/docs/src";
@@ -26,6 +27,7 @@ const PATH_PREFIXES = [
   "scripts/",
   "libraries/",
   "knowledge/",
+  "specs/",
   ".github/",
 ];
 
@@ -149,20 +151,32 @@ function docsSourceFiles() {
   return collected;
 }
 
+/**
+ * Scanned for cite keys whatever they happen to link to. The research folder is
+ * the citing surface by definition, and the design rationale cites the same
+ * literature from outside it; neither may leave the net by dropping a link.
+ */
+export function unconditionalCitingFiles(researchDirEntries) {
+  return [
+    ...researchDirEntries
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => `knowledge/research/${name}`),
+    DESIGN_RATIONALE,
+  ];
+}
+
 function filesCitingBibliography() {
+  // -I skips binary files: the published PDF carries the bibliography path in a
+  // link annotation, and reading its bytes as text would feed random tokens to
+  // the cite-key check.
   const stdout = execFileSync(
     "git",
-    ["grep", "-l", "--untracked", "knowledge/research/bibliography"],
+    ["grep", "-lI", "--untracked", "knowledge/research/bibliography"],
     { cwd: repositoryRoot, encoding: "utf8" },
   );
   const discovered = stdout.split("\n").filter(Boolean);
-  // The research folder is the citing surface by definition — a file there
-  // must not escape the net just because it omits the bibliography path.
   const researchDir = path.join(repositoryRoot, "knowledge", "research");
-  const unconditional = fs
-    .readdirSync(researchDir)
-    .filter((name) => name.endsWith(".md"))
-    .map((name) => `knowledge/research/${name}`);
+  const unconditional = unconditionalCitingFiles(fs.readdirSync(researchDir));
   return [...new Set([...discovered, ...unconditional])].filter(
     (file) =>
       file !== BIBLIOGRAPHY &&

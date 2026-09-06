@@ -12,6 +12,7 @@ import {
   bareResearchFileReferences,
   repoPathReferences,
   suiteVersionLiterals,
+  unconditionalCitingFiles,
 } from "./audit-research.mjs";
 
 const BIB_FIXTURE = `# Bibliography
@@ -56,6 +57,7 @@ test("applied references come only from Applied bullets", () => {
 test("repo path filter keeps whitelisted real paths and drops globs", () => {
   const paths = repoPathReferences([
     "packages/conformance/src/spec/behaviors.mjs",
+    "specs/commerce-protocol/DESIGN.md",
     "specs/client/src/*.graphql",
     "src/spec/behaviors.mjs",
     "bun run audit:schema-semver",
@@ -63,8 +65,22 @@ test("repo path filter keeps whitelisted real paths and drops globs", () => {
   ]);
   assert.deepEqual(paths, [
     "packages/conformance/src/spec/behaviors.mjs",
+    "specs/commerce-protocol/DESIGN.md",
     ".github/workflows/ci.yml",
   ]);
+});
+
+test("cite-key scanning covers research files and the design rationale", () => {
+  // Discovery by git grep is not enough: a document that drops its bibliography
+  // link would silently leave the net.
+  assert.deepEqual(
+    unconditionalCitingFiles(["bibliography.md", "backlog.md", "datasets.txt"]),
+    [
+      "knowledge/research/bibliography.md",
+      "knowledge/research/backlog.md",
+      "specs/commerce-protocol/DESIGN.md",
+    ],
+  );
 });
 
 test("docs slugs match section/page shape only", () => {

@@ -370,6 +370,9 @@ jobs:
       - name: Audit research references
         run: npm run audit:research
 
+      - name: Audit whitepaper freshness
+        run: npm run audit:whitepaper
+
       - name: Test issue-mining script
         run: node --test scripts/mine-iap-issues.test.mjs
 
