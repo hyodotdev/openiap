@@ -290,21 +290,30 @@ query($pr: Int!, $after: String) {
     }
   }
 }')"; then incomplete=1; break; fi
-  # A failed fetch must not read as "no more pages".
-  if ! printf '%s\n' "$page" \
-    | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo' >/dev/null; then
+  # Neither a failed fetch nor a malformed page may read as "no more pages",
+  # so check the shape before trusting anything in it.
+  if ! printf '%s\n' "$page" | jq -e '
+      .data.repository.pullRequest.reviewThreads
+      | (.nodes | type == "array")
+        and (.pageInfo.hasNextPage | type == "boolean")' >/dev/null; then
     incomplete=1; break
   fi
-  printf '%s\n' "$page" | jq -r '
-    .data.repository.pullRequest.reviewThreads.nodes[]
-    | select(.isResolved == false)
-    | "\(.id)\t\(.path)\t\(.comments.nodes[0].databaseId)"'
+  if ! printf '%s\n' "$page" | jq -r '
+      .data.repository.pullRequest.reviewThreads.nodes[]
+      | select(.isResolved == false)
+      | "\(.id)\t\(.path)\t\(.comments.nodes[0].databaseId)"'; then
+    incomplete=1; break
+  fi
   [ "$(printf '%s\n' "$page" \
     | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" = "true" ] || break
   after="$(printf '%s\n' "$page" \
     | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
+  case "$after" in "" | null) incomplete=1; break;; esac
 done
-[ "$incomplete" = 0 ] || echo "thread listing incomplete — do not call this round clean" >&2
+if [ "$incomplete" != 0 ]; then
+  echo "thread listing incomplete — do not call this round clean" >&2
+  false
+fi
 
 # Resolve a specific thread
 gh api graphql -f threadId="$THREAD_ID" -f query='
@@ -319,9 +328,10 @@ Resolved threads count against the page size, so a long-running PR can push
 actionable ones past it. Both loops above page with `after` until
 `hasNextPage` is false; a round is not clean until the last page has been read.
 `-F after=null` sends a real JSON null, which is what the first page needs. A
-failed fetch is not the end of the list: both loops check the request and the
-response shape, and say the listing is incomplete rather than letting an error
-read as "no more pages".
+failed fetch is not the end of the list, and neither is a malformed page: both
+loops require `nodes` to be an array and `hasNextPage` to be a boolean, require
+a cursor when another page is promised, and end non-zero with "listing
+incomplete" rather than letting an error read as "no more pages".
 
 **Thread Resolution Rules:**
 
@@ -350,15 +360,20 @@ query($owner:String!,$name:String!,$pr:Int!,$after:String) {
 }' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER -F after="$after")"; then
   incomplete=1; break
 fi
-if ! printf '%s\n' "$page" \
-  | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo' >/dev/null; then
+if ! printf '%s\n' "$page" | jq -e '
+    .data.repository.pullRequest.reviewThreads
+    | (.nodes | type == "array")
+      and (.pageInfo.hasNextPage | type == "boolean")' >/dev/null; then
   incomplete=1; break
 fi
-printf '%s\n' "$page" | jq -r '
+if ! outdated="$(printf '%s\n' "$page" | jq -r '
   .data.repository.pullRequest.reviewThreads.nodes[]
   | select(.isResolved == false)
   | select(.isOutdated == true)
-  | .id' | while read tid; do
+  | .id')"; then
+  incomplete=1; break
+fi
+printf '%s\n' "$outdated" | while read tid; do
   [ -n "$tid" ] && gh api graphql -f query='
     mutation($id:ID!) {
       resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } }
@@ -368,8 +383,12 @@ done
   | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')" = "true" ] || break
 after="$(printf '%s\n' "$page" \
   | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
+case "$after" in "" | null) incomplete=1; break;; esac
 done
-[ "$incomplete" = 0 ] || echo "outdated sweep incomplete — do not call this round clean" >&2
+if [ "$incomplete" != 0 ]; then
+  echo "outdated sweep incomplete — do not call this round clean" >&2
+  false
+fi
 ```
 
 Threads that the author has already replied to still show up in the "unresolved" list on the next round — that is intentional so the reviewer can confirm the fix landed and either agree (resolve manually / mark fixed) or push back. Resolving them as soon as the author replies would silence legitimate follow-up feedback.
