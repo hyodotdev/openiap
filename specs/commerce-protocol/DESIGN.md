@@ -86,7 +86,7 @@ settlement, or amount to a complete commerce platform.
 
 ## 2. What this reasoning rests on
 
-The boundaries below are not invented here. Two decades of results show
+The boundaries below are not invented here. A decade of results shows
 integrations failing at the seams with the cryptography intact: logic flaws
 at the merchant-cashier boundary let shoppers pay nothing without breaking
 anything [[12]](#ref-12); automatically rewriting apps so on-device checks
