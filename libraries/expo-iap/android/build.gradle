@@ -2,7 +2,10 @@ import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+// AGP 9 registers Kotlin itself unless the consumer opts out.
+if (project.extensions.findByName('kotlin') == null) {
+  apply plugin: 'kotlin-android'
+}
 
 group = 'expo.modules.iap'
 
@@ -79,6 +82,9 @@ if (useManagedAndroidSdkVersions) {
 
 android {
   namespace = "expo.modules.iap"
+  buildFeatures {
+    buildConfig = true
+  }
   defaultConfig {
     versionCode = 1
     versionName = expoIapPackageVersion
