@@ -47,9 +47,12 @@ Inspect the complete commit message, PR title, and PR body before sending them.
 Write the PR title and body for a human reviewer, following
 `knowledge/internal/06-git-deployment.md#public-github-communication-style`.
 Lead with what changed and why it matters, keep sentences short and the words
-ordinary, and stay under 60 lines. Group findings of the same shape into one
-paragraph instead of enumerating each. Reread the body before sending and cut
-anything that does not change what the reviewer does next.
+ordinary, and keep the body to a few short paragraphs — ten lines is normal,
+thirty is the ceiling. Drop the `## Summary` / `## Changes` / test-plan
+scaffolding unless the change genuinely spans packages. Group findings of the
+same shape into one paragraph instead of enumerating each. Reread the body
+before sending and cut anything that does not change what the reviewer does
+next.
 
 ### Internal Workflow Guard
 
@@ -187,6 +190,26 @@ EOF
 git push -u origin <branch-name>
 ```
 
+### 6a. Record The Preview Before Opening The PR
+
+Record and compress it here, before the PR exists. Uploading needs the PR and so
+happens in step 7a, but a recording made only after the URL is in hand never
+gets made — that is how this step used to be lost.
+
+For every PR that adds a new feature, visible behavior change, UI change,
+documentation page, example flow, or developer workflow:
+
+1. Render the actual changed surface after implementation. Use the Codex Chrome
+   Extension for web/docs/dashboard previews.
+2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
+   resolution / frame rate when needed.
+
+Write it to a temporary or ignored local path. Never commit one-off PR preview
+recordings, including under `.github/pr-previews/`; only media that is itself
+product documentation or a shipped example asset belongs in the repository.
+Never include secrets, private customer data, or browser profile details in the
+recording.
+
 ### 7. Create Pull Request
 
 Use `main` as the default base. Use `next` only when the maintainer explicitly
@@ -195,78 +218,79 @@ requested a prerelease train. Never target prerelease version-only commits at
 
 ```bash
 PR_BASE=main # set to next only for an explicit prerelease train
-gh pr create --base "$PR_BASE" --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
-<One or two sentences: what changed and why it matters. No preamble.>
+PR_LABELS="<comma-separated, from the guide in step 8>"
+# If --label fails with a Projects (classic) GraphQL error, create the PR
+# without it and apply the labels through the REST call in
+# `.claude/commands/resolve-issue.md` step 4e.
+gh pr create --base "$PR_BASE" --label "$PR_LABELS" \
+  --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
+<What changed and why it matters, in a sentence or two. No preamble.>
 
-## What changed
-
-<A short paragraph per theme, or a few bullets. Group related changes rather
-than listing every file. Name the user-visible effect, not the implementation
-narrative.>
-
-## Checks
-
-<The commands that were run and their result, on one line each.>
+<One short paragraph per remaining theme, only if the first paragraph does not
+already cover it. Name the user-visible effect, not the implementation
+narrative. Add a one-line `Checks:` when a reviewer cannot see the result in
+CI. Headings only for a change that spans packages.>
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
 
-### 7a. Upload Preview Recording
+### 7a. Attach The Recording
 
-For every PR that adds a new feature, visible behavior change, UI change,
-documentation page, example flow, or developer workflow, record a preview before
-handoff:
-
-1. Render the actual changed surface after implementation. Use the Codex Chrome
-   Extension for web/docs/dashboard previews.
-2. Compress the final recording to **under 10 MB**. Prefer H.264 MP4 with lower
-   resolution / frame rate when needed.
-3. Upload the compressed recording to the GitHub PR as a PR body attachment or a
-   clearly labeled attached `Preview` comment.
-   Never commit one-off PR preview recordings, including under
-   `.github/pr-previews/`. Create them in a temporary or ignored local path,
-   upload them as GitHub attachments, verify the attachment, then delete the
-   local files. Only commit media that is itself product documentation or an
-   example asset intended to ship with the repository.
-   If browser or extension permissions block the attachment, stop and ask the
-   maintainer to enable file uploads; do not force-add the recording as a Git
-   fallback.
-4. Link/embed the GitHub-hosted recording in the PR body or preview comment.
+Upload the step 6a recording to the PR as a body attachment or a clearly
+labeled `Preview` comment, embed the GitHub-hosted link, and confirm it renders.
+Delete the local file afterwards. The PR is not handed off until this is done.
+If browser or extension permissions block the upload, stop and ask the
+maintainer to enable file uploads; never force-add the recording as a Git
+fallback.
 
 If there is no visual or interactive surface, add a short PR note explaining why
-recording is not applicable and include the best terminal/API proof instead.
-Never include secrets, private customer data, or browser profile details in the
-recording.
+recording is not applicable and include the best terminal or API proof instead.
 
-### 8. Add Labels to PR
+### 8. Verify the Labels Landed
 
-After creating the PR, add appropriate labels based on the changes.
-First list available labels with `gh label list`, then add matching ones:
+Labeling rides on `gh pr create --label` above, so it is not a trailing step
+that can be dropped. Confirm it before reporting the PR:
 
 ```bash
-gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
+gh pr view <PR_NUMBER> --json labels -q '[.labels[].name]'
 ```
 
-**Label selection guide:**
+An empty array means the `--pr` run is unfinished. Add them with
+`gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"`. Check spelling against
+`gh label list`: `gh` rejects a label that does not exist, and the emoji labels
+must match byte for byte.
 
-- Changes to `packages/apple/` → `📱 iOS`
-- Changes to `packages/google/` → `🤖 android`
-- Changes to `packages/docs/` → `📖 documentation`
-- Changes to `specs/client/` → `⬡ gql`
-- Changes to `libraries/react-native-iap/` → `react-native-iap`
-- Changes to `libraries/expo-iap/` → `expo-iap`
-- Changes to `libraries/flutter_inapp_purchase/` → `flutter-iap`
-- Changes to `libraries/godot-iap/` → `godot-iap`
-- Changes to `libraries/kmp-iap/` → `kmp-iap`
-- Changes across multiple platforms → `cross-platform`
-- New features → `🎯 feature`
-- PR bug fixes → `🛠 bugfix`
-- Breaking changes → `⚡️ breaking`
-- Documentation only → `📖 documentation`
-- CI/CD changes → `💨 ci`
-- Refactoring → `፦ refactor`
+**Label selection guide.** One label for every area the diff touches, plus one
+for the kind of change:
+
+| Changed path                          | Label              |
+| ------------------------------------- | ------------------ |
+| `packages/apple/`                     | `📱 iOS`           |
+| `packages/google/`                    | `🤖 android`       |
+| `packages/docs/`                      | `📖 documentation` |
+| `packages/kit/`                       | `kit`              |
+| `specs/client/`                       | `⬡ gql`            |
+| `specs/commerce-protocol/`            | `⬡ gql`            |
+| `libraries/react-native-iap/`         | `react-native-iap` |
+| `libraries/expo-iap/`                 | `expo-iap`         |
+| `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |
+| `libraries/godot-iap/`                | `godot-iap`        |
+| `libraries/kmp-iap/`                  | `kmp-iap`          |
+| `libraries/maui-iap/`                 | `maui-iap`         |
+| `.github/workflows/` or `scripts/`    | `💨 ci`            |
+| `.claude/`, `.codex/`, `AGENTS.md`    | `🕶️ meta`          |
+| `knowledge/`                          | `🕶️ meta`          |
+| several platforms at once             | `cross-platform`   |
+
+| Kind of change   | Label           |
+| ---------------- | --------------- |
+| New feature      | `🎯 feature`    |
+| Bug fix          | `🛠 bugfix`     |
+| Breaking change  | `⚡️ breaking`  |
+| Refactor         | `፦ refactor`    |
+| Tests only       | `🧪 test`       |
 
 ---
 
@@ -369,45 +393,18 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 
 ## Example PR Body
 
+The same change, written for someone who has to review it. Everything a
+reviewer does not need in order to act is in the commit messages.
+
 ```markdown
-## Summary
+Win-back offers (iOS 18+), JWS promotional offers back-deployed to iOS 15, and
+`ProductStatusAndroid` for Billing 8.0 status codes. The GraphQL types are the
+source; Apple, Google and the docs follow from the regenerated output.
 
-- Add Win-Back offers support for iOS 18+
-- Add ProductStatusAndroid for Billing 8.0+ status codes
-- Add JWS promotional offers for WWDC 2025
+`fetchProducts` now returns a status on Android, so a partial result is
+distinguishable from an empty catalogue.
 
-## Changes
-
-### GraphQL Schema (specs/client)
-
-- `WinBackOfferInputIOS` - Win-back offer input type
-- `ProductStatusAndroid` - Product fetch status enum
-- `PromotionalOfferJWSInputIOS` - JWS format promo offers
-
-### iOS (packages/apple)
-
-- Implement win-back offer handling in purchase flow
-- Add JWS promotional offer support (back-deployed to iOS 15)
-- Add introductory offer eligibility override
-
-### Android (packages/google)
-
-- Map ProductStatusAndroid from BillingResult
-- Return status in fetchProducts response
-
-### Documentation (packages/docs)
-
-- Release notes for v1.3.13
-- Type documentation updates
-- Example code updates
-
-## Test plan
-
-- [x] `swift build` passes
-- [x] `./gradlew :openiap:compilePlayDebugKotlin` passes
-- [x] `./gradlew :openiap:compileHorizonDebugKotlin` passes
-- [x] `./gradlew :openiap:compileAmazonDebugKotlin` passes
-- [x] `bun run typecheck` passes (docs)
+Checks: swift build, the three Gradle flavor compiles, docs typecheck.
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
@@ -432,5 +429,5 @@ git commit -m "docs: update documentation"
 git add .
 git commit -m "chore: update skills and knowledge"
 git push -u origin feat/my-feature
-gh pr create --title "feat: add new feature" --body "..."
+gh pr create --label "<labels from step 8>" --title "feat: add new feature" --body "..."
 ```

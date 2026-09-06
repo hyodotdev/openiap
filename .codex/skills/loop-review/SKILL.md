@@ -22,7 +22,19 @@ Read these before acting:
 - `.claude/commands/review-pr.md`
 - `.claude/commands/release.md`
 
-Load package conventions and specialized skills required by the changed paths.
+Check what the change touches before reading any of them from the branch:
+
+```bash
+git diff --name-only "$(git merge-base origin/main HEAD)"..HEAD
+```
+
+If the change is in scope of "A PR Must Not Rewrite The Rules That Judge It" in
+`.claude/commands/review-pr.md`, read every file above — and that section
+itself — from the recorded merge base for the whole run. That section defines
+the scope; do not restate it here.
+
+Load package conventions and specialized skills required by the changed paths
+the same way.
 An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
 thread resolution, merge, affected stable package releases, release-note and
@@ -91,20 +103,24 @@ minutes through the product's recurring wake-up mechanism.
 For every round:
 
 1. Fetch unresolved threads, review status, current head SHA, and required CI.
-2. Fix all valid findings in one coherent batch; push, reply to the exact inline
-   comments, and resolve only fixed or outdated threads under the command rules.
-3. Rerun the checks affected by the batch plus all previously failing checks.
+2. Fix all valid findings in one coherent batch, then rerun the checks affected
+   by it plus all previously failing checks. Verification comes before
+   publication: a reply saying "fixed" must already have evidence behind it.
+3. Push, reply to the exact inline comments, and resolve only fixed or outdated
+   threads under the command rules.
 4. Request CodeRabbit again after a head change.
-5. If CodeRabbit is unavailable, use the exact-head one-pass `$review-self`
-   fallback defined by `review-pr`; never substitute another reviewer.
+5. If CodeRabbit is unavailable, use the exact-head one-pass Codex fallback
+   defined by `review-pr`, and `$review-self` only if Codex is unavailable too;
+   never substitute a review bot that posts to the PR.
 6. Keep polling while review or CI is pending. Do not rerun expensive unchanged
    local checks on a no-op poll.
 
-Clean means all of the following hold for the same head SHA:
+Clean means all of the following hold for the same head SHA, judged by the
+criteria on the merge base when the branch edits them:
 
 - zero unresolved actionable review threads;
-- CodeRabbit is clean, or its unavailable result has clean review-self fallback
-  coverage;
+- CodeRabbit is clean, or its unavailable result has clean fallback coverage
+  from Codex, or from `$review-self` when Codex is unavailable too;
 - every required CI check is terminal and successful or explicitly allowed to
   skip by repository policy;
 - the PR is mergeable and the branch contains every required update from main;

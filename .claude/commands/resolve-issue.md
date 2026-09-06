@@ -133,17 +133,13 @@ git push -u origin <branch-name>
 #### 4d. Create PR
 
 ```bash
-gh pr create --title "fix(<scope>): <description>" --body "$(cat <<'EOF'
-## Summary
-
-<1-3 bullet points>
+# Unquoted heredoc so $ISSUE_NUMBER expands; a quoted one ships the literal
+# text and the PR closes nothing. Escape any other $ or backtick in the body.
+gh pr create --title "fix(<scope>): <description>" \
+  --label "<labels from 4e>" --body "$(cat <<EOF
+<What was broken and what changed, in a sentence or two.>
 
 Closes #$ISSUE_NUMBER
-
-## Test plan
-
-- [ ] Build passes
-- [ ] Relevant tests pass
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF

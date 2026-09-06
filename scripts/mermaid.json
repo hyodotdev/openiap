@@ -1,0 +1,14 @@
+{
+  "theme": "neutral",
+  "themeVariables": {
+    "fontFamily": "Charter, Georgia, serif",
+    "fontSize": "15px"
+  },
+  "flowchart": {
+    "wrappingWidth": 340,
+    "nodeSpacing": 30,
+    "rankSpacing": 42,
+    "htmlLabels": true,
+    "useMaxWidth": true
+  }
+}

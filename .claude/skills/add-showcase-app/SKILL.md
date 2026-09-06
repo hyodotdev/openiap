@@ -12,9 +12,17 @@ are agent-agnostic and apply as written.
 
 ## Claude Code Notes
 
-- Fetch submissions with the GitHub MCP tools or `gh` (for example
-  `gh api repos/hyodotdev/openiap/issues/280/comments`) instead of asking the
-  user to paste them.
+- Fetch submissions with the GitHub MCP tools or `gh` instead of asking the user
+  to paste them. The live thread is discussion #350, which the issues endpoint
+  cannot read:
+
+  ```bash
+  gh api graphql -f query='
+  query { repository(owner: "hyodotdev", name: "openiap") {
+    discussion(number: 350) { comments(first: 50) { nodes { author { login } body } } } } }'
+  ```
+
+  Issue #280 is the closed predecessor; read it only for history.
 - To verify rendering, start the docs dev server through `preview_start`
   (`.claude/launch.json` defines the `docs` configuration) and check the
   showcase section in the browser pane. The home page section sits far down the

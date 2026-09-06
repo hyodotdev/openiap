@@ -345,6 +345,9 @@ jobs:
       - name: Test clean-worktree drift guard
         run: node --test scripts/assert-clean-worktree.test.mjs
 
+      - name: Test review-thread listing
+        run: node --test scripts/list-review-threads.test.mjs
+
       - name: Sync generated version files
         run: ./scripts/sync-versions.sh
 
@@ -369,6 +372,9 @@ jobs:
 
       - name: Audit research references
         run: npm run audit:research
+
+      - name: Audit whitepaper freshness
+        run: npm run audit:whitepaper
 
       - name: Test issue-mining script
         run: node --test scripts/mine-iap-issues.test.mjs

@@ -6126,14 +6126,25 @@ function checkFrameworkDependencyHygiene() {
     [
       "~300 seconds (5 minutes)",
       "5-minute wake-up",
-      "CodeRabbit is the only configured external reviewer",
+      "CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback",
       "clean CodeRabbit result is successful reviewer coverage",
       "one complete",
+      // The fallback reviewer is pinned to a model and effort so a round cannot
+      // quietly become a cheaper one.
+      'codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high"',
       "`$review-self` round",
       "### Cleanup Review Automation Comments",
+      // The thread listing lives in a tested script; four review rounds found
+      // four ways for the inline jq loop to report a clean round with threads
+      // unread.
+      'node scripts/list-review-threads.mjs "$PR_NUMBER"',
+      "Do\nnot inline it again",
       '.body == "@coderabbitai review"',
-      'or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))',
-      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i")',
+      '(.body | contains("CodeRabbit review command invocation"))',
+      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i")',
+      // Pins the exclusions, not just the matches: without them the cleanup
+      // deletes CodeRabbit findings that carry the invocation marker.
+      'test("analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)"; "i") | not',
       "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     ],
     "review-pr must preserve the requested five-minute polling cadence",

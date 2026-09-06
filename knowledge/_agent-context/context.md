@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-05T07:23:55.615Z
+> Last updated: 2026-09-06T12:24:18.467Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2106,9 +2106,13 @@ No preamble, no restating the title, no "This PR introduces...".
 "fixed" not "remediated", "we can't prove X" not "X is not substantiable".
 If a sentence needs a second read, split it.
 
-**Length is a budget.** A PR body is under 60 lines. A review reply is one to
-three sentences. Detail that does not change what the reader does next belongs
-in the commit message or the code comment, not here.
+**Length is a budget.** A PR body is a few short paragraphs — ten lines is
+normal, thirty is the ceiling, and a one-line change needs one line. A review
+reply is one to three sentences. Drop the scaffolding: `## Summary`,
+`## Changes`, and a test-plan checklist repeating what CI already reports are
+filler on everything but a change that genuinely spans packages. Detail that
+does not change what the reader does next belongs in the commit message or the
+code comment, not here.
 
 **Group, do not enumerate.** Nine findings of the same shape are one paragraph
 naming the shape, not nine table rows. Reach for a table only when the reader

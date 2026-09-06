@@ -27,7 +27,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         name: 'VirtualSwindle — Mulliner, Robertson, Kirda. AsiaCCS 2014',
         href: 'https://www.mulliner.org/collin/publications/virtualswindle_asiaccs2014_mulliner.pdf',
         finding:
-          'The first automated attack on Android in-app billing cracked 60% of 85 popular apps that trusted client-side purchase state.',
+          'A fully automated attack on Android in-app billing cracked 60% of 85 popular apps that trusted client-side purchase state.',
         applied: (
           <>
             The server-side verification requirement in{' '}
@@ -41,7 +41,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         name: 'Show Me the Money! — Yang et al. NDSS 2017',
         href: 'https://www.ndss-symposium.org/wp-content/uploads/2017/09/ndss2017_05A-2_Yang_paper.pdf',
         finding:
-          'Payment vulnerabilities trace back to payment SDK design, ambiguous documentation, and vulnerable sample code rather than app code.',
+          'Payment vulnerabilities trace back to payment SDK design, ambiguous documentation, and vulnerable sample code, which lead merchants into the mistakes that follow.',
         applied: (
           <>
             The reason OpenIAP exists as one audited specification with
@@ -63,7 +63,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         name: 'Frankencerts — Brubaker et al. IEEE S&P 2014',
         href: 'https://www.cs.columbia.edu/~suman/docs/frankencert.pdf',
         finding:
-          'When several implementations of one specification disagree on the same input, the disagreement itself is a bug oracle — 8.1M mutated inputs exposed 208 discrepancies in SSL/TLS validation.',
+          'When several implementations of one specification disagree on the same input, the disagreement is a cheap source of candidate defects — 8.1M mutated inputs exposed 208 discrepancies in SSL/TLS validation. A disagreement is a candidate, not a verdict: the authors allow that some are benign where behavior is unspecified.',
         applied: (
           <>
             The differential mode of the conformance runner, which runs adapters
@@ -149,10 +149,10 @@ const STUDY_GROUPS: StudyGroup[] = [
     title: 'API learnability and misuse',
     studies: [
       {
-        name: 'What Makes APIs Hard to Learn? — Robillard. IEEE Software 2009',
-        href: 'https://www.cs.mcgill.ca/~martin/papers/software2009a.pdf',
+        name: 'What Makes APIs Hard to Learn? — Robillard, IEEE Software 2009, with the 2011 field study by Robillard and DeLine',
+        href: 'https://www.microsoft.com/en-us/research/publication/field-study-api-learning-obstacles/',
         finding:
-          'Across 440+ professional developers, documentation is the dominant obstacle to learning an API.',
+          'Documentation is the dominant obstacle to learning an API. The 2009 article surveys and interviews developers; the 2011 field study, across more than 440 professional developers, is the source of the documentation factors.',
         applied: (
           <>
             The reader-first standard every OpenIAP doc follows, and the
@@ -166,7 +166,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         name: 'MUBench — Amann et al. MSR 2016',
         href: 'https://dl.acm.org/doi/10.1145/2901739.2903506',
         finding:
-          'API misuse is a rare but disproportionately severe bug class — misuses almost always cause crashes, data loss, or security issues.',
+          'API misuse is a rare but disproportionately severe bug class — 61 of the 89 catalogued misuses cause crashes.',
         applied: (
           <>
             The{' '}
@@ -282,6 +282,18 @@ function Research() {
           />
         </section>
       ))}
+
+      <section>
+        <AnchorLink id="rationale" level="h2">
+          Design rationale
+        </AnchorLink>
+        <p>
+          Why the Commerce Protocol draws its boundaries where it does — the
+          reasoning behind each decision and the prior work it rests on — is
+          published as a PDF under{' '}
+          <Link to="/docs/foundation/whitepapers">Whitepapers</Link>.
+        </p>
+      </section>
 
       <section>
         <AnchorLink id="registry" level="h2">

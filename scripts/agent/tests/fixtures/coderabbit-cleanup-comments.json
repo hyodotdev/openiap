@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "keep": true,
+    "why": "human comment that happens to mention a skipped review",
+    "user": { "login": "hyochan" },
+    "body": "review was skipped here, please rerun"
+  },
+  {
+    "id": 2,
+    "keep": false,
+    "why": "the trigger this workflow posts itself",
+    "user": { "login": "hyochan" },
+    "body": "@coderabbitai review"
+  },
+  {
+    "id": 3,
+    "keep": false,
+    "why": "bare acknowledgement of the trigger",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "<!-- This is an auto-generated reply by CodeRabbit -->\n<!-- CodeRabbit review command invocation: v2:abc123 -->\n\n> [!TIP]\n> Review triggered."
+  },
+  {
+    "id": 4,
+    "keep": true,
+    "why": "reply to the same trigger carrying an actual finding (the shape on #338)",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "<!-- This is an auto-generated reply by CodeRabbit -->\n<!-- CodeRabbit review command invocation: v2:def456 -->\n\n<details>\n<summary>Analysis chain</summary>\n\nScript executed:\n\n```shell\ngit show -s c3abcf1a\n```\n\n</details>\n\n**High:** the rebase-conflict allowlist lets a version-file conflict through."
+  },
+  {
+    "id": 5,
+    "keep": true,
+    "why": "walkthrough that describes a change to the skipped-review handling",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "## Walkthrough\n\nThis change makes review-pr treat an unlabeled PR as unfinished and documents what happens when review was skipped."
+  },
+  {
+    "id": 6,
+    "keep": true,
+    "why": "findings summary; mentions the file limit while reporting real comments",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "**Actionable comments posted: 3**\n\nOne finding notes the file limit in the release workflow."
+  },
+  {
+    "id": 7,
+    "keep": false,
+    "why": "short terminal notice",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "> [!NOTE]\n> Review was skipped due to path filters."
+  },
+  {
+    "id": 8,
+    "keep": false,
+    "why": "the same notice at its real size: it embeds the file list, so length is not the signal",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "<!-- This is an auto-generated comment: rate limited by coderabbit.ai -->\n\n> [!IMPORTANT]\n> ## Review skipped\n>\n> Too many files in the pull request.\n>\n> FILLER_16K"
+  },
+  {
+    "id": 9,
+    "keep": false,
+    "why": "rate-limit notice: no substantive content, and no phrase from the skipped-review family",
+    "user": { "login": "coderabbitai[bot]" },
+    "body": "<!-- This is an auto-generated comment: rate limited by coderabbit.ai -->\n\n> [!WARNING]\n> ## Review limit reached\n>\n> **Next included review available in 25 minutes.**"
+  }
+]

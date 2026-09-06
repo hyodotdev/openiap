@@ -30,10 +30,11 @@ Codex does not need Claude slash-command syntax. If the user says any of these
 natural-language requests, execute the matching workflow:
 
 - Review PR comments, fix review feedback, or "review-pr": read
-  `.claude/commands/review-pr.md`. CodeRabbit is the only external reviewer for
-  this workflow; do not invoke other review bots. If CodeRabbit cannot review
-  the current head, also read `.codex/skills/review-self/SKILL.md` and run its
-  single-round `review-pr` fallback. At the clean end of the loop, remove the
+  `.claude/commands/review-pr.md`. CodeRabbit is the only external reviewer that
+  posts to the PR; do not invoke other review bots. If CodeRabbit cannot review
+  the current head, run the single-round Codex fallback that command defines;
+  read `.codex/skills/review-self/SKILL.md` and run its single-round `review-pr`
+  fallback only when Codex is unavailable too. At the clean end of the loop, remove the
   temporary CodeRabbit trigger and terminal skip/unavailable top-level comments
   exactly as defined by the command workflow.
 - Audit code, check latest APIs, or "audit-code": read
@@ -126,9 +127,9 @@ specific inline comment with the plain commit hash, and resolve only threads
 that are fixed or outdated per `.claude/commands/review-pr.md`.
 
 Do not call a PR clean merely because CodeRabbit skipped or failed. Do not
-replace it with another external review bot. Use the head-specific `review-self`
-fallback required by the command workflow, and include its clean result in the
-completion gate.
+replace it with another external review bot. Use the head-specific Codex
+fallback required by the command workflow — or the `review-self` fallback when
+Codex is unavailable too — and include its clean result in the completion gate.
 
 Do not reply with "will address later" for valid correctness or operational
 findings. Implement the fix in the current PR unless the finding is wrong on
