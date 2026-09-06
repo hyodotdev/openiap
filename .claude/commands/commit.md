@@ -198,7 +198,9 @@ requested a prerelease train. Never target prerelease version-only commits at
 
 ```bash
 PR_BASE=main # set to next only for an explicit prerelease train
-gh pr create --base "$PR_BASE" --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
+PR_LABELS="<comma-separated, from the guide in step 8>"
+gh pr create --base "$PR_BASE" --label "$PR_LABELS" \
+  --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 <What changed and why it matters, in a sentence or two. No preamble.>
 
 <One short paragraph per remaining theme, only if the first paragraph does not
@@ -238,33 +240,47 @@ recording is not applicable and include the best terminal/API proof instead.
 Never include secrets, private customer data, or browser profile details in the
 recording.
 
-### 8. Add Labels to PR
+### 8. Verify the Labels Landed
 
-After creating the PR, add appropriate labels based on the changes.
-First list available labels with `gh label list`, then add matching ones:
+Labeling rides on `gh pr create --label` above, so it is not a trailing step
+that can be dropped. Confirm it before reporting the PR:
 
 ```bash
-gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"
+gh pr view <PR_NUMBER> --json labels -q '[.labels[].name]'
 ```
 
-**Label selection guide:**
+An empty array means the `--pr` run is unfinished. Add them with
+`gh pr edit <PR_NUMBER> --add-label "<label1>,<label2>"`. Check spelling against
+`gh label list`: `gh` rejects a label that does not exist, and the emoji labels
+must match byte for byte.
 
-- Changes to `packages/apple/` → `📱 iOS`
-- Changes to `packages/google/` → `🤖 android`
-- Changes to `packages/docs/` → `📖 documentation`
-- Changes to `specs/client/` → `⬡ gql`
-- Changes to `libraries/react-native-iap/` → `react-native-iap`
-- Changes to `libraries/expo-iap/` → `expo-iap`
-- Changes to `libraries/flutter_inapp_purchase/` → `flutter-iap`
-- Changes to `libraries/godot-iap/` → `godot-iap`
-- Changes to `libraries/kmp-iap/` → `kmp-iap`
-- Changes across multiple platforms → `cross-platform`
-- New features → `🎯 feature`
-- PR bug fixes → `🛠 bugfix`
-- Breaking changes → `⚡️ breaking`
-- Documentation only → `📖 documentation`
-- CI/CD changes → `💨 ci`
-- Refactoring → `፦ refactor`
+**Label selection guide.** One label for every area the diff touches, plus one
+for the kind of change:
+
+| Changed path                          | Label              |
+| ------------------------------------- | ------------------ |
+| `packages/apple/`                     | `📱 iOS`           |
+| `packages/google/`                    | `🤖 android`       |
+| `packages/docs/`                      | `📖 documentation` |
+| `packages/kit/`                       | `kit`              |
+| `specs/client/`                       | `⬡ gql`            |
+| `specs/commerce-protocol/`            | `⬡ gql`            |
+| `libraries/react-native-iap/`         | `react-native-iap` |
+| `libraries/expo-iap/`                 | `expo-iap`         |
+| `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |
+| `libraries/godot-iap/`                | `godot-iap`        |
+| `libraries/kmp-iap/`                  | `kmp-iap`          |
+| `libraries/maui-iap/`                 | `maui-iap`         |
+| `.github/workflows/` or `scripts/`    | `💨 ci`            |
+| several platforms at once             | `cross-platform`   |
+
+| Kind of change   | Label           |
+| ---------------- | --------------- |
+| New feature      | `🎯 feature`    |
+| Bug fix          | `🛠 bugfix`     |
+| Breaking change  | `⚡️ breaking`  |
+| Refactor         | `፦ refactor`    |
+| Tests only       | `🧪 test`       |
 
 ---
 
