@@ -6126,9 +6126,12 @@ function checkFrameworkDependencyHygiene() {
     [
       "~300 seconds (5 minutes)",
       "5-minute wake-up",
-      "CodeRabbit is the only configured external reviewer",
+      "CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback",
       "clean CodeRabbit result is successful reviewer coverage",
       "one complete",
+      // The fallback reviewer is pinned to a model and effort so a round cannot
+      // quietly become a cheaper one.
+      'codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high"',
       "`$review-self` round",
       "### Cleanup Review Automation Comments",
       '.body == "@coderabbitai review"',

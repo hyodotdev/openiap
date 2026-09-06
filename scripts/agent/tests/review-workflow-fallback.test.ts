@@ -14,14 +14,22 @@ function normalizeWhitespace(value: string): string {
 }
 
 describe("review workflow fallback contract", () => {
-  test("review-pr replaces unavailable CodeRabbit coverage with review-self", () => {
+  test("review-pr replaces unavailable CodeRabbit coverage with Codex", () => {
     const reviewPr = normalizeWhitespace(
       readRepositoryFile(".claude/commands/review-pr.md"),
     );
 
     expect(reviewPr).toContain("## Automated Reviewer Fallback");
     expect(reviewPr).toContain(
-      "replace the missing coverage with one complete `$review-self` round",
+      "replace the missing coverage with one complete Codex round",
+    );
+    // The fallback is pinned to a model and an effort so a round cannot quietly
+    // become a cheaper one, and review-self stays the reviewer of last resort.
+    expect(reviewPr).toContain(
+      'codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high"',
+    );
+    expect(reviewPr).toContain(
+      "fall back to one complete `$review-self` round instead",
     );
     expect(reviewPr).toContain(
       "CodeRabbit unavailability alone is neither a blocker nor a clean result",
@@ -39,7 +47,7 @@ describe("review workflow fallback contract", () => {
       "A terminal clean CodeRabbit result is successful reviewer coverage",
     );
     expect(reviewPr).toContain(
-      "CodeRabbit is the only configured external reviewer",
+      "CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback",
     );
     expect(reviewPr).not.toContain("/gemini review");
     expect(reviewPr).not.toContain("Copilot");
@@ -121,9 +129,13 @@ describe("review workflow fallback contract", () => {
     expect(codexWorkflow).toContain(
       "run its single-round `review-pr` fallback",
     );
-    expect(codexWorkflow).toContain("CodeRabbit is the only external reviewer");
+    expect(codexWorkflow).toContain(
+      "CodeRabbit is the only external reviewer that posts to the PR",
+    );
+    expect(codexWorkflow).toContain("run the single-round Codex fallback");
+    expect(claudeWorkflow).toContain("including its single-round Codex fallback");
     expect(claudeWorkflow).toContain(
-      "including its `.claude/skills/review-self/SKILL.md` fallback",
+      "`.claude/skills/review-self/SKILL.md` fallback when Codex is unavailable",
     );
     expect(claudeWorkflow).toContain("do not invoke other review bots");
   });

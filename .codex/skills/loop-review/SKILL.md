@@ -97,16 +97,17 @@ For every round:
 3. Push, reply to the exact inline comments, and resolve only fixed or outdated
    threads under the command rules.
 4. Request CodeRabbit again after a head change.
-5. If CodeRabbit is unavailable, use the exact-head one-pass `$review-self`
-   fallback defined by `review-pr`; never substitute another reviewer.
+5. If CodeRabbit is unavailable, use the exact-head one-pass Codex fallback
+   defined by `review-pr`, and `$review-self` only if Codex is unavailable too;
+   never substitute a review bot that posts to the PR.
 6. Keep polling while review or CI is pending. Do not rerun expensive unchanged
    local checks on a no-op poll.
 
 Clean means all of the following hold for the same head SHA:
 
 - zero unresolved actionable review threads;
-- CodeRabbit is clean, or its unavailable result has clean review-self fallback
-  coverage;
+- CodeRabbit is clean, or its unavailable result has clean fallback coverage
+  from Codex, or from `$review-self` when Codex is unavailable too;
 - every required CI check is terminal and successful or explicitly allowed to
   skip by repository policy;
 - the PR is mergeable and the branch contains every required update from main;

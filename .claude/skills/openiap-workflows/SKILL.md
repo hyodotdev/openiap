@@ -15,9 +15,10 @@ When the user asks in natural language, execute the matching workflow by
 reading the command file (or invoke the slash command directly when available):
 
 - Review PR comments / fix review feedback → `.claude/commands/review-pr.md`
-  (`/review-pr`), including its `.claude/skills/review-self/SKILL.md` fallback
-  when CodeRabbit cannot review the current head; do not invoke other review
-  bots, and remove temporary CodeRabbit trigger and terminal
+  (`/review-pr`), including its single-round Codex fallback when CodeRabbit
+  cannot review the current head, and its
+  `.claude/skills/review-self/SKILL.md` fallback when Codex is unavailable too;
+  do not invoke other review bots, and remove temporary CodeRabbit trigger and terminal
   skip/unavailable top-level comments when the loop is clean
 - Audit code against knowledge rules → `.claude/commands/audit-code.md` (`/audit-code`)
 - Audit supply-chain security / SBOM → `.claude/commands/audit-security.md` (`/audit-security`)

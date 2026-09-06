@@ -84,7 +84,8 @@ CodeRabbit review:
 gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
 ```
 
-CodeRabbit is the only configured external reviewer for this workflow. Do not
+CodeRabbit is the only reviewer that posts to the PR, and Codex is the fallback
+when CodeRabbit cannot review a head. No other reviewer is configured: do not
 request other review bots or post their trigger comments. An accepted CodeRabbit
 command can still return a terminal availability failure, so inspect the
 response instead of treating the trigger comment itself as review success.
@@ -114,8 +115,8 @@ not to GitHub. Raise them in the terminal and let the user decide.
 ## Automated Reviewer Fallback
 
 CodeRabbit is a useful review input, not a completion dependency. If it cannot
-review the current head, replace the missing coverage with one complete
-`$review-self` round. Do not substitute another external reviewer.
+review the current head, replace the missing coverage with one complete Codex
+round. Do not substitute a review bot that posts to the PR.
 
 Treat a reviewer as unavailable for the current head when either condition is
 met:
@@ -135,17 +136,30 @@ fallback.
 When fallback is required:
 
 1. Record CodeRabbit's terminal reason and the current head SHA.
-2. Invoke the current surface's `review-self` skill for **one complete review
-   round** against the PR's actual base and current head. The canonical procedure
-   is `.codex/skills/review-self/SKILL.md`; Claude Code uses its
-   `.claude/skills/review-self/SKILL.md` adapter. Pass the original requirements,
-   acceptance criteria, changed-path conventions, and existing commit/push
-   authority. Explicitly request one pass so `review-pr` remains the only polling
-   owner.
-3. Do not let the fallback round re-enter `review-pr`, request reviewers, handle
-   trigger comments, invoke this fallback again, or schedule any recurring loop.
-   It may inspect current review/CI evidence, but this workflow owns thread
-   handling and polling.
+2. Run Codex for **one complete review round** against the PR's actual base and
+   current head, read-only, at the pinned model and effort:
+
+   ```bash
+   codex exec -s read-only -m gpt-6-astra -c model_reasoning_effort="high" - < prompt.md
+   ```
+
+   The prompt carries the head SHA, what changed since the head Codex last saw,
+   the original requirements and acceptance criteria, the conventions for the
+   changed paths, and an instruction to report findings only — most severe
+   first, with file:line — or to say plainly that there are none. Ask it to check
+   whether the previous round's fixes introduced anything: that question has paid
+   more often than any other. If Codex itself is unavailable — an exhausted
+   balance answers with an HTTP 402 — fall back to one complete
+   `$review-self` round instead, and say which reviewer covered the head.
+3. The fallback round reviews; it does not drive. It must not re-enter
+   `review-pr`, request reviewers, handle trigger comments, invoke this fallback
+   again, or schedule any recurring loop. It may inspect current review and CI
+   evidence, but this workflow owns thread handling and polling — which is why
+   Codex runs read-only here.
+
+   Its findings are input, not instructions. Check each against the code before
+   fixing it: a reviewer's claim has been wrong, and so has a fix made on its
+   word.
 4. Fix and verify every validated finding using the normal response rules. If a
    fix changes the head, request CodeRabbit again after the fix batch and run
    fallback again only if it remains unavailable for the new head.
@@ -172,7 +186,7 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
 2. If new unresolved threads exist → fix them, push, request CodeRabbit again,
    and schedule another 5-minute wake-up.
 3. If CodeRabbit is unavailable for the current head → run or reuse the
-   head-specific `$review-self` fallback above.
+   head-specific Codex fallback above.
 4. If no unresolved threads exist, the PR carries labels, CI is terminal and
    successful, and unavailable CodeRabbit coverage has a clean fallback for the
    current head → the PR is clean. Clean up temporary review automation comments, including
@@ -255,11 +269,13 @@ gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER/comments/$COMMENT_ID/replies \
 
 ```bash
 # Get unresolved thread IDs
-gh api graphql -F pr="$PR_NUMBER" -f query='
-query($pr: Int!) {
+after=null
+while :; do
+page="$(gh api graphql -F pr="$PR_NUMBER" -F after="$after" -f query='
+query($pr: Int!, $after: String) {
   repository(owner: "hyodotdev", name: "openiap") {
     pullRequest(number: $pr) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
         nodes {
           id
@@ -272,7 +288,16 @@ query($pr: Int!) {
       }
     }
   }
-}'
+}')"
+  printf '%s\n' "$page" | jq -r '
+    .data.repository.pullRequest.reviewThreads.nodes[]
+    | select(.isResolved == false)
+    | "\(.id)\t\(.path)\t\(.comments.nodes[0].databaseId)"'
+  printf '%s\n' "$page" \
+    | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' >/dev/null || break
+  after="$(printf '%s\n' "$page" \
+    | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
+done
 
 # Resolve a specific thread
 gh api graphql -f threadId="$THREAD_ID" -f query='
@@ -284,9 +309,9 @@ mutation($threadId: ID!) {
 ```
 
 Resolved threads count against the page size, so a long-running PR can push
-actionable ones past it. When `pageInfo.hasNextPage` is true, fetch the next page
-with `after: "<endCursor>"` before calling the round clean; the same applies to
-the outdated sweep below.
+actionable ones past it. Both loops above page with `after` until
+`hasNextPage` is false; a round is not clean until the last page has been read.
+`-F after=null` sends a real JSON null, which is what the first page needs.
 
 **Thread Resolution Rules:**
 
@@ -299,16 +324,20 @@ Outdated sweep (run once per round before fetching open findings):
 
 ```bash
 PR_NUMBER=...
-gh api graphql -f query='
-query($owner:String!,$name:String!,$pr:Int!) {
+after=null
+while :; do
+page="$(gh api graphql -f query='
+query($owner:String!,$name:String!,$pr:Int!,$after:String) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$pr) {
-      reviewThreads(first:100) {
+      reviewThreads(first:100, after:$after) {
+        pageInfo { hasNextPage endCursor }
         nodes { id isResolved isOutdated }
       }
     }
   }
-}' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER --jq '
+}' -F owner=hyodotdev -F name=openiap -F pr=$PR_NUMBER -F after="$after")"
+printf '%s\n' "$page" | jq -r '
   .data.repository.pullRequest.reviewThreads.nodes[]
   | select(.isResolved == false)
   | select(.isOutdated == true)
@@ -317,6 +346,11 @@ query($owner:String!,$name:String!,$pr:Int!) {
     mutation($id:ID!) {
       resolveReviewThread(input:{threadId:$id}) { thread { id isResolved } }
     }' -F id="$tid" >/dev/null && echo "auto-resolved outdated $tid"
+done
+printf '%s\n' "$page" \
+  | jq -e '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage' >/dev/null || break
+after="$(printf '%s\n' "$page" \
+  | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')"
 done
 ```
 
