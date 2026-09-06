@@ -112,6 +112,10 @@ Facts that do not fit a review thread and do not belong in the PR description
 (for example "this CI failure is pre-existing and out of scope") go to the user,
 not to GitHub. Raise them in the terminal and let the user decide.
 
+This review-round restriction does not block the authorized completion comment
+after verified delivery; follow the shipped-comment step in
+`.codex/skills/ship-release/SKILL.md`.
+
 ## A PR Must Not Rewrite The Rules That Judge It
 
 This is the one definition of that scope; anything else that needs it refers

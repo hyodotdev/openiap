@@ -117,6 +117,16 @@ From a clean local `main` equal to `origin/main`:
 4. Recheck required CI for the final `main` head and report any still-pending
    external listing or registry state separately.
 
+## 6. Leave the shipped comment
+
+After verifying public delivery, leave one short English completion comment on
+the originating PR and each linked issue resolved by this release, within the
+user-authorized GitHub follow-up scope. Check existing comments first and avoid
+duplicates, including on already-closed issues. If no issue is linked, comment
+on the PR only. A single sentence is enough: `Shipped in <package> <version>.`
+Link the verified release or deployment when useful. A merge alone is not proof
+of shipment. Confirm the posted comment and include its URL in the final report.
+
 ## Completion report
 
 Report the merged PR and commit, every published version with its public

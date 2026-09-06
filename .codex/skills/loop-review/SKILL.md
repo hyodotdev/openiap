@@ -211,10 +211,11 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    the resulting `docs-<spec-version>` GitHub Release.
 8. Finish on `main`, fast-forward once more if a release workflow changed it,
    and verify `HEAD == origin/main` with a clean worktree.
+9. Complete the shipped-comment step in `ship-release` before ending the loop.
 
 Report the PR, merge commit, final checks, review coverage, released and skipped
 packages, public registry evidence, docs commit and deployment, Docs release,
-and any remaining manual follow-up.
+shipped-comment URLs, and any remaining manual follow-up.
 
 ## Stop Conditions
 
