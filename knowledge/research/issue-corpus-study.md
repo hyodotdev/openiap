@@ -143,8 +143,10 @@ The raw archive stays private until the coded corpus is published and any
 correction round on it closes, and is deleted then, or twelve months after
 publication if no correction round opens. If coding stops before publication —
 the pilot gate fails, or the study is abandoned — the archive is deleted when
-that decision is recorded, and in no case is it kept longer than twelve months
-after the export it came from.
+that decision is recorded. An archive still unpublished twelve months after its
+export is not simply deleted, which would destroy the evidence the release rests
+on: coding stops there, the corpus is re-exported and re-frozen, and the old
+archive is deleted once the new one is in place.
 
 ## Coding scheme
 
