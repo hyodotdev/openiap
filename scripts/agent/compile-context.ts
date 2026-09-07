@@ -660,8 +660,8 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Types Reference: https://openiap.dev/docs/types
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
-- Commerce Protocol: https://openiap.dev/docs/commerce-protocol
-- Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
+- Commerce Protocol: https://openiap.dev/commerce-protocol
+- Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 - Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/vectors
@@ -944,8 +944,8 @@ identifier, or central runtime.
   and deduplicate any accepted copy on the stable body \`eventId\`.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
-- Docs: https://openiap.dev/docs/commerce-protocol
-- Webhook contract: https://openiap.dev/docs/webhooks
+- Docs: https://openiap.dev/commerce-protocol
+- Webhook contract: https://openiap.dev/commerce-protocol/webhooks
 - Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 

@@ -48,7 +48,7 @@ function Whitepapers() {
         Longer-form documents that explain the reasoning behind OpenIAP’s
         design, published as PDFs so they can be read and cited outside the
         repository. Each states its own scope and what it does not establish.
-        The <Link to="/docs/commerce-protocol">specification</Link> remains
+        The <Link to="/commerce-protocol">specification</Link> remains
         authoritative for normative wording.
       </p>
 

@@ -1,6 +1,6 @@
 import capabilitiesExample from 'openiap-commerce-protocol/examples/provider-capabilities.json';
-import AnchorLink from '../../../components/AnchorLink';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -24,7 +24,7 @@ function CommerceCapabilities() {
       <SEO
         title="Commerce Protocol Capabilities"
         description="The machine-readable capability descriptor: protocol version, profiles, bindings, and honest per-store support."
-        path="/docs/commerce-protocol/capabilities"
+        path="/commerce-protocol/capabilities"
         keywords="OpenIAP Commerce Protocol capabilities, provider descriptor"
       />
       <h1>Capabilities</h1>

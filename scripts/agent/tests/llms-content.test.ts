@@ -38,9 +38,11 @@ describe("generated LLM references", () => {
     for (const generatedReference of [quickReference, fullReference]) {
       expect(generatedReference).toContain("OpenIAP Commerce Protocol");
       expect(generatedReference).toContain(
-        "https://openiap.dev/docs/commerce-protocol",
+        "https://openiap.dev/commerce-protocol",
       );
-      expect(generatedReference).toContain("https://openiap.dev/docs/webhooks");
+      expect(generatedReference).toContain(
+        "https://openiap.dev/commerce-protocol/webhooks",
+      );
       expect(generatedReference).toContain(
         "https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema",
       );

@@ -88,7 +88,7 @@ function Webhooks() {
       <SEO
         title="Commerce Protocol Webhook Contract"
         description="The vendor-neutral OpenIAP Commerce Protocol contract for signed, retrying server-to-server event delivery."
-        path="/docs/webhooks"
+        path="/commerce-protocol/webhooks"
         keywords="OpenIAP Commerce Protocol webhook, signed commerce events, HMAC webhook, idempotent webhook consumer"
       />
       <h1>Webhook Contract</h1>

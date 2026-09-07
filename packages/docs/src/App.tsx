@@ -7,6 +7,7 @@ import SearchModal from './components/SearchModal';
 import Home from './pages/home';
 import Introduction from './pages/introduction';
 import Docs from './pages/docs';
+import CommerceProtocol from './pages/commerce-protocol';
 import Languages from './pages/languages';
 import Tutorials from './pages/tutorials';
 import Sponsors from './pages/sponsors';
@@ -36,6 +37,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="introduction" element={<Introduction />} />
           <Route path="docs/*" element={<Docs />} />
+          <Route path="commerce-protocol/*" element={<CommerceProtocol />} />
           <Route path="languages" element={<Languages />} />
           <Route path="tutorials" element={<Tutorials />} />
           <Route path="sponsors" element={<Sponsors />} />

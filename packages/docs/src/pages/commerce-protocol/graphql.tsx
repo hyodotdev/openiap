@@ -1,6 +1,6 @@
-import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import Callout from '../../components/Callout';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -18,18 +18,17 @@ function CommerceGraphql() {
       <SEO
         title="Commerce Protocol GraphQL Binding"
         description="The executable GraphQL binding: one endpoint, the generated schema projection, the same semantics as REST."
-        path="/docs/commerce-protocol/graphql"
+        path="/commerce-protocol/graphql"
         keywords="OpenIAP Commerce Protocol GraphQL, commerce GraphQL API"
       />
       <h1>GraphQL binding</h1>
       <p>
-        The same six operations at one <code>POST</code> endpoint — IAPKit
-        serves <code>/commerce/v1/graphql</code> — executing exactly the
-        generated schema projection (
-        <code>generated/bindings/operations.graphql</code>). Introspection,
-        where enabled, agrees with the projection; the same auth roles apply,
-        and business logic never lives in resolvers: both bindings call one
-        shared handler per operation.
+        The same six operations at one <code>POST</code> endpoint, whose path
+        each provider documents, executing exactly the generated schema
+        projection (<code>generated/bindings/operations.graphql</code>).
+        Introspection, where enabled, agrees with the projection; the same auth
+        roles apply, and business logic never lives in resolvers — the parity
+        requirement exists to make a divergent one visible.
       </p>
       <section>
         <AnchorLink id="example" level="h2">

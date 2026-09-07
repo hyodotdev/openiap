@@ -1,6 +1,6 @@
-import AnchorLink from '../../../components/AnchorLink';
-import DataTable from '../../../components/DataTable';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import DataTable from '../../components/DataTable';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -30,7 +30,7 @@ function CommerceAuthentication() {
       <SEO
         title="Commerce Protocol Authentication"
         description="Roles and trust rules: verification and server credentials, fail-close auth, no secrets in URLs."
-        path="/docs/commerce-protocol/authentication"
+        path="/commerce-protocol/authentication"
         keywords="OpenIAP Commerce Protocol authentication, credential roles"
       />
       <h1>Authentication</h1>
@@ -53,7 +53,7 @@ function CommerceAuthentication() {
         />
         <p>
           One operation needs no credential at all:{' '}
-          <a href="/docs/commerce-protocol/operations">
+          <a href="/commerce-protocol/operations">
             <code>providerCapabilities</code>
           </a>{' '}
           is a public, commerce-free read (auth role <code>none</code>). Every

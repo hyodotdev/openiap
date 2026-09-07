@@ -194,7 +194,7 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
       <p>
         The vendor-neutral{" "}
         <a
-          href="https://openiap.dev/docs/webhooks"
+          href="https://openiap.dev/commerce-protocol/webhooks"
           className="text-primary underline"
           target="_blank"
           rel="noopener noreferrer"

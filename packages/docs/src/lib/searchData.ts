@@ -959,7 +959,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Vendor-neutral server-side contract for commerce events, subscription lifecycle, entitlements, signed webhooks, and conformance',
-    path: '/docs/commerce-protocol',
+    path: '/commerce-protocol',
   },
   {
     id: 'commerce-protocol-profiles',
@@ -967,7 +967,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Verification, entitlements, events, and account-lifecycle operation profiles',
-    path: '/docs/commerce-protocol/profiles',
+    path: '/commerce-protocol/profiles',
   },
   {
     id: 'commerce-protocol-operations',
@@ -975,7 +975,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'verifyPurchase, subscriptionStatus, entitlements, bindPurchase, eraseUser, providerCapabilities',
-    path: '/docs/commerce-protocol/operations',
+    path: '/commerce-protocol/operations',
   },
   {
     id: 'commerce-protocol-rest',
@@ -983,7 +983,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'HTTP/JSON binding under /commerce/v1 with the generated OpenAPI document',
-    path: '/docs/commerce-protocol/rest',
+    path: '/commerce-protocol/rest',
   },
   {
     id: 'commerce-protocol-graphql',
@@ -991,7 +991,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Executable GraphQL binding serving the generated schema projection',
-    path: '/docs/commerce-protocol/graphql',
+    path: '/commerce-protocol/graphql',
   },
   {
     id: 'commerce-protocol-authentication',
@@ -999,7 +999,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Verification and server credential roles, fail-close trust rules',
-    path: '/docs/commerce-protocol/authentication',
+    path: '/commerce-protocol/authentication',
   },
   {
     id: 'commerce-protocol-capabilities',
@@ -1007,7 +1007,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Machine-readable provider descriptor: profiles, bindings, per-store support',
-    path: '/docs/commerce-protocol/capabilities',
+    path: '/commerce-protocol/capabilities',
   },
   {
     id: 'commerce-protocol-conformance',
@@ -1015,7 +1015,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Portable conformance runner, binding conformance levels, dual-binding parity',
-    path: '/docs/commerce-protocol/conformance',
+    path: '/commerce-protocol/conformance',
   },
   {
     id: 'commerce-protocol-versioning',
@@ -1023,7 +1023,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'MAJOR.MINOR rules for the protocol, profiles, and transport bindings',
-    path: '/docs/commerce-protocol/versioning',
+    path: '/commerce-protocol/versioning',
   },
   {
     id: 'commerce-protocol-webhook-contract',
@@ -1031,7 +1031,7 @@ export const apiData: ApiItem[] = [
     category: 'Documentation',
     description:
       'Signed request, HMAC verification, retry, idempotency, ordering, and destination-safety rules',
-    path: '/docs/webhooks',
+    path: '/commerce-protocol/webhooks',
   },
   {
     id: 'errors-page',

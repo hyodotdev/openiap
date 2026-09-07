@@ -66,5 +66,5 @@
     "url": "git+https://github.com/hyodotdev/openiap.git",
     "directory": "specs/commerce-protocol"
   },
-  "homepage": "https://openiap.dev/docs/commerce-protocol"
+  "homepage": "https://openiap.dev/commerce-protocol"
 }

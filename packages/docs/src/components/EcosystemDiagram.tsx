@@ -127,7 +127,7 @@ const PROTOCOL_NODE: DiagramNode = {
   name: 'Commerce Protocol',
   note: 'Lifecycle · entitlements · events · signed delivery',
   icon: '/logos/openiap.webp',
-  href: '/docs/commerce-protocol',
+  href: '/commerce-protocol',
 };
 
 /**

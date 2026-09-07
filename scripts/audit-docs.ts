@@ -1872,7 +1872,7 @@ export function findWebhookTransportDrift(
   source: string,
   vectors: { headers: Record<string, string>; toleranceSeconds: number },
   specification: string,
-  file = "packages/docs/src/pages/docs/webhooks.tsx",
+  file = "packages/docs/src/pages/commerce-protocol/webhooks.tsx",
 ): Drift[] {
   const drifts: Drift[] = [];
   const push = (message: string) =>
@@ -1950,7 +1950,10 @@ export function findWebhookTransportDrift(
 }
 
 function auditWebhookTransportConstants(): Drift[] {
-  const file = join(REPO_ROOT, "packages/docs/src/pages/docs/webhooks.tsx");
+  const file = join(
+    REPO_ROOT,
+    "packages/docs/src/pages/commerce-protocol/webhooks.tsx",
+  );
   if (!statSyncSafe(file)) {
     return [
       {

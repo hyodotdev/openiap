@@ -1,6 +1,6 @@
-import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import Callout from '../../components/Callout';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -30,17 +30,17 @@ function CommerceConformance() {
       <SEO
         title="Commerce Protocol Conformance"
         description="The portable conformance runner: certify any provider offline, over REST, GraphQL, or both."
-        path="/docs/commerce-protocol/conformance"
+        path="/commerce-protocol/conformance"
         keywords="OpenIAP Commerce Protocol conformance, conformance runner"
       />
       <h1>Conformance</h1>
       <p>
         Conformance is judged per binding — REST-conformant, GraphQL-conformant,
         or dual-binding, which adds cross-binding parity on every deterministic
-        case. IAPKit is the dual-binding reference implementation, and the
-        runner certifies an independent mock provider that shares no code with
-        it, so passing measures the portable surface against the specification,
-        not against IAPKit.
+        case. The runner certifies an independent mock provider that shares no
+        code with the reference implementation (IAPKit), so passing measures the
+        portable surface against the specification, not against any one
+        provider.
       </p>
       <section>
         <AnchorLink id="runner" level="h2">

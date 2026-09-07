@@ -1,7 +1,7 @@
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
-import AnchorLink from '../../../components/AnchorLink';
-import DataTable from '../../../components/DataTable';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import DataTable from '../../components/DataTable';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -39,15 +39,15 @@ function CommerceProfiles() {
       <SEO
         title="Commerce Protocol Profiles"
         description="The Commerce Protocol's operation profiles: verification, entitlements, events, and account lifecycle."
-        path="/docs/commerce-protocol/profiles"
+        path="/commerce-protocol/profiles"
         keywords="OpenIAP Commerce Protocol profiles, verification, entitlements, account lifecycle"
       />
       <h1>Profiles</h1>
       <p>
         The protocol is a small core plus named profiles. A provider implements
         a profile completely or not at all, and declares what it serves in its{' '}
-        <a href="/docs/commerce-protocol/capabilities">capability descriptor</a>{' '}
-        — so a caller branches on declarations, never on guesses.
+        <a href="/commerce-protocol/capabilities">capability descriptor</a> — so
+        a caller branches on declarations, never on guesses.
       </p>
       <section>
         <AnchorLink id="profile-table" level="h2">

@@ -1,6 +1,6 @@
-import AnchorLink from '../../../components/AnchorLink';
-import DataTable from '../../../components/DataTable';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import DataTable from '../../components/DataTable';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -40,7 +40,7 @@ function CommerceVersioning() {
       <SEO
         title="Commerce Protocol Versioning"
         description="MAJOR.MINOR rules for the protocol, its profiles, and its bindings — and what consumers pin on."
-        path="/docs/commerce-protocol/versioning"
+        path="/commerce-protocol/versioning"
         keywords="OpenIAP Commerce Protocol versioning"
       />
       <h1>Versioning</h1>

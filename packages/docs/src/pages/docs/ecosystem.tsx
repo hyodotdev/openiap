@@ -17,11 +17,10 @@ function Ecosystem() {
       <h1>Ecosystem</h1>
       <p>
         OpenIAP defines the shared client purchase contract and ships native and
-        framework SDKs. The{' '}
-        <a href="/docs/commerce-protocol">Commerce Protocol</a> standardizes the
-        server-side commerce boundary independently of any provider or hosted
-        service. If you are interested in joining the ecosystem, please contact{' '}
-        <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
+        framework SDKs. The <a href="/commerce-protocol">Commerce Protocol</a>{' '}
+        standardizes the server-side commerce boundary independently of any
+        provider or hosted service. If you are interested in joining the
+        ecosystem, please contact <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
       </p>
 
       <EcosystemDiagram />
@@ -165,7 +164,7 @@ function Ecosystem() {
         <h2>Server-side contract</h2>
         <p>
           The{' '}
-          <a href="/docs/commerce-protocol">
+          <a href="/commerce-protocol">
             <strong>OpenIAP Commerce Protocol</strong>
           </a>{' '}
           defines normalized transactions, subscription lifecycle, entitlement

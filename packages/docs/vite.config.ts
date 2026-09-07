@@ -56,6 +56,9 @@ export default defineConfig({
           if (id.includes('/src/pages/docs/foundation/')) {
             return 'docs-foundation';
           }
+          if (id.includes('/src/pages/commerce-protocol/')) {
+            return 'commerce-protocol';
+          }
         },
       },
     },

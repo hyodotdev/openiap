@@ -25,7 +25,10 @@ function Validation() {
         Verify purchases with your own backend or a managed provider like IAPKit
         before granting entitlements. Always validate through a trusted
         server-side verifier; local StoreKit or Play Billing state alone can be
-        bypassed.
+        bypassed. The{' '}
+        <Link to="/commerce-protocol">OpenIAP Commerce Protocol</Link> specifies
+        what a conforming verifier accepts and returns, so the answer does not
+        depend on whose backend you use.
       </p>
 
       <TLDRBox>
@@ -255,7 +258,11 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           >
             <code>packages/kit</code>
           </a>{' '}
-          in this monorepo.
+          in this monorepo. It also implements the{' '}
+          <Link to="/commerce-protocol">Commerce Protocol</Link>, so a server
+          integration written against that contract, rather than against
+          IAPKit's own API, moves to any backend serving the same profiles and
+          binding.
         </p>
 
         <h4>Why use it</h4>

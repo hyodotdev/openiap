@@ -1,7 +1,7 @@
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
-import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
-import SEO from '../../../components/SEO';
+import AnchorLink from '../../components/AnchorLink';
+import Callout from '../../components/Callout';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -12,7 +12,7 @@ function CommerceRest() {
       <SEO
         title="Commerce Protocol REST Binding"
         description="The HTTP/JSON binding under /commerce/v1, generated from the GraphQL contract."
-        path="/docs/commerce-protocol/rest"
+        path="/commerce-protocol/rest"
         keywords="OpenIAP Commerce Protocol REST, commerce API, OpenAPI"
       />
       <h1>REST binding</h1>
@@ -31,8 +31,8 @@ function CommerceRest() {
         </AnchorLink>
         <p>
           Every failure is the status the{' '}
-          <a href="/docs/commerce-protocol/graphql">shared error model</a>{' '}
-          assigns, with one envelope:
+          <a href="/commerce-protocol/graphql">shared error model</a> assigns,
+          with one envelope:
         </p>
         <pre>
           <code>{`{ "error": { "code": "VERIFICATION_FAILED", "message": "..." } }`}</code>

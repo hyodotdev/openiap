@@ -7,7 +7,7 @@ function CommerceProtocolDiagram() {
   return (
     <figure
       className="commerce-signal"
-      aria-label="A provider — IAPKit, a vendor, or your own backend — verifies, normalizes, and signs store data, and emits it as the Commerce Protocol's portable events, entitlements, and webhooks."
+      aria-label="A provider serving the verification, entitlements, and events profiles verifies, normalizes, and signs store data, and emits it as the Commerce Protocol's portable events, entitlements, and webhooks."
     >
       <svg
         className="commerce-signal-lines"
@@ -90,7 +90,7 @@ function CommerceProtocolDiagram() {
       </div>
 
       <div className="commerce-signal-core">
-        <span>IAPKit · vendor · your backend</span>
+        <span>self-hosted or managed</span>
         <strong>Provider</strong>
         <small>verify · normalize · sign</small>
       </div>

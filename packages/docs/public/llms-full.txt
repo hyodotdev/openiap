@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-05T07:23:55.623Z
+> Generated: 2026-09-07T08:24:07.676Z
 
 ## Table of Contents
 1. Installation
@@ -3524,8 +3524,8 @@ storage or tooling.
 - Types Reference: https://openiap.dev/docs/types
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
-- Commerce Protocol: https://openiap.dev/docs/commerce-protocol
-- Commerce Protocol Webhook Contract: https://openiap.dev/docs/webhooks
+- Commerce Protocol: https://openiap.dev/commerce-protocol
+- Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 - Commerce Protocol Conformance Vectors: https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/vectors

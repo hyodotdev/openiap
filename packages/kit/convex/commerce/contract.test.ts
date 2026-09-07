@@ -55,7 +55,10 @@ describe("the public receiver contract stays in sync", () => {
     const publicContracts = [
       new URL("../../COMMERCE-EVENTS.md", import.meta.url),
       new URL("../../src/pages/docs/sections/webhooks.tsx", import.meta.url),
-      new URL("../../../docs/src/pages/docs/webhooks.tsx", import.meta.url),
+      new URL(
+        "../../../docs/src/pages/commerce-protocol/webhooks.tsx",
+        import.meta.url,
+      ),
     ].map((url) => readFileSync(url, "utf8"));
     const tolerance = new RegExp(
       `(?:<=|&lt;=|>)\\s*${SIGNATURE_TOLERANCE_SECONDS}\\b`,

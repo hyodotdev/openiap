@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import CommerceProtocolDiagram from '../../../components/CommerceProtocolDiagram';
-import SEO from '../../../components/SEO';
+import CommerceProtocolDiagram from '../../components/CommerceProtocolDiagram';
+import SEO from '../../components/SEO';
 
 const SPEC_URL =
   'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
@@ -31,7 +31,7 @@ const PRINCIPLES: Principle[] = [
     symbol: '◌',
     title: 'Multiple backend implementations',
     description:
-      'IAPKit, a managed provider, or your own backend — switch without rewriting the integration.',
+      'Your own backend, a managed provider, or the open-source reference — switch between any that serve the profiles you use.',
   },
 ];
 
@@ -43,47 +43,47 @@ interface SectionLink {
 
 const SECTION_LINKS: SectionLink[] = [
   {
-    to: '/docs/commerce-protocol/profiles',
+    to: '/commerce-protocol/profiles',
     label: 'Profiles',
     summary: 'Verification, entitlements, events, account lifecycle',
   },
   {
-    to: '/docs/commerce-protocol/operations',
+    to: '/commerce-protocol/operations',
     label: 'Operations',
     summary: 'The six portable operations and their rules',
   },
   {
-    to: '/docs/commerce-protocol/rest',
+    to: '/commerce-protocol/rest',
     label: 'REST',
     summary: 'HTTP/JSON under /commerce/v1, with generated OpenAPI',
   },
   {
-    to: '/docs/commerce-protocol/graphql',
+    to: '/commerce-protocol/graphql',
     label: 'GraphQL',
     summary: 'One endpoint serving the generated schema projection',
   },
   {
-    to: '/docs/webhooks',
+    to: '/commerce-protocol/webhooks',
     label: 'Events & Webhooks',
     summary: 'Signed, retried, idempotent event delivery',
   },
   {
-    to: '/docs/commerce-protocol/authentication',
+    to: '/commerce-protocol/authentication',
     label: 'Authentication',
     summary: 'Verification and server roles, fail-close trust',
   },
   {
-    to: '/docs/commerce-protocol/capabilities',
+    to: '/commerce-protocol/capabilities',
     label: 'Capabilities',
     summary: 'The honest, machine-readable provider descriptor',
   },
   {
-    to: '/docs/commerce-protocol/conformance',
+    to: '/commerce-protocol/conformance',
     label: 'Conformance',
     summary: 'Certify any provider offline, on either binding',
   },
   {
-    to: '/docs/commerce-protocol/versioning',
+    to: '/commerce-protocol/versioning',
     label: 'Versioning',
     summary: 'MAJOR.MINOR rules callers can pin on',
   },
@@ -95,7 +95,7 @@ function CommerceProtocol() {
       <SEO
         title="OpenIAP Commerce Protocol"
         description="The open server-side contract that turns store purchase data into portable commerce events, entitlements, and signed webhooks."
-        path="/docs/commerce-protocol"
+        path="/commerce-protocol"
         keywords="OpenIAP Commerce Protocol, server-side IAP specification, commerce events, entitlements, signed webhooks"
       />
 
@@ -110,10 +110,10 @@ function CommerceProtocol() {
           </h1>
           <p>
             Verify purchases, read entitlements, and deliver normalized events
-            over <Link to="/docs/commerce-protocol/rest">REST</Link>,{' '}
-            <Link to="/docs/commerce-protocol/graphql">GraphQL</Link>, and{' '}
-            <Link to="/docs/webhooks">signed webhooks</Link> — without coupling
-            the integration to one provider.
+            over <Link to="/commerce-protocol/rest">REST</Link>,{' '}
+            <Link to="/commerce-protocol/graphql">GraphQL</Link>, and{' '}
+            <Link to="/commerce-protocol/webhooks">signed webhooks</Link> —
+            without coupling the integration to one provider.
           </p>
           <div className="commerce-hero-actions">
             <a
