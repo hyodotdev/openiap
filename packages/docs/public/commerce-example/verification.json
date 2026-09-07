@@ -1,0 +1,283 @@
+{
+  "recordedAt": "2026-09-07T17:46:59.541Z",
+  "scope": "Each recorded archive extracted outside both repositories; patches applied in order from an empty directory; published dependencies installed with npm.",
+  "results": [
+    {
+      "id": "01-contract",
+      "archiveSha256": "c9ce57ca1033edcf75c9e676f7756c5158d4adbeeb5dce3eac04890098c987e3",
+      "patchSha256": "b1b6f603f2fed0e65f990cb072f022570b5d9f22b3e3b97eb9a55182323d0762",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 946ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 6,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "02-verify",
+      "archiveSha256": "ba06e8492b3e3e2972e5eb1c1c6e721771a032268e644837b8a084f4432467b4",
+      "patchSha256": "192c76de95d2f9c21280970b3a51e2e10ce530368681587b92b3cc82b914e267",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 620ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 10,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "03-bind",
+      "archiveSha256": "fc5a10c937d14af61d117f9257b4fa3e5d95c143027ea935b1d338472165cb9f",
+      "patchSha256": "c9edf827f84065af730426bd26e2e83d3ae5cca29684db98e7fcd12df65134b3",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 463ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 15,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "04-cancel",
+      "archiveSha256": "95d8f609f6f5d1a0b924fdec258dc5469d60b99305359b4a3847579494e55ae5",
+      "patchSha256": "8b212cf47f4e539f7b933eaaa0be7f7f3b16d708377fa28d46c76b283c3ec7ea",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 566ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 18,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Capabilities use the published response schema\",\n    \"Purchase storage starts empty\",\n    \"No profile conformance is claimed\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"Cancellation keeps paid access\",\n    \"Cancellation stops renewal\",\n    \"Cancellation queues one event\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "05-deliver",
+      "archiveSha256": "a1d954f735fa37dd4577301ea684f6f407f596a4924c04667390dfc8749d6594",
+      "patchSha256": "b341cad097b2de24142f31f0818b4048078d84181f46204d1b755b31c346e46a",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 456ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 22,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Capabilities use the published response schema\",\n    \"Purchase storage starts empty\",\n    \"No profile conformance is claimed\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"Cancellation keeps paid access\",\n    \"Cancellation stops renewal\",\n    \"Cancellation queues one event\",\n    \"A 503 leaves a durable retry\",\n    \"Retry survives provider restart\",\n    \"Retry keeps the delivery identity\",\n    \"Redelivery has one durable inbox effect\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover",
+      "archiveSha256": "4473472cf05d8ddb2b10b29a45bf60587c9a8b4a585687cd32dd6ce2302a0896",
+      "patchSha256": "b22e63e832f1b486b80b6a7d88ca9d7b0af7a781e6495a045fce060a04ac7e95",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 779ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Lab: 82 checks passed. No store or production service contacted.\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed",
+      "archiveSha256": "1c1bc0b5f9d96f30b73338897ece812af0c8289fb38448b17b9ca91897af6a91",
+      "patchSha256": "cb4cc37b1b07fd18e829e55268c59ee2fb851cb6d02de613211d5938647e5d21",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 860ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && node --test checkpoint-tools.test.mjs\n\nCommerce Lab: 90 checks passed. No store or production service contacted.\n✔ patches preserve path-like source text across additions, changes, and deletions (175.662917ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 258.433209\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-2",
+      "archiveSha256": "e96ffe60977c4f03060af0f6b65ecdd2211624d3b8a5bd124723b704b5ee9d8f",
+      "patchSha256": "e3e7d92df5959f847cd4bf4eec477573c934bcf321f713622a03f0f50ecab5a7",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 792ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Lab: 118 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) patches preserve path-like source text across additions, changes, and deletions [73.01ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.47ms]\n\n 2 pass\n 0 fail\nRan 2 tests across 1 file. [101.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-3",
+      "archiveSha256": "5e160382f94bcadd81ca5f86943c9220ca053aafe58e44dd4770423cdb7c0453",
+      "patchSha256": "3e05ce664ae789f68fea40b9bbc990ce116aa5a35e21f238080194ba29f4f510",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 499ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Lab: 130 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) patches preserve path-like source text across additions, changes, and deletions [68.85ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.69ms]\n\n 2 pass\n 0 fail\nRan 2 tests across 1 file. [91.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-4",
+      "archiveSha256": "afcd9c10edb66d2bd59dd183f1222b075b983efd6c6e7082ca6d4621e35143b4",
+      "patchSha256": "5ca6acbd146918279d8bc4d2e5fc70c79a58e2637c24c9527b32eccc34c29a31",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 354ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 133 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) patches preserve path-like source text across additions, changes, and deletions [62.78ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.59ms]\n(pass) unfinished captures do not hide completed records [1.13ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [84.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-5",
+      "archiveSha256": "8f0b26fb76cc5a129795b7f278dae61d365c25eb936cbe10f0b0233faee1a727",
+      "patchSha256": "4c63e82ff783aaec5cd0c6c9c421181cb1faa164227b5c7d2aba91c5a1e96be3",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 377ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 133 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) patches preserve path-like source text across additions, changes, and deletions [63.92ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.51ms]\n(pass) unfinished captures do not hide completed records [1.08ms]\n\n 3 pass\n 0 fail\nRan 3 tests across 1 file. [85.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-6",
+      "archiveSha256": "21d588909482cba125ea6f3688ace78111ce852c526374289c52e286aff86b15",
+      "patchSha256": "25d08ad1c312f933db3228453744b5f1d965e4296e1a9f6a39e77458545eabad",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 319ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 133 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) archive extraction excludes macOS metadata and preserves source hashes [14.22ms]\n(pass) patches preserve path-like source text across additions, changes, and deletions [57.02ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.75ms]\n(pass) unfinished captures do not hide completed records [1.09ms]\n\n 4 pass\n 0 fail\nRan 4 tests across 1 file. [93.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover-reviewed-7",
+      "archiveSha256": "9056f8a62e92bb3717a06e260652d6aaeb01aba61035f430a8dda8053fd914f1",
+      "patchSha256": "7c32d8b00dced1d0d4d632ebc5f34476f9b3932bea7aa7b497d3cc9ceff52820",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 316ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 133 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) archive extraction excludes macOS metadata and preserves source hashes [13.30ms]\n(pass) patches preserve path-like source text across additions, changes, and deletions [60.63ms]\n(pass) failed attempts get new numbers and private paths are redacted [1.09ms]\n(pass) unfinished captures do not hide completed records [2.08ms]\n\n 4 pass\n 0 fail\nRan 4 tests across 1 file. [96.00ms]\n"
+        }
+      ]
+    }
+  ]
+}

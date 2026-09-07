@@ -1,0 +1,26 @@
+{
+  "startedAt": "2026-09-07T12:09:01.405Z",
+  "command": "npm run capture",
+  "verifier": "verifyLab() (also used by npm test)",
+  "passed": 18,
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Capabilities use the published response schema",
+    "Purchase storage starts empty",
+    "No profile conformance is claimed",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "Verification credentials cannot bind a user",
+    "The server binds Alice",
+    "Repeating the same binding succeeds",
+    "Bob cannot take Alice's purchase",
+    "Alice can access Premium",
+    "Cancellation keeps paid access",
+    "Cancellation stops renewal",
+    "Cancellation queues one event",
+    "An unimplemented operation is explicitly refused",
+    "Untrusted browser origins are refused"
+  ]
+}

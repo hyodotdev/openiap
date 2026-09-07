@@ -1,0 +1,22 @@
+{
+  "startedAt": "2026-09-07T12:06:56.316Z",
+  "command": "npm test",
+  "passed": 15,
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Discovery remains unsupported until an event can be emitted",
+    "Purchase storage starts empty",
+    "Unready discovery returns a portable error",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "Verification credentials cannot bind a user",
+    "The server binds Alice",
+    "Repeating the same binding succeeds",
+    "Bob cannot take Alice's purchase",
+    "Alice can access Premium",
+    "An unimplemented operation is explicitly refused",
+    "Untrusted browser origins are refused"
+  ]
+}

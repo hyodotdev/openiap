@@ -1,6 +1,5 @@
 /* Documentation - Expo style layout */
 .docs-container {
-  --docs-sidebar-width: 340px;
   display: flex;
   max-width: var(--max-width);
   margin: 0 auto;
@@ -1305,7 +1304,7 @@
        fixed drawer hundreds of pixels to the right of the viewport. */
     margin-left: 0;
     --sidebar-edge-fill: 0px;
-    width: 280px;
+    width: var(--docs-sidebar-mobile-width);
     max-width: 85vw;
     height: calc(100vh - 56px) !important;
     max-height: calc(100vh - 56px) !important;
@@ -1352,7 +1351,7 @@
 
   .docs-content {
     width: 100%;
-    padding: 3.5rem var(--spacing-lg) var(--spacing-xl);
+    padding: 4.5rem var(--spacing-lg) var(--spacing-xl);
     max-width: 100%;
   }
 

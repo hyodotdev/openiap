@@ -962,6 +962,38 @@ export const apiData: ApiItem[] = [
     path: '/commerce-protocol',
   },
   {
+    id: 'commerce-protocol-ecosystem',
+    title: 'Commerce Protocol Build Your Part',
+    category: 'Documentation',
+    description:
+      'Paywall, commerce, and data roles; OpenIAP client integration and composable platform boundaries',
+    path: '/commerce-protocol/ecosystem',
+  },
+  {
+    id: 'commerce-protocol-getting-started',
+    title: 'Commerce Protocol Use a Provider',
+    category: 'Documentation',
+    description:
+      'Connect to a provider for purchase verification, account binding, and entitlement reads',
+    path: '/commerce-protocol/getting-started',
+  },
+  {
+    id: 'commerce-protocol-implementation',
+    title: 'Commerce Protocol Build with AI',
+    category: 'Documentation',
+    description:
+      'AI build brief, six recorded milestones, runnable SQLite backend, captured API results, and IAPKit comparison',
+    path: '/commerce-protocol/implementation',
+  },
+  {
+    id: 'commerce-protocol-whitepaper',
+    title: 'Commerce Protocol Whitepaper',
+    category: 'Documentation',
+    description:
+      'Design rationale and implementation blueprint with a downloadable PDF',
+    path: '/commerce-protocol/whitepaper',
+  },
+  {
     id: 'commerce-protocol-profiles',
     title: 'Commerce Protocol Profiles',
     category: 'Documentation',

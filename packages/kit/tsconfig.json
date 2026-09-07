@@ -30,6 +30,11 @@
       "bun"
     ]
   },
-  "include": ["src", "server", "vitest.config.ts"],
+  "include": [
+    "src",
+    "server",
+    "vitest.config.ts",
+    "scripts/docs/compare-commerce-example.ts"
+  ],
   "exclude": ["convex/_generated"]
 }

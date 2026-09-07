@@ -3,34 +3,7 @@ import AnchorLink from '../../../components/AnchorLink';
 import { Link } from 'react-router-dom';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-interface Whitepaper {
-  id: string;
-  title: string;
-  version: string;
-  date: string;
-  pages: number;
-  href: string;
-  source: string;
-  summary: string;
-  scope: string;
-}
-
-const WHITEPAPERS: Whitepaper[] = [
-  {
-    id: 'commerce-protocol-rationale',
-    title: 'Why the Commerce Protocol Draws Its Boundaries Where It Does',
-    version: '1.0',
-    date: '6 September 2026',
-    pages: 12,
-    href: '/commerce-protocol-rationale.pdf',
-    source:
-      'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/DESIGN.md',
-    summary:
-      'Five subscription integration failures — a paying customer locked out by a verification outage, access closed the day auto-renewal is turned off, a late webhook opening an expired gate — are all one mistake: a question answered with the answer to a different question. This sets out the six boundaries that keep them apart, what each costs to get wrong, and what the contract still leaves to you. It includes three checks you can run against the integration you already have.',
-    scope:
-      'A whitepaper for engineers who verify purchases on a server. It reports no measured result and has not been peer reviewed.',
-  },
-];
+import { WHITEPAPERS } from '../../../lib/whitepapers';
 
 function Whitepapers() {
   useScrollToHash();
@@ -58,7 +31,7 @@ function Whitepapers() {
             {paper.title}
           </AnchorLink>
           <p>
-            Version {paper.version} · {paper.date} · {paper.pages} pages ·{' '}
+            Version {paper.version} · {paper.date} ·{' '}
             <a href={paper.href} target="_blank" rel="noopener noreferrer">
               read the PDF
             </a>{' '}

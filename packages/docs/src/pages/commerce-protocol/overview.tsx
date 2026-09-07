@@ -1,185 +1,125 @@
-import { ExternalLink } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import CommerceProtocolDiagram from '../../components/CommerceProtocolDiagram';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowRight, BookOpen, Play } from 'lucide-react';
 import SEO from '../../components/SEO';
+import CommerceEcosystem from '../../components/CommerceEcosystem';
+import CommerceProtocolDiagram from '../../components/CommerceProtocolDiagram';
+import CommerceBuildWalkthrough from '../../components/CommerceBuildWalkthrough';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
+import '../../styles/commerce-protocol.css';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
-const GRAPHQL_VIEW_URL =
-  'https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema';
-
-interface Principle {
-  symbol: string;
-  title: string;
-  description: string;
-}
-
-const PRINCIPLES: Principle[] = [
-  {
-    symbol: '↗',
-    title: 'One commerce contract',
-    description:
-      'Verify purchases, read entitlements, and receive normalized events across every store.',
-  },
-  {
-    symbol: '⇄',
-    title: 'Two transport bindings',
-    description:
-      'The same operations over REST or GraphQL, generated from one source.',
-  },
-  {
-    symbol: '◌',
-    title: 'Multiple backend implementations',
-    description:
-      'Your own backend, a managed provider, or the open-source reference — switch between any that serve the profiles you use.',
-  },
-];
-
-interface SectionLink {
-  to: string;
-  label: string;
-  summary: string;
-}
-
-const SECTION_LINKS: SectionLink[] = [
-  {
-    to: '/commerce-protocol/profiles',
-    label: 'Profiles',
-    summary: 'Verification, entitlements, events, account lifecycle',
-  },
-  {
-    to: '/commerce-protocol/operations',
-    label: 'Operations',
-    summary: 'The six portable operations and their rules',
-  },
-  {
-    to: '/commerce-protocol/rest',
-    label: 'REST',
-    summary: 'HTTP/JSON under /commerce/v1, with generated OpenAPI',
-  },
-  {
-    to: '/commerce-protocol/graphql',
-    label: 'GraphQL',
-    summary: 'One endpoint serving the generated schema projection',
-  },
-  {
-    to: '/commerce-protocol/webhooks',
-    label: 'Events & Webhooks',
-    summary: 'Signed, retried, idempotent event delivery',
-  },
-  {
-    to: '/commerce-protocol/authentication',
-    label: 'Authentication',
-    summary: 'Verification and server roles, fail-close trust',
-  },
-  {
-    to: '/commerce-protocol/capabilities',
-    label: 'Capabilities',
-    summary: 'The honest, machine-readable provider descriptor',
-  },
-  {
-    to: '/commerce-protocol/conformance',
-    label: 'Conformance',
-    summary: 'Certify any provider offline, on either binding',
-  },
-  {
-    to: '/commerce-protocol/versioning',
-    label: 'Versioning',
-    summary: 'MAJOR.MINOR rules callers can pin on',
-  },
-];
-
-function CommerceProtocol() {
+function CommerceProtocol(): React.JSX.Element {
+  useScrollToHash();
+  const { hash } = useLocation();
+  const [exampleStep, setExampleStep] = useState<number | null>(null);
+  useEffect(() => {
+    if (hash === '#build-walkthrough') setExampleStep(1);
+  }, [hash]);
+  const showExample = (step: number): void => {
+    setExampleStep(step);
+    requestAnimationFrame(() =>
+      document
+        .getElementById('build-walkthrough')
+        ?.scrollIntoView({ block: 'start' })
+    );
+  };
   return (
-    <div className="doc-page commerce-protocol-page">
+    <div className="doc-page commerce-protocol-page commerce-overview">
       <SEO
         title="OpenIAP Commerce Protocol"
-        description="The open server-side contract that turns store purchase data into portable commerce events, entitlements, and signed webhooks."
+        description="Build your part of the OpenIAP ecosystem: paywalls, commerce services, or data platforms. Explore the architecture and follow a working AI-built backend."
         path="/commerce-protocol"
-        keywords="OpenIAP Commerce Protocol, server-side IAP specification, commerce events, entitlements, signed webhooks"
       />
-
       <header className="commerce-hero">
+        <div className="commerce-hero-topline">
+          <span className="commerce-eyebrow">OpenIAP Commerce Protocol</span>
+          <span className="commerce-standard-badge">Open standard</span>
+        </div>
         <div className="commerce-hero-copy">
-          <span className="commerce-kicker">
-            OpenIAP Commerce Protocol <i>1.0</i>
-          </span>
           <h1>
-            Every store speaks differently.
-            <span>Your backend shouldn&apos;t.</span>
+            Build your part.
+            <span>Connect the whole.</span>
           </h1>
           <p>
-            Verify purchases, read entitlements, and deliver normalized events
-            over <Link to="/commerce-protocol/rest">REST</Link>,{' '}
-            <Link to="/commerce-protocol/graphql">GraphQL</Link>, and{' '}
-            <Link to="/commerce-protocol/webhooks">signed webhooks</Link> —
-            without coupling the integration to one provider.
+            A shared contract for paywalls, commerce services, and data
+            platforms. Bring your business to apps built with OpenIAP.
           </p>
-          <div className="commerce-hero-actions">
-            <a
-              className="commerce-button commerce-button--primary no-icon btn"
-              href={GRAPHQL_VIEW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="commerce-actions">
+            <Link className="btn btn-primary" to="#architecture">
+              Explore the architecture{' '}
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+            <button
+              className="btn btn-secondary"
+              onClick={() => showExample(1)}
             >
-              Browse the GraphQL contract
-              <ExternalLink size={15} aria-hidden="true" />
-            </a>
-            <a
-              className="commerce-button no-icon btn"
-              href={SPEC_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Read the specification
-              <ExternalLink size={15} aria-hidden="true" />
-            </a>
+              <Play size={15} aria-hidden="true" /> See AI build it
+            </button>
           </div>
-          <small>Open standard · No account · No central runtime</small>
         </div>
-
-        <CommerceProtocolDiagram />
+        <div className="commerce-hero-footer">
+          <span>Your infrastructure. Your partners. No central account.</span>
+          <Link to="/commerce-protocol/whitepaper">
+            <BookOpen size={15} aria-hidden="true" /> Read the whitepaper
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
       </header>
-
-      <section className="commerce-principles" aria-labelledby="principles">
-        <div className="commerce-section-heading">
-          <span>The promise</span>
-          <h2 id="principles">
-            One commerce contract. Two transport bindings. Multiple backend
-            implementations.
-          </h2>
+      <CommerceEcosystem />
+      <details className="commerce-explore-section">
+        <summary>
+          <span>Inside the commerce backend</span>
+          <small>Verification, ownership, access, and delivery</small>
+        </summary>
+        <div className="commerce-explore-content">
+          <CommerceProtocolDiagram onShowExample={showExample} />
         </div>
-        <div className="commerce-principle-grid">
-          {PRINCIPLES.map((principle) => (
-            <article key={principle.title}>
-              <span aria-hidden="true">{principle.symbol}</span>
-              <div>
-                <h3>{principle.title}</h3>
-                <p>{principle.description}</p>
-              </div>
-            </article>
-          ))}
+      </details>
+      <details
+        id="build-walkthrough"
+        className="commerce-explore-section"
+        open={exampleStep !== null}
+        onToggle={(event) => {
+          const open = event.currentTarget.open;
+          setExampleStep((current) => (open ? (current ?? 1) : null));
+        }}
+      >
+        <summary>
+          <span>See how AI built it</span>
+          <small>Six source checkpoints · build, inspect, fix, recheck</small>
+        </summary>
+        {exampleStep !== null && (
+          <div className="commerce-explore-content">
+            <CommerceBuildWalkthrough
+              selected={exampleStep}
+              onSelect={setExampleStep}
+            />
+          </div>
+        )}
+      </details>
+      <details className="commerce-explore-section">
+        <summary>
+          <span>Find the specification</span>
+          <small>APIs, roles, events, and conformance</small>
+        </summary>
+        <div className="commerce-explore-content">
+          <p>
+            <Link to="/commerce-protocol/operations">Operations</Link> ·{' '}
+            <Link to="/commerce-protocol/rest">REST</Link> ·{' '}
+            <Link to="/commerce-protocol/graphql">GraphQL</Link> ·{' '}
+            <Link to="/commerce-protocol/authentication">Authentication</Link> ·{' '}
+            <Link to="/commerce-protocol/webhooks">Webhooks</Link> ·{' '}
+            <Link to="/commerce-protocol/conformance">Conformance</Link>
+          </p>
+          <p>
+            <a href={COMMERCE_PROTOCOL_LINKS.spec}>Normative specification</a> ·{' '}
+            <a href="https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema">
+              Authored schema
+            </a>
+          </p>
         </div>
-      </section>
-
-      <section className="commerce-principles" aria-labelledby="explore">
-        <div className="commerce-section-heading">
-          <span>Read on</span>
-          <h2 id="explore">The protocol, section by section.</h2>
-        </div>
-        <div className="commerce-principle-grid">
-          {SECTION_LINKS.map((section) => (
-            <article key={section.to}>
-              <div>
-                <h3>
-                  <Link to={section.to}>{section.label}</Link>
-                </h3>
-                <p>{section.summary}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      </details>
     </div>
   );
 }

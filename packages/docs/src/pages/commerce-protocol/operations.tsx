@@ -1,14 +1,16 @@
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
+import { useScrollToHash } from '../../hooks/useScrollToHash';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
+const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 
 type OperationRow = (typeof httpBinding.operations)[number];
 
 function CommerceOperations() {
+  useScrollToHash();
   return (
     <div className="doc-page">
       <SEO
@@ -33,7 +35,9 @@ function CommerceOperations() {
           columns={[
             {
               header: 'Operation',
-              cell: (row: OperationRow) => <code>{row.name}</code>,
+              cell: (row: OperationRow) => (
+                <code id={row.name}>{row.name}</code>
+              ),
             },
             {
               header: 'Profile',

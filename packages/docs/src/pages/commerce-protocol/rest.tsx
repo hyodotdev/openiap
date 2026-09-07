@@ -1,10 +1,15 @@
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
 import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
 import SEO from '../../components/SEO';
+import CodeBlock from '../../components/CodeBlock';
+import { Link } from 'react-router-dom';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
+const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
+const ENTITLEMENTS_PATH = httpBinding.operations.find(
+  (operation) => operation.name === 'entitlements'
+)!.path;
 
 function CommerceRest() {
   return (
@@ -20,19 +25,50 @@ function CommerceRest() {
         Every operation lives under <code>/commerce/v1</code>: queries are{' '}
         <code>GET</code> with query parameters, mutations are <code>POST</code>{' '}
         with a JSON body, and credentials travel only in the{' '}
-        <code>Authorization</code> header. The binding is described end to end
-        by two generated artifacts — the HTTP manifest (
-        <code>generated/bindings/http-binding.json</code>) and the OpenAPI 3.1
-        document — both compiled from the contract, never authored.
+        <code>Authorization</code> header. Use the provider's base URL and check
+        its declared profiles before calling an operation.
       </p>
+      <section>
+        <AnchorLink id="example" level="h2">
+          Read current access
+        </AnchorLink>
+        <p>
+          Run this from your authenticated backend. Set the complete
+          Authorization header value in <code>COMMERCE_SERVER_AUTH</code> and
+          select <code>COMMERCE_USER_ID</code> from the backend's session and
+          ownership policy.
+        </p>
+        <CodeBlock language="bash">{`export COMMERCE_BASE_URL='https://your-provider.example'
+curl --fail-with-body --get "$COMMERCE_BASE_URL${ENTITLEMENTS_PATH}" \\
+  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  --data-urlencode "userId=$COMMERCE_USER_ID"`}</CodeBlock>
+        <p>
+          Read <code>productIds</code> for current access. An empty list grants
+          nothing; a failed request must not be treated as a successful access
+          decision. Follow{' '}
+          <Link to="/commerce-protocol/getting-started#verify-bind-read">
+            verify, bind, and read
+          </Link>{' '}
+          for the complete flow, or run the{' '}
+          <a href={COMMERCE_PROTOCOL_LINKS.example}>local example</a> with
+          fixture evidence.
+        </p>
+        <p>
+          The package's{' '}
+          <code>generated/openapi/commerce-protocol.openapi.json</code> defines
+          requests and responses. The{' '}
+          <Link to="/commerce-protocol/operations">operation table</Link> lists
+          paths, profiles, and required roles from the generated HTTP manifest.
+        </p>
+      </section>
       <section>
         <AnchorLink id="errors" level="h2">
           Failures
         </AnchorLink>
         <p>
           Every failure is the status the{' '}
-          <a href="/commerce-protocol/graphql">shared error model</a> assigns,
-          with one envelope:
+          <a href={`${SPEC_URL}#8-portable-errors`}>shared error model</a>{' '}
+          assigns, with one envelope:
         </p>
         <pre>
           <code>{`{ "error": { "code": "VERIFICATION_FAILED", "message": "..." } }`}</code>

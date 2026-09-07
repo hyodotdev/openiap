@@ -1,0 +1,28 @@
+Command: npm run demo:consumer
+Exit code: 1
+
+> openiap-commerce-protocol-example@0.0.0 demo:consumer
+> bun consumer.mjs demo
+
+52 |     now: () => now,
+53 |   });
+54 |   const checks = [],
+55 |     results = [];
+56 |   const check = (name, actual, expected) => {
+57 |     assert.deepEqual(actual, expected, name);
+                ^
+AssertionError: Health accepts the proxy public Host header
+
+403 !== 200
+
+ generatedMessage: false,
+     actual: 403,
+   expected: 200,
+   operator: "deepStrictEqual",
+       code: "ERR_ASSERTION"
+
+      at check (<local-path>/consumer.mjs:57:12)
+      at runConsumerDemo (<local-path>/consumer.mjs:84:17)
+      at processTicksAndRejections (native:7:39)
+
+Bun v1.3.13 (macOS arm64)

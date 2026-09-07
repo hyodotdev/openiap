@@ -1,0 +1,673 @@
+{
+  "recordedAt": "2026-09-07T17:46:18.774Z",
+  "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.",
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Capabilities use the published response schema",
+    "Purchase storage starts empty",
+    "No profile conformance is claimed",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "Verification credentials cannot bind a user",
+    "The server binds Alice",
+    "Repeating the same binding succeeds",
+    "Bob cannot take Alice's purchase",
+    "Alice can access Premium",
+    "First binding queues one grant; repeat and conflict queue none",
+    "Cancellation keeps paid access",
+    "Cancellation stops renewal",
+    "Cancellation queues one event",
+    "A 503 leaves a durable retry",
+    "Retry survives provider restart",
+    "Retry keeps the delivery identity",
+    "Redelivery has one inbox row per event",
+    "Access closes at expiry before a notification arrives",
+    "Duplicate store notification emits no extra event",
+    "Reopening both databases preserves state",
+    "Receiver deduplication survives restart",
+    "All four events reach the receiver",
+    "The final status is inactive",
+    "Signature vector: single-key",
+    "Receiver accepts vector: single-key",
+    "Signature vector: retry-after-backoff",
+    "Receiver accepts vector: retry-after-backoff",
+    "Signature vector: raw-utf8-body",
+    "Receiver accepts vector: raw-utf8-body",
+    "Signature vector: during-rotation",
+    "Receiver accepts vector: during-rotation",
+    "Signature vector: minimal-event-omits-extensions",
+    "Receiver accepts vector: minimal-event-omits-extensions",
+    "Receiver rejects: tampered-body",
+    "Receiver rejects: wrong-secret",
+    "Receiver rejects: timestamp-outside-tolerance",
+    "Receiver rejects: timestamp-not-in-signed-material",
+    "Receiver rejects: retry-reuses-first-signature",
+    "Receiver rejects: garbage-appended-to-valid-signature",
+    "Active: before expiry",
+    "Active: at expiry",
+    "Active: no deadline",
+    "InGracePeriod: before expiry",
+    "InGracePeriod: at expiry",
+    "InGracePeriod: no deadline",
+    "InBillingRetry: before expiry",
+    "InBillingRetry: at expiry",
+    "InBillingRetry: no deadline",
+    "Paused: before expiry",
+    "Paused: at expiry",
+    "Paused: no deadline",
+    "Expired: before expiry",
+    "Expired: at expiry",
+    "Expired: no deadline",
+    "Revoked: before expiry",
+    "Revoked: at expiry",
+    "Revoked: no deadline",
+    "Refunded: before expiry",
+    "Refunded: at expiry",
+    "Refunded: no deadline",
+    "Unknown: before expiry",
+    "Unknown: at expiry",
+    "Unknown: no deadline",
+    "FutureState: before expiry",
+    "FutureState: at expiry",
+    "FutureState: no deadline",
+    "Missing credentials are refused",
+    "Verification role cannot enumerate users",
+    "Malformed input is refused",
+    "A real store is not falsely accepted",
+    "Erasure is explicitly unimplemented",
+    "Cancellation after expiry is ignored",
+    "Expired fixture evidence has an expired verdict",
+    "Tampered HTTP body has no inbox effect",
+    "Receiver still has exactly four events",
+    "Cross-origin demo mutations are refused",
+    "Overlapping HTTP ownership claims have one winner",
+    "A cancellation older than the active row is ignored",
+    "Ignoring an old cancellation preserves renewal",
+    "Conflicting expiry is not consumed",
+    "Outbox failure rolls back subscription state",
+    "Failed transaction leaves the observation retryable",
+    "Exhausted retries enter dead-letter",
+    "Grant failure rejects binding",
+    "Grant failure rolls back ownership",
+    "An expired purchase can be bound",
+    "Binding expired evidence emits no grant",
+    "Delayed binding retains the store occurrence",
+    "Delayed binding records its actual processing time",
+    "Late expiry revokes a persisted grant exactly once",
+    "Repeated expiry emits no second revocation",
+    "Equal-time expiry retains its lifecycle transition",
+    "Equal-time observations revoke once and preserve both transitions",
+    "Health accepts the proxy public Host header",
+    "subscription.started: authenticated and saved",
+    "subscription.started: redelivery deduplicated",
+    "subscription.started: tampering rejected",
+    "entitlement.granted: authenticated and saved",
+    "entitlement.granted: redelivery deduplicated",
+    "entitlement.granted: tampering rejected",
+    "subscription.renewed: authenticated and saved",
+    "subscription.renewed: redelivery deduplicated",
+    "subscription.renewed: tampering rejected",
+    "subscription.canceled: authenticated and saved",
+    "subscription.canceled: redelivery deduplicated",
+    "subscription.canceled: tampering rejected",
+    "subscription.expired: authenticated and saved",
+    "subscription.expired: redelivery deduplicated",
+    "subscription.expired: tampering rejected",
+    "entitlement.revoked: authenticated and saved",
+    "entitlement.revoked: redelivery deduplicated",
+    "entitlement.revoked: tampering rejected",
+    "subscription.refunded: authenticated and saved",
+    "subscription.refunded: redelivery deduplicated",
+    "subscription.refunded: tampering rejected",
+    "One inbox record per event",
+    "Inbox survives reopening SQLite",
+    "apple: maps evidence without forwarding client identity",
+    "apple: matches the installed verification input schema",
+    "google: maps evidence without forwarding client identity",
+    "google: matches the installed verification input schema",
+    "Rejects missing purchase",
+    "Rejects unknown store",
+    "Rejects Amazon needs its own adapter",
+    "Rejects Horizon needs its own adapter",
+    "Rejects missing evidence",
+    "Rejects blank evidence",
+    "Rejects non-string evidence",
+    "Rejects oversized evidence"
+  ],
+  "standalone": {
+    "version": "0.1.0",
+    "passed": 133
+  },
+  "milestones": [
+    {
+      "step": 1,
+      "title": "Start with the contract",
+      "built": "HTTP routes + schema validation + SQLite",
+      "result": "A running server, an empty purchase table, and no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 501,
+          "body": {
+            "error": {
+              "code": "UNSUPPORTED_PROFILE",
+              "message": "unsupported profile"
+            }
+          }
+        },
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 501,
+          "body": {
+            "error": {
+              "code": "UNSUPPORTED_PROFILE",
+              "message": "unsupported profile"
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture request matches the installed schema",
+        "Discovery remains unsupported until an event can be emitted",
+        "Purchase storage starts empty",
+        "Unready discovery returns a portable error"
+      ],
+      "totalChecks": 4,
+      "screenshot": "01-contract/screen.png",
+      "build": {
+        "request": "Load the contract and start a backend that can validate its inputs.",
+        "change": "Installed the published package and added HTTP routing, schema validation, and empty SQLite storage.",
+        "review": "The first capabilities response failed schema validation. The recorded scaffold then returned UNSUPPORTED_PROFILE, which is also invalid for core discovery. These early versions are unfinished backends, not conformant providers. Discovery is implemented in step 4.",
+        "id": "01-contract",
+        "label": "Contract",
+        "source": "01-contract/source.tar.gz",
+        "changes": "01-contract/changes.patch",
+        "report": "01-contract/run.json",
+        "passed": 6
+      }
+    },
+    {
+      "step": 2,
+      "title": "Verify a purchase",
+      "built": "Fixture store adapter + purchase persistence",
+      "result": "Valid evidence is saved. Alice still has no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": null,
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 1
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": true,
+            "state": "ENTITLED",
+            "productId": "premium.monthly",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": false,
+            "state": "INAUTHENTIC",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 502,
+          "body": {
+            "error": {
+              "code": "VERIFICATION_FAILED",
+              "message": "verification failed"
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture evidence is accepted",
+        "Verification does not grant access",
+        "Invalid evidence produces a negative verdict",
+        "An upstream outage is not a negative verdict"
+      ],
+      "totalChecks": 8,
+      "screenshot": "02-verify/screen.png",
+      "build": {
+        "request": "Verify a fixture purchase without granting account access.",
+        "change": "Added a store adapter and persisted accepted evidence separately from user ownership.",
+        "review": "Confirmed valid and invalid evidence, a distinct upstream-outage error, and a saved purchase with no access. Binding is still unavailable in this source version.",
+        "id": "02-verify",
+        "label": "Verify",
+        "source": "02-verify/source.tar.gz",
+        "changes": "02-verify/changes.patch",
+        "report": "02-verify/run.json",
+        "passed": 10
+      }
+    },
+    {
+      "step": 3,
+      "title": "Connect it to a user",
+      "built": "Server authorization + atomic binding + entitlement reads",
+      "result": "Alice gets Premium. Another user cannot take the purchase.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 1
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": true
+          }
+        ]
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 403,
+          "body": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "forbidden"
+            }
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": true
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": true
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": false
+          }
+        },
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [
+              "premium.monthly"
+            ],
+            "subscriptions": [
+              {
+                "productId": "premium.monthly",
+                "state": "Active",
+                "active": true,
+                "store": "fixture",
+                "expiresAt": 1791363600000,
+                "willRenew": true
+              }
+            ]
+          }
+        }
+      ],
+      "checks": [
+        "Verification credentials cannot bind a user",
+        "The server binds Alice",
+        "Repeating the same binding succeeds",
+        "Bob cannot take Alice's purchase",
+        "Alice can access Premium"
+      ],
+      "totalChecks": 13,
+      "screenshot": "03-bind/screen.png",
+      "build": {
+        "request": "Connect the verified purchase to Alice and let the backend read her access.",
+        "change": "Added server-only binding, repeat-safe ownership checks, status, and entitlement reads.",
+        "review": "Alice gained Premium. Repeating her bind succeeded; Bob's claim and a bind using verification credentials were refused.",
+        "id": "03-bind",
+        "label": "Bind",
+        "source": "03-bind/source.tar.gz",
+        "changes": "03-bind/changes.patch",
+        "report": "03-bind/run.json",
+        "passed": 15
+      }
+    },
+    {
+      "step": 4,
+      "title": "Handle cancellation",
+      "built": "Lifecycle processing + transactional event outbox",
+      "result": "Renewal stops. Alice keeps the time she already paid for.",
+      "simulatedTime": "2026-09-08T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": false
+          }
+        ]
+      },
+      "deliveries": [
+        {
+          "eventId": "0a0c5a72-1ff1-4ecc-9968-e6f2dad5848f",
+          "deliveryId": "a5848b4c-bc76-4953-b8af-82d7d937cb48",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "subscription.canceled"
+        }
+      ],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "subscriptionStatus",
+          "httpStatus": 200,
+          "body": {
+            "active": true,
+            "subscription": {
+              "productId": "premium.monthly",
+              "state": "Active",
+              "active": true,
+              "store": "fixture",
+              "expiresAt": 1791363600000,
+              "willRenew": false
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Cancellation keeps paid access",
+        "Cancellation stops renewal",
+        "Cancellation queues one event"
+      ],
+      "totalChecks": 16,
+      "screenshot": "04-cancel/screen.png",
+      "build": {
+        "request": "Handle cancellation while keeping the remaining paid period.",
+        "change": "Added lifecycle observations and an atomic outbox. Changed long response lists to individual disclosures after visually reviewing the previous captures.",
+        "review": "Cancellation stopped renewal, kept access, and queued one event. The response viewer was checked again; the first browser assertion assumed an initially closed row. That failure was seen in the tool session but its output file was not preserved.",
+        "id": "04-cancel",
+        "label": "Cancel",
+        "source": "04-cancel/source.tar.gz",
+        "changes": "04-cancel/changes.patch",
+        "report": "04-cancel/run.json",
+        "passed": 18
+      }
+    },
+    {
+      "step": 5,
+      "title": "Deliver, retry, deduplicate",
+      "built": "HMAC signatures + retry worker + durable receiver inbox",
+      "result": "A 503 retries successfully. Redelivery creates no second inbox row.",
+      "simulatedTime": "2026-09-08T09:00:31.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": false
+          }
+        ]
+      },
+      "deliveries": [
+        {
+          "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
+          "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "subscription.canceled"
+        }
+      ],
+      "inboxCount": 1,
+      "responses": [
+        {
+          "operation": "webhook: receiver unavailable",
+          "body": [
+            {
+              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
+              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "httpStatus": 503,
+              "attempt": 1,
+              "status": "pending"
+            }
+          ]
+        },
+        {
+          "operation": "webhook: retry after restart",
+          "body": [
+            {
+              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
+              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "httpStatus": 200,
+              "attempt": 2,
+              "status": "delivered"
+            }
+          ]
+        },
+        {
+          "operation": "webhook: lost-ack redelivery",
+          "body": [
+            {
+              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
+              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "httpStatus": 200,
+              "attempt": 3,
+              "status": "delivered"
+            }
+          ]
+        }
+      ],
+      "checks": [
+        "A 503 leaves a durable retry",
+        "Retry survives provider restart",
+        "Retry keeps the delivery identity",
+        "Redelivery has one durable inbox effect"
+      ],
+      "totalChecks": 20,
+      "screenshot": "05-deliver/screen.png",
+      "build": {
+        "request": "Deliver signed events reliably even when the receiver is temporarily down.",
+        "change": "Added HMAC verification, a durable receiver inbox, and a retry worker.",
+        "review": "A 503 survived reopening storage and retried successfully. Lost-ack redelivery retained its delivery ID and produced one inbox row.",
+        "id": "05-deliver",
+        "label": "Deliver",
+        "source": "05-deliver/source.tar.gz",
+        "changes": "05-deliver/changes.patch",
+        "report": "05-deliver/run.json",
+        "passed": 22
+      }
+    },
+    {
+      "step": 6,
+      "title": "Expire access and restart",
+      "built": "Expiry-aware reads + recovery from SQLite",
+      "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+      "simulatedTime": "2026-10-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [
+        {
+          "eventId": "de58bc39-61f5-4eab-b636-fec420b429ef",
+          "deliveryId": "b02e2380-34de-41be-b737-5d3b71c473e3",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "ffd18094-7b16-423a-a156-ac6a1af20120",
+          "deliveryId": "1f228da2-292b-4014-9fdf-c3f58ef8c0ff",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "subscription.canceled"
+        },
+        {
+          "eventId": "e392d8ff-13ec-45b4-8d94-52b9b20fc212",
+          "deliveryId": "31872ba2-2d69-4d0b-ad8c-4cfb655faf8e",
+          "attempts": 1,
+          "status": "delivered",
+          "eventType": "subscription.expired"
+        },
+        {
+          "eventId": "d77c7a39-0b01-4030-b947-d3d639a8970c",
+          "deliveryId": "c49a0ae2-d124-45ea-a585-da6254ac36b0",
+          "attempts": 1,
+          "status": "delivered",
+          "eventType": "entitlement.revoked"
+        }
+      ],
+      "inboxCount": 4,
+      "responses": [
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [],
+            "subscriptions": []
+          }
+        },
+        {
+          "operation": "webhook: expiry + revocation",
+          "body": [
+            {
+              "eventId": "e392d8ff-13ec-45b4-8d94-52b9b20fc212",
+              "deliveryId": "31872ba2-2d69-4d0b-ad8c-4cfb655faf8e",
+              "httpStatus": 200,
+              "attempt": 1,
+              "status": "delivered"
+            },
+            {
+              "eventId": "d77c7a39-0b01-4030-b947-d3d639a8970c",
+              "deliveryId": "c49a0ae2-d124-45ea-a585-da6254ac36b0",
+              "httpStatus": 200,
+              "attempt": 1,
+              "status": "delivered"
+            }
+          ]
+        },
+        {
+          "operation": "subscriptionStatus",
+          "httpStatus": 200,
+          "body": {
+            "active": false,
+            "subscription": {
+              "productId": "premium.monthly",
+              "state": "Expired",
+              "active": false,
+              "store": "fixture",
+              "expiresAt": 1791363600000,
+              "willRenew": false
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Access closes at expiry before a notification arrives",
+        "Duplicate store notification emits no extra event",
+        "Reopening both databases preserves state",
+        "Receiver deduplication survives restart",
+        "All four events reach the receiver",
+        "The final status is inactive"
+      ],
+      "totalChecks": 27,
+      "screenshot": "06-recover-reviewed-7/screen.png",
+      "build": {
+        "request": "Close access at expiry and review recovery and failure handling across the complete backend.",
+        "change": "Completed expiry and recovery, then applied the external CLI review: atomic first-binding grant events, conflicting-expiry rejection, and source/patch verification.",
+        "review": "The reviewed final version adds the grant omitted by earlier checkpoints, so four events now reach the receiver. Tests cover binding/outbox rollback, expiry, ignored observations, delivery failures, and reopened SQLite storage. A second review added late-expiry and delayed-binding tests. This patch starts from the preceding reviewed revision. The final revision also checks the OpenIAP request boundary and a ready event receiver for businesses that supply only those roles. A third review verified proxy delivery and equal-time transitions. A publication review added standalone setup and recording guides, then repeated source and browser verification. The first Linux CI run exposed macOS metadata in historical archives; extraction now excludes it, new captures omit it, and a regression test verifies source hashes. The final review corrects the cancellation-at-expiry test timestamp so it reaches the expired-state guard, rather than only the stale-observation guard.",
+        "id": "06-recover-reviewed-7",
+        "label": "Recover",
+        "source": "06-recover-reviewed-7/source.tar.gz",
+        "changes": "06-recover-reviewed-7/changes.patch",
+        "report": "06-recover-reviewed-7/run.json",
+        "previousSource": "06-recover-reviewed-6/source.tar.gz",
+        "passed": 133
+      }
+    }
+  ]
+}

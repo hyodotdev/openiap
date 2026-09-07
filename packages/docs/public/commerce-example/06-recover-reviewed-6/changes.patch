@@ -1,0 +1,135 @@
+diff --git a/README.md b/README.md
+index e253138..203d94e 100644
+--- a/README.md
++++ b/README.md
+@@ -28,10 +28,10 @@ current access, delivery attempts, and expandable request/response details.
+ No store account, API key, OpenIAP checkout, or IAPKit account is required.
+ Modern Yarn uses the included `node_modules` linker.
+ 
+-![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-5/screen.png)
++![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-6/screen.png)
+ 
+ The screenshot comes from an executed source checkpoint. See its
+-[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-5/run.json)
++[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-6/run.json)
+ and the [complete build history](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md).
+ 
+ ## What you will see
+diff --git a/ai-task.md b/ai-task.md
+index 976826f..4687819 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -46,3 +46,8 @@ deployed. Preserve every earlier archive. Record this documentation revision,
+ verify all source archives again, and export a stable current-source download.
+ Add CI that tests runtime, tooling, archives and the documentation export. This
+ revision is a local publication review, not another completed external review.
++
++Fix the first Linux CI failure without rewriting historical recordings. macOS
++AppleDouble metadata must not count as source. Exclude it on extraction, omit it
++from new archives, and add a portable extraction regression test. Capture the
++corrected tooling, verify every source revision, and rerun GitHub CI.
+diff --git a/capture.mjs b/capture.mjs
+index 564f82f..53904d7 100644
+--- a/capture.mjs
++++ b/capture.mjs
+@@ -59,7 +59,9 @@ try {
+     );
+   }
+   writeFileSync(join(output, "changes.patch"), createPatch(previous, current));
+-  run("tar", [
++  run("env", [
++    "COPYFILE_DISABLE=1",
++    "tar",
+     "-czf",
+     join(output, "source.tar.gz"),
+     "-C",
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index a87d59a..06b5f3b 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -85,7 +85,15 @@ export function run(command, args, cwd) {
+ }
+ export function extract(archive, target) {
+   mkdirSync(target, { recursive: true });
+-  run("tar", ["-xzf", archive, "-C", target]);
++  // Older macOS archives contain AppleDouble metadata, not source files.
++  run("tar", [
++    ...(process.platform === "darwin" ? ["--no-mac-metadata"] : []),
++    "--exclude=._*",
++    "-xzf",
++    archive,
++    "-C",
++    target,
++  ]);
+ }
+ export function normalizePatch(patch) {
+   return patch
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+index e050dc9..e807fae 100644
+--- a/checkpoint-tools.test.mjs
++++ b/checkpoint-tools.test.mjs
+@@ -5,11 +5,48 @@ import { tmpdir, homedir } from "node:os";
+ import { join } from "node:path";
+ import {
+   createPatch,
++  extract,
++  hashes,
+   nextAttempt,
++  run,
+   sanitize,
+   readRecords,
+ } from "./checkpoint-tools.mjs";
+ 
++test("archive extraction excludes macOS metadata and preserves source hashes", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    const source = join(temp, "source");
++    mkdirSync(source);
++    writeFileSync(join(source, "README.md"), "Source content\n");
++    const expected = hashes(source);
++    const metadata = Buffer.alloc(70);
++    metadata.writeUInt32BE(0x00051607, 0);
++    metadata.writeUInt32BE(0x00020000, 4);
++    metadata.writeUInt16BE(1, 24);
++    metadata.writeUInt32BE(9, 26);
++    metadata.writeUInt32BE(38, 30);
++    metadata.writeUInt32BE(32, 34);
++    writeFileSync(join(source, "._README.md"), metadata);
++    const archive = join(temp, "source.tar.gz");
++    run("env", [
++      "COPYFILE_DISABLE=1",
++      "tar",
++      "-czf",
++      archive,
++      "-C",
++      source,
++      "._README.md",
++      "README.md",
++    ]);
++    const target = join(temp, "extracted");
++    extract(archive, target);
++    assert.deepEqual(hashes(target), expected);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
+ test("patches preserve path-like source text across additions, changes, and deletions", () => {
+   const temp = mkdtempSync(join(tmpdir(), "commerce-patch-test-"));
+   try {
+diff --git a/checkpoint.json b/checkpoint.json
+index 6b41ab5..4b7b724 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed-5",
++  "id": "06-recover-reviewed-6",
+   "title": "Expire access and restart",
+-  "built": "Documented standalone setup, review evidence, and verified exports",
++  "built": "Verified portable source archives on macOS and Linux",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-4"
++  "previous": "06-recover-reviewed-5"
+ }

@@ -1,0 +1,27 @@
+
+> openiap-commerce-protocol-example@0.0.0 test
+> bun verify.mjs
+
+36 |   const checks = [];
+37 |   const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
+38 |   const call = (name, input, role) =>
+39 |     requestOperation(runtime.baseUrl, name, input, role);
+40 |   const check = (label, actual, expected) => {
+41 |     assert.deepEqual(actual, expected, label);
+                ^
+AssertionError: Capabilities use the published response schema
+
+500 !== 200
+
+ generatedMessage: false,
+     actual: 500,
+   expected: 200,
+   operator: "deepStrictEqual",
+       code: "ERR_ASSERTION"
+
+      at check (<project>/scenario.mjs:41:12)
+      at advance (<project>/scenario.mjs:71:7)
+      at verifyLab (<project>/verify.mjs:17:11)
+      at processTicksAndRejections (native:7:39)
+
+Bun v1.3.13 (macOS arm64)

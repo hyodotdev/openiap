@@ -1,0 +1,1501 @@
+diff --git a/BUILD.md b/BUILD.md
+index a869c9b..7362fcc 100644
+--- a/BUILD.md
++++ b/BUILD.md
+@@ -17,12 +17,16 @@ same package name. Read these files from the installed package directory
+ (normally `node_modules/openiap-commerce-protocol/`):
+ 
+ - `SPEC.md`: normative behavior, authorization, lifecycle, and delivery rules.
+-- `DESIGN.md`: architecture and reasoning.
+ - `generated/openapi/commerce-protocol.openapi.json`: REST request/response API.
+ - `generated/bindings/http-binding.json`: operations, roles, and schema pointers.
+ - `generated/schemas/commerce-protocol.bundle.schema.json`: offline validation.
+ - `conformance/` and `vectors/`: portable checks and signature fixtures.
+ 
++For architecture, use the [implementation guide](https://openiap.dev/commerce-protocol/implementation)
++and [whitepaper](https://openiap.dev/commerce-protocol/whitepaper). Package 0.1.0
++does not include `DESIGN.md`; read that optional file only when it exists in
++your installed version.
++
+ The package supplies the contract and test artifacts, not a running backend.
+ Implement the backend in my project. Do not require an OpenIAP or IAPKit checkout,
+ and do not invent request fields, response shapes, role rules, or enum values.
+@@ -40,7 +44,7 @@ Build these milestones in order:
+ 1. **Contract:** serve capabilities and validate requests and responses against
+    the generated artifacts. Start with an empty persistent database. Advertise
+    only demonstrated support; do not claim partially implemented profiles.
+-   Protocol 0.1.0 requires a nonempty event list. Until an event emitter exists,
++   Package 0.1.0 (protocol 1.0) requires a nonempty event list. Until an event emitter exists,
+    treat this as unfinished scaffolding, not a provider ready for integration.
+    Core discovery cannot use `UNSUPPORTED_PROFILE` as a valid fallback.
+ 2. **Verification:** accept known fixture evidence, reject invalid evidence, and
+diff --git a/README.md b/README.md
+index b248bf5..c4cfc8b 100644
+--- a/README.md
++++ b/README.md
+@@ -18,6 +18,35 @@ This example uses the Bun runtime for HTTP and SQLite. Its scripts work through
+ any package manager with Bun installed. The protocol can be implemented in your
+ own language and stack. Open http://127.0.0.1:5181 and run each available step.
+ 
++## Receive events in an existing backend
++
++The ready receiver verifies signatures and saves each event once in SQLite.
++Run the complete local integration check:
++
++```sh
++npm run demo:consumer
++```
++
++It sends purchase, renewal, cancellation, expiry, refund, and entitlement
++samples over HTTP, retries each delivery, rejects tampering, and reopens the
++inbox. No store adapter or provider backend is needed. The inbox stores the
++signed event unchanged for your existing processing pipeline.
++
++To run the receiver continuously, set `COMMERCE_WEBHOOK_SECRET` to your
++provider's signing secret and run `npm run consumer`. It listens at
++`http://127.0.0.1:5182/webhooks/commerce`, with storage in `consumer.sqlite`
++(or `COMMERCE_INBOX_PATH`). It is bound to loopback: an HTTPS reverse proxy
++must forward to that local address, preserving the exact body bytes. Configure
++one emitter/project and signing key per receiver database. Keep the inbox file
++on persistent storage. `webhooks.mjs` exports the same Fetch-compatible receiver
++handler for embedding in an existing server.
++
++The local check proves ingestion, not store authenticity or financial analytics.
++Transaction and price fields are optional; missing values are unknown. A
++lifecycle event is not necessarily a new charge. Keep your own revenue and
++accounting rules; the receiver preserves the provider's fields without inventing
++a zero price or counting every lifecycle event as revenue.
++
+ ## Build with AI
+ 
+ Give [BUILD.md](BUILD.md) to your AI. Ask it to add one milestone, run it, inspect
+@@ -29,8 +58,8 @@ an independently runnable checkpoint. Later functionality is absent from the
+ earlier source, rather than hidden behind a runtime step switch. The dashboard
+ replays the operations implemented at that checkpoint.
+ 
+-This implementation extracts and extends the previously tested OpenIAP Commerce
+-Lab prototype. It is an incremental implementation record, not a claim that an
++This implementation extends an earlier internal prototype, called Commerce Lab,
++which this standalone repository replaces. It is an incremental implementation record, not a claim that an
+ AI produced the backend in one prompt without reference code.
+ 
+ ## Scope
+@@ -41,12 +70,15 @@ clock are fixtures. No real purchases or credentials are needed. Recovery
+ reopens both databases inside the same HTTP process; it does not test an OS
+ crash, process startup, or recovery of externally stored secrets.
+ 
+-This is an educational part of the IAPKit architecture, not a production
+-provider. Real store validation, login, erasure, tenant isolation, GraphQL,
++This is an educational Commerce Protocol example. Real store validation, login, erasure, tenant isolation, GraphQL,
+ public HTTPS delivery, and full profile conformance remain separate work.
+ 
+ ## Record another checkpoint
+ 
++Recording needs Node.js with npm, Git, tar, and Google Chrome in addition to
++Bun. The backend's test/start scripts use Bun only. `npm run test:tooling`
++checks capture tooling separately.
++
+ Update `ai-task.md` with the task and review notes. Run `npm test`, inspect the
+ dashboard, then `npm run capture` with Google Chrome installed. Capture runs the
+ checks again and preserves failed attempts. Capture installs and tests the archived source in a temporary project, then
+diff --git a/ai-task.md b/ai-task.md
+index 1d56736..0bea667 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -13,3 +13,10 @@ final screen on desktop and mobile, then export only matching source evidence.
+ Keep the original six checkpoints as history. Explain their incomplete discovery
+ and missing grant behavior; do not describe them as conformant providers. Keep
+ all changes uncommitted for maintainer review.
++
++Apply the second review: retain gate delivery state for delayed expiry,
++retain store occurrence on delayed binding, preserve consecutive failure logs,
++and state actual package contents and runtime requirements. Add a ready-to-run
++generic event receiver for an existing backend, reusing the same receiver
++handler. Demonstrate signed lifecycle ingestion, duplicate delivery, tampering,
++and persisted inbox recovery over real local HTTP. Keep all samples fictional.
+diff --git a/capture.mjs b/capture.mjs
+index 29eefe8..75621cc 100644
+--- a/capture.mjs
++++ b/capture.mjs
+@@ -1,78 +1,167 @@
+-import assert from 'node:assert/strict';
+-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, readdirSync, cpSync, rmSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { join } from 'node:path';
+-import { pathToFileURL } from 'node:url';
+-import { chromium } from '@playwright/test';
+-import { SOURCE_FILES, createPatch, extract, hashes, run, sanitize, sha256 } from './checkpoint-tools.mjs';
++import assert from "node:assert/strict";
++import {
++  existsSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  writeFileSync,
++  cpSync,
++  rmSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { pathToFileURL } from "node:url";
++import { chromium } from "@playwright/test";
++import {
++  SOURCE_FILES,
++  createPatch,
++  extract,
++  hashes,
++  run,
++  sanitize,
++  sha256,
++  nextAttempt,
++} from "./checkpoint-tools.mjs";
+ 
+ const root = import.meta.dir;
+-const checkpoint = JSON.parse(readFileSync(join(root, 'checkpoint.json'), 'utf8'));
+-assert(/^\d\d-[\w-]+$/.test(checkpoint.id), 'Use a simple checkpoint directory name');
+-const output = join(root, 'docs/build', checkpoint.id);
++const checkpoint = JSON.parse(
++  readFileSync(join(root, "checkpoint.json"), "utf8"),
++);
++assert(
++  /^\d\d-[\w-]+$/.test(checkpoint.id),
++  "Use a simple checkpoint directory name",
++);
++const output = join(root, "docs/build", checkpoint.id);
+ mkdirSync(output, { recursive: true });
+-assert(!existsSync(join(output, 'run.json')), 'Checkpoint already published; choose a new checkpoint id.');
+-const attempt = readdirSync(output).filter(name => name.startsWith('attempt-')).length + 1;
+-const temp = mkdtempSync(join(tmpdir(), 'commerce-capture-'));
+-const current = join(temp, 'after'), previous = join(temp, 'before');
++assert(
++  !existsSync(join(output, "run.json")),
++  "Checkpoint already published; choose a new checkpoint id.",
++);
++const attempt = nextAttempt(output);
++const temp = mkdtempSync(join(tmpdir(), "commerce-capture-"));
++const current = join(temp, "after"),
++  previous = join(temp, "before");
+ const startedAt = new Date().toISOString();
+ let lab, browser;
+ try {
+-  mkdirSync(current); mkdirSync(previous);
+-  for (const name of SOURCE_FILES) cpSync(join(root, name), join(current, name));
++  mkdirSync(current);
++  mkdirSync(previous);
++  for (const name of SOURCE_FILES)
++    cpSync(join(root, name), join(current, name));
+   const sourceHashes = hashes(current);
+   if (checkpoint.previous) {
+     assert(/^\d\d-[\w-]+$/.test(checkpoint.previous));
+-    const prior = join(root, 'docs/build', checkpoint.previous);
+-    extract(join(prior, 'source.tar.gz'), previous);
+-    assert.deepEqual(hashes(previous), JSON.parse(readFileSync(join(prior, 'run.json'), 'utf8')).sourceHashes);
++    const prior = join(root, "docs/build", checkpoint.previous);
++    extract(join(prior, "source.tar.gz"), previous);
++    assert.deepEqual(
++      hashes(previous),
++      JSON.parse(readFileSync(join(prior, "run.json"), "utf8")).sourceHashes,
++    );
+   }
+-  writeFileSync(join(output, 'changes.patch'), createPatch(previous, current));
+-  run('tar', ['-czf', join(output, 'source.tar.gz'), '-C', current, ...SOURCE_FILES]);
+-  const commands = [run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], current), run('npm', ['test'], current)];
+-  writeFileSync(join(output, `attempt-${attempt}.txt`), JSON.stringify({ startedAt, commands }, null, 2) + '\n');
+-  const { startLab } = await import(pathToFileURL(join(current, 'server.mjs')).href);
+-  const { verifyLab } = await import(pathToFileURL(join(current, 'verify.mjs')).href);
+-  const { STAGES } = await import(pathToFileURL(join(current, 'scenario.mjs')).href);
++  writeFileSync(join(output, "changes.patch"), createPatch(previous, current));
++  run("tar", [
++    "-czf",
++    join(output, "source.tar.gz"),
++    "-C",
++    current,
++    ...SOURCE_FILES,
++  ]);
++  const commands = [
++    run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], current),
++    run("npm", ["test"], current),
++    run("npm", ["run", "test:tooling"], current),
++  ];
++  writeFileSync(
++    join(output, `attempt-${attempt}.txt`),
++    JSON.stringify({ startedAt, commands }, null, 2) + "\n",
++  );
++  const { startLab } = await import(
++    pathToFileURL(join(current, "server.mjs")).href
++  );
++  const { verifyLab } = await import(
++    pathToFileURL(join(current, "verify.mjs")).href
++  );
++  const { STAGES } = await import(
++    pathToFileURL(join(current, "scenario.mjs")).href
++  );
+   const checks = await verifyLab();
+   lab = startLab();
+-  browser = await chromium.launch({ channel: 'chrome' });
+-  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
++  browser = await chromium.launch({ channel: "chrome" });
++  const page = await browser.newPage({
++    viewport: { width: 1280, height: 1000 },
++  });
+   const errors = [];
+-  page.on('pageerror', error => errors.push(error.message));
+-  await page.goto(lab.runtime.baseUrl, { waitUntil: 'domcontentloaded' });
++  page.on("pageerror", (error) => errors.push(error.message));
++  await page.goto(lab.runtime.baseUrl, { waitUntil: "domcontentloaded" });
+   for (let step = 1; step <= STAGES.length; step++) {
+-    await page.getByRole('button', { name: `Run step ${step} →`, exact: true }).click();
+-    await page.locator('#progress').filter({ hasText: `Milestone ${step} / ${STAGES.length}` }).waitFor();
++    await page
++      .getByRole("button", { name: `Run step ${step} →`, exact: true })
++      .click();
++    await page
++      .locator("#progress")
++      .filter({ hasText: `Milestone ${step} / ${STAGES.length}` })
++      .waitFor();
+   }
+-  for (const [filename, viewport] of [['screen.png', { width: 1280, height: 1000 }], ['mobile.png', { width: 390, height: 844 }]]) {
++  for (const [filename, viewport] of [
++    ["screen.png", { width: 1280, height: 1000 }],
++    ["mobile.png", { width: 390, height: 844 }],
++  ]) {
+     await page.setViewportSize(viewport);
+-    assert.equal(await page.locator('#error').textContent(), '');
+-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+-    const responses = page.locator('#responses details');
++    assert.equal(await page.locator("#error").textContent(), "");
++    assert.equal(
++      await page.evaluate(
++        () => document.documentElement.scrollWidth > innerWidth,
++      ),
++      false,
++    );
++    const responses = page.locator("#responses details");
+     if (await responses.count()) {
+-      const wasOpen = await responses.last().getAttribute('open') !== null;
+-      if (wasOpen) await responses.last().locator('summary').click();
+-      assert.equal(await responses.last().getAttribute('open'), null);
+-      await responses.last().locator('summary').click();
+-      assert(await responses.last().locator('pre').isVisible());
+-      if (!wasOpen) await responses.last().locator('summary').click();
++      const wasOpen = (await responses.last().getAttribute("open")) !== null;
++      if (wasOpen) await responses.last().locator("summary").click();
++      assert.equal(await responses.last().getAttribute("open"), null);
++      await responses.last().locator("summary").click();
++      assert(await responses.last().locator("pre").isVisible());
++      if (!wasOpen) await responses.last().locator("summary").click();
+     }
+     await page.screenshot({ path: join(output, filename), fullPage: true });
+   }
+   assert.deepEqual(errors, []);
+-  for (const name of SOURCE_FILES) assert.equal(sha256(join(current, name)), sourceHashes[name], 'Captured source changed during verification');
++  for (const name of SOURCE_FILES)
++    assert.equal(
++      sha256(join(current, name)),
++      sourceHashes[name],
++      "Captured source changed during verification",
++    );
+   const record = {
+-    ...checkpoint, startedAt, recordedAt: new Date().toISOString(),
+-    packageVersion: JSON.parse(readFileSync(join(current, 'node_modules/openiap-commerce-protocol/package.json'), 'utf8')).version,
+-    task: readFileSync(join(current, 'ai-task.md'), 'utf8'), sourceHashes,
+-    checks, history: lab.scenario.history, screenshot: 'screen.png',
+-    scope: 'Reviewed source checkpoint adapted from the Commerce Lab prototype. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.',
++    ...checkpoint,
++    startedAt,
++    recordedAt: new Date().toISOString(),
++    packageVersion: JSON.parse(
++      readFileSync(
++        join(current, "node_modules/openiap-commerce-protocol/package.json"),
++        "utf8",
++      ),
++    ).version,
++    task: readFileSync(join(current, "ai-task.md"), "utf8"),
++    sourceHashes,
++    checks,
++    history: lab.scenario.history,
++    screenshot: "screen.png",
++    scope:
++      "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.",
+   };
+-  writeFileSync(join(output, 'run.json'), JSON.stringify(record, null, 2) + '\n');
+-  console.log(`Captured ${checkpoint.id}: ${checks.length} checks, ${SOURCE_FILES.length} source files.`);
++  writeFileSync(
++    join(output, "run.json"),
++    JSON.stringify(record, null, 2) + "\n",
++  );
++  console.log(
++    `Captured ${checkpoint.id}: ${checks.length} checks, ${SOURCE_FILES.length} source files.`,
++  );
+ } catch (error) {
+-  writeFileSync(join(output, `failure-${attempt}.txt`), `${new Date().toISOString()}\n${sanitize(error.stack)}\n`);
++  writeFileSync(
++    join(output, `failure-${attempt}.txt`),
++    `${new Date().toISOString()}\n${sanitize(error.stack)}\n`,
++  );
+   throw error;
+ } finally {
+   await browser?.close();
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index d620ac1..2e45db8 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -1,53 +1,130 @@
+-import assert from 'node:assert/strict';
+-import { createHash } from 'node:crypto';
+-import { spawnSync } from 'node:child_process';
+-import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { join } from 'node:path';
++import assert from "node:assert/strict";
++import { createHash } from "node:crypto";
++import { spawnSync } from "node:child_process";
++import {
++  cpSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  readdirSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir, homedir } from "node:os";
++import { join } from "node:path";
+ 
+ export const SOURCE_FILES = [
+-  '.gitignore', 'LICENSE', 'README.md', 'BUILD.md', 'ai-task.md', 'checkpoint.json',
+-  'package.json', 'package-lock.json', 'contract.mjs', 'provider.mjs', 'webhooks.mjs',
+-  'scenario.mjs', 'server.mjs', 'verify.mjs', 'dashboard.html', 'capture.mjs',
+-  'export-docs.mjs', 'checkpoint-tools.mjs', 'checkpoint-tools.test.mjs', 'verify-checkpoints.mjs',
++  ".gitignore",
++  "LICENSE",
++  "README.md",
++  "BUILD.md",
++  "ai-task.md",
++  "checkpoint.json",
++  "package.json",
++  "package-lock.json",
++  "contract.mjs",
++  "provider.mjs",
++  "webhooks.mjs",
++  "consumer.mjs",
++  "scenario.mjs",
++  "server.mjs",
++  "verify.mjs",
++  "dashboard.html",
++  "capture.mjs",
++  "export-docs.mjs",
++  "checkpoint-tools.mjs",
++  "checkpoint-tools.test.mjs",
++  "verify-checkpoints.mjs",
+ ];
+-export const sha256 = file => createHash('sha256').update(readFileSync(file)).digest('hex');
+-export const hashes = directory => Object.fromEntries(readdirSync(directory).sort().map(name => [name, sha256(join(directory, name))]));
+-export const sanitize = text => text.replaceAll(process.cwd(), '<project>').replace(/\/[^\s"']*\/commerce-(?:capture|patch|verify)-[^\s/"']+/g, '<temporary-project>');
++export const sha256 = (file) =>
++  createHash("sha256").update(readFileSync(file)).digest("hex");
++export const hashes = (directory) =>
++  Object.fromEntries(
++    readdirSync(directory)
++      .sort()
++      .map((name) => [name, sha256(join(directory, name))]),
++  );
++export function sanitize(text) {
++  const roots = [process.cwd(), import.meta.dir, homedir()]
++    .filter(Boolean)
++    .sort((a, b) => b.length - a.length);
++  let result = text;
++  for (const root of roots) result = result.replaceAll(root, "<local-path>");
++  return result.replace(
++    /\/[^\s"']*\/commerce-(?:capture|patch|verify|lab|compare|consumer)-[^\s/"']+/g,
++    "<temporary-project>",
++  );
++}
++export function nextAttempt(directory) {
++  return (
++    Math.max(
++      0,
++      ...readdirSync(directory).map((name) =>
++        Number(/^(?:attempt|failure)-(\d+)\.txt$/.exec(name)?.[1] ?? 0),
++      ),
++    ) + 1
++  );
++}
+ export function run(command, args, cwd) {
+-  const result = spawnSync(command, args, { cwd, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+-  const output = sanitize((result.stdout ?? '') + (result.stderr ?? ''));
+-  assert.equal(result.status, 0, `${command} ${args.join(' ')}\n${output}`);
+-  return { command: [command, ...args].join(' '), exitCode: result.status, output };
++  const result = spawnSync(command, args, {
++    cwd,
++    encoding: "utf8",
++    maxBuffer: 20 * 1024 * 1024,
++  });
++  const output = sanitize((result.stdout ?? "") + (result.stderr ?? ""));
++  assert.equal(result.status, 0, `${command} ${args.join(" ")}\n${output}`);
++  return {
++    command: [command, ...args].join(" "),
++    exitCode: result.status,
++    output,
++  };
+ }
+ export function extract(archive, target) {
+   mkdirSync(target, { recursive: true });
+-  run('tar', ['-xzf', archive, '-C', target]);
++  run("tar", ["-xzf", archive, "-C", target]);
+ }
+ export function normalizePatch(patch) {
+-  return patch.split('\n').map(line => {
+-    if (/^(diff --git |--- a\/|\+\+\+ b\/)/.test(line)) {
+-      return line.replace(/([ab])\/(?:before|after)\//g, '$1/');
+-    }
+-    return line;
+-  }).join('\n');
++  return patch
++    .split("\n")
++    .map((line) => {
++      if (/^(diff --git |--- a\/|\+\+\+ b\/)/.test(line)) {
++        return line.replace(/([ab])\/(?:before|after)\//g, "$1/");
++      }
++      return line;
++    })
++    .join("\n");
+ }
+ export function createPatch(before, after) {
+-  const temp = mkdtempSync(join(tmpdir(), 'commerce-patch-'));
++  const temp = mkdtempSync(join(tmpdir(), "commerce-patch-"));
+   try {
+-    cpSync(before, join(temp, 'before'), { recursive: true });
+-    cpSync(after, join(temp, 'after'), { recursive: true });
+-    const result = spawnSync('git', ['diff', '--no-index', '--no-ext-diff', '--', 'before', 'after'], { cwd: temp, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
++    cpSync(before, join(temp, "before"), { recursive: true });
++    cpSync(after, join(temp, "after"), { recursive: true });
++    const result = spawnSync(
++      "git",
++      ["diff", "--no-index", "--no-ext-diff", "--", "before", "after"],
++      { cwd: temp, encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
++    );
+     assert([0, 1].includes(result.status), result.stderr);
+     const patch = normalizePatch(result.stdout);
+-    writeFileSync(join(temp, 'changes.patch'), patch);
+-    cpSync(before, join(temp, 'applied'), { recursive: true });
+-    if (patch) run('git', ['apply', join(temp, 'changes.patch')], join(temp, 'applied'));
+-    assert.deepEqual(hashes(join(temp, 'applied')), hashes(after), 'Patch must reproduce the source archive exactly');
++    writeFileSync(join(temp, "changes.patch"), patch);
++    cpSync(before, join(temp, "applied"), { recursive: true });
++    if (patch)
++      run("git", ["apply", join(temp, "changes.patch")], join(temp, "applied"));
++    assert.deepEqual(
++      hashes(join(temp, "applied")),
++      hashes(after),
++      "Patch must reproduce the source archive exactly",
++    );
+     return patch;
+-  } finally { rmSync(temp, { recursive: true, force: true }); }
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
+ }
+ export function readRecords(directory) {
+-  return readdirSync(directory).filter(name => /^\d\d-[\w-]+$/.test(name)).sort()
+-    .map(name => JSON.parse(readFileSync(join(directory, name, 'run.json'), 'utf8')));
++  return readdirSync(directory)
++    .filter((name) => /^\d\d-[\w-]+$/.test(name))
++    .sort()
++    .map((name) =>
++      JSON.parse(readFileSync(join(directory, name, "run.json"), "utf8")),
++    );
+ }
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+index d467420..bc1c224 100644
+--- a/checkpoint-tools.test.mjs
++++ b/checkpoint-tools.test.mjs
+@@ -1,19 +1,47 @@
+-import assert from 'node:assert/strict';
+-import { test } from 'node:test';
+-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { join } from 'node:path';
+-import { createPatch } from './checkpoint-tools.mjs';
++import assert from "node:assert/strict";
++import { test } from "bun:test";
++import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir, homedir } from "node:os";
++import { join } from "node:path";
++import { createPatch, nextAttempt, sanitize } from "./checkpoint-tools.mjs";
+ 
+-test('patches preserve path-like source text across additions, changes, and deletions', () => {
+-  const temp = mkdtempSync(join(tmpdir(), 'commerce-patch-test-'));
++test("patches preserve path-like source text across additions, changes, and deletions", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-patch-test-"));
+   try {
+-    const before = join(temp, 'before'), after = join(temp, 'after');
+-    mkdirSync(before); mkdirSync(after);
+-    writeFileSync(join(after, 'capture.mjs'), "const paths = ['a/before/', 'b/after/'];\n");
+-    assert.match(createPatch(before, after), /\+const paths = \['a\/before\/', 'b\/after\/'\];/);
+-    writeFileSync(join(before, 'capture.mjs'), 'old\n');
+-    writeFileSync(join(before, 'removed.md'), 'remove\n');
++    const before = join(temp, "before"),
++      after = join(temp, "after");
++    mkdirSync(before);
++    mkdirSync(after);
++    writeFileSync(
++      join(after, "capture.mjs"),
++      "const paths = ['a/before/', 'b/after/'];\n",
++    );
++    assert.match(
++      createPatch(before, after),
++      /\+const paths = \['a\/before\/', 'b\/after\/'\];/,
++    );
++    writeFileSync(join(before, "capture.mjs"), "old\n");
++    writeFileSync(join(before, "removed.md"), "remove\n");
+     assert.match(createPatch(before, after), /deleted file mode/);
+-  } finally { rmSync(temp, { recursive: true, force: true }); }
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
++test("failed attempts get new numbers and private paths are redacted", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    writeFileSync(join(temp, "failure-1.txt"), "first failure");
++    assert.equal(nextAttempt(temp), 2);
++    writeFileSync(join(temp, "failure-2.txt"), "second failure");
++    assert.equal(nextAttempt(temp), 3);
++    const output = sanitize(
++      `${homedir()}/.npm/_logs/debug.log ${import.meta.dir}/capture.mjs ${temp}/source.mjs`,
++    );
++    assert(!output.includes(homedir()));
++    assert(!output.includes(import.meta.dir));
++    assert(!output.includes(temp));
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
+ });
+diff --git a/checkpoint.json b/checkpoint.json
+index 576f357..d416197 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed",
++  "id": "06-recover-reviewed-2",
+   "title": "Expire access and restart",
+   "built": "Expiry, atomic grant events, recovery, and verified source archives",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover"
++  "previous": "06-recover-reviewed"
+ }
+diff --git a/consumer.mjs b/consumer.mjs
+new file mode 100644
+index 0000000..e4373eb
+--- /dev/null
++++ b/consumer.mjs
+@@ -0,0 +1,206 @@
++import assert from "node:assert/strict";
++import { randomBytes, randomUUID, createHash } from "node:crypto";
++import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import { WEBHOOK, COMMERCE_EVENT_VERSION } from "openiap-commerce-protocol";
++import { createReceiver, sign } from "./webhooks.mjs";
++import { validate } from "./contract.mjs";
++
++// One configured emitter/project and signing key per receiver database.
++export function startConsumer({ secret, path, port = 0, now = Date.now }) {
++  assert(secret, "Set COMMERCE_WEBHOOK_SECRET to the provider signing secret.");
++  let receiver = createReceiver(path, secret, now);
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port,
++    maxRequestBodySize: 64 * 1024,
++    fetch(request) {
++      const url = new URL(request.url);
++      const origin = request.headers.get("origin");
++      const expected = `http://127.0.0.1:${server.port}`;
++      if (url.origin !== expected || (origin && origin !== expected))
++        return new Response("Local requests only", { status: 403 });
++      if (request.method === "POST" && url.pathname === "/webhooks/commerce")
++        return receiver.fetch(request);
++      if (request.method === "GET" && url.pathname === "/health")
++        return Response.json({ ready: true });
++      return new Response("Not found", { status: 404 });
++    },
++  });
++  return {
++    url: `http://127.0.0.1:${server.port}/webhooks/commerce`,
++    count: () => receiver.count(),
++    reopen() {
++      receiver.close();
++      receiver = createReceiver(path, secret, now);
++    },
++    async close() {
++      await server.stop(true);
++      receiver.close();
++    },
++  };
++}
++
++export async function runConsumerDemo() {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-consumer-"));
++  const secret = randomBytes(32).toString("hex");
++  const now = Date.now();
++  const consumer = startConsumer({
++    secret,
++    path: join(directory, "inbox.sqlite"),
++    now: () => now,
++  });
++  const checks = [],
++    results = [];
++  const check = (name, actual, expected) => {
++    assert.deepEqual(actual, expected, name);
++    checks.push(name);
++  };
++  const lifecycle = [
++    ["subscription.started", "Active", true],
++    ["entitlement.granted", "Active", true],
++    ["subscription.renewed", "Active", true],
++    ["subscription.canceled", "Active", true],
++    ["subscription.expired", "Expired", false],
++    ["entitlement.revoked", "Expired", false],
++    ["subscription.refunded", "Refunded", false],
++  ];
++  try {
++    for (const [index, [eventType, state, active]] of lifecycle.entries()) {
++      const event = {
++        eventId: randomUUID(),
++        eventType,
++        eventVersion: COMMERCE_EVENT_VERSION,
++        occurredAt: now - 60_000 + index * 1000,
++        processedAt: now,
++        store: "fixture",
++        environment: "local-fixture",
++        projectId: "demo_project",
++        userId: "demo_user",
++        productId: "premium.monthly",
++        ...(["subscription.started", "subscription.renewed"].includes(eventType)
++          ? {
++              price: {
++                currency: "USD",
++                amountMicros: 9990000,
++                provenance: "store",
++              },
++            }
++          : {}),
++        subscription: {
++          productId: "premium.monthly",
++          state,
++          active,
++          expiresAt: active ? now + 60_000 : now - 1000,
++          willRenew: active && eventType !== "subscription.canceled",
++        },
++      };
++      assert(validate("#/$defs/CommerceEvent", event));
++      const body = JSON.stringify(event);
++      const timestamp = String(Math.floor(now / 1000));
++      const headers = {
++        "content-type": WEBHOOK.contentType,
++        [WEBHOOK.timestampHeader]: timestamp,
++        [WEBHOOK.signatureHeader]: sign(secret, timestamp, body),
++        [WEBHOOK.eventIdHeader]: event.eventId,
++        [WEBHOOK.deliveryIdHeader]: randomUUID(),
++      };
++      const response = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body,
++      });
++      const result = await response.json();
++      check(
++        `${eventType}: authenticated and saved`,
++        [response.status, result.duplicate],
++        [200, false],
++      );
++      const duplicate = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body,
++      });
++      check(
++        `${eventType}: redelivery deduplicated`,
++        (await duplicate.json()).duplicate,
++        true,
++      );
++      const tampered = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body: body + " ",
++      });
++      check(`${eventType}: tampering rejected`, tampered.status, 401);
++      results.push({
++        event,
++        httpStatus: response.status,
++        duplicate: true,
++        tamperedHttpStatus: tampered.status,
++      });
++    }
++    check("One inbox record per event", consumer.count(), lifecycle.length);
++    consumer.reopen();
++    check(
++      "Inbox survives reopening SQLite",
++      consumer.count(),
++      lifecycle.length,
++    );
++    return {
++      recordedAt: new Date().toISOString(),
++      scope:
++        "Real loopback HTTP, signature validation and durable deduplication. Fictional lifecycle samples; no provider or store contacted. One emitter/project per receiver database. No business or revenue calculation.",
++      checks,
++      results,
++      inboxCount: consumer.count(),
++    };
++  } finally {
++    await consumer.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++}
++
++if (import.meta.main) {
++  if (process.argv[2] === "demo") {
++    const report = await runConsumerDemo();
++    if (process.argv[3] === "--record") {
++      assert(process.argv[4], "Provide a report path");
++      report.sourceHashes = Object.fromEntries(
++        [
++          "consumer.mjs",
++          "webhooks.mjs",
++          "contract.mjs",
++          "package.json",
++          "package-lock.json",
++        ].map((name) => [
++          name,
++          createHash("sha256")
++            .update(readFileSync(join(import.meta.dir, name)))
++            .digest("hex"),
++        ]),
++      );
++      writeFileSync(
++        resolve(process.argv[4]),
++        JSON.stringify(report, null, 2) + "\n",
++      );
++    }
++    console.log(
++      `Receiver ready: ${report.inboxCount} events saved once; ${report.checks.length} checks passed. No external service contacted.`,
++    );
++  } else {
++    const consumer = startConsumer({
++      secret: process.env.COMMERCE_WEBHOOK_SECRET,
++      path: resolve(process.env.COMMERCE_INBOX_PATH ?? "consumer.sqlite"),
++      port: 5182,
++    });
++    console.log(
++      `Receiver: ${consumer.url}\nPersisted inbox: ${resolve(process.env.COMMERCE_INBOX_PATH ?? "consumer.sqlite")}`,
++    );
++    for (const signal of ["SIGINT", "SIGTERM"])
++      process.on(signal, async () => {
++        await consumer.close();
++        process.exit(0);
++      });
++  }
++}
+diff --git a/export-docs.mjs b/export-docs.mjs
+index 82cf485..731e40d 100644
+--- a/export-docs.mjs
++++ b/export-docs.mjs
+@@ -1,51 +1,112 @@
+-import assert from 'node:assert/strict';
+-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { join, resolve } from 'node:path';
+-import { SOURCE_FILES, extract, hashes, readRecords, sha256 } from './checkpoint-tools.mjs';
++import assert from "node:assert/strict";
++import {
++  cpSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import {
++  SOURCE_FILES,
++  extract,
++  hashes,
++  readRecords,
++  sha256,
++} from "./checkpoint-tools.mjs";
+ 
+ const target = process.argv[2];
+-assert(target, 'Usage: bun export-docs.mjs <documentation-assets-directory>');
++assert(target, "Usage: bun export-docs.mjs <documentation-assets-directory>");
+ const output = resolve(target);
+-const source = join(import.meta.dir, 'docs/build');
+-const guide = JSON.parse(readFileSync(join(source, 'guide.json'), 'utf8'));
++const source = join(import.meta.dir, "docs/build");
++const guide = JSON.parse(readFileSync(join(source, "guide.json"), "utf8"));
+ const records = readRecords(source);
+-const selected = guide.map(step => {
+-  const record = records.find(record => record.id === step.id);
++const selected = guide.map((step) => {
++  const record = records.find((record) => record.id === step.id);
+   assert(record, `Missing checkpoint: ${step.id}`);
+   return record;
+ });
+ const last = selected.at(-1);
+ assert.equal(selected.length, 6);
+-assert.deepEqual(Object.fromEntries(SOURCE_FILES.sort().map(name => [name, sha256(join(import.meta.dir, name))])), last.sourceHashes, 'Capture the final source before exporting');
+-const verification = JSON.parse(readFileSync(join(source, 'verification.json'), 'utf8'));
++assert.deepEqual(
++  Object.fromEntries(
++    SOURCE_FILES.sort().map((name) => [
++      name,
++      sha256(join(import.meta.dir, name)),
++    ]),
++  ),
++  last.sourceHashes,
++  "Capture the final source before exporting",
++);
++const verification = JSON.parse(
++  readFileSync(join(source, "verification.json"), "utf8"),
++);
+ for (const record of records) {
+-  const result = verification.results.find(result => result.id === record.id);
+-  assert(result?.sourceHashesMatch && result.patchAppliesExactly, `Verify ${record.id} before export`);
+-  assert.equal(result.archiveSha256, sha256(join(source, record.id, 'source.tar.gz')));
+-  assert.equal(result.patchSha256, sha256(join(source, record.id, 'changes.patch')));
++  const result = verification.results.find((result) => result.id === record.id);
++  assert(
++    result?.sourceHashesMatch && result.patchAppliesExactly,
++    `Verify ${record.id} before export`,
++  );
++  assert.equal(
++    result.archiveSha256,
++    sha256(join(source, record.id, "source.tar.gz")),
++  );
++  assert.equal(
++    result.patchSha256,
++    sha256(join(source, record.id, "changes.patch")),
++  );
+ }
++const consumerReport = JSON.parse(
++  readFileSync(join(source, "consumer-run.json"), "utf8"),
++);
++for (const [name, digest] of Object.entries(consumerReport.sourceHashes))
++  assert.equal(
++    digest,
++    last.sourceHashes[name],
++    "Record the consumer demo again before export",
++  );
+ mkdirSync(output, { recursive: true });
+-for (const record of records) cpSync(join(source, record.id), join(output, record.id), { recursive: true });
+-for (const name of ['README.md', 'REVIEW.md', 'verification.json', '01-contract-first-attempt.txt']) cpSync(join(source, name), join(output, name));
++for (const record of records)
++  cpSync(join(source, record.id), join(output, record.id), { recursive: true });
++for (const name of [
++  "README.md",
++  "REVIEW.md",
++  "verification.json",
++  "consumer-run.json",
++  "01-contract-first-attempt.txt",
++])
++  cpSync(join(source, name), join(output, name));
+ const report = {
+-  recordedAt: last.recordedAt, scope: last.scope, checks: last.checks,
++  recordedAt: last.recordedAt,
++  scope: last.scope,
++  checks: last.checks,
+   standalone: { version: last.packageVersion, passed: last.checks.length },
+   milestones: selected.map((record, index) => ({
+-    ...record.history.at(-1), screenshot: `${record.id}/screen.png`,
++    ...record.history.at(-1),
++    screenshot: `${record.id}/screen.png`,
+     build: {
+-      ...guide[index], source: `${record.id}/source.tar.gz`,
+-      changes: `${record.id}/changes.patch`, report: `${record.id}/run.json`,
+-      ...(record.previous ? { previousSource: `${record.previous}/source.tar.gz` } : {}),
++      ...guide[index],
++      source: `${record.id}/source.tar.gz`,
++      changes: `${record.id}/changes.patch`,
++      report: `${record.id}/run.json`,
++      ...(record.previous
++        ? { previousSource: `${record.previous}/source.tar.gz` }
++        : {}),
+       passed: record.checks.length,
+     },
+   })),
+ };
+-const temp = mkdtempSync(join(tmpdir(), 'commerce-verify-export-'));
++const temp = mkdtempSync(join(tmpdir(), "commerce-verify-export-"));
+ try {
+-  extract(join(source, last.id, 'source.tar.gz'), temp);
++  extract(join(source, last.id, "source.tar.gz"), temp);
+   assert.deepEqual(hashes(temp), last.sourceHashes);
+-  cpSync(join(temp, 'BUILD.md'), join(output, 'build-brief.md'));
+-} finally { rmSync(temp, { recursive: true, force: true }); }
+-writeFileSync(join(output, 'run.json'), JSON.stringify(report, null, 2) + '\n');
+-console.log(`Exported ${selected.length} milestones and ${records.length} source revisions to ${output}`);
++  cpSync(join(temp, "BUILD.md"), join(output, "build-brief.md"));
++} finally {
++  rmSync(temp, { recursive: true, force: true });
++}
++writeFileSync(join(output, "run.json"), JSON.stringify(report, null, 2) + "\n");
++console.log(
++  `Exported ${selected.length} milestones and ${records.length} source revisions to ${output}`,
++);
+diff --git a/package.json b/package.json
+index d88e6bc..4ac31f6 100644
+--- a/package.json
++++ b/package.json
+@@ -5,9 +5,12 @@
+   "type": "module",
+   "scripts": {
+     "start": "bun server.mjs",
+-    "test": "bun verify.mjs && node --test checkpoint-tools.test.mjs",
++    "test": "bun verify.mjs",
+     "capture": "bun capture.mjs",
+-    "verify:checkpoints": "bun verify-checkpoints.mjs"
++    "verify:checkpoints": "bun verify-checkpoints.mjs",
++    "test:tooling": "bun test checkpoint-tools.test.mjs",
++    "consumer": "bun consumer.mjs",
++    "demo:consumer": "bun consumer.mjs demo"
+   },
+   "dependencies": {
+     "openiap-commerce-protocol": "0.1.0",
+diff --git a/provider.mjs b/provider.mjs
+index ee3d047..c134436 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -45,7 +45,7 @@ export function createProvider(path, now) {
+     CREATE TABLE IF NOT EXISTS purchases (
+       fingerprint TEXT PRIMARY KEY, user_id TEXT, product_id TEXT NOT NULL,
+       state TEXT NOT NULL, expires_at INTEGER NOT NULL, will_renew INTEGER NOT NULL,
+-      observed_at INTEGER NOT NULL
++      observed_at INTEGER NOT NULL, entitlement_granted INTEGER NOT NULL DEFAULT 0
+     );
+     CREATE TABLE IF NOT EXISTS observations (id TEXT PRIMARY KEY);
+     CREATE TABLE IF NOT EXISTS outbox (
+@@ -90,10 +90,18 @@ export function createProvider(path, now) {
+   const capabilityNames = Object.keys(
+     providerCapabilitiesSchema.$defs.StoreCapabilities.properties,
+   );
+-  const supported = new Set(["initialValidation", "subscriptions", "entitlements", "serverNotifications", "expiration"]);
++  const supported = new Set([
++    "initialValidation",
++    "subscriptions",
++    "entitlements",
++    "serverNotifications",
++    "expiration",
++  ]);
+   const capabilities = {
+     specVersion: HTTP_BINDING.protocolVersion,
+-    implementation: { name: "Commerce Protocol Example — fictional fixture store" },
++    implementation: {
++      name: "Commerce Protocol Example — fictional fixture store",
++    },
+     eventTypes,
+     stores: {
+       fixture: Object.fromEntries(
+@@ -112,17 +120,24 @@ export function createProvider(path, now) {
+ 
+   function enqueue(eventType, row, occurredAt, sourceStoreEventId) {
+     const body = {
+-      eventId: randomUUID(), eventType, eventVersion: COMMERCE_EVENT_VERSION,
+-      occurredAt, processedAt: now(), store: FIXTURE.store,
+-      environment: "local-fixture", projectId: "commerce_lab",
++      eventId: randomUUID(),
++      eventType,
++      eventVersion: COMMERCE_EVENT_VERSION,
++      occurredAt,
++      processedAt: now(),
++      store: FIXTURE.store,
++      environment: "local-fixture",
++      projectId: "commerce_lab",
+       productId: row.product_id,
+       ...(row.user_id ? { userId: row.user_id } : {}),
+       subscription: snapshot(row),
+       ...(sourceStoreEventId ? { sourceStoreEventId } : {}),
+     };
+-    if (!validate("#/$defs/CommerceEvent", body)) throw new Error("Invalid event");
+-    db.query("INSERT INTO outbox (event_id, delivery_id, body) VALUES (?, ?, ?)")
+-      .run(body.eventId, randomUUID(), JSON.stringify(body));
++    if (!validate("#/$defs/CommerceEvent", body))
++      throw new Error("Invalid event");
++    db.query(
++      "INSERT INTO outbox (event_id, delivery_id, body) VALUES (?, ?, ?)",
++    ).run(body.eventId, randomUUID(), JSON.stringify(body));
+   }
+ 
+   const handlers = {
+@@ -132,7 +147,7 @@ export function createProvider(path, now) {
+       if (verdict.error) return verdict;
+       if (verdict.accepted) {
+         db.query(
+-          `INSERT OR IGNORE INTO purchases VALUES (?, NULL, ?, 'Active', ?, 1, ?)`,
++          `INSERT OR IGNORE INTO purchases (fingerprint, user_id, product_id, state, expires_at, will_renew, observed_at) VALUES (?, NULL, ?, 'Active', ?, 1, ?)`,
+         ).run(
+           fingerprint(input.evidence),
+           FIXTURE.productId,
+@@ -142,8 +157,12 @@ export function createProvider(path, now) {
+       }
+       return {
+         store: FIXTURE.store,
+-        isValid: verdict.accepted,
+-        state: verdict.accepted ? "ENTITLED" : "INAUTHENTIC",
++        isValid: verdict.accepted && now() < FIXTURE.expiresAt,
++        state: !verdict.accepted
++          ? "INAUTHENTIC"
++          : now() >= FIXTURE.expiresAt
++            ? "EXPIRED"
++            : "ENTITLED",
+         ...(verdict.accepted ? { productId: FIXTURE.productId } : {}),
+         environment: "local-fixture",
+       };
+@@ -154,14 +173,19 @@ export function createProvider(path, now) {
+         return { error: "INVALID_REQUEST" };
+       return db.transaction(() => {
+         const key = fingerprint(input.evidence);
+-        const updated = db.query(
+-          "UPDATE purchases SET user_id = ? WHERE fingerprint = ? AND user_id IS NULL",
+-        ).run(input.userId, key);
++        const updated = db
++          .query(
++            "UPDATE purchases SET user_id = ? WHERE fingerprint = ? AND user_id IS NULL",
++          )
++          .run(input.userId, key);
+         const row = db
+           .query("SELECT * FROM purchases WHERE fingerprint = ?")
+           .get(key);
+         if (updated.changes && isEntitled(row.state, row.expires_at, now())) {
+-          enqueue("entitlement.granted", row, now());
++          enqueue("entitlement.granted", row, row.observed_at);
++          db.query(
++            "UPDATE purchases SET entitlement_granted = 1 WHERE fingerprint = ?",
++          ).run(key);
+         }
+         return { bound: row?.user_id === input.userId };
+       })();
+@@ -239,7 +263,6 @@ export function createProvider(path, now) {
+         (kind === "expire" && row.state === "Expired")
+       )
+         return false;
+-      const wasActive = isEntitled(row.state, row.expires_at, occurredAt - 1);
+       const next = {
+         ...row,
+         will_renew: 0,
+@@ -251,8 +274,15 @@ export function createProvider(path, now) {
+       const types = [
+         kind === "cancel" ? "subscription.canceled" : "subscription.expired",
+       ];
+-      if (kind === "expire" && wasActive && row.user_id)
++      if (
++        row.entitlement_granted &&
++        !isEntitled(next.state, next.expires_at, now())
++      ) {
+         types.push("entitlement.revoked");
++        db.query(
++          "UPDATE purchases SET entitlement_granted = 0 WHERE fingerprint = ?",
++        ).run(row.fingerprint);
++      }
+       for (const eventType of types) enqueue(eventType, next, occurredAt, id);
+       return true;
+     })();
+diff --git a/scenario.mjs b/scenario.mjs
+index b229c15..525327c 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -5,35 +5,37 @@ import { deliver } from "./webhooks.mjs";
+ 
+ export const STAGES = [
+   {
+-    "title": "Start with the contract",
+-    "built": "HTTP routes + schema validation + SQLite",
+-    "result": "A running server, an empty purchase table, and no access."
++    title: "Start with the contract",
++    built: "HTTP routes + schema validation + SQLite",
++    result: "A running server, an empty purchase table, and no access.",
+   },
+   {
+-    "title": "Verify a purchase",
+-    "built": "Fixture store adapter + purchase persistence",
+-    "result": "Valid evidence is saved. Alice still has no access."
++    title: "Verify a purchase",
++    built: "Fixture store adapter + purchase persistence",
++    result: "Valid evidence is saved. Alice still has no access.",
+   },
+   {
+-    "title": "Connect it to a user",
+-    "built": "Server authorization + atomic binding + entitlement reads",
+-    "result": "Alice gets Premium. Another user cannot take the purchase."
++    title: "Connect it to a user",
++    built: "Server authorization + atomic binding + entitlement reads",
++    result: "Alice gets Premium. Another user cannot take the purchase.",
+   },
+   {
+-    "title": "Handle cancellation",
+-    "built": "Lifecycle processing + transactional event outbox",
+-    "result": "Renewal stops. Alice keeps the time she already paid for."
++    title: "Handle cancellation",
++    built: "Lifecycle processing + transactional event outbox",
++    result: "Renewal stops. Alice keeps the time she already paid for.",
+   },
+   {
+-    "title": "Deliver, retry, deduplicate",
+-    "built": "HMAC signatures + retry worker + durable receiver inbox",
+-    "result": "A 503 retries successfully. Redelivery creates no second inbox row."
++    title: "Deliver, retry, deduplicate",
++    built: "HMAC signatures + retry worker + durable receiver inbox",
++    result:
++      "A 503 retries successfully. Redelivery creates no second inbox row.",
+   },
+   {
+-    "title": "Expire access and restart",
+-    "built": "Expiry-aware reads + recovery from SQLite",
+-    "result": "Access closes at the deadline. Restarting preserves purchases and deliveries."
+-  }
++    title: "Expire access and restart",
++    built: "Expiry-aware reads + recovery from SQLite",
++    result:
++      "Access closes at the deadline. Restarting preserves purchases and deliveries.",
++  },
+ ];
+ 
+ export async function requestOperation(baseUrl, name, input, role = "server") {
+@@ -79,14 +81,26 @@ export function createScenario(runtime) {
+     };
+     const start = checks.length;
+     if (stage === 0) {
+-      check("Fixture request matches the installed schema", validate(operation("verifyPurchase").input, evidence), true);
++      check(
++        "Fixture request matches the installed schema",
++        validate(operation("verifyPurchase").input, evidence),
++        true,
++      );
+       check(
+         "Capabilities use the published response schema",
+         (await run("providerCapabilities", null, null)).httpStatus,
+         200,
+       );
+-      check("Purchase storage starts empty", runtime.provider.inspect().purchases, []);
+-      check("No profile conformance is claimed", (await run("providerCapabilities", null, null)).body.profiles, undefined);
++      check(
++        "Purchase storage starts empty",
++        runtime.provider.inspect().purchases,
++        [],
++      );
++      check(
++        "No profile conformance is claimed",
++        (await run("providerCapabilities", null, null)).body.profiles,
++        undefined,
++      );
+     } else if (stage === 1) {
+       check(
+         "Fixture evidence is accepted",
+@@ -155,9 +169,11 @@ export function createScenario(runtime) {
+         (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
+         [FIXTURE.productId],
+       );
+-      check("First binding queues one grant; repeat and conflict queue none",
+-        runtime.provider.inspect().deliveries.map(row => row.eventType),
+-        ["entitlement.granted"]);
++      check(
++        "First binding queues one grant; repeat and conflict queue none",
++        runtime.provider.inspect().deliveries.map((row) => row.eventType),
++        ["entitlement.granted"],
++      );
+     } else if (stage === 3) {
+       runtime.time = FIXTURE.startsAt + 86_400_000;
+       runtime.provider.observe({
+@@ -176,7 +192,10 @@ export function createScenario(runtime) {
+       );
+       check(
+         "Cancellation queues one event",
+-        runtime.provider.inspect().deliveries.filter(row => row.eventType === "subscription.canceled").length,
++        runtime.provider
++          .inspect()
++          .deliveries.filter((row) => row.eventType === "subscription.canceled")
++          .length,
+         1,
+       );
+     } else if (stage === 4) {
+diff --git a/verify-checkpoints.mjs b/verify-checkpoints.mjs
+index 98a6736..bd6b925 100644
+--- a/verify-checkpoints.mjs
++++ b/verify-checkpoints.mjs
+@@ -1,28 +1,84 @@
+-import assert from 'node:assert/strict';
+-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+-import { tmpdir } from 'node:os';
+-import { join, resolve } from 'node:path';
+-import { extract, hashes, readRecords, run, sha256 } from './checkpoint-tools.mjs';
++import assert from "node:assert/strict";
++import {
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import {
++  extract,
++  hashes,
++  readRecords,
++  run,
++  sha256,
++} from "./checkpoint-tools.mjs";
+ 
+-const source = resolve(process.argv[2] ?? join(import.meta.dir, 'docs/build'));
+-const temp = mkdtempSync(join(tmpdir(), 'commerce-verify-'));
++const source = resolve(process.argv[2] ?? join(import.meta.dir, "docs/build"));
++const temp = mkdtempSync(join(tmpdir(), "commerce-verify-"));
+ const records = readRecords(source);
+ const results = [];
+ try {
+-  const applied = join(temp, 'applied');
++  const applied = join(temp, "applied");
+   mkdirSync(applied);
+   for (const record of records) {
+     const directory = join(source, record.id);
+-    const archive = join(directory, 'source.tar.gz');
++    const archive = join(directory, "source.tar.gz");
+     const consumer = join(temp, record.id);
+     extract(archive, consumer);
+-    assert.deepEqual(hashes(consumer), record.sourceHashes, `${record.id}: archive hashes`);
+-    const patch = join(directory, 'changes.patch');
+-    if (readFileSync(patch, 'utf8')) run('git', ['apply', patch], applied);
+-    assert.deepEqual(hashes(applied), record.sourceHashes, `${record.id}: patch chain from empty`);
+-    const commands = [run('npm', ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], consumer), run('npm', ['test'], consumer)];
+-    results.push({ id: record.id, archiveSha256: sha256(archive), patchSha256: sha256(patch), sourceHashesMatch: true, patchAppliesExactly: true, commands });
+-    console.log(`Verified ${record.id}: extracted source, patch chain, npm ci, npm test`);
++    assert.deepEqual(
++      hashes(consumer),
++      record.sourceHashes,
++      `${record.id}: archive hashes`,
++    );
++    const patch = join(directory, "changes.patch");
++    if (readFileSync(patch, "utf8")) run("git", ["apply", patch], applied);
++    assert.deepEqual(
++      hashes(applied),
++      record.sourceHashes,
++      `${record.id}: patch chain from empty`,
++    );
++    const commands = [
++      run(
++        "npm",
++        ["ci", "--ignore-scripts", "--no-audit", "--no-fund"],
++        consumer,
++      ),
++      run("npm", ["test"], consumer),
++    ];
++    if (
++      JSON.parse(readFileSync(join(consumer, "package.json"), "utf8")).scripts[
++        "test:tooling"
++      ]
++    )
++      commands.push(run("npm", ["run", "test:tooling"], consumer));
++    results.push({
++      id: record.id,
++      archiveSha256: sha256(archive),
++      patchSha256: sha256(patch),
++      sourceHashesMatch: true,
++      patchAppliesExactly: true,
++      commands,
++    });
++    console.log(
++      `Verified ${record.id}: extracted source, patch chain, npm ci, npm test`,
++    );
+   }
+-  writeFileSync(join(source, 'verification.json'), JSON.stringify({ recordedAt: new Date().toISOString(), scope: 'Each recorded archive extracted outside both repositories; patches applied in order from an empty directory; published dependencies installed with npm.', results }, null, 2) + '\n');
+-} finally { rmSync(temp, { recursive: true, force: true }); }
++  writeFileSync(
++    join(source, "verification.json"),
++    JSON.stringify(
++      {
++        recordedAt: new Date().toISOString(),
++        scope:
++          "Each recorded archive extracted outside both repositories; patches applied in order from an empty directory; published dependencies installed with npm.",
++        results,
++      },
++      null,
++      2,
++    ) + "\n",
++  );
++} finally {
++  rmSync(temp, { recursive: true, force: true });
++}
+diff --git a/verify.mjs b/verify.mjs
+index 234beb9..bc77b7a 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -4,6 +4,7 @@ import vectors from "openiap-commerce-protocol/vectors/signatures.json";
+ import { SUBSCRIPTION_STATES, WEBHOOK } from "openiap-commerce-protocol";
+ import { FIXTURE, isEntitled } from "./provider.mjs";
+ import { requestOperation } from "./scenario.mjs";
++import { runConsumerDemo } from "./consumer.mjs";
+ import { startLab } from "./server.mjs";
+ import { authentic, deliver, sign } from "./webhooks.mjs";
+ 
+@@ -107,6 +108,15 @@ export async function verifyLab({ compareSigner } = {}) {
+       }),
+       false,
+     );
++    const expiredVerdict = await call("verifyPurchase", {
++      store: FIXTURE.store,
++      evidence: FIXTURE.evidence,
++    });
++    check(
++      "Expired fixture evidence has an expired verdict",
++      [expiredVerdict.body.isValid, expiredVerdict.body.state],
++      [false, "EXPIRED"],
++    );
+     const body = lab.runtime.provider.db
+       .query("SELECT body FROM outbox LIMIT 1")
+       .get().body;
+@@ -158,13 +168,38 @@ export async function verifyLab({ compareSigner } = {}) {
+       bindings.filter((row) => row.body.bound).length,
+       1,
+     );
+-    check("A cancellation older than the active row is ignored",
+-      fresh.runtime.provider.observe({ id: "old-active-cancel", kind: "cancel", occurredAt: FIXTURE.startsAt - 1 }), false);
+-    check("Ignoring an old cancellation preserves renewal",
+-      fresh.runtime.provider.inspect().purchases[0].willRenew, 1);
+-    assert.throws(() => fresh.runtime.provider.observe({ id: "early-expiry", kind: "expire", occurredAt: FIXTURE.startsAt }), /reconciliation/);
+-    check("Conflicting expiry is not consumed",
+-      fresh.runtime.provider.db.query("SELECT COUNT(*) AS count FROM observations WHERE id = 'early-expiry'").get().count, 0);
++    check(
++      "A cancellation older than the active row is ignored",
++      fresh.runtime.provider.observe({
++        id: "old-active-cancel",
++        kind: "cancel",
++        occurredAt: FIXTURE.startsAt - 1,
++      }),
++      false,
++    );
++    check(
++      "Ignoring an old cancellation preserves renewal",
++      fresh.runtime.provider.inspect().purchases[0].willRenew,
++      1,
++    );
++    assert.throws(
++      () =>
++        fresh.runtime.provider.observe({
++          id: "early-expiry",
++          kind: "expire",
++          occurredAt: FIXTURE.startsAt,
++        }),
++      /reconciliation/,
++    );
++    check(
++      "Conflicting expiry is not consumed",
++      fresh.runtime.provider.db
++        .query(
++          "SELECT COUNT(*) AS count FROM observations WHERE id = 'early-expiry'",
++        )
++        .get().count,
++      0,
++    );
+     fresh.runtime.time += 1000;
+     const observation = {
+       id: "atomic-cancel",
+@@ -206,20 +241,90 @@ export async function verifyLab({ compareSigner } = {}) {
+   }
+   const binding = startLab();
+   try {
+-    const call = (name, input) => requestOperation(binding.runtime.baseUrl, name, input);
++    const call = (name, input) =>
++      requestOperation(binding.runtime.baseUrl, name, input);
+     const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
+     await call("verifyPurchase", evidence);
+-    binding.runtime.provider.db.exec("CREATE TRIGGER fail_grant BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT, 'injected disk failure'); END;");
+-    check("Grant failure rejects binding", (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId })).httpStatus, 500);
+-    check("Grant failure rolls back ownership", binding.runtime.provider.inspect().purchases[0].userId, null);
++    binding.runtime.provider.db.exec(
++      "CREATE TRIGGER fail_grant BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT, 'injected disk failure'); END;",
++    );
++    check(
++      "Grant failure rejects binding",
++      (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId }))
++        .httpStatus,
++      500,
++    );
++    check(
++      "Grant failure rolls back ownership",
++      binding.runtime.provider.inspect().purchases[0].userId,
++      null,
++    );
+     binding.runtime.provider.db.exec("DROP TRIGGER fail_grant");
+     binding.runtime.time = FIXTURE.expiresAt;
+-    check("An expired purchase can be bound", (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId })).body.bound, true);
+-    check("Binding expired evidence emits no grant", binding.runtime.provider.inspect().deliveries, []);
++    check(
++      "An expired purchase can be bound",
++      (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId })).body
++        .bound,
++      true,
++    );
++    check(
++      "Binding expired evidence emits no grant",
++      binding.runtime.provider.inspect().deliveries,
++      [],
++    );
+   } finally {
+     await binding.close();
+     rmSync(binding.directory, { recursive: true, force: true });
+   }
++  const delayed = startLab();
++  try {
++    const call = (name, input) =>
++      requestOperation(delayed.runtime.baseUrl, name, input);
++    const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++    await call("verifyPurchase", evidence);
++    delayed.runtime.time += 3_600_000;
++    await call("bindPurchase", { ...evidence, userId: FIXTURE.userId });
++    const grant = JSON.parse(
++      delayed.runtime.provider.db.query("SELECT body FROM outbox LIMIT 1").get()
++        .body,
++    );
++    check(
++      "Delayed binding retains the store occurrence",
++      grant.occurredAt,
++      FIXTURE.startsAt,
++    );
++    check(
++      "Delayed binding records its actual processing time",
++      grant.processedAt,
++      delayed.runtime.time,
++    );
++    delayed.runtime.restart();
++    delayed.runtime.time = FIXTURE.expiresAt + 60_000;
++    delayed.runtime.provider.observe({
++      id: "late-expiry",
++      kind: "expire",
++      occurredAt: delayed.runtime.time,
++    });
++    check(
++      "Late expiry revokes a persisted grant exactly once",
++      delayed.runtime.provider.inspect().deliveries.map((row) => row.eventType),
++      ["entitlement.granted", "subscription.expired", "entitlement.revoked"],
++    );
++    delayed.runtime.provider.observe({
++      id: "another-expiry",
++      kind: "expire",
++      occurredAt: delayed.runtime.time,
++    });
++    check(
++      "Repeated expiry emits no second revocation",
++      delayed.runtime.provider.inspect().deliveries.length,
++      3,
++    );
++  } finally {
++    await delayed.close();
++    rmSync(delayed.directory, { recursive: true, force: true });
++  }
++  checks.push(...(await runConsumerDemo()).checks);
+   return checks;
+ }
+ 

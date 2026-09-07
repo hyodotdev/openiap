@@ -1,0 +1,290 @@
+diff --git a/ai-task.md b/ai-task.md
+index 251443c..50efd02 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,6 +1,6 @@
+-# Handle cancellation
++# Deliver, retry, deduplicate
+ 
+-Add cancellation observations and a transactional event outbox. A cancellation stops renewal but preserves the paid period. Do not add delivery until its own milestone.
++Add an HMAC receiver, durable inbox, and bounded retry worker. Exercise 503, reopen the database, retry successfully, then simulate a lost acknowledgement. Redelivery must have one inbox effect.
+ 
+ Use the existing reviewed prototype where it satisfies the installed contract.
+ Run the backend, inspect the result, correct problems, and rerun the affected check.
+diff --git a/checkpoint.json b/checkpoint.json
+index 8fdd5c2..0f3893c 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,7 +1,7 @@
+ {
+-  "step": 4,
+-  "id": "04-cancel",
+-  "title": "Handle cancellation",
+-  "built": "Lifecycle processing + transactional event outbox",
+-  "result": "Renewal stops. Alice keeps the time she already paid for."
++  "step": 5,
++  "id": "05-deliver",
++  "title": "Deliver, retry, deduplicate",
++  "built": "HMAC signatures + retry worker + durable receiver inbox",
++  "result": "A 503 retries successfully. Redelivery creates no second inbox row."
+ }
+diff --git a/scenario.mjs b/scenario.mjs
+index 704b80e..366fb01 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -1,6 +1,7 @@
+ import assert from "node:assert/strict";
+ import { operation, validate } from "./contract.mjs";
+ import { CREDENTIALS, FIXTURE } from "./provider.mjs";
++import { deliver } from "./webhooks.mjs";
+ 
+ export const STAGES = [
+   {
+@@ -22,6 +23,11 @@ export const STAGES = [
+     "title": "Handle cancellation",
+     "built": "Lifecycle processing + transactional event outbox",
+     "result": "Renewal stops. Alice keeps the time she already paid for."
++  },
++  {
++    "title": "Deliver, retry, deduplicate",
++    "built": "HMAC signatures + retry worker + durable receiver inbox",
++    "result": "A 503 retries successfully. Redelivery creates no second inbox row."
+   }
+ ];
+ 
+@@ -165,13 +171,62 @@ export function createScenario(runtime) {
+         runtime.provider.inspect().deliveries.length,
+         1,
+       );
++    } else if (stage === 4) {
++      const failed = await deliver(
++        runtime.provider,
++        runtime.secret,
++        runtime.now,
++        async () => new Response(null, { status: 503 }),
++      );
++      responses.push({
++        operation: "webhook: receiver unavailable",
++        body: failed,
++      });
++      check("A 503 leaves a durable retry", failed[0].status, "pending");
++      runtime.restart();
++      runtime.time += 30_000;
++      const delivered = await deliver(
++        runtime.provider,
++        runtime.secret,
++        runtime.now,
++        runtime.post,
++      );
++      responses.push({
++        operation: "webhook: retry after restart",
++        body: delivered,
++      });
++      check("Retry survives provider restart", delivered[0].httpStatus, 200);
++      check(
++        "Retry keeps the delivery identity",
++        delivered[0].deliveryId,
++        failed[0].deliveryId,
++      );
++      // Simulate loss of the delivery acknowledgement after the receiver committed.
++      runtime.provider.db
++        .query("UPDATE outbox SET status = 'pending', next_at = 0")
++        .run();
++      runtime.time += 1_000;
++      responses.push({
++        operation: "webhook: lost-ack redelivery",
++        body: await deliver(
++          runtime.provider,
++          runtime.secret,
++          runtime.now,
++          runtime.post,
++        ),
++      });
++      check(
++        "Redelivery has one durable inbox effect",
++        runtime.receiver.count(),
++        1,
++      );
+     }
+     const entry = {
+       step: stage + 1,
+       ...STAGES[stage],
+       simulatedTime: new Date(runtime.time).toISOString(),
+       ...runtime.provider.inspect(),
+-      inboxCount: 0,
++      inboxCount: runtime.receiver.count(),
+       responses,
+       checks: checks.slice(start),
+       totalChecks: checks.length,
+diff --git a/server.mjs b/server.mjs
+index fbac7e0..ad3e921 100644
+--- a/server.mjs
++++ b/server.mjs
+@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { randomBytes } from "node:crypto";
+ import { createProvider, FIXTURE } from "./provider.mjs";
++import { createReceiver } from "./webhooks.mjs";
+ import { createScenario, STAGES } from "./scenario.mjs";
+ 
+ export function startLab({ port = 0 } = {}) {
+@@ -13,10 +14,16 @@ export function startLab({ port = 0 } = {}) {
+     now: () => runtime.time,
+     restart() {
+       runtime.provider?.close();
++      runtime.receiver?.close();
+       runtime.provider = createProvider(
+         join(directory, "provider.sqlite"),
+         runtime.now,
+       );
++      runtime.receiver = createReceiver(
++        join(directory, "receiver.sqlite"),
++        runtime.secret,
++        runtime.now,
++      );
+     },
+     post: (init) =>
+       fetch(`${runtime.baseUrl}/demo/receiver`, {
+@@ -42,6 +49,8 @@ export function startLab({ port = 0 } = {}) {
+         return new Response("Local requests only", { status: 403 });
+       if (url.pathname.startsWith("/commerce/v1/"))
+         return runtime.provider.fetch(request);
++      if (url.pathname === "/demo/receiver" && request.method === "POST")
++        return runtime.receiver.fetch(request);
+       if (url.pathname === "/demo/state" && request.method === "GET")
+         return Response.json({ stages: STAGES, history: scenario.history });
+       if (url.pathname === "/demo/advance" && request.method === "POST") {
+@@ -68,6 +77,7 @@ export function startLab({ port = 0 } = {}) {
+     async close() {
+       await server.stop(true);
+       runtime.provider.close();
++      runtime.receiver.close();
+     },
+   };
+ }
+diff --git a/webhooks.mjs b/webhooks.mjs
+new file mode 100644
+index 0000000..796dc79
+--- /dev/null
++++ b/webhooks.mjs
+@@ -0,0 +1,120 @@
++import { Database } from "bun:sqlite";
++import { createHmac, timingSafeEqual } from "node:crypto";
++import { WEBHOOK } from "openiap-commerce-protocol";
++import { validate } from "./contract.mjs";
++
++export function sign(secret, timestamp, body) {
++  return (
++    WEBHOOK.signaturePrefix +
++    createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex")
++  );
++}
++
++export function authentic(secrets, timestamp, body, signatures, nowSeconds) {
++  if (!/^\d+$/.test(timestamp ?? "")) return false;
++  if (
++    !Number.isSafeInteger(Number(timestamp)) ||
++    Math.abs(nowSeconds - Number(timestamp)) > WEBHOOK.toleranceSeconds
++  )
++    return false;
++  return (signatures ?? "").split(",").some((raw) => {
++    const candidate = raw.trim();
++    if (!/^v1=[a-f0-9]{64}$/.test(candidate)) return false;
++    return secrets.some((secret) =>
++      timingSafeEqual(
++        Buffer.from(candidate),
++        Buffer.from(sign(secret, timestamp, body)),
++      ),
++    );
++  });
++}
++
++export function createReceiver(path, secret, now) {
++  const db = new Database(path, { create: true });
++  db.exec(
++    "CREATE TABLE IF NOT EXISTS inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
++  );
++
++  async function fetch(request) {
++    const body = await request.text();
++    if (
++      !authentic(
++        [secret],
++        request.headers.get(WEBHOOK.timestampHeader),
++        body,
++        request.headers.get(WEBHOOK.signatureHeader),
++        Math.floor(now() / 1000),
++      )
++    ) {
++      return new Response("Invalid signature", { status: 401 });
++    }
++    let event;
++    try {
++      event = JSON.parse(body);
++    } catch {
++      return new Response("Invalid JSON", { status: 400 });
++    }
++    if (!validate("#/$defs/CommerceEvent", event))
++      return new Response("Invalid event", { status: 400 });
++    if (request.headers.get(WEBHOOK.eventIdHeader) !== event.eventId)
++      return new Response("Event ID mismatch", { status: 400 });
++    // Inbox insertion is the durable effect; downstream jobs can consume it later.
++    const result = db
++      .query("INSERT OR IGNORE INTO inbox VALUES (?, ?)")
++      .run(event.eventId, body);
++    return Response.json({ accepted: true, duplicate: result.changes === 0 });
++  }
++
++  return {
++    fetch,
++    count: () => db.query("SELECT count(*) AS count FROM inbox").get().count,
++    close: () => db.close(),
++  };
++}
++
++// The caller injects a loopback test transport. This is not a public HTTPS worker.
++export async function deliver(provider, secret, now, post) {
++  const results = [];
++  const rows = provider.db
++    .query(
++      "SELECT * FROM outbox WHERE status = 'pending' AND next_at <= ? ORDER BY rowid",
++    )
++    .all(now());
++  for (const row of rows) {
++    const timestamp = Math.floor(now() / 1000).toString();
++    const headers = {
++      "content-type": WEBHOOK.contentType,
++      [WEBHOOK.timestampHeader]: timestamp,
++      [WEBHOOK.signatureHeader]: sign(secret, timestamp, row.body),
++      [WEBHOOK.eventIdHeader]: row.event_id,
++      [WEBHOOK.deliveryIdHeader]: row.delivery_id,
++    };
++    let status;
++    try {
++      status = (await post({ method: "POST", headers, body: row.body })).status;
++    } catch {
++      status = 503;
++    }
++    const attempts = row.attempts + 1;
++    const retryable = status === 408 || status === 429 || status >= 500;
++    const next =
++      status >= 200 && status < 300
++        ? "delivered"
++        : retryable && attempts < 3
++          ? "pending"
++          : "dead-letter";
++    provider.db
++      .query(
++        "UPDATE outbox SET attempts = ?, status = ?, next_at = ? WHERE event_id = ?",
++      )
++      .run(attempts, next, now() + 30_000 * 2 ** (attempts - 1), row.event_id);
++    results.push({
++      eventId: row.event_id,
++      deliveryId: row.delivery_id,
++      httpStatus: status,
++      attempt: attempts,
++      status: next,
++    });
++  }
++  return results;
++}

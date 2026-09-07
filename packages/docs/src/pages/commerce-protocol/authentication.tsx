@@ -1,9 +1,10 @@
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
+import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
+const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 
 interface RoleRow {
   role: string;
@@ -15,12 +16,15 @@ const ROLE_ROWS: RoleRow[] = [
   {
     role: 'verification',
     holder: 'May ship inside an application',
-    may: 'verifyPurchase, providerCapabilities',
+    may: httpBinding.operations
+      .filter((operation) => operation.auth !== 'server')
+      .map((operation) => operation.name)
+      .join(', '),
   },
   {
     role: 'server',
     holder: "The caller's authenticated backend",
-    may: 'Everything: status, entitlements, bind, erase',
+    may: httpBinding.operations.map((operation) => operation.name).join(', '),
   },
 ];
 
@@ -74,6 +78,13 @@ function CommerceAuthentication() {
             SPEC.md §5
           </a>
           .
+        </p>
+        <p>
+          Authenticate server-role operations before validating their input. In
+          GraphQL this includes authorization before variable coercion, not only
+          inside a resolver. The app backend selects the user from its session
+          and ownership policy; neither a client-supplied user ID nor possession
+          of a receipt authorizes binding by itself.
         </p>
       </section>
     </div>

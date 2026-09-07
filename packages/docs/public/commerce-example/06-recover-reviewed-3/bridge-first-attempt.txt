@@ -1,0 +1,19 @@
+Command: npm test
+Exit code: 1
+
+> openiap-commerce-protocol-example@0.0.0 test
+> bun verify.mjs
+
+14 |       store === "apple"
+15 |         ? { apple: { jws: purchaseToken } }
+16 |         : { google: { purchaseToken } },
+17 |   };
+18 |   if (!validate(operation("verifyPurchase").input, input))
+19 |     throw new Error("Purchase evidence does not match the protocol input");
+                   ^
+error: Purchase evidence does not match the protocol input
+      at toVerifyPurchaseInput (<local-path>/client-bridge.mjs:19:15)
+      at runBridgeDemo (<local-path>/client-bridge.mjs:27:19)
+      at verifyLab (<local-path>/verify.mjs:329:18)
+
+Bun v1.3.13 (macOS arm64)

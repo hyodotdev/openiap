@@ -1,0 +1,17 @@
+{
+  "startedAt": "2026-09-07T12:06:43.488Z",
+  "command": "npm test",
+  "passed": 10,
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Discovery remains unsupported until an event can be emitted",
+    "Purchase storage starts empty",
+    "Unready discovery returns a portable error",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "An unimplemented operation is explicitly refused",
+    "Untrusted browser origins are refused"
+  ]
+}

@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-09-07T08:24:07.676Z
+> Generated: 2026-09-07T14:34:17.299Z
 
 ## Installation
 
@@ -286,9 +286,23 @@ identifier, or central runtime.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
 - Docs: https://openiap.dev/commerce-protocol
+- Use a provider: https://openiap.dev/commerce-protocol/getting-started
+- Build your part: https://openiap.dev/commerce-protocol/ecosystem
+- Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
+- Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
+- AI build brief: https://openiap.dev/commerce-example/build-brief.md
+- Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough
+- Whitepaper and PDF: https://openiap.dev/commerce-protocol/whitepaper
 - Webhook contract: https://openiap.dev/commerce-protocol/webhooks
 - Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
+
+The recorded example follows six build milestones with reviewed source revisions, AI tasks,
+code changes, actual captures, and a correction/recheck log. It uses a fictional
+store and controlled clock with real local HTTP, SQLite and signed delivery. It is not a production provider or a
+full profile conformance claim. Its execution report is available at
+https://openiap.dev/commerce-example/run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.

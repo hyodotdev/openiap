@@ -1,0 +1,370 @@
+diff --git a/.yarnrc.yml b/.yarnrc.yml
+new file mode 100644
+index 0000000..3186f3f
+--- /dev/null
++++ b/.yarnrc.yml
+@@ -0,0 +1 @@
++nodeLinker: node-modules
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+index 754c1c7..49b04aa 100644
+--- a/INTEGRATE.md
++++ b/INTEGRATE.md
+@@ -13,6 +13,12 @@ several roles. These are product roles, not additional protocol profiles.
+ 
+ ## Start with working code
+ 
++[Download the complete example](https://openiap.dev/commerce-example/06-recover-reviewed-4/source.tar.gz)
++and extract it into an empty directory. It contains `client-bridge.mjs`,
++`consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
++The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
++contains the same project and its build history.
++
+ Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`,
+ or `bun install`. This example's runtime is Bun. The contract is
+ `openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
+@@ -25,7 +31,8 @@ or `bun install`. This example's runtime is Bun. The contract is
+ 
+ The bridge and consumer can be used separately. These checks prove local
+ boundaries with fictional inputs, not a mobile checkout or a store adapter.
+-The [README](README.md) gives the receiver endpoint, configuration, and limits.
++The [receiver setup guide](https://openiap.dev/commerce-protocol/getting-started#receive-events)
++gives the endpoint, configuration, and limits.
+ 
+ ## Task for the AI
+ 
+@@ -33,7 +40,7 @@ Inspect this repository's purchase flow and choose the role from the table.
+ Install `openiap-commerce-protocol` with this repository's package manager.
+ Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
+ vectors for the role being implemented. Package 0.1.0 does not ship `DESIGN.md`;
+-the [online implementation guide](https://openiap.dev/commerce-protocol/ecosystem)
++the [role guide](https://openiap.dev/commerce-protocol/ecosystem)
+ and [whitepaper](https://openiap.dev/commerce-protocol/whitepaper) give context.
+ 
+ Implement the selected role using the product's existing framework and design
+@@ -57,7 +64,7 @@ for the app team. Follow these boundaries:
+ 3. **Commerce:** provide core discovery and implement every operation/obligation
+    of each advertised profile and binding. Account lifecycle includes erasure.
+    Keep one authoritative ownership and entitlement service for each app/project,
+-   even when it delegates verification. Use [BUILD.md](BUILD.md) for the backend
++   even when it delegates verification. Use [backend build brief](https://openiap.dev/commerce-example/build-brief.md) for the backend
+    implementation sequence. The fixture backend advertises no complete profiles.
+ 4. **Data:** reuse or port `webhooks.mjs` and `consumer.mjs`. Authenticate exact
+    body bytes before parsing, validate, durably deduplicate in the configured
+diff --git a/README.md b/README.md
+index e3acddd..2834591 100644
+--- a/README.md
++++ b/README.md
+@@ -15,7 +15,8 @@ npm start
+ ```
+ 
+ This example uses the Bun runtime for HTTP and SQLite. Its scripts work through
+-any package manager with Bun installed. The protocol can be implemented in your
++any package manager with Bun installed. The included `.yarnrc.yml` selects
++`node_modules` for modern Yarn so Bun can resolve the installed packages. The protocol can be implemented in your
+ own language and stack. Open http://127.0.0.1:5181 and run each available step.
+ 
+ ## Connect your product
+@@ -44,7 +45,8 @@ To run the receiver continuously, set `COMMERCE_WEBHOOK_SECRET` to your
+ provider's signing secret and run `npm run consumer`. It listens at
+ `http://127.0.0.1:5182/webhooks/commerce`, with storage in `consumer.sqlite`
+ (or `COMMERCE_INBOX_PATH`). It is bound to loopback: an HTTPS reverse proxy
+-must forward to that local address, preserving the exact body bytes. Configure
++must forward to that local address, preserving the exact body bytes. Forwarding the public Host header is supported;
++the signature authenticates delivery. Configure
+ one emitter/project and signing key per receiver database. Keep the inbox file
+ on persistent storage. `webhooks.mjs` exports the same Fetch-compatible receiver
+ handler for embedding in an existing server.
+@@ -96,3 +98,5 @@ preceding archive, so patch generation also works after a fresh clone. Run
+ empty directory and save the npm execution evidence. Published source
+ checkpoints are immutable;
+ use a new directory name in `checkpoint.json` for another revision.
++Verification/export skip unfinished captures without `run.json`; their failure
++logs remain on disk until that checkpoint succeeds.
+diff --git a/ai-task.md b/ai-task.md
+index cc08529..9eeb0e6 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -31,3 +31,10 @@ from local fixtures. Reuse the existing consumer and contract validators.
+ The first bridge test failed because store evidence was nested under an extra
+ `evidence` key. Keep the failure output, use the installed input schema's
+ top-level `apple`/`google` members, and rerun that boundary check.
++
++Apply the third CLI review. Make the integration brief reachable from the docs
++site with absolute setup, source, and build-brief links. Accept signed webhook
++delivery behind a reverse proxy that preserves the public Host header. Keep
++unfinished captures from blocking completed history, retain equal-time fixture
++transitions, record the observed duplicate response, and configure Yarn's
++node-modules linker. Preserve the proxy failure and rerun the checks.
+diff --git a/capture.mjs b/capture.mjs
+index 75621cc..564f82f 100644
+--- a/capture.mjs
++++ b/capture.mjs
+@@ -160,7 +160,7 @@ try {
+ } catch (error) {
+   writeFileSync(
+     join(output, `failure-${attempt}.txt`),
+-    `${new Date().toISOString()}\n${sanitize(error.stack)}\n`,
++    `${new Date().toISOString()}\n${sanitize(String(error?.stack ?? error))}\n`,
+   );
+   throw error;
+ } finally {
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index 5c8d254..a87d59a 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
+ import { spawnSync } from "node:child_process";
+ import {
+   cpSync,
++  existsSync,
+   mkdirSync,
+   mkdtempSync,
+   readFileSync,
+@@ -15,6 +16,7 @@ import { join } from "node:path";
+ 
+ export const SOURCE_FILES = [
+   ".gitignore",
++  ".yarnrc.yml",
+   "LICENSE",
+   "README.md",
+   "BUILD.md",
+@@ -53,7 +55,7 @@ export function sanitize(text) {
+   let result = text;
+   for (const root of roots) result = result.replaceAll(root, "<local-path>");
+   return result.replace(
+-    /\/[^\s"']*\/commerce-(?:capture|patch|verify|lab|compare|consumer)-[^\s/"']+/g,
++    /\/[^\s"']*\/commerce-(?:capture|patch|verify|lab|example|compare|consumer)-[^\s/"']+/g,
+     "<temporary-project>",
+   );
+ }
+@@ -124,7 +126,11 @@ export function createPatch(before, after) {
+ }
+ export function readRecords(directory) {
+   return readdirSync(directory)
+-    .filter((name) => /^\d\d-[\w-]+$/.test(name))
++    .filter(
++      (name) =>
++        /^\d\d-[\w-]+$/.test(name) &&
++        existsSync(join(directory, name, "run.json")),
++    )
+     .sort()
+     .map((name) =>
+       JSON.parse(readFileSync(join(directory, name, "run.json"), "utf8")),
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+index bc1c224..e050dc9 100644
+--- a/checkpoint-tools.test.mjs
++++ b/checkpoint-tools.test.mjs
+@@ -3,7 +3,12 @@ import { test } from "bun:test";
+ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+ import { tmpdir, homedir } from "node:os";
+ import { join } from "node:path";
+-import { createPatch, nextAttempt, sanitize } from "./checkpoint-tools.mjs";
++import {
++  createPatch,
++  nextAttempt,
++  sanitize,
++  readRecords,
++} from "./checkpoint-tools.mjs";
+ 
+ test("patches preserve path-like source text across additions, changes, and deletions", () => {
+   const temp = mkdtempSync(join(tmpdir(), "commerce-patch-test-"));
+@@ -45,3 +50,24 @@ test("failed attempts get new numbers and private paths are redacted", () => {
+     rmSync(temp, { recursive: true, force: true });
+   }
+ });
++
++test("unfinished captures do not hide completed records", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    mkdirSync(join(temp, "01-complete"));
++    writeFileSync(
++      join(temp, "01-complete/run.json"),
++      JSON.stringify({ id: "01-complete" }),
++    );
++    mkdirSync(join(temp, "02-failed"));
++    writeFileSync(join(temp, "02-failed/failure-1.txt"), "Browser unavailable");
++    assert.deepEqual(readRecords(temp), [{ id: "01-complete" }]);
++    writeFileSync(
++      join(temp, "02-failed/run.json"),
++      JSON.stringify({ id: "02-failed" }),
++    );
++    assert.equal(readRecords(temp).length, 2);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
+diff --git a/checkpoint.json b/checkpoint.json
+index 4c6e9aa..660312c 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed-3",
++  "id": "06-recover-reviewed-4",
+   "title": "Expire access and restart",
+   "built": "Expiry, atomic grant events, recovery, and verified source archives",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-2"
++  "previous": "06-recover-reviewed-3"
+ }
+diff --git a/consumer.mjs b/consumer.mjs
+index e4373eb..972ef32 100644
+--- a/consumer.mjs
++++ b/consumer.mjs
+@@ -17,10 +17,6 @@ export function startConsumer({ secret, path, port = 0, now = Date.now }) {
+     maxRequestBodySize: 64 * 1024,
+     fetch(request) {
+       const url = new URL(request.url);
+-      const origin = request.headers.get("origin");
+-      const expected = `http://127.0.0.1:${server.port}`;
+-      if (url.origin !== expected || (origin && origin !== expected))
+-        return new Response("Local requests only", { status: 403 });
+       if (request.method === "POST" && url.pathname === "/webhooks/commerce")
+         return receiver.fetch(request);
+       if (request.method === "GET" && url.pathname === "/health")
+@@ -67,6 +63,10 @@ export async function runConsumerDemo() {
+     ["subscription.refunded", "Refunded", false],
+   ];
+   try {
++    const health = await fetch(new URL("/health", consumer.url), {
++      headers: { host: "receiver.example.test" },
++    });
++    check("Health accepts the proxy public Host header", health.status, 200);
+     for (const [index, [eventType, state, active]] of lifecycle.entries()) {
+       const event = {
+         eventId: randomUUID(),
+@@ -100,6 +100,7 @@ export async function runConsumerDemo() {
+       const body = JSON.stringify(event);
+       const timestamp = String(Math.floor(now / 1000));
+       const headers = {
++        host: "receiver.example.test",
+         "content-type": WEBHOOK.contentType,
+         [WEBHOOK.timestampHeader]: timestamp,
+         [WEBHOOK.signatureHeader]: sign(secret, timestamp, body),
+@@ -122,10 +123,11 @@ export async function runConsumerDemo() {
+         headers,
+         body,
+       });
++      const duplicateResult = await duplicate.json();
+       check(
+         `${eventType}: redelivery deduplicated`,
+-        (await duplicate.json()).duplicate,
+-        true,
++        [duplicate.status, duplicateResult.duplicate],
++        [200, true],
+       );
+       const tampered = await fetch(consumer.url, {
+         method: "POST",
+@@ -136,7 +138,8 @@ export async function runConsumerDemo() {
+       results.push({
+         event,
+         httpStatus: response.status,
+-        duplicate: true,
++        duplicate: duplicateResult.duplicate,
++        requestHost: headers.host,
+         tamperedHttpStatus: tampered.status,
+       });
+     }
+diff --git a/provider.mjs b/provider.mjs
+index c134436..643c03c 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -127,7 +127,7 @@ export function createProvider(path, now) {
+       processedAt: now(),
+       store: FIXTURE.store,
+       environment: "local-fixture",
+-      projectId: "commerce_lab",
++      projectId: "commerce_example",
+       productId: row.product_id,
+       ...(row.user_id ? { userId: row.user_id } : {}),
+       subscription: snapshot(row),
+@@ -257,7 +257,7 @@ export function createProvider(path, now) {
+         throw new Error("Premature expiry requires store reconciliation");
+       }
+       db.query("INSERT INTO observations VALUES (?)").run(id);
+-      if (occurredAt <= row.observed_at) return false;
++      if (occurredAt < row.observed_at) return false;
+       if (
+         (kind === "cancel" && (!row.will_renew || row.state !== "Active")) ||
+         (kind === "expire" && row.state === "Expired")
+diff --git a/server.mjs b/server.mjs
+index ad3e921..044c4c4 100644
+--- a/server.mjs
++++ b/server.mjs
+@@ -7,7 +7,7 @@ import { createReceiver } from "./webhooks.mjs";
+ import { createScenario, STAGES } from "./scenario.mjs";
+ 
+ export function startLab({ port = 0 } = {}) {
+-  const directory = mkdtempSync(join(tmpdir(), "commerce-lab-"));
++  const directory = mkdtempSync(join(tmpdir(), "commerce-example-"));
+   const runtime = {
+     time: FIXTURE.startsAt,
+     secret: randomBytes(32).toString("hex"),
+@@ -85,7 +85,7 @@ export function startLab({ port = 0 } = {}) {
+ if (import.meta.main) {
+   const lab = startLab({ port: Number(process.env.COMMERCE_LAB_PORT ?? 5181) });
+   console.log(
+-    `Commerce Lab: ${lab.runtime.baseUrl}\nDisposable SQLite files: ${lab.directory}\nFictional fixture store. No payments, credentials, or external services required.`,
++    `Commerce Protocol Example: ${lab.runtime.baseUrl}\nDisposable SQLite files: ${lab.directory}\nFictional fixture store. No payments, credentials, or external services required.`,
+   );
+   for (const signal of ["SIGINT", "SIGTERM"])
+     process.on(signal, async () => {
+diff --git a/verify.mjs b/verify.mjs
+index 28ad2cf..e43ff66 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -325,6 +325,45 @@ export async function verifyLab({ compareSigner } = {}) {
+     await delayed.close();
+     rmSync(delayed.directory, { recursive: true, force: true });
+   }
++  const equalTime = startLab();
++  try {
++    const call = (name, input) =>
++      requestOperation(equalTime.runtime.baseUrl, name, input);
++    const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++    await call("verifyPurchase", evidence);
++    await call("bindPurchase", { ...evidence, userId: FIXTURE.userId });
++    equalTime.runtime.time = FIXTURE.expiresAt;
++    equalTime.runtime.provider.observe({
++      id: "cancel-at-deadline",
++      kind: "cancel",
++      occurredAt: FIXTURE.expiresAt,
++    });
++    equalTime.runtime.provider.observe({
++      id: "expire-at-deadline",
++      kind: "expire",
++      occurredAt: FIXTURE.expiresAt,
++    });
++    check(
++      "Equal-time expiry retains its lifecycle transition",
++      equalTime.runtime.provider.inspect().purchases[0].state,
++      "Expired",
++    );
++    check(
++      "Equal-time observations revoke once and preserve both transitions",
++      equalTime.runtime.provider
++        .inspect()
++        .deliveries.map((row) => row.eventType),
++      [
++        "entitlement.granted",
++        "subscription.canceled",
++        "entitlement.revoked",
++        "subscription.expired",
++      ],
++    );
++  } finally {
++    await equalTime.close();
++    rmSync(equalTime.directory, { recursive: true, force: true });
++  }
+   checks.push(...(await runConsumerDemo()).checks);
+   checks.push(...runBridgeDemo());
+   return checks;
+@@ -333,6 +372,6 @@ export async function verifyLab({ compareSigner } = {}) {
+ if (import.meta.main) {
+   const checks = await verifyLab();
+   console.log(
+-    `Commerce Lab: ${checks.length} checks passed. No store or production service contacted.`,
++    `Commerce Protocol Example: ${checks.length} checks passed. No store or production service contacted.`,
+   );
+ }

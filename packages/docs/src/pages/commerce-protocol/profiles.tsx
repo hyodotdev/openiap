@@ -1,10 +1,10 @@
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
+const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 
 interface ProfileRow {
   name: string;

@@ -661,6 +661,12 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/commerce-protocol
+- Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
+- Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
+- Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
+- Commerce Protocol Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
+- Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
@@ -945,9 +951,23 @@ identifier, or central runtime.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
 - Docs: https://openiap.dev/commerce-protocol
+- Use a provider: https://openiap.dev/commerce-protocol/getting-started
+- Build your part: https://openiap.dev/commerce-protocol/ecosystem
+- Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
+- Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
+- AI build brief: https://openiap.dev/commerce-example/build-brief.md
+- Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough
+- Whitepaper and PDF: https://openiap.dev/commerce-protocol/whitepaper
 - Webhook contract: https://openiap.dev/commerce-protocol/webhooks
 - Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
+
+The recorded example follows six build milestones with reviewed source revisions, AI tasks,
+code changes, actual captures, and a correction/recheck log. It uses a fictional
+store and controlled clock with real local HTTP, SQLite and signed delivery. It is not a production provider or a
+full profile conformance claim. Its execution report is available at
+https://openiap.dev/commerce-example/run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.

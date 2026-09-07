@@ -1,0 +1,20 @@
+{
+  "startedAt": "2026-09-07T17:46:08.687Z",
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "output": "\nadded 10 packages in 1s\n"
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 133 checks passed. No store or production service contacted.\n"
+    },
+    {
+      "command": "npm run test:tooling",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) archive extraction excludes macOS metadata and preserves source hashes [26.89ms]\n(pass) patches preserve path-like source text across additions, changes, and deletions [112.13ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.78ms]\n(pass) unfinished captures do not hide completed records [1.10ms]\n\n 4 pass\n 0 fail\nRan 4 tests across 1 file. [175.00ms]\n"
+    }
+  ]
+}

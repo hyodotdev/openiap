@@ -5,3 +5,6 @@ scripts/whitepaper.css text eol=lf
 scripts/mermaid.json text eol=lf
 scripts/whitepaper.sha256 text eol=lf
 packages/docs/public/commerce-protocol-rationale.pdf binary
+
+# Patch context lines carry meaningful whitespace; preserve captured revisions.
+packages/docs/public/commerce-example/**/changes.patch -whitespace

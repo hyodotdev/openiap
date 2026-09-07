@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-07T08:24:07.676Z
+> Generated: 2026-09-07T14:34:17.299Z
 
 ## Table of Contents
 1. Installation
@@ -2044,6 +2044,15 @@ against the operation surface can verify purchases, read entitlements, bind
 purchases to its own users, and erase them — and later replace the provider
 behind those calls without rewriting the integration.
 
+For product composition, see the non-normative
+[ecosystem guide](https://openiap.dev/commerce-protocol/ecosystem).
+For a practical entry point, start with the
+[integration walkthrough](https://openiap.dev/commerce-protocol/getting-started)
+or the [provider implementation guide](https://openiap.dev/commerce-protocol/implementation).
+[Whitepaper §5](https://openiap.dev/commerce-protocol/whitepaper) provides a non-normative
+architecture and persistence blueprint. This specification and the authored
+schema remain authoritative for the contract.
+
 ## Why this exists
 
 OpenIAP normalizes the client-side purchase API across stores. The server side
@@ -3525,6 +3534,12 @@ storage or tooling.
 - APIs Reference: https://openiap.dev/docs/apis
 - Error Codes: https://openiap.dev/docs/errors
 - Commerce Protocol: https://openiap.dev/commerce-protocol
+- Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
+- Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
+- Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
+- Commerce Protocol Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
+- Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Commerce Protocol GraphQL contract (authored layers): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema

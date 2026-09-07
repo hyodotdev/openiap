@@ -1,0 +1,20 @@
+{
+  "startedAt": "2026-09-07T13:46:59.784Z",
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "output": "\nadded 10 packages in 483ms\n"
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Lab: 118 checks passed. No store or production service contacted.\n"
+    },
+    {
+      "command": "npm run test:tooling",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) patches preserve path-like source text across additions, changes, and deletions [54.29ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.40ms]\n\n 2 pass\n 0 fail\nRan 2 tests across 1 file. [75.00ms]\n"
+    }
+  ]
+}
