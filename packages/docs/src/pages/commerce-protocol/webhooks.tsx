@@ -12,8 +12,7 @@ import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 const KNOWN_COMMERCE_EVENT_TYPES =
   commerceEventSchema.properties.eventType.examples;
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md#94-webhook-contract';
+const SPEC_URL = `${COMMERCE_PROTOCOL_LINKS.spec}#94-webhook-contract`;
 const GRAPHQL_CONTRACT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema';
 const SIGNATURE_VECTORS_URL =
