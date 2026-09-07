@@ -1,0 +1,145 @@
+diff --git a/ai-task.md b/ai-task.md
+index 239ce5c..fe0a957 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,6 +1,6 @@
+-# Verify a purchase
++# Connect it to a user
+ 
+-Add a fictional store adapter and verification. Persist accepted evidence without granting access. Invalid evidence must be a negative verdict; an upstream outage must be an error. Prove that binding is still unimplemented.
++Add server-only ownership binding, subscription status, and entitlement reads. Verify the same owner can repeat a bind, another owner cannot take it, and verification credentials cannot bind. Show Alice gaining Premium.
+ 
+ Use the existing reviewed prototype where it satisfies the installed contract.
+ Run the backend, inspect the result, correct problems, and rerun the affected check.
+diff --git a/checkpoint.json b/checkpoint.json
+index 9b6e1f2..2381a61 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,7 +1,7 @@
+ {
+-  "step": 2,
+-  "id": "02-verify",
+-  "title": "Verify a purchase",
+-  "built": "Fixture store adapter + purchase persistence",
+-  "result": "Valid evidence is saved. Alice still has no access."
++  "step": 3,
++  "id": "03-bind",
++  "title": "Connect it to a user",
++  "built": "Server authorization + atomic binding + entitlement reads",
++  "result": "Alice gets Premium. Another user cannot take the purchase."
+ }
+diff --git a/provider.mjs b/provider.mjs
+index c90643a..be4eb4b 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -97,6 +97,30 @@ export function createProvider(path, now) {
+         environment: "local-fixture",
+       };
+     },
++    bindPurchase(input) {
++      if (input.store !== FIXTURE.store) return { error: "UNSUPPORTED_STORE" };
++      if (typeof input.evidence !== "string")
++        return { error: "INVALID_REQUEST" };
++      return db.transaction(() => {
++        const key = fingerprint(input.evidence);
++        db.query(
++          "UPDATE purchases SET user_id = ? WHERE fingerprint = ? AND user_id IS NULL",
++        ).run(input.userId, key);
++        const row = db
++          .query("SELECT user_id FROM purchases WHERE fingerprint = ?")
++          .get(key);
++        return { bound: row?.user_id === input.userId };
++      })();
++    },
++    entitlements: (input) => entitlements(input.userId),
++    subscriptionStatus(input) {
++      const snapshots = rowsFor(input.userId).map(snapshot);
++      const subscription = snapshots.find((row) => row.active) ?? snapshots[0];
++      return {
++        active: snapshots.some((row) => row.active),
++        ...(subscription ? { subscription } : {}),
++      };
++    },
+   };
+ 
+   async function fetch(request) {
+diff --git a/scenario.mjs b/scenario.mjs
+index 53adc4c..2df52f6 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -12,6 +12,11 @@ export const STAGES = [
+     "title": "Verify a purchase",
+     "built": "Fixture store adapter + purchase persistence",
+     "result": "Valid evidence is saved. Alice still has no access."
++  },
++  {
++    "title": "Connect it to a user",
++    "built": "Server authorization + atomic binding + entitlement reads",
++    "result": "Alice gets Premium. Another user cannot take the purchase."
+   }
+ ];
+ 
+@@ -74,7 +79,7 @@ export function createScenario(runtime) {
+       );
+       check(
+         "Verification does not grant access",
+-        runtime.provider.inspect().access.productIds,
++        (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
+         [],
+       );
+       check(
+@@ -99,6 +104,41 @@ export function createScenario(runtime) {
+         ).body.error.code,
+         "VERIFICATION_FAILED",
+       );
++    } else if (stage === 2) {
++      check(
++        "Verification credentials cannot bind a user",
++        (
++          await run(
++            "bindPurchase",
++            { ...evidence, userId: FIXTURE.userId },
++            "verification",
++          )
++        ).body.error.code,
++        "FORBIDDEN",
++      );
++      check(
++        "The server binds Alice",
++        (await run("bindPurchase", { ...evidence, userId: FIXTURE.userId }))
++          .body.bound,
++        true,
++      );
++      check(
++        "Repeating the same binding succeeds",
++        (await run("bindPurchase", { ...evidence, userId: FIXTURE.userId }))
++          .body.bound,
++        true,
++      );
++      check(
++        "Bob cannot take Alice's purchase",
++        (await run("bindPurchase", { ...evidence, userId: "demo_bob" })).body
++          .bound,
++        false,
++      );
++      check(
++        "Alice can access Premium",
++        (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
++        [FIXTURE.productId],
++      );
+     }
+     const entry = {
+       step: stage + 1,
+diff --git a/verify.mjs b/verify.mjs
+index ac257f3..117ecca 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -13,7 +13,7 @@ export async function verifyLab() {
+   try {
+     for (const stage of STAGES) await lab.scenario.advance();
+     checks.push(...lab.scenario.history.flatMap(entry => entry.checks));
+-    const unsupported = "bindPurchase";
++    const unsupported = "eraseUser";
+     const response = await requestOperation(lab.runtime.baseUrl, unsupported, {});
+     check("An unimplemented operation is explicitly refused", response.body.error.code, "UNSUPPORTED_PROFILE");
+     check("Untrusted browser origins are refused", (await fetch(lab.runtime.baseUrl + "/demo/advance", { method: "POST", headers: { origin: "https://untrusted.example" } })).status, 403);

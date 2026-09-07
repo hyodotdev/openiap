@@ -17,6 +17,48 @@ it does not sit in the path of anyone's commerce.
 
 **[Read the specification →](./SPEC.md)**
 
+## Choose your role
+
+A paywall specialist can supply the experience, a commerce service the purchase
+and access decisions, and an analytics platform the event processing. An
+integrated platform can supply several roles. Explore the [role map](https://openiap.dev/commerce-protocol#architecture)
+and [AI integration brief](https://openiap.dev/commerce-example/integration-brief.md)
+to connect your product to apps using OpenIAP. These product roles do not add
+protocol profiles or a universal paywall API.
+
+## Start implementing
+
+Install the contract in your own backend project with your favorite package manager:
+
+```sh
+npm install openiap-commerce-protocol
+```
+
+Or use `pnpm add`, `yarn add`, or `bun add` with the same package name.
+
+Give your AI the installed package's `SPEC.md` and `generated/` artifacts.
+Package 0.1.0 does not ship `DESIGN.md`; use the
+[online whitepaper](https://openiap.dev/commerce-protocol/whitepaper) for architecture. The package supplies the contract; your AI implements the backend.
+
+- **See what AI built:** the [recorded walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
+  shows a real local HTTP + SQLite backend in six milestones, with captured
+  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/implementation#iapkit) explains what was tested. Give the
+  [build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md)
+  to your AI to build the same flow in your own stack.
+- **Integrate your backend:** [Use a provider](https://openiap.dev/commerce-protocol/getting-started)
+  walks through discovery, verification, account binding, and entitlement reads.
+- **Build a provider:** [Build with AI](https://openiap.dev/commerce-protocol/implementation)
+  provides the brief, runnable example, and next implementation steps.
+  [DESIGN.md §5](./DESIGN.md#5-implementation-blueprint) contains the architecture
+  blueprint, storage keys, transaction boundaries, and recovery design.
+- **Try the contract locally:** from the repository root, run `bun install`,
+  then `cd specs/commerce-protocol && bun run quickstart`. The
+  [development walkthrough](https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/scripts/quickstart.mjs) uses the in-memory mock,
+  checks authorization and binding behavior, and runs REST/GraphQL conformance.
+  It uses fixture evidence, opens no HTTP server, and does not validate real
+  store purchases. Its Ajv and GraphQL dependencies come from this package's
+  development setup.
+
 [DESIGN.md](./DESIGN.md) explains why the boundaries sit where they do. It is
 background, not normative: where the two disagree, `SPEC.md` is right. It is
 also published as a PDF at

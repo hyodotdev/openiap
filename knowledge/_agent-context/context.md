@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-06T12:24:18.467Z
+> Last updated: 2026-09-07T14:34:17.286Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -5057,6 +5057,15 @@ without knowing which backend produced the event. A developer backend written
 against the operation surface can verify purchases, read entitlements, bind
 purchases to its own users, and erase them — and later replace the provider
 behind those calls without rewriting the integration.
+
+For product composition, see the non-normative
+[ecosystem guide](https://openiap.dev/commerce-protocol/ecosystem).
+For a practical entry point, start with the
+[integration walkthrough](https://openiap.dev/commerce-protocol/getting-started)
+or the [provider implementation guide](https://openiap.dev/commerce-protocol/implementation).
+[Whitepaper §5](https://openiap.dev/commerce-protocol/whitepaper) provides a non-normative
+architecture and persistence blueprint. This specification and the authored
+schema remain authoritative for the contract.
 
 ## Why this exists
 

@@ -1,0 +1,148 @@
+diff --git a/ai-task.md b/ai-task.md
+index 8469ac8..239ce5c 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,6 +1,6 @@
+-# Start with the contract
++# Verify a purchase
+ 
+-Install the published contract in an independent project. Add capabilities, request/response validation, local HTTP inspection, and SQLite. Return UNSUPPORTED_PROFILE for operations that have not been implemented. Do not claim profile conformance.
++Add a fictional store adapter and verification. Persist accepted evidence without granting access. Invalid evidence must be a negative verdict; an upstream outage must be an error. Prove that binding is still unimplemented.
+ 
+ Use the existing reviewed prototype where it satisfies the installed contract.
+ Run the backend, inspect the result, correct problems, and rerun the affected check.
+diff --git a/checkpoint.json b/checkpoint.json
+index 04e22f5..9b6e1f2 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,7 +1,7 @@
+ {
+-  "step": 1,
+-  "id": "01-contract",
+-  "title": "Start with the contract",
+-  "built": "HTTP routes + schema validation + SQLite",
+-  "result": "A running server, an empty purchase table, and no access."
++  "step": 2,
++  "id": "02-verify",
++  "title": "Verify a purchase",
++  "built": "Fixture store adapter + purchase persistence",
++  "result": "Valid evidence is saved. Alice still has no access."
+ }
+diff --git a/provider.mjs b/provider.mjs
+index 3d358af..c90643a 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -28,6 +28,16 @@ export function isEntitled(state, expiresAt, now) {
+   );
+ }
+ 
++// This adapter recognizes one fictional purchase; it never contacts a store.
++function verifyFixture(input) {
++  if (input.store !== FIXTURE.store) return { error: "UNSUPPORTED_STORE" };
++  if (typeof input.evidence !== "string") return { error: "INVALID_REQUEST" };
++  if (input.evidence === "local-upstream-outage") {
++    return { error: "VERIFICATION_FAILED" };
++  }
++  return { accepted: input.evidence === FIXTURE.evidence };
++}
++
+ export function createProvider(path, now) {
+   const db = new Database(path, { create: true });
+   db.exec(`
+@@ -66,6 +76,27 @@ export function createProvider(path, now) {
+   }
+ 
+   const handlers = {
++    verifyPurchase(input) {
++      const verdict = verifyFixture(input);
++      if (verdict.error) return verdict;
++      if (verdict.accepted) {
++        db.query(
++          `INSERT OR IGNORE INTO purchases VALUES (?, NULL, ?, 'Active', ?, 1, ?)`,
++        ).run(
++          fingerprint(input.evidence),
++          FIXTURE.productId,
++          FIXTURE.expiresAt,
++          FIXTURE.startsAt,
++        );
++      }
++      return {
++        store: FIXTURE.store,
++        isValid: verdict.accepted,
++        state: verdict.accepted ? "ENTITLED" : "INAUTHENTIC",
++        ...(verdict.accepted ? { productId: FIXTURE.productId } : {}),
++        environment: "local-fixture",
++      };
++    },
+   };
+ 
+   async function fetch(request) {
+diff --git a/scenario.mjs b/scenario.mjs
+index 4c814c3..53adc4c 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -7,6 +7,11 @@ export const STAGES = [
+     "title": "Start with the contract",
+     "built": "HTTP routes + schema validation + SQLite",
+     "result": "A running server, an empty purchase table, and no access."
++  },
++  {
++    "title": "Verify a purchase",
++    "built": "Fixture store adapter + purchase persistence",
++    "result": "Valid evidence is saved. Alice still has no access."
+   }
+ ];
+ 
+@@ -61,6 +66,39 @@ export function createScenario(runtime) {
+       );
+       check("Purchase storage starts empty", runtime.provider.inspect().purchases, []);
+       check("Unready discovery returns a portable error", (await run("providerCapabilities", null, null)).body.error.code, "UNSUPPORTED_PROFILE");
++    } else if (stage === 1) {
++      check(
++        "Fixture evidence is accepted",
++        (await run("verifyPurchase", evidence, "verification")).body.isValid,
++        true,
++      );
++      check(
++        "Verification does not grant access",
++        runtime.provider.inspect().access.productIds,
++        [],
++      );
++      check(
++        "Invalid evidence produces a negative verdict",
++        (
++          await run(
++            "verifyPurchase",
++            { store: FIXTURE.store, evidence: "invalid" },
++            "verification",
++          )
++        ).body.isValid,
++        false,
++      );
++      check(
++        "An upstream outage is not a negative verdict",
++        (
++          await run(
++            "verifyPurchase",
++            { store: FIXTURE.store, evidence: "local-upstream-outage" },
++            "verification",
++          )
++        ).body.error.code,
++        "VERIFICATION_FAILED",
++      );
+     }
+     const entry = {
+       step: stage + 1,
+diff --git a/verify.mjs b/verify.mjs
+index e23c995..ac257f3 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -13,7 +13,7 @@ export async function verifyLab() {
+   try {
+     for (const stage of STAGES) await lab.scenario.advance();
+     checks.push(...lab.scenario.history.flatMap(entry => entry.checks));
+-    const unsupported = "verifyPurchase";
++    const unsupported = "bindPurchase";
+     const response = await requestOperation(lab.runtime.baseUrl, unsupported, {});
+     check("An unimplemented operation is explicitly refused", response.body.error.code, "UNSUPPORTED_PROFILE");
+     check("Untrusted browser origins are refused", (await fetch(lab.runtime.baseUrl + "/demo/advance", { method: "POST", headers: { origin: "https://untrusted.example" } })).status, 403);

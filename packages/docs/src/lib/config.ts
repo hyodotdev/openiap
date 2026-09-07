@@ -23,3 +23,28 @@ export const IAPKIT_AD_BANNER_URL =
 export const trackIapKitClick = (): void => {
   void fetch(IAPKIT_AD_BANNER_URL, { method: 'POST' });
 };
+
+export const DOCS_SIDEBAR = {
+  defaultWidth: 300,
+  minWidth: 180,
+  maxWidth: 480,
+  mobileWidth: 280,
+  keyboardStep: 16,
+  dragThreshold: 4,
+  widthStorageKey: 'openiap-docs-sidebar-width-v3',
+  legacyWidth: {
+    storageKey: 'openiap-docs-sidebar-width-v2',
+    defaultWidth: 340,
+  },
+  collapsedStorageKey: 'openiap-docs-sidebar-collapsed-v1',
+} as const;
+
+const COMMERCE_SPEC_SOURCE =
+  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol';
+
+export const COMMERCE_PROTOCOL_LINKS = {
+  spec: `${COMMERCE_SPEC_SOURCE}/SPEC.md`,
+  capabilitiesExample: `${COMMERCE_SPEC_SOURCE}/examples/provider-capabilities.json`,
+  example: 'https://github.com/hyodotdev/openiap-commerce-protocol-example',
+  exampleSource: '/commerce-example/source.tar.gz',
+} as const;

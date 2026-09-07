@@ -4,6 +4,13 @@
     "fontFamily": "Charter, Georgia, serif",
     "fontSize": "15px"
   },
+  "sequence": {
+    "actorMargin": 24,
+    "messageMargin": 16,
+    "mirrorActors": false,
+    "width": 120,
+    "wrap": true
+  },
   "flowchart": {
     "wrappingWidth": 340,
     "nodeSpacing": 30,

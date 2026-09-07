@@ -5,8 +5,7 @@
 # The renderer versions are pinned because this PDF is a versioned publication:
 # an unpinned Markdown or Mermaid release would silently change its layout and
 # pagination. Chrome is the host's; version 152.0.7977.77 produced the
-# committed 12-page PDF. If pagination shifts after a Chrome update, that is
-# why.
+# original PDF. A Chrome update can change pagination.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 src="$root/specs/commerce-protocol/DESIGN.md"
@@ -31,18 +30,29 @@ import hashlib, re, subprocess, sys, pathlib
 src, out, work, config, builder = (pathlib.Path(a) for a in sys.argv[1:6])
 source_bytes = src.read_bytes()
 text = source_bytes.decode()
+published_diagrams = []
 def render(match, counter=[0]):
     counter[0] += 1
     n = counter[0]
     mmd = work / f"fig{n}.mmd"; svg = work / f"fig{n}.svg"
-    mmd.write_text(match.group(1))
-    subprocess.run(["npx", "--yes", "@mermaid-js/mermaid-cli@11.17.0", "-i", str(mmd),
-                    "-o", str(svg), "-c", str(config), "-b", "transparent"],
-                   check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    name, diagram = match.group(1), match.group(2)
+    mmd.write_text(diagram)
+    result = subprocess.run(["npx", "--yes", "@mermaid-js/mermaid-cli@11.17.0", "-i", str(mmd),
+                             "-o", str(svg), "-c", str(config), "-b", "white"],
+                            capture_output=True, text=True)
+    if result.returncode:
+        sys.exit(result.stderr.strip() or f"diagram {n} failed to render")
     body = svg.read_text()
     body = body[body.index("<svg"):]
+    if name:
+        if name in published_diagrams:
+            sys.exit(f"duplicate commerce diagram: {name}")
+        published_diagrams.append(name)
+        (work / f"{name}.svg").write_text(body)
+        (work / f"{name}.mmd").write_text(diagram)
     return f'<figure class="mermaid">{body}</figure>'
-text = re.sub(r"```mermaid\n(.*?)\n```", render, text, flags=re.S)
+text = re.sub(r"(?:<!-- commerce-diagram: ([a-z0-9-]+) -->\s*)?```mermaid\n(.*?)\n```", render, text, flags=re.S)
+(work / "diagram-names.txt").write_text("\n".join(published_diagrams))
 
 # Relative Markdown links are correct on GitHub but resolve to the temporary
 # build directory in the PDF. Point them at the repository on the default
@@ -118,8 +128,19 @@ digest = hashlib.sha256(data).hexdigest()
 pathlib.Path(published).write_bytes(data)
 if hashlib.sha256(pathlib.Path(published).read_bytes()).hexdigest() != digest:
     sys.exit(f"{published} changed as it was written — is another build running?")
+work = pathlib.Path(rendered).parent
+root = pathlib.Path(manifest).parent.parent
+diagram_hashes = ""
+for name in (work / "diagram-names.txt").read_text().splitlines():
+    for extension in ("svg", "mmd"):
+        relative = f"packages/docs/public/commerce-diagrams/{name}.{extension}"
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        data = (work / f"{name}.{extension}").read_bytes()
+        target.write_bytes(data)
+        diagram_hashes += f"{hashlib.sha256(data).hexdigest()}  {relative}\n"
 pathlib.Path(manifest).write_text(
-    pathlib.Path(inputs).read_text() + f"{digest}  {rel_out}\n"
+    pathlib.Path(inputs).read_text() + f"{digest}  {rel_out}\n" + diagram_hashes
 )
 PYEOF
 echo "wrote $out"

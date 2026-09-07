@@ -1,0 +1,800 @@
+{
+  "step": 6,
+  "id": "06-recover-reviewed-8",
+  "title": "Expire access and restart",
+  "built": "Exact-byte webhook authentication with Unicode regression checks",
+  "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+  "previous": "06-recover-reviewed-7",
+  "startedAt": "2026-09-07T18:19:57.597Z",
+  "recordedAt": "2026-09-07T18:20:02.056Z",
+  "packageVersion": "0.1.0",
+  "task": "# Review the completed backend\n\nApply the Fable 5.1 max CLI review to the final checkpoint. Add the missing\nfirst-binding grant event in the same transaction as ownership, reject a\npremature expiry without consuming its observation, and verify both rollback\nand expiry boundaries. Correct test labels to describe what they exercise.\n\nRepair patch generation without rewriting historical source or screenshots.\nBuild patches from the preceding archived source and verify their hashes.\nInstall and test each archive outside the monorepo with npm. Capture the revised\nfinal screen on desktop and mobile, then export only matching source evidence.\n\nKeep the original six checkpoints as history. Explain their incomplete discovery\nand missing grant behavior; do not describe them as conformant providers. Keep\nall changes uncommitted for maintainer review.\n\nApply the second review: retain gate delivery state for delayed expiry,\nretain store occurrence on delayed binding, preserve consecutive failure logs,\nand state actual package contents and runtime requirements. Add a ready-to-run\ngeneric event receiver for an existing backend, reusing the same receiver\nhandler. Demonstrate signed lifecycle ingestion, duplicate delivery, tampering,\nand persisted inbox recovery over real local HTTP. Keep all samples fictional.\n\nAdd composable integration roles: experience, commerce, and data. Ship a short\nAI integration brief and a backend helper that maps Apple/Google OpenIAP\npurchase fields into the installed verification schema. Test invalid inputs\nand exclude client-supplied identity. Keep paywall UI APIs product-specific,\ncurrent IAPKit-only client helpers explicit, and store/device proof separate\nfrom local fixtures. Reuse the existing consumer and contract validators.\n\nThe first bridge test failed because store evidence was nested under an extra\n`evidence` key. Keep the failure output, use the installed input schema's\ntop-level `apple`/`google` members, and rerun that boundary check.\n\nApply the third CLI review. Make the integration brief reachable from the docs\nsite with absolute setup, source, and build-brief links. Accept signed webhook\ndelivery behind a reverse proxy that preserves the public Host header. Keep\nunfinished captures from blocking completed history, retain equal-time fixture\ntransitions, record the observed duplicate response, and configure Yarn's\nnode-modules linker. Preserve the proxy failure and rerun the checks.\n\nPrepare the standalone example for its first public commit. Rewrite the README\naround clone, run, inspect, choose a role, and verify. Put receiver and capture\nsetup in repository documentation so the example works before the docs site is\ndeployed. Preserve every earlier archive. Record this documentation revision,\nverify all source archives again, and export a stable current-source download.\nAdd CI that tests runtime, tooling, archives and the documentation export. This\nrevision is a local publication review, not another completed external review.\n\nFix the first Linux CI failure without rewriting historical recordings. macOS\nAppleDouble metadata must not count as source. Exclude it on extraction, omit it\nfrom new archives, and add a portable extraction regression test. Capture the\ncorrected tooling, verify every source revision, and rerun GitHub CI.\n\nCorrect the final CLI review finding: exercise cancellation at the expiry\nobservation timestamp so the check reaches the expired-state guard. Preserve\nthe earlier capture, record this revision, and verify its archive and patch.\n\nApply the Codex review: authenticate webhook body bytes before UTF-8 decoding.\nReject altered UTF-8 and inserted BOM bytes with an unchanged signature. Reject\nauthentically signed malformed UTF-8 before storage, and accept correctly signed\nUnicode and BOM bodies. Keep the reproduced failure, preserve old checkpoints,\nthen capture and verify the corrected revision.\n",
+  "sourceHashes": {
+    ".gitignore": "50b276cb902abd8b3018e368cd251db0a5c36b289b00a7fffd18e0e399c7f637",
+    ".yarnrc.yml": "473e6def86fc03638120e0c01d0c8bbab095677256460fa4ea763e5d4697f270",
+    "BUILD.md": "e26c2e60273fc9fed20b1a35dee1b9c309ee29f82c1b9bc902aca8f4ad2951bf",
+    "INTEGRATE.md": "8d08b34132af251f372d342b51d8719f5c37a282b5fea7b5c1865654e66fd8e1",
+    "LICENSE": "243adbe048bbec60be2faf9ae1e62c5221327d20ffbc13b1c80e82fa98127af1",
+    "README.md": "0828c32a4a5611599e6cc8441f824f299b4c59e4e8a6d9db89fcc6a999dae0fa",
+    "ai-task.md": "d000a11054750accc6bab8ddbf6d2fc6b674b12c3821ccbfd45729469923b8fe",
+    "capture.mjs": "1c3e785d5282359c346240c66eeaed70404758924d61fdd6f798f367988cd96c",
+    "checkpoint-tools.mjs": "09da9b218f7365e1e7995c5a49c6247faf7fac24463843c44d62e097d167bed0",
+    "checkpoint-tools.test.mjs": "9c71b5f95f33fe3352f20836a57d063ed5c680fa0837ae4de399bc820b5d3896",
+    "checkpoint.json": "d063bccc3c6ed0a075810364c3a1737156883ccb09afefb92129550d329fa14f",
+    "client-bridge.mjs": "a0058579b02c2f3a770c7ff7b59dfe41ce50761361d9a0c7a2df96ab1b6b4acf",
+    "consumer.mjs": "3bd1a07e87e5e367775a3deadc71cd205dfc8e9757e632f2406791ae5db7ad73",
+    "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
+    "dashboard.html": "7af8dacc8023922eb7705d8160c583b385eb4c293fa1b0b38327e92aa816cf9c",
+    "export-docs.mjs": "4a6527b1b8a533283ae7d0597a5ef38b9eaf97e94bfc841c6e958170dc611785",
+    "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c",
+    "package.json": "6ff038e4eb85ed5e17e5e7b91149232a5c62e589e7a4083f152aa18dde944c92",
+    "provider.mjs": "67e0e5b2699c84444677f3f30c1c2a020d82976bfb203e508837a51e4d9920ae",
+    "scenario.mjs": "d8502ba81eb09fe42d574a38cd893c3acf6cf9ad8f43f91044e967a282920860",
+    "server.mjs": "b0f185a3954fbe1d7a4dd15f0dc8638afcf04e386ec730ae17a15860784d9e36",
+    "verify-checkpoints.mjs": "ece22b0480bafa41ad8c65e37a5705eaf67c3f8b47c62339f9b1b33a90edd6d2",
+    "verify.mjs": "61a2dc1e2f4042ff5530badd3caaa6e43c93df8c03996aa9e6dc3b544807e4d3",
+    "webhooks.mjs": "60ee5a726ecd664e0e13b7eb3f44199abb5d600c696ccfca816e7d070104d2a0"
+  },
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Capabilities use the published response schema",
+    "Purchase storage starts empty",
+    "No profile conformance is claimed",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "Verification credentials cannot bind a user",
+    "The server binds Alice",
+    "Repeating the same binding succeeds",
+    "Bob cannot take Alice's purchase",
+    "Alice can access Premium",
+    "First binding queues one grant; repeat and conflict queue none",
+    "Cancellation keeps paid access",
+    "Cancellation stops renewal",
+    "Cancellation queues one event",
+    "A 503 leaves a durable retry",
+    "Retry survives provider restart",
+    "Retry keeps the delivery identity",
+    "Redelivery has one inbox row per event",
+    "Access closes at expiry before a notification arrives",
+    "Duplicate store notification emits no extra event",
+    "Reopening both databases preserves state",
+    "Receiver deduplication survives restart",
+    "All four events reach the receiver",
+    "The final status is inactive",
+    "Signature vector: single-key",
+    "Receiver accepts vector: single-key",
+    "Signature vector: retry-after-backoff",
+    "Receiver accepts vector: retry-after-backoff",
+    "Signature vector: raw-utf8-body",
+    "Receiver accepts vector: raw-utf8-body",
+    "Signature vector: during-rotation",
+    "Receiver accepts vector: during-rotation",
+    "Signature vector: minimal-event-omits-extensions",
+    "Receiver accepts vector: minimal-event-omits-extensions",
+    "Receiver rejects: tampered-body",
+    "Receiver rejects: wrong-secret",
+    "Receiver rejects: timestamp-outside-tolerance",
+    "Receiver rejects: timestamp-not-in-signed-material",
+    "Receiver rejects: retry-reuses-first-signature",
+    "Receiver rejects: garbage-appended-to-valid-signature",
+    "Active: before expiry",
+    "Active: at expiry",
+    "Active: no deadline",
+    "InGracePeriod: before expiry",
+    "InGracePeriod: at expiry",
+    "InGracePeriod: no deadline",
+    "InBillingRetry: before expiry",
+    "InBillingRetry: at expiry",
+    "InBillingRetry: no deadline",
+    "Paused: before expiry",
+    "Paused: at expiry",
+    "Paused: no deadline",
+    "Expired: before expiry",
+    "Expired: at expiry",
+    "Expired: no deadline",
+    "Revoked: before expiry",
+    "Revoked: at expiry",
+    "Revoked: no deadline",
+    "Refunded: before expiry",
+    "Refunded: at expiry",
+    "Refunded: no deadline",
+    "Unknown: before expiry",
+    "Unknown: at expiry",
+    "Unknown: no deadline",
+    "FutureState: before expiry",
+    "FutureState: at expiry",
+    "FutureState: no deadline",
+    "Missing credentials are refused",
+    "Verification role cannot enumerate users",
+    "Malformed input is refused",
+    "A real store is not falsely accepted",
+    "Erasure is explicitly unimplemented",
+    "Cancellation after expiry is ignored",
+    "Expired fixture evidence has an expired verdict",
+    "Tampered HTTP body has no inbox effect",
+    "Changed UTF-8 bytes cannot reuse a signature",
+    "Inserted UTF-8 BOM cannot reuse a signature",
+    "Authenticated malformed UTF-8 is rejected before storage",
+    "Authentic Unicode bytes are accepted and stored",
+    "Authentic BOM bytes are verified before decoding",
+    "Receiver still has exactly four events",
+    "Cross-origin demo mutations are refused",
+    "Overlapping HTTP ownership claims have one winner",
+    "A cancellation older than the active row is ignored",
+    "Ignoring an old cancellation preserves renewal",
+    "Conflicting expiry is not consumed",
+    "Outbox failure rolls back subscription state",
+    "Failed transaction leaves the observation retryable",
+    "Exhausted retries enter dead-letter",
+    "Grant failure rejects binding",
+    "Grant failure rolls back ownership",
+    "An expired purchase can be bound",
+    "Binding expired evidence emits no grant",
+    "Delayed binding retains the store occurrence",
+    "Delayed binding records its actual processing time",
+    "Late expiry revokes a persisted grant exactly once",
+    "Repeated expiry emits no second revocation",
+    "Equal-time expiry retains its lifecycle transition",
+    "Equal-time observations revoke once and preserve both transitions",
+    "Health accepts the proxy public Host header",
+    "subscription.started: authenticated and saved",
+    "subscription.started: redelivery deduplicated",
+    "subscription.started: tampering rejected",
+    "entitlement.granted: authenticated and saved",
+    "entitlement.granted: redelivery deduplicated",
+    "entitlement.granted: tampering rejected",
+    "subscription.renewed: authenticated and saved",
+    "subscription.renewed: redelivery deduplicated",
+    "subscription.renewed: tampering rejected",
+    "subscription.canceled: authenticated and saved",
+    "subscription.canceled: redelivery deduplicated",
+    "subscription.canceled: tampering rejected",
+    "subscription.expired: authenticated and saved",
+    "subscription.expired: redelivery deduplicated",
+    "subscription.expired: tampering rejected",
+    "entitlement.revoked: authenticated and saved",
+    "entitlement.revoked: redelivery deduplicated",
+    "entitlement.revoked: tampering rejected",
+    "subscription.refunded: authenticated and saved",
+    "subscription.refunded: redelivery deduplicated",
+    "subscription.refunded: tampering rejected",
+    "One inbox record per event",
+    "Inbox survives reopening SQLite",
+    "apple: maps evidence without forwarding client identity",
+    "apple: matches the installed verification input schema",
+    "google: maps evidence without forwarding client identity",
+    "google: matches the installed verification input schema",
+    "Rejects missing purchase",
+    "Rejects unknown store",
+    "Rejects Amazon needs its own adapter",
+    "Rejects Horizon needs its own adapter",
+    "Rejects missing evidence",
+    "Rejects blank evidence",
+    "Rejects non-string evidence",
+    "Rejects oversized evidence"
+  ],
+  "history": [
+    {
+      "step": 1,
+      "title": "Start with the contract",
+      "built": "HTTP routes + schema validation + SQLite",
+      "result": "A running server, an empty purchase table, and no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 200,
+          "body": {
+            "specVersion": "1.0",
+            "implementation": {
+              "name": "Commerce Protocol Example — fictional fixture store"
+            },
+            "eventTypes": [
+              "entitlement.granted",
+              "subscription.canceled",
+              "subscription.expired",
+              "entitlement.revoked"
+            ],
+            "stores": {
+              "fixture": {
+                "initialValidation": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "serverNotifications": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "subscriptions": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "renewalEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "refundEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "expiration": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "reconciliation": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "entitlements": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "revenueAmount": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                }
+              }
+            }
+          }
+        },
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 200,
+          "body": {
+            "specVersion": "1.0",
+            "implementation": {
+              "name": "Commerce Protocol Example — fictional fixture store"
+            },
+            "eventTypes": [
+              "entitlement.granted",
+              "subscription.canceled",
+              "subscription.expired",
+              "entitlement.revoked"
+            ],
+            "stores": {
+              "fixture": {
+                "initialValidation": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "serverNotifications": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "subscriptions": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "renewalEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "refundEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "expiration": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "reconciliation": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "entitlements": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "revenueAmount": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                }
+              }
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture request matches the installed schema",
+        "Capabilities use the published response schema",
+        "Purchase storage starts empty",
+        "No profile conformance is claimed"
+      ],
+      "totalChecks": 4
+    },
+    {
+      "step": 2,
+      "title": "Verify a purchase",
+      "built": "Fixture store adapter + purchase persistence",
+      "result": "Valid evidence is saved. Alice still has no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": null,
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 1
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": true,
+            "state": "ENTITLED",
+            "productId": "premium.monthly",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [],
+            "subscriptions": []
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": false,
+            "state": "INAUTHENTIC",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 502,
+          "body": {
+            "error": {
+              "code": "VERIFICATION_FAILED",
+              "message": "verification failed"
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture evidence is accepted",
+        "Verification does not grant access",
+        "Invalid evidence produces a negative verdict",
+        "An upstream outage is not a negative verdict"
+      ],
+      "totalChecks": 8
+    },
+    {
+      "step": 3,
+      "title": "Connect it to a user",
+      "built": "Server authorization + atomic binding + entitlement reads",
+      "result": "Alice gets Premium. Another user cannot take the purchase.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 1
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": true
+          }
+        ]
+      },
+      "deliveries": [
+        {
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "entitlement.granted"
+        }
+      ],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 403,
+          "body": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "forbidden"
+            }
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": true
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": true
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": false
+          }
+        },
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [
+              "premium.monthly"
+            ],
+            "subscriptions": [
+              {
+                "productId": "premium.monthly",
+                "state": "Active",
+                "active": true,
+                "store": "fixture",
+                "expiresAt": 1791363600000,
+                "willRenew": true
+              }
+            ]
+          }
+        }
+      ],
+      "checks": [
+        "Verification credentials cannot bind a user",
+        "The server binds Alice",
+        "Repeating the same binding succeeds",
+        "Bob cannot take Alice's purchase",
+        "Alice can access Premium",
+        "First binding queues one grant; repeat and conflict queue none"
+      ],
+      "totalChecks": 14
+    },
+    {
+      "step": 4,
+      "title": "Handle cancellation",
+      "built": "Lifecycle processing + transactional event outbox",
+      "result": "Renewal stops. Alice keeps the time she already paid for.",
+      "simulatedTime": "2026-09-08T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": false
+          }
+        ]
+      },
+      "deliveries": [
+        {
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "subscription.canceled"
+        }
+      ],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "subscriptionStatus",
+          "httpStatus": 200,
+          "body": {
+            "active": true,
+            "subscription": {
+              "productId": "premium.monthly",
+              "state": "Active",
+              "active": true,
+              "store": "fixture",
+              "expiresAt": 1791363600000,
+              "willRenew": false
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Cancellation keeps paid access",
+        "Cancellation stops renewal",
+        "Cancellation queues one event"
+      ],
+      "totalChecks": 17
+    },
+    {
+      "step": 5,
+      "title": "Deliver, retry, deduplicate",
+      "built": "HMAC signatures + retry worker + durable receiver inbox",
+      "result": "A 503 retries successfully. Redelivery creates no second inbox row.",
+      "simulatedTime": "2026-09-08T09:00:31.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": false
+          }
+        ]
+      },
+      "deliveries": [
+        {
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "subscription.canceled"
+        }
+      ],
+      "inboxCount": 2,
+      "responses": [
+        {
+          "operation": "webhook: receiver unavailable",
+          "body": [
+            {
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 503,
+              "attempt": 1,
+              "status": "pending"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+              "httpStatus": 503,
+              "attempt": 1,
+              "status": "pending"
+            }
+          ]
+        },
+        {
+          "operation": "webhook: retry after restart",
+          "body": [
+            {
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 200,
+              "attempt": 2,
+              "status": "delivered"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+              "httpStatus": 200,
+              "attempt": 2,
+              "status": "delivered"
+            }
+          ]
+        },
+        {
+          "operation": "webhook: lost-ack redelivery",
+          "body": [
+            {
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 200,
+              "attempt": 3,
+              "status": "delivered"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+              "httpStatus": 200,
+              "attempt": 3,
+              "status": "delivered"
+            }
+          ]
+        }
+      ],
+      "checks": [
+        "A 503 leaves a durable retry",
+        "Retry survives provider restart",
+        "Retry keeps the delivery identity",
+        "Redelivery has one inbox row per event"
+      ],
+      "totalChecks": 21
+    },
+    {
+      "step": 6,
+      "title": "Expire access and restart",
+      "built": "Expiry-aware reads + recovery from SQLite",
+      "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+      "simulatedTime": "2026-10-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": "demo_alice",
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [
+        {
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "subscription.canceled"
+        },
+        {
+          "eventId": "59fb04a6-cc0c-483a-b8ce-6b19e1730473",
+          "deliveryId": "e19fbfe7-93a1-4705-9ff5-fe325d113674",
+          "attempts": 1,
+          "status": "delivered",
+          "eventType": "subscription.expired"
+        },
+        {
+          "eventId": "f51af7b5-ee42-4c47-a91b-80c6bd94a39d",
+          "deliveryId": "d2304ba1-d8bf-4bbb-bfa8-f59d99e92bdd",
+          "attempts": 1,
+          "status": "delivered",
+          "eventType": "entitlement.revoked"
+        }
+      ],
+      "inboxCount": 4,
+      "responses": [
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [],
+            "subscriptions": []
+          }
+        },
+        {
+          "operation": "webhook: expiry + revocation",
+          "body": [
+            {
+              "eventId": "59fb04a6-cc0c-483a-b8ce-6b19e1730473",
+              "deliveryId": "e19fbfe7-93a1-4705-9ff5-fe325d113674",
+              "httpStatus": 200,
+              "attempt": 1,
+              "status": "delivered"
+            },
+            {
+              "eventId": "f51af7b5-ee42-4c47-a91b-80c6bd94a39d",
+              "deliveryId": "d2304ba1-d8bf-4bbb-bfa8-f59d99e92bdd",
+              "httpStatus": 200,
+              "attempt": 1,
+              "status": "delivered"
+            }
+          ]
+        },
+        {
+          "operation": "subscriptionStatus",
+          "httpStatus": 200,
+          "body": {
+            "active": false,
+            "subscription": {
+              "productId": "premium.monthly",
+              "state": "Expired",
+              "active": false,
+              "store": "fixture",
+              "expiresAt": 1791363600000,
+              "willRenew": false
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Access closes at expiry before a notification arrives",
+        "Duplicate store notification emits no extra event",
+        "Reopening both databases preserves state",
+        "Receiver deduplication survives restart",
+        "All four events reach the receiver",
+        "The final status is inactive"
+      ],
+      "totalChecks": 27
+    }
+  ],
+  "screenshot": "screen.png",
+  "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim."
+}

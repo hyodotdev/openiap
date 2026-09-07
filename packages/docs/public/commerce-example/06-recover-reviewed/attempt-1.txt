@@ -1,0 +1,15 @@
+{
+  "startedAt": "2026-09-07T13:18:29.899Z",
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "output": "\nadded 10 packages in 354ms\n"
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && node --test checkpoint-tools.test.mjs\n\nCommerce Lab: 90 checks passed. No store or production service contacted.\n✔ patches preserve path-like source text across additions, changes, and deletions (52.882417ms)\nℹ tests 1\nℹ suites 0\nℹ pass 1\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 98.310708\n"
+    }
+  ]
+}

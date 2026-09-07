@@ -1,9 +1,9 @@
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import capabilitiesExample from 'openiap-commerce-protocol/examples/provider-capabilities.json';
 import AnchorLink from '../../components/AnchorLink';
 import SEO from '../../components/SEO';
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md';
+const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 
 const DESCRIPTOR_EXCERPT = JSON.stringify(
   {
@@ -11,7 +11,10 @@ const DESCRIPTOR_EXCERPT = JSON.stringify(
     profiles: capabilitiesExample.profiles,
     bindings: capabilitiesExample.bindings,
     stores: {
-      google: { serverNotifications: { provider: true, implementation: true } },
+      google: {
+        serverNotifications:
+          capabilitiesExample.stores.google.serverNotifications,
+      },
     },
   },
   null,
@@ -37,11 +40,21 @@ function CommerceCapabilities() {
       </p>
       <section>
         <AnchorLink id="descriptor" level="h2">
-          The descriptor
+          Descriptor excerpt
         </AnchorLink>
         <pre>
           <code>{DESCRIPTOR_EXCERPT}</code>
         </pre>
+        <p>
+          This is an excerpt from the package's{' '}
+          <a href={COMMERCE_PROTOCOL_LINKS.capabilitiesExample}>
+            complete example
+          </a>
+          , not a response to copy unchanged. Include every required field and
+          replace its profiles, event types, and store support with what your
+          own implementation demonstrates. Validate the result against
+          <code> ProviderCapabilities</code> in the installed schema bundle.
+        </p>
         <p>
           Each store capability carries two deliberate booleans —{' '}
           <code>provider</code> (what the store offers) and{' '}

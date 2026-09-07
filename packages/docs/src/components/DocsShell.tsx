@@ -7,42 +7,45 @@ import type {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from 'lucide-react';
+import { DOCS_SIDEBAR } from '../lib/config';
 
-const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'openiap-docs-sidebar-collapsed-v1';
-const SIDEBAR_DEFAULT_WIDTH = 340;
-const SIDEBAR_MIN_WIDTH = 300;
-const SIDEBAR_MAX_WIDTH = 480;
-const SIDEBAR_KEYBOARD_STEP = 16;
-// Ignore tiny pointer movement so clicking the resize rail never nudges it.
-const SIDEBAR_DRAG_THRESHOLD = 4;
-
-function clampSidebarWidth(width: number) {
+function clampSidebarWidth(width: number): number {
   return Math.min(
-    SIDEBAR_MAX_WIDTH,
-    Math.max(SIDEBAR_MIN_WIDTH, Math.round(width))
+    DOCS_SIDEBAR.maxWidth,
+    Math.max(DOCS_SIDEBAR.minWidth, Math.round(width))
   );
 }
 
-function readSavedSidebarWidth() {
-  if (typeof window === 'undefined') {
-    return SIDEBAR_DEFAULT_WIDTH;
+function readSidebarPreference(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
   }
-
-  const saved = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-  const parsed = saved ? Number(saved) : Number.NaN;
-
-  return Number.isFinite(parsed)
-    ? clampSidebarWidth(parsed)
-    : SIDEBAR_DEFAULT_WIDTH;
 }
 
-function readSavedSidebarCollapsed() {
-  if (typeof window === 'undefined') {
-    return false;
+function saveSidebarPreference(key: string, value: string | null): void {
+  try {
+    if (value === null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, value);
+  } catch {
+    // Resizing still works when browser storage is unavailable.
   }
+}
 
-  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+function readSavedSidebarWidth(): number | null {
+  const saved = readSidebarPreference(DOCS_SIDEBAR.widthStorageKey);
+  const value =
+    saved ?? readSidebarPreference(DOCS_SIDEBAR.legacyWidth.storageKey);
+  const parsed = value?.trim() ? Number(value) : Number.NaN;
+  // The old version saved its default even when the reader never resized.
+  if (saved === null && parsed === DOCS_SIDEBAR.legacyWidth.defaultWidth)
+    return null;
+  return Number.isFinite(parsed) ? clampSidebarWidth(parsed) : null;
+}
+
+function readSavedSidebarCollapsed(): boolean {
+  return readSidebarPreference(DOCS_SIDEBAR.collapsedStorageKey) === 'true';
 }
 
 interface DocsShellProps {
@@ -63,7 +66,10 @@ interface DocsShellProps {
 function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
+  const [savedSidebarWidth, setSavedSidebarWidth] = useState(
+    readSavedSidebarWidth
+  );
+  const sidebarWidth = savedSidebarWidth ?? DOCS_SIDEBAR.defaultWidth;
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     readSavedSidebarCollapsed
   );
@@ -88,15 +94,18 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      SIDEBAR_WIDTH_STORAGE_KEY,
-      String(sidebarWidth)
-    );
-  }, [sidebarWidth]);
+    if (savedSidebarWidth !== null) {
+      saveSidebarPreference(
+        DOCS_SIDEBAR.widthStorageKey,
+        String(savedSidebarWidth)
+      );
+    }
+    saveSidebarPreference(DOCS_SIDEBAR.legacyWidth.storageKey, null);
+  }, [savedSidebarWidth]);
 
   useEffect(() => {
-    window.localStorage.setItem(
-      SIDEBAR_COLLAPSED_STORAGE_KEY,
+    saveSidebarPreference(
+      DOCS_SIDEBAR.collapsedStorageKey,
       String(isSidebarCollapsed)
     );
   }, [isSidebarCollapsed]);
@@ -128,7 +137,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
 
       if (
         !drag.moved &&
-        Math.abs(event.clientX - drag.startX) < SIDEBAR_DRAG_THRESHOLD
+        Math.abs(event.clientX - drag.startX) < DOCS_SIDEBAR.dragThreshold
       ) {
         return;
       }
@@ -137,7 +146,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
 
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const nextWidth = event.clientX - sidebarLeft;
-      setSidebarWidth(clampSidebarWidth(nextWidth));
+      setSavedSidebarWidth(clampSidebarWidth(nextWidth));
     };
 
     const stopResizing = () => {
@@ -159,7 +168,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   }, [isResizingSidebar]);
 
   const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (window.innerWidth <= 768 || isSidebarCollapsed) {
+    if (isSidebarCollapsed) {
       return;
     }
 
@@ -189,29 +198,30 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   ) => {
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      setSidebarWidth((width) =>
+      setSavedSidebarWidth((width) =>
         clampSidebarWidth(
-          width +
+          (width ?? DOCS_SIDEBAR.defaultWidth) +
             (event.key === 'ArrowRight'
-              ? SIDEBAR_KEYBOARD_STEP
-              : -SIDEBAR_KEYBOARD_STEP)
+              ? DOCS_SIDEBAR.keyboardStep
+              : -DOCS_SIDEBAR.keyboardStep)
         )
       );
     }
 
     if (event.key === 'Home') {
       event.preventDefault();
-      setSidebarWidth(SIDEBAR_MIN_WIDTH);
+      setSavedSidebarWidth(DOCS_SIDEBAR.minWidth);
     }
 
     if (event.key === 'End') {
       event.preventDefault();
-      setSidebarWidth(SIDEBAR_MAX_WIDTH);
+      setSavedSidebarWidth(DOCS_SIDEBAR.maxWidth);
     }
   };
 
   const sidebarStyle = {
     '--docs-sidebar-width': `${sidebarWidth}px`,
+    '--docs-sidebar-mobile-width': `${DOCS_SIDEBAR.mobileWidth}px`,
   } as CSSProperties;
 
   // Portal the sidebar toggle to document.body so it sits OUTSIDE any
@@ -259,6 +269,7 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
       className={`docs-container ${
         isSidebarCollapsed ? 'is-sidebar-collapsed' : ''
       } ${wide ? 'docs-container--wide' : ''}`}
+      style={sidebarStyle}
     >
       {sidebarToggle}
 
@@ -276,7 +287,6 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
         className={`docs-sidebar ${isSidebarOpen ? 'open' : ''} ${
           isResizingSidebar ? 'is-resizing' : ''
         } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
-        style={sidebarStyle}
         onScroll={handleSidebarScroll}
       >
         <nav className="docs-nav">{nav(closeSidebar)}</nav>
@@ -292,12 +302,15 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
           className="docs-sidebar-resizer"
           aria-label={`Resize ${navLabel}`}
           aria-orientation="vertical"
-          aria-valuemin={SIDEBAR_MIN_WIDTH}
-          aria-valuemax={SIDEBAR_MAX_WIDTH}
+          aria-valuemin={DOCS_SIDEBAR.minWidth}
+          aria-valuemax={DOCS_SIDEBAR.maxWidth}
           aria-valuenow={sidebarWidth}
           title="Drag to resize · Double-click to reset"
           onPointerDown={startSidebarResize}
-          onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
+          onDoubleClick={() => {
+            setSavedSidebarWidth(null);
+            saveSidebarPreference(DOCS_SIDEBAR.widthStorageKey, null);
+          }}
           onKeyDown={handleSidebarResizerKeyDown}
         >
           <span aria-hidden="true" />

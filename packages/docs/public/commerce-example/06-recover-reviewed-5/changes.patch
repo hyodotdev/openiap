@@ -1,0 +1,339 @@
+diff --git a/BUILD.md b/BUILD.md
+index 7362fcc..b5884a0 100644
+--- a/BUILD.md
++++ b/BUILD.md
+@@ -22,8 +22,8 @@ same package name. Read these files from the installed package directory
+ - `generated/schemas/commerce-protocol.bundle.schema.json`: offline validation.
+ - `conformance/` and `vectors/`: portable checks and signature fixtures.
+ 
+-For architecture, use the [implementation guide](https://openiap.dev/commerce-protocol/implementation)
+-and [whitepaper](https://openiap.dev/commerce-protocol/whitepaper). Package 0.1.0
++For architecture, use the [implementation guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md)
++and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf). Package 0.1.0
+ does not include `DESIGN.md`; read that optional file only when it exists in
+ your installed version.
+ 
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+index 49b04aa..c497c13 100644
+--- a/INTEGRATE.md
++++ b/INTEGRATE.md
+@@ -13,7 +13,7 @@ several roles. These are product roles, not additional protocol profiles.
+ 
+ ## Start with working code
+ 
+-[Download the complete example](https://openiap.dev/commerce-example/06-recover-reviewed-4/source.tar.gz)
++[Download the complete example](https://github.com/hyodotdev/openiap-commerce-protocol-example/archive/refs/heads/main.zip)
+ and extract it into an empty directory. It contains `client-bridge.mjs`,
+ `consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
+ The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
+@@ -31,7 +31,7 @@ or `bun install`. This example's runtime is Bun. The contract is
+ 
+ The bridge and consumer can be used separately. These checks prove local
+ boundaries with fictional inputs, not a mobile checkout or a store adapter.
+-The [receiver setup guide](https://openiap.dev/commerce-protocol/getting-started#receive-events)
++The [receiver setup guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md)
+ gives the endpoint, configuration, and limits.
+ 
+ ## Task for the AI
+@@ -40,8 +40,8 @@ Inspect this repository's purchase flow and choose the role from the table.
+ Install `openiap-commerce-protocol` with this repository's package manager.
+ Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
+ vectors for the role being implemented. Package 0.1.0 does not ship `DESIGN.md`;
+-the [role guide](https://openiap.dev/commerce-protocol/ecosystem)
+-and [whitepaper](https://openiap.dev/commerce-protocol/whitepaper) give context.
++the [role guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md)
++and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf) give context.
+ 
+ Implement the selected role using the product's existing framework and design
+ system. Deliver usable code and a short connection example, not a list of work
+@@ -64,7 +64,7 @@ for the app team. Follow these boundaries:
+ 3. **Commerce:** provide core discovery and implement every operation/obligation
+    of each advertised profile and binding. Account lifecycle includes erasure.
+    Keep one authoritative ownership and entitlement service for each app/project,
+-   even when it delegates verification. Use [backend build brief](https://openiap.dev/commerce-example/build-brief.md) for the backend
++   even when it delegates verification. Use [backend build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md) for the backend
+    implementation sequence. The fixture backend advertises no complete profiles.
+ 4. **Data:** reuse or port `webhooks.mjs` and `consumer.mjs`. Authenticate exact
+    body bytes before parsing, validate, durably deduplicate in the configured
+diff --git a/README.md b/README.md
+index 2834591..e253138 100644
+--- a/README.md
++++ b/README.md
+@@ -1,102 +1,123 @@
+ # OpenIAP Commerce Protocol example
+ 
+-Build a small purchase-to-access backend with AI, one working milestone at a
+-time. Each checkpoint includes the task, source changes, executed checks, and
+-a screenshot of that version running.
++A runnable purchase-to-access backend, built and reviewed with AI in six
++milestones. Follow a purchase through verification, ownership, access, and
++signed event delivery. Inspect the actual HTTP responses and database changes.
+ 
+-## Run
++The backend uses the published **`openiap-commerce-protocol`** package. HTTP,
++SQLite, and webhook signatures run locally; the store, users, and clock are
++fictional fixtures. This is a learning example, not a production provider.
+ 
+-Use your favorite package manager to install dependencies:
++## Quick start
++
++Install [Bun](https://bun.sh/docs/installation) for the HTTP and SQLite runtime
++(tested with Bun 1.3.13). Use your favorite package manager for dependencies and
++scripts; npm is shown here:
+ 
+ ```sh
++git clone https://github.com/hyodotdev/openiap-commerce-protocol-example.git
++cd openiap-commerce-protocol-example
+ npm install # or pnpm install, yarn install, bun install
+ npm test
+ npm start
+ ```
+ 
+-This example uses the Bun runtime for HTTP and SQLite. Its scripts work through
+-any package manager with Bun installed. The included `.yarnrc.yml` selects
+-`node_modules` for modern Yarn so Bun can resolve the installed packages. The protocol can be implemented in your
+-own language and stack. Open http://127.0.0.1:5181 and run each available step.
++Open **http://127.0.0.1:5181**, then click **Run step 1 →** and continue through
++step 6. Each step changes real local state. The dashboard shows purchases,
++current access, delivery attempts, and expandable request/response details.
++No store account, API key, OpenIAP checkout, or IAPKit account is required.
++Modern Yarn uses the included `node_modules` linker.
++
++![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-5/screen.png)
++
++The screenshot comes from an executed source checkpoint. See its
++[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-5/run.json)
++and the [complete build history](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md).
++
++## What you will see
++
++| Step        | What changes                                     | Result to check                                      |
++| ----------- | ------------------------------------------------ | ---------------------------------------------------- |
++| 1. Contract | Load schemas; start with empty storage           | No purchases or access yet                           |
++| 2. Verify   | Validate fixture evidence; save a purchase       | Verification alone grants no access                  |
++| 3. Bind     | Attach the purchase to the backend-selected user | Alice gains Premium; Bob cannot claim it             |
++| 4. Cancel   | Turn off renewal; queue an event                 | Paid access remains until expiry                     |
++| 5. Deliver  | Sign events; retry a failed receiver             | A repeated delivery has one inbox effect             |
++| 6. Expire   | Advance the clock; reopen SQLite                 | Access closes; ownership and delivery records remain |
+ 
+-## Connect your product
++Restarting `npm start` creates a fresh temporary database, so you can replay the
++walkthrough. Step 6 reopens the existing databases **inside the running process**;
++it does not simulate an OS crash or a new process recovering external secrets.
++If port 5181 is occupied, run `COMMERCE_LAB_PORT=5183 npm start`.
+ 
+-Start with [INTEGRATE.md](INTEGRATE.md) to build a paywall integration, a commerce
+-service, an event consumer, or an integrated platform. Run `npm run demo:bridge`
+-to check Apple/Google OpenIAP purchase fields against the installed verification
+-input schema. The helper runs on the app backend; it does not perform a mobile
+-purchase or authenticate evidence.
++## Use the part you need
+ 
+-## Receive events in an existing backend
++| Your role            | Start here                                                                                                        | What this example provides                                           |
++| -------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
++| Paywall / experience | [Integration brief](INTEGRATE.md)                                                                                 | Host purchase/result boundaries; no paywall UI implementation        |
++| Commerce provider    | [AI build brief](BUILD.md)                                                                                        | Fixture verifier, ownership/access rules, REST, SQLite, and delivery |
++| Data / automation    | [Event receiver guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md) | A ready signed-event receiver with a durable inbox                   |
++| Integrated platform  | [Integration brief](INTEGRATE.md)                                                                                 | How the roles compose without splitting account authority            |
+ 
+-The ready receiver verifies signatures and saves each event once in SQLite.
+-Run the complete local integration check:
++`client-bridge.mjs` maps Apple/Google OpenIAP purchase fields into the installed
++verification schema **on the app backend**. Run `npm run demo:bridge` to check it.
++It does not perform a mobile purchase or authenticate store evidence. The
++current client `verifyPurchaseWithProvider` helper uses IAPKit's own API; other
++providers connect through the app's authenticated backend.
++
++## Receive events
+ 
+ ```sh
+ npm run demo:consumer
+ ```
+ 
+-It sends purchase, renewal, cancellation, expiry, refund, and entitlement
+-samples over HTTP, retries each delivery, rejects tampering, and reopens the
+-inbox. No store adapter or provider backend is needed. The inbox stores the
+-signed event unchanged for your existing processing pipeline.
+-
+-To run the receiver continuously, set `COMMERCE_WEBHOOK_SECRET` to your
+-provider's signing secret and run `npm run consumer`. It listens at
+-`http://127.0.0.1:5182/webhooks/commerce`, with storage in `consumer.sqlite`
+-(or `COMMERCE_INBOX_PATH`). It is bound to loopback: an HTTPS reverse proxy
+-must forward to that local address, preserving the exact body bytes. Forwarding the public Host header is supported;
+-the signature authenticates delivery. Configure
+-one emitter/project and signing key per receiver database. Keep the inbox file
+-on persistent storage. `webhooks.mjs` exports the same Fetch-compatible receiver
+-handler for embedding in an existing server.
+-
+-The local check proves ingestion, not store authenticity or financial analytics.
+-Transaction and price fields are optional; missing values are unknown. A
+-lifecycle event is not necessarily a new charge. Keep your own revenue and
+-accounting rules; the receiver preserves the provider's fields without inventing
+-a zero price or counting every lifecycle event as revenue.
+-
+-## Build with AI
+-
+-Give [BUILD.md](BUILD.md) to your AI. Ask it to add one milestone, run it, inspect
+-the actual screen and responses, fix any issue, and repeat the failed check.
+-Review the result before moving to the next milestone.
+-
+-[docs/build](docs/build) records this development run. Every source archive is
+-an independently runnable checkpoint. Later functionality is absent from the
+-earlier source, rather than hidden behind a runtime step switch. The dashboard
+-replays the operations implemented at that checkpoint.
+-
+-This implementation extends an earlier internal prototype, called Commerce Lab,
+-which this standalone repository replaces. It is an incremental implementation record, not a claim that an
+-AI produced the backend in one prompt without reference code.
+-
+-## Scope
+-
+-The HTTP requests, SQLite writes, ownership rules, HMAC signatures, delivery
+-retries, and database recovery are real local operations. The store, user, and
+-clock are fixtures. No real purchases or credentials are needed. Recovery
+-reopens both databases inside the same HTTP process; it does not test an OS
+-crash, process startup, or recovery of externally stored secrets.
+-
+-This is an educational Commerce Protocol example. Real store validation, login, erasure, tenant isolation, GraphQL,
+-public HTTPS delivery, and full profile conformance remain separate work.
+-
+-## Record another checkpoint
+-
+-Recording needs Node.js with npm, Git, tar, and Google Chrome in addition to
+-Bun. The backend's test/start scripts use Bun only. `npm run test:tooling`
+-checks capture tooling separately.
+-
+-Update `ai-task.md` with the task and review notes. Run `npm test`, inspect the
+-dashboard, then `npm run capture` with Google Chrome installed. Capture runs the
+-checks again and preserves failed attempts. Capture installs and tests the archived source in a temporary project, then
+-checks the desktop and mobile screens. `checkpoint.json.previous` names the
+-preceding archive, so patch generation also works after a fresh clone. Run
+-`npm run verify:checkpoints` to check all archived sources and patches from an
+-empty directory and save the npm execution evidence. Published source
+-checkpoints are immutable;
+-use a new directory name in `checkpoint.json` for another revision.
+-Verification/export skip unfinished captures without `run.json`; their failure
+-logs remain on disk until that checkpoint succeeds.
++This standalone check sends fictional purchase, renewal, cancellation, expiry,
++refund, and entitlement events over HTTP. It repeats deliveries, rejects
++changed signatures, and reopens the SQLite inbox. It needs no provider server.
++
++For a persistent receiver, set `COMMERCE_WEBHOOK_SECRET` and run
++`npm run consumer`. The endpoint is `http://127.0.0.1:5182/webhooks/commerce`.
++See the [receiver guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md)
++for HTTPS proxy setup, database location, processing responsibilities, and
++expected results. Event ingestion does not calculate revenue or grant access.
++
++## Build with AI, then check the result
++
++Give [BUILD.md](BUILD.md) to your AI for a backend, or [INTEGRATE.md](INTEGRATE.md)
++for an existing product. Ask it to implement one milestone, run it, inspect the
++screen and responses, fix a failure, and repeat that same check.
++
++The [build record](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md)
++contains independent source archives, patches, screenshots, and execution
++reports. The [review log](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/REVIEW.md)
++keeps the observed mistakes and corrections, including unfinished discovery in
++the early snapshots. This implementation grew from an earlier internal
++prototype; it was not generated from a blank project in one prompt. Task briefs
++are implementation notes, not model transcripts or editor recordings.
++
++## Verify or record a change
++
++| Command                      | Checks                                                                    |
++| ---------------------------- | ------------------------------------------------------------------------- |
++| `npm test`                   | Current backend flow, failure cases, request mapper, and receiver         |
++| `npm run test:tooling`       | Capture and patch tooling                                                 |
++| `npm run verify:checkpoints` | Every archive, its exact patch chain, and an independent npm install/test |
++| `npm run capture`            | A new immutable source checkpoint and actual desktop/mobile screenshots   |
++
++Backend commands require Bun. Recording also requires Node.js/npm, Git, tar,
++and Google Chrome. The [recording guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/recording.md)
++explains how to preserve a checkpoint and export evidence. GitHub CI runs the
++runtime, tooling, archive, and documentation-export checks.
++
++## What remains for production
++
++Real store validation and sandbox purchases, login, user erasure, tenant
++isolation, GraphQL, public HTTPS delivery protections, and operational recovery
++are not implemented here. The backend advertises **no complete profiles**.
++Schema checks and the local walkthrough do not establish profile conformance.
++
++Implement every obligation of your chosen profiles from the installed
++`SPEC.md`; add store sandbox, isolation, deployment, and recovery tests.
++IAPKit is a reference implementation, not a substitute for those checks.
++
++MIT licensed. See [LICENSE](LICENSE).
+diff --git a/ai-task.md b/ai-task.md
+index 9eeb0e6..976826f 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -38,3 +38,11 @@ delivery behind a reverse proxy that preserves the public Host header. Keep
+ unfinished captures from blocking completed history, retain equal-time fixture
+ transitions, record the observed duplicate response, and configure Yarn's
+ node-modules linker. Preserve the proxy failure and rerun the checks.
++
++Prepare the standalone example for its first public commit. Rewrite the README
++around clone, run, inspect, choose a role, and verify. Put receiver and capture
++setup in repository documentation so the example works before the docs site is
++deployed. Preserve every earlier archive. Record this documentation revision,
++verify all source archives again, and export a stable current-source download.
++Add CI that tests runtime, tooling, archives and the documentation export. This
++revision is a local publication review, not another completed external review.
+diff --git a/checkpoint.json b/checkpoint.json
+index 660312c..6b41ab5 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed-4",
++  "id": "06-recover-reviewed-5",
+   "title": "Expire access and restart",
+-  "built": "Expiry, atomic grant events, recovery, and verified source archives",
++  "built": "Documented standalone setup, review evidence, and verified exports",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-3"
++  "previous": "06-recover-reviewed-4"
+ }
+diff --git a/export-docs.mjs b/export-docs.mjs
+index ab8208f..e89ae37 100644
+--- a/export-docs.mjs
++++ b/export-docs.mjs
+@@ -68,6 +68,7 @@ for (const [name, digest] of Object.entries(consumerReport.sourceHashes))
+     "Record the consumer demo again before export",
+   );
+ mkdirSync(output, { recursive: true });
++cpSync(join(source, last.id, "source.tar.gz"), join(output, "source.tar.gz"));
+ for (const record of records)
+   cpSync(join(source, record.id), join(output, record.id), { recursive: true });
+ for (const name of [
+diff --git a/package-lock.json b/package-lock.json
+index 0583924..b4979f7 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -7,6 +7,7 @@
+     "": {
+       "name": "openiap-commerce-protocol-example",
+       "version": "0.0.0",
++      "license": "MIT",
+       "dependencies": {
+         "ajv": "^8.17.1",
+         "openiap-commerce-protocol": "0.1.0"
+diff --git a/package.json b/package.json
+index b2c0932..36f1f41 100644
+--- a/package.json
++++ b/package.json
+@@ -19,5 +19,11 @@
+   },
+   "devDependencies": {
+     "@playwright/test": "1.62.1"
++  },
++  "description": "A runnable, documented Commerce Protocol backend with AI build checkpoints.",
++  "license": "MIT",
++  "repository": {
++    "type": "git",
++    "url": "https://github.com/hyodotdev/openiap-commerce-protocol-example.git"
+   }
+ }

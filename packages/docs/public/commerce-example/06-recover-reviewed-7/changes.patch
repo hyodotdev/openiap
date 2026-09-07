@@ -1,0 +1,72 @@
+diff --git a/README.md b/README.md
+index 203d94e..0f28606 100644
+--- a/README.md
++++ b/README.md
+@@ -28,10 +28,10 @@ current access, delivery attempts, and expandable request/response details.
+ No store account, API key, OpenIAP checkout, or IAPKit account is required.
+ Modern Yarn uses the included `node_modules` linker.
+ 
+-![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-6/screen.png)
++![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-7/screen.png)
+ 
+ The screenshot comes from an executed source checkpoint. See its
+-[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-6/run.json)
++[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-7/run.json)
+ and the [complete build history](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md).
+ 
+ ## What you will see
+diff --git a/ai-task.md b/ai-task.md
+index 4687819..48a1cf9 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -51,3 +51,7 @@ Fix the first Linux CI failure without rewriting historical recordings. macOS
+ AppleDouble metadata must not count as source. Exclude it on extraction, omit it
+ from new archives, and add a portable extraction regression test. Capture the
+ corrected tooling, verify every source revision, and rerun GitHub CI.
++
++Correct the final CLI review finding: exercise cancellation at the expiry
++observation timestamp so the check reaches the expired-state guard. Preserve
++the earlier capture, record this revision, and verify its archive and patch.
+diff --git a/checkpoint.json b/checkpoint.json
+index 4b7b724..b2f30bb 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed-6",
++  "id": "06-recover-reviewed-7",
+   "title": "Expire access and restart",
+-  "built": "Verified portable source archives on macOS and Linux",
++  "built": "Verified cancellation at expiry and preserved review evidence",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-5"
++  "previous": "06-recover-reviewed-6"
+ }
+diff --git a/export-docs.mjs b/export-docs.mjs
+index e89ae37..f7da37e 100644
+--- a/export-docs.mjs
++++ b/export-docs.mjs
+@@ -29,7 +29,8 @@ const selected = guide.map((step) => {
+   return record;
+ });
+ const last = selected.at(-1);
+-assert.equal(selected.length, 6);
++assert.deepEqual(selected.map((record) => record.step), [1, 2, 3, 4, 5, 6]);
++assert(guide.every((step) => typeof step.label === "string" && step.label.length > 0));
+ assert.deepEqual(
+   Object.fromEntries(
+     SOURCE_FILES.sort().map((name) => [
+diff --git a/verify.mjs b/verify.mjs
+index e43ff66..08731f7 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -105,7 +105,7 @@ export async function verifyLab({ compareSigner } = {}) {
+       lab.runtime.provider.observe({
+         id: "late-cancel",
+         kind: "cancel",
+-        occurredAt: FIXTURE.startsAt + 1000,
++        occurredAt: FIXTURE.expiresAt,
+       }),
+       false,
+     );

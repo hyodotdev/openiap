@@ -12,6 +12,15 @@ against the operation surface can verify purchases, read entitlements, bind
 purchases to its own users, and erase them — and later replace the provider
 behind those calls without rewriting the integration.
 
+For product composition, see the non-normative
+[ecosystem guide](https://openiap.dev/commerce-protocol/ecosystem).
+For a practical entry point, start with the
+[integration walkthrough](https://openiap.dev/commerce-protocol/getting-started)
+or the [provider implementation guide](https://openiap.dev/commerce-protocol/implementation).
+[Whitepaper §5](https://openiap.dev/commerce-protocol/whitepaper) provides a non-normative
+architecture and persistence blueprint. This specification and the authored
+schema remain authoritative for the contract.
+
 ## Why this exists
 
 OpenIAP normalizes the client-side purchase API across stores. The server side

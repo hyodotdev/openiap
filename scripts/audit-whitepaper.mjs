@@ -25,7 +25,22 @@ export const BUILT_FROM = [
 ];
 export const PUBLISHED_PDF =
   "packages/docs/public/commerce-protocol-rationale.pdf";
-const RECORDED = [...BUILT_FROM, PUBLISHED_PDF];
+export function publishedDiagrams(source) {
+  return [
+    ...source.matchAll(
+      /<!-- commerce-diagram: ([a-z0-9-]+) -->\s*```mermaid\n/g,
+    ),
+  ].flatMap((match) =>
+    ["svg", "mmd"].map(
+      (extension) =>
+        `packages/docs/public/commerce-diagrams/${match[1]}.${extension}`,
+    ),
+  );
+}
+export const PUBLISHED_DIAGRAMS = publishedDiagrams(
+  fs.readFileSync(path.join(repositoryRoot, BUILT_FROM[0]), "utf8"),
+);
+const RECORDED = [...BUILT_FROM, PUBLISHED_PDF, ...PUBLISHED_DIAGRAMS];
 
 /** `<sha256>  <repo-relative path>` per line, as `shasum -a 256` writes it. */
 export function parseManifest(source) {

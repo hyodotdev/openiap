@@ -1,0 +1,1228 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..680f1ea
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,5 @@
++node_modules/
++.build-cache/
++*.sqlite*
++.env*
++.DS_Store
+diff --git a/BUILD.md b/BUILD.md
+new file mode 100644
+index 0000000..7336624
+--- /dev/null
++++ b/BUILD.md
+@@ -0,0 +1,87 @@
++# Build a purchase-to-access backend with AI
++
++Implement the OpenIAP Commerce Protocol in my repository. Start with one working
++purchase flow and prove each milestone before adding the next.
++
++## Read these first
++
++Use my project's package manager to install `openiap-commerce-protocol`.
++For example, with npm:
++
++```sh
++npm install openiap-commerce-protocol
++```
++
++The equivalent commands are `pnpm add`, `yarn add`, or `bun add` followed by the
++same package name. Read these files from the installed package directory
++(normally `node_modules/openiap-commerce-protocol/`):
++
++- `SPEC.md`: normative behavior, authorization, lifecycle, and delivery rules.
++- `DESIGN.md`: architecture and reasoning.
++- `generated/openapi/commerce-protocol.openapi.json`: REST request/response API.
++- `generated/bindings/http-binding.json`: operations, roles, and schema pointers.
++- `generated/schemas/commerce-protocol.bundle.schema.json`: offline validation.
++- `conformance/` and `vectors/`: portable checks and signature fixtures.
++
++The package supplies the contract and test artifacts, not a running backend.
++Implement the backend in my project. Do not require an OpenIAP or IAPKit checkout,
++and do not invent request fields, response shapes, role rules, or enum values.
++Follow my repository's instructions. Keep work uncommitted for review.
++
++## Start with a reviewable local result
++
++Use the stack already in my repository. If this is an empty project, choose a
++small HTTP/JSON backend and SQLite; the protocol does not require a specific
++language or runtime. Use an explicitly fictional fixture store and a controlled
++clock first. No real purchases, production credentials, or cloud resources.
++
++Build these milestones in order:
++
++1. **Contract:** serve capabilities and validate requests and responses against
++   the generated artifacts. Start with an empty persistent database. Advertise
++   only demonstrated support; do not claim partially implemented profiles.
++2. **Verification:** accept known fixture evidence, reject invalid evidence, and
++   distinguish an upstream outage from a negative verdict. Persist a purchase
++   without binding a user or granting account access.
++3. **Ownership and access:** bind through an authenticated server role. Obtain
++   the user identity from the backend session and its ownership policy. Refuse
++   cross-user transfer, including concurrent requests. Return tokenless status
++   and entitlement responses; verification credentials cannot enumerate users.
++4. **Lifecycle:** process cancellation and expiry. Cancellation preserves the
++   remaining paid period. Access closes at the expiry boundary even before an
++   expiry notification arrives. Store state, observation deduplication, and
++   outbound event bytes in one transaction. Prove rollback under a write failure.
++5. **Delivery:** sign the exact persisted bytes, authenticate raw bytes at the
++   receiver, and insert into a durable inbox before acknowledging. Demonstrate
++   503 → retry → success, lost-ack redelivery, tamper rejection, and a bounded
++   dead-letter path. Retry with unchanged event/body/delivery identity and a
++   fresh signature. Mark loopback transport as a local test exception; a real
++   events profile requires the public HTTPS destination protections in the spec.
++6. **Recovery:** reopen the databases with pending deliveries, resume processing,
++   and prove that neither ownership nor receiver deduplication disappears.
++
++After each milestone, run it. Show the command, actual API result, storage
++change, and passing assertions. Capture the working screen. Do not manufacture
++logs, screenshots, conformance counts, or claims about capabilities not tested.
++
++## Deliver
++
++- A runnable local backend and small inspection UI.
++- One command that verifies the demonstrated flow and exits nonzero on failure.
++- A short visual walkthrough, with real captured results for each milestone.
++- The exact scope and remaining work, including real store validation,
++  authentication, erasure, multi-tenant isolation, public HTTPS delivery,
++  operations, and full profile conformance. Keep the main explanation short;
++  link the specification for details.
++
++## Then extend toward a production provider
++
++Ask me which real store, backend identity system, and deployment environment to
++integrate before using credentials or external services. Implement the remaining
++operations of each chosen profile, including erasure for `accountLifecycle`.
++Run the portable conformance runner for every advertised binding and profile;
++also run real store sandbox, recovery, isolation, and load tests. Treat IAPKit as
++an implementation example, never as a replacement for the protocol's contract.
++
++Recorded local example and reproduction instructions:
++https://github.com/hyodotdev/openiap/tree/main/packages/kit/examples/commerce-protocol
+diff --git a/LICENSE b/LICENSE
+new file mode 100644
+index 0000000..2987b94
+--- /dev/null
++++ b/LICENSE
+@@ -0,0 +1,21 @@
++# MIT License
++
++Copyright (c) 2025 hyo.dev
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..d643942
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,51 @@
++# OpenIAP Commerce Protocol example
++
++Build a small purchase-to-access backend with AI, one working milestone at a
++time. Each checkpoint includes the task, source changes, executed checks, and
++a screenshot of that version running.
++
++## Run
++
++Use your favorite package manager to install dependencies:
++
++```sh
++npm install # or pnpm install, yarn install, bun install
++npm test
++npm start
++```
++
++This example uses the Bun runtime for HTTP and SQLite. Its scripts work through
++any package manager with Bun installed. The protocol can be implemented in your
++own language and stack. Open http://127.0.0.1:5181 and run each available step.
++
++## Build with AI
++
++Give [BUILD.md](BUILD.md) to your AI. Ask it to add one milestone, run it, inspect
++the actual screen and responses, fix any issue, and repeat the failed check.
++Review the result before moving to the next milestone.
++
++[docs/build](docs/build) records this development run. Every source archive is
++an independently runnable checkpoint. Later functionality is absent from the
++earlier source, rather than hidden behind a runtime step switch. The dashboard
++replays the operations implemented at that checkpoint.
++
++This implementation extracts and extends the previously tested OpenIAP Commerce
++Lab prototype. It is an incremental implementation record, not a claim that an
++AI produced the backend in one prompt without reference code.
++
++## Scope
++
++The HTTP requests, SQLite writes, ownership rules, HMAC signatures, delivery
++retries, and database recovery are real local operations. The store, user, and
++clock are fixtures. No real purchases or credentials are needed.
++
++This is an educational part of the IAPKit architecture, not a production
++provider. Real store validation, login, erasure, tenant isolation, GraphQL,
++public HTTPS delivery, and full profile conformance remain separate work.
++
++## Record another checkpoint
++
++Update `ai-task.md` with the task and review notes. Run `npm test`, inspect the
++dashboard, then `npm run capture` with Google Chrome installed. Capture runs the
++checks again and preserves failed attempts. Published checkpoints are immutable;
++use a new directory name in `checkpoint.json` for another revision.
+diff --git a/ai-task.md b/ai-task.md
+new file mode 100644
+index 0000000..8469ac8
+--- /dev/null
++++ b/ai-task.md
+@@ -0,0 +1,7 @@
++# Start with the contract
++
++Install the published contract in an independent project. Add capabilities, request/response validation, local HTTP inspection, and SQLite. Return UNSUPPORTED_PROFILE for operations that have not been implemented. Do not claim profile conformance.
++
++Use the existing reviewed prototype where it satisfies the installed contract.
++Run the backend, inspect the result, correct problems, and rerun the affected check.
++Keep all work uncommitted.
+diff --git a/capture.mjs b/capture.mjs
+new file mode 100644
+index 0000000..ed28b0c
+--- /dev/null
++++ b/capture.mjs
+@@ -0,0 +1,78 @@
++import assert from 'node:assert/strict';
++import { createHash } from 'node:crypto';
++import { spawnSync } from 'node:child_process';
++import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, cpSync, rmSync } from 'node:fs';
++import { join } from 'node:path';
++import { chromium } from '@playwright/test';
++import { startLab } from './server.mjs';
++import { verifyLab } from './verify.mjs';
++import { STAGES } from './scenario.mjs';
++
++const root = import.meta.dir;
++const checkpoint = JSON.parse(readFileSync(join(root, 'checkpoint.json'), 'utf8'));
++const output = join(root, 'docs/build', checkpoint.id);
++mkdirSync(output, { recursive: true });
++assert(!existsSync(join(output, 'run.json')), 'Checkpoint already published; choose a new checkpoint id.');
++const attempt = readdirSync(output).filter(name => name.startsWith('attempt-')).length + 1;
++const startedAt = new Date().toISOString();
++let checks;
++try {
++  checks = await verifyLab();
++  writeFileSync(join(output, `attempt-${attempt}.txt`), JSON.stringify({ startedAt, command: 'npm test', passed: checks.length, checks }, null, 2));
++} catch (error) {
++  writeFileSync(join(output, `attempt-${attempt}.txt`), `${startedAt}\n${error.stack}\n`);
++  throw error;
++}
++
++const files = readdirSync(root).filter(name => /\.(mjs|html|json|md)$/.test(name) || name === 'LICENSE' || name === '.gitignore');
++const cache = join(root, '.build-cache');
++const current = join(cache, 'after');
++const previous = join(cache, 'before');
++mkdirSync(previous, { recursive: true });
++rmSync(current, { recursive: true, force: true });
++mkdirSync(current, { recursive: true });
++for (const name of files) cpSync(join(root, name), join(current, name));
++const diff = spawnSync('git', ['diff', '--no-index', '--no-ext-diff', '--', 'before', 'after'], { cwd: cache, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
++assert([0, 1].includes(diff.status), diff.stderr);
++const patch = diff.stdout.replaceAll('a/before/', 'a/').replaceAll('b/after/', 'b/').replaceAll('a/after/', 'a/').replaceAll('b/before/', 'b/');
++writeFileSync(join(output, 'changes.patch'), patch);
++const archive = spawnSync('tar', ['-czf', join(output, 'source.tar.gz'), '-C', current, ...files]);
++assert.equal(archive.status, 0, archive.stderr?.toString());
++
++const lab = startLab();
++const browser = await chromium.launch({ channel: 'chrome' });
++try {
++  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
++  const errors = [];
++  page.on('pageerror', error => errors.push(error.message));
++  await page.goto(lab.runtime.baseUrl, { waitUntil: 'domcontentloaded' });
++  for (let step = 1; step <= STAGES.length; step++) {
++    await page.getByRole('button', { name: `Run step ${step} →`, exact: true }).click();
++    await page.locator('#progress').filter({ hasText: `Milestone ${step} / ${STAGES.length}` }).waitFor();
++  }
++  assert.deepEqual(errors, []);
++  assert.equal(await page.locator('#error').textContent(), '');
++  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
++  await page.screenshot({ path: join(output, 'screen.png'), fullPage: true });
++  const history = lab.scenario.history;
++  const record = {
++    ...checkpoint,
++    startedAt,
++    recordedAt: new Date().toISOString(),
++    packageVersion: JSON.parse(readFileSync(join(root, 'node_modules/openiap-commerce-protocol/package.json'), 'utf8')).version,
++    task: readFileSync(join(root, 'ai-task.md'), 'utf8'),
++    sourceHashes: Object.fromEntries(files.map(name => [name, createHash('sha256').update(readFileSync(join(current, name))).digest('hex')])),
++    checks,
++    history,
++    screenshot: 'screen.png',
++    scope: 'Incremental source checkpoint adapted from the reviewed Commerce Lab prototype. HTTP and SQLite execute locally; store and clock are fixtures. No full profile claim.',
++  };
++  writeFileSync(join(output, 'run.json'), JSON.stringify(record, null, 2) + '\n');
++  rmSync(previous, { recursive: true, force: true });
++  cpSync(current, previous, { recursive: true });
++  console.log(`Captured ${checkpoint.id}: ${checks.length} checks, ${files.length} source files.`);
++} finally {
++  await browser.close();
++  await lab.close();
++  rmSync(lab.directory, { recursive: true, force: true });
++}
+diff --git a/checkpoint.json b/checkpoint.json
+new file mode 100644
+index 0000000..04e22f5
+--- /dev/null
++++ b/checkpoint.json
+@@ -0,0 +1,7 @@
++{
++  "step": 1,
++  "id": "01-contract",
++  "title": "Start with the contract",
++  "built": "HTTP routes + schema validation + SQLite",
++  "result": "A running server, an empty purchase table, and no access."
++}
+diff --git a/contract.mjs b/contract.mjs
+new file mode 100644
+index 0000000..6d2ca73
+--- /dev/null
++++ b/contract.mjs
+@@ -0,0 +1,24 @@
++import Ajv from "ajv/dist/2020.js";
++import { bundleSchema, HTTP_BINDING } from "openiap-commerce-protocol";
++
++const ajv = new Ajv({ strict: false, allErrors: true });
++ajv.addSchema(bundleSchema);
++const validators = new Map();
++
++export function validate(pointer, value) {
++  if (!validators.has(pointer)) {
++    validators.set(pointer, ajv.compile({ $ref: bundleSchema.$id + pointer }));
++  }
++  return validators.get(pointer)(value);
++}
++
++export function operation(name) {
++  return HTTP_BINDING.operations.find((entry) => entry.name === name);
++}
++
++export function protocolError(code) {
++  return Response.json(
++    { error: { code, message: code.replaceAll("_", " ").toLowerCase() } },
++    { status: HTTP_BINDING.errorStatus[code] },
++  );
++}
+diff --git a/dashboard.html b/dashboard.html
+new file mode 100644
+index 0000000..85b613b
+--- /dev/null
++++ b/dashboard.html
+@@ -0,0 +1,384 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <title>Commerce Protocol Example · Purchase to access</title>
++    <style>
++      * {
++        box-sizing: border-box;
++      }
++      body {
++        margin: 0;
++        font:
++          15px/1.5 system-ui,
++          sans-serif;
++        background: #101512;
++        color: #eef4ee;
++      }
++      main {
++        max-width: 1260px;
++        margin: auto;
++        padding: 24px;
++      }
++      header,
++      .heading,
++      .toolbar {
++        display: flex;
++        gap: 24px;
++        align-items: center;
++        justify-content: space-between;
++      }
++      header {
++        border-bottom: 1px solid #334138;
++        padding-bottom: 22px;
++      }
++      .brand {
++        font-size: 21px;
++        font-weight: 750;
++        letter-spacing: -0.6px;
++      }
++      .badge,
++      .eyebrow {
++        color: #b4d7b6;
++        font-size: 12px;
++        letter-spacing: 0.1em;
++        text-transform: uppercase;
++      }
++      .badge {
++        border: 1px solid #4b6551;
++        border-radius: 30px;
++        padding: 7px 12px;
++      }
++      h1 {
++        font-size: clamp(24px, 3vw, 36px);
++        letter-spacing: -0.035em;
++        margin: 5px 0 8px;
++        line-height: 1.2;
++      }
++      h2 {
++        font-size: 15px;
++        margin: 0 0 16px;
++      }
++      p {
++        color: #b0bdb2;
++        margin: 0;
++      }
++      .heading {
++        padding: 8px 0;
++        align-items: start;
++      }
++      button {
++        background: #c6ecac;
++        border: 0;
++        color: #132015;
++        font: inherit;
++        font-weight: 700;
++        padding: 12px 19px;
++        border-radius: 8px;
++        cursor: pointer;
++        flex-shrink: 0;
++      }
++      button:disabled {
++        opacity: 0.6;
++        cursor: default;
++      }
++      button:focus-visible {
++        outline: 3px solid white;
++        outline-offset: 4px;
++      }
++      ol {
++        display: grid;
++        grid-template-columns: repeat(6, 1fr);
++        gap: 10px;
++        padding: 0;
++        margin: 0 0 24px;
++        list-style: none;
++      }
++      li {
++        border-top: 3px solid #334138;
++        padding-top: 10px;
++        font-size: 12px;
++        color: #9aa89d;
++      }
++      li.current {
++        color: #d2f9b9;
++        border-color: #c6ecac;
++      }
++      li.complete {
++        border-color: #648b54;
++      }
++      .metrics {
++        display: grid;
++        grid-template-columns: repeat(4, 1fr);
++        gap: 14px;
++        margin-bottom: 20px;
++      }
++      .metric,
++      section {
++        background: #1a231d;
++        border: 1px solid #334138;
++        border-radius: 12px;
++        padding: 16px;
++        min-width: 0;
++      }
++      .metric span {
++        display: block;
++        color: #a9b9ad;
++        font-size: 12px;
++      }
++      .metric strong {
++        font-size: 28px;
++        font-weight: 600;
++      }
++      .grid {
++        display: grid;
++        grid-template-columns: 1.1fr 1fr;
++        gap: 12px;
++      }
++      .stack {
++        display: grid;
++        gap: 12px;
++      }
++      table {
++        border-collapse: collapse;
++        width: 100%;
++        font-size: 12px;
++      }
++      td,
++      th {
++        text-align: left;
++        padding: 9px 6px;
++        border-bottom: 1px solid #334138;
++        overflow-wrap: anywhere;
++      }
++      th {
++        color: #a9b9ad;
++        font-weight: 500;
++      }
++      .empty {
++        padding: 8px 0;
++        font-size: 13px;
++        color: #94a398;
++      }
++      .check {
++        color: #c6ecac;
++        margin: 4px 0;
++        font-size: 13px;
++      }
++      pre {
++        margin: 0;
++        font:
++          12px/1.5 ui-monospace,
++          monospace;
++        white-space: pre-wrap;
++        overflow-wrap: anywhere;
++        max-height: 330px;
++        overflow-y: auto;
++        color: #d2ddd4;
++      }
++      .built {
++        color: #aebeb0;
++        font-size: 12px;
++        margin-top: 12px;
++      }
++      footer {
++        color: #98a79c;
++        font-size: 12px;
++        margin: 20px 0 0;
++      }
++      #error {
++        color: #ffb09b;
++      }
++      @media (max-width: 700px) {
++        main {
++          padding: 18px;
++        }
++        .heading {
++          flex-direction: column;
++        }
++        .grid {
++          grid-template-columns: 1fr;
++        }
++        .metrics {
++          grid-template-columns: 1fr 1fr;
++        }
++        ol {
++          grid-template-columns: repeat(3, 1fr);
++        }
++        header {
++          gap: 10px;
++        }
++      }
++    </style>
++  </head>
++  <body>
++    <main>
++      <header>
++        <div class="brand">◈ Commerce Protocol Example</div>
++        <span class="badge">Local fixture · real HTTP + SQLite</span>
++      </header>
++      <div class="heading">
++        <div>
++          <span class="eyebrow" id="progress">Ready to run</span>
++          <h1 id="title">From a purchase to current access.</h1>
++          <p id="summary">
++            Run the six milestones against a new, empty database.
++          </p>
++          <div class="built" id="built"></div>
++        </div>
++        <button id="next">Run step 1 →</button>
++      </div>
++      <ol id="steps" aria-label="Implementation milestones"></ol>
++      <div class="metrics">
++        <div class="metric">
++          <span>Saved purchases</span><strong id="purchases">0</strong>
++        </div>
++        <div class="metric">
++          <span>Alice's access</span><strong id="access">No access</strong>
++        </div>
++        <div class="metric">
++          <span>Receiver inbox</span><strong id="inbox">0</strong>
++        </div>
++        <div class="metric">
++          <span>Passing checks</span><strong id="checks">0</strong>
++        </div>
++      </div>
++      <div class="grid">
++        <div class="stack">
++          <section>
++            <h2>Purchase storage</h2>
++            <div id="purchase-table" class="empty">
++              No purchase has been verified.
++            </div>
++          </section>
++          <section>
++            <h2>Event deliveries</h2>
++            <div id="delivery-table" class="empty">
++              No lifecycle event has occurred.
++            </div>
++          </section>
++          <section>
++            <h2>This step proves</h2>
++            <div id="proofs" class="empty">
++              Each step runs assertions before it is marked complete.
++            </div>
++          </section>
++        </div>
++        <section>
++          <h2>Actual request results</h2>
++          <pre id="responses">Waiting for the first HTTP request…</pre>
++        </section>
++      </div>
++      <p id="error" role="alert"></p>
++      <footer id="scope">
++        Incrementally built educational example. The store and clock are fixtures; API
++        requests, SQLite writes, signatures and receiver requests execute
++        locally. This is not the IAPKit product or a production-conformance
++        claim.
++      </footer>
++    </main>
++    <script type="module">
++      const $ = (id) => document.getElementById(id);
++      let state = await (await fetch("/demo/state")).json();
++      function table(target, columns, rows) {
++        $(target).replaceChildren();
++        if (!rows.length) {
++          $(target).textContent = "No records yet.";
++          return;
++        }
++        const table = document.createElement("table");
++        const head = table.createTHead().insertRow();
++        for (const [label] of columns) {
++          const th = document.createElement("th");
++          th.textContent = label;
++          head.append(th);
++        }
++        const body = table.createTBody();
++        for (const row of rows) {
++          const tr = body.insertRow();
++          for (const [, key] of columns)
++            tr.insertCell().textContent = String(row[key] ?? "Unbound");
++        }
++        $(target).append(table);
++      }
++      function render() {
++        const current = state.history.at(-1);
++        const step = current?.step ?? 0;
++        $("steps").replaceChildren();
++        state.stages.forEach((item, index) => {
++          const li = document.createElement("li");
++          li.textContent = `0${index + 1} ${item.title}`;
++          li.className =
++            index + 1 === step ? "current" : index < step ? "complete" : "";
++          $("steps").append(li);
++        });
++        $("next").textContent =
++          step === state.stages.length
++            ? "All steps passed ✓"
++            : `Run step ${step + 1} →`;
++        $("next").disabled = step === state.stages.length;
++        if (!current) return;
++        $("progress").textContent =
++          `Milestone ${step} / ${state.stages.length} · ${current.simulatedTime.slice(0, 10)} simulated clock`;
++        $("title").textContent = current.title;
++        $("summary").textContent = current.result;
++        $("built").textContent = `Implemented: ${current.built}`;
++        $("purchases").textContent = current.purchases.length;
++        $("access").textContent = current.access.productIds.length
++          ? "Premium"
++          : "No access";
++        $("inbox").textContent = current.inboxCount;
++        $("checks").textContent = current.totalChecks;
++        table(
++          "purchase-table",
++          [
++            ["User", "userId"],
++            ["Product", "productId"],
++            ["State", "state"],
++            ["Renewal", "willRenew"],
++          ],
++          current.purchases,
++        );
++        table(
++          "delivery-table",
++          [
++            ["Event", "eventType"],
++            ["Attempts", "attempts"],
++            ["Status", "status"],
++          ],
++          current.deliveries,
++        );
++        $("proofs").replaceChildren();
++        for (const check of current.checks) {
++          const p = document.createElement("p");
++          p.className = "check";
++          p.textContent = `✓ ${check}`;
++          $("proofs").append(p);
++        }
++        $("responses").textContent = current.responses
++          .map(
++            (r) =>
++              `${r.operation}${r.httpStatus ? ` · HTTP ${r.httpStatus}` : ""}\n${JSON.stringify(r.body, null, 2)}`,
++          )
++          .join("\n\n");
++      }
++      $("next").onclick = async () => {
++        $("next").disabled = true;
++        $("error").textContent = "";
++        try {
++          const response = await fetch("/demo/advance", { method: "POST" });
++          if (!response.ok)
++            throw new Error("Step failed; inspect the server output.");
++          await response.json();
++          state = await (await fetch("/demo/state")).json();
++          render();
++        } catch (error) {
++          $("error").textContent = error.message;
++          $("next").disabled = false;
++        }
++      };
++      render();
++    </script>
++  </body>
++</html>
+diff --git a/package-lock.json b/package-lock.json
+new file mode 100644
+index 0000000..0583924
+--- /dev/null
++++ b/package-lock.json
+@@ -0,0 +1,141 @@
++{
++  "name": "openiap-commerce-protocol-example",
++  "version": "0.0.0",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "openiap-commerce-protocol-example",
++      "version": "0.0.0",
++      "dependencies": {
++        "ajv": "^8.17.1",
++        "openiap-commerce-protocol": "0.1.0"
++      },
++      "devDependencies": {
++        "@playwright/test": "1.62.1"
++      }
++    },
++    "node_modules/@playwright/test": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/@playwright/test/-/test-1.62.1.tgz",
++      "integrity": "sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "playwright": "1.62.1"
++      },
++      "bin": {
++        "playwright": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      }
++    },
++    "node_modules/ajv": {
++      "version": "8.20.0",
++      "resolved": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
++      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
++      "license": "MIT",
++      "dependencies": {
++        "fast-deep-equal": "^3.1.3",
++        "fast-uri": "^3.0.1",
++        "json-schema-traverse": "^1.0.0",
++        "require-from-string": "^2.0.2"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/epoberezkin"
++      }
++    },
++    "node_modules/fast-deep-equal": {
++      "version": "3.1.3",
++      "resolved": "https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz",
++      "integrity": "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==",
++      "license": "MIT"
++    },
++    "node_modules/fast-uri": {
++      "version": "3.1.7",
++      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.7.tgz",
++      "integrity": "sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/fastify"
++        },
++        {
++          "type": "opencollective",
++          "url": "https://opencollective.com/fastify"
++        }
++      ],
++      "license": "BSD-3-Clause"
++    },
++    "node_modules/fsevents": {
++      "version": "2.3.2",
++      "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz",
++      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
++      }
++    },
++    "node_modules/json-schema-traverse": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-1.0.0.tgz",
++      "integrity": "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==",
++      "license": "MIT"
++    },
++    "node_modules/openiap-commerce-protocol": {
++      "version": "0.1.0",
++      "resolved": "https://registry.npmjs.org/openiap-commerce-protocol/-/openiap-commerce-protocol-0.1.0.tgz",
++      "integrity": "sha512-z92P3JeMK0Hj2y227ibDYKz1qJJC0JuwRUqm2mi6slhQoBHYTldXYIExHDtl7Q3SbqGmPqpBsTWlTwVRFymSjA==",
++      "license": "MIT"
++    },
++    "node_modules/playwright": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/playwright/-/playwright-1.62.1.tgz",
++      "integrity": "sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "playwright-core": "1.62.1"
++      },
++      "bin": {
++        "playwright": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      },
++      "optionalDependencies": {
++        "fsevents": "2.3.2"
++      }
++    },
++    "node_modules/playwright-core": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz",
++      "integrity": "sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "bin": {
++        "playwright-core": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      }
++    },
++    "node_modules/require-from-string": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/require-from-string/-/require-from-string-2.0.2.tgz",
++      "integrity": "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    }
++  }
++}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000..ca0864e
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,18 @@
++{
++  "name": "openiap-commerce-protocol-example",
++  "version": "0.0.0",
++  "private": true,
++  "type": "module",
++  "scripts": {
++    "start": "bun server.mjs",
++    "test": "bun verify.mjs",
++    "capture": "bun capture.mjs"
++  },
++  "dependencies": {
++    "openiap-commerce-protocol": "0.1.0",
++    "ajv": "^8.17.1"
++  },
++  "devDependencies": {
++    "@playwright/test": "1.62.1"
++  }
++}
+diff --git a/provider.mjs b/provider.mjs
+new file mode 100644
+index 0000000..3d358af
+--- /dev/null
++++ b/provider.mjs
+@@ -0,0 +1,121 @@
++import { Database } from "bun:sqlite";
++import { createHash, randomUUID } from "node:crypto";
++import {
++  providerCapabilitiesSchema,
++  COMMERCE_EVENT_VERSION,
++  HTTP_BINDING,
++} from "openiap-commerce-protocol";
++import { protocolError, validate } from "./contract.mjs";
++
++export const FIXTURE = Object.freeze({
++  store: "fixture",
++  evidence: "local-purchase-alice",
++  userId: "demo_alice",
++  productId: "premium.monthly",
++  startsAt: Date.UTC(2026, 8, 7, 9),
++  expiresAt: Date.UTC(2026, 9, 7, 9),
++});
++export const CREDENTIALS = Object.freeze({
++  verification: "Bearer local-demo-verification",
++  server: "Bearer local-demo-server",
++});
++const fingerprint = (value) => createHash("sha256").update(value).digest("hex");
++
++export function isEntitled(state, expiresAt, now) {
++  return (
++    (state === "Active" || state === "InGracePeriod") &&
++    (expiresAt == null || now < expiresAt)
++  );
++}
++
++export function createProvider(path, now) {
++  const db = new Database(path, { create: true });
++  db.exec(`
++    PRAGMA journal_mode = WAL;
++    CREATE TABLE IF NOT EXISTS purchases (
++      fingerprint TEXT PRIMARY KEY, user_id TEXT, product_id TEXT NOT NULL,
++      state TEXT NOT NULL, expires_at INTEGER NOT NULL, will_renew INTEGER NOT NULL,
++      observed_at INTEGER NOT NULL
++    );
++  `);
++
++  function snapshot(row) {
++    return {
++      productId: row.product_id,
++      state: row.state,
++      active: isEntitled(row.state, row.expires_at, now()),
++      store: FIXTURE.store,
++      expiresAt: row.expires_at,
++      willRenew: Boolean(row.will_renew),
++    };
++  }
++
++  function rowsFor(userId) {
++    return db.query("SELECT * FROM purchases WHERE user_id = ?").all(userId);
++  }
++
++  function entitlements(userId) {
++    const subscriptions = rowsFor(userId)
++      .map(snapshot)
++      .filter((row) => row.active);
++    return {
++      userId,
++      productIds: [...new Set(subscriptions.map((row) => row.productId))],
++      subscriptions,
++    };
++  }
++
++  const handlers = {
++  };
++
++  async function fetch(request) {
++    const url = new URL(request.url);
++    const spec = HTTP_BINDING.operations.find(
++      (entry) => entry.path === url.pathname && entry.method === request.method,
++    );
++    if (!spec) return protocolError("NOT_FOUND");
++    const auth = request.headers.get("authorization");
++    if (spec.auth !== "none") {
++      if (!Object.values(CREDENTIALS).includes(auth))
++        return protocolError("UNAUTHORIZED");
++      if (spec.auth === "server" && auth !== CREDENTIALS.server)
++        return protocolError("FORBIDDEN");
++    }
++    if (!handlers[spec.name]) return protocolError("UNSUPPORTED_PROFILE");
++    let input = null;
++    if (spec.input) {
++      try {
++        input =
++          request.method === "GET"
++            ? Object.fromEntries(url.searchParams)
++            : await request.json();
++      } catch {
++        return protocolError("INVALID_REQUEST");
++      }
++      if (!validate(spec.input, input)) return protocolError("INVALID_REQUEST");
++    }
++    try {
++      const result = handlers[spec.name](input);
++      if (result.error) return protocolError(result.error);
++      if (!validate(spec.result, result))
++        throw new Error("Invalid protocol response");
++      return Response.json(result, { status: spec.successStatus });
++    } catch {
++      return protocolError("INTERNAL_ERROR");
++    }
++  }
++
++  function inspect() {
++    return {
++      purchases: db
++        .query(
++          "SELECT user_id AS userId, product_id AS productId, state, will_renew AS willRenew FROM purchases",
++        )
++        .all(),
++      access: entitlements(FIXTURE.userId),
++      deliveries: [],
++    };
++  }
++
++  return { db, fetch, inspect, close: () => db.close() };
++}
+diff --git a/scenario.mjs b/scenario.mjs
+new file mode 100644
+index 0000000..4c814c3
+--- /dev/null
++++ b/scenario.mjs
+@@ -0,0 +1,80 @@
++import assert from "node:assert/strict";
++import { operation, validate } from "./contract.mjs";
++import { CREDENTIALS, FIXTURE } from "./provider.mjs";
++
++export const STAGES = [
++  {
++    "title": "Start with the contract",
++    "built": "HTTP routes + schema validation + SQLite",
++    "result": "A running server, an empty purchase table, and no access."
++  }
++];
++
++export async function requestOperation(baseUrl, name, input, role = "server") {
++  const spec = operation(name);
++  const url = new URL(spec.path, baseUrl);
++  if (spec.method === "GET" && input)
++    for (const [key, value] of Object.entries(input))
++      url.searchParams.set(key, value);
++  const response = await fetch(url, {
++    method: spec.method,
++    headers: {
++      "content-type": "application/json",
++      ...(role ? { authorization: CREDENTIALS[role] } : {}),
++    },
++    ...(spec.method === "POST" ? { body: JSON.stringify(input) } : {}),
++  });
++  return {
++    operation: name,
++    httpStatus: response.status,
++    body: await response.json(),
++  };
++}
++
++export function createScenario(runtime) {
++  const history = [];
++  const checks = [];
++  const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++  const call = (name, input, role) =>
++    requestOperation(runtime.baseUrl, name, input, role);
++  const check = (label, actual, expected) => {
++    assert.deepEqual(actual, expected, label);
++    checks.push(label);
++  };
++
++  async function advance() {
++    const stage = history.length;
++    if (stage >= STAGES.length) return history.at(-1);
++    const responses = [];
++    const run = async (name, input, role) => {
++      const result = await call(name, input, role);
++      responses.push(result);
++      return result;
++    };
++    const start = checks.length;
++    if (stage === 0) {
++      check("Fixture request matches the installed schema", validate(operation("verifyPurchase").input, evidence), true);
++      check(
++        "Discovery remains unsupported until an event can be emitted",
++        (await run("providerCapabilities", null, null)).httpStatus,
++        501,
++      );
++      check("Purchase storage starts empty", runtime.provider.inspect().purchases, []);
++      check("Unready discovery returns a portable error", (await run("providerCapabilities", null, null)).body.error.code, "UNSUPPORTED_PROFILE");
++    }
++    const entry = {
++      step: stage + 1,
++      ...STAGES[stage],
++      simulatedTime: new Date(runtime.time).toISOString(),
++      ...runtime.provider.inspect(),
++      inboxCount: 0,
++      responses,
++      checks: checks.slice(start),
++      totalChecks: checks.length,
++    };
++    history.push(entry);
++    return entry;
++  }
++
++  return { advance, history };
++}
+diff --git a/server.mjs b/server.mjs
+new file mode 100644
+index 0000000..fbac7e0
+--- /dev/null
++++ b/server.mjs
+@@ -0,0 +1,85 @@
++import { mkdtempSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { randomBytes } from "node:crypto";
++import { createProvider, FIXTURE } from "./provider.mjs";
++import { createScenario, STAGES } from "./scenario.mjs";
++
++export function startLab({ port = 0 } = {}) {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-lab-"));
++  const runtime = {
++    time: FIXTURE.startsAt,
++    secret: randomBytes(32).toString("hex"),
++    now: () => runtime.time,
++    restart() {
++      runtime.provider?.close();
++      runtime.provider = createProvider(
++        join(directory, "provider.sqlite"),
++        runtime.now,
++      );
++    },
++    post: (init) =>
++      fetch(`${runtime.baseUrl}/demo/receiver`, {
++        ...init,
++        redirect: "manual",
++        signal: AbortSignal.timeout(5000),
++      }),
++  };
++  runtime.restart();
++  let advancing = false;
++  const scenario = createScenario(runtime);
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port,
++    maxRequestBodySize: 64 * 1024,
++    async fetch(request) {
++      const url = new URL(request.url);
++      const origin = request.headers.get("origin");
++      if (
++        url.origin !== runtime.baseUrl ||
++        (origin && origin !== runtime.baseUrl)
++      )
++        return new Response("Local requests only", { status: 403 });
++      if (url.pathname.startsWith("/commerce/v1/"))
++        return runtime.provider.fetch(request);
++      if (url.pathname === "/demo/state" && request.method === "GET")
++        return Response.json({ stages: STAGES, history: scenario.history });
++      if (url.pathname === "/demo/advance" && request.method === "POST") {
++        if (advancing) return new Response("Step running", { status: 409 });
++        advancing = true;
++        try {
++          return Response.json(await scenario.advance());
++        } finally {
++          advancing = false;
++        }
++      }
++      if (url.pathname === "/" && request.method === "GET")
++        return new Response(
++          Bun.file(new URL("./dashboard.html", import.meta.url)),
++        );
++      return new Response("Not found", { status: 404 });
++    },
++  });
++  runtime.baseUrl = `http://127.0.0.1:${server.port}`;
++  return {
++    runtime,
++    scenario,
++    directory,
++    async close() {
++      await server.stop(true);
++      runtime.provider.close();
++    },
++  };
++}
++
++if (import.meta.main) {
++  const lab = startLab({ port: Number(process.env.COMMERCE_LAB_PORT ?? 5181) });
++  console.log(
++    `Commerce Lab: ${lab.runtime.baseUrl}\nDisposable SQLite files: ${lab.directory}\nFictional fixture store. No payments, credentials, or external services required.`,
++  );
++  for (const signal of ["SIGINT", "SIGTERM"])
++    process.on(signal, async () => {
++      await lab.close();
++      process.exit(0);
++    });
++}
+diff --git a/verify.mjs b/verify.mjs
+new file mode 100644
+index 0000000..e23c995
+--- /dev/null
++++ b/verify.mjs
+@@ -0,0 +1,29 @@
++import assert from "node:assert/strict";
++import { rmSync } from "node:fs";
++import { startLab } from "./server.mjs";
++import { STAGES, requestOperation } from "./scenario.mjs";
++
++export async function verifyLab() {
++  const lab = startLab();
++  const checks = [];
++  const check = (label, actual, expected) => {
++    assert.deepEqual(actual, expected, label);
++    checks.push(label);
++  };
++  try {
++    for (const stage of STAGES) await lab.scenario.advance();
++    checks.push(...lab.scenario.history.flatMap(entry => entry.checks));
++    const unsupported = "verifyPurchase";
++    const response = await requestOperation(lab.runtime.baseUrl, unsupported, {});
++    check("An unimplemented operation is explicitly refused", response.body.error.code, "UNSUPPORTED_PROFILE");
++    check("Untrusted browser origins are refused", (await fetch(lab.runtime.baseUrl + "/demo/advance", { method: "POST", headers: { origin: "https://untrusted.example" } })).status, 403);
++    return checks;
++  } finally {
++    await lab.close();
++    rmSync(lab.directory, {recursive:true, force:true});
++  }
++}
++if (import.meta.main) {
++  const checks = await verifyLab();
++  console.log(JSON.stringify({passed: checks.length, checks}, null, 2));
++}

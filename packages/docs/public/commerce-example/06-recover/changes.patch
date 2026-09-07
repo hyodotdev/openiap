@@ -1,0 +1,389 @@
+diff --git a/ai-task.md b/ai-task.md
+index 50efd02..1c910ca 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,6 +1,6 @@
+-# Deliver, retry, deduplicate
++# Expire access and restart
+ 
+-Add an HMAC receiver, durable inbox, and bounded retry worker. Exercise 503, reopen the database, retry successfully, then simulate a lost acknowledgement. Redelivery must have one inbox effect.
++Add expiry observations and recovery checks. Recheck access at the exact deadline before a notification arrives. Prove duplicate and late observations cannot reopen access. Review the full implementation and repeat failing checks after every correction.
+ 
+ Use the existing reviewed prototype where it satisfies the installed contract.
+ Run the backend, inspect the result, correct problems, and rerun the affected check.
+diff --git a/checkpoint.json b/checkpoint.json
+index 0f3893c..36c56ba 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,7 +1,7 @@
+ {
+-  "step": 5,
+-  "id": "05-deliver",
+-  "title": "Deliver, retry, deduplicate",
+-  "built": "HMAC signatures + retry worker + durable receiver inbox",
+-  "result": "A 503 retries successfully. Redelivery creates no second inbox row."
++  "step": 6,
++  "id": "06-recover",
++  "title": "Expire access and restart",
++  "built": "Expiry-aware reads + recovery from SQLite",
++  "result": "Access closes at the deadline. Restarting preserves purchases and deliveries."
+ }
+diff --git a/provider.mjs b/provider.mjs
+index 1e43f78..6e52c89 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -81,11 +81,15 @@ export function createProvider(path, now) {
+     };
+   }
+ 
+-  const eventTypes = ["subscription.canceled"];
++  const eventTypes = [
++    "subscription.canceled",
++    "subscription.expired",
++    "entitlement.revoked",
++  ];
+   const capabilityNames = Object.keys(
+     providerCapabilitiesSchema.$defs.StoreCapabilities.properties,
+   );
+-  const supported = new Set(["initialValidation", "subscriptions", "entitlements", "serverNotifications"]);
++  const supported = new Set(["initialValidation", "subscriptions", "entitlements", "serverNotifications", "expiration"]);
+   const capabilities = {
+     specVersion: HTTP_BINDING.protocolVersion,
+     implementation: { name: "Commerce Protocol Example — fictional fixture store" },
+@@ -193,7 +197,7 @@ export function createProvider(path, now) {
+ 
+   function observe({ id, kind, occurredAt }) {
+     if (
+-      !["cancel"].includes(kind) ||
++      !["cancel", "expire"].includes(kind) ||
+       !Number.isSafeInteger(occurredAt) ||
+       occurredAt > now()
+     ) {
+@@ -207,21 +211,30 @@ export function createProvider(path, now) {
+         .get(fingerprint(FIXTURE.evidence));
+       if (!row) throw new Error("Verify the fixture purchase first");
+       db.query("INSERT INTO observations VALUES (?)").run(id);
+-      if (occurredAt <= row.observed_at)
++      if (
++        occurredAt <= row.observed_at ||
++        (kind === "expire" && occurredAt < row.expires_at)
++      )
+         return false;
+       if (
+-        (kind === "cancel" && (!row.will_renew || row.state !== "Active"))
++        (kind === "cancel" && (!row.will_renew || row.state !== "Active")) ||
++        (kind === "expire" && row.state === "Expired")
+       )
+         return false;
++      const wasActive = isEntitled(row.state, row.expires_at, occurredAt - 1);
+       const next = {
+         ...row,
+         will_renew: 0,
+-        state: row.state,
++        state: kind === "expire" ? "Expired" : row.state,
+       };
+       db.query(
+         "UPDATE purchases SET state = ?, will_renew = 0, observed_at = ? WHERE fingerprint = ?",
+       ).run(next.state, occurredAt, row.fingerprint);
+-      const types = ["subscription.canceled"];
++      const types = [
++        kind === "cancel" ? "subscription.canceled" : "subscription.expired",
++      ];
++      if (kind === "expire" && wasActive && row.user_id)
++        types.push("entitlement.revoked");
+       for (const eventType of types) {
+         const body = {
+           eventId: randomUUID(),
+diff --git a/scenario.mjs b/scenario.mjs
+index 366fb01..2d4e3b9 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -28,6 +28,11 @@ export const STAGES = [
+     "title": "Deliver, retry, deduplicate",
+     "built": "HMAC signatures + retry worker + durable receiver inbox",
+     "result": "A 503 retries successfully. Redelivery creates no second inbox row."
++  },
++  {
++    "title": "Expire access and restart",
++    "built": "Expiry-aware reads + recovery from SQLite",
++    "result": "Access closes at the deadline. Restarting preserves purchases and deliveries."
+   }
+ ];
+ 
+@@ -220,6 +225,52 @@ export function createScenario(runtime) {
+         runtime.receiver.count(),
+         1,
+       );
++    } else if (stage === 5) {
++      runtime.time = FIXTURE.expiresAt;
++      check(
++        "Access closes at expiry before a notification arrives",
++        (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
++        [],
++      );
++      const observation = {
++        id: "fixture-expire",
++        kind: "expire",
++        occurredAt: runtime.time,
++      };
++      runtime.provider.observe(observation);
++      check(
++        "Duplicate store notification emits no extra event",
++        runtime.provider.observe(observation),
++        false,
++      );
++      const before = runtime.provider.inspect();
++      runtime.restart();
++      check(
++        "Reopening both databases preserves state",
++        runtime.provider.inspect(),
++        before,
++      );
++      check(
++        "Receiver deduplication survives restart",
++        runtime.receiver.count(),
++        1,
++      );
++      responses.push({
++        operation: "webhook: expiry + revocation",
++        body: await deliver(
++          runtime.provider,
++          runtime.secret,
++          runtime.now,
++          runtime.post,
++        ),
++      });
++      check("All three events reach the receiver", runtime.receiver.count(), 3);
++      check(
++        "The final status is inactive",
++        (await run("subscriptionStatus", { userId: FIXTURE.userId })).body
++          .active,
++        false,
++      );
+     }
+     const entry = {
+       step: stage + 1,
+diff --git a/verify.mjs b/verify.mjs
+index 117ecca..3884882 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -1,9 +1,13 @@
+ import assert from "node:assert/strict";
+ import { rmSync } from "node:fs";
++import vectors from "openiap-commerce-protocol/vectors/signatures.json";
++import { SUBSCRIPTION_STATES, WEBHOOK } from "openiap-commerce-protocol";
++import { FIXTURE, isEntitled } from "./provider.mjs";
++import { requestOperation } from "./scenario.mjs";
+ import { startLab } from "./server.mjs";
+-import { STAGES, requestOperation } from "./scenario.mjs";
++import { authentic, deliver, sign } from "./webhooks.mjs";
+ 
+-export async function verifyLab() {
++export async function verifyLab({ compareSigner } = {}) {
+   const lab = startLab();
+   const checks = [];
+   const check = (label, actual, expected) => {
+@@ -11,19 +15,194 @@ export async function verifyLab() {
+     checks.push(label);
+   };
+   try {
+-    for (const stage of STAGES) await lab.scenario.advance();
+-    checks.push(...lab.scenario.history.flatMap(entry => entry.checks));
+-    const unsupported = "eraseUser";
+-    const response = await requestOperation(lab.runtime.baseUrl, unsupported, {});
+-    check("An unimplemented operation is explicitly refused", response.body.error.code, "UNSUPPORTED_PROFILE");
+-    check("Untrusted browser origins are refused", (await fetch(lab.runtime.baseUrl + "/demo/advance", { method: "POST", headers: { origin: "https://untrusted.example" } })).status, 403);
+-    return checks;
++    for (let i = 0; i < 6; i++) await lab.scenario.advance();
++    checks.push(...lab.scenario.history.flatMap((entry) => entry.checks));
++    for (const vector of vectors.cases) {
++      const signature = sign(vector.secret, vector.timestamp, vector.body);
++      const expected = vector.previousSecret
++        ? `${signature},${sign(vector.previousSecret, vector.timestamp, vector.body)}`
++        : signature;
++      check(`Signature vector: ${vector.name}`, expected, vector.expected);
++      if (compareSigner) {
++        check(
++          `IAPKit signs the same bytes: ${vector.name}`,
++          signature,
++          await compareSigner(vector.secret, vector.timestamp, vector.body),
++        );
++      }
++      check(
++        `Receiver accepts vector: ${vector.name}`,
++        authentic(
++          [vector.secret],
++          String(vector.timestamp),
++          vector.body,
++          vector.presentedHeader ?? expected,
++          vector.timestamp,
++        ),
++        true,
++      );
++    }
++    for (const vector of vectors.rejections) {
++      check(
++        `Receiver rejects: ${vector.name}`,
++        authentic(
++          [vector.secret],
++          String(vector.timestamp),
++          vector.body,
++          vector.presentedSignature,
++          vector.receiverNow ?? vector.timestamp,
++        ),
++        false,
++      );
++    }
++    for (const state of [...SUBSCRIPTION_STATES, "FutureState"]) {
++      const eligible = state === "Active" || state === "InGracePeriod";
++      check(`${state}: before expiry`, isEntitled(state, 100, 99), eligible);
++      check(`${state}: at expiry`, isEntitled(state, 100, 100), false);
++      check(
++        `${state}: no deadline`,
++        isEntitled(state, undefined, 100),
++        eligible,
++      );
++    }
++    const call = (name, input, role) =>
++      requestOperation(lab.runtime.baseUrl, name, input, role);
++    check(
++      "Missing credentials are refused",
++      (await call("entitlements", { userId: FIXTURE.userId }, null)).httpStatus,
++      401,
++    );
++    check(
++      "Verification role cannot enumerate users",
++      (await call("entitlements", { userId: FIXTURE.userId }, "verification"))
++        .httpStatus,
++      403,
++    );
++    check(
++      "Malformed input is refused",
++      (await call("bindPurchase", { store: FIXTURE.store })).httpStatus,
++      400,
++    );
++    check(
++      "A real store is not falsely accepted",
++      (
++        await call("verifyPurchase", {
++          store: "google",
++          google: { purchaseToken: "fixture" },
++        })
++      ).body.error.code,
++      "UNSUPPORTED_STORE",
++    );
++    check(
++      "Erasure is explicitly unimplemented",
++      (await call("eraseUser", { userId: FIXTURE.userId })).body.error.code,
++      "UNSUPPORTED_PROFILE",
++    );
++    check(
++      "Late cancellation cannot reopen expired access",
++      lab.runtime.provider.observe({
++        id: "late-cancel",
++        kind: "cancel",
++        occurredAt: FIXTURE.startsAt + 1000,
++      }),
++      false,
++    );
++    const body = lab.runtime.provider.db
++      .query("SELECT body FROM outbox LIMIT 1")
++      .get().body;
++    const timestamp = Math.floor(lab.runtime.time / 1000).toString();
++    const invalid = await lab.runtime.receiver.fetch(
++      new Request(`${lab.runtime.baseUrl}/demo/receiver`, {
++        method: "POST",
++        body: body + " ",
++        headers: {
++          [WEBHOOK.timestampHeader]: timestamp,
++          [WEBHOOK.signatureHeader]: sign(lab.runtime.secret, timestamp, body),
++        },
++      }),
++    );
++    check("Tampered HTTP body has no inbox effect", invalid.status, 401);
++    check(
++      "Receiver still has exactly three events",
++      lab.runtime.receiver.count(),
++      3,
++    );
++    check(
++      "Cross-origin demo mutations are refused",
++      (
++        await fetch(`${lab.runtime.baseUrl}/demo/advance`, {
++          method: "POST",
++          headers: { origin: "https://untrusted.example" },
++        })
++      ).status,
++      403,
++    );
+   } finally {
+     await lab.close();
+-    rmSync(lab.directory, {recursive:true, force:true});
++    rmSync(lab.directory, { recursive: true, force: true });
+   }
++
++  const fresh = startLab();
++  try {
++    const call = (name, input) =>
++      requestOperation(fresh.runtime.baseUrl, name, input);
++    const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++    await call("verifyPurchase", evidence);
++    const bindings = await Promise.all(
++      ["alice", "bob"].map((userId) =>
++        call("bindPurchase", { ...evidence, userId }),
++      ),
++    );
++    check(
++      "Concurrent ownership claims have one winner",
++      bindings.filter((row) => row.body.bound).length,
++      1,
++    );
++    fresh.runtime.time += 1000;
++    const observation = {
++      id: "atomic-cancel",
++      kind: "cancel",
++      occurredAt: fresh.runtime.time,
++    };
++    fresh.runtime.provider.db.exec(
++      "CREATE TRIGGER fail_outbox BEFORE INSERT ON outbox BEGIN SELECT RAISE(ABORT, 'injected disk failure'); END;",
++    );
++    assert.throws(() => fresh.runtime.provider.observe(observation));
++    check(
++      "Outbox failure rolls back subscription state",
++      fresh.runtime.provider.inspect().purchases[0].willRenew,
++      1,
++    );
++    fresh.runtime.provider.db.exec("DROP TRIGGER fail_outbox");
++    check(
++      "Failed transaction leaves the observation retryable",
++      fresh.runtime.provider.observe(observation),
++      true,
++    );
++    for (let attempt = 0; attempt < 3; attempt++) {
++      fresh.runtime.time += 120_000;
++      await deliver(
++        fresh.runtime.provider,
++        fresh.runtime.secret,
++        fresh.runtime.now,
++        async () => new Response(null, { status: 503 }),
++      );
++    }
++    check(
++      "Exhausted retries enter dead-letter",
++      fresh.runtime.provider.inspect().deliveries[0].status,
++      "dead-letter",
++    );
++  } finally {
++    await fresh.close();
++    rmSync(fresh.directory, { recursive: true, force: true });
++  }
++  return checks;
+ }
++
+ if (import.meta.main) {
+   const checks = await verifyLab();
+-  console.log(JSON.stringify({passed: checks.length, checks}, null, 2));
++  console.log(
++    `Commerce Lab: ${checks.length} checks passed. No store or production service contacted.`,
++  );
+ }

@@ -6,12 +6,13 @@ import ExternalRedirect from '../../components/ExternalRedirect';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 import commerceEventSchema from 'openiap-commerce-protocol/generated/schemas/commerce-event.schema.json';
+import { Link } from 'react-router-dom';
+import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 
 const KNOWN_COMMERCE_EVENT_TYPES =
   commerceEventSchema.properties.eventType.examples;
 
-const SPEC_URL =
-  'https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md#94-webhook-contract';
+const SPEC_URL = `${COMMERCE_PROTOCOL_LINKS.spec}#94-webhook-contract`;
 const GRAPHQL_CONTRACT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema';
 const SIGNATURE_VECTORS_URL =
@@ -101,6 +102,17 @@ function Webhooks() {
       <pre>
         <code>Store → conforming backend → consumer HTTPS endpoint</code>
       </pre>
+      <p>
+        To receive events in your product, start with the{' '}
+        <a
+          href={`${COMMERCE_PROTOCOL_LINKS.example}/blob/main/docs/receiver.md`}
+        >
+          working receiver and setup guide
+        </a>
+        . Run <code>npm run demo:consumer</code> in the example project to see
+        accepted, repeated, and tampered deliveries before connecting a
+        provider.
+      </p>
       <Callout kind="important">
         This contract is server-to-server. It defines no backend-to-app event
         stream, SSE endpoint, WebSocket, push relay, or long-poll feed. Device
@@ -168,8 +180,10 @@ function Webhooks() {
           </li>
           <li>Compare signatures in constant time.</li>
           <li>
-            Parse the verified body, then atomically deduplicate on its{' '}
-            <code>eventId</code> before side effects.
+            Parse and validate the verified body, then persist and deduplicate
+            its <code>eventId</code> within the configured emitter/project scope
+            before acknowledging delivery. An ID from one emitter must not
+            suppress another emitter's event.
           </li>
         </ol>
         <Callout kind="warning">
@@ -185,9 +199,9 @@ function Webhooks() {
         <p>
           An emitter retries transient failures with exponential backoff and
           eventually stops and dead-letters an unaccepted delivery. A consumer
-          may receive zero, one, or several copies, so it acknowledges before
-          slow downstream work and remains idempotent on the stable{' '}
-          <code>eventId</code>.
+          may receive zero, one, or several copies. Acknowledge after durable
+          ingestion and before slow downstream work. Keep those downstream
+          effects idempotent on the stable <code>eventId</code>.
         </p>
         <DataTable
           className="webhook-response-table"
@@ -199,6 +213,17 @@ function Webhooks() {
           Retries and independent queues can reorder events. Consumers use{' '}
           <code>occurredAt</code> to prevent an older snapshot from overwriting
           newer state, while still processing independent idempotent effects.
+        </p>
+        <p>
+          A subscription's <code>active</code> value is a snapshot at
+          <code> processedAt</code>. Never grant access at or after its
+          <code> expiresAt</code>; refresh current access when needed. A
+          cancellation stops renewal and does not remove the remaining paid
+          period. See{' '}
+          <Link to="/commerce-protocol/getting-started#ongoing-access">
+            ongoing access
+          </Link>
+          .
         </p>
       </section>
 

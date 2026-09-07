@@ -1,0 +1,324 @@
+diff --git a/ai-task.md b/ai-task.md
+index fe0a957..251443c 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,6 +1,6 @@
+-# Connect it to a user
++# Handle cancellation
+ 
+-Add server-only ownership binding, subscription status, and entitlement reads. Verify the same owner can repeat a bind, another owner cannot take it, and verification credentials cannot bind. Show Alice gaining Premium.
++Add cancellation observations and a transactional event outbox. A cancellation stops renewal but preserves the paid period. Do not add delivery until its own milestone.
+ 
+ Use the existing reviewed prototype where it satisfies the installed contract.
+ Run the backend, inspect the result, correct problems, and rerun the affected check.
+diff --git a/capture.mjs b/capture.mjs
+index ed28b0c..7a4ffc3 100644
+--- a/capture.mjs
++++ b/capture.mjs
+@@ -18,7 +18,7 @@ const startedAt = new Date().toISOString();
+ let checks;
+ try {
+   checks = await verifyLab();
+-  writeFileSync(join(output, `attempt-${attempt}.txt`), JSON.stringify({ startedAt, command: 'npm test', passed: checks.length, checks }, null, 2));
++  writeFileSync(join(output, `attempt-${attempt}.txt`), JSON.stringify({ startedAt, command: 'npm run capture', verifier: 'verifyLab() (also used by npm test)', passed: checks.length, checks }, null, 2));
+ } catch (error) {
+   writeFileSync(join(output, `attempt-${attempt}.txt`), `${startedAt}\n${error.stack}\n`);
+   throw error;
+@@ -53,7 +53,20 @@ try {
+   assert.deepEqual(errors, []);
+   assert.equal(await page.locator('#error').textContent(), '');
+   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
++  const responses = page.locator('#responses details');
++  if (await responses.count()) {
++    const wasOpen = (await responses.last().getAttribute('open')) !== null;
++    if (wasOpen) await responses.last().locator('summary').click();
++    assert.equal(await responses.last().getAttribute('open'), null);
++    await responses.last().locator('summary').click();
++    assert.equal(await responses.last().getAttribute('open'), '');
++    assert(await responses.last().locator('pre').isVisible());
++    if (!wasOpen) await responses.last().locator('summary').click();
++  }
+   await page.screenshot({ path: join(output, 'screen.png'), fullPage: true });
++  await page.setViewportSize({ width: 390, height: 844 });
++  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
++  await page.screenshot({ path: join(output, 'mobile.png'), fullPage: true });
+   const history = lab.scenario.history;
+   const record = {
+     ...checkpoint,
+@@ -71,6 +84,9 @@ try {
+   rmSync(previous, { recursive: true, force: true });
+   cpSync(current, previous, { recursive: true });
+   console.log(`Captured ${checkpoint.id}: ${checks.length} checks, ${files.length} source files.`);
++} catch (error) {
++  writeFileSync(join(output, `browser-failure-${attempt}.txt`), `${new Date().toISOString()}\n${error.stack}\n`);
++  throw error;
+ } finally {
+   await browser.close();
+   await lab.close();
+diff --git a/checkpoint.json b/checkpoint.json
+index 2381a61..8fdd5c2 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,7 +1,7 @@
+ {
+-  "step": 3,
+-  "id": "03-bind",
+-  "title": "Connect it to a user",
+-  "built": "Server authorization + atomic binding + entitlement reads",
+-  "result": "Alice gets Premium. Another user cannot take the purchase."
++  "step": 4,
++  "id": "04-cancel",
++  "title": "Handle cancellation",
++  "built": "Lifecycle processing + transactional event outbox",
++  "result": "Renewal stops. Alice keeps the time she already paid for."
+ }
+diff --git a/dashboard.html b/dashboard.html
+index 85b613b..b283719 100644
+--- a/dashboard.html
++++ b/dashboard.html
+@@ -87,6 +87,8 @@
+         outline: 3px solid white;
+         outline-offset: 4px;
+       }
++      #responses details + details { border-top: 1px solid #334138; margin-top: 12px; padding-top: 12px; }
++      summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+       ol {
+         display: grid;
+         grid-template-columns: repeat(6, 1fr);
+@@ -203,7 +205,9 @@
+         .metrics {
+           grid-template-columns: 1fr 1fr;
+         }
+-        ol {
++        #responses details + details { border-top: 1px solid #334138; margin-top: 12px; padding-top: 12px; }
++      summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
++      ol {
+           grid-template-columns: repeat(3, 1fr);
+         }
+         header {
+@@ -267,7 +271,7 @@
+         </div>
+         <section>
+           <h2>Actual request results</h2>
+-          <pre id="responses">Waiting for the first HTTP request…</pre>
++          <div id="responses">Waiting for the first HTTP request…</div>
+         </section>
+       </div>
+       <p id="error" role="alert"></p>
+@@ -356,12 +360,17 @@
+           p.textContent = `✓ ${check}`;
+           $("proofs").append(p);
+         }
+-        $("responses").textContent = current.responses
+-          .map(
+-            (r) =>
+-              `${r.operation}${r.httpStatus ? ` · HTTP ${r.httpStatus}` : ""}\n${JSON.stringify(r.body, null, 2)}`,
+-          )
+-          .join("\n\n");
++        $("responses").replaceChildren();
++        for (const [index, response] of current.responses.entries()) {
++          const detail = document.createElement("details");
++          detail.open = index === 0;
++          const summary = document.createElement("summary");
++          summary.textContent = `${response.operation}${response.httpStatus ? ` · HTTP ${response.httpStatus}` : ""}`;
++          const body = document.createElement("pre");
++          body.textContent = JSON.stringify(response.body, null, 2);
++          detail.append(summary, body);
++          $("responses").append(detail);
++        }
+       }
+       $("next").onclick = async () => {
+         $("next").disabled = true;
+diff --git a/provider.mjs b/provider.mjs
+index be4eb4b..1e43f78 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -47,6 +47,12 @@ export function createProvider(path, now) {
+       state TEXT NOT NULL, expires_at INTEGER NOT NULL, will_renew INTEGER NOT NULL,
+       observed_at INTEGER NOT NULL
+     );
++    CREATE TABLE IF NOT EXISTS observations (id TEXT PRIMARY KEY);
++    CREATE TABLE IF NOT EXISTS outbox (
++      event_id TEXT PRIMARY KEY, delivery_id TEXT NOT NULL, body TEXT NOT NULL,
++      attempts INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'pending',
++      next_at INTEGER NOT NULL DEFAULT 0
++    );
+   `);
+ 
+   function snapshot(row) {
+@@ -75,7 +81,32 @@ export function createProvider(path, now) {
+     };
+   }
+ 
++  const eventTypes = ["subscription.canceled"];
++  const capabilityNames = Object.keys(
++    providerCapabilitiesSchema.$defs.StoreCapabilities.properties,
++  );
++  const supported = new Set(["initialValidation", "subscriptions", "entitlements", "serverNotifications"]);
++  const capabilities = {
++    specVersion: HTTP_BINDING.protocolVersion,
++    implementation: { name: "Commerce Protocol Example — fictional fixture store" },
++    eventTypes,
++    stores: {
++      fixture: Object.fromEntries(
++        capabilityNames.map((key) => [
++          key,
++          {
++            provider: supported.has(key),
++            implementation: supported.has(key),
++            notes:
++              "Local fixture demonstration only; no real store integration or profile conformance claim.",
++          },
++        ]),
++      ),
++    },
++  };
++
+   const handlers = {
++    providerCapabilities: () => capabilities,
+     verifyPurchase(input) {
+       const verdict = verifyFixture(input);
+       if (verdict.error) return verdict;
+@@ -160,6 +191,62 @@ export function createProvider(path, now) {
+     }
+   }
+ 
++  function observe({ id, kind, occurredAt }) {
++    if (
++      !["cancel"].includes(kind) ||
++      !Number.isSafeInteger(occurredAt) ||
++      occurredAt > now()
++    ) {
++      throw new Error("Invalid fixture observation");
++    }
++    return db.transaction(() => {
++      if (db.query("SELECT id FROM observations WHERE id = ?").get(id))
++        return false;
++      const row = db
++        .query("SELECT * FROM purchases WHERE fingerprint = ?")
++        .get(fingerprint(FIXTURE.evidence));
++      if (!row) throw new Error("Verify the fixture purchase first");
++      db.query("INSERT INTO observations VALUES (?)").run(id);
++      if (occurredAt <= row.observed_at)
++        return false;
++      if (
++        (kind === "cancel" && (!row.will_renew || row.state !== "Active"))
++      )
++        return false;
++      const next = {
++        ...row,
++        will_renew: 0,
++        state: row.state,
++      };
++      db.query(
++        "UPDATE purchases SET state = ?, will_renew = 0, observed_at = ? WHERE fingerprint = ?",
++      ).run(next.state, occurredAt, row.fingerprint);
++      const types = ["subscription.canceled"];
++      for (const eventType of types) {
++        const body = {
++          eventId: randomUUID(),
++          eventType,
++          eventVersion: COMMERCE_EVENT_VERSION,
++          occurredAt,
++          processedAt: now(),
++          store: FIXTURE.store,
++          environment: "local-fixture",
++          projectId: "commerce_lab",
++          productId: row.product_id,
++          ...(row.user_id ? { userId: row.user_id } : {}),
++          subscription: snapshot(next),
++          sourceStoreEventId: id,
++        };
++        if (!validate("#/$defs/CommerceEvent", body))
++          throw new Error("Invalid event");
++        db.query(
++          "INSERT INTO outbox (event_id, delivery_id, body) VALUES (?, ?, ?)",
++        ).run(body.eventId, randomUUID(), JSON.stringify(body));
++      }
++      return true;
++    })();
++  }
++
+   function inspect() {
+     return {
+       purchases: db
+@@ -168,9 +255,17 @@ export function createProvider(path, now) {
+         )
+         .all(),
+       access: entitlements(FIXTURE.userId),
+-      deliveries: [],
++      deliveries: db
++        .query(
++          "SELECT event_id AS eventId, delivery_id AS deliveryId, attempts, status, body FROM outbox ORDER BY rowid",
++        )
++        .all()
++        .map(({ body, ...row }) => ({
++          ...row,
++          eventType: JSON.parse(body).eventType,
++        })),
+     };
+   }
+ 
+-  return { db, fetch, inspect, close: () => db.close() };
++  return { db, fetch, observe, inspect, close: () => db.close() };
+ }
+diff --git a/scenario.mjs b/scenario.mjs
+index 2df52f6..704b80e 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -17,6 +17,11 @@ export const STAGES = [
+     "title": "Connect it to a user",
+     "built": "Server authorization + atomic binding + entitlement reads",
+     "result": "Alice gets Premium. Another user cannot take the purchase."
++  },
++  {
++    "title": "Handle cancellation",
++    "built": "Lifecycle processing + transactional event outbox",
++    "result": "Renewal stops. Alice keeps the time she already paid for."
+   }
+ ];
+ 
+@@ -65,12 +70,12 @@ export function createScenario(runtime) {
+     if (stage === 0) {
+       check("Fixture request matches the installed schema", validate(operation("verifyPurchase").input, evidence), true);
+       check(
+-        "Discovery remains unsupported until an event can be emitted",
++        "Capabilities use the published response schema",
+         (await run("providerCapabilities", null, null)).httpStatus,
+-        501,
++        200,
+       );
+       check("Purchase storage starts empty", runtime.provider.inspect().purchases, []);
+-      check("Unready discovery returns a portable error", (await run("providerCapabilities", null, null)).body.error.code, "UNSUPPORTED_PROFILE");
++      check("No profile conformance is claimed", (await run("providerCapabilities", null, null)).body.profiles, undefined);
+     } else if (stage === 1) {
+       check(
+         "Fixture evidence is accepted",
+@@ -139,6 +144,27 @@ export function createScenario(runtime) {
+         (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
+         [FIXTURE.productId],
+       );
++    } else if (stage === 3) {
++      runtime.time = FIXTURE.startsAt + 86_400_000;
++      runtime.provider.observe({
++        id: "fixture-cancel",
++        kind: "cancel",
++        occurredAt: runtime.time,
++      });
++      const result = await run("subscriptionStatus", {
++        userId: FIXTURE.userId,
++      });
++      check("Cancellation keeps paid access", result.body.active, true);
++      check(
++        "Cancellation stops renewal",
++        result.body.subscription.willRenew,
++        false,
++      );
++      check(
++        "Cancellation queues one event",
++        runtime.provider.inspect().deliveries.length,
++        1,
++      );
+     }
+     const entry = {
+       step: stage + 1,

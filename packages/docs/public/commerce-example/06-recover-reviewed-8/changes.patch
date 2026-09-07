@@ -1,0 +1,167 @@
+diff --git a/README.md b/README.md
+index 0f28606..ec1ec9a 100644
+--- a/README.md
++++ b/README.md
+@@ -28,10 +28,10 @@ current access, delivery attempts, and expandable request/response details.
+ No store account, API key, OpenIAP checkout, or IAPKit account is required.
+ Modern Yarn uses the included `node_modules` linker.
+ 
+-![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-7/screen.png)
++![The completed local backend: expired access, delivered events, and inspectable responses](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/main/docs/build/06-recover-reviewed-8/screen.png)
+ 
+ The screenshot comes from an executed source checkpoint. See its
+-[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-7/run.json)
++[run report](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/06-recover-reviewed-8/run.json)
+ and the [complete build history](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md).
+ 
+ ## What you will see
+diff --git a/ai-task.md b/ai-task.md
+index 48a1cf9..7a2e80f 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -55,3 +55,9 @@ corrected tooling, verify every source revision, and rerun GitHub CI.
+ Correct the final CLI review finding: exercise cancellation at the expiry
+ observation timestamp so the check reaches the expired-state guard. Preserve
+ the earlier capture, record this revision, and verify its archive and patch.
++
++Apply the Codex review: authenticate webhook body bytes before UTF-8 decoding.
++Reject altered UTF-8 and inserted BOM bytes with an unchanged signature. Reject
++authentically signed malformed UTF-8 before storage, and accept correctly signed
++Unicode and BOM bodies. Keep the reproduced failure, preserve old checkpoints,
++then capture and verify the corrected revision.
+diff --git a/checkpoint.json b/checkpoint.json
+index b2f30bb..5ee086d 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 6,
+-  "id": "06-recover-reviewed-7",
++  "id": "06-recover-reviewed-8",
+   "title": "Expire access and restart",
+-  "built": "Verified cancellation at expiry and preserved review evidence",
++  "built": "Exact-byte webhook authentication with Unicode regression checks",
+   "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-6"
++  "previous": "06-recover-reviewed-7"
+ }
+diff --git a/verify.mjs b/verify.mjs
+index 08731f7..0c0f246 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -7,7 +7,7 @@ import { requestOperation } from "./scenario.mjs";
+ import { runConsumerDemo } from "./consumer.mjs";
+ import { runBridgeDemo } from "./client-bridge.mjs";
+ import { startLab } from "./server.mjs";
+-import { authentic, deliver, sign } from "./webhooks.mjs";
++import { authentic, createReceiver, deliver, sign } from "./webhooks.mjs";
+ 
+ export async function verifyLab({ compareSigner } = {}) {
+   const lab = startLab();
+@@ -133,6 +133,65 @@ export async function verifyLab({ compareSigner } = {}) {
+       }),
+     );
+     check("Tampered HTTP body has no inbox effect", invalid.status, 401);
++    const byteReceiver = createReceiver(
++      ":memory:",
++      lab.runtime.secret,
++      () => lab.runtime.time,
++    );
++    try {
++      const event = { ...JSON.parse(body), userId: "demo_\uFFFD" };
++      const unicode = Buffer.from(JSON.stringify(event));
++      const offset = unicode.indexOf(Buffer.from("\uFFFD"));
++      const malformed = Buffer.concat([
++        unicode.subarray(0, offset),
++        Buffer.from([0xff]),
++        unicode.subarray(offset + 3),
++      ]);
++      const withBom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), unicode]);
++      const send = (bytes, signedBytes = unicode) =>
++        byteReceiver.fetch(
++          new Request(`${lab.runtime.baseUrl}/demo/receiver`, {
++            method: "POST",
++            body: bytes,
++            headers: {
++              [WEBHOOK.timestampHeader]: timestamp,
++              [WEBHOOK.signatureHeader]: sign(
++                lab.runtime.secret,
++                timestamp,
++                signedBytes,
++              ),
++              [WEBHOOK.eventIdHeader]: event.eventId,
++            },
++          }),
++        );
++      for (const [label, bytes] of [
++        ["Changed UTF-8 bytes", malformed],
++        ["Inserted UTF-8 BOM", withBom],
++      ]) {
++        check(
++          `${label} cannot reuse a signature`,
++          [(await send(bytes)).status, byteReceiver.count()],
++          [401, 0],
++        );
++      }
++      check(
++        "Authenticated malformed UTF-8 is rejected before storage",
++        [(await send(malformed, malformed)).status, byteReceiver.count()],
++        [400, 0],
++      );
++      check(
++        "Authentic Unicode bytes are accepted and stored",
++        [(await send(unicode)).status, byteReceiver.count()],
++        [200, 1],
++      );
++      check(
++        "Authentic BOM bytes are verified before decoding",
++        [(await send(withBom, withBom)).status, byteReceiver.count()],
++        [200, 1],
++      );
++    } finally {
++      byteReceiver.close();
++    }
+     check(
+       "Receiver still has exactly four events",
+       lab.runtime.receiver.count(),
+diff --git a/webhooks.mjs b/webhooks.mjs
+index 796dc79..d7035a2 100644
+--- a/webhooks.mjs
++++ b/webhooks.mjs
+@@ -6,7 +6,10 @@ import { validate } from "./contract.mjs";
+ export function sign(secret, timestamp, body) {
+   return (
+     WEBHOOK.signaturePrefix +
+-    createHmac("sha256", secret).update(`${timestamp}.${body}`).digest("hex")
++    createHmac("sha256", secret)
++      .update(`${timestamp}.`)
++      .update(body)
++      .digest("hex")
+   );
+ }
+ 
+@@ -36,20 +39,21 @@ export function createReceiver(path, secret, now) {
+   );
+ 
+   async function fetch(request) {
+-    const body = await request.text();
++    const bytes = new Uint8Array(await request.arrayBuffer());
+     if (
+       !authentic(
+         [secret],
+         request.headers.get(WEBHOOK.timestampHeader),
+-        body,
++        bytes,
+         request.headers.get(WEBHOOK.signatureHeader),
+         Math.floor(now() / 1000),
+       )
+     ) {
+       return new Response("Invalid signature", { status: 401 });
+     }
+-    let event;
++    let body, event;
+     try {
++      body = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+       event = JSON.parse(body);
+     } catch {
+       return new Response("Invalid JSON", { status: 400 });
