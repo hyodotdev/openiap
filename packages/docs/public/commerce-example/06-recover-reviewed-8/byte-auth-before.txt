@@ -1,0 +1,2 @@
+{"label":"UTF-8 replacement","httpStatus":200,"inbox":1}
+{"label":"Inserted BOM","httpStatus":200,"inbox":1}

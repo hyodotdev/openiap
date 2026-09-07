@@ -1,6 +1,40 @@
 {
+  "step": 6,
+  "id": "06-recover-reviewed-8",
+  "title": "Expire access and restart",
+  "built": "Exact-byte webhook authentication with Unicode regression checks",
+  "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+  "previous": "06-recover-reviewed-7",
+  "startedAt": "2026-09-07T18:19:57.597Z",
   "recordedAt": "2026-09-07T18:20:02.056Z",
-  "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.",
+  "packageVersion": "0.1.0",
+  "task": "# Review the completed backend\n\nApply the Fable 5.1 max CLI review to the final checkpoint. Add the missing\nfirst-binding grant event in the same transaction as ownership, reject a\npremature expiry without consuming its observation, and verify both rollback\nand expiry boundaries. Correct test labels to describe what they exercise.\n\nRepair patch generation without rewriting historical source or screenshots.\nBuild patches from the preceding archived source and verify their hashes.\nInstall and test each archive outside the monorepo with npm. Capture the revised\nfinal screen on desktop and mobile, then export only matching source evidence.\n\nKeep the original six checkpoints as history. Explain their incomplete discovery\nand missing grant behavior; do not describe them as conformant providers. Keep\nall changes uncommitted for maintainer review.\n\nApply the second review: retain gate delivery state for delayed expiry,\nretain store occurrence on delayed binding, preserve consecutive failure logs,\nand state actual package contents and runtime requirements. Add a ready-to-run\ngeneric event receiver for an existing backend, reusing the same receiver\nhandler. Demonstrate signed lifecycle ingestion, duplicate delivery, tampering,\nand persisted inbox recovery over real local HTTP. Keep all samples fictional.\n\nAdd composable integration roles: experience, commerce, and data. Ship a short\nAI integration brief and a backend helper that maps Apple/Google OpenIAP\npurchase fields into the installed verification schema. Test invalid inputs\nand exclude client-supplied identity. Keep paywall UI APIs product-specific,\ncurrent IAPKit-only client helpers explicit, and store/device proof separate\nfrom local fixtures. Reuse the existing consumer and contract validators.\n\nThe first bridge test failed because store evidence was nested under an extra\n`evidence` key. Keep the failure output, use the installed input schema's\ntop-level `apple`/`google` members, and rerun that boundary check.\n\nApply the third CLI review. Make the integration brief reachable from the docs\nsite with absolute setup, source, and build-brief links. Accept signed webhook\ndelivery behind a reverse proxy that preserves the public Host header. Keep\nunfinished captures from blocking completed history, retain equal-time fixture\ntransitions, record the observed duplicate response, and configure Yarn's\nnode-modules linker. Preserve the proxy failure and rerun the checks.\n\nPrepare the standalone example for its first public commit. Rewrite the README\naround clone, run, inspect, choose a role, and verify. Put receiver and capture\nsetup in repository documentation so the example works before the docs site is\ndeployed. Preserve every earlier archive. Record this documentation revision,\nverify all source archives again, and export a stable current-source download.\nAdd CI that tests runtime, tooling, archives and the documentation export. This\nrevision is a local publication review, not another completed external review.\n\nFix the first Linux CI failure without rewriting historical recordings. macOS\nAppleDouble metadata must not count as source. Exclude it on extraction, omit it\nfrom new archives, and add a portable extraction regression test. Capture the\ncorrected tooling, verify every source revision, and rerun GitHub CI.\n\nCorrect the final CLI review finding: exercise cancellation at the expiry\nobservation timestamp so the check reaches the expired-state guard. Preserve\nthe earlier capture, record this revision, and verify its archive and patch.\n\nApply the Codex review: authenticate webhook body bytes before UTF-8 decoding.\nReject altered UTF-8 and inserted BOM bytes with an unchanged signature. Reject\nauthentically signed malformed UTF-8 before storage, and accept correctly signed\nUnicode and BOM bodies. Keep the reproduced failure, preserve old checkpoints,\nthen capture and verify the corrected revision.\n",
+  "sourceHashes": {
+    ".gitignore": "50b276cb902abd8b3018e368cd251db0a5c36b289b00a7fffd18e0e399c7f637",
+    ".yarnrc.yml": "473e6def86fc03638120e0c01d0c8bbab095677256460fa4ea763e5d4697f270",
+    "BUILD.md": "e26c2e60273fc9fed20b1a35dee1b9c309ee29f82c1b9bc902aca8f4ad2951bf",
+    "INTEGRATE.md": "8d08b34132af251f372d342b51d8719f5c37a282b5fea7b5c1865654e66fd8e1",
+    "LICENSE": "243adbe048bbec60be2faf9ae1e62c5221327d20ffbc13b1c80e82fa98127af1",
+    "README.md": "0828c32a4a5611599e6cc8441f824f299b4c59e4e8a6d9db89fcc6a999dae0fa",
+    "ai-task.md": "d000a11054750accc6bab8ddbf6d2fc6b674b12c3821ccbfd45729469923b8fe",
+    "capture.mjs": "1c3e785d5282359c346240c66eeaed70404758924d61fdd6f798f367988cd96c",
+    "checkpoint-tools.mjs": "09da9b218f7365e1e7995c5a49c6247faf7fac24463843c44d62e097d167bed0",
+    "checkpoint-tools.test.mjs": "9c71b5f95f33fe3352f20836a57d063ed5c680fa0837ae4de399bc820b5d3896",
+    "checkpoint.json": "d063bccc3c6ed0a075810364c3a1737156883ccb09afefb92129550d329fa14f",
+    "client-bridge.mjs": "a0058579b02c2f3a770c7ff7b59dfe41ce50761361d9a0c7a2df96ab1b6b4acf",
+    "consumer.mjs": "3bd1a07e87e5e367775a3deadc71cd205dfc8e9757e632f2406791ae5db7ad73",
+    "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
+    "dashboard.html": "7af8dacc8023922eb7705d8160c583b385eb4c293fa1b0b38327e92aa816cf9c",
+    "export-docs.mjs": "4a6527b1b8a533283ae7d0597a5ef38b9eaf97e94bfc841c6e958170dc611785",
+    "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c",
+    "package.json": "6ff038e4eb85ed5e17e5e7b91149232a5c62e589e7a4083f152aa18dde944c92",
+    "provider.mjs": "67e0e5b2699c84444677f3f30c1c2a020d82976bfb203e508837a51e4d9920ae",
+    "scenario.mjs": "d8502ba81eb09fe42d574a38cd893c3acf6cf9ad8f43f91044e967a282920860",
+    "server.mjs": "b0f185a3954fbe1d7a4dd15f0dc8638afcf04e386ec730ae17a15860784d9e36",
+    "verify-checkpoints.mjs": "ece22b0480bafa41ad8c65e37a5705eaf67c3f8b47c62339f9b1b33a90edd6d2",
+    "verify.mjs": "61a2dc1e2f4042ff5530badd3caaa6e43c93df8c03996aa9e6dc3b544807e4d3",
+    "webhooks.mjs": "60ee5a726ecd664e0e13b7eb3f44199abb5d600c696ccfca816e7d070104d2a0"
+  },
   "checks": [
     "Fixture request matches the installed schema",
     "Capabilities use the published response schema",
@@ -141,11 +175,7 @@
     "Rejects non-string evidence",
     "Rejects oversized evidence"
   ],
-  "standalone": {
-    "version": "0.1.0",
-    "passed": 138
-  },
-  "milestones": [
+  "history": [
     {
       "step": 1,
       "title": "Start with the contract",
@@ -163,44 +193,142 @@
       "responses": [
         {
           "operation": "providerCapabilities",
-          "httpStatus": 501,
+          "httpStatus": 200,
           "body": {
-            "error": {
-              "code": "UNSUPPORTED_PROFILE",
-              "message": "unsupported profile"
+            "specVersion": "1.0",
+            "implementation": {
+              "name": "Commerce Protocol Example — fictional fixture store"
+            },
+            "eventTypes": [
+              "entitlement.granted",
+              "subscription.canceled",
+              "subscription.expired",
+              "entitlement.revoked"
+            ],
+            "stores": {
+              "fixture": {
+                "initialValidation": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "serverNotifications": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "subscriptions": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "renewalEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "refundEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "expiration": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "reconciliation": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "entitlements": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "revenueAmount": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                }
+              }
             }
           }
         },
         {
           "operation": "providerCapabilities",
-          "httpStatus": 501,
+          "httpStatus": 200,
           "body": {
-            "error": {
-              "code": "UNSUPPORTED_PROFILE",
-              "message": "unsupported profile"
+            "specVersion": "1.0",
+            "implementation": {
+              "name": "Commerce Protocol Example — fictional fixture store"
+            },
+            "eventTypes": [
+              "entitlement.granted",
+              "subscription.canceled",
+              "subscription.expired",
+              "entitlement.revoked"
+            ],
+            "stores": {
+              "fixture": {
+                "initialValidation": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "serverNotifications": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "subscriptions": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "renewalEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "refundEvents": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "expiration": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "reconciliation": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "entitlements": {
+                  "provider": true,
+                  "implementation": true,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                },
+                "revenueAmount": {
+                  "provider": false,
+                  "implementation": false,
+                  "notes": "Local fixture demonstration only; no real store integration or profile conformance claim."
+                }
+              }
             }
           }
         }
       ],
       "checks": [
         "Fixture request matches the installed schema",
-        "Discovery remains unsupported until an event can be emitted",
+        "Capabilities use the published response schema",
         "Purchase storage starts empty",
-        "Unready discovery returns a portable error"
+        "No profile conformance is claimed"
       ],
-      "totalChecks": 4,
-      "screenshot": "01-contract/screen.png",
-      "build": {
-        "request": "Load the contract and start a backend that can validate its inputs.",
-        "change": "Installed the published package and added HTTP routing, schema validation, and empty SQLite storage.",
-        "review": "The first capabilities response failed schema validation. The recorded scaffold then returned UNSUPPORTED_PROFILE, which is also invalid for core discovery. These early versions are unfinished backends, not conformant providers. Discovery is implemented in step 4.",
-        "id": "01-contract",
-        "label": "Contract",
-        "source": "01-contract/source.tar.gz",
-        "changes": "01-contract/changes.patch",
-        "report": "01-contract/run.json",
-        "passed": 6
-      }
+      "totalChecks": 4
     },
     {
       "step": 2,
@@ -236,6 +364,15 @@
           }
         },
         {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [],
+            "subscriptions": []
+          }
+        },
+        {
           "operation": "verifyPurchase",
           "httpStatus": 200,
           "body": {
@@ -262,19 +399,7 @@
         "Invalid evidence produces a negative verdict",
         "An upstream outage is not a negative verdict"
       ],
-      "totalChecks": 8,
-      "screenshot": "02-verify/screen.png",
-      "build": {
-        "request": "Verify a fixture purchase without granting account access.",
-        "change": "Added a store adapter and persisted accepted evidence separately from user ownership.",
-        "review": "Confirmed valid and invalid evidence, a distinct upstream-outage error, and a saved purchase with no access. Binding is still unavailable in this source version.",
-        "id": "02-verify",
-        "label": "Verify",
-        "source": "02-verify/source.tar.gz",
-        "changes": "02-verify/changes.patch",
-        "report": "02-verify/run.json",
-        "passed": 10
-      }
+      "totalChecks": 8
     },
     {
       "step": 3,
@@ -306,7 +431,15 @@
           }
         ]
       },
-      "deliveries": [],
+      "deliveries": [
+        {
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "entitlement.granted"
+        }
+      ],
       "inboxCount": 0,
       "responses": [
         {
@@ -366,21 +499,10 @@
         "The server binds Alice",
         "Repeating the same binding succeeds",
         "Bob cannot take Alice's purchase",
-        "Alice can access Premium"
+        "Alice can access Premium",
+        "First binding queues one grant; repeat and conflict queue none"
       ],
-      "totalChecks": 13,
-      "screenshot": "03-bind/screen.png",
-      "build": {
-        "request": "Connect the verified purchase to Alice and let the backend read her access.",
-        "change": "Added server-only binding, repeat-safe ownership checks, status, and entitlement reads.",
-        "review": "Alice gained Premium. Repeating her bind succeeded; Bob's claim and a bind using verification credentials were refused.",
-        "id": "03-bind",
-        "label": "Bind",
-        "source": "03-bind/source.tar.gz",
-        "changes": "03-bind/changes.patch",
-        "report": "03-bind/run.json",
-        "passed": 15
-      }
+      "totalChecks": 14
     },
     {
       "step": 4,
@@ -414,8 +536,15 @@
       },
       "deliveries": [
         {
-          "eventId": "0a0c5a72-1ff1-4ecc-9968-e6f2dad5848f",
-          "deliveryId": "a5848b4c-bc76-4953-b8af-82d7d937cb48",
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 0,
+          "status": "pending",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
           "attempts": 0,
           "status": "pending",
           "eventType": "subscription.canceled"
@@ -444,19 +573,7 @@
         "Cancellation stops renewal",
         "Cancellation queues one event"
       ],
-      "totalChecks": 16,
-      "screenshot": "04-cancel/screen.png",
-      "build": {
-        "request": "Handle cancellation while keeping the remaining paid period.",
-        "change": "Added lifecycle observations and an atomic outbox. Changed long response lists to individual disclosures after visually reviewing the previous captures.",
-        "review": "Cancellation stopped renewal, kept access, and queued one event. The response viewer was checked again; the first browser assertion assumed an initially closed row. That failure was seen in the tool session but its output file was not preserved.",
-        "id": "04-cancel",
-        "label": "Cancel",
-        "source": "04-cancel/source.tar.gz",
-        "changes": "04-cancel/changes.patch",
-        "report": "04-cancel/run.json",
-        "passed": 18
-      }
+      "totalChecks": 17
     },
     {
       "step": 5,
@@ -490,21 +607,35 @@
       },
       "deliveries": [
         {
-          "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-          "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "attempts": 3,
+          "status": "delivered",
+          "eventType": "entitlement.granted"
+        },
+        {
+          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
           "attempts": 3,
           "status": "delivered",
           "eventType": "subscription.canceled"
         }
       ],
-      "inboxCount": 1,
+      "inboxCount": 2,
       "responses": [
         {
           "operation": "webhook: receiver unavailable",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 503,
+              "attempt": 1,
+              "status": "pending"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
               "httpStatus": 503,
               "attempt": 1,
               "status": "pending"
@@ -515,8 +646,15 @@
           "operation": "webhook: retry after restart",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 200,
+              "attempt": 2,
+              "status": "delivered"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
               "httpStatus": 200,
               "attempt": 2,
               "status": "delivered"
@@ -527,8 +665,15 @@
           "operation": "webhook: lost-ack redelivery",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
+              "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+              "httpStatus": 200,
+              "attempt": 3,
+              "status": "delivered"
+            },
+            {
+              "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
+              "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
               "httpStatus": 200,
               "attempt": 3,
               "status": "delivered"
@@ -540,21 +685,9 @@
         "A 503 leaves a durable retry",
         "Retry survives provider restart",
         "Retry keeps the delivery identity",
-        "Redelivery has one durable inbox effect"
+        "Redelivery has one inbox row per event"
       ],
-      "totalChecks": 20,
-      "screenshot": "05-deliver/screen.png",
-      "build": {
-        "request": "Deliver signed events reliably even when the receiver is temporarily down.",
-        "change": "Added HMAC verification, a durable receiver inbox, and a retry worker.",
-        "review": "A 503 survived reopening storage and retried successfully. Lost-ack redelivery retained its delivery ID and produced one inbox row.",
-        "id": "05-deliver",
-        "label": "Deliver",
-        "source": "05-deliver/source.tar.gz",
-        "changes": "05-deliver/changes.patch",
-        "report": "05-deliver/run.json",
-        "passed": 22
-      }
+      "totalChecks": 21
     },
     {
       "step": 6,
@@ -659,20 +792,9 @@
         "All four events reach the receiver",
         "The final status is inactive"
       ],
-      "totalChecks": 27,
-      "screenshot": "06-recover-reviewed-8/screen.png",
-      "build": {
-        "request": "Close access at expiry and review recovery and failure handling across the complete backend.",
-        "change": "Completed expiry and recovery, then applied the external CLI review: atomic first-binding grant events, conflicting-expiry rejection, and source/patch verification.",
-        "review": "The reviewed final version adds the grant omitted by earlier checkpoints, so four events now reach the receiver. Tests cover binding/outbox rollback, expiry, ignored observations, delivery failures, and reopened SQLite storage. A second review added late-expiry and delayed-binding tests. This patch starts from the preceding reviewed revision. The final revision also checks the OpenIAP request boundary and a ready event receiver for businesses that supply only those roles. A third review verified proxy delivery and equal-time transitions. A publication review added standalone setup and recording guides, then repeated source and browser verification. The first Linux CI run exposed macOS metadata in historical archives; extraction now excludes it, new captures omit it, and a regression test verifies source hashes. The final review corrects the cancellation-at-expiry test timestamp so it reaches the expired-state guard, rather than only the stale-observation guard. A final byte-level review found that decoding before authentication accepted altered UTF-8 and an inserted BOM with the original signature. The receiver now authenticates raw bytes first; the same requests return 401 without storing an event.",
-        "id": "06-recover-reviewed-8",
-        "label": "Recover",
-        "source": "06-recover-reviewed-8/source.tar.gz",
-        "changes": "06-recover-reviewed-8/changes.patch",
-        "report": "06-recover-reviewed-8/run.json",
-        "previousSource": "06-recover-reviewed-7/source.tar.gz",
-        "passed": 138
-      }
+      "totalChecks": 27
     }
-  ]
+  ],
+  "screenshot": "screen.png",
+  "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim."
 }

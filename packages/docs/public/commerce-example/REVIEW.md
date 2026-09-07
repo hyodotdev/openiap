@@ -139,3 +139,17 @@ observation, so it exercised stale ordering instead of the expired-state guard.
 `06-recover-reviewed-7` uses the expiry timestamp and repeats the check. The
 provider behavior is unchanged. The CI export guard now checks committed
 evidence before archive verification regenerates its report.
+
+## Webhook byte authentication
+
+The Codex CLI review reproduced an exact-byte contract violation: decoding the
+body before signature verification accepted an inserted UTF-8 BOM with the
+original signature. A second local probe also replaced a Unicode character with
+malformed UTF-8. Both requests returned 200 and reached the inbox.
+
+`06-recover-reviewed-8` authenticates the original body bytes before decoding.
+The [original probe](06-recover-reviewed-8/byte-auth-before.txt) and
+[repeated probe](06-recover-reviewed-8/byte-auth-after.txt) show both requests
+changing from 200 to 401, with no inbox insertion after the fix. Regression
+checks also reject correctly signed malformed UTF-8 and accept correctly signed
+Unicode and BOM bodies. Earlier source archives remain unchanged.

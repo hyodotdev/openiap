@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-07T17:46:44.947Z",
+  "recordedAt": "2026-09-07T18:19:57.523Z",
   "scope": "Real loopback HTTP, signature validation and durable deduplication. Fictional lifecycle samples; no provider or store contacted. One emitter/project per receiver database. No business or revenue calculation.",
   "checks": [
     "Health accepts the proxy public Host header",
@@ -30,11 +30,11 @@
   "results": [
     {
       "event": {
-        "eventId": "96a016f9-f707-4022-9473-741edda9ae54",
+        "eventId": "9d14a7f3-78ff-4009-9cdf-954fdc34c916",
         "eventType": "subscription.started",
         "eventVersion": "1.0",
-        "occurredAt": 1788803144843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805137493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -49,7 +49,7 @@
           "productId": "premium.monthly",
           "state": "Active",
           "active": true,
-          "expiresAt": 1788803264843,
+          "expiresAt": 1788805257493,
           "willRenew": true
         }
       },
@@ -60,11 +60,11 @@
     },
     {
       "event": {
-        "eventId": "e0dfea6a-9509-4ce6-9153-2ab33ec56bc8",
+        "eventId": "14fefd1e-e3fc-42a6-bd64-90cea4544dd0",
         "eventType": "entitlement.granted",
         "eventVersion": "1.0",
-        "occurredAt": 1788803145843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805138493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -74,7 +74,7 @@
           "productId": "premium.monthly",
           "state": "Active",
           "active": true,
-          "expiresAt": 1788803264843,
+          "expiresAt": 1788805257493,
           "willRenew": true
         }
       },
@@ -85,11 +85,11 @@
     },
     {
       "event": {
-        "eventId": "ec7ad8af-ebdd-450d-ac90-38b9b04dc259",
+        "eventId": "ef5407dd-fb63-499a-a70b-d416e3df0179",
         "eventType": "subscription.renewed",
         "eventVersion": "1.0",
-        "occurredAt": 1788803146843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805139493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -104,7 +104,7 @@
           "productId": "premium.monthly",
           "state": "Active",
           "active": true,
-          "expiresAt": 1788803264843,
+          "expiresAt": 1788805257493,
           "willRenew": true
         }
       },
@@ -115,11 +115,11 @@
     },
     {
       "event": {
-        "eventId": "46faa15c-e2fa-42f0-bd33-d755e41a8c48",
+        "eventId": "40720621-a06e-4d0d-b3d9-36ded09162e1",
         "eventType": "subscription.canceled",
         "eventVersion": "1.0",
-        "occurredAt": 1788803147843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805140493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -129,7 +129,7 @@
           "productId": "premium.monthly",
           "state": "Active",
           "active": true,
-          "expiresAt": 1788803264843,
+          "expiresAt": 1788805257493,
           "willRenew": false
         }
       },
@@ -140,11 +140,11 @@
     },
     {
       "event": {
-        "eventId": "3187ac88-a945-40c7-9dae-2c8f04a2dfe3",
+        "eventId": "8d10d963-0afd-4610-9cf0-fec12a53f230",
         "eventType": "subscription.expired",
         "eventVersion": "1.0",
-        "occurredAt": 1788803148843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805141493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -154,7 +154,7 @@
           "productId": "premium.monthly",
           "state": "Expired",
           "active": false,
-          "expiresAt": 1788803203843,
+          "expiresAt": 1788805196493,
           "willRenew": false
         }
       },
@@ -165,11 +165,11 @@
     },
     {
       "event": {
-        "eventId": "309e6d9f-e20f-49fc-b04d-286dbc1afdcf",
+        "eventId": "b704818a-ca47-4d85-b5f5-da61ab75caa8",
         "eventType": "entitlement.revoked",
         "eventVersion": "1.0",
-        "occurredAt": 1788803149843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805142493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -179,7 +179,7 @@
           "productId": "premium.monthly",
           "state": "Expired",
           "active": false,
-          "expiresAt": 1788803203843,
+          "expiresAt": 1788805196493,
           "willRenew": false
         }
       },
@@ -190,11 +190,11 @@
     },
     {
       "event": {
-        "eventId": "71f173f5-9866-463a-b351-3d129a5ed55c",
+        "eventId": "c2bef40b-58ef-4fd1-a84e-e91e6c810a12",
         "eventType": "subscription.refunded",
         "eventVersion": "1.0",
-        "occurredAt": 1788803150843,
-        "processedAt": 1788803204843,
+        "occurredAt": 1788805143493,
+        "processedAt": 1788805197493,
         "store": "fixture",
         "environment": "local-fixture",
         "projectId": "demo_project",
@@ -204,7 +204,7 @@
           "productId": "premium.monthly",
           "state": "Refunded",
           "active": false,
-          "expiresAt": 1788803203843,
+          "expiresAt": 1788805196493,
           "willRenew": false
         }
       },
@@ -217,7 +217,7 @@
   "inboxCount": 7,
   "sourceHashes": {
     "consumer.mjs": "3bd1a07e87e5e367775a3deadc71cd205dfc8e9757e632f2406791ae5db7ad73",
-    "webhooks.mjs": "6124cf3bdb4404c2f5a712ae8e9fc8e3382a169f8aa79d0e5476a7d5773b9800",
+    "webhooks.mjs": "60ee5a726ecd664e0e13b7eb3f44199abb5d600c696ccfca816e7d070104d2a0",
     "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
     "package.json": "6ff038e4eb85ed5e17e5e7b91149232a5c62e589e7a4083f152aa18dde944c92",
     "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c"

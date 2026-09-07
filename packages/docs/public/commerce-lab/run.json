@@ -1,7 +1,7 @@
 {
-  "recordedAt": "2026-09-07T17:47:26.628Z",
-  "source": "/commerce-example/06-recover-reviewed-7/source.tar.gz",
-  "archiveSha256": "9056f8a62e92bb3717a06e260652d6aaeb01aba61035f430a8dda8053fd914f1",
+  "recordedAt": "2026-09-07T18:21:04.588Z",
+  "source": "/commerce-example/06-recover-reviewed-8/source.tar.gz",
+  "archiveSha256": "868987cf443b86d76bc53c67c52fec4e44c43afdfc5eb16132284a120ef15cb1",
   "scope": "The reviewed standalone source archive, installed outside the monorepo with npm. Local fixture HTTP and SQLite; signatures compared with the actual IAPKit signer. No sandbox purchase or production service contacted.",
   "checks": [
     "Fixture request matches the installed schema",
@@ -87,6 +87,11 @@
     "Cancellation after expiry is ignored",
     "Expired fixture evidence has an expired verdict",
     "Tampered HTTP body has no inbox effect",
+    "Changed UTF-8 bytes cannot reuse a signature",
+    "Inserted UTF-8 BOM cannot reuse a signature",
+    "Authenticated malformed UTF-8 is rejected before storage",
+    "Authentic Unicode bytes are accepted and stored",
+    "Authentic BOM bytes are verified before decoding",
     "Receiver still has exactly four events",
     "Cross-origin demo mutations are refused",
     "Overlapping HTTP ownership claims have one winner",

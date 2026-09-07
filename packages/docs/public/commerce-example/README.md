@@ -14,7 +14,7 @@ its AI task, source hashes, actual HTTP results, and verification in `run.json`;
 | [3. Ownership](03-bind/run.json)                       | Bind through the backend and read access                   | Alice gains Premium. Verification credentials cannot bind, and Bob cannot take Alice's purchase.                                                      |
 | [4. Cancellation](04-cancel/run.json)                  | Stop renewal and queue the event atomically                | Alice keeps paid access. Discovery can now advertise an event the implementation actually emits.                                                      |
 | [5. Delivery](05-deliver/run.json)                     | Sign, retry, and deduplicate                               | A failed delivery retries after reopening storage. A repeated delivery has one inbox effect.                                                          |
-| [6. Reviewed recovery](06-recover-reviewed-7/run.json) | Enforce expiry, check persistence, and map client evidence | The reviewed final version adds atomic binding grants, rejects conflicting expiry, closes access at the deadline, and preserves storage on reopening. |
+| [6. Reviewed recovery](06-recover-reviewed-8/run.json) | Enforce expiry, check persistence, and map client evidence | The reviewed final version adds atomic binding grants, rejects conflicting expiry, closes access at the deadline, and preserves storage on reopening. |
 
 ## What review changed
 
