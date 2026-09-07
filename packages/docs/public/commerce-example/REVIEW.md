@@ -147,6 +147,9 @@ body before signature verification accepted an inserted UTF-8 BOM with the
 original signature. A second local probe also replaced a Unicode character with
 malformed UTF-8. Both requests returned 200 and reached the inbox.
 
+The saved local probe ran the same two rejection cases now in `verify.mjs`
+against the reviewed-7 receiver, then repeated them against reviewed-8.
+
 `06-recover-reviewed-8` authenticates the original body bytes before decoding.
 The [original probe](06-recover-reviewed-8/byte-auth-before.txt) and
 [repeated probe](06-recover-reviewed-8/byte-auth-after.txt) show both requests
