@@ -55,7 +55,7 @@
   "overrides": {
     "csstype": "3.2.3",
     "fast-uri": "$fast-uri",
-    "hono": "4.13.2",
+    "hono": "4.13.5",
     "ip-address": "10.5.0",
     "qs": "$qs"
   },
