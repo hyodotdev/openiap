@@ -149,7 +149,7 @@ make android
         <p>
           The default release zip does not include macOS runtime frameworks, so
           most projects can skip this section. It applies only if you build from
-          source with macOS support or use a custom zip containing{' '}
+          source with macOS support or use a release or custom zip containing{' '}
           <code>addons/godot-iap/bin/macos</code>. If Godot reports that{' '}
           <code>GodotIap.framework</code> or{' '}
           <code>SwiftGodotRuntime.framework</code> is damaged, clear quarantine
@@ -663,24 +663,25 @@ func _on_purchase_error(error):
         </p>
 
         <h3 id="gdextension-non-apple-editor" className="anchor-heading">
-          GDExtension errors in the Windows or Linux editor
+          GDExtension errors in the desktop editor
           <a href="#gdextension-non-apple-editor" className="anchor-link">
             #
           </a>
         </h3>
         <p>
-          The bundled GDExtension ships Apple libraries only, so editors on
-          Windows and Linux log{' '}
+          The current release zip ships an iOS-only GDExtension, so the editor
+          on every desktop — Windows, Linux, and macOS alike — logs{' '}
           <code>
             No GDExtension library found for current OS and architecture
           </code>{' '}
-          each time the project is scanned. Android is unaffected: it loads the
-          AAR plugin from <code>addons/godot-iap/android/</code>, and Android
-          exports keep working.
+          each time the project is scanned. The messages stop nothing: Android
+          loads the AAR plugin from <code>addons/godot-iap/android/</code>, and
+          iOS exports still embed and load the frameworks.
         </p>
         <p>
-          The addon declares <code>include_tags</code> so Godot can skip the
-          extension silently, but engine support for that filter (
+          The zip's <code>.gdextension</code> declares{' '}
+          <code>include_tags = [&quot;ios&quot;]</code> so Godot can skip it
+          silently. Engine support for that filter (
           <a
             href="https://github.com/godotengine/godot/pull/121575"
             target="_blank"
@@ -688,9 +689,8 @@ func _on_purchase_error(error):
           >
             godotengine/godot#121575
           </a>
-          ) merged after 4.8-dev3, so only 4.8 snapshots newer than dev3 honor
-          it. On 4.8-dev3 and older — including 4.3 through 4.7 — there is no
-          way to suppress the message (
+          ) first shipped in 4.8-dev4; on 4.8-dev3 and older — including 4.3
+          through 4.7 — the messages cannot be suppressed (
           <a
             href="https://github.com/godotengine/godot/issues/105615"
             target="_blank"
@@ -698,7 +698,7 @@ func _on_purchase_error(error):
           >
             godotengine/godot#105615
           </a>
-          ). While developing for Android on a non-Apple machine, rename the
+          ). To silence them while you are not exporting for iOS, rename the
           file:
         </p>
         <CodeBlock language="bash">
@@ -706,9 +706,8 @@ func _on_purchase_error(error):
    addons/godot-iap/bin/godot_iap.gdextension.disabled`}
         </CodeBlock>
         <p>
-          Restore the name before building for iOS or macOS. Those builds
-          require a Mac, so nothing in <code>bin/</code> is usable from a
-          Windows or Linux machine in the meantime.
+          Restore the name before an iOS export, on any machine: Godot discovers
+          and loads the native extension through that file.
         </p>
       </section>
 
