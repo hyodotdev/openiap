@@ -707,7 +707,9 @@ func _on_purchase_error(error):
         </CodeBlock>
         <p>
           Restore the name before an iOS export, on any machine: Godot discovers
-          and loads the native extension through that file.
+          and loads the native extension through that file. Skip the rename if
+          your copy carries <code>bin/macos</code> — a source build, or the
+          3.3.2 and 3.3.3 zips — since a macOS editor loads that library.
         </p>
       </section>
 
