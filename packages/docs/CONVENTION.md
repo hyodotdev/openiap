@@ -1,5 +1,13 @@
 # Conventions
 
+## Documentation acceptance
+
+Apply the [human and AI acceptance criteria](../../knowledge/internal/05-docs-patterns.md#human-and-ai-acceptance)
+before finishing guide, example, SDK discovery, or AI brief changes.
+`src/components/SEO.tsx` declarations own canonical page addresses. The build
+prerenders those React pages and generates `dist/sitemap.xml`; do not maintain
+a separate sitemap or alternate crawler-only page copy.
+
 ## Enum Values
 
 - Use the generated target-language member name and wire value exactly as

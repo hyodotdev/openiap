@@ -1,0 +1,150 @@
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index 112a019..61adf66 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -153,7 +153,7 @@ export function createPatch(before, after) {
+   }
+ }
+ export function readRecords(directory) {
+-  return readdirSync(directory)
++  const records = readdirSync(directory)
+     .filter(
+       (name) =>
+         /^\d\d-[\w-]+$/.test(name) &&
+@@ -163,4 +163,25 @@ export function readRecords(directory) {
+     .map((name) =>
+       JSON.parse(readFileSync(join(directory, name, "run.json"), "utf8")),
+     );
++  const byId = new Map(records.map((record) => [record.id, record]));
++  const ordered = [],
++    visiting = new Set(),
++    visited = new Set();
++  function visit(record) {
++    if (visited.has(record.id)) return;
++    assert(!visiting.has(record.id), `Checkpoint cycle: ${record.id}`);
++    visiting.add(record.id);
++    if (record.previous) {
++      assert(
++        byId.has(record.previous),
++        `Missing predecessor: ${record.previous}`,
++      );
++      visit(byId.get(record.previous));
++    }
++    visiting.delete(record.id);
++    visited.add(record.id);
++    ordered.push(record);
++  }
++  records.forEach(visit);
++  return ordered;
+ }
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+index e807fae..a45e857 100644
+--- a/checkpoint-tools.test.mjs
++++ b/checkpoint-tools.test.mjs
+@@ -108,3 +108,29 @@ test("unfinished captures do not hide completed records", () => {
+     rmSync(temp, { recursive: true, force: true });
+   }
+ });
++
++test("checkpoint replay follows predecessors instead of directory name order", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  const records = [
++    { id: "07-reviewed", previous: "01-start" },
++    { id: "07-interoperable", previous: "07-reviewed" },
++    { id: "01-start" },
++  ];
++  try {
++    for (const record of records) {
++      mkdirSync(join(temp, record.id));
++      writeFileSync(join(temp, record.id, "run.json"), JSON.stringify(record));
++    }
++    assert.deepEqual(
++      readRecords(temp).map((record) => record.id),
++      ["01-start", "07-reviewed", "07-interoperable"],
++    );
++    writeFileSync(
++      join(temp, "01-start/run.json"),
++      JSON.stringify({ id: "01-start", previous: "07-interoperable" }),
++    );
++    assert.throws(() => readRecords(temp), /Checkpoint cycle/);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
+diff --git a/checkpoint.json b/checkpoint.json
+index 4860ddb..e139d74 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-interoperable",
++  "id": "07-account-erasure-interoperable-2",
+   "title": "Delete the account",
+   "built": "Account erasure with shared receiver and retry coordination",
+   "result": "The account identity is removed; retries and restart cannot restore it.",
+-  "previous": "07-account-erasure-reviewed"
++  "previous": "07-account-erasure-interoperable"
+ }
+diff --git a/composition/receiver.test.mjs b/composition/receiver.test.mjs
+index 24e83b4..165e83e 100644
+--- a/composition/receiver.test.mjs
++++ b/composition/receiver.test.mjs
+@@ -5,6 +5,12 @@ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { WEBHOOK, COMMERCE_EVENT_VERSION } from "openiap-commerce-protocol";
+ import { createReceiver, sign } from "../webhooks.mjs";
++import { runComposition } from "./run.mjs";
++
++test("the original SQLite and memory composition remains compatible with the receiver", async () => {
++  const report = await runComposition();
++  expect(report.checks.length).toBeGreaterThan(0);
++});
+ 
+ test("one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users", async () => {
+   const directory = mkdtempSync(join(tmpdir(), "commerce-receiver-"));
+diff --git a/composition/run.mjs b/composition/run.mjs
+index 7fceee5..2f88cb2 100644
+--- a/composition/run.mjs
++++ b/composition/run.mjs
+@@ -3,7 +3,6 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
+ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join, resolve } from "node:path";
+-import { Database } from "bun:sqlite";
+ import { WEBHOOK, HTTP_BINDING } from "openiap-commerce-protocol";
+ import { createProvider, FIXTURE, CREDENTIALS } from "../provider.mjs";
+ import { createReceiver, deliver, sign } from "../webhooks.mjs";
+@@ -381,21 +380,18 @@ export async function runComposition() {
+         ).status,
+         400,
+       );
+-      const inspector = new Database(provider.inboxPath, { readonly: true });
+-      try {
+-        const stored = JSON.parse(
+-          inspector
+-            .query("SELECT body FROM inbox WHERE event_id = ?")
+-            .get(extension.eventId).body,
++      const stored = provider.receiver
++        .inspect()
++        .find(
++          (event) =>
++            event.eventId === extension.eventId &&
++            event.projectId === extension.projectId,
+         );
+-        check(
+-          `${provider.id}: extension bytes survive storage`,
+-          stored.extensions,
+-          extension.extensions,
+-        );
+-      } finally {
+-        inspector.close();
+-      }
++      check(
++        `${provider.id}: extension bytes survive storage`,
++        stored?.extensions,
++        extension.extensions,
++      );
+     }
+ 
+     time = FIXTURE.expiresAt;

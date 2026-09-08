@@ -5,11 +5,13 @@ import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
 import { COMMERCE_ROLES } from '../../lib/commerceEcosystem';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
+import CommerceCompositionProof from './CommerceCompositionProof';
+import '../../styles/commerce-protocol.css';
 
 function CommerceEcosystemGuide(): React.JSX.Element {
-  useScrollToHash();
+  useScrollToHash(120);
   return (
-    <div className="doc-page">
+    <div className="doc-page commerce-ecosystem-guide">
       <SEO
         title="Commerce Protocol: Build Your Part"
         path="/commerce-protocol/ecosystem"
@@ -17,32 +19,43 @@ function CommerceEcosystemGuide(): React.JSX.Element {
       />
       <h1>Build your part</h1>
       <p>
-        A paywall business can provide the experience. An analytics business can
-        consume events. An integrated platform can supply both and the commerce
-        backend. The app uses OpenIAP to purchase from the store in each
-        arrangement.
+        Build the part your business does well, and connect it to compatible
+        services. The shared contract covers purchase verification, ownership,
+        access, and events. Your product, infrastructure, and customer
+        relationship remain yours.
       </p>
       <p className="commerce-actions">
-        <a
-          className="btn btn-primary"
-          href="/commerce-example/integration-brief.md"
-          download
-        >
-          Give your AI the integration brief ↓
+        <a className="btn btn-primary" href="#composition-proof">
+          See two backends use the same client
         </a>
-        <a
+        <Link
           className="btn btn-secondary"
-          href={COMMERCE_PROTOCOL_LINKS.exampleSource}
-          download
+          to="/commerce-protocol/implementation#build-brief"
         >
-          Download the working example ↓
-        </a>
+          Build your connection with AI
+        </Link>
       </p>
+      <div className="commerce-role-benefits">
+        {COMMERCE_ROLES.map((role) => (
+          <article key={role.id}>
+            <h2>{role.title}</h2>
+            <p>{role.benefit}</p>
+            <Link to={role.start}>Explore this role →</Link>
+          </article>
+        ))}
+      </div>
       <p>
         The <a href={COMMERCE_PROTOCOL_LINKS.example}>example repository</a>{' '}
-        includes a quick start, the client request mapper, and a standalone
-        event receiver. Start there to inspect working code for your role.
+        gives AI working code and checks for each connection. Choose the role
+        your business owns, describe the behavior you want, and review the
+        running result.
       </p>
+      <section>
+        <AnchorLink id="composition-proof" level="h2">
+          Two backends, the same user experience
+        </AnchorLink>
+        <CommerceCompositionProof />
+      </section>
       <section>
         <AnchorLink id="roles" level="h2">
           Product roles and connection contracts
@@ -74,8 +87,16 @@ function CommerceEcosystemGuide(): React.JSX.Element {
           authority.
         </p>
         <p>
+          The <a href="#composition-proof">composition example</a> includes a
+          host callback adapter you can read and run. It shows pending,
+          canceled, failed, and fulfilled results, and finishes a purchase only
+          after the backend confirms fulfillment. Its purchase callback is a
+          fixture; connect your SDK’s purchase and update listeners in a real
+          app.
+        </p>
+        <p>
           <Link to="/commerce-protocol/getting-started#purchase-flow">
-            See the purchase, backend, and lifecycle sequence diagrams →
+            Follow a purchase, one step at a time →
           </Link>
         </p>
         <p>
@@ -102,10 +123,10 @@ function CommerceEcosystemGuide(): React.JSX.Element {
         </p>
         <p>
           The example’s <code>client-bridge.mjs</code> runs on the app backend,
-          maps Apple and Google OpenIAP purchase fields into the installed
-          protocol’s verification inputs and validates them. It also rejects
-          missing evidence and unsupported stores. Run{' '}
-          <code>npm run demo:bridge</code> in the downloaded example; it checks
+          maps Apple, Google, Amazon, and Horizon purchase fields into the
+          installed protocol’s verification inputs and validates them. It also
+          rejects missing evidence and unsupported stores. Run{' '}
+          <code>npm run demo:bridge</code> in the example repository; it checks
           the request boundary, not a live store purchase.
         </p>
         <p>
@@ -156,15 +177,53 @@ function CommerceEcosystemGuide(): React.JSX.Element {
         </p>
       </section>
       <section>
+        <AnchorLink id="extend-together" level="h2">
+          Extend the contract together
+        </AnchorLink>
+        <p>
+          Start with the smallest connection your product needs. New store
+          names, optional event members, and declared capabilities have defined
+          extension points; existing consumers must handle them according to the
+          <Link to="/commerce-protocol/versioning"> versioning rules</Link>. The
+          composition example adds a partner metadata string and verifies that
+          the unchanged receiver preserves it. Adding metadata does not give it
+          a shared business meaning automatically.
+        </p>
+        <p>
+          Propose shared behavior with a concrete use case, a runnable example,
+          a rejection case, and its compatibility impact. Describe which
+          implementers need to change. OpenIAP remains founder-led today;
+          proposals and decisions are public, and IAPKit follows the same
+          contract and checks as other implementations.
+        </p>
+        <p>
+          <a href="https://github.com/hyodotdev/openiap/issues/new/choose">
+            Start a public proposal
+          </a>{' '}
+          ·{' '}
+          <Link to="/docs/foundation/governance#commerce-protocol">
+            Review and decision process
+          </Link>
+        </p>
+        <p>
+          A useful next contribution is a third provider or consumer with its
+          own implementation. Keep the reference client and expected outcomes,
+          record every configuration or adapter change, and publish the report
+          with source revisions and limits. Participation does not require an
+          OpenIAP account, central registry, or hosted validation service.
+        </p>
+      </section>
+      <section>
         <AnchorLink id="acceptance" level="h2">
           What a business delivers to an app team
         </AnchorLink>
         <p>
           Ship the host adapter or backend endpoint, supported-store
           configuration, executable checks, and a short connection example. The
-          app team configures endpoints and credentials, installs the
-          integration, and verifies the flow. It should not have to reimplement
-          your service from the spec.
+          app team chooses the services and expected behavior. Its AI can use
+          your setup instructions, adapter, and executable checks to wire the
+          connection and demonstrate the flow. Document what the team must
+          decide and what a successful result looks like.
         </p>
         <ul>
           <li>

@@ -455,6 +455,8 @@ const schema = defineSchema({
   purchases: defineTable({
     projectId: v.id("projects"),
     store: purchaseStoreValidator,
+    appUserId: v.optional(v.string()),
+    accountErased: v.optional(v.boolean()),
     applicationId: v.string(), // bundleId or packageName
     remoteId: v.optional(v.string()),
     requestData: purchaseRequestDataValidator,
@@ -507,6 +509,7 @@ const schema = defineSchema({
     ])
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
+    .index("by_project_and_app_user", ["projectId", "appUserId"])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
     .index("by_store_isValid_nextAmazonReconcileAt", [
       "store",
@@ -747,6 +750,7 @@ const schema = defineSchema({
   // Apple does not have this problem — `originalTransactionId` is stable
   // across the entire entitlement lifetime.
   subscriptions: defineTable({
+    accountErased: v.optional(v.boolean()),
     projectId: v.id("projects"),
     purchaseToken: v.string(),
     userId: v.optional(v.string()),

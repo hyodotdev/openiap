@@ -1,0 +1,20 @@
+{
+  "startedAt": "2026-09-08T19:44:05.187Z",
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "output": "\nadded 10 packages in 642ms\n"
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs\n\nCommerce Protocol Example: 159 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [157.46ms]\n\ncomposition/receiver.test.mjs:\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [4.32ms]\n\n 2 pass\n 0 fail\n 19 expect() calls\nRan 2 tests across 2 files. [243.00ms]\n"
+    },
+    {
+      "command": "npm run test:tooling",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) archive extraction excludes macOS metadata and preserves source hashes [15.19ms]\n(pass) patches preserve path-like source text across additions, changes, and deletions [59.68ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.48ms]\n(pass) unfinished captures do not hide completed records [0.91ms]\n\n 4 pass\n 0 fail\nRan 4 tests across 1 file. [112.00ms]\n"
+    }
+  ]
+}

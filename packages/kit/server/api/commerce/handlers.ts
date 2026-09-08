@@ -11,6 +11,10 @@ import { isValidSubscriptionUserId } from "../../../convex/subscriptions/limits"
 import { normalizeBindUserPurchaseToken } from "../v1/subscriptions";
 import { ProtocolOperationError, protocolCodeForConvexError } from "./errors";
 import { admitVerification } from "./verificationAdmission";
+import {
+  buildAmazonRemoteId,
+  buildHorizonRemoteId,
+} from "../../../convex/purchases/identity";
 
 export interface ProtocolContext {
   apiKey: string;
@@ -290,6 +294,10 @@ export async function entitlements(
 }> {
   const userId = requireUserId(input.userId);
   try {
+    const purchases = await client.action(
+      api.purchases.action.readBoundPurchaseEntitlements,
+      { apiKey: context.apiKey, userId },
+    );
     const result = await client.query(api.subscriptions.query.entitlementsV2, {
       apiKey: context.apiKey,
       userId,
@@ -297,7 +305,7 @@ export async function entitlements(
     });
     return {
       userId: result.userId,
-      productIds: result.productIds,
+      productIds: [...new Set([...result.productIds, ...purchases.productIds])],
       // entitlementsV2 returns only entitled rows, so every snapshot is active.
       subscriptions: result.subscriptions.map((row: SubscriptionRowV2) =>
         toSnapshot(row, true),
@@ -332,6 +340,31 @@ export async function bindPurchase(
   input: StoreEvidenceInput & { userId: string },
 ): Promise<{ bound: boolean }> {
   const userId = requireUserId(input.userId);
+  if (input.store === "amazon" || input.store === "horizon") {
+    const remoteId =
+      input.store === "amazon"
+        ? buildAmazonRemoteId({
+            ...requireEvidence(input, input.amazon),
+            sandbox: input.amazon?.sandbox === true,
+          })
+        : buildHorizonRemoteId(
+            requireEvidence(input, input.horizon).userId,
+            requireEvidence(input, input.horizon).sku,
+          );
+    try {
+      return await client.mutation(
+        api.purchases.mutation.bindVerifiedPurchaseAsServer,
+        {
+          apiKey: context.apiKey,
+          userId,
+          store: input.store,
+          remoteId,
+        },
+      );
+    } catch (error) {
+      rethrowAsProtocolError(error, "INTERNAL_ERROR");
+    }
+  }
   let rawToken: string;
   switch (input.store) {
     case "apple":
@@ -340,12 +373,6 @@ export async function bindPurchase(
     case "google":
       rawToken = requireEvidence(input, input.google).purchaseToken;
       break;
-    case "amazon":
-      rawToken = requireEvidence(input, input.amazon).receiptId;
-      break;
-    case "horizon":
-      // Horizon exposes no transaction identity a binding could key on.
-      return { bound: false };
     default:
       throw new ProtocolOperationError(
         "UNSUPPORTED_STORE",

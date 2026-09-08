@@ -161,6 +161,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/convex", () => ({
   api: {
     purchases: {
+      action: {
+        readBoundPurchaseEntitlements: "readBoundPurchaseEntitlements",
+      },
+      mutation: {
+        bindVerifiedPurchaseAsServer: "bindVerifiedPurchaseAsServer",
+      },
       ios: { verifyAppStoreReceiptInternalV1: "verifyApple" },
       android: { verifyGooglePlayReceiptInternalV1: "verifyGoogle" },
       horizon: { verifyMetaHorizonReceiptInternalV1: "verifyHorizon" },
@@ -252,6 +258,10 @@ function seedConvexFixtures() {
 
   mocks.action.mockImplementation(async (name: unknown, args: unknown) => {
     assertKnownKey((args as { apiKey: string }).apiKey);
+    if (name === "readBoundPurchaseEntitlements") {
+      assertServerKey((args as { apiKey: string }).apiKey);
+      return { productIds: [] };
+    }
     return {
       isValid: true,
       state: "ENTITLED",
@@ -284,6 +294,7 @@ function seedConvexFixtures() {
   mocks.mutation.mockImplementation(async (name: unknown, args: unknown) => {
     const { apiKey } = args as { apiKey: string };
     assertServerKey(apiKey);
+    if (name === "bindVerifiedPurchaseAsServer") return { bound: false };
     if (name === "bindUserAsServer") {
       const { purchaseToken, userId } = args as {
         purchaseToken: string;

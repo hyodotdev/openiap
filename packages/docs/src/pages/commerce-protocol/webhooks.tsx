@@ -1,3 +1,4 @@
+import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
 import DataTable from '../../components/DataTable';
@@ -6,7 +7,7 @@ import ExternalRedirect from '../../components/ExternalRedirect';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 import commerceEventSchema from 'openiap-commerce-protocol/generated/schemas/commerce-event.schema.json';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 
 const KNOWN_COMMERCE_EVENT_TYPES =
@@ -80,7 +81,8 @@ const RESPONSE_COLUMNS: DataTableColumn<ResponseRow>[] = [
 function Webhooks() {
   useScrollToHash();
 
-  if (LEGACY_IAPKIT_HASHES.has(window.location.hash)) {
+  const { hash } = useLocation();
+  if (LEGACY_IAPKIT_HASHES.has(hash)) {
     return <ExternalRedirect to="https://kit.openiap.dev/docs/webhooks" />;
   }
 
@@ -92,13 +94,19 @@ function Webhooks() {
         path="/commerce-protocol/webhooks"
         keywords="OpenIAP Commerce Protocol webhook, signed commerce events, HMAC webhook, idempotent webhook consumer"
       />
-      <h1>Webhook Contract</h1>
+      <h1>Events &amp; webhooks</h1>
       <p>
-        The Commerce Protocol standardizes how a conforming backend delivers one
-        normalized commerce event to a consumer-controlled HTTPS endpoint. It
-        defines the portable boundary, not a dashboard, credential store, or
-        vendor-specific setup flow.
+        An <strong>event</strong> describes something that changed, such as
+        Alice canceling renewal. A <strong>webhook</strong> is the HTTP message
+        that carries that event from the provider to your backend.
       </p>
+      <p>
+        Use events to keep your backend or data service informed while the app
+        is closed. Cancellation turns renewal off; it does not remove Alice’s
+        remaining paid time. Read current entitlements when you need an
+        authoritative access decision.
+      </p>
+      <CommerceImplementationComparison topic="events" />
       <pre>
         <code>Store → conforming backend → consumer HTTPS endpoint</code>
       </pre>
@@ -114,9 +122,9 @@ function Webhooks() {
         provider.
       </p>
       <Callout kind="important">
-        This contract is server-to-server. It defines no backend-to-app event
-        stream, SSE endpoint, WebSocket, push relay, or long-poll feed. Device
-        push belongs to the developer&apos;s authenticated backend.
+        Register your backend’s HTTPS address with the provider. Its signed
+        messages go to that backend, not directly to the mobile app. Your
+        backend owns login, access enforcement, and any device notifications.
       </Callout>
 
       <section>

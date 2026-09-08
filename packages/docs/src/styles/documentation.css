@@ -92,23 +92,25 @@
 
 .docs-nav {
   position: relative;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+:root.dark .docs-nav {
+  color: #a0a0a0;
 }
 
 /* Sidebar section headers */
 .docs-nav h3 {
-  margin: var(--spacing-lg) var(--spacing-lg) var(--spacing-sm)
-    var(--docs-sidebar-gutter);
-  color: var(--text-secondary);
+  margin: 1.75rem var(--spacing-lg) var(--spacing-sm) var(--docs-sidebar-gutter);
+  color: var(--text-primary);
   text-transform: uppercase;
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.08em;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  line-height: 1.5;
   padding: 0;
   border-bottom: none;
-}
-
-:root.dark .docs-nav h3 {
-  color: #808080;
 }
 
 .docs-nav h3:first-child {
@@ -154,6 +156,16 @@
   border-left-color: var(--primary-color);
 }
 
+.docs-nav a.active,
+.menu-dropdown-title.active {
+  font-weight: 700;
+}
+
+.docs-nav .menu-dropdown-item,
+.docs-nav .menu-dropdown-item.active {
+  font-weight: 400;
+}
+
 :root.dark .docs-nav a {
   color: #a0a0a0;
 }
@@ -164,6 +176,7 @@
 }
 
 :root.dark .docs-nav a.active {
+  color: var(--primary-color);
   background: rgba(164, 116, 101, 0.15);
 }
 
@@ -225,7 +238,9 @@
 }
 
 .menu-dropdown-title:hover,
-.menu-dropdown-title.active {
+.menu-dropdown-title.active,
+:root.dark .menu-dropdown-title:hover,
+:root.dark .menu-dropdown-title.active {
   color: var(--primary-color);
 }
 
@@ -574,7 +589,6 @@
 
 .menu-dropdown-title.menu-dropdown-title--nested {
   font-size: var(--font-size-sm);
-  font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
   color: var(--text-secondary);

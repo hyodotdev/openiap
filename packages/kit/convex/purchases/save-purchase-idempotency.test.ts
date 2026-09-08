@@ -55,9 +55,20 @@ class MemQuery {
     return new MemQuery(filtered);
   }
 
-  filter(_cb: unknown): MemQuery {
-    void _cb;
-    return this;
+  filter(
+    build: (query: {
+      field: (name: string) => string;
+      eq: (field: string, value: unknown) => (row: Row) => boolean;
+    }) => (row: Row) => boolean,
+  ): MemQuery {
+    return new MemQuery(
+      this.rows.filter(
+        build({
+          field: (name) => name,
+          eq: (field, value) => (row) => row[field] === value,
+        }),
+      ),
+    );
   }
 
   async first(): Promise<Row | null> {
@@ -257,6 +268,22 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     ctx = makeCtx(db);
   });
 
+  it("does not overwrite another store with the same opaque remote identity", async () => {
+    await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: "same-id" }) });
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: "same-id",
+        store: "horizon",
+        requestData: { store: "horizon", userId: "viewer", sku: "premium" },
+        remoteResponse: JSON.stringify({ success: true, sku: "premium" }),
+      }),
+    });
+    const rows = await db.query("purchases").collect();
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.store).sort()).toEqual(["google", "horizon"]);
+  });
+
   it("same (projectId, remoteId) twice produces exactly one purchase row", async () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
@@ -287,12 +314,12 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({
       ctx,
       ...buildArgs({
-        store: "horizon",
+        store: "amazon",
         remoteId: "legacy-shared-id",
         requestData: {
-          store: "horizon",
-          userId: "horizon-user",
-          sku: "premium_monthly",
+          store: "amazon",
+          userId: "amazon-user",
+          receiptId: "legacy-shared-id",
         },
         remoteResponse: JSON.stringify({ sku: "premium_monthly" }),
         state: HarmonizedPurchaseState.INAUTHENTIC,
@@ -303,7 +330,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     const rows = await db.query("purchases").collect();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      store: "horizon",
+      store: "amazon",
       isValid: false,
       statsCounted: true,
       storeStatsCounted: true,
@@ -312,8 +339,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       total: 1,
       apple: 0,
       google: 0,
-      horizon: 1,
-      amazon: 0,
+      horizon: 0,
+      amazon: 1,
       googleOrders: 0,
       valid: 0,
       invalid: 1,

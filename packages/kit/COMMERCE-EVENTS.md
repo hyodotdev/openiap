@@ -55,6 +55,25 @@ from. `commerceEvents.entitlementActive` denormalizes that answer onto the
 event, and the delivered body carries it as `subscription.active`, so a consumer
 can act without joining back.
 
+## Account access for Amazon and Horizon
+
+Commerce Protocol `bindPurchase` connects a verified Amazon receipt or Horizon
+store-user/SKU pair to one app account in `purchases.appUserId`. The backend
+calling it must establish that the store account belongs to its signed-in user.
+Bindings cannot move between app accounts through this operation.
+
+`entitlements` rechecks these linked purchases with RVS or Meta Graph before
+returning `productIds`. It rereads ownership after the network calls; erasure
+or an upstream failure cannot turn the last saved verdict into fresh access.
+More than 20 linked purchase rows fails the read rather than returning a partial
+answer. These are ownership checks, so they add no synthetic subscription rows,
+renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues to
+report Apple/Google subscription records; use `entitlements` to authorize products.
+
+Account erasure unlinks these purchases and keeps an evidence tombstone so
+verification or binding retries cannot resurrect the erased association.
+Consumable quantity and durable fulfillment remain the application’s ledger.
+
 ## Event vocabulary
 
 The event types are the lifecycle transitions the state machine already

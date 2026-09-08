@@ -18,6 +18,7 @@ import {
 import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 import { isValidSubscriptionUserId } from "./limits";
+import { isUserErasureRequested } from "./erasure";
 
 export const USER_ERASURE_BATCH_SIZE = 100;
 export const USER_ERASURE_JOB_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -164,7 +165,7 @@ export async function applySubscriptionEventHandler(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
 ): Promise<ApplySubscriptionEventResult> {
-  await assertProjectWritable(ctx, args.projectId);
+  const project = await assertProjectWritable(ctx, args.projectId);
   const storedEvent = await ctx.db.get(args.eventId);
   if (!storedEvent || storedEvent.projectId !== args.projectId) {
     throw new Error("Webhook event not found for project");
@@ -293,7 +294,11 @@ export async function applySubscriptionEventHandler(
     linkedExisting &&
     existingByCurrentToken._id !== linkedExisting._id
   ) {
+    const accountErased =
+      existingByCurrentToken.accountErased === true ||
+      linkedExisting.accountErased === true;
     if (
+      !accountErased &&
       existingByCurrentToken.userId &&
       linkedExisting.userId &&
       existingByCurrentToken.userId !== linkedExisting.userId
@@ -311,6 +316,43 @@ export async function applySubscriptionEventHandler(
       survivor._id === existingByCurrentToken._id
         ? linkedExisting
         : existingByCurrentToken;
+    const invalidatedBinding = accountErased
+      ? [survivor, removed].find(
+          (sub) =>
+            !sub.accountErased &&
+            sub.userId &&
+            sub.lastEventId &&
+            isActive(sub, sub.updatedAt),
+        )
+      : undefined;
+    if (
+      invalidatedBinding?.userId &&
+      !(await isUserErasureRequested(ctx, project, invalidatedBinding.userId))
+    ) {
+      // Reconcile the prior grant without repeating a charge or an erased identity.
+      await emitCommerceEvent(ctx, {
+        projectId: args.projectId,
+        transition: null,
+        active: false,
+        previouslyActive: true,
+        sourceEvent: {
+          ...storedEvent,
+          currency: undefined,
+          priceAmountMicros: undefined,
+          amountProvenance: undefined,
+        },
+        subscriptionId: invalidatedBinding._id,
+        subscription: {
+          state: invalidatedBinding.state,
+          productId: invalidatedBinding.productId,
+          expiresAt: invalidatedBinding.expiresAt,
+          renewsAt: invalidatedBinding.renewsAt,
+          willRenew: invalidatedBinding.willRenew,
+          cancellationReason: invalidatedBinding.cancellationReason,
+          userId: invalidatedBinding.userId,
+        },
+      });
+    }
     const removedPeriod = await fetchBillingPeriod(
       ctx,
       args.projectId,
@@ -327,11 +369,13 @@ export async function applySubscriptionEventHandler(
     existing = {
       ...survivor,
       purchaseToken: storedEvent.purchaseToken,
-      userId: survivor.userId ?? removed.userId,
+      accountErased: accountErased || undefined,
+      userId: accountErased ? undefined : (survivor.userId ?? removed.userId),
       startedAt: Math.min(survivor.startedAt, removed.startedAt),
     };
     await ctx.db.patch(survivor._id, {
       purchaseToken: existing.purchaseToken,
+      accountErased: existing.accountErased,
       userId: existing.userId,
       startedAt: existing.startedAt,
       updatedAt: now,
@@ -345,11 +389,9 @@ export async function applySubscriptionEventHandler(
     });
   }
 
-  // Captured before any transition so entitlement deltas are emitted from the
-  // pre-event gate, not the post-event one. A verification-only snapshot has
-  // not produced an outbound entitlement event yet.
+  // Compare with the last persisted gate; today's clock may already have expired it.
   const previouslyActive = priorStoreSnapshot
-    ? isActive(priorStoreSnapshot, now)
+    ? isActive(priorStoreSnapshot, priorStoreSnapshot.updatedAt)
     : false;
   const noOpResult = (): ApplySubscriptionEventResult => ({
     transition: null,
@@ -1275,7 +1317,8 @@ export async function rebindSubscriptionToUserHandler(
   if (!isValidSubscriptionUserId(args.userId)) {
     throw new ConvexError("userId must be nonblank and at most 256 characters");
   }
-  await assertProjectWritable(ctx, args.projectId);
+  const project = await assertProjectWritable(ctx, args.projectId);
+  if (await isUserErasureRequested(ctx, project, args.userId)) return null;
   // Resolve exactly as `bind` does. An operator correcting a wrong binding
   // usually has the token the customer reported, which on Play may be the one
   // a replacement superseded.
@@ -1287,7 +1330,13 @@ export async function rebindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub) return null;
+  if (!sub || sub.accountErased) return null;
+  if (
+    sub.userId &&
+    sub.userId !== args.userId &&
+    (await isUserErasureRequested(ctx, project, sub.userId))
+  )
+    return null;
   if (sub.userId === args.userId) {
     return { subscriptionId: sub._id, notified: true };
   }
@@ -1350,7 +1399,8 @@ export async function bindSubscriptionToUserHandler(
   if (!isValidSubscriptionUserId(args.userId)) {
     throw new ConvexError("userId must be nonblank and at most 256 characters");
   }
-  await assertProjectWritable(ctx, args.projectId);
+  const project = await assertProjectWritable(ctx, args.projectId);
+  if (await isUserErasureRequested(ctx, project, args.userId)) return null;
   const supersedingResolution = await findSupersedingSubscription(
     ctx,
     args.projectId,
@@ -1359,7 +1409,7 @@ export async function bindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub) return null;
+  if (!sub || sub.accountErased) return null;
   if (sub.userId === args.userId) return sub._id;
   if (sub.userId) {
     // Reported the same as an unknown token. A distinct error would tell any
@@ -1457,7 +1507,7 @@ export async function drainSubscriptionUserErasurePage(
 
   const now = Date.now();
   await ctx.db.patch(jobId, { status: "running", updatedAt: now });
-  const [subscriptions, commerceEvents] = await Promise.all([
+  const [subscriptions, commerceEvents, purchases] = await Promise.all([
     ctx.db
       .query("subscriptions")
       .withIndex("by_project_and_user", (q) =>
@@ -1470,10 +1520,25 @@ export async function drainSubscriptionUserErasurePage(
         q.eq("projectId", job.projectId).eq("userId", job.userId),
       )
       .take(USER_ERASURE_BATCH_SIZE),
+    ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", job.projectId).eq("appUserId", job.userId),
+      )
+      .take(USER_ERASURE_BATCH_SIZE),
   ]);
 
   for (const subscription of subscriptions) {
-    await ctx.db.patch(subscription._id, { userId: undefined });
+    await ctx.db.patch(subscription._id, {
+      userId: undefined,
+      accountErased: true,
+    });
+  }
+  for (const purchase of purchases) {
+    await ctx.db.patch(purchase._id, {
+      appUserId: undefined,
+      accountErased: true,
+    });
   }
   let commerceEventsErasedThisPage = 0;
   let waitingForClaimedDelivery = false;
@@ -1501,6 +1566,7 @@ export async function drainSubscriptionUserErasurePage(
   const done =
     !waitingForClaimedDelivery &&
     subscriptions.length < USER_ERASURE_BATCH_SIZE &&
+    purchases.length < USER_ERASURE_BATCH_SIZE &&
     commerceEvents.length < USER_ERASURE_BATCH_SIZE;
 
   if (done) {

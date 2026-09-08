@@ -24,7 +24,7 @@ function Languages() {
   return (
     <div className="xp-page xp-languages">
       <SEO
-        title="Implementations"
+        title="In-App Purchase SDKs for Your Framework"
         description="Production-ready IAP libraries implementing OpenIAP: expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, and godot-iap. Type-safe in-app purchases for every framework."
         path="/languages"
         keywords="expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, godot-iap, IAP SDK, in-app purchase library, mobile payments SDK, cross-platform IAP"
@@ -34,10 +34,10 @@ function Languages() {
         <div className="xp-shell xp-page-header-grid">
           <div>
             <p className="xp-kicker">Implementations</p>
-            <h1>Your stack, one contract</h1>
+            <h1>Choose your in-app purchase SDK</h1>
             <p className="xp-lede">
-              Native store modules at the core. Six framework SDKs speaking the
-              same purchase language.
+              Use the SDK for your app's framework. Each entry links to its
+              install guide, supported platforms, and source code.
             </p>
           </div>
           <div className="xp-contract-sample" aria-label="Shared API examples">

@@ -1,8 +1,71 @@
 "use node";
 
 import { verifyGooglePlayReceiptInternalV1 } from "./android";
-import { verifyAmazonReceiptInternalV1 } from "./amazon";
+import {
+  verifyAmazonReceiptInternalV1,
+  verifyAmazonReceipt as verifyAmazon,
+} from "./amazon";
 import { verifyAppStoreReceiptInternalV1 } from "./ios";
+import { verifyHorizonReceipt } from "./horizon";
+import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
+import { ConvexError, v } from "convex/values";
+import { getProjectByApiKey } from "./shared";
+
+export const readBoundPurchaseEntitlements = action({
+  args: { apiKey: v.string(), userId: v.string() },
+  returns: v.object({ productIds: v.array(v.string()) }),
+  handler: async (ctx, args): Promise<{ productIds: string[] }> => {
+    const project = await getProjectByApiKey(ctx, args.apiKey, "admin");
+    const queryArgs = { projectId: project._id, userId: args.userId };
+    const purchases = await ctx.runQuery(
+      internal.purchases.internal.boundPurchasesForUser,
+      queryArgs,
+    );
+    for (const purchase of purchases) {
+      const evidence = purchase.requestData;
+      if (evidence.store === "amazon") {
+        await verifyAmazon(ctx, {
+          apiKey: args.apiKey,
+          userId: evidence.userId,
+          receiptId: evidence.receiptId,
+          sandbox: evidence.sandbox,
+        });
+      } else if (evidence.store === "horizon") {
+        await verifyHorizonReceipt(ctx, {
+          apiKey: args.apiKey,
+          userId: evidence.userId,
+          sku: evidence.sku,
+        });
+      } else {
+        throw new ConvexError({
+          code: "INVALID_INPUT",
+          message: "Unsupported bound purchase",
+        });
+      }
+    }
+    // Re-read ownership after network calls so erasure cannot return stale access.
+    const current = await ctx.runQuery(
+      internal.purchases.internal.boundPurchasesForUser,
+      queryArgs,
+    );
+    const refreshed = new Set(purchases.map((purchase) => purchase._id));
+    if (current.some((purchase) => !refreshed.has(purchase._id)))
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Ownership changed; retry the read",
+      });
+    return {
+      productIds: [
+        ...new Set(
+          current.flatMap((purchase) =>
+            purchase.isValid && purchase.productId ? [purchase.productId] : [],
+          ),
+        ),
+      ],
+    };
+  },
+});
 
 export const verifyGooglePlayReceipt = verifyGooglePlayReceiptInternalV1;
 export const verifyAppStoreReceipt = verifyAppStoreReceiptInternalV1;

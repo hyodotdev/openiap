@@ -1,0 +1,2296 @@
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..d5632c9
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,22 @@
++# Example acceptance
++
++Read `README.md` for the runnable scope, `INTEGRATE.md` for product boundaries,
++and `BUILD.md` for the implementation milestones and completion checks.
++
++Before finishing a change:
++
++- Follow the running example as a first-time reader on desktop and mobile.
++  Explain the result and the reader's next decision before implementation
++  detail. Keep a short record of the tasks attempted and points of confusion.
++- Compare the affected responsibility with the corresponding IAPKit handler
++  and test linked from the [purchase guide](https://openiap.dev/commerce-protocol/getting-started).
++  Report the actual differences; the installed protocol remains authoritative.
++- Replay changed implementation instructions in a clean project, using only
++  the documented inputs. Run the startup command, tests, and affected demos.
++  Retain failed attempts and verify the repaired behavior independently.
++- Identify the tested source revision, commands, results, and fixture scope.
++  Do not infer real-store support, full profile conformance, or interoperability
++  between providers from a local fixture run. Label an AI reader simulation as
++  a simulation, not a human user study.
++
++Do not manufacture successful output or weaken acceptance to hide a failure.
+diff --git a/BUILD.md b/BUILD.md
+index b5884a0..94a7142 100644
+--- a/BUILD.md
++++ b/BUILD.md
+@@ -32,6 +32,14 @@ Implement the backend in my project. Do not require an OpenIAP or IAPKit checkou
+ and do not invent request fields, response shapes, role rules, or enum values.
+ Follow my repository's instructions. Keep work uncommitted for review.
+ 
++Read this example alongside [IAPKit's service source](https://github.com/hyodotdev/openiap/tree/main/packages/kit).
++The [purchase walkthrough](https://openiap.dev/commerce-protocol/getting-started)
++connects each step to both implementations and their checks. Use this example
++to understand the small SQLite flow; use IAPKit to study real store adapters,
++project authorization, account erasure, and the GraphQL adapter. Compare the
++relevant code at each milestone without making either repository a runtime
++dependency of the new project.
++
+ ## Start with a reviewable local result
+ 
+ Use the stack already in my repository. If this is an empty project, choose a
+@@ -66,26 +74,46 @@ Build these milestones in order:
+    events profile requires the public HTTPS destination protections in the spec.
+ 6. **Recovery:** reopen the databases with pending deliveries, resume processing,
+    and prove that neither ownership nor receiver deduplication disappears.
++7. **Account deletion:** remove provider identity and recipient copies, retry the
++   same erasure after restart, and reject stale account requests and late events.
+ 
+ After each milestone, run it. Show the command, actual API result, storage
+ change, and passing assertions. Capture the working screen. Do not manufacture
+ logs, screenshots, conformance counts, or claims about capabilities not tested.
+ 
++## Complete the local implementation
++
++Before calling the result complete, implement erasure for the account lifecycle:
++remove the user identity from provider records and event history, preserve other
++users, and prevent a late retry from restoring erased recipient data. Keep
++provider erasure separate from the recipient's responsibility for delivered
++copies. Exercise erasure during delivery, on repetition, and after restart.
++
++Run the portable conformance runner for every selected profile and binding.
++Do not finish with tests that expect known conformance failures. Keep every
++previously exercised case in the completed run; changing declarations must not
++hide a failure. Describe fixture-only capabilities explicitly, without implying
++that a real store API or notification channel was connected.
++
++Copy only source and package metadata into an empty directory. Install, test,
++and start it there, without the development database or output directories.
++Check the visible app after purchase, cancellation, expiry, reload, and deletion.
++
+ ## Deliver
+ 
+ - A runnable local backend and small inspection UI.
+ - One command that verifies the demonstrated flow and exits nonzero on failure.
+ - A short visual walkthrough, with real captured results for each milestone.
+ - The exact scope and remaining work, including real store validation,
+-  authentication, erasure, multi-tenant isolation, public HTTPS delivery,
+-  operations, and full profile conformance. Keep the main explanation short;
++  real authentication, multi-tenant isolation, public HTTPS delivery, and
++  operations. Include the passing local conformance report and its fixture scope. Keep the main explanation short;
+   link the specification for details.
+ 
+ ## Then extend toward a production provider
+ 
+ Ask me which real store, backend identity system, and deployment environment to
+-integrate before using credentials or external services. Implement the remaining
+-operations of each chosen profile, including erasure for `accountLifecycle`.
++integrate before using credentials or external services. Replace fictional store and session adapters with the chosen integrations.
++Keep the completed profile behavior and erasure checks passing.
+ Run the portable conformance runner for every advertised binding and profile;
+ also run real store sandbox, recovery, isolation, and load tests. Treat IAPKit as
+ an implementation example, never as a replacement for the protocol's contract.
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+index c497c13..ba56c4a 100644
+--- a/INTEGRATE.md
++++ b/INTEGRATE.md
+@@ -36,6 +36,13 @@ gives the endpoint, configuration, and limits.
+ 
+ ## Task for the AI
+ 
++Use the [purchase walkthrough](https://openiap.dev/commerce-protocol/getting-started)
++to compare this example with [IAPKit's service implementation](https://github.com/hyodotdev/openiap/tree/main/packages/kit)
++at each step. This repository shows the small local implementation; IAPKit shows
++store adapters, project credentials, erasure, and both API bindings. Follow the
++linked handlers and checks for the responsibility you own. The installed
++specification defines the required behavior; neither implementation changes it.
++
+ Inspect this repository's purchase flow and choose the role from the table.
+ Install `openiap-commerce-protocol` with this repository's package manager.
+ Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
+diff --git a/README.md b/README.md
+index ec1ec9a..a11d8e0 100644
+--- a/README.md
++++ b/README.md
+@@ -1,8 +1,8 @@
+ # OpenIAP Commerce Protocol example
+ 
+-A runnable purchase-to-access backend, built and reviewed with AI in six
++A runnable purchase-to-access backend, built and reviewed with AI in seven
+ milestones. Follow a purchase through verification, ownership, access, and
+-signed event delivery. Inspect the actual HTTP responses and database changes.
++signed event delivery, and account deletion. Inspect the actual HTTP responses and database changes.
+ 
+ The backend uses the published **`openiap-commerce-protocol`** package. HTTP,
+ SQLite, and webhook signatures run locally; the store, users, and clock are
+@@ -23,7 +23,7 @@ npm start
+ ```
+ 
+ Open **http://127.0.0.1:5181**, then click **Run step 1 →** and continue through
+-step 6. Each step changes real local state. The dashboard shows purchases,
++step 7. Each step changes real local state. The dashboard shows purchases,
+ current access, delivery attempts, and expandable request/response details.
+ No store account, API key, OpenIAP checkout, or IAPKit account is required.
+ Modern Yarn uses the included `node_modules` linker.
+@@ -44,6 +44,7 @@ and the [complete build history](https://github.com/hyodotdev/openiap-commerce-p
+ | 4. Cancel   | Turn off renewal; queue an event                 | Paid access remains until expiry                     |
+ | 5. Deliver  | Sign events; retry a failed receiver             | A repeated delivery has one inbox effect             |
+ | 6. Expire   | Advance the clock; reopen SQLite                 | Access closes; ownership and delivery records remain |
++| 7. Erase    | Remove provider identity and receiver copies    | Repeated deletion and late deliveries cannot restore the user |
+ 
+ Restarting `npm start` creates a fresh temporary database, so you can replay the
+ walkthrough. Step 6 reopens the existing databases **inside the running process**;
+@@ -109,9 +110,32 @@ and Google Chrome. The [recording guide](https://github.com/hyodotdev/openiap-co
+ explains how to preserve a checkpoint and export evidence. GitHub CI runs the
+ runtime, tooling, archive, and documentation-export checks.
+ 
++## Account deletion
++
++Step 7 runs `eraseUser` using server credentials. The provider removes identity
++from purchases and removes identity-bearing event records in one transaction.
++A repeated request returns the same completed job, including after restart.
++
++The app owns already-delivered copies: it erases its receiver inbox and retains
++a keyed deletion marker so late signed events are acknowledged without storing
++the deleted identity. The example also refuses rebinding erased evidence.
++This is a local ownership policy; the protocol does not cancel the store subscription.
++Database backups and the app’s own account records remain the operator’s responsibility.
++
++Run `bun verify-erasure.mjs` to exercise deletion while a delivery is in flight,
++late lifecycle events, repeated requests, and storage reopening.
++
++## Replace the example with IAPKit
++
++The OpenIAP checkout includes `packages/kit/scripts/docs/run-commerce-interop.mjs`.
++It starts IAPKit with an isolated local Convex deployment and keeps one app
++backend and receiver running while switching the commerce provider. See the
++[composition guide](https://openiap.dev/commerce-protocol/ecosystem#composition-proof)
++for the executed report, source, and command. No IAPKit account or store keys are needed.
++
+ ## What remains for production
+ 
+-Real store validation and sandbox purchases, login, user erasure, tenant
++Real store validation and sandbox purchases, login, tenant
+ isolation, GraphQL, public HTTPS delivery protections, and operational recovery
+ are not implemented here. The backend advertises **no complete profiles**.
+ Schema checks and the local walkthrough do not establish profile conformance.
+diff --git a/capture.mjs b/capture.mjs
+index 53904d7..9ff8993 100644
+--- a/capture.mjs
++++ b/capture.mjs
+@@ -9,7 +9,7 @@ import {
+   rmSync,
+ } from "node:fs";
+ import { tmpdir } from "node:os";
+-import { join } from "node:path";
++import { dirname, join } from "node:path";
+ import { pathToFileURL } from "node:url";
+ import { chromium } from "@playwright/test";
+ import {
+@@ -46,8 +46,10 @@ let lab, browser;
+ try {
+   mkdirSync(current);
+   mkdirSync(previous);
+-  for (const name of SOURCE_FILES)
++  for (const name of SOURCE_FILES) {
++    mkdirSync(dirname(join(current, name)), { recursive: true });
+     cpSync(join(root, name), join(current, name));
++  }
+   const sourceHashes = hashes(current);
+   if (checkpoint.previous) {
+     assert(/^\d\d-[\w-]+$/.test(checkpoint.previous));
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index 06b5f3b..6e6cfd4 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -8,6 +8,7 @@ import {
+   mkdtempSync,
+   readFileSync,
+   readdirSync,
++  statSync,
+   rmSync,
+   writeFileSync,
+ } from "node:fs";
+@@ -18,6 +19,7 @@ export const SOURCE_FILES = [
+   ".gitignore",
+   ".yarnrc.yml",
+   "LICENSE",
++  "AGENTS.md",
+   "README.md",
+   "BUILD.md",
+   "INTEGRATE.md",
+@@ -27,6 +29,8 @@ export const SOURCE_FILES = [
+   "package-lock.json",
+   "contract.mjs",
+   "provider.mjs",
++  "erasure.mjs",
++  "verify-erasure.mjs",
+   "webhooks.mjs",
+   "consumer.mjs",
+   "client-bridge.mjs",
+@@ -34,6 +38,15 @@ export const SOURCE_FILES = [
+   "server.mjs",
+   "verify.mjs",
+   "dashboard.html",
++  "composition/README.md",
++  "composition/app-backend.mjs",
++  "composition/app-backend.test.mjs",
++  "composition/commerce-client.mjs",
++  "composition/export.mjs",
++  "composition/memory-provider.mjs",
++  "composition/purchase-flow.mjs",
++  "composition/run.mjs",
++
+   "capture.mjs",
+   "export-docs.mjs",
+   "checkpoint-tools.mjs",
+@@ -42,12 +55,18 @@ export const SOURCE_FILES = [
+ ];
+ export const sha256 = (file) =>
+   createHash("sha256").update(readFileSync(file)).digest("hex");
+-export const hashes = (directory) =>
+-  Object.fromEntries(
+-    readdirSync(directory)
+-      .sort()
+-      .map((name) => [name, sha256(join(directory, name))]),
+-  );
++export function hashes(directory) {
++  const entries = [];
++  function visit(relative) {
++    for (const name of readdirSync(join(directory, relative)).sort()) {
++      const file = join(relative, name);
++      if (statSync(join(directory, file)).isDirectory()) visit(file);
++      else entries.push([file, sha256(join(directory, file))]);
++    }
++  }
++  visit("");
++  return Object.fromEntries(entries);
++}
+ export function sanitize(text) {
+   const roots = [process.cwd(), import.meta.dir, homedir()]
+     .filter(Boolean)
+diff --git a/checkpoint.json b/checkpoint.json
+index 5ee086d..2b4698d 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+-  "step": 6,
+-  "id": "06-recover-reviewed-8",
+-  "title": "Expire access and restart",
+-  "built": "Exact-byte webhook authentication with Unicode regression checks",
+-  "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+-  "previous": "06-recover-reviewed-7"
++  "step": 7,
++  "id": "07-account-erasure",
++  "title": "Delete the account",
++  "built": "Atomic provider erasure, recipient cleanup and late-delivery guards",
++  "result": "The account identity is removed; retries and restart cannot restore it.",
++  "previous": "06-recover-reviewed-8"
+ }
+diff --git a/composition/README.md b/composition/README.md
+new file mode 100644
+index 0000000..00ffd08
+--- /dev/null
++++ b/composition/README.md
+@@ -0,0 +1,92 @@
++# Compose services and inspect the boundary
++
++Run the same app-backend client against two separately implemented fixture
++providers, and send both providers' events to the same receiver implementation.
++Only connection configuration changes. The runner records the results and source
++hashes, and fails when a compared outcome differs.
++
++With Bun 1.3.13 and Node.js 24 / npm installed, run from the repository root
++(or the extracted source archive):
++
++```sh
++npm ci --ignore-scripts
++bun composition/run.mjs
++bun composition/run.mjs --record composition-report.json
++```
++
++No environment variables, `.env` file, store accounts, or IAPKit credentials are
++required. The runner creates its fixture credentials, webhook keys, temporary
++databases, and local HTTP ports, then cleans up after itself. Installing
++dependencies needs registry access; the composition run uses loopback HTTP only.
++
++The existing six-step dashboard remains available through `npm start` at
++`http://127.0.0.1:5181`. Set `COMMERCE_LAB_PORT` only to change that port.
++
++## Follow the code
++
++| Part                  | Source                            | Responsibility                                                                                       |
++| --------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------- |
++| App backend           | `composition/commerce-client.mjs` | Validate calls, verify evidence, bind to the authenticated user, read access                         |
++| Host/paywall callback | `composition/purchase-flow.mjs`   | Purchase → backend fulfillment → finish; display pending, canceled, failed, or fulfilled             |
++| Provider A            | `provider.mjs`                    | Existing SQLite purchase and ownership implementation                                                |
++| Provider B            | `composition/memory-provider.mjs` | Separate Map-based handlers and event signer; shares contract metadata, no Provider A business logic |
++| Event consumer        | `webhooks.mjs`                    | Authenticate raw bytes and persist one inbox effect per event                                        |
++| Reproduction          | `composition/run.mjs`             | Start isolated HTTP listeners, run both configurations, compare results and failure cases            |
++
++The app backend holds the server credential and selects `userId` from its own
++authenticated session. The host adapter receives a fulfillment callback; never
++ship `commerce-client.mjs` or its credential to an app. Real SDK pending results
++resume through the app's purchase-update listener. This fixture exercises the
++callback boundary, not a particular paywall SDK or mobile purchase runtime.
++
++## What the run demonstrates
++
++Both configurations save verification without granting access, bind only once,
++reject another owner, preserve access after cancellation, and close it exactly
++at expiry even before a notification. Both emit signed events; a 503 retries,
++redelivery has one inbox effect, altered bodies and another emitter's key fail,
++and an optional `extensions["partner.segment"]` string survives storage without editing the
++consumer. The consumer also rejects a malformed successful API response.
++
++Each emitter/project has its own configured endpoint, secret, and inbox
++database. Equal event IDs from different emitters therefore do not collide.
++This does not identify duplicate real-world facts across a provider cutover.
++
++## Make and verify one change
++
++Change the `extensions["partner.segment"]` string in `composition/run.mjs`, rerun
++the command, and inspect its storage check. The purchase flow, client, and
++receiver modules stay the same. For a provider implementation
++change, retain the expected access results and rerun against both providers;
++do not edit the expected outcome merely to make an incompatible result pass.
++
++`bun composition/export.mjs <output-directory>` also runs a negative control
++inside a temporary copy: changing the SQLite access deadline from `<` to `<=`
++must fail the deadline check. It leaves the original source unchanged.
++
++## Bring another implementation
++
++Use `createCommerceClient({ baseUrl, credential })` for a disposable test account.
++Supply a provider-owned setup/transition adapter in the runner for its fixture
++purchase, cancellation, and expiry; those controls are not protocol operations.
++Keep the client, receiver, and expected outcomes unchanged. Record the exact
++revision, configuration fields changed (never secret values), commands, result
++report, and any required code changes. A changed adapter is evidence of work
++needed, not a reason to hide the change.
++
++Run the published protocol conformance runner separately for every claimed
++profile/binding. This demo advertises no complete profiles. External teams can
++publish their own report without an OpenIAP account or hosted checker.
++
++## Scope
++
++The services communicate over real loopback HTTP in one Bun process. Provider A
++uses SQLite; Provider B keeps state in memory. Store evidence, users, clock, and
++purchase callbacks are fixtures. Both implementations were authored within this
++project: this is reproducible implementation evidence, not independent company
++validation. It proves neither real store verification nor production reliability.
++
++Both providers start empty. Moving ownership/history, rotating credentials,
++cutover overlap, process-crash recovery, and a real SDK purchase need separate
++tests. The baseline receiver stores events; it does not compute a revenue ledger
++or grant access from webhook arrival.
+diff --git a/composition/app-backend.mjs b/composition/app-backend.mjs
+new file mode 100644
+index 0000000..04475a7
+--- /dev/null
++++ b/composition/app-backend.mjs
+@@ -0,0 +1,114 @@
++import { Database } from "bun:sqlite";
++import { createCommerceClient } from "./commerce-client.mjs";
++import { createErasureLedger } from "../erasure.mjs";
++
++// resolveSession is the host app's authentication boundary, supplied by the caller.
++export function startAppBackend({ path, providers, receiver, resolveSession }) {
++  const db = new Database(path, { create: true });
++  db.exec(
++    "CREATE TABLE IF NOT EXISTS erasure_requests (user_id TEXT, provider TEXT, PRIMARY KEY(user_id, provider))",
++  );
++  const erased = createErasureLedger(db);
++  const clients = Object.fromEntries(
++    Object.entries(providers).map(([name, config]) => [
++      name,
++      createCommerceClient(config),
++    ]),
++  );
++  const inFlight = new Map();
++  let selected = Object.keys(clients)[0];
++  async function drainErasure() {
++    for (const row of db.query("SELECT * FROM erasure_requests").all()) {
++      try {
++        receiver.eraseUser(row.user_id);
++        const result = await clients[row.provider].call("eraseUser", {
++          userId: row.user_id,
++        });
++        if (result.accepted && result.status === "completed")
++          db.query(
++            "DELETE FROM erasure_requests WHERE user_id = ? AND provider = ?",
++          ).run(row.user_id, row.provider);
++      } catch {
++        /* The durable request is retried by the app's worker. */
++      }
++    }
++    return db.query("SELECT count(*) AS count FROM erasure_requests").get()
++      .count;
++  }
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port: 0,
++    maxRequestBodySize: 32768,
++    async fetch(request) {
++      const userId = await resolveSession(request);
++      if (!userId || erased.has(userId))
++        return new Response("Unauthenticated", { status: 401 });
++      const url = new URL(request.url);
++      try {
++        if (url.pathname === "/purchase" && request.method === "POST") {
++          const input = await request.json();
++          if (erased.has(userId))
++            return new Response("Unauthenticated", { status: 401 });
++          const work = clients[selected].fulfill(input, {
++            userId,
++            productId: "premium.monthly",
++          });
++          const pending = inFlight.get(userId) ?? new Set();
++          pending.add(work);
++          inFlight.set(userId, pending);
++          let result;
++          try {
++            result = await work;
++          } finally {
++            pending.delete(work);
++            if (!pending.size) inFlight.delete(userId);
++          }
++          // A deletion can race the upstream calls; never return access afterwards.
++          return Response.json(erased.has(userId) ? { access: false } : result);
++        }
++        if (url.pathname === "/access" && request.method === "GET") {
++          const result = await clients[selected].call("entitlements", {
++            userId,
++          });
++          return erased.has(userId)
++            ? new Response("Unauthenticated", { status: 401 })
++            : Response.json(result);
++        }
++        if (url.pathname === "/account" && request.method === "DELETE") {
++          db.transaction(() => {
++            erased.remember(userId);
++            for (const name of Object.keys(clients))
++              db.query(
++                "INSERT OR IGNORE INTO erasure_requests VALUES (?,?)",
++              ).run(userId, name);
++          })();
++          receiver.eraseUser(userId);
++          await Promise.allSettled([...(inFlight.get(userId) ?? [])]);
++          const pending = await drainErasure();
++          return Response.json({
++            accepted: true,
++            status: pending ? "queued" : "completed",
++          });
++        }
++        return new Response("Not found", { status: 404 });
++      } catch {
++        return Response.json(
++          { error: "Commerce provider unavailable; retry the request." },
++          { status: 503 },
++        );
++      }
++    },
++  });
++  return {
++    url: `http://127.0.0.1:${server.port}`,
++    select(name) {
++      if (!clients[name]) throw new Error("Unknown provider");
++      selected = name;
++    },
++    drainErasure,
++    async close() {
++      await server.stop(true);
++      db.close();
++    },
++  };
++}
+diff --git a/composition/app-backend.test.mjs b/composition/app-backend.test.mjs
+new file mode 100644
+index 0000000..7f2da7c
+--- /dev/null
++++ b/composition/app-backend.test.mjs
+@@ -0,0 +1,91 @@
++import { test, expect } from "bun:test";
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { createProvider, FIXTURE, CREDENTIALS } from "../provider.mjs";
++import { startConsumer } from "../consumer.mjs";
++import { startAppBackend } from "./app-backend.mjs";
++
++test("account deletion waits for in-flight fulfillment and retries provider erasure after app restart", async () => {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-app-erasure-"));
++  const provider = createProvider(
++    join(directory, "provider.sqlite"),
++    () => FIXTURE.startsAt,
++  );
++  let releaseBind, signalBind;
++  const binding = new Promise((resolve) => {
++    signalBind = resolve;
++  });
++  const gate = new Promise((resolve) => {
++    releaseBind = resolve;
++  });
++  let rejectErase = true;
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port: 0,
++    async fetch(request) {
++      if (new URL(request.url).pathname.endsWith("/bind")) {
++        signalBind();
++        await gate;
++      }
++      if (new URL(request.url).pathname.endsWith("/erase") && rejectErase)
++        return new Response(null, { status: 503 });
++      return provider.fetch(request);
++    },
++  });
++  const receiver = startConsumer({
++    path: join(directory, "receiver.sqlite"),
++    secret: "fixture-key",
++  });
++  const options = {
++    path: join(directory, "app.sqlite"),
++    providers: {
++      example: {
++        baseUrl: `http://127.0.0.1:${server.port}`,
++        credential: CREDENTIALS.server,
++      },
++    },
++    receiver,
++    resolveSession: () => FIXTURE.userId,
++  };
++  let app = startAppBackend(options);
++  try {
++    const purchase = fetch(app.url + "/purchase", {
++      method: "POST",
++      body: JSON.stringify({
++        store: FIXTURE.store,
++        evidence: FIXTURE.evidence,
++      }),
++    });
++    await binding;
++    const deletion = fetch(app.url + "/account", { method: "DELETE" });
++    for (let i = 0; i < 50; i++) {
++      const response = await fetch(app.url + "/access");
++      if (response.status === 401) break;
++      await Bun.sleep(10);
++    }
++    expect((await fetch(app.url + "/access")).status).toBe(401);
++    releaseBind();
++    expect(await (await purchase).json()).toEqual({ access: false });
++    expect(await (await deletion).json()).toEqual({
++      accepted: true,
++      status: "queued",
++    });
++    await app.close();
++    app = startAppBackend(options);
++    expect(
++      (await fetch(app.url + "/purchase", { method: "POST", body: "{}" }))
++        .status,
++    ).toBe(401);
++    rejectErase = false;
++    expect(await app.drainErasure()).toBe(0);
++    expect(provider.inspect().purchases[0].userId).toBeNull();
++  } finally {
++    releaseBind();
++    await app.close();
++    await receiver.close();
++    await server.stop(true);
++    provider.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++});
+diff --git a/composition/commerce-client.mjs b/composition/commerce-client.mjs
+new file mode 100644
+index 0000000..7b5820f
+--- /dev/null
++++ b/composition/commerce-client.mjs
+@@ -0,0 +1,46 @@
++import { operation, validate } from "../contract.mjs";
++
++// This module runs on the authenticated app backend, which owns the credential.
++export function createCommerceClient({ baseUrl, credential }) {
++  async function call(name, input) {
++    const spec = operation(name);
++    if (!spec) throw new Error("Unknown operation");
++    if (spec.input && !validate(spec.input, input))
++      throw new Error("Invalid operation input");
++    const url = new URL(spec.path, baseUrl);
++    if (spec.method === "GET" && input)
++      for (const [key, value] of Object.entries(input))
++        url.searchParams.set(key, value);
++    const response = await fetch(url, {
++      method: spec.method,
++      headers: {
++        "content-type": "application/json",
++        ...(spec.auth === "none" ? {} : { authorization: credential }),
++      },
++      ...(spec.method === "POST" ? { body: JSON.stringify(input) } : {}),
++      redirect: "error",
++      signal: AbortSignal.timeout(5000),
++    });
++    const result = await response.json();
++    if (response.status !== spec.successStatus)
++      throw new Error("Commerce operation failed");
++    if (!validate(spec.result, result))
++      throw new Error("Invalid operation result");
++    return result;
++  }
++
++  async function fulfill(input, { userId, productId }) {
++    const evidence = { ...input };
++    delete evidence.userId;
++    const verdict = await call("verifyPurchase", evidence);
++    if (!verdict.isValid) throw new Error("Purchase was not accepted");
++    const binding = await call("bindPurchase", { ...evidence, userId });
++    if (!binding.bound) throw new Error("Purchase belongs to another user");
++    const access = await call("entitlements", { userId });
++    if (!access.productIds.includes(productId))
++      throw new Error("Requested product is not accessible");
++    return access;
++  }
++
++  return { call, fulfill };
++}
+diff --git a/composition/export.mjs b/composition/export.mjs
+new file mode 100644
+index 0000000..cfb9c06
+--- /dev/null
++++ b/composition/export.mjs
+@@ -0,0 +1,125 @@
++import assert from "node:assert/strict";
++import { spawnSync } from "node:child_process";
++import { createHash } from "node:crypto";
++import {
++  cpSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { dirname, join, resolve } from "node:path";
++import { fileURLToPath } from "node:url";
++import { SOURCE_FILES } from "../checkpoint-tools.mjs";
++import { COMPOSITION_SOURCES, runComposition } from "./run.mjs";
++
++const root = fileURLToPath(new URL("../", import.meta.url));
++assert(
++  process.argv[2],
++  "Usage: bun composition/export.mjs <documentation-assets-directory>",
++);
++const output = resolve(process.argv[2]);
++const temp = mkdtempSync(join(tmpdir(), "commerce-composition-export-"));
++const source = join(temp, "source"),
++  replay = join(temp, "replay");
++const run = (command, args, cwd) => {
++  const result = spawnSync(command, args, {
++    cwd,
++    encoding: "utf8",
++    maxBuffer: 5 * 1024 * 1024,
++    env: { ...process.env, COPYFILE_DISABLE: "1" },
++  });
++  assert.equal(
++    result.status,
++    0,
++    `${command} failed: ${result.stderr}\n${result.stdout}`,
++  );
++};
++try {
++  const report = await runComposition();
++  const names = [
++    ...new Set([
++      ...SOURCE_FILES,
++      ...COMPOSITION_SOURCES,
++      "composition/export.mjs",
++    ]),
++  ].sort();
++  for (const name of names) {
++    mkdirSync(dirname(join(source, name)), { recursive: true });
++    cpSync(join(root, name), join(source, name));
++  }
++  mkdirSync(output, { recursive: true });
++  const archive = join(output, "source.tar.gz");
++  run("tar", ["-czf", archive, ...names], source);
++  mkdirSync(replay);
++  run("tar", ["-xzf", archive, "-C", replay], temp);
++  run("npm", ["ci", "--ignore-scripts"], replay);
++  run(
++    process.execPath,
++    ["composition/run.mjs", "--record", "replay.json"],
++    replay,
++  );
++  const replayed = JSON.parse(
++    readFileSync(join(replay, "replay.json"), "utf8"),
++  );
++  assert.deepEqual(replayed.sourceHashes, report.sourceHashes);
++  assert.deepEqual(replayed.results, report.results);
++  assert.deepEqual(replayed.checks, report.checks);
++  const providerPath = join(replay, "provider.mjs");
++  const original = readFileSync(providerPath, "utf8");
++  assert(original.includes("now < expiresAt"));
++  writeFileSync(
++    providerPath,
++    original.replace("now < expiresAt", "now <= expiresAt"),
++  );
++  const negative = spawnSync(process.execPath, ["composition/run.mjs"], {
++    cwd: replay,
++    encoding: "utf8",
++    maxBuffer: 1024 * 1024,
++  });
++  const rejectedCheck =
++    "sqlite: read closes access at the deadline before a notification";
++  assert.equal(negative.status, 1);
++  assert(
++    (negative.stderr + negative.stdout).includes(rejectedCheck),
++    "Negative control must fail the intended assertion",
++  );
++  report.negativeControl = {
++    change:
++      "Replace now < expiresAt with now <= expiresAt in a temporary provider copy",
++    detected: true,
++    rejectedCheck,
++  };
++  report.archiveVerification = {
++    command: "npm ci --ignore-scripts && bun composition/run.mjs",
++    sameSourceAndResults: true,
++    sha256: createHash("sha256").update(readFileSync(archive)).digest("hex"),
++  };
++  writeFileSync(
++    join(output, "run.json"),
++    JSON.stringify(report, null, 2) + "\n",
++  );
++  writeFileSync(
++    join(output, "source.json"),
++    JSON.stringify(
++      Object.fromEntries(
++        [
++          "composition/commerce-client.mjs",
++          "composition/purchase-flow.mjs",
++          "composition/memory-provider.mjs",
++          "composition/run.mjs",
++        ].map((name) => [name, readFileSync(join(source, name), "utf8")]),
++      ),
++      null,
++      2,
++    ) + "\n",
++  );
++  cpSync(join(root, "composition/README.md"), join(output, "README.md"));
++  console.log(
++    `Exported ${report.checks.length} composition checks with a clean-install archive replay.`,
++  );
++} finally {
++  rmSync(temp, { recursive: true, force: true });
++}
+diff --git a/composition/memory-provider.mjs b/composition/memory-provider.mjs
+new file mode 100644
+index 0000000..dff6b8a
+--- /dev/null
++++ b/composition/memory-provider.mjs
+@@ -0,0 +1,266 @@
++import { createHmac, randomUUID } from "node:crypto";
++import {
++  COMMERCE_EVENT_VERSION,
++  HTTP_BINDING,
++  WEBHOOK,
++  providerCapabilitiesSchema,
++} from "openiap-commerce-protocol";
++import { operation, protocolError, validate } from "../contract.mjs";
++
++// A second fixture implementation; it shares contract metadata, not SQLite logic.
++export function createMemoryProvider({ fixture, credential, now }) {
++  const purchases = new Map();
++  const outbox = [];
++  const supported = new Set([
++    "initialValidation",
++    "subscriptions",
++    "entitlements",
++    "serverNotifications",
++    "expiration",
++  ]);
++  const capabilities = {
++    specVersion: HTTP_BINDING.protocolVersion,
++    implementation: {
++      name: "Memory provider — separately implemented fixture",
++    },
++    eventTypes: [
++      "entitlement.granted",
++      "subscription.canceled",
++      "subscription.expired",
++      "entitlement.revoked",
++    ],
++    stores: {
++      [fixture.store]: Object.fromEntries(
++        Object.keys(
++          providerCapabilitiesSchema.$defs.StoreCapabilities.properties,
++        ).map((name) => [
++          name,
++          {
++            provider: supported.has(name),
++            implementation: supported.has(name),
++            notes:
++              "Fictional store only; no complete profile or production claim.",
++          },
++        ]),
++      ),
++    },
++  };
++
++  function snapshot(purchase) {
++    return {
++      store: fixture.store,
++      productId: fixture.productId,
++      state: purchase.expired ? "Expired" : "Active",
++      active: !purchase.expired && now() < fixture.expiresAt,
++      expiresAt: fixture.expiresAt,
++      willRenew: purchase.renews,
++    };
++  }
++
++  function emit(eventType, purchase) {
++    const event = {
++      eventId: randomUUID(),
++      eventType,
++      eventVersion: COMMERCE_EVENT_VERSION,
++      occurredAt: now(),
++      processedAt: now(),
++      store: fixture.store,
++      environment: "local-fixture",
++      projectId: "memory_example",
++      userId: purchase.owner,
++      productId: fixture.productId,
++      subscription: snapshot(purchase),
++    };
++    if (!validate("#/$defs/CommerceEvent", event))
++      throw new Error("Invalid event");
++    outbox.push({
++      event,
++      attempts: 0,
++      status: "pending",
++      nextAt: now(),
++      deliveryId: randomUUID(),
++    });
++  }
++
++  const handlers = {
++    providerCapabilities: () => capabilities,
++    verifyPurchase(input) {
++      if (input.store !== fixture.store) return { error: "UNSUPPORTED_STORE" };
++      if (typeof input.evidence !== "string")
++        return { error: "INVALID_REQUEST" };
++      if (input.evidence === "local-upstream-outage")
++        return { error: "VERIFICATION_FAILED" };
++      const accepted = input.evidence === fixture.evidence;
++      if (accepted && !purchases.has(input.evidence))
++        purchases.set(input.evidence, {
++          owner: null,
++          renews: true,
++          expired: false,
++          granted: false,
++        });
++      return {
++        store: fixture.store,
++        isValid: accepted && now() < fixture.expiresAt,
++        state: !accepted
++          ? "INAUTHENTIC"
++          : now() >= fixture.expiresAt
++            ? "EXPIRED"
++            : "ENTITLED",
++        ...(accepted ? { productId: fixture.productId } : {}),
++        environment: "local-fixture",
++      };
++    },
++    bindPurchase(input) {
++      if (input.store !== fixture.store) return { error: "UNSUPPORTED_STORE" };
++      if (typeof input.evidence !== "string")
++        return { error: "INVALID_REQUEST" };
++      const purchase = purchases.get(input.evidence);
++      if (!purchase) return { bound: false };
++      if (purchase.owner === null) {
++        purchase.owner = input.userId;
++        if (snapshot(purchase).active) {
++          emit("entitlement.granted", purchase);
++          purchase.granted = true;
++        }
++      }
++      return { bound: purchase.owner === input.userId };
++    },
++    entitlements({ userId }) {
++      const subscriptions = [...purchases.values()]
++        .filter((purchase) => purchase.owner === userId)
++        .map(snapshot)
++        .filter((subscription) => subscription.active);
++      return {
++        userId,
++        productIds: [...new Set(subscriptions.map((row) => row.productId))],
++        subscriptions,
++      };
++    },
++    subscriptionStatus({ userId }) {
++      const purchase = [...purchases.values()].find(
++        (row) => row.owner === userId,
++      );
++      const subscription = purchase ? snapshot(purchase) : undefined;
++      return {
++        active: subscription?.active ?? false,
++        ...(subscription ? { subscription } : {}),
++      };
++    },
++  };
++
++  async function fetch(request) {
++    const url = new URL(request.url);
++    const spec = HTTP_BINDING.operations.find(
++      (entry) => entry.path === url.pathname && entry.method === request.method,
++    );
++    if (!spec) return protocolError("NOT_FOUND");
++    if (
++      spec.auth !== "none" &&
++      request.headers.get("authorization") !== credential
++    )
++      return protocolError("UNAUTHORIZED");
++    if (!handlers[spec.name]) return protocolError("UNSUPPORTED_PROFILE");
++    let input;
++    try {
++      input = spec.input
++        ? request.method === "GET"
++          ? Object.fromEntries(url.searchParams)
++          : await request.json()
++        : null;
++    } catch {
++      return protocolError("INVALID_REQUEST");
++    }
++    if (spec.input && !validate(spec.input, input))
++      return protocolError("INVALID_REQUEST");
++    const result = handlers[spec.name](input);
++    if (result.error) return protocolError(result.error);
++    if (!validate(operation(spec.name).result, result))
++      return protocolError("INTERNAL_ERROR");
++    return Response.json(result, { status: spec.successStatus });
++  }
++
++  function observe(kind) {
++    const purchase = purchases.get(fixture.evidence);
++    if (!purchase?.owner) throw new Error("Bind the fixture purchase first");
++    if (kind === "cancel") {
++      if (!purchase.renews) return;
++      purchase.renews = false;
++      emit("subscription.canceled", purchase);
++    } else if (kind === "expire" && now() >= fixture.expiresAt) {
++      if (purchase.expired) return;
++      purchase.expired = true;
++      purchase.renews = false;
++      emit("subscription.expired", purchase);
++      if (purchase.granted) {
++        emit("entitlement.revoked", purchase);
++        purchase.granted = false;
++      }
++    } else throw new Error("Invalid fixture transition");
++  }
++
++  function signed(event, secret) {
++    const body = JSON.stringify(event);
++    const timestamp = String(Math.floor(now() / 1000));
++    const digest = createHmac("sha256", secret)
++      .update(Buffer.concat([Buffer.from(`${timestamp}.`), Buffer.from(body)]))
++      .digest("hex");
++    return {
++      body,
++      headers: {
++        "content-type": WEBHOOK.contentType,
++        [WEBHOOK.timestampHeader]: timestamp,
++        [WEBHOOK.signatureHeader]: WEBHOOK.signaturePrefix + digest,
++        [WEBHOOK.eventIdHeader]: event.eventId,
++      },
++    };
++  }
++
++  async function flush(url, secret) {
++    const results = [];
++    for (const item of outbox.filter(
++      (row) => row.status === "pending" && row.nextAt <= now(),
++    )) {
++      const request = signed(item.event, secret);
++      let status;
++      try {
++        status = (
++          await globalThis.fetch(url, {
++            method: "POST",
++            ...request,
++            headers: {
++              ...request.headers,
++              [WEBHOOK.deliveryIdHeader]: item.deliveryId,
++            },
++            redirect: "error",
++            signal: AbortSignal.timeout(5000),
++          })
++        ).status;
++      } catch {
++        status = 503;
++      }
++      item.attempts += 1;
++      const retryable = status === 408 || status === 429 || status >= 500;
++      item.status =
++        status >= 200 && status < 300
++          ? "delivered"
++          : retryable && item.attempts < 3
++            ? "pending"
++            : "dead-letter";
++      item.nextAt = now() + 30000 * 2 ** (item.attempts - 1);
++      results.push({
++        httpStatus: status,
++        status: item.status,
++        attempt: item.attempts,
++      });
++    }
++    return results;
++  }
++
++  return {
++    fetch,
++    observe,
++    flush,
++    signed,
++    events: () => outbox.map((row) => row.event),
++  };
++}
+diff --git a/composition/purchase-flow.mjs b/composition/purchase-flow.mjs
+new file mode 100644
+index 0000000..2bf375d
+--- /dev/null
++++ b/composition/purchase-flow.mjs
+@@ -0,0 +1,25 @@
++// Host callbacks are integration-specific; this is not a protocol paywall API.
++export function createPurchaseFlow({ purchase, fulfill, finish }) {
++  let busy = false;
++  return async function select(productId) {
++    if (busy) return { status: "busy" };
++    busy = true;
++    try {
++      const result = await purchase(productId);
++      if (result.status === "pending" || result.status === "canceled")
++        return { status: result.status };
++      if (result.status !== "purchased") throw new Error("Purchase failed");
++      const access = await fulfill(result.evidence, productId);
++      try {
++        await finish(result);
++      } catch {
++        return { status: "finish-pending", access };
++      }
++      return { status: "fulfilled", access };
++    } catch {
++      return { status: "failed" };
++    } finally {
++      busy = false;
++    }
++  };
++}
+diff --git a/composition/run.mjs b/composition/run.mjs
+new file mode 100644
+index 0000000..7fceee5
+--- /dev/null
++++ b/composition/run.mjs
+@@ -0,0 +1,587 @@
++import assert from "node:assert/strict";
++import { createHash, randomBytes, randomUUID } from "node:crypto";
++import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import { Database } from "bun:sqlite";
++import { WEBHOOK, HTTP_BINDING } from "openiap-commerce-protocol";
++import { createProvider, FIXTURE, CREDENTIALS } from "../provider.mjs";
++import { createReceiver, deliver, sign } from "../webhooks.mjs";
++import { createCommerceClient } from "./commerce-client.mjs";
++import { createMemoryProvider } from "./memory-provider.mjs";
++import { createPurchaseFlow } from "./purchase-flow.mjs";
++
++export const COMPOSITION_SOURCES = [
++  "composition/commerce-client.mjs",
++  "composition/memory-provider.mjs",
++  "composition/purchase-flow.mjs",
++  "composition/run.mjs",
++  "composition/README.md",
++  "contract.mjs",
++  "provider.mjs",
++  "webhooks.mjs",
++  "package.json",
++  "package-lock.json",
++];
++const root = new URL("../", import.meta.url);
++export const sourceHashes = () =>
++  Object.fromEntries(
++    COMPOSITION_SOURCES.map((name) => [
++      name,
++      createHash("sha256")
++        .update(readFileSync(new URL(name, root)))
++        .digest("hex"),
++    ]),
++  );
++
++export async function runComposition() {
++  const initialHashes = sourceHashes();
++  const directory = mkdtempSync(join(tmpdir(), "commerce-composition-"));
++  const servers = [],
++    receivers = [];
++  const checks = [],
++    results = [],
++    traces = [];
++  const check = (name, actual, expected) => {
++    assert.deepEqual(actual, expected, name);
++    checks.push(name);
++  };
++  let time = FIXTURE.startsAt;
++  const now = () => time;
++  const sqlite = createProvider(join(directory, "provider.sqlite"), now);
++  const memoryCredential = `Bearer fixture-${randomBytes(16).toString("hex")}`;
++  const memory = createMemoryProvider({
++    fixture: FIXTURE,
++    credential: memoryCredential,
++    now,
++  });
++  const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++  const serve = (fetch) => {
++    const server = Bun.serve({
++      hostname: "127.0.0.1",
++      port: 0,
++      maxRequestBodySize: 65536,
++      fetch,
++    });
++    servers.push(server);
++    return `http://127.0.0.1:${server.port}`;
++  };
++  const providers = [
++    {
++      id: "sqlite",
++      label: "SQLite provider",
++      source: "provider.mjs",
++      fetch: sqlite.fetch,
++      credential: CREDENTIALS.server,
++      observe: (kind) =>
++        sqlite.observe({ id: randomUUID(), kind, occurredAt: now() }),
++      events: () =>
++        sqlite.db
++          .query("SELECT body FROM outbox ORDER BY rowid")
++          .all()
++          .map((row) => JSON.parse(row.body)),
++      signed: (event, secret) => {
++        const body = JSON.stringify(event),
++          timestamp = String(Math.floor(now() / 1000));
++        return {
++          body,
++          headers: {
++            "content-type": WEBHOOK.contentType,
++            [WEBHOOK.timestampHeader]: timestamp,
++            [WEBHOOK.signatureHeader]: sign(secret, timestamp, body),
++            [WEBHOOK.eventIdHeader]: event.eventId,
++          },
++        };
++      },
++      flush: (url, secret) =>
++        deliver(sqlite, secret, now, (init) =>
++          fetch(url, {
++            ...init,
++            redirect: "error",
++            signal: AbortSignal.timeout(5000),
++          }),
++        ),
++    },
++    {
++      id: "memory",
++      label: "Memory provider",
++      source: "composition/memory-provider.mjs",
++      fetch: memory.fetch,
++      credential: memoryCredential,
++      observe: memory.observe,
++      events: memory.events,
++      signed: memory.signed,
++      flush: memory.flush,
++    },
++  ];
++  try {
++    for (const provider of providers) {
++      provider.baseUrl = serve(async (request) => {
++        const response = await provider.fetch(request);
++        traces.push({
++          provider: provider.id,
++          method: request.method,
++          path: new URL(request.url).pathname,
++          status: response.status,
++        });
++        return response;
++      });
++      provider.client = createCommerceClient(provider);
++      provider.secret = randomBytes(32).toString("hex");
++      provider.inboxPath = join(directory, `${provider.id}-inbox.sqlite`);
++      provider.receiver = createReceiver(
++        provider.inboxPath,
++        provider.secret,
++        now,
++      );
++      receivers.push(provider.receiver);
++      provider.failures = 1;
++      provider.receiverUrl = serve((request) => {
++        if (provider.failures-- > 0)
++          return new Response("Try again", { status: 503 });
++        return provider.receiver.fetch(request);
++      });
++      const descriptor = await provider.client.call("providerCapabilities");
++      check(
++        `${provider.id}: contract major matches`,
++        descriptor.specVersion.split(".")[0],
++        HTTP_BINDING.protocolVersion.split(".")[0],
++      );
++      check(
++        `${provider.id}: no unearned profile claim`,
++        descriptor.profiles,
++        undefined,
++      );
++      const before = await provider.client.call("entitlements", {
++        userId: FIXTURE.userId,
++      });
++      check(
++        `${provider.id}: no access before verification`,
++        before.productIds,
++        [],
++      );
++      check(
++        `${provider.id}: rejected evidence stays a verdict`,
++        (
++          await provider.client.call("verifyPurchase", {
++            ...evidence,
++            evidence: "not-a-purchase",
++          })
++        ).isValid,
++        false,
++      );
++      await assert.rejects(
++        () =>
++          provider.client.call("verifyPurchase", {
++            ...evidence,
++            evidence: "local-upstream-outage",
++          }),
++        /operation failed/,
++      );
++      checks.push(`${provider.id}: verifier outage stays an operation failure`);
++      await assert.rejects(
++        () =>
++          provider.client.fulfill(
++            { ...evidence, evidence: "not-a-purchase" },
++            { userId: FIXTURE.userId, productId: FIXTURE.productId },
++          ),
++        /not accepted/,
++      );
++      checks.push(`${provider.id}: rejected verification cannot fulfill`);
++      check(
++        `${provider.id}: accepts fixture evidence`,
++        (await provider.client.call("verifyPurchase", evidence)).isValid,
++        true,
++      );
++      check(
++        `${provider.id}: verification alone grants no access`,
++        (await provider.client.call("entitlements", { userId: FIXTURE.userId }))
++          .productIds,
++        [],
++      );
++
++      const order = [];
++      const flow = createPurchaseFlow({
++        purchase: async (productId) => {
++          check(
++            `${provider.id}: selected product reaches purchase callback`,
++            productId,
++            FIXTURE.productId,
++          );
++          order.push("purchase");
++          return {
++            status: "purchased",
++            evidence: { ...evidence, userId: "untrusted_bob" },
++          };
++        },
++        fulfill: async (input, productId) => {
++          order.push("fulfill");
++          return provider.client.fulfill(input, {
++            userId: FIXTURE.userId,
++            productId,
++          });
++        },
++        finish: async () => {
++          order.push("finish");
++        },
++      });
++      check(
++        `${provider.id}: paywall selection completes`,
++        (await flow(FIXTURE.productId)).status,
++        "fulfilled",
++      );
++      check(`${provider.id}: fulfillment precedes finishing`, order, [
++        "purchase",
++        "fulfill",
++        "finish",
++      ]);
++      const bound = await provider.client.call("entitlements", {
++        userId: FIXTURE.userId,
++      });
++      check(`${provider.id}: trusted user receives Premium`, bound.productIds, [
++        FIXTURE.productId,
++      ]);
++      check(
++        `${provider.id}: client identity is ignored`,
++        (
++          await provider.client.call("entitlements", {
++            userId: "untrusted_bob",
++          })
++        ).productIds,
++        [],
++      );
++      check(
++        `${provider.id}: another user cannot take ownership`,
++        (
++          await provider.client.call("bindPurchase", {
++            ...evidence,
++            userId: "other_user",
++          })
++        ).bound,
++        false,
++      );
++      const again = await provider.client.fulfill(evidence, {
++        userId: FIXTURE.userId,
++        productId: FIXTURE.productId,
++      });
++      check(
++        `${provider.id}: repeated fulfillment returns the same access`,
++        again,
++        bound,
++      );
++      provider.observe("cancel");
++      const canceled = await provider.client.call("subscriptionStatus", {
++        userId: FIXTURE.userId,
++      });
++      check(
++        `${provider.id}: cancellation preserves paid time`,
++        [canceled.active, canceled.subscription.willRenew],
++        [true, false],
++      );
++      const firstDelivery = await provider.flush(
++        provider.receiverUrl,
++        provider.secret,
++      );
++      check(
++        `${provider.id}: temporary receiver failure is queued for retry`,
++        firstDelivery[0].status,
++        "pending",
++      );
++      provider.result = {
++        id: provider.id,
++        label: provider.label,
++        source: provider.source,
++        before,
++        bound,
++        canceled,
++      };
++    }
++
++    time += 30000;
++    for (const provider of providers) {
++      const retries = await provider.flush(
++        provider.receiverUrl,
++        provider.secret,
++      );
++      check(
++        `${provider.id}: retry succeeds over HTTP`,
++        retries.map((row) => [row.httpStatus, row.attempt]),
++        [[200, 2]],
++      );
++      check(
++        `${provider.id}: one inbox effect per event`,
++        provider.receiver.count(),
++        2,
++      );
++      const event = provider.events()[0];
++      const request = provider.signed(event, provider.secret);
++      const repeat = await fetch(provider.receiverUrl, {
++        method: "POST",
++        ...request,
++      });
++      check(
++        `${provider.id}: redelivery is a duplicate`,
++        (await repeat.json()).duplicate,
++        true,
++      );
++      check(
++        `${provider.id}: modified body fails authentication`,
++        (
++          await fetch(provider.receiverUrl, {
++            method: "POST",
++            ...request,
++            body: request.body + " ",
++          })
++        ).status,
++        401,
++      );
++      const wrongKey = provider.signed(
++        event,
++        providers.find((other) => other !== provider).secret,
++      );
++      check(
++        `${provider.id}: another emitter's key is rejected`,
++        (await fetch(provider.receiverUrl, { method: "POST", ...wrongKey }))
++          .status,
++        401,
++      );
++
++      const extension = {
++        ...event,
++        eventId: "same-id-in-each-emitter",
++        extensions: { "partner.segment": "demo" },
++      };
++      const extended = provider.signed(extension, provider.secret);
++      check(
++        `${provider.id}: optional extension is accepted`,
++        (await fetch(provider.receiverUrl, { method: "POST", ...extended }))
++          .status,
++        200,
++      );
++      check(
++        `${provider.id}: equal IDs in different emitter inboxes are not lost`,
++        provider.receiver.count(),
++        3,
++      );
++      const invalidExtension = provider.signed(
++        {
++          ...event,
++          eventId: "invalid-extension",
++          extensions: { partner: { segment: "demo" } },
++        },
++        provider.secret,
++      );
++      check(
++        `${provider.id}: an extension violating the contract is rejected`,
++        (
++          await fetch(provider.receiverUrl, {
++            method: "POST",
++            ...invalidExtension,
++          })
++        ).status,
++        400,
++      );
++      const inspector = new Database(provider.inboxPath, { readonly: true });
++      try {
++        const stored = JSON.parse(
++          inspector
++            .query("SELECT body FROM inbox WHERE event_id = ?")
++            .get(extension.eventId).body,
++        );
++        check(
++          `${provider.id}: extension bytes survive storage`,
++          stored.extensions,
++          extension.extensions,
++        );
++      } finally {
++        inspector.close();
++      }
++    }
++
++    time = FIXTURE.expiresAt;
++    for (const provider of providers) {
++      check(
++        `${provider.id}: read closes access at the deadline before a notification`,
++        (await provider.client.call("entitlements", { userId: FIXTURE.userId }))
++          .productIds,
++        [],
++      );
++      provider.observe("expire");
++      provider.result.expired = await provider.client.call(
++        "subscriptionStatus",
++        { userId: FIXTURE.userId },
++      );
++      check(
++        `${provider.id}: expired status is inactive`,
++        provider.result.expired.active,
++        false,
++      );
++      await provider.flush(provider.receiverUrl, provider.secret);
++      check(
++        `${provider.id}: lifecycle and grant events match`,
++        provider.events().map((event) => event.eventType),
++        [
++          "entitlement.granted",
++          "subscription.canceled",
++          "subscription.expired",
++          "entitlement.revoked",
++        ],
++      );
++      check(
++        `${provider.id}: all emitted events were persisted`,
++        provider.receiver.count(),
++        5,
++      );
++      const wrong = createCommerceClient({
++        ...provider,
++        credential: "Bearer invalid-fixture-key",
++      });
++      await assert.rejects(
++        () => wrong.call("entitlements", { userId: FIXTURE.userId }),
++        /operation failed/,
++      );
++      checks.push(`${provider.id}: wrong caller credentials fail closed`);
++      results.push(provider.result);
++    }
++    for (const state of ["before", "bound", "canceled", "expired"])
++      check(
++        `same consumer observes equal ${state} results across providers`,
++        results[0][state],
++        results[1][state],
++      );
++
++    for (const status of ["pending", "canceled", "failed"]) {
++      let effects = 0;
++      const flow = createPurchaseFlow({
++        purchase: async () => ({ status }),
++        fulfill: async () => {
++          effects++;
++        },
++        finish: async () => {
++          effects++;
++        },
++      });
++      check(
++        `host: ${status} is shown without fulfillment or finishing`,
++        [(await flow(FIXTURE.productId)).status, effects],
++        [status, 0],
++      );
++    }
++    let releasePurchase;
++    const blocked = new Promise((resolve) => {
++      releasePurchase = resolve;
++    });
++    const busyFlow = createPurchaseFlow({
++      purchase: async () => {
++        await blocked;
++        return { status: "canceled" };
++      },
++      fulfill: async () => {
++        throw new Error("Unexpected fulfillment");
++      },
++      finish: async () => {
++        throw new Error("Unexpected finish");
++      },
++    });
++    const inProgress = busyFlow(FIXTURE.productId);
++    check(
++      "host: repeated selection does not start another purchase",
++      (await busyFlow(FIXTURE.productId)).status,
++      "busy",
++    );
++    releasePurchase();
++    await inProgress;
++    check(
++      "host: selection becomes available after cancellation",
++      (await busyFlow(FIXTURE.productId)).status,
++      "canceled",
++    );
++    let finished = false;
++    const failedBackend = createPurchaseFlow({
++      purchase: async () => ({ status: "purchased", evidence }),
++      fulfill: async () => {
++        throw new Error("Backend unavailable");
++      },
++      finish: async () => {
++        finished = true;
++      },
++    });
++    check(
++      "host: backend failure does not finish a purchase",
++      [(await failedBackend(FIXTURE.productId)).status, finished],
++      ["failed", false],
++    );
++    const failedFinish = createPurchaseFlow({
++      purchase: async () => ({ status: "purchased", evidence }),
++      fulfill: async () => ({ productIds: [FIXTURE.productId] }),
++      finish: async () => {
++        throw new Error("Finish unavailable");
++      },
++    });
++    check(
++      "host: a finish failure preserves confirmed access",
++      await failedFinish(FIXTURE.productId),
++      { status: "finish-pending", access: { productIds: [FIXTURE.productId] } },
++    );
++    const malformedUrl = serve(() =>
++      Response.json({
++        userId: FIXTURE.userId,
++        productIds: [FIXTURE.productId],
++      }),
++    );
++    await assert.rejects(
++      () =>
++        createCommerceClient({
++          baseUrl: malformedUrl,
++          credential: "fixture",
++        }).call("entitlements", { userId: FIXTURE.userId }),
++      /Invalid operation result/,
++    );
++    checks.push("client: a malformed success response is rejected over HTTP");
++    check(
++      "consumer and provider source files stay unchanged throughout the run",
++      sourceHashes(),
++      initialHashes,
++    );
++    return {
++      recordedAt: new Date().toISOString(),
++      scope:
++        "Two separately implemented fixture providers and two scoped receivers over loopback HTTP in one Bun process. One backend client and receiver implementation, unchanged across both configurations. Host purchase callbacks are simulated.",
++      limits: [
++        "Same project authorship; no independent organization validation.",
++        "No store purchase, SDK/device checkout, complete profile conformance, or production deployment.",
++        "SQLite versus in-memory state is tested on fresh stores, not a historical-data migration.",
++        "One trusted emitter/project and secret per receiver database; no cross-provider deduplication claim.",
++      ],
++      protocolVersion: HTTP_BINDING.protocolVersion,
++      sourceHashes: initialHashes,
++      configurationChanges: [
++        "Provider URL",
++        "Server credential",
++        "Emitter endpoint, signing secret, and isolated inbox database",
++      ],
++      checks,
++      results,
++      traces,
++    };
++  } finally {
++    await Promise.all(servers.map((server) => server.stop(true)));
++    for (const receiver of receivers) receiver.close();
++    sqlite.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++}
++
++if (import.meta.main) {
++  const report = await runComposition();
++  if (process.argv[2] === "--record") {
++    assert(process.argv[3], "Provide the report filename");
++    writeFileSync(
++      resolve(process.argv[3]),
++      JSON.stringify(report, null, 2) + "\n",
++    );
++  }
++  console.log(
++    `Composition: ${report.checks.length} checks passed; same client and receiver source across two fixture providers. No store or production service contacted.`,
++  );
++}
+diff --git a/consumer.mjs b/consumer.mjs
+index 972ef32..cb052b8 100644
+--- a/consumer.mjs
++++ b/consumer.mjs
+@@ -27,6 +27,8 @@ export function startConsumer({ secret, path, port = 0, now = Date.now }) {
+   return {
+     url: `http://127.0.0.1:${server.port}/webhooks/commerce`,
+     count: () => receiver.count(),
++    eraseUser: (userId) => receiver.eraseUser(userId),
++    inspect: () => receiver.inspect(),
+     reopen() {
+       receiver.close();
+       receiver = createReceiver(path, secret, now);
+diff --git a/dashboard.html b/dashboard.html
+index b283719..68bb6ee 100644
+--- a/dashboard.html
++++ b/dashboard.html
+@@ -91,7 +91,7 @@
+       summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+       ol {
+         display: grid;
+-        grid-template-columns: repeat(6, 1fr);
++        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+         gap: 10px;
+         padding: 0;
+         margin: 0 0 24px;
+@@ -227,7 +227,7 @@
+           <span class="eyebrow" id="progress">Ready to run</span>
+           <h1 id="title">From a purchase to current access.</h1>
+           <p id="summary">
+-            Run the six milestones against a new, empty database.
++            Follow a purchase from verification to account deletion in a new, empty database.
+           </p>
+           <div class="built" id="built"></div>
+         </div>
+diff --git a/erasure.mjs b/erasure.mjs
+new file mode 100644
+index 0000000..90164eb
+--- /dev/null
++++ b/erasure.mjs
+@@ -0,0 +1,36 @@
++import { createHmac, randomBytes, randomUUID } from "node:crypto";
++
++// The random key prevents a database-only reader from guessing short user IDs.
++export function createErasureLedger(db) {
++  db.exec(`
++    PRAGMA secure_delete = ON;
++    CREATE TABLE IF NOT EXISTS erasure_key (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
++    CREATE TABLE IF NOT EXISTS erased_users (user_hash TEXT PRIMARY KEY, job_id TEXT NOT NULL);
++  `);
++  db.query("INSERT OR IGNORE INTO erasure_key VALUES (1, ?)").run(
++    randomBytes(32).toString("hex"),
++  );
++  const key = db
++    .query("SELECT value FROM erasure_key WHERE id = 1")
++    .get().value;
++  const hash = (userId) =>
++    createHmac("sha256", key).update(userId).digest("hex");
++  return {
++    has: (userId) =>
++      Boolean(
++        db
++          .query("SELECT 1 FROM erased_users WHERE user_hash = ?")
++          .get(hash(userId)),
++      ),
++    remember(userId) {
++      const userHash = hash(userId);
++      db.query("INSERT OR IGNORE INTO erased_users VALUES (?, ?)").run(
++        userHash,
++        randomUUID(),
++      );
++      return db
++        .query("SELECT job_id FROM erased_users WHERE user_hash = ?")
++        .get(userHash).job_id;
++    },
++  };
++}
+diff --git a/export-docs.mjs b/export-docs.mjs
+index f7da37e..4dbddd0 100644
+--- a/export-docs.mjs
++++ b/export-docs.mjs
+@@ -29,8 +29,15 @@ const selected = guide.map((step) => {
+   return record;
+ });
+ const last = selected.at(-1);
+-assert.deepEqual(selected.map((record) => record.step), [1, 2, 3, 4, 5, 6]);
+-assert(guide.every((step) => typeof step.label === "string" && step.label.length > 0));
++assert.deepEqual(
++  selected.map((record) => record.step),
++  guide.map((_, index) => index + 1),
++);
++assert(
++  guide.every(
++    (step) => typeof step.label === "string" && step.label.length > 0,
++  ),
++);
+ assert.deepEqual(
+   Object.fromEntries(
+     SOURCE_FILES.sort().map((name) => [
+diff --git a/package.json b/package.json
+index 36f1f41..d920e9e 100644
+--- a/package.json
++++ b/package.json
+@@ -5,7 +5,7 @@
+   "type": "module",
+   "scripts": {
+     "start": "bun server.mjs",
+-    "test": "bun verify.mjs",
++    "test": "bun verify.mjs && bun test composition/app-backend.test.mjs",
+     "capture": "bun capture.mjs",
+     "verify:checkpoints": "bun verify-checkpoints.mjs",
+     "test:tooling": "bun test checkpoint-tools.test.mjs",
+diff --git a/provider.mjs b/provider.mjs
+index 643c03c..37c5b19 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -6,6 +6,7 @@ import {
+   HTTP_BINDING,
+ } from "openiap-commerce-protocol";
+ import { protocolError, validate } from "./contract.mjs";
++import { createErasureLedger } from "./erasure.mjs";
+ 
+ export const FIXTURE = Object.freeze({
+   store: "fixture",
+@@ -29,16 +30,23 @@ export function isEntitled(state, expiresAt, now) {
+ }
+ 
+ // This adapter recognizes one fictional purchase; it never contacts a store.
+-function verifyFixture(input) {
+-  if (input.store !== FIXTURE.store) return { error: "UNSUPPORTED_STORE" };
+-  if (typeof input.evidence !== "string") return { error: "INVALID_REQUEST" };
+-  if (input.evidence === "local-upstream-outage") {
++function fixtureEvidence(input) {
++  return input.store === "google"
++    ? input.google?.purchaseToken
++    : input.evidence;
++}
++
++function verifyFixture(input, fixture) {
++  if (input.store !== fixture.store) return { error: "UNSUPPORTED_STORE" };
++  const evidence = fixtureEvidence(input);
++  if (typeof evidence !== "string") return { error: "INVALID_REQUEST" };
++  if (evidence === "local-upstream-outage") {
+     return { error: "VERIFICATION_FAILED" };
+   }
+-  return { accepted: input.evidence === FIXTURE.evidence };
++  return { accepted: evidence === fixture.evidence };
+ }
+ 
+-export function createProvider(path, now) {
++export function createProvider(path, now, fixture = FIXTURE) {
+   const db = new Database(path, { create: true });
+   db.exec(`
+     PRAGMA journal_mode = WAL;
+@@ -54,13 +62,23 @@ export function createProvider(path, now) {
+       next_at INTEGER NOT NULL DEFAULT 0
+     );
+   `);
++  const erasures = createErasureLedger(db);
++  if (
++    !db
++      .query("PRAGMA table_info(purchases)")
++      .all()
++      .some((column) => column.name === "erased")
++  )
++    db.exec(
++      "ALTER TABLE purchases ADD COLUMN erased INTEGER NOT NULL DEFAULT 0",
++    );
+ 
+   function snapshot(row) {
+     return {
+       productId: row.product_id,
+       state: row.state,
+       active: isEntitled(row.state, row.expires_at, now()),
+-      store: FIXTURE.store,
++      store: fixture.store,
+       expiresAt: row.expires_at,
+       willRenew: Boolean(row.will_renew),
+     };
+@@ -104,7 +122,7 @@ export function createProvider(path, now) {
+     },
+     eventTypes,
+     stores: {
+-      fixture: Object.fromEntries(
++      [fixture.store]: Object.fromEntries(
+         capabilityNames.map((key) => [
+           key,
+           {
+@@ -125,7 +143,7 @@ export function createProvider(path, now) {
+       eventVersion: COMMERCE_EVENT_VERSION,
+       occurredAt,
+       processedAt: now(),
+-      store: FIXTURE.store,
++      store: fixture.store,
+       environment: "local-fixture",
+       projectId: "commerce_example",
+       productId: row.product_id,
+@@ -143,39 +161,40 @@ export function createProvider(path, now) {
+   const handlers = {
+     providerCapabilities: () => capabilities,
+     verifyPurchase(input) {
+-      const verdict = verifyFixture(input);
++      const verdict = verifyFixture(input, fixture);
+       if (verdict.error) return verdict;
+       if (verdict.accepted) {
+         db.query(
+           `INSERT OR IGNORE INTO purchases (fingerprint, user_id, product_id, state, expires_at, will_renew, observed_at) VALUES (?, NULL, ?, 'Active', ?, 1, ?)`,
+         ).run(
+-          fingerprint(input.evidence),
+-          FIXTURE.productId,
+-          FIXTURE.expiresAt,
+-          FIXTURE.startsAt,
++          fingerprint(fixtureEvidence(input)),
++          fixture.productId,
++          fixture.expiresAt,
++          fixture.startsAt,
+         );
+       }
+       return {
+-        store: FIXTURE.store,
+-        isValid: verdict.accepted && now() < FIXTURE.expiresAt,
++        store: fixture.store,
++        isValid: verdict.accepted && now() < fixture.expiresAt,
+         state: !verdict.accepted
+           ? "INAUTHENTIC"
+-          : now() >= FIXTURE.expiresAt
++          : now() >= fixture.expiresAt
+             ? "EXPIRED"
+             : "ENTITLED",
+-        ...(verdict.accepted ? { productId: FIXTURE.productId } : {}),
++        ...(verdict.accepted ? { productId: fixture.productId } : {}),
+         environment: "local-fixture",
+       };
+     },
+     bindPurchase(input) {
+-      if (input.store !== FIXTURE.store) return { error: "UNSUPPORTED_STORE" };
+-      if (typeof input.evidence !== "string")
++      if (input.store !== fixture.store) return { error: "UNSUPPORTED_STORE" };
++      if (typeof fixtureEvidence(input) !== "string")
+         return { error: "INVALID_REQUEST" };
+       return db.transaction(() => {
+-        const key = fingerprint(input.evidence);
++        if (erasures.has(input.userId)) return { bound: false };
++        const key = fingerprint(fixtureEvidence(input));
+         const updated = db
+           .query(
+-            "UPDATE purchases SET user_id = ? WHERE fingerprint = ? AND user_id IS NULL",
++            "UPDATE purchases SET user_id = ? WHERE fingerprint = ? AND user_id IS NULL AND erased = 0",
+           )
+           .run(input.userId, key);
+         const row = db
+@@ -191,6 +210,19 @@ export function createProvider(path, now) {
+       })();
+     },
+     entitlements: (input) => entitlements(input.userId),
++    eraseUser(input) {
++      return db.transaction(() => {
++        const jobId = erasures.remember(input.userId);
++        db.query(
++          "UPDATE purchases SET user_id = NULL, erased = 1, entitlement_granted = 0 WHERE user_id = ?",
++        ).run(input.userId);
++        // A claimed delivery may already be in flight; the receiver erases its own copy.
++        db.query(
++          "DELETE FROM outbox WHERE json_extract(body, '$.userId') = ?",
++        ).run(input.userId);
++        return { accepted: true, jobId, status: "completed" };
++      })();
++    },
+     subscriptionStatus(input) {
+       const snapshots = rowsFor(input.userId).map(snapshot);
+       const subscription = snapshots.find((row) => row.active) ?? snapshots[0];
+@@ -251,7 +283,7 @@ export function createProvider(path, now) {
+         return false;
+       const row = db
+         .query("SELECT * FROM purchases WHERE fingerprint = ?")
+-        .get(fingerprint(FIXTURE.evidence));
++        .get(fingerprint(fixture.evidence));
+       if (!row) throw new Error("Verify the fixture purchase first");
+       if (kind === "expire" && occurredAt < row.expires_at) {
+         throw new Error("Premature expiry requires store reconciliation");
+@@ -295,7 +327,7 @@ export function createProvider(path, now) {
+           "SELECT user_id AS userId, product_id AS productId, state, will_renew AS willRenew FROM purchases",
+         )
+         .all(),
+-      access: entitlements(FIXTURE.userId),
++      access: entitlements(fixture.userId),
+       deliveries: db
+         .query(
+           "SELECT event_id AS eventId, delivery_id AS deliveryId, attempts, status, body FROM outbox ORDER BY rowid",
+diff --git a/scenario.mjs b/scenario.mjs
+index 525327c..492dc3c 100644
+--- a/scenario.mjs
++++ b/scenario.mjs
+@@ -36,6 +36,12 @@ export const STAGES = [
+     result:
+       "Access closes at the deadline. Restarting preserves purchases and deliveries.",
+   },
++  {
++    title: "Delete the account",
++    built: "Idempotent erasure + receiver cleanup + durable deletion guard",
++    result:
++      "Alice is removed from purchases and event copies. Late deliveries cannot restore her account data.",
++  },
+ ];
+ 
+ export async function requestOperation(baseUrl, name, input, role = "server") {
+@@ -293,6 +299,44 @@ export function createScenario(runtime) {
+           .active,
+         false,
+       );
++    } else if (stage === 6) {
++      check(
++        "Verification credentials cannot erase users",
++        (await run("eraseUser", { userId: FIXTURE.userId }, "verification"))
++          .httpStatus,
++        403,
++      );
++      // The app removes its event copies before requesting provider erasure.
++      runtime.receiver.eraseUser(FIXTURE.userId);
++      const erased = await run("eraseUser", { userId: FIXTURE.userId });
++      check(
++        "Provider erasure completes",
++        [erased.body.accepted, erased.body.status],
++        [true, "completed"],
++      );
++      runtime.restart();
++      check(
++        "Erasure retry after restart returns the same job",
++        (await run("eraseUser", { userId: FIXTURE.userId })).body,
++        erased.body,
++      );
++      check(
++        "Purchase has no account identity",
++        runtime.provider.inspect().purchases.map((row) => row.userId),
++        [null],
++      );
++      check("App event copies are erased", runtime.receiver.count(), 0);
++      check(
++        "Erased account has no access",
++        (await run("entitlements", { userId: FIXTURE.userId })).body.productIds,
++        [],
++      );
++      check(
++        "A stale binding retry cannot restore identity",
++        (await run("bindPurchase", { ...evidence, userId: FIXTURE.userId }))
++          .body.bound,
++        false,
++      );
+     }
+     const entry = {
+       step: stage + 1,
+diff --git a/verify-erasure.mjs b/verify-erasure.mjs
+new file mode 100644
+index 0000000..e3e9d7e
+--- /dev/null
++++ b/verify-erasure.mjs
+@@ -0,0 +1,153 @@
++import assert from "node:assert/strict";
++import { rmSync } from "node:fs";
++import { startLab } from "./server.mjs";
++import { FIXTURE } from "./provider.mjs";
++import { requestOperation, STAGES } from "./scenario.mjs";
++import { deliver, sign } from "./webhooks.mjs";
++import { WEBHOOK } from "openiap-commerce-protocol";
++
++export async function verifyErasure() {
++  const checks = [];
++  const check = (name, actual, expected) => {
++    assert.deepEqual(actual, expected, name);
++    checks.push(name);
++  };
++  const lab = startLab();
++  try {
++    const { runtime } = lab;
++    const call = (name, input, role) =>
++      requestOperation(runtime.baseUrl, name, input, role);
++    const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++    await call("verifyPurchase", evidence);
++    await call("bindPurchase", { ...evidence, userId: FIXTURE.userId });
++    const pending = runtime.provider.db
++      .query("SELECT body FROM outbox LIMIT 1")
++      .get().body;
++    const post = (body) => {
++      const timestamp = String(Math.floor(runtime.now() / 1000));
++      return runtime.post({
++        method: "POST",
++        body,
++        headers: {
++          [WEBHOOK.timestampHeader]: timestamp,
++          [WEBHOOK.signatureHeader]: sign(runtime.secret, timestamp, body),
++          [WEBHOOK.eventIdHeader]: JSON.parse(body).eventId,
++        },
++      });
++    };
++    await post(pending);
++    check(
++      "An active purchase has a delivered event copy",
++      runtime.receiver.count(),
++      1,
++    );
++    runtime.receiver.eraseUser(FIXTURE.userId);
++    let erased;
++    await deliver(
++      runtime.provider,
++      runtime.secret,
++      runtime.now,
++      async (init) => {
++        erased = await call("eraseUser", { userId: FIXTURE.userId });
++        return runtime.post(init);
++      },
++    );
++    check("Erasure during delivery completes", erased.body.status, "completed");
++    check(
++      "An in-flight event cannot resurrect receiver data",
++      runtime.receiver.count(),
++      0,
++    );
++    check(
++      "An in-flight acknowledgement cannot resurrect the outbox",
++      runtime.provider.inspect().deliveries,
++      [],
++    );
++    runtime.restart();
++    check(
++      "Repeated erase survives restart",
++      (await call("eraseUser", { userId: FIXTURE.userId })).body,
++      erased.body,
++    );
++    check(
++      "An old signed event remains discarded after restart",
++      (await (await post(pending)).json()).discarded,
++      "erased-user",
++    );
++    const late = JSON.stringify({
++      ...JSON.parse(pending),
++      eventId: "late-new-event",
++    });
++    check(
++      "A new event ID cannot bypass erasure",
++      (await (await post(late)).json()).discarded,
++      "erased-user",
++    );
++    check(
++      "Verification cannot bind an erased purchase",
++      (await call("verifyPurchase", evidence)).body.isValid,
++      true,
++    );
++    check(
++      "Stale binding cannot restore an erased account",
++      (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId })).body
++        .bound,
++      false,
++    );
++    check(
++      "Another account cannot claim erased evidence",
++      (await call("bindPurchase", { ...evidence, userId: "demo_bob" })).body
++        .bound,
++      false,
++    );
++    check(
++      "Erased account is inactive before paid expiry",
++      (await call("subscriptionStatus", { userId: FIXTURE.userId })).body,
++      { active: false },
++    );
++    runtime.time = FIXTURE.expiresAt;
++    runtime.provider.observe({
++      id: "expiry-after-deletion",
++      kind: "expire",
++      occurredAt: runtime.time,
++    });
++    await deliver(runtime.provider, runtime.secret, runtime.now, runtime.post);
++    check(
++      "Late lifecycle processing carries no erased identity",
++      runtime.receiver.inspect().map((event) => event.userId),
++      [undefined],
++    );
++    const serialized = JSON.stringify([
++      runtime.provider.db.query("SELECT * FROM purchases").all(),
++      runtime.provider.db.query("SELECT * FROM outbox").all(),
++      runtime.provider.db.query("SELECT * FROM erased_users").all(),
++      runtime.receiver.inspect(),
++    ]);
++    check(
++      "Persisted protocol records contain no erased user ID",
++      serialized.includes(FIXTURE.userId),
++      false,
++    );
++    check(
++      "Unknown-user erasure is accepted",
++      (await call("eraseUser", { userId: "missing_user" })).body.accepted,
++      true,
++    );
++  } finally {
++    await lab.close();
++    rmSync(lab.directory, { recursive: true, force: true });
++  }
++  const walkthrough = startLab();
++  try {
++    for (let i = 0; i < STAGES.length; i++)
++      await walkthrough.scenario.advance();
++    checks.push(...walkthrough.scenario.history.at(-1).checks);
++  } finally {
++    await walkthrough.close();
++    rmSync(walkthrough.directory, { recursive: true, force: true });
++  }
++  return checks;
++}
++
++if (import.meta.main)
++  console.log(`${(await verifyErasure()).length} erasure checks passed.`);
+diff --git a/verify.mjs b/verify.mjs
+index 0c0f246..060c6f2 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -8,6 +8,7 @@ import { runConsumerDemo } from "./consumer.mjs";
+ import { runBridgeDemo } from "./client-bridge.mjs";
+ import { startLab } from "./server.mjs";
+ import { authentic, createReceiver, deliver, sign } from "./webhooks.mjs";
++import { verifyErasure } from "./verify-erasure.mjs";
+ 
+ export async function verifyLab({ compareSigner } = {}) {
+   const lab = startLab();
+@@ -96,9 +97,10 @@ export async function verifyLab({ compareSigner } = {}) {
+       "UNSUPPORTED_STORE",
+     );
+     check(
+-      "Erasure is explicitly unimplemented",
+-      (await call("eraseUser", { userId: FIXTURE.userId })).body.error.code,
+-      "UNSUPPORTED_PROFILE",
++      "Erasure rejects verification credentials",
++      (await call("eraseUser", { userId: FIXTURE.userId }, "verification"))
++        .httpStatus,
++      403,
+     );
+     check(
+       "Cancellation after expiry is ignored",
+@@ -425,6 +427,7 @@ export async function verifyLab({ compareSigner } = {}) {
+   }
+   checks.push(...(await runConsumerDemo()).checks);
+   checks.push(...runBridgeDemo());
++  checks.push(...(await verifyErasure()));
+   return checks;
+ }
+ 
+diff --git a/webhooks.mjs b/webhooks.mjs
+index d7035a2..d8e18c4 100644
+--- a/webhooks.mjs
++++ b/webhooks.mjs
+@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
+ import { createHmac, timingSafeEqual } from "node:crypto";
+ import { WEBHOOK } from "openiap-commerce-protocol";
+ import { validate } from "./contract.mjs";
++import { createErasureLedger } from "./erasure.mjs";
+ 
+ export function sign(secret, timestamp, body) {
+   return (
+@@ -37,6 +38,7 @@ export function createReceiver(path, secret, now) {
+   db.exec(
+     "CREATE TABLE IF NOT EXISTS inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
+   );
++  const erasures = createErasureLedger(db);
+ 
+   async function fetch(request) {
+     const bytes = new Uint8Array(await request.arrayBuffer());
+@@ -62,6 +64,8 @@ export function createReceiver(path, secret, now) {
+       return new Response("Invalid event", { status: 400 });
+     if (request.headers.get(WEBHOOK.eventIdHeader) !== event.eventId)
+       return new Response("Event ID mismatch", { status: 400 });
++    if (event.userId && erasures.has(event.userId))
++      return Response.json({ accepted: true, discarded: "erased-user" });
+     // Inbox insertion is the durable effect; downstream jobs can consume it later.
+     const result = db
+       .query("INSERT OR IGNORE INTO inbox VALUES (?, ?)")
+@@ -71,6 +75,19 @@ export function createReceiver(path, secret, now) {
+ 
+   return {
+     fetch,
++    eraseUser(userId) {
++      return db.transaction(() => {
++        erasures.remember(userId);
++        return db
++          .query("DELETE FROM inbox WHERE json_extract(body, '$.userId') = ?")
++          .run(userId).changes;
++      })();
++    },
++    inspect: () =>
++      db
++        .query("SELECT body FROM inbox ORDER BY rowid")
++        .all()
++        .map((row) => JSON.parse(row.body)),
+     count: () => db.query("SELECT count(*) AS count FROM inbox").get().count,
+     close: () => db.close(),
+   };
+@@ -84,7 +101,11 @@ export async function deliver(provider, secret, now, post) {
+       "SELECT * FROM outbox WHERE status = 'pending' AND next_at <= ? ORDER BY rowid",
+     )
+     .all(now());
+-  for (const row of rows) {
++  for (const candidate of rows) {
++    const row = provider.db
++      .query("SELECT * FROM outbox WHERE event_id = ? AND status = 'pending'")
++      .get(candidate.event_id);
++    if (!row) continue;
+     const timestamp = Math.floor(now() / 1000).toString();
+     const headers = {
+       "content-type": WEBHOOK.contentType,

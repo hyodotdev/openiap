@@ -1,0 +1,54 @@
+name: Commerce Protocol proposal
+description: Propose shared behavior or contribute implementation interoperability evidence.
+title: "[Commerce Protocol]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with a concrete connection between products. See the [contribution procedure](https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/CONVENTION.md#public-collaboration-and-implementation-evidence).
+        IAPKit and other implementations are reviewed against the same contract. Submitting a report is not a conformance or endorsement claim.
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - Interoperability reproduction
+        - Contract extension
+        - Compatibility problem
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Use case and expected outcome
+      description: Which services or roles need to connect, and what should the user observe?
+    validations:
+      required: true
+  - type: textarea
+    id: implementations
+    attributes:
+      label: Implementations and reviewers
+      description: List source revisions, roles, stores, bindings, declared profiles, and relevant affiliations. Distinguish project-authored fixtures from an external implementation or review.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Runnable evidence
+      description: Provide commands, source/report links, expected results, and a failure or rejection case. List configuration fields and adapter/client changes; omit credentials and customer data.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and alternatives
+      description: Can existing profiles or extensions express this? For a contract change, identify MAJOR/MINOR impact and migration work. For a reproduction, state whether the client and receiver code changed.
+    validations:
+      required: true
+  - type: textarea
+    id: limits
+    attributes:
+      label: Limits and unresolved questions
+      description: State what remains untested, who has reproduced the result, and any disagreement about expected behavior.
+    validations:
+      required: true

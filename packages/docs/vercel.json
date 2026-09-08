@@ -1,6 +1,14 @@
 {
   "installCommand": "bun install",
   "buildCommand": "bun run build",
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/docs/getting-started",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/(.*).webp",

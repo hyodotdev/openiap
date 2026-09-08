@@ -30,7 +30,7 @@ function FireOSExample() {
       <SEO
         title="Fire OS Example"
         description="Run and record the OpenIAP Fire OS example flavor for Amazon Appstore IAP purchases, subscriptions, restore flows, and IAPKit verification."
-        path="/docs/example/fireos"
+        path="/docs/example"
         keywords="OpenIAP Fire OS example, Amazon Appstore IAP, Fire tablet IAP, Amazon RVS, IAPKit verification"
       />
       <h1>Fire OS Example</h1>

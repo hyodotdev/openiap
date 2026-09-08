@@ -1,7 +1,14 @@
-import { internalMutation, MutationCtx } from "../_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  MutationCtx,
+} from "../_generated/server";
 import { v, ConvexError, Infer } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import schema from "../schema";
+import { isValidSubscriptionUserId } from "../subscriptions/limits";
+import { isUserErasureRequested } from "../subscriptions/erasure";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
@@ -104,6 +111,7 @@ export async function savePurchaseInternal({
       .withIndex("by_project_and_remote", (q) =>
         q.eq("projectId", projectId).eq("remoteId", remoteId),
       )
+      .filter((q) => q.eq(q.field("store"), store))
       .first();
 
     if (existing) {
@@ -634,5 +642,36 @@ export const applyAmazonReconciliationVerdict = internalMutation({
       verificationDurationMs: args.verificationDurationMs,
     });
     return true;
+  },
+});
+
+export const boundPurchasesForUser = internalQuery({
+  args: { projectId: v.id("projects"), userId: v.string() },
+  returns: v.array(schema.doc("purchases")),
+  handler: async (ctx, args) => {
+    if (!isValidSubscriptionUserId(args.userId))
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Invalid user identity",
+      });
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.pendingDeletion)
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Project unavailable",
+      });
+    if (await isUserErasureRequested(ctx, project, args.userId)) return [];
+    const rows = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", args.projectId).eq("appUserId", args.userId),
+      )
+      .take(21);
+    if (rows.length > 20)
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Bound purchase read limit exceeded",
+      });
+    return rows.filter((row) => !row.accountErased);
   },
 });

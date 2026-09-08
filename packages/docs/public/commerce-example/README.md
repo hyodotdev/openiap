@@ -3,8 +3,8 @@
 Give AI a small job, run the result, and inspect what changed. If a check or the
 screen is wrong, fix it and repeat that check before adding the next feature.
 
-This example grew through six executable source checkpoints. Each folder holds
-its AI task, source hashes, actual HTTP results, and verification in `run.json`;
+This example grew through seven executable milestones and their review revisions.
+Each folder holds its AI task, source hashes, actual HTTP results, and verification in `run.json`;
 `source.tar.gz` runs independently and `changes.patch` shows the added code.
 
 | Step                                                   | Ask AI to build                                            | What the run demonstrates                                                                                                                             |
@@ -15,6 +15,7 @@ its AI task, source hashes, actual HTTP results, and verification in `run.json`;
 | [4. Cancellation](04-cancel/run.json)                  | Stop renewal and queue the event atomically                | Alice keeps paid access. Discovery can now advertise an event the implementation actually emits.                                                      |
 | [5. Delivery](05-deliver/run.json)                     | Sign, retry, and deduplicate                               | A failed delivery retries after reopening storage. A repeated delivery has one inbox effect.                                                          |
 | [6. Reviewed recovery](06-recover-reviewed-8/run.json) | Enforce expiry, check persistence, and map client evidence | The reviewed final version adds atomic binding grants, rejects conflicting expiry, closes access at the deadline, and preserves storage on reopening. |
+| [7. Account deletion](07-account-erasure-interoperable-6/run.json) | Erase provider identity and delivered event copies | Repeated erasure, late events, in-flight fulfillment, and reopened storage cannot restore the account. |
 
 ## What review changed
 
@@ -43,7 +44,9 @@ from an earlier internal prototype replaced by this example. No live store purch
 production-provider conformance is demonstrated.
 
 The original [step 6](06-recover/run.json) is retained before the reviewed final
-revision. Apply patches in folder order, including that intermediate version.
+revision. Apply patches in predecessor order: follow each record's `previous`
+link back to the first checkpoint, then apply that chain from oldest to newest.
+Include intermediate review revisions; folder names do not determine the order.
 [verification.json](verification.json) records a fresh extraction, source hash
 comparison, patch application, and npm test for every archived revision.
 

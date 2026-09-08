@@ -1,12 +1,13 @@
-import { Fragment } from 'react';
 import {
   Navigate,
   Route,
   Routes,
   NavLink,
+  Link,
   useLocation,
 } from 'react-router-dom';
 import DocsShell from '../../components/DocsShell';
+import { MenuDropdown } from '../../components/MenuDropdown';
 import NotFound from '../404';
 import Overview from './overview';
 import Authentication from './authentication';
@@ -35,19 +36,27 @@ const NAV_GROUPS: NavigationGroup[] = [
     title: 'Start here',
     items: [
       { to: '/commerce-protocol', label: 'Overview' },
-      { to: '/commerce-protocol/ecosystem', label: 'Build your part' },
-      { to: '/commerce-protocol/implementation', label: 'Build with AI' },
-      { to: '/commerce-protocol/getting-started', label: 'Use a provider' },
-      { to: '/commerce-protocol/whitepaper', label: 'Whitepaper' },
+      {
+        to: '/commerce-protocol/getting-started',
+        label: '1. Follow a purchase',
+      },
+      { to: '/commerce-protocol/ecosystem', label: '2. Choose your part' },
+      { to: '/commerce-protocol/implementation', label: '3. Build and review' },
     ],
   },
   {
     id: 'contract',
-    title: 'Implementation contract',
+    title: 'Terms & responsibilities',
     items: [
-      { to: '/commerce-protocol/profiles', label: 'Profiles' },
-      { to: '/commerce-protocol/operations', label: 'Operations' },
-      { to: '/commerce-protocol/authentication', label: 'Authentication' },
+      {
+        to: '/commerce-protocol/profiles',
+        label: 'Profiles · service responsibilities',
+      },
+      { to: '/commerce-protocol/operations', label: 'Operations · API calls' },
+      {
+        to: '/commerce-protocol/authentication',
+        label: 'Authentication · who may call',
+      },
     ],
   },
   {
@@ -63,16 +72,35 @@ const NAV_GROUPS: NavigationGroup[] = [
     id: 'compatibility',
     title: 'Compatibility',
     items: [
-      { to: '/commerce-protocol/capabilities', label: 'Capabilities' },
-      { to: '/commerce-protocol/conformance', label: 'Conformance' },
+      {
+        to: '/commerce-protocol/capabilities',
+        label: 'Capabilities · supported features',
+      },
+      {
+        to: '/commerce-protocol/conformance',
+        label: 'Conformance · contract checks',
+      },
       { to: '/commerce-protocol/versioning', label: 'Versioning' },
     ],
   },
 ];
 
+const [START_NAVIGATION, ...REFERENCE_NAVIGATION] = NAV_GROUPS;
+const [OVERVIEW, ...START_STEPS] = START_NAVIGATION.items;
+const WHITEPAPER_NAVIGATION = {
+  to: '/commerce-protocol/whitepaper',
+  label: 'Whitepaper',
+};
+
 /** The server-side specification: its own section, not a page of the SDK docs. */
 function CommerceProtocol() {
   const { pathname, search, hash } = useLocation();
+
+  const isReference =
+    pathname === WHITEPAPER_NAVIGATION.to ||
+    REFERENCE_NAVIGATION.some((group) =>
+      group.items.some((item) => item.to === pathname)
+    );
 
   // `/commerce-protocol/` renders the overview but leaves NavLink's exact match
   // unsatisfied, so the sidebar highlights nothing. Canonicalise instead.
@@ -86,29 +114,56 @@ function CommerceProtocol() {
       navLabel="Commerce Protocol navigation"
       wide={pathname === '/commerce-protocol'}
       nav={(closeSidebar) => (
-        <>
-          {NAV_GROUPS.map((group) => (
-            <Fragment key={group.id}>
-              <h3 id={`commerce-nav-${group.id}`}>{group.title}</h3>
-              <ul aria-labelledby={`commerce-nav-${group.id}`}>
-                {group.items.map((item) => (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      end={item.to === '/commerce-protocol'}
-                      className={({ isActive }) => (isActive ? 'active' : '')}
-                      onClick={closeSidebar}
-                    >
-                      {item.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </Fragment>
-          ))}
-        </>
+        <div className="commerce-navigation">
+          <ul>
+            <li>
+              <NavLink
+                to={OVERVIEW.to}
+                end
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                {OVERVIEW.label}
+              </NavLink>
+            </li>
+            <MenuDropdown
+              title={START_NAVIGATION.title}
+              items={START_STEPS}
+              defaultExpanded
+              onItemClick={closeSidebar}
+            />
+          </ul>
+          <h3 id="commerce-nav-reference">Reference</h3>
+          <ul aria-labelledby="commerce-nav-reference">
+            {REFERENCE_NAVIGATION.map((group) => (
+              <MenuDropdown
+                key={group.id}
+                title={group.title}
+                items={group.items}
+                onItemClick={closeSidebar}
+              />
+            ))}
+            <li>
+              <NavLink
+                to={WHITEPAPER_NAVIGATION.to}
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                {WHITEPAPER_NAVIGATION.label}
+              </NavLink>
+            </li>
+          </ul>
+        </div>
       )}
     >
+      {isReference && (
+        <div className="commerce-reference-context">
+          <span>Reference</span>
+          <Link to="/commerce-protocol/getting-started">
+            Follow the purchase walkthrough →
+          </Link>
+        </div>
+      )}
       <Routes>
         <Route index element={<Overview />} />
         <Route path="ecosystem" element={<Ecosystem />} />

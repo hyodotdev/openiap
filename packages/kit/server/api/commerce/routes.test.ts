@@ -17,6 +17,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/convex", () => ({
   api: {
     purchases: {
+      action: {
+        readBoundPurchaseEntitlements: "readBoundPurchaseEntitlements",
+      },
+      mutation: {
+        bindVerifiedPurchaseAsServer: "bindVerifiedPurchaseAsServer",
+      },
       ios: { verifyAppStoreReceiptInternalV1: "verifyApple" },
       android: { verifyGooglePlayReceiptInternalV1: "verifyGoogle" },
       horizon: { verifyMetaHorizonReceiptInternalV1: "verifyHorizon" },
@@ -109,6 +115,71 @@ describe("commerce REST adapter", () => {
     );
     expect(response.status).toBe(403);
     expect((await response.json()).error.code).toBe("FORBIDDEN");
+  });
+
+  it("evaluates subscription expiry after store ownership refreshes", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      const subscription = {
+        productId: "apple-premium",
+        platform: "IOS",
+        state: "Active",
+        expiresAt: 2_000,
+        startedAt: 0,
+        updatedAt: 0,
+      };
+      mocks.action.mockImplementation(async () => {
+        clock.mockReturnValue(3_000);
+        return { productIds: ["amazon-premium"] };
+      });
+      mocks.query.mockImplementation(async (name, args) => {
+        if (name !== "entitlementsV2") return { ok: true };
+        const active = subscription.expiresAt > args.now;
+        return {
+          userId: args.userId,
+          productIds: active ? [subscription.productId] : [],
+          subscriptions: active ? [subscription] : [],
+        };
+      });
+      const response = await buildApp().request(
+        "/commerce/v1/entitlements?userId=user-1",
+        { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        userId: "user-1",
+        productIds: ["amazon-premium"],
+        subscriptions: [],
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("observes subscription erasure completed during a store refresh", async () => {
+    let erased = false;
+    mocks.action.mockImplementation(async () => {
+      erased = true;
+      return { productIds: [] };
+    });
+    mocks.query.mockImplementation(async (name, args) => {
+      if (name !== "entitlementsV2") return { ok: true };
+      return {
+        userId: args.userId,
+        productIds: erased ? [] : ["apple-premium"],
+        subscriptions: [],
+      };
+    });
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      userId: "user-1",
+      productIds: [],
+      subscriptions: [],
+    });
   });
 
   it("reports VERIFICATION_FAILED as 502 when the store verdict is unreachable", async () => {
@@ -249,15 +320,24 @@ describe("commerce REST adapter", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
-  it("reports a Horizon purchase as not bound without exposing why", async () => {
+  it("binds Horizon using the verified store user and SKU identity", async () => {
+    mocks.mutation.mockResolvedValue({ bound: true });
     const response = await post(buildApp(), "/commerce/v1/purchases/bind", {
       userId: "user-1",
       store: "horizon",
       horizon: { userId: "1234567890", sku: "premium" },
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ bound: false });
-    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(await response.json()).toEqual({ bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "bindVerifiedPurchaseAsServer",
+      {
+        apiKey: SERVER_KEY,
+        userId: "user-1",
+        store: "horizon",
+        remoteId: "1234567890:premium",
+      },
+    );
   });
 
   it("authenticates before revealing a non-binding store verdict", async () => {

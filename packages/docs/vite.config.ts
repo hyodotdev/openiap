@@ -1,15 +1,19 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { defineConfig, type Connect } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Vite treats .gz files as HTTP compression, which changes downloaded archives.
-function archiveDownloads(directory: string): Connect.NextHandleFunction {
+export function archiveDownloads(
+  directory: string
+): Connect.NextHandleFunction {
   return (request, response, next) => {
     const path = request.url?.split('?')[0] ?? '';
     if (
       !['GET', 'HEAD'].includes(request.method ?? '') ||
-      !/^\/commerce-example\/(?:\d\d-[\w-]+\/)?source\.tar\.gz$/.test(path)
+      !/^\/(?:commerce-example\/(?:(?:\d\d-[\w-]+\/)?source|ai-reproduction-source)|commerce-composition\/source)\.tar\.gz$/.test(
+        path
+      )
     ) {
       next();
       return;
@@ -24,7 +28,7 @@ function archiveDownloads(directory: string): Connect.NextHandleFunction {
     response.setHeader('Content-Type', 'application/gzip');
     response.setHeader(
       'Content-Disposition',
-      'attachment; filename="source.tar.gz"'
+      `attachment; filename="${basename(path)}"`
     );
     response.setHeader('Content-Length', bytes.length);
     response.end(request.method === 'HEAD' ? undefined : bytes);

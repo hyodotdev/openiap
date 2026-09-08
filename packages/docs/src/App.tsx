@@ -4,6 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import Layout from './components/Layout';
 import ScrollToTop from './components/ScrollToTop';
 import SearchModal from './components/SearchModal';
+import CommerceArchitectureModal from './components/CommerceArchitectureModal';
 import Home from './pages/home';
 import Introduction from './pages/introduction';
 import Docs from './pages/docs';
@@ -47,6 +48,7 @@ function App() {
         </Route>
       </Routes>
       <SearchModal isOpen={isSearchOpen} onClose={closeSearchModal} />
+      <CommerceArchitectureModal />
       <ToastContainer
         position="bottom-center"
         toastStyle={{

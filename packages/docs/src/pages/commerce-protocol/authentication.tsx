@@ -1,3 +1,4 @@
+import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
@@ -39,37 +40,73 @@ function CommerceAuthentication() {
       />
       <h1>Authentication</h1>
       <p>
-        The protocol standardizes roles and rules, not credential formats — how
-        a provider issues or names its credentials is its own business.
+        Authentication answers{' '}
+        <strong>“who is making this request, and what may they do?”</strong>{' '}
+        There are two separate relationships: Alice signs in to your app; your
+        backend authenticates itself to the commerce provider.
       </p>
+      <div className="commerce-role-benefits">
+        <article>
+          <h2>Alice → your backend</h2>
+          <p>
+            Your existing login identifies Alice. Your backend selects her user
+            ID and checks whether she may claim this purchase.
+          </p>
+        </article>
+        <article>
+          <h2>Your backend → provider</h2>
+          <p>
+            A server credential allows account reads and changes. Keep it on
+            your backend; Alice’s app must never receive it.
+          </p>
+        </article>
+      </div>
+      <p>
+        A receipt proves neither relationship. Bob holding Alice’s receipt must
+        not be enough to move the purchase to Bob.
+      </p>
+      <CommerceImplementationComparison topic="auth" />
       <section>
         <AnchorLink id="roles" level="h2">
-          Two roles
+          Choose the credential for the job
         </AnchorLink>
-        <DataTable
-          columns={[
-            { header: 'Role', cell: (row: RoleRow) => <code>{row.role}</code> },
-            { header: 'Holder', cell: (row: RoleRow) => row.holder },
-            { header: 'May call', cell: (row: RoleRow) => row.may },
-          ]}
-          rows={ROLE_ROWS}
-          rowKey={(row) => row.role}
-        />
+        <p>
+          A <strong>verification</strong> credential can check purchase
+          evidence. A <strong>server</strong> credential can also read access,
+          bind purchases, and request erasure. These must be different
+          credentials.
+        </p>
+        <details>
+          <summary>Credential roles and allowed operations</summary>
+          <DataTable
+            columns={[
+              {
+                header: 'Role',
+                cell: (row: RoleRow) => <code>{row.role}</code>,
+              },
+              { header: 'Holder', cell: (row: RoleRow) => row.holder },
+              { header: 'May call', cell: (row: RoleRow) => row.may },
+            ]}
+            rows={ROLE_ROWS}
+            rowKey={(row) => row.role}
+          />
+        </details>
         <p>
           One operation needs no credential at all:{' '}
           <a href="/commerce-protocol/operations">
             <code>providerCapabilities</code>
           </a>{' '}
-          is a public, commerce-free read (auth role <code>none</code>). Every
-          other operation requires one of the two roles above.
+          is a public read with no customer purchase data (auth role{' '}
+          <code>none</code>). Every other operation requires one of the two
+          roles above.
         </p>
         <p>
-          Credentials travel in the <code>Authorization</code> header and never
-          in a URL. Auth fails closed — a credentialled operation with no
-          credential is <code>UNAUTHORIZED</code>, the wrong role is{' '}
-          <code>FORBIDDEN</code> — and the two roles are distinct credentials,
-          which is what blocks a shipped app from walking arbitrary user
-          identities. Full rules:{' '}
+          Providers issue their own credentials; the protocol does not impose a
+          key format. Credentials travel in the <code>Authorization</code>{' '}
+          header and never in a URL. A protected request without a credential
+          returns <code>UNAUTHORIZED</code>; a credential with the wrong role
+          returns <code>FORBIDDEN</code>. Separate credentials keep a shipped
+          app from looking up or changing other users’ accounts. Full rules:{' '}
           <a
             href={`${SPEC_URL}#5-authentication-and-trust`}
             target="_blank"

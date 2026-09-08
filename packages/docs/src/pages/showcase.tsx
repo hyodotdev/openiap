@@ -19,7 +19,7 @@ function Showcase() {
       />
       <section className="home-section">
         <div className="section-container" style={{ maxWidth: '960px' }}>
-          <h2>Who uses OpenIAP?</h2>
+          <h1>Who uses OpenIAP?</h1>
           <p className="section-subtitle">
             {SHOWCASE_APPS.length} apps ship in-app purchases with OpenIAP
             libraries. Ordered by App Store and Google Play review counts.

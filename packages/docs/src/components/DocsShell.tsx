@@ -8,6 +8,7 @@ import type {
 import { createPortal } from 'react-dom';
 import { Bookmark } from 'lucide-react';
 import { DOCS_SIDEBAR } from '../lib/config';
+import { useDetailsTransition } from '../hooks/useDetailsTransition';
 
 function clampSidebarWidth(width: number): number {
   return Math.min(
@@ -76,6 +77,8 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
   const sidebarRef = useRef<HTMLElement | null>(null);
+  const contentRef = useRef<HTMLElement | null>(null);
+  useDetailsTransition(contentRef);
   const sidebarScrollTimeoutRef = useRef<number | null>(null);
   const dragRef = useRef<{
     startX: number;
@@ -233,36 +236,37 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
   // y≈88-120px, exactly where the fixed toggle at top: 70px lives).
   // Removing the element from the DOM entirely guarantees the drawer
   // items underneath get every tap they should.
-  const sidebarToggle = isSidebarOpen
-    ? null
-    : createPortal(
-        <button
-          type="button"
-          className={`docs-sidebar-toggle ${isScrolled ? 'scrolled' : ''}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsSidebarOpen(true);
-          }}
-          aria-label="Toggle sidebar"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+  const sidebarToggle =
+    isSidebarOpen || typeof document === 'undefined'
+      ? null
+      : createPortal(
+          <button
+            type="button"
+            className={`docs-sidebar-toggle ${isScrolled ? 'scrolled' : ''}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              setIsSidebarOpen(true);
+            }}
+            aria-label="Toggle sidebar"
           >
-            <path
-              d="M3 5h14M3 10h14M3 15h14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Menu</span>
-        </button>,
-        document.body
-      );
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 5h14M3 10h14M3 15h14"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span>Menu</span>
+          </button>,
+          document.body
+        );
 
   return (
     <div
@@ -343,7 +347,9 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
           />
         </button>
       </div>
-      <main className="docs-content">{children}</main>
+      <main ref={contentRef} className="docs-content">
+        {children}
+      </main>
     </div>
   );
 }

@@ -45,6 +45,17 @@ function CommerceVersioning() {
       />
       <h1>Versioning</h1>
       <p>
+        Versions tell you whether two services still understand the same
+        contract after an update. A <strong>minor</strong> update adds
+        compatible information. A <strong>major</strong> update can require
+        changes to your integration.
+      </p>
+      <p>
+        For example, adding an optional field to an open response can be minor:
+        older callers ignore it. Renaming a required field is major because
+        those callers would no longer find the answer they expect.
+      </p>
+      <p>
         The protocol, each profile, and each binding version independently as
         MAJOR.MINOR, and callers pin on the major. Open value spaces and open
         objects are what make MINOR additions safe: a consumer ignores what it

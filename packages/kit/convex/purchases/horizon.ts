@@ -1,7 +1,10 @@
 "use node";
-import { v } from "convex/values";
 
-import { action } from "../_generated/server";
+import { buildHorizonRemoteId } from "./identity";
+export { buildHorizonRemoteId } from "./identity";
+import { v, type Infer } from "convex/values";
+
+import { action, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -15,6 +18,7 @@ import {
   getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
+  type ReceiptResponse,
 } from "./shared";
 import {
   extractHttpStatus,
@@ -155,109 +159,103 @@ async function requestHorizonVerification(
   );
 }
 
-export const verifyMetaHorizonReceiptInternalV1 = action({
-  args: {
-    apiKey: v.string(),
-    userId: v.string(),
-    sku: v.string(),
-    requestIp: v.optional(v.string()),
-  },
-  returns: receiptResponseValidator,
-  handler: async (ctx, args) => {
-    const verificationStart = Date.now();
-    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
-
-    if (project.horizonEnabled !== true) {
-      throw new ProjectMetaHorizonNotEnabledError();
-    }
-    if (!project.horizonAppId) {
-      throw new ProjectMetaHorizonAppIdNotConfiguredError();
-    }
-    if (!project.horizonAppSecret) {
-      throw new ProjectMetaHorizonAppSecretNotConfiguredError();
-    }
-
-    const requestData = {
-      store: "horizon" as const,
-      userId: args.userId,
-      sku: args.sku,
-    };
-
-    // `OC|$APP_ID|$APP_SECRET` is Meta's App Access Token format for
-    // server-to-server calls. Never logged, never returned to the
-    // caller — only sent in the outgoing request body.
-    const appAccessToken = `OC|${project.horizonAppId}|${project.horizonAppSecret}`;
-    const url = `${META_GRAPH_BASE}/${encodeURIComponent(project.horizonAppId)}/verify_entitlement`;
-
-    let verified: HorizonVerifyResult;
-    try {
-      verified = await requestHorizonVerification(
-        url,
-        new URLSearchParams({
-          access_token: appAccessToken,
-          user_id: args.userId,
-          sku: args.sku,
-        }).toString(),
-      );
-    } catch (error) {
-      // An HTTP error, timeout, network failure, or malformed body is not a
-      // negative entitlement verdict. Preserve the last confirmed result
-      // instead of replacing it with INAUTHENTIC.
-      throw new MetaHorizonVerificationError(describeError(error));
-    }
-
-    const state = verified.success
-      ? HarmonizedPurchaseState.ENTITLED
-      : HarmonizedPurchaseState.INAUTHENTIC;
-
-    await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-      projectId: project._id,
-      store: "horizon",
-      applicationId: project.horizonAppId,
-      // `{userId}:{sku}` is deterministic per entitlement so the
-      // `by_project_and_remote` index de-dupes repeat verifications
-      // into one row — same pattern Apple uses with
-      // originalTransactionId and Google uses with purchaseToken.
-      remoteId: buildHorizonRemoteId(args.userId, args.sku),
-      requestData,
-      // Pack the sku alongside Meta's fields so
-      // extractProductIdFromRemoteResponse can surface the product
-      // id from persisted rows without also needing requestData.
-      // `grantTimeMs` is renamed from Meta's wire field `grant_time`
-      // because we've already normalized the unit — storing it with
-      // the original name would invite `new Date(grant_time)` misuse
-      // downstream.
-      remoteResponse: JSON.stringify({
-        success: verified.success,
-        grantTimeMs: verified.grantTime,
-        sku: args.sku,
-      }),
-      state,
-      isValid: isValidState(state),
-      requestIp: args.requestIp,
-      verificationDurationMs: Date.now() - verificationStart,
-    });
-
-    return { isValid: isValidState(state), state, productId: args.sku };
-  },
+const horizonVerificationArgs = v.object({
+  apiKey: v.string(),
+  userId: v.string(),
+  sku: v.string(),
+  requestIp: v.optional(v.string()),
 });
+
+export const verifyMetaHorizonReceiptInternalV1 = action({
+  args: horizonVerificationArgs.fields,
+  returns: receiptResponseValidator,
+  handler: verifyHorizonReceipt,
+});
+
+export async function verifyHorizonReceipt(
+  ctx: ActionCtx,
+  args: Infer<typeof horizonVerificationArgs>,
+): Promise<ReceiptResponse> {
+  const verificationStart = Date.now();
+  const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
+
+  if (project.horizonEnabled !== true) {
+    throw new ProjectMetaHorizonNotEnabledError();
+  }
+  if (!project.horizonAppId) {
+    throw new ProjectMetaHorizonAppIdNotConfiguredError();
+  }
+  if (!project.horizonAppSecret) {
+    throw new ProjectMetaHorizonAppSecretNotConfiguredError();
+  }
+
+  const requestData = {
+    store: "horizon" as const,
+    userId: args.userId,
+    sku: args.sku,
+  };
+
+  // `OC|$APP_ID|$APP_SECRET` is Meta's App Access Token format for
+  // server-to-server calls. Never logged, never returned to the
+  // caller — only sent in the outgoing request body.
+  const appAccessToken = `OC|${project.horizonAppId}|${project.horizonAppSecret}`;
+  const url = `${META_GRAPH_BASE}/${encodeURIComponent(project.horizonAppId)}/verify_entitlement`;
+
+  let verified: HorizonVerifyResult;
+  try {
+    verified = await requestHorizonVerification(
+      url,
+      new URLSearchParams({
+        access_token: appAccessToken,
+        user_id: args.userId,
+        sku: args.sku,
+      }).toString(),
+    );
+  } catch (error) {
+    // An HTTP error, timeout, network failure, or malformed body is not a
+    // negative entitlement verdict. Preserve the last confirmed result
+    // instead of replacing it with INAUTHENTIC.
+    throw new MetaHorizonVerificationError(describeError(error));
+  }
+
+  const state = verified.success
+    ? HarmonizedPurchaseState.ENTITLED
+    : HarmonizedPurchaseState.INAUTHENTIC;
+
+  await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+    projectId: project._id,
+    store: "horizon",
+    applicationId: project.horizonAppId,
+    // `{userId}:{sku}` is deterministic per entitlement so the
+    // `by_project_and_remote` index de-dupes repeat verifications
+    // into one row — same pattern Apple uses with
+    // originalTransactionId and Google uses with purchaseToken.
+    remoteId: buildHorizonRemoteId(args.userId, args.sku),
+    requestData,
+    // Pack the sku alongside Meta's fields so
+    // extractProductIdFromRemoteResponse can surface the product
+    // id from persisted rows without also needing requestData.
+    // `grantTimeMs` is renamed from Meta's wire field `grant_time`
+    // because we've already normalized the unit — storing it with
+    // the original name would invite `new Date(grant_time)` misuse
+    // downstream.
+    remoteResponse: JSON.stringify({
+      success: verified.success,
+      grantTimeMs: verified.grantTime,
+      sku: args.sku,
+    }),
+    state,
+    isValid: isValidState(state),
+    requestIp: args.requestIp,
+    verificationDurationMs: Date.now() - verificationStart,
+  });
+
+  return { isValid: isValidState(state), state, productId: args.sku };
+}
 
 interface HorizonVerifyResult {
   success: boolean;
   grantTime?: number;
-}
-
-/**
- * Build a deduplication key for the (userId, sku) pair that's safe to
- * collide-check against. A naive `"${userId}:${sku}"` would alias
- * distinct entitlements when either field contains a colon (e.g.
- * `a:b` + `c` vs. `a` + `b:c`). URL-encoding each part restores an
- * unambiguous mapping from the pair to the remoteId — the colon is
- * never produced by `encodeURIComponent`, so it remains a safe
- * separator.
- */
-export function buildHorizonRemoteId(userId: string, sku: string): string {
-  return `${encodeURIComponent(userId)}:${encodeURIComponent(sku)}`;
 }
 
 export function parseHorizonResponse(raw: unknown): HorizonVerifyResult {

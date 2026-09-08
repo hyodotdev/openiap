@@ -1,3 +1,4 @@
+import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
 import AnchorLink from '../../components/AnchorLink';
@@ -20,7 +21,17 @@ function CommerceRest() {
         path="/commerce-protocol/rest"
         keywords="OpenIAP Commerce Protocol REST, commerce API, OpenAPI"
       />
-      <h1>REST binding</h1>
+      <h1>REST</h1>
+      <p>
+        REST is one way your backend calls the provider: an HTTP request to a
+        named URL, with JSON in the response. A <strong>binding</strong> is the
+        protocol’s exact mapping of an operation to that request format.
+      </p>
+      <p>
+        For example, your backend asks for Alice’s entitlements and gets the
+        products she may use. Choose REST when it fits your existing stack; it
+        has the same purchase and account rules as GraphQL.
+      </p>
       <p>
         Every operation lives under <code>/commerce/v1</code>: queries are{' '}
         <code>GET</code> with query parameters, mutations are <code>POST</code>{' '}
@@ -28,6 +39,7 @@ function CommerceRest() {
         <code>Authorization</code> header. Use the provider's base URL and check
         its declared profiles before calling an operation.
       </p>
+      <CommerceImplementationComparison topic="rest" />
       <section>
         <AnchorLink id="example" level="h2">
           Read current access

@@ -592,6 +592,10 @@ jobs:
           bun test scripts/audit-docs.test.ts
           bun run audit:docs
 
+      - name: Check static discovery guards
+        working-directory: packages/docs
+        run: bun run test:discoverability
+
       - name: Lint
         working-directory: packages/docs
         run: bun run lint

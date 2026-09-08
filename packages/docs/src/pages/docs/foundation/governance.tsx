@@ -242,6 +242,33 @@ function Governance() {
       </section>
 
       <section>
+        <AnchorLink id="commerce-protocol" level="h2">
+          Commerce Protocol participation
+        </AnchorLink>
+        <p>
+          Providers, app developers, and event consumers can propose changes or
+          contribute interoperability reports. The{' '}
+          <a href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/CONVENTION.md#public-collaboration-and-implementation-evidence">
+            protocol contribution procedure
+          </a>{' '}
+          defines the required use case, executable evidence, compatibility
+          assessment, and public decision record. IAPKit receives no exemption
+          from the shared contract or its checks.
+        </p>
+        <p>
+          Decisions remain with the current project lead under the review
+          process above. Reports identify their authors and actual reviewers; a
+          project-authored fixture does not count as independent company
+          validation. The{' '}
+          <a href="/commerce-protocol/ecosystem#composition-proof">
+            runnable composition example
+          </a>{' '}
+          provides a starting point for another implementer to reproduce and
+          challenge the expected results.
+        </p>
+      </section>
+
+      <section>
         <AnchorLink id="release-authority" level="h2">
           Release Authority
         </AnchorLink>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useSyncExternalStore } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   ArrowRightLeft,
@@ -7,18 +7,14 @@ import {
   Store,
   Server,
   Package,
-  X,
 } from 'lucide-react';
-import PackageInstall from './PackageInstall';
-
-interface ArchitecturePart {
-  label: string;
-  title: string;
-  description: string;
-  reference: string;
-  referenceLabel: string;
-  step?: number;
-}
+import {
+  closeCommerceArchitectureModal,
+  getCommerceArchitectureSnapshot,
+  openCommerceArchitectureModal,
+  subscribeToCommerceArchitecture,
+  type CommerceArchitecturePart,
+} from '../lib/signals';
 
 const PARTS = {
   app: {
@@ -90,8 +86,9 @@ const PARTS = {
     reference: '/commerce-protocol/implementation',
     referenceLabel: 'Build with AI',
     step: 1,
+    packageName: 'openiap-commerce-protocol',
   },
-} satisfies Record<string, ArchitecturePart>;
+} satisfies Record<string, CommerceArchitecturePart>;
 
 type PartId = keyof typeof PARTS;
 
@@ -102,22 +99,56 @@ interface CommerceProtocolDiagramProps {
 function CommerceProtocolDiagram({
   onShowExample,
 }: CommerceProtocolDiagramProps): React.JSX.Element {
-  const [selected, setSelected] = useState<PartId | null>(null);
-  const part: ArchitecturePart | null = selected ? PARTS[selected] : null;
+  const { hash } = useLocation();
+  const navigate = useNavigate();
+  const modal = useSyncExternalStore(
+    subscribeToCommerceArchitecture,
+    getCommerceArchitectureSnapshot,
+    () => null
+  );
+
+  useEffect(() => {
+    const id = hash.slice('#architecture-'.length);
+    if (
+      hash.startsWith('#architecture-') &&
+      Object.prototype.hasOwnProperty.call(PARTS, id)
+    ) {
+      const trigger = document.getElementById(`architecture-${id}`);
+      trigger?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      trigger?.focus({ preventScroll: true });
+      openCommerceArchitectureModal({
+        part: PARTS[id as PartId],
+        onShowExample,
+        onClose: () =>
+          navigate('#architecture', {
+            replace: true,
+            state: { commerceKeepScroll: true },
+          }),
+      });
+    } else {
+      closeCommerceArchitectureModal();
+    }
+    return closeCommerceArchitectureModal;
+  }, [hash, navigate, onShowExample]);
+
   const node = (id: PartId, icon?: React.ReactNode): React.JSX.Element => (
     <button
       type="button"
-      className={`btn ${selected === id ? 'btn-primary' : 'btn-secondary'}`}
-      aria-pressed={selected === id}
+      id={`architecture-${id}`}
+      className={`btn ${modal?.part === PARTS[id] ? 'btn-primary' : 'btn-secondary'}`}
+      aria-haspopup="dialog"
       aria-controls="commerce-architecture-detail"
-      onClick={() => setSelected(selected === id ? null : id)}
+      onClick={(event) => {
+        event.currentTarget.focus({ preventScroll: true });
+        navigate(`#architecture-${id}`);
+      }}
     >
       {icon}
       {PARTS[id].label}
     </button>
   );
   return (
-    <div className="commerce-architecture">
+    <div id="architecture" className="commerce-architecture">
       <div className="commerce-architecture-heading">
         <h2 id="provider-architecture">Commerce backend architecture</h2>
         <span>Select a part to explore it.</span>
@@ -185,42 +216,6 @@ function CommerceProtocolDiagram({
         <small>
           Defines the interfaces and behavior between these systems.
         </small>
-      </div>
-      <div id="commerce-architecture-detail" aria-live="polite">
-        {part && (
-          <section className="commerce-part-detail">
-            <div className="commerce-part-title">
-              <h3>{part.title}</h3>
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={() => setSelected(null)}
-                aria-label="Close architecture details"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-            <p>{part.description}</p>
-            {selected === 'contract' && (
-              <PackageInstall packageName="openiap-commerce-protocol" />
-            )}
-            <div className="commerce-actions">
-              <Link className="btn btn-secondary" to={part.reference}>
-                {part.referenceLabel}
-              </Link>
-              {part.step !== undefined && (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => onShowExample(part.step!)}
-                >
-                  See this in the working example{' '}
-                  <ArrowRight size={15} aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          </section>
-        )}
       </div>
     </div>
   );

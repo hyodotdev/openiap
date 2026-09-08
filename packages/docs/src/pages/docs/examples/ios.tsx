@@ -16,7 +16,7 @@ export const IOS_CONFIG: StoreExampleConfig = {
     title: 'iOS Example',
     description:
       'OpenIAP StoreKit 2 example walkthrough for iOS purchases, subscriptions, restore flows, and IAPKit verification.',
-    path: '/docs/example/ios',
+    path: '/docs/example',
     keywords:
       'OpenIAP iOS example, StoreKit 2 example, iOS IAP video, App Store purchase verification',
   },

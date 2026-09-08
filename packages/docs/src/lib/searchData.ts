@@ -971,18 +971,18 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'commerce-protocol-getting-started',
-    title: 'Commerce Protocol Use a Provider',
+    title: 'Commerce Protocol Follow a Purchase',
     category: 'Documentation',
     description:
-      'Connect to a provider for purchase verification, account binding, and entitlement reads',
+      'Follow Alice’s subscription step by step: buy, verify, connect the user, read access, and handle changes',
     path: '/commerce-protocol/getting-started',
   },
   {
     id: 'commerce-protocol-implementation',
-    title: 'Commerce Protocol Build with AI',
+    title: 'Commerce Protocol Build and Review',
     category: 'Documentation',
     description:
-      'AI build brief, six recorded milestones, runnable SQLite backend, captured API results, and IAPKit comparison',
+      'Choose your services, give AI a product brief, and review the running purchase flow',
     path: '/commerce-protocol/implementation',
   },
   {

@@ -1,237 +1,262 @@
-import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
-import { Link } from 'react-router-dom';
+import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
+import { COMMERCE_IMPLEMENTATIONS } from '../../lib/commerceImplementations';
+import { COMMERCE_PROTOCOL_LINKS, IAPKIT_URL } from '../../lib/config';
+import { Link, useLocation } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
-import DataTable, { type DataTableColumn } from '../../components/DataTable';
-import PackageInstall from '../../components/PackageInstall';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
 const EXAMPLE = COMMERCE_PROTOCOL_LINKS.example;
-const KIT = 'https://github.com/hyodotdev/openiap/tree/main/packages/kit';
-
-interface ComparisonRow {
-  part: string;
-  example: string;
-  kit: string;
-  path: string;
-}
-
-const COMPARISON: ComparisonRow[] = [
-  {
-    part: 'API contract',
-    example: 'Five REST operations; no full profile claim',
-    kit: 'REST and GraphQL over shared handlers',
-    path: '/server/api/commerce',
-  },
-  {
-    part: 'Store verification',
-    example: 'One fictional fixture purchase',
-    kit: 'Delegates to store verification functions',
-    path: '/server/api/commerce/handlers.ts',
-  },
-  {
-    part: 'Storage and identity',
-    example: 'Local SQLite; a preselected user',
-    kit: 'Convex project, subscription, and account records',
-    path: '/convex',
-  },
-  {
-    part: 'Events',
-    example:
-      'Signed loopback delivery, retry, and durable inbox; in-process storage restart',
-    kit: 'Registered destinations and delivery worker',
-    path: '/convex/commerce/delivery.ts',
-  },
-  {
-    part: 'Evidence from this run',
-    example: 'Real local HTTP and persistence; published signature vectors',
-    kit: 'Route conformance and commerce helpers with Convex/store I/O mocked',
-    path: '/server/api/commerce/conformance.test.ts',
-  },
-];
-const COLUMNS: DataTableColumn<ComparisonRow>[] = [
-  { header: 'Part', cell: (row) => row.part },
-  { header: 'This local example', cell: (row) => row.example },
-  {
-    header: 'IAPKit implementation',
-    cell: (row) => <a href={`${KIT}${row.path}`}>{row.kit}</a>,
-  },
-];
 
 function CommerceImplementation(): React.JSX.Element {
-  useScrollToHash();
+  useScrollToHash(120);
+  const { search } = useLocation();
+  const store = new URLSearchParams(search).get('store');
+  const recheck = store === 'amazon' || store === 'horizon';
+  const journey = (hash = '') => ({
+    pathname: '/commerce-protocol/getting-started',
+    search,
+    hash,
+  });
   return (
-    <div className="doc-page">
+    <div className="doc-page commerce-implementation">
       <SEO
         title="Commerce Protocol: Build with AI"
         path="/commerce-protocol/implementation"
-        description="Give your AI a build brief, run the working local example, and compare its scope with IAPKit. Review actual results at every milestone."
+        description="Define your product and expected behavior. Give AI the Commerce Protocol contract and working example, then review the running result."
       />
-      <h1>Build with AI</h1>
-      <p>
-        You describe the product. The protocol gives your AI the API, access
-        rules, and testable contract. Review a working milestone at a time.
+      <h1>Build your purchase flow.</h1>
+      <p className="commerce-lead">
+        Choose who runs the purchase backend, describe what your users should
+        experience, and review a running app.
       </p>
       <p>
-        Start with the{' '}
-        <Link to="/commerce-protocol#build-walkthrough">
-          six-step recorded example
-        </Link>{' '}
-        to see what you will be asking it to build.
+        If the pieces are still unfamiliar,{' '}
+        <Link to={journey()}>follow Alice’s purchase first</Link>. You do not
+        need to learn the API names to decide what your product should do.
       </p>
-      <p>
-        Already have a backend and only need events?{' '}
-        <Link to="/commerce-protocol/getting-started#receive-events">
-          Run the ready event receiver
-        </Link>
-        .
-      </p>
-      <section>
-        <AnchorLink id="build-brief" level="h2">
-          1. Install the contract in your project
-        </AnchorLink>
-        <PackageInstall packageName="openiap-commerce-protocol" />
-        <p>
-          The package contains the specification, schemas, API bindings, and
-          conformance tools. Your AI uses these to build a backend in your own
-          project, using your preferred backend stack.
-        </p>
-        <p>
-          <a href="/commerce-example/build-brief.md" download>
-            Download the AI build brief ↓
-          </a>{' '}
-          and attach it to your AI, or paste this starter prompt:
-        </p>
-        <CodeBlock language="text">{`Locate the installed openiap-commerce-protocol package and read SPEC.md and generated/.
-For architecture, use https://openiap.dev/commerce-protocol/whitepaper (DESIGN.md is not included in package 0.1.0).
-Follow ${EXAMPLE}/blob/main/BUILD.md to build a purchase-to-access backend in this project.
-After each milestone, run it and show the actual API result, database change, and screen capture.
-Review the running result. Fix issues and repeat the failed checks before adding the next milestone.
-Keep the work uncommitted so I can review it.
-My product and stack: [describe your app, backend, and subscription].`}</CodeBlock>
-        <p>
-          The brief points to the normative spec and generated schemas, then
-          sets six build milestones with acceptance checks. It starts with a
-          fictional store so you can review the flow before connecting
-          credentials.
-        </p>
-      </section>
-      <section>
-        <AnchorLink id="local-example" level="h2">
-          2. Run the example we built
-        </AnchorLink>
-        <p>
-          Clone the <a href={EXAMPLE}>example repository</a> to get the backend,
-          README, receiver guide, and complete build history:
-        </p>
-        <CodeBlock language="bash">{`git clone ${EXAMPLE}.git
-cd openiap-commerce-protocol-example`}</CodeBlock>
-        <PackageInstall />
-        <p>
-          This example uses Bun to run its HTTP server and SQLite databases.
-          With Bun installed, test and start it:
-        </p>
-        <CodeBlock language="bash">{`npm test
-npm start
-# Or run the same scripts with pnpm, Yarn, or Bun.
-# Open http://127.0.0.1:5181 and run each step.`}</CodeBlock>
-        <p>
-          The example contains the backend code built from the contract: five
-          REST operations, a dashboard, and two SQLite databases. The store and
-          clock are fixtures. You do not need the OpenIAP or IAPKit monorepo.
-        </p>
-        <p>
-          <a href={`${EXAMPLE}#quick-start`}>README and quick start</a> ·{' '}
-          <a href={COMMERCE_PROTOCOL_LINKS.exampleSource} download>
-            Download the recorded source only
-          </a>{' '}
-          ·{' '}
-          <a href="/commerce-example/run.json" download>
-            Download the actual execution report
-          </a>
-        </p>
-        <p>
-          The{' '}
-          <Link to="/commerce-protocol#build-walkthrough">
-            build walkthrough
-          </Link>{' '}
-          includes each earlier source version, code changes, and review
-          results. Review exposed an invalid discovery workaround in the early
-          unfinished snapshots. The revised final backend adds atomic grant
-          events and improves failure handling. We also fixed the response
-          viewer and repeated the affected checks. Read the{' '}
-          <a href="/commerce-example/REVIEW.md">correction log</a> for the
-          evidence.
-        </p>
-      </section>
-      <section>
-        <AnchorLink id="architecture" level="h2">
-          3. Understand what AI built
-        </AnchorLink>
-        <p>
-          HTTP handlers validate the contract and call the purchase domain.
-          SQLite owns purchases, bindings, processed observations, and pending
-          deliveries. A separate receiver database deduplicates signed events
-          before acknowledging them.
-        </p>
-        <p id="consumer">
-          The developer backend still owns login and account authorization. It
-          reads current entitlements to decide access; a webhook can trigger a
-          refresh. The example selects a fixture user and does not implement
-          login.
-        </p>
-        <p>
-          The{' '}
-          <Link to="/commerce-protocol/getting-started#purchase-flow">
-            sequence diagrams
-          </Link>{' '}
-          show the app, provider, and receiver calls in order. The{' '}
-          <Link to="/commerce-protocol/whitepaper">
-            whitepaper’s implementation blueprint
-          </Link>{' '}
-          explains the storage and transaction boundaries. The{' '}
-          <Link to="/commerce-protocol/authentication">authentication</Link> and{' '}
-          <Link to="/commerce-protocol/webhooks">webhook references</Link>{' '}
-          define the requirements.
-        </p>
-      </section>
+      <nav className="commerce-actions" aria-label="Build guide steps">
+        <Link to={{ search, hash: '#iapkit' }}>1. Choose your services</Link>
+        <span>→</span>
+        <Link to={{ search, hash: '#build-brief' }}>2. Give AI the brief</Link>
+        <span>→</span>
+        <Link to={{ search, hash: '#acceptance' }}>3. Try the result</Link>
+      </nav>
       <section>
         <AnchorLink id="iapkit" level="h2">
-          4. Compare the result with IAPKit
+          1. Choose your services
         </AnchorLink>
-        <DataTable
-          rows={COMPARISON}
-          columns={COLUMNS}
-          rowKey={(row) => row.part}
-        />
         <p>
-          The example makes the core flow visible. It does not establish real
-          purchase validity or reproduce the IAPKit product. The{' '}
-          <a href="/commerce-lab/run.json">IAPKit comparison report</a> tests
-          the reviewed source archive against IAPKit’s signer and records its
-          route tests. No store sandbox purchase was made.
+          For an existing app, keep your login and paywall. Choose who will
+          verify purchases and maintain access.
         </p>
+        <div className="commerce-role-benefits">
+          <article>
+            <h2>Use a managed service</h2>
+            <p>
+              <a href={IAPKIT_URL}>IAPKit</a> runs purchase verification,
+              subscription records, and event delivery. Your backend calls it to
+              authorize your users.
+            </p>
+          </article>
+          <article>
+            <h2>Run your own backend</h2>
+            <p>
+              Use <a href={EXAMPLE}>openiap-commerce-protocol-example</a> to
+              build in your stack. Your team runs the store connections,
+              database, and delivery worker.
+            </p>
+          </article>
+        </div>
+        <p>
+          Building a paywall or data service instead?{' '}
+          <Link to="/commerce-protocol/ecosystem">
+            Choose the part your business owns
+          </Link>
+          ; you do not need to build the whole purchase backend.
+        </p>
+        <CommerceImplementationComparison topic="rest" />
+        <p>
+          Follow the same{' '}
+          <Link to={journey('#purchase-verify')}>verification</Link>,{' '}
+          <Link to={journey('#purchase-bind')}>ownership</Link>, and{' '}
+          <Link to={journey('#purchase-access')}>access</Link> steps in both
+          projects. A provider switch also needs compatible capabilities,
+          credentials, store evidence, and a plan for purchase history; the{' '}
+          <Link to="/commerce-protocol/ecosystem#composition-proof">
+            composition checks
+          </Link>{' '}
+          show what has been exercised locally.
+        </p>
+      </section>
+      <section>
+        <AnchorLink id="build-brief" level="h2">
+          2. Give AI the brief
+        </AnchorLink>
+        <p>
+          Open the brief, copy it into your coding agent, and fill in your
+          product and service choices. The agent can inspect your existing
+          stack. For example: “Add Premium subscriptions to my app. Use IAPKit
+          for verification and access; keep my existing login and paywall.”
+        </p>
+        <details className="commerce-run-details">
+          <summary>Open the brief to copy</summary>
+          <CodeBlock language="text">{`Integrate OpenIAP Commerce Protocol into this project.
+Product and desired behavior: [what users should be able to do].
+Store and product type: ${store === 'horizon' ? 'Meta Horizon' : store === 'amazon' ? 'Amazon' : store === 'google' ? 'Google Play' : store === 'apple' ? 'Apple' : '[Apple, Google Play, Amazon, or Meta Horizon]'}; [subscription, durable purchase, or consumable].
+Services to use or own: [name them, or ask me to choose].
+
+Implementation references:
+- Runnable teaching backend: ${EXAMPLE}
+- IAPKit service source: ${COMMERCE_IMPLEMENTATIONS.kit.url}
+- Step-by-step comparison: https://openiap.dev/commerce-protocol/getting-started${search}
+Read the example's INTEGRATE.md for my role; follow BUILD.md for a commerce backend. Compare each responsibility with IAPKit's corresponding handler and tests. The example uses fictional purchases and all six REST operations, including erasure; IAPKit also shows store integrations and GraphQL. Use the contract as the authority, not either implementation's shortcuts.
+Check the chosen store and product type before implementing. IAPKit's Apple/Google subscription path uses subscription state and lifecycle events. Its Amazon/Horizon ownership path rechecks saved evidence on entitlements reads; use productIds, not subscription expiry or invented events. Authenticate the store account link on the app backend. Keep consumable quantities in a separate durable fulfillment ledger.
+Inspect this project's instructions and stack. Install openiap-commerce-protocol; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.
+
+Implement the connection using existing project patterns. Start with a runnable local result. For a provider, complete every selected profile, including account erasure and event delivery; advertise only completed profiles and bindings. Run the applicable conformance and product checks. Fix every failure and rerun; a test that expects a known failure does not complete the implementation. Repeat installation, tests, and startup from a clean source-only copy.
+Show the running URL and user-visible outcomes, with source and verification commands for future changes. Separate fixture evidence from real store/deployment checks; list remaining work and product decisions.
+Keep changes uncommitted for review.`}</CodeBlock>
+          <p>
+            The reference repository already contains a backend, dashboard,
+            database, event receiver, and tests. Its{' '}
+            <a href={`${EXAMPLE}/blob/main/INTEGRATE.md`}>integration brief</a>{' '}
+            scopes the role; its{' '}
+            <a href={`${EXAMPLE}/blob/main/BUILD.md`}>backend build brief</a>{' '}
+            defines seven implementation milestones, including account erasure.
+            The running fixture covers all six REST operations. Complete the
+            real store, authentication, isolation, and deployment obligations of
+            your selected profiles before using it as a production provider.
+          </p>
+        </details>
       </section>
       <section>
         <AnchorLink id="acceptance" level="h2">
-          5. Extend only after the local flow passes
+          3. Try it as your customer
         </AnchorLink>
         <p>
-          Choose the real store, authenticated identity source, and deployment.
-          Add store validation, erasure, tenant isolation, public HTTPS delivery
-          protections, and operational recovery. Complete each selected profile
-          before advertising it.
+          Have AI start the app and give you the URL. Then follow this sequence
+          using two test accounts, Alice and Bob:
+        </p>
+        <ol className="commerce-source-steps">
+          <li>
+            <strong>Buy as Alice.</strong> Complete a test purchase and open the
+            paid feature. Try a pending or canceled purchase too; neither should
+            unlock it.
+          </li>
+          <li>
+            <strong>Switch to Bob.</strong> He must not see Alice’s paid content
+            or take her purchase by submitting the same receipt.
+          </li>
+          <li>
+            <strong>Recheck Alice’s access.</strong> For Apple/Google
+            subscriptions, cancel renewal: paid content stays open until expiry.
+            For Amazon/Horizon, return a negative store ownership answer:
+            Premium disappears from the allowed products. Simulate a store
+            outage too: it must report a failed read, then recover when the
+            store is available. Reload at each point.
+          </li>
+          <li>
+            <strong>Repeat and restart.</strong> Retry a purchase, then restart
+            the backend. Ownership and access remain correct, with no duplicate
+            fulfillment. If your provider emits lifecycle events, retry their
+            delivery too. IAPKit currently emits those events for Apple/Google
+            subscriptions.
+          </li>
+          <li>
+            <strong>Delete Alice.</strong> Check that her identity is removed
+            from the provider’s records and your own stored event copies. Bob’s
+            records remain intact.
+          </li>
+        </ol>
+        <p>
+          Ask AI to run the same checks automatically and show any failures.
+          Keep those checks with the source, so the next change can be reviewed
+          against the same behavior.
         </p>
         <p>
-          Run{' '}
-          <Link to="/commerce-protocol/conformance">
-            profile and binding conformance
-          </Link>
-          , then store sandbox and deployment tests. Keep the result report
-          beside the implementation so the next reviewer can distinguish
-          demonstrated behavior from remaining work.
+          Start with test purchases. Before releasing, repeat the relevant flow
+          with your store sandbox, real login, and deployed backend. Passing the{' '}
+          <Link to="/commerce-protocol/conformance">contract checks</Link> and
+          completing a real store purchase answer different questions; ask for
+          both results.
         </p>
+        <details className="commerce-run-details">
+          <summary>Run the checks in both reference projects</summary>
+          <CommerceImplementationComparison topic="checks" />
+        </details>
+        <details className="commerce-run-details">
+          <summary>Additional exercise: AI built a new fixture app</summary>
+          <p>
+            A separate AI started with an empty project and built Field Notes, a
+            subscription app using Node.js and SQLite. Another AI reviewed the
+            running app and repeated installation and checks in a clean copy.
+            The review found and fixed a test setup dependency and an incorrect
+            status message after reload.
+          </p>
+          <p>
+            <a href="/commerce-example/ai-reproduction.md">
+              Read the reproduction record
+            </a>{' '}
+            for the prompt, runnable source, checks, and corrections. This
+            exercise covers a local fixture app; real stores and production
+            integration were not tested.
+          </p>
+        </details>
+      </section>
+      <section>
+        <AnchorLink id="architecture" level="h2">
+          Keep the next change small
+        </AnchorLink>
+        <p>
+          {recheck
+            ? 'For Amazon and Horizon, keep the store check and the app’s access policy separate. Both projects recheck linked purchases before returning allowed products. A rejected purchase and an unavailable store are different outcomes.'
+            : 'For Apple/Google subscriptions, keep Premium available until the paid period ends. Both projects keep that decision in one function. Your database and event worker can change without rewriting what “has access” means.'}
+        </p>
+        <div id="access-rule">
+          <CommerceImplementationComparison
+            topic={recheck ? 'storeAccess' : 'access'}
+          />
+        </div>
+        <p id="consumer">
+          For a new store, compare the{' '}
+          <Link to={journey('#purchase-verify')}>verification adapters</Link>.
+          For a new data service, compare the{' '}
+          <Link to="/commerce-protocol/webhooks">sender and receiver</Link>. Ask
+          AI to change the part that owns the behavior and rerun its checks.
+        </p>
+        <details className="commerce-run-details">
+          <summary>Account deletion: finish the responsibility</summary>
+          <CommerceImplementationComparison topic="erase" />
+        </details>
+      </section>
+      <section>
+        <AnchorLink id="local-example" level="h2">
+          Run the reference when you need it
+        </AnchorLink>
+        <p>
+          AI can start the example dashboard for you. It runs locally without
+          store credentials or environment variables, using Bun for HTTP and
+          SQLite. The protocol itself does not require Bun.
+        </p>
+        <details className="commerce-run-details">
+          <summary>Manual setup and runtime details</summary>
+          <CodeBlock language="bash">{`git clone ${EXAMPLE}.git
+cd openiap-commerce-protocol-example
+npm ci
+npm test
+npm start`}</CodeBlock>
+          <p>
+            Open <code>http://127.0.0.1:5181</code> and select{' '}
+            <strong>Run step 1 →</strong>. HTTP, storage, and signatures are
+            real local operations; store evidence and the clock are fixtures.
+            Startup creates temporary databases; the recovery step reopens them
+            inside the same process. The{' '}
+            <a href={`${EXAMPLE}#quick-start`}>README</a> has the full runtime
+            and replay instructions.
+          </p>
+        </details>
       </section>
     </div>
   );

@@ -1,0 +1,29 @@
+diff --git a/checkpoint.json b/checkpoint.json
+index 2b4698d..75c152c 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure",
++  "id": "07-account-erasure-reviewed",
+   "title": "Delete the account",
+-  "built": "Atomic provider erasure, recipient cleanup and late-delivery guards",
++  "built": "Account erasure with readable identity state",
+   "result": "The account identity is removed; retries and restart cannot restore it.",
+-  "previous": "06-recover-reviewed-8"
++  "previous": "07-account-erasure"
+ }
+diff --git a/dashboard.html b/dashboard.html
+index 68bb6ee..4504686 100644
+--- a/dashboard.html
++++ b/dashboard.html
+@@ -302,7 +302,7 @@
+         for (const row of rows) {
+           const tr = body.insertRow();
+           for (const [, key] of columns)
+-            tr.insertCell().textContent = String(row[key] ?? "Unbound");
++            tr.insertCell().textContent = String(row[key] ?? (key === "userId" ? "No user identity" : "—"));
+         }
+         $(target).append(table);
+       }

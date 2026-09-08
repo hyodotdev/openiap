@@ -1,8 +1,19 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigationType } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
+import CommerceImplementationComparison from './CommerceImplementationComparison';
+import { COMMERCE_PROTOCOL_LINKS } from '../lib/config';
 
 const RECORDING = '/commerce-example';
+const IMPLEMENTATION_TOPICS = [
+  'capabilities',
+  'verify',
+  'bind',
+  'status',
+  'events',
+  'access',
+  'erase',
+] as const;
 
 interface Milestone {
   step: number;
@@ -17,10 +28,7 @@ interface Milestone {
     request: string;
     change: string;
     review: string;
-    source: string;
-    changes: string;
     report: string;
-    previousSource?: string;
     passed: number;
   };
 }
@@ -41,6 +49,9 @@ function CommerceBuildWalkthrough({
 }): React.JSX.Element {
   const [run, setRun] = useState<RecordedRun | null>(null);
   const [failed, setFailed] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const navigationType = useNavigationType();
   useEffect(() => {
     const controller = new AbortController();
     fetch(`${RECORDING}/run.json`, { signal: controller.signal })
@@ -55,6 +66,27 @@ function CommerceBuildWalkthrough({
     return () => controller.abort();
   }, []);
 
+  const selectedIndex =
+    run?.milestones.findIndex((milestone) => milestone.step === selected) ?? -1;
+  const resolvedIndex = selectedIndex < 0 ? 0 : selectedIndex;
+  const step = run?.milestones[resolvedIndex];
+
+  useEffect(() => {
+    if (!step) return;
+    const frame = requestAnimationFrame(() => {
+      headingRef.current?.focus({ preventScroll: true });
+      tabsRef.current?.scrollIntoView({
+        block: 'start',
+        behavior:
+          navigationType === 'POP' ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'instant'
+            : 'smooth',
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [step, navigationType]);
+
   if (!run) {
     return (
       <p role="status">
@@ -67,24 +99,20 @@ function CommerceBuildWalkthrough({
       </p>
     );
   }
-  const selectedIndex = run.milestones.findIndex(
-    (milestone) => milestone.step === selected
-  );
-  const step = run.milestones[selectedIndex];
+  if (!step) return <p role="status">No recorded checkpoints are available.</p>;
 
   return (
     <div className="commerce-walkthrough">
       <p>
-        Ask AI for one feature → run it → inspect the screen and responses → fix
-        what failed → repeat the check. These six source checkpoints record that
-        process in a separate example project.
+        See what happens to one subscription in{' '}
+        <a href={COMMERCE_PROTOCOL_LINKS.example}>
+          openiap-commerce-protocol-example
+        </a>
+        . Follow the purchase, access, and delivery results in its recorded
+        dashboard.
       </p>
-      <div className="commerce-run-meta">
-        <span>Recorded {run.recordedAt.slice(0, 10)}</span>
-        <span>{run.checks.length} checks in the completed example</span>
-        <a href={`${RECORDING}/REVIEW.md`}>Review and correction log</a>
-      </div>
       <div
+        ref={tabsRef}
         className="language-tabs-header commerce-build-tabs"
         role="group"
         aria-label="Recorded build milestones"
@@ -93,8 +121,8 @@ function CommerceBuildWalkthrough({
           <button
             key={milestone.step}
             type="button"
-            className={`language-tab ${milestone.step === selected ? 'active' : ''}`}
-            aria-current={milestone.step === selected ? 'step' : undefined}
+            className={`language-tab ${milestone.step === step.step ? 'active' : ''}`}
+            aria-current={milestone.step === step.step ? 'step' : undefined}
             aria-controls="commerce-build-result"
             onClick={() => onSelect(milestone.step)}
           >
@@ -102,21 +130,24 @@ function CommerceBuildWalkthrough({
           </button>
         ))}
       </div>
-      <div id="commerce-build-result" className="commerce-build-result">
+      <div
+        key={step.step}
+        id="commerce-build-result"
+        className="commerce-build-result"
+      >
         <div className="commerce-build-caption" aria-live="polite">
           <div>
-            <h3>{step.title}</h3>
+            <h3 ref={headingRef} id={`build-step-${step.step}`} tabIndex={-1}>
+              {step.title}
+            </h3>
             <p>{step.result}</p>
-            <small>
-              Added: {step.built} · {step.build.passed} checks passed
-            </small>
           </div>
           <div className="commerce-step-controls">
             <button
               className="btn btn-secondary"
               type="button"
-              disabled={selectedIndex === 0}
-              onClick={() => onSelect(run.milestones[selectedIndex - 1].step)}
+              disabled={resolvedIndex === 0}
+              onClick={() => onSelect(run.milestones[resolvedIndex - 1].step)}
               aria-label="Previous milestone"
             >
               ←
@@ -124,17 +155,14 @@ function CommerceBuildWalkthrough({
             <button
               className="btn btn-secondary"
               type="button"
-              disabled={selectedIndex === run.milestones.length - 1}
-              onClick={() => onSelect(run.milestones[selectedIndex + 1].step)}
+              disabled={resolvedIndex === run.milestones.length - 1}
+              onClick={() => onSelect(run.milestones[resolvedIndex + 1].step)}
               aria-label="Next milestone"
             >
               →
             </button>
           </div>
         </div>
-        <p>
-          <strong>AI task summary:</strong> {step.build.request}
-        </p>
         <a
           className="commerce-capture-link no-icon"
           href={`${RECORDING}/${step.screenshot}`}
@@ -148,8 +176,15 @@ function CommerceBuildWalkthrough({
             loading="lazy"
           />
         </a>
+        <CommerceImplementationComparison
+          topic={IMPLEMENTATION_TOPICS[resolvedIndex] ?? 'checks'}
+          collapsed
+        />
         <details key={`review-${step.step}`} className="commerce-run-details">
-          <summary>What AI changed, reviewed, and corrected</summary>
+          <summary>Implementation and review details</summary>
+          <p>
+            <strong>AI task:</strong> {step.build.request}
+          </p>
           <p>
             <strong>Changed:</strong> {step.build.change}
           </p>
@@ -157,35 +192,9 @@ function CommerceBuildWalkthrough({
             <strong>Reviewed and rechecked:</strong> {step.build.review}
           </p>
           <p>
-            Extract this checkpoint into an empty folder, install dependencies
-            with your favorite package manager, and run its test and start
-            scripts. This example uses Bun; the protocol does not require it.
+            {step.built} · {step.build.passed} checks passed.{' '}
+            <a href={`${RECORDING}/REVIEW.md`}>Review and correction log</a>
           </p>
-          {step.build.previousSource && (
-            <p>
-              This reviewed revision’s patch starts from the{' '}
-              <a href={`${RECORDING}/${step.build.previousSource}`} download>
-                preceding source revision
-              </a>
-              .
-            </p>
-          )}
-          <div className="commerce-actions">
-            <a
-              className="btn btn-secondary"
-              href={`${RECORDING}/${step.build.source}`}
-              download
-            >
-              Run this source checkpoint ↓
-            </a>
-            <a
-              className="btn btn-secondary"
-              href={`${RECORDING}/${step.build.changes}`}
-              download
-            >
-              Code changes ↓
-            </a>
-          </div>
         </details>
         <details key={`results-${step.step}`} className="commerce-run-details">
           <summary>Inspect this step’s checks and actual responses</summary>
@@ -197,19 +206,21 @@ function CommerceBuildWalkthrough({
           <CodeBlock language="json">
             {JSON.stringify(step.responses, null, 2)}
           </CodeBlock>
-          <a href={`${RECORDING}/${step.build.report}`} download>
-            Recorded AI task and full report ↓
+          <a href={`${RECORDING}/${step.build.report}`}>
+            Full execution report
           </a>
         </details>
       </div>
       <p className="commerce-capture-note">
-        Each screenshot runs that step’s saved source. This incremental example
-        uses published openiap-commerce-protocol@{run.standalone.version}. HTTP,
-        SQLite, and signatures run locally; the store and clock are fixtures.{' '}
-        <Link to="/commerce-protocol/implementation#iapkit">
-          Compare its scope with IAPKit
+        Recorded {run.recordedAt.slice(0, 10)} · {run.checks.length} checks in
+        the completed example · openiap-commerce-protocol@
+        {run.standalone.version}. HTTP, SQLite, and signatures run locally; the
+        store and clock are fixtures.
+      </p>
+      <p>
+        <Link to="/commerce-protocol/implementation#build-brief">
+          Build this into your product with AI →
         </Link>
-        .
       </p>
     </div>
   );

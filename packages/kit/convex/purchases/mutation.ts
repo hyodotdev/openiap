@@ -1,5 +1,9 @@
-import { internalMutation } from "../_generated/server";
-import { v } from "convex/values";
+import { internalMutation, mutation } from "../_generated/server";
+import { ConvexError, v } from "convex/values";
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
+import { isValidSubscriptionUserId } from "../subscriptions/limits";
+import { isUserErasureRequested } from "../subscriptions/erasure";
+
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -10,6 +14,51 @@ import {
 } from "./stats";
 import { getProjectById } from "../projects/helpers";
 
+export const bindVerifiedPurchaseAsServer = mutation({
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    store: v.union(v.literal("amazon"), v.literal("horizon")),
+    remoteId: v.string(),
+  },
+  returns: v.object({ bound: v.boolean() }),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved)
+      throw new ConvexError({
+        code: "INVALID_API_KEY",
+        message: "Invalid credential",
+      });
+    if (
+      !isValidSubscriptionUserId(args.userId) ||
+      !args.remoteId ||
+      args.remoteId.length > 65536
+    )
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Invalid purchase identity",
+      });
+    if (await isUserErasureRequested(ctx, resolved.project, args.userId))
+      return { bound: false };
+    const purchase = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_remote", (q) =>
+        q.eq("projectId", resolved.project._id).eq("remoteId", args.remoteId),
+      )
+      .filter((q) => q.eq(q.field("store"), args.store))
+      .unique();
+    if (!purchase || purchase.accountErased) return { bound: false };
+    if (purchase.appUserId)
+      return { bound: purchase.appUserId === args.userId };
+    if (!purchase.isValid || !purchase.productId) return { bound: false };
+    await ctx.db.patch(purchase._id, { appUserId: args.userId });
+    return { bound: true };
+  },
+});
 // Mark purchase as inauthentic.
 //
 // Internal-only on purpose: nothing in the dashboard or server calls this —
