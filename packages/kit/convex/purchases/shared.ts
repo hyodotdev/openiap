@@ -163,6 +163,22 @@ export async function getVerificationProjectByApiKey(
   return project;
 }
 
+// An entitlements read pays once, one token per bound purchase it rechecks.
+export async function assertEntitlementRecheckAdmission(
+  ctx: ActionCtx,
+  projectId: Id<"projects">,
+  cost: number,
+): Promise<void> {
+  await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
+    projectId,
+    bucket: "entitlementRecheck",
+    cost,
+  });
+}
+
+// A recheck re-asks the store about a purchase IAPKit already holds.
+export type RecheckOptions = { recheck?: boolean };
+
 function normalizeAppStoreTransactionReason(
   reason?: string,
 ): AppStoreTransactionReason | undefined {

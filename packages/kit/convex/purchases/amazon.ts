@@ -26,10 +26,12 @@ import {
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
   applyExpectedProductId,
+  getProjectByApiKey,
   getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
   type ReceiptResponse,
+  type RecheckOptions,
 } from "./shared";
 
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
@@ -75,6 +77,7 @@ interface PersistAmazonVerdictArgs {
   state: HarmonizedPurchaseState;
   requestIp?: string;
   verificationDurationMs?: number;
+  persistIfChanged?: boolean;
 }
 
 function describeError(error: unknown): string {
@@ -381,6 +384,7 @@ async function persistAmazonVerdict(
     environment: args.environment,
     requestIp: args.requestIp,
     verificationDurationMs: args.verificationDurationMs,
+    persistIfChanged: args.persistIfChanged,
   });
 }
 
@@ -459,9 +463,12 @@ export const verifyAmazonReceiptInternalV1 = action({
 export async function verifyAmazonReceipt(
   ctx: ActionCtx,
   args: Infer<typeof amazonVerificationArgs>,
+  options: RecheckOptions = {},
 ): Promise<ReceiptResponse> {
   const verificationStart = Date.now();
-  const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
+  const project = options.recheck
+    ? await getProjectByApiKey(ctx, args.apiKey)
+    : await getVerificationProjectByApiKey(ctx, args.apiKey);
   const sandbox = args.sandbox === true;
   const environment = environmentForSandbox(sandbox);
   const sharedSecret = resolveAmazonSharedSecret({
@@ -511,6 +518,7 @@ export async function verifyAmazonReceipt(
         state,
         requestIp: args.requestIp,
         verificationDurationMs: Date.now() - verificationStart,
+        persistIfChanged: options.recheck,
       });
       return { isValid: false, state, environment };
     }
@@ -547,6 +555,7 @@ export async function verifyAmazonReceipt(
     state,
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
+    persistIfChanged: options.recheck,
   });
 
   return receiptResponse;
@@ -558,7 +567,8 @@ export async function verifyAmazonReceipt(
  * caps the 20-row worst case near 200 seconds, below the five-minute cron
  * interval so independent workers do not overlap their per-worker TPS budget.
  * Starts are spaced by 200ms (at most 5 TPS), reserving half of Amazon's
- * documented 10 TPS ceiling for foreground verification traffic.
+ * documented 10 TPS ceiling for the two foreground lanes: receipt verification
+ * and the entitlement rechecks, which draw on their own admission bucket.
  */
 export const reconcileAmazonPurchases = internalAction({
   args: {},

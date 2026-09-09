@@ -219,6 +219,8 @@ jobs:
               # time, so a spec change must rebuild and probe the binary.
               - 'specs/commerce-protocol/**'
               - 'scripts/e2e-web-sites.mjs'
+              - 'scripts/audit-commerce-evidence.mjs'
+              - 'scripts/audit-commerce-evidence.test.mjs'
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
@@ -646,6 +648,15 @@ jobs:
         env:
           VITE_KIT_CONVEX_URL: https://placeholder-build-1.convex.cloud
         run: bun run build:all
+
+      - name: Test the Commerce evidence audit
+        run: bun test ./scripts/audit-commerce-evidence.test.mjs
+
+      - name: Report Commerce evidence freshness
+        # Advisory: the recorded IAPKit interop stays valid for its recorded
+        # revision; drift only means the guide shows older sources than main.
+        continue-on-error: true
+        run: bun run audit:commerce-evidence
 
       - name: Run docs and IAPKit web E2E
         env:

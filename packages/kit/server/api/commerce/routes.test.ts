@@ -1011,3 +1011,29 @@ describe("commerce verify admission on both bindings", () => {
     expect(mocks.action).toHaveBeenCalled();
   });
 });
+
+describe("commerce entitlement rechecks", () => {
+  beforeEach(() => {
+    mocks.action.mockReset();
+    mocks.mutation.mockReset();
+    mocks.query.mockReset();
+    mocks.handleConvexError.mockReset();
+    mocks.handleConvexError.mockReturnValue(null);
+  });
+
+  it("reports an exhausted recheck budget as 429 with the retry hint", async () => {
+    mocks.action.mockRejectedValue(new Error("limited"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "RATE_LIMITED",
+      message: "Too many entitlement rechecks",
+      retryAfterSec: 4,
+    });
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("4");
+    expect((await response.json()).error.code).toBe("RATE_LIMITED");
+  });
+});

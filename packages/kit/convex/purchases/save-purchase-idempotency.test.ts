@@ -838,3 +838,49 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(stats.invalid).toBe(0);
   });
 });
+
+describe("savePurchaseInternal — persistIfChanged", () => {
+  it("leaves an unchanged verdict untouched and still writes a changed one", async () => {
+    const db = new MemDb();
+    db.seedOrg(ORG_ID);
+    db.seedProject(PROJECT_ID, ORG_ID);
+    const ctx = makeCtx(db);
+    const horizon = buildArgs({
+      store: "horizon",
+      remoteId: "viewer:premium",
+      requestData: { store: "horizon", userId: "viewer", sku: "premium" },
+      remoteResponse: JSON.stringify({ success: true, sku: "premium" }),
+    });
+    await savePurchaseInternal({ ctx, ...horizon });
+    await savePurchaseInternal({ ctx, ...horizon, persistIfChanged: true });
+    // A moving store body with the same verdict is still a read.
+    await savePurchaseInternal({
+      ctx,
+      ...horizon,
+      persistIfChanged: true,
+      remoteResponse: JSON.stringify({
+        success: true,
+        sku: "premium",
+        grantTimeMs: 1,
+      }),
+    });
+    let [row] = await db.query("purchases").collect();
+    expect(db.purchaseCount()).toBe(1);
+    expect(row.updatedAt).toBeUndefined();
+
+    await savePurchaseInternal({
+      ctx,
+      ...horizon,
+      persistIfChanged: true,
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      isValid: false,
+      remoteResponse: JSON.stringify({ success: false, sku: "premium" }),
+    });
+    [row] = await db.query("purchases").collect();
+    expect(row).toMatchObject({
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      isValid: false,
+    });
+    expect(row.updatedAt).toEqual(expect.any(Number));
+  });
+});

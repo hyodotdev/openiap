@@ -22,6 +22,7 @@
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:kit-contract": "node --test scripts/audit-kit-spec-contract.test.mjs && node scripts/audit-kit-spec-contract.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",
+    "audit:commerce-evidence": "bun scripts/audit-commerce-evidence.mjs",
     "audit:schema-semver": "bun run --cwd specs/client audit:schema-semver",
     "audit:research": "node --test scripts/audit-research.test.mjs && node scripts/audit-research.mjs",
     "audit:whitepaper": "node --test scripts/audit-whitepaper.test.mjs && node scripts/audit-whitepaper.mjs",

@@ -15,7 +15,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi, getFunctionName } from "convex/server";
 import { Hono } from "hono";
-import { pinSources } from "./commerce-source-snapshot.mjs";
+import { inventories, pinSources } from "./commerce-source-snapshot.mjs";
 
 const kit = resolve(import.meta.dir, "../..");
 const repo = resolve(kit, "../..");
@@ -23,9 +23,16 @@ const example = resolve(
   process.argv[2] ?? join(repo, "../openiap-commerce-protocol-example"),
 );
 const revision = (cwd) => {
-  const result = Bun.spawnSync(["git", "rev-parse", "HEAD"], { cwd });
-  assert.equal(result.exitCode, 0, "Cannot identify source revision");
-  return result.stdout.toString().trim();
+  const git = (args) => {
+    const result = Bun.spawnSync(["git", ...args], { cwd });
+    assert.equal(result.exitCode, 0, "Cannot identify source revision");
+    return result.stdout.toString().trim();
+  };
+  // Uncommitted changes are recorded as such, never attributed to HEAD.
+  return (
+    git(["rev-parse", "HEAD"]) +
+    (git(["status", "--porcelain"]) ? "-dirty" : "")
+  );
 };
 const revisions = { openiap: revision(repo), example: revision(example) };
 const unchangedFiles = [
@@ -37,13 +44,7 @@ const unchangedFiles = [
   "contract.mjs",
 ];
 const inputs = {
-  openiap: pinSources(kit, () => [
-    ...new Bun.Glob("{server,convex}/**/*.{ts,js,json}").scanSync({ cwd: kit }),
-    "src/convex.ts",
-    "convex.json",
-    "tsconfig.json",
-    "package.json",
-  ]),
+  openiap: pinSources(kit, () => inventories.openiap(kit)),
   example: pinSources(example, () => [
     ...unchangedFiles,
     ...new Bun.Glob("*.mjs").scanSync({ cwd: example }),
@@ -52,22 +53,10 @@ const inputs = {
     "package.json",
     "package-lock.json",
   ]),
-  harness: pinSources(import.meta.dir, () => [
-    "run-commerce-interop.mjs",
-    "commerce-interop-fixture.ts",
-    "commerce-store-coverage.mjs",
-    "commerce-source-snapshot.mjs",
-  ]),
-  workspace: pinSources(repo, () => [
-    "bun.lock",
-    "package.json",
-    "packages/mcp-server/package.json",
-    "packages/mcp-server/src/kit-client.ts",
-    "specs/commerce-protocol/package.json",
-    ...new Bun.Glob(
-      "specs/commerce-protocol/{src,generated,examples}/**/*.{mjs,js,json}",
-    ).scanSync({ cwd: repo }),
-  ]),
+  harness: pinSources(import.meta.dir, () =>
+    inventories.harness(import.meta.dir),
+  ),
+  workspace: pinSources(repo, () => inventories.workspace(repo)),
 };
 const before = Object.fromEntries(
   unchangedFiles.map((name) => [name, inputs.example.hashes[name]]),

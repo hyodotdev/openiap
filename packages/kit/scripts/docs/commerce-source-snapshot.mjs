@@ -5,7 +5,37 @@ import { dirname, join } from "node:path";
 
 const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
-export function assertSourceHashes(root, hashes, { allowMissing = [] } = {}) {
+// The recorded input set, shared by the runner and the freshness audit so the
+// two can never disagree about which files the evidence covers.
+export const inventories = {
+  openiap: (kit) => [
+    ...new Bun.Glob("{server,convex}/**/*.{ts,js,json}").scanSync({ cwd: kit }),
+    "src/convex.ts",
+    "convex.json",
+    "tsconfig.json",
+    "package.json",
+  ],
+  workspace: (repo) => [
+    "bun.lock",
+    "package.json",
+    "packages/mcp-server/package.json",
+    "packages/mcp-server/src/kit-client.ts",
+    "specs/commerce-protocol/package.json",
+    ...new Bun.Glob(
+      "specs/commerce-protocol/{src,generated,examples}/**/*.{mjs,js,json}",
+    ).scanSync({ cwd: repo }),
+  ],
+  harness: (dir) =>
+    [...new Bun.Glob("*.{mjs,ts}").scanSync({ cwd: dir })].filter(
+      (name) => !name.includes(".test."),
+    ),
+};
+
+export function diffSourceHashes(
+  root,
+  hashes,
+  { allowMissing = [], inventory = [] } = {},
+) {
   assert(
     hashes && Object.keys(hashes).length > 0,
     `Missing source fingerprints: ${root}`,
@@ -16,20 +46,33 @@ export function assertSourceHashes(root, hashes, { allowMissing = [] } = {}) {
     ),
     "Only recorded generated inputs may be absent",
   );
-  const missing = [];
+  const changed = [],
+    missing = [],
+    skipped = [];
   for (const [name, expected] of Object.entries(hashes)) {
     const path = join(root, name);
-    if (allowMissing.includes(name) && !existsSync(path)) {
-      missing.push(name);
+    if (!existsSync(path)) {
+      (allowMissing.includes(name) ? skipped : missing).push(name);
       continue;
     }
-    assert.equal(
-      hash(readFileSync(path)),
-      expected,
-      `Source input changed during execution or since recording: ${name}`,
-    );
+    if (hash(readFileSync(path)) !== expected) changed.push(name);
   }
-  return missing;
+  const added = [...new Set(inventory)]
+    .filter((name) => !Object.hasOwn(hashes, name))
+    .sort();
+  return { changed, missing, skipped, added };
+}
+
+// Throws on the first drifted input and returns the recorded generated inputs
+// this checkout may legitimately lack.
+export function assertSourceHashes(root, hashes, options = {}) {
+  const { changed, missing, skipped } = diffSourceHashes(root, hashes, options);
+  const drifted = changed[0] ?? missing[0];
+  assert(
+    drifted === undefined,
+    `Source input changed during execution or since recording: ${drifted}`,
+  );
+  return skipped;
 }
 
 export function pinSources(root, files) {

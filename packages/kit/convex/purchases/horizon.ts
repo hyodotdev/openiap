@@ -15,10 +15,12 @@ import {
   ReceiptVerificationError,
 } from "./errors";
 import {
+  getProjectByApiKey,
   getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
   type ReceiptResponse,
+  type RecheckOptions,
 } from "./shared";
 import {
   extractHttpStatus,
@@ -175,9 +177,12 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
 export async function verifyHorizonReceipt(
   ctx: ActionCtx,
   args: Infer<typeof horizonVerificationArgs>,
+  options: RecheckOptions = {},
 ): Promise<ReceiptResponse> {
   const verificationStart = Date.now();
-  const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
+  const project = options.recheck
+    ? await getProjectByApiKey(ctx, args.apiKey)
+    : await getVerificationProjectByApiKey(ctx, args.apiKey);
 
   if (project.horizonEnabled !== true) {
     throw new ProjectMetaHorizonNotEnabledError();
@@ -248,6 +253,7 @@ export async function verifyHorizonReceipt(
     isValid: isValidState(state),
     requestIp: args.requestIp,
     verificationDurationMs: Date.now() - verificationStart,
+    persistIfChanged: options.recheck,
   });
 
   return { isValid: isValidState(state), state, productId: args.sku };

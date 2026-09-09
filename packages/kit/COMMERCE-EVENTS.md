@@ -60,22 +60,34 @@ can act without joining back.
 Commerce Protocol `bindPurchase` connects a verified Amazon receipt or Horizon
 store-user/SKU pair to one app account in `purchases.appUserId`. The backend
 calling it must establish that the store account belongs to its signed-in user.
-Bindings cannot move between app accounts through this operation.
+Bindings cannot move between app accounts through this operation. Only evidence
+currently in state `ENTITLED` binds. Amazon consumables verify as
+`READY_TO_CONSUME` and answer `bound: false`, because the application’s own
+ledger fulfills them once; Horizon exposes no consumable distinction. An app
+account holds at most 20 bound purchases per project. The 21st binding answers
+`bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
+the refusal; a new binding can never push an account past the read bound.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
-returning `productIds`. It rereads ownership after the network calls; erasure
-or an upstream failure cannot turn the last saved verdict into fresh access.
-More than 20 linked purchase rows fails the read rather than returning a partial
-answer. These are ownership checks, so they add no synthetic subscription rows,
-renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues to
-report Apple/Google subscription records; use `entitlements` to authorize products.
+returning `productIds`. Rechecks draw on their own per-project bucket (300
+tokens refilling at 5 per second, one token per bound purchase; a bucket holding
+fewer tokens than the read costs answers `RATE_LIMITED` with a retry hint), so
+access reads cannot starve receipt verification, and a recheck whose verdict is
+unchanged writes nothing back. The read rereads ownership after the network
+calls; erasure or an upstream failure cannot turn the last saved verdict into
+fresh access. These are ownership checks, so they add no synthetic subscription
+rows, renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues
+to report Apple/Google subscription records; use `entitlements` to authorize
+products.
 
-Account erasure unlinks these purchases and keeps an evidence tombstone so
-verification or binding retries cannot resurrect the erased association. The
-tombstone is permanent: that receipt or store-user/SKU pair never binds to any
-app account again, including a new account the same person creates. The erased
-app user id itself is refused only while its erasure job is retained (seven
-days).
+Account erasure unlinks these purchases from the erased app user id and refuses
+that id while its erasure job is retained (seven days), so verification or
+binding retries cannot resurrect the erased association. The evidence itself is
+not tombstoned: a later `bindPurchase` from another app account, such as the
+same person’s new account, creates a new association exactly like a first
+binding. Apple and Google subscription records keep their permanent erasure
+marker (`convex/subscriptions/internal.ts`); the store-coverage run records the
+Amazon and Horizon rebind.
 Consumable quantity and durable fulfillment remain the application’s ledger.
 
 ## Event vocabulary

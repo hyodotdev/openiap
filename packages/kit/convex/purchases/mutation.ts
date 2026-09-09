@@ -1,7 +1,10 @@
 import { internalMutation, mutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
-import { isValidSubscriptionUserId } from "../subscriptions/limits";
+import {
+  isValidSubscriptionUserId,
+  MAX_BOUND_PURCHASES_PER_USER,
+} from "../subscriptions/limits";
 import { isUserErasureRequested } from "../subscriptions/erasure";
 
 import { createError, ErrorCode } from "../utils/errors";
@@ -51,11 +54,36 @@ export const bindVerifiedPurchaseAsServer = mutation({
       )
       .filter((q) => q.eq(q.field("store"), args.store))
       .unique();
-    if (!purchase || purchase.accountErased) return { bound: false };
+    if (!purchase) return { bound: false };
     if (purchase.appUserId)
       return { bound: purchase.appUserId === args.userId };
-    if (!purchase.isValid || !purchase.productId) return { bound: false };
-    await ctx.db.patch(purchase._id, { appUserId: args.userId });
+    // Only a currently entitled purchase binds; an Amazon consumable is
+    // fulfilled once by the app's own ledger.
+    if (
+      purchase.state !== HarmonizedPurchaseState.ENTITLED ||
+      !purchase.productId
+    )
+      return { bound: false };
+    const bound = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", resolved.project._id).eq("appUserId", args.userId),
+      )
+      .take(MAX_BOUND_PURCHASES_PER_USER);
+    if (bound.length >= MAX_BOUND_PURCHASES_PER_USER) {
+      // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
+      // is visible to operators only through this log line.
+      console.warn("[commerce] bindPurchase refused: bound purchase limit", {
+        projectId: resolved.project._id,
+        store: args.store,
+      });
+      return { bound: false };
+    }
+    // Erasure only unlinked the previous owner; this is a new association.
+    await ctx.db.patch(purchase._id, {
+      appUserId: args.userId,
+      accountErased: undefined,
+    });
     return { bound: true };
   },
 });

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { COMMERCE_IMPLEMENTATION_TOPICS } from '../src/lib/commerceImplementations.ts';
 
 const assets = new URL('../public/commerce-composition/', import.meta.url);
@@ -111,35 +110,5 @@ for (const [topic, comparison] of Object.entries(
     );
   }
 console.log(
-  'Commerce guide: every source deep link still lands on its symbol.'
+  'Commerce guide: every source deep link still lands on its symbol. Freshness against the current IAPKit sources is advisory: bun run audit:commerce-evidence.'
 );
-
-const kitRoot = new URL('../../kit/', import.meta.url);
-if (existsSync(new URL('package.json', kitRoot))) {
-  const { assertSourceHashes } =
-    await import('../../kit/scripts/docs/commerce-source-snapshot.mjs');
-  for (const [project, root] of [
-    ['openiap', kitRoot],
-    ['workspace', new URL('../../../', import.meta.url)],
-  ]) {
-    const recorded = interop.sources[project];
-    const missing = assertSourceHashes(fileURLToPath(root), recorded?.hashes, {
-      allowMissing: recorded?.optionalGeneratedFiles ?? [],
-    });
-    if (missing.length)
-      console.log(
-        `${project}: ${missing.length} recorded optional generated inputs are absent from this checkout.`
-      );
-  }
-  assertSourceHashes(
-    fileURLToPath(new URL('scripts/docs/', kitRoot)),
-    interop.harnessHashes
-  );
-  console.log(
-    'IAPKit replacement: recorded outcomes, source snapshots, and available monorepo inputs match.'
-  );
-} else {
-  console.log(
-    'IAPKit replacement: recorded outcomes and source snapshots match; current service sources are unavailable in this docs-only checkout.'
-  );
-}

@@ -10,7 +10,10 @@ import { verifyHorizonReceipt } from "./horizon";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { ConvexError, v } from "convex/values";
-import { getProjectByApiKey } from "./shared";
+import {
+  assertEntitlementRecheckAdmission,
+  getProjectByApiKey,
+} from "./shared";
 
 export const readBoundPurchaseEntitlements = action({
   args: { apiKey: v.string(), userId: v.string() },
@@ -22,21 +25,32 @@ export const readBoundPurchaseEntitlements = action({
       internal.purchases.internal.boundPurchasesForUser,
       queryArgs,
     );
+    // One store call per bound purchase, paid up front from the recheck bucket.
+    if (purchases.length > 0)
+      await assertEntitlementRecheckAdmission(
+        ctx,
+        project._id,
+        purchases.length,
+      );
     for (const purchase of purchases) {
       const evidence = purchase.requestData;
       if (evidence.store === "amazon") {
-        await verifyAmazon(ctx, {
-          apiKey: args.apiKey,
-          userId: evidence.userId,
-          receiptId: evidence.receiptId,
-          sandbox: evidence.sandbox,
-        });
+        await verifyAmazon(
+          ctx,
+          {
+            apiKey: args.apiKey,
+            userId: evidence.userId,
+            receiptId: evidence.receiptId,
+            sandbox: evidence.sandbox,
+          },
+          { recheck: true },
+        );
       } else if (evidence.store === "horizon") {
-        await verifyHorizonReceipt(ctx, {
-          apiKey: args.apiKey,
-          userId: evidence.userId,
-          sku: evidence.sku,
-        });
+        await verifyHorizonReceipt(
+          ctx,
+          { apiKey: args.apiKey, userId: evidence.userId, sku: evidence.sku },
+          { recheck: true },
+        );
       } else {
         throw new ConvexError({
           code: "INVALID_INPUT",

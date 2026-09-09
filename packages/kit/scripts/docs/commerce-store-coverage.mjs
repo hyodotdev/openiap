@@ -212,6 +212,19 @@ export async function runStoreCoverage({
             (await client.call("entitlements", { userId })).productIds,
             ["premium.monthly"],
           );
+          if (name === "iapkit") {
+            const updatedAt = async () =>
+              (await inspect()).purchases.find(
+                (row) => row.appUserId === userId,
+              )?.updatedAt;
+            const before = await updatedAt();
+            await client.call("entitlements", { userId });
+            check(
+              `${store}/iapkit: an unchanged recheck verdict is not written back`,
+              await updatedAt(),
+              before,
+            );
+          }
         }
         results[store][name] = {
           verified: verified.isValid,
@@ -248,9 +261,30 @@ export async function runStoreCoverage({
           [],
         );
         check(
-          `${store}/${name}: erased evidence cannot bind again`,
+          `${store}/${name}: erased user id cannot bind again`,
           (await client.call("bindPurchase", { ...input, userId })).bound,
           false,
+        );
+      }
+      // The erased user id stays refused while its job is retained; IAPKit's
+      // Amazon/Horizon evidence does not, unlike the example's permanent mark.
+      if (store !== "apple") {
+        const next = `store_next_${store}`;
+        check(
+          `${store}/example: erased evidence cannot bind to another account`,
+          (await fixtureClient.call("bindPurchase", { ...input, userId: next }))
+            .bound,
+          false,
+        );
+        check(
+          `${store}/iapkit: another account can bind the erased evidence`,
+          (await kit.call("bindPurchase", { ...input, userId: next })).bound,
+          true,
+        );
+        check(
+          `${store}/iapkit: the new account receives the rechecked access`,
+          (await kit.call("entitlements", { userId: next })).productIds,
+          ["premium.monthly"],
         );
       }
       check(

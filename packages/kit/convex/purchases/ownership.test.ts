@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testableFunction } from "../test.setup";
 import { hmacSha256Hex } from "../utils/sha256";
+import { HarmonizedPurchaseState } from "./purchaseState";
 
 const stubs = vi.hoisted(() => ({
   resolve: vi.fn(),
@@ -27,6 +28,7 @@ import { readBoundPurchaseEntitlements } from "./action";
 
 const project = { _id: "p1", userErasureHashKey: "local-hash-key" };
 type Row = Record<string, unknown>;
+// Index names are not modeled: eq() filters fields, patch() keeps undefined keys.
 function database(rows: Record<string, Row[]>) {
   return {
     query(table: string) {
@@ -99,6 +101,7 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       store,
       remoteId: "store-proof",
       productId: "premium",
+      state: HarmonizedPurchaseState.ENTITLED,
       isValid: true,
       ...overrides,
     };
@@ -119,26 +122,70 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     expect(stubs.resolve).toHaveBeenCalledWith(ctx, "server-key", "admin");
   });
   it.each([
-    { isValid: false },
-    { accountErased: true },
+    { state: HarmonizedPurchaseState.CANCELED },
+    { state: HarmonizedPurchaseState.READY_TO_CONSUME },
     { projectId: "other" },
     { store: "google" },
-  ])("rejects unavailable or cross-scope evidence %j", async (overrides) => {
-    const { ctx, purchase } = setup(overrides);
+  ])(
+    "rejects unavailable, consumable or cross-scope evidence %j",
+    async (overrides) => {
+      const { ctx, purchase } = setup(overrides);
+      expect(await bind(ctx, args)).toEqual({ bound: false });
+      expect(purchase.appUserId).toBeUndefined();
+    },
+  );
+  it("lets another account bind erased evidence and drops the tombstone", async () => {
+    const { ctx, purchase } = setup({ accountErased: true });
+    expect(await bind(ctx, { ...args, userId: "bob" })).toEqual({
+      bound: true,
+    });
+    expect(purchase.appUserId).toBe("bob");
+    expect(purchase.accountErased).toBeUndefined();
+  });
+  it("answers bound:false at the per-account cap without revealing evidence", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { rows, ctx, purchase } = setup();
+    rows.purchases.push(
+      ...Array.from({ length: 20 }, (_, i) => ({
+        _id: `bound-${i}`,
+        projectId: "p1",
+        appUserId: "alice",
+        store,
+        remoteId: `bound-${i}`,
+      })),
+    );
     expect(await bind(ctx, args)).toEqual({ bound: false });
+    expect(await bind(ctx, { ...args, remoteId: "nobody-knows" })).toEqual({
+      bound: false,
+    });
     expect(purchase.appUserId).toBeUndefined();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain("bound purchase limit");
+    expect(await bind(ctx, { ...args, remoteId: "bound-3" })).toEqual({
+      bound: true,
+    });
+    warn.mockRestore();
+  });
+  it("lets the erased user bind again once the erasure job is gone", async () => {
+    const { ctx, purchase } = setup({ accountErased: true });
+    expect(await bind(ctx, args)).toEqual({ bound: true });
+    expect(purchase.appUserId).toBe("alice");
   });
   it("refuses binding and reads as soon as erasure is requested", async () => {
-    const { rows, ctx } = setup({ appUserId: "alice" });
-    rows.subscriptionUserErasureJobs.push({
+    const job = {
       projectId: "p1",
       userIdHash: await hmacSha256Hex(project.userErasureHashKey, "alice"),
       status: "queued",
-    });
+    };
+    const { rows, ctx } = setup({ appUserId: "alice" });
+    rows.subscriptionUserErasureJobs.push(job);
     expect(await bind(ctx, args)).toEqual({ bound: false });
     expect(
       await read(ctx, { projectId: "p1" as never, userId: "alice" }),
     ).toEqual([]);
+    const erased = setup({ accountErased: true });
+    erased.rows.subscriptionUserErasureJobs.push(job);
+    expect(await bind(erased.ctx, args)).toEqual({ bound: false });
   });
   it("checks credentials before revealing evidence", async () => {
     stubs.resolve.mockResolvedValue(null);
@@ -190,20 +237,42 @@ it("refreshes both stores and returns only current, still-bound products", async
     .fn()
     .mockResolvedValueOnce(rows)
     .mockResolvedValueOnce([{ ...rows[1], isValid: false }]);
+  const runMutation = vi.fn();
   expect(
-    await refresh({ runQuery }, { apiKey: "server", userId: "alice" }),
+    await refresh(
+      { runQuery, runMutation },
+      { apiKey: "server", userId: "alice" },
+    ),
   ).toEqual({ productIds: [] });
-  expect(stubs.amazon).toHaveBeenCalledWith(expect.anything(), {
-    apiKey: "server",
-    userId: "store-alice",
-    receiptId: "receipt",
-    sandbox: true,
+  // One recheck admission for the whole read, paid before any store call.
+  expect(runMutation).toHaveBeenCalledTimes(1);
+  expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
+    projectId: "p1",
+    bucket: "entitlementRecheck",
+    cost: 2,
   });
-  expect(stubs.horizon).toHaveBeenCalledWith(expect.anything(), {
-    apiKey: "server",
-    userId: "meta-alice",
-    sku: "quest-premium",
-  });
+  expect(runMutation.mock.invocationCallOrder[0]).toBeLessThan(
+    stubs.amazon.mock.invocationCallOrder[0],
+  );
+  expect(stubs.amazon).toHaveBeenCalledWith(
+    expect.anything(),
+    {
+      apiKey: "server",
+      userId: "store-alice",
+      receiptId: "receipt",
+      sandbox: true,
+    },
+    { recheck: true },
+  );
+  expect(stubs.horizon).toHaveBeenCalledWith(
+    expect.anything(),
+    {
+      apiKey: "server",
+      userId: "meta-alice",
+      sku: "quest-premium",
+    },
+    { recheck: true },
+  );
 });
 
 it("fails the entire read on upstream failure, preserving the saved verdict", async () => {
@@ -218,7 +287,10 @@ it("fails the entire read on upstream failure, preserving the saved verdict", as
   ];
   const runQuery = vi.fn().mockResolvedValue(rows);
   await expect(
-    refresh({ runQuery }, { apiKey: "server", userId: "alice" }),
+    refresh(
+      { runQuery, runMutation: vi.fn() },
+      { apiKey: "server", userId: "alice" },
+    ),
   ).rejects.toThrow("upstream");
   expect(rows[0].isValid).toBe(true);
   expect(runQuery).toHaveBeenCalledTimes(1);
@@ -229,7 +301,10 @@ it("does not return an unrefreshed purchase bound during the read", async () => 
     .fn()
     .mockResolvedValueOnce([])
     .mockResolvedValueOnce([{ _id: "new" }]);
+  const runMutation = vi.fn();
   await expect(
-    refresh({ runQuery }, { apiKey: "server", userId: "alice" }),
+    refresh({ runQuery, runMutation }, { apiKey: "server", userId: "alice" }),
   ).rejects.toThrow("Ownership changed");
+  // An empty first read pays no recheck admission.
+  expect(runMutation).not.toHaveBeenCalled();
 });

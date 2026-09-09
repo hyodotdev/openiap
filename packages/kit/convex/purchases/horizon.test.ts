@@ -4,6 +4,7 @@ import {
   buildHorizonRemoteId,
   parseHorizonResponse,
   ReceiptVerificationError,
+  verifyHorizonReceipt,
   verifyMetaHorizonReceiptInternalV1 as registeredVerifyMetaHorizonReceipt,
 } from "./horizon";
 import { testableFunction } from "../test.setup";
@@ -436,5 +437,35 @@ describe("buildHorizonRemoteId", () => {
     expect(buildHorizonRemoteId("ABC123", "sku_abc-123")).toBe(
       "ABC123:sku_abc-123",
     );
+  });
+});
+
+describe("entitlement rechecks", () => {
+  test("skip verification admission and only persist a changed verdict", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({ success: true, grant_time: 1_744_148_687 }),
+            { status: 200 },
+          ),
+        ),
+    );
+    const ctx = makeContext();
+    try {
+      await expect(
+        verifyHorizonReceipt(ctx as never, VERIFY_ARGS, { recheck: true }),
+      ).resolves.toEqual({
+        isValid: true,
+        state: "ENTITLED",
+        productId: "premium_monthly",
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(savedReceipts(ctx)[0]).toMatchObject({ persistIfChanged: true });
   });
 });

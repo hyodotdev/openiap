@@ -18,7 +18,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
+            "expiresAt": 1788945685203,
             "willRenew": true
           }
         ]
@@ -30,7 +30,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788914401810,
+          "expiresAt": 1788945685203,
           "willRenew": false
         }
       },
@@ -46,7 +46,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "0219f7e6-f2d6-42ea-a7eb-7ca298bc6737",
+        "jobId": "4877309d-0708-4cdc-bcb2-2e2206a77fc8",
         "status": "completed"
       }
     },
@@ -68,11 +68,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
-            "renewsAt": 1788914401810,
+            "expiresAt": 1788945685203,
+            "renewsAt": 1788945685203,
             "willRenew": true,
-            "startedAt": 1788914357068,
-            "updatedAt": 1788914357118
+            "startedAt": 1788945640495,
+            "updatedAt": 1788945640537
           }
         ]
       },
@@ -83,10 +83,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788914401810,
+          "expiresAt": 1788945685203,
           "willRenew": false,
-          "startedAt": 1788914357068,
-          "updatedAt": 1788914357198
+          "startedAt": 1788945640495,
+          "updatedAt": 1788945640641
         }
       },
       "expired": {
@@ -101,7 +101,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "ns7d591f0mzf9tevd7rnhgvs5h8e3syh",
+        "jobId": "ns759q3f2fesgf3wnhp4em4fzs8e2j3m",
         "status": "completed"
       }
     }
@@ -163,14 +163,20 @@
     }
   },
   "harnessHashes": {
+    "capture-public.ts": "61c84f775680c236a2ed431854d17d56280e49ded25273057c81725e17a15b20",
+    "capture.ts": "249648ea7221062c9aa72f44ba3a0aa04a26d2080a3b35d62515fa68aaadc788",
     "commerce-interop-fixture.ts": "cb06b02f482a052134c9a9b17c92e9abae6fc35fed1fddb4b6ad0563d6c437be",
-    "commerce-source-snapshot.mjs": "36facd09bb63335cd68efa9c78da5ec10e11aa3bc61cd8bdbcd4d64c31e4293a",
-    "commerce-store-coverage.mjs": "a60eb6a2dc880672726b7a7894e59cabf59370f12e4edddb53cb17ba2ca880a9",
-    "run-commerce-interop.mjs": "943cbbce2d4fca94659e6646494ef1091bc4a1140a4ba7be6d233605755dd8d9"
+    "commerce-source-snapshot.mjs": "54fac3a2d26fda3a2976181508f0b071758e4e8ea91550027bd63f185289c718",
+    "commerce-store-coverage.mjs": "2b51b986cdf91e2617c28e66fd6b914c84c195f0aa224dd42b99c5b874c32751",
+    "compare-commerce-example.ts": "e6b03062b3e5f6dfa0c95cfc5fa06efba3af58505739cf06e7e775d51bf228ef",
+    "export-commerce-interop.mjs": "3ee337858c8f95f63cfe3b7881bfec9efa98649badd6d6da8942d09832509bcf",
+    "render-mockups.ts": "c191503733e1e12a1c52a35efba0b6939255d7b3c1c4d1a716526a7ead4ec3e0",
+    "run-commerce-interop.mjs": "2841e6ae339d8b133b17d520cf29b4832915f871d44c9ec44b6df056b0a940e4",
+    "seed-testapp.ts": "b1364e3d9c77edbc72a6996069d50bfdba6b59b385c05c54c9e793d020ebc617"
   },
   "sources": {
     "openiap": {
-      "baseRevision": "b847aaddb31dc1f46ae347246501de1bc50a8c77",
+      "baseRevision": "52eced3bec3cd9b9cd6febe56efb398350d41818-dirty",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "64fe711a2fedbc6de411f710bc8cf2469fa4733538a7b26a7ae343f69fd73a0b",
@@ -253,15 +259,15 @@
         "convex/projects/mutation.ts": "58ec28854eec50b4dda874c15666fe2b92d43dca160e106c85d3494996afe6b1",
         "convex/projects/project-child-pending-deletion-query.test.ts": "065a40edcc405ef5821fa8eb96df0771b9421d04e74176c2912d7c6ff4b7db71",
         "convex/projects/project-child-pending-deletion.test.ts": "286400b458622bcd9a1cf66a63067176d9e2c4f33354f7e1b88c4e787eb27abf",
-        "convex/projects/query.test.ts": "7afd347a04ca6543c3c5884494b3fbbab41ec1458afc77100f679aed23f1e7c5",
-        "convex/projects/query.ts": "16fa57614da043b68fffa93173f592cb4f752b538f9de400b66ee15a321301d7",
+        "convex/projects/query.test.ts": "d77ca0ce49c8e06a3fa78bef70c24f207780658580358465617cb11e1d4e4e9f",
+        "convex/projects/query.ts": "c85d1124170e9a5d98d5154e8df8a21d53cff99c22362a39ba66a03f9ebd0f02",
         "convex/projects/setupStatus.test.ts": "e4a5ef47959a097451b3d1da6e218106735ceb1e4f9ec4b3d589e3505061fcfd",
         "convex/projects/setupStatus.ts": "0d3f21379df3cd480d21e5c99c0baf65b4c65aa49276929f1de8eea241cbb5d6",
         "convex/projects/writable.ts": "8c023e994c9d9b69f49c829da4400b4ad168c43033d500d770cd7f2702c93f44",
-        "convex/purchases/action.ts": "f22b75adcec7b7b0025e10671fc0dcc5b837bb89de2b73348e59c68d590fc3e2",
+        "convex/purchases/action.ts": "9a732f6fd78b761f9112932a3fdebe5ca73b6b1092d66065b0d796f6532bfec2",
         "convex/purchases/amazon-reconciliation.test.ts": "a1817dae0fcd240b9359b0b32abbc179ebb114db23eff0d620a114b9cbb9239b",
-        "convex/purchases/amazon.test.ts": "16dc4fb5036d637601e072d431e0eb9efb8084ccf00724c2858a38694ea3e8a2",
-        "convex/purchases/amazon.ts": "909a078325b23b5a1136ce739a2ae82fb1f99db8ac68a01ee137a9ee838406a5",
+        "convex/purchases/amazon.test.ts": "06bb593ab429f7d2444be69873c64ff9311fbfdb69d90eabaa54cbff967b32fb",
+        "convex/purchases/amazon.ts": "7273b417e1ef6eb1af0e9cc1d11f722ee3b6e7626d9ec4135ad7952c289a49a6",
         "convex/purchases/android.test.ts": "5b9060d98bf249babb70c2449878d748cbd3ce4bf177db07050b63e3befbcf3d",
         "convex/purchases/android.ts": "91a9305cd14d8072f464c464f46878bc400b062524fa5f80e11c9a7ae16bd416",
         "convex/purchases/cleanup.test.ts": "b9052bf2ca1dd2403c1bbbb6a6795fe508d285d1057d0228cdb0a4909eabe9cb",
@@ -270,32 +276,32 @@
         "convex/purchases/errors.ts": "c011b818d85f51cde972aad60e0e26439d2cd375569532d9ecca5073a2d4afef",
         "convex/purchases/extract-order-id.test.ts": "dfb834cfb08accccc1e53a3b72615cefae09d0477fb80252f984b4b8965f1109",
         "convex/purchases/extract-product-id.test.ts": "210381901a21c0f91018ff1c20902c65ffb0800510fa2dc1992a9e6d30c18646",
-        "convex/purchases/horizon.test.ts": "75d3fdd02b5e4803b5fc8c34e843513665f860519a58b65fd563dcfa1e662a28",
-        "convex/purchases/horizon.ts": "62e11bd29a2a6ef7b06015fc211c1b71cb30da6330e9bd256798f247b60eecba",
+        "convex/purchases/horizon.test.ts": "8a9481eb8a6f9e0bec76c2a3de14e281486b6acd01905c178164d4bcc52b178a",
+        "convex/purchases/horizon.ts": "bb38fcdefc2013183069c433fcf8f0be1df720c66a4085053eb2c38f3a4559db",
         "convex/purchases/identity.ts": "e7dbdf51c6e8e02ac00c2291b1aa31cf2ef68891fa37d063d5d8de078a6847ba",
-        "convex/purchases/internal.ts": "f2cf8806693da101c77ed31948fbb0b48dcef846d4acd2901c85264a77752a7d",
+        "convex/purchases/internal.ts": "6b408bf1eef458f39563eee7e904cdc525d4539293255d01ee7463f7b1d39d66",
         "convex/purchases/ios-handler.test.ts": "65778d7c0b50503bd55c01d4eadfce069d558b49c5c4b8b61a67fe3cfc74475c",
         "convex/purchases/ios.test.ts": "05af2d8a48886a9ff2efdcfdb44ff2890a13f906ea222b17e0a8bc516ae889eb",
         "convex/purchases/ios.ts": "cffa1b76420bf3c722f273dd3fe83dcd1fcff0c502acb098d616e6f2bd555ca5",
-        "convex/purchases/mutation.ts": "163fa4486aec7ef4eea3d3fdcb5d53f77d02e5155482e2556cb510c7b21bbb49",
-        "convex/purchases/ownership.test.ts": "4c0b55f246e4df86af2ebe2f37da0c614f245c105a292f36bb0402332ad2d996",
+        "convex/purchases/mutation.ts": "92667adaa1f959f140bcde9b2c541718ded3ade0aaf6070b224b5a007f1b82c4",
+        "convex/purchases/ownership.test.ts": "47cd6799b881554bd4909d6f57bed0c083216b5158bcf0501b5c291d02f9eda9",
         "convex/purchases/purchaseState.ts": "6f5463c7e1f75edc39e474005f6996ac63be8ee3a1c3a2d419e7607d4080a67c",
         "convex/purchases/query.ts": "3e3defc6e7896df32c69e9f3cc19eb4253858f5c3ae62018a8f9417da7a76d15",
         "convex/purchases/retry.test.ts": "53f384b1a49596cdf454944d5693b366a4819fcd156f8ffad72a9fe39a1b696e",
         "convex/purchases/retry.ts": "6d92062c2051fb02b90ced4aba581ee6083cf6001f76309429f8c9b3b43aa81e",
-        "convex/purchases/save-purchase-idempotency.test.ts": "15f4ea9564b8d29a3447a3f503e4ecbe888496e832d96ce15a472b30a4ade32d",
+        "convex/purchases/save-purchase-idempotency.test.ts": "cf320107df20a8659fda1f341dbce0e57a97031451e2056e34554174a039a7b5",
         "convex/purchases/shared.test.ts": "a63833a80ead6c415536550a616575ccbfab3e83843b45c12987e5952ffbec14",
-        "convex/purchases/shared.ts": "fe9f8646af57a95d01a363f2702ed5869071a5d1c9dd49bf5edefabd75b52719",
+        "convex/purchases/shared.ts": "1c12fb1a9bcba4701d43f397027b04b261d9d0b97d0ebfef6e77a3f43b134150",
         "convex/purchases/stats-integration.test.ts": "90c25d92b00ae9791b8ed661d6d8de3cb94eee556b9d4c5c988698844967071a",
         "convex/purchases/stats.test.ts": "082fd2664825353c74ce3412aaf01f9c490bf185c93cd220e015c38ab3c4d1b6",
         "convex/purchases/stats.ts": "2cf237450746ac6713d48a4ffc7c17a36b0725f8f4e4e366e628dad291c4a086",
-        "convex/purchases/verificationAdmission.test.ts": "872427a1b43679e40ee51cd36e796baf05c4738fcaabc619879ae2daa092cf20",
-        "convex/purchases/verificationAdmission.ts": "38d88a4a1149166454d0e6cc626ec79364f05a0d72253b95250d7da311cf2cc5",
-        "convex/schema.ts": "ad495e13959180c9bb44fbe87b9634ae35016140775e84d093fda5814956bd0d",
+        "convex/purchases/verificationAdmission.test.ts": "f6e114b4850f773601f4fec0b0ec190df2cffafc1aa870b7cc885c64ddfffdc9",
+        "convex/purchases/verificationAdmission.ts": "f0c26477ea733d8da3d03f26045312887e2a0c74f21837167866d67886285f32",
+        "convex/schema.ts": "1c678fa8e357d66de246bcb3dd60b7a2cdf7e947278a4fe0a848f9f8f015caeb",
         "convex/subscriptions/erasure.ts": "2e710408c2b68bf6ac5fc20e499c6178639e8a636f3150db1f9fae82361da898",
         "convex/subscriptions/internal.test.ts": "590736992fcd956114a52a8afb7556293ba6b08958202a6f85cc9dd52862d310",
         "convex/subscriptions/internal.ts": "8c246cc7bb3869cd603991ddd722bd7c375790481402dbefdfe5eb8e1341fe8f",
-        "convex/subscriptions/limits.ts": "6cd936465db669fb0ba11699fba54b6c57342fc30a18674f5caf0dc4549cff94",
+        "convex/subscriptions/limits.ts": "ff5c30d39c4ca6d47b2933d012b74e20077149d3d826bf3535f948df28a12e90",
         "convex/subscriptions/monthlyMicros.ts": "5debc322ceae2a0cbb5bf46ba8448c2f8d93055283046b1117edd20aa32cf67b",
         "convex/subscriptions/mutation.test.ts": "dd89c082b0257562961ced0966edad30911a7ec806648fcfc2828b42c3084ab2",
         "convex/subscriptions/mutation.ts": "b780bab187d90d93eb4f7c5f9e8c5edde2ede313023a189b116a691b7506bade",
@@ -343,7 +349,7 @@
         "server/api/commerce/graphql.ts": "8c45733a958c875d5a123e4fd0b1fa56981f9adb0fc6c80104fb4ce6727448e2",
         "server/api/commerce/handlers.ts": "a5cb904c534e9df9a730d566a22b3dc227a366563f3846c4e0cab8312b465ed7",
         "server/api/commerce/routes.rate-limit.test.ts": "5e7d260771101ae3cd9218d3c63ed9c7ba91a010e550bc09b969635595bb85ab",
-        "server/api/commerce/routes.test.ts": "05d9e90fcd4bdd335c3a3ed0582c883efad0e51c657d8424e7f00f6da349edcd",
+        "server/api/commerce/routes.test.ts": "2bbeebd9b8edae12e342ae1242db7e348cf364af14f2e029069000f7919eb3c9",
         "server/api/commerce/routes.ts": "e8383e409de76264dfe04d3aaec00c57b7ae2e0204a83744cd653b8c10e3b4b1",
         "server/api/commerce/validation.ts": "cc84b422b537abb374ef32825d07f8a65f357e30a001b1a814464d5d6797f3f1",
         "server/api/commerce/verificationAdmission.ts": "b0d35496fbb88bd0e2e0157fccc18bc35a0f439af360265fd1f4bf348b1b1525",
@@ -436,10 +442,10 @@
       }
     },
     "workspace": {
-      "baseRevision": "b847aaddb31dc1f46ae347246501de1bc50a8c77",
+      "baseRevision": "52eced3bec3cd9b9cd6febe56efb398350d41818-dirty",
       "hashes": {
         "bun.lock": "689a0cf2cda86b3b9d29b5f4f9bba1a39013c9223bb6b753df0e001cce64dff9",
-        "package.json": "0472abcd4836eda06b216a25a48ee779055e69bd263f6d74b58ef437c86d726b",
+        "package.json": "18b4f901c4ca8ee9374ab9c50d3db9825dce2abab2dddfdb1a03a052b5571d76",
         "packages/mcp-server/package.json": "81583f86c66b2e7cfc514ab06bcfe25951e4159397bba39ea3c56e1b6bb2f7c7",
         "packages/mcp-server/src/kit-client.ts": "6f3db1c10a1b8bd91ca1b224f4cf2bc47b131362e3a2ed106ff794d95df585da",
         "specs/commerce-protocol/examples/entitlement-granted-no-subscription.json": "e9cd83b903032b2a86d05cf58330c70d86a2cd392603e4c466353194f42f8213",
@@ -480,7 +486,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-09-09T00:40:02.832Z",
+  "recordedAt": "2026-09-09T09:21:26.321Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -556,9 +562,9 @@
     "apple: the app accepts account erasure",
     "apple: both providers complete erasure",
     "apple/example: erased account has no access",
-    "apple/example: erased evidence cannot bind again",
+    "apple/example: erased user id cannot bind again",
     "apple/iapkit: erased account has no access",
-    "apple/iapkit: erased evidence cannot bind again",
+    "apple/iapkit: erased user id cannot bind again",
     "apple: an erased session cannot submit another purchase",
     "apple: IAPKit removes account identity from persisted purchases",
     "amazon/example: keeps the same app and receiver",
@@ -593,13 +599,17 @@
     "amazon/iapkit: an upstream outage fails the access read",
     "amazon/iapkit: a negative store recheck removes access",
     "amazon/iapkit: rechecked ownership restores access",
+    "amazon/iapkit: an unchanged recheck verdict is not written back",
     "amazon: switching back needs no consumer edit",
     "amazon: the app accepts account erasure",
     "amazon: both providers complete erasure",
     "amazon/example: erased account has no access",
-    "amazon/example: erased evidence cannot bind again",
+    "amazon/example: erased user id cannot bind again",
     "amazon/iapkit: erased account has no access",
-    "amazon/iapkit: erased evidence cannot bind again",
+    "amazon/iapkit: erased user id cannot bind again",
+    "amazon/example: erased evidence cannot bind to another account",
+    "amazon/iapkit: another account can bind the erased evidence",
+    "amazon/iapkit: the new account receives the rechecked access",
     "amazon: an erased session cannot submit another purchase",
     "amazon: IAPKit removes account identity from persisted purchases",
     "horizon/example: keeps the same app and receiver",
@@ -634,18 +644,22 @@
     "horizon/iapkit: an upstream outage fails the access read",
     "horizon/iapkit: a negative store recheck removes access",
     "horizon/iapkit: rechecked ownership restores access",
+    "horizon/iapkit: an unchanged recheck verdict is not written back",
     "horizon: switching back needs no consumer edit",
     "horizon: the app accepts account erasure",
     "horizon: both providers complete erasure",
     "horizon/example: erased account has no access",
-    "horizon/example: erased evidence cannot bind again",
+    "horizon/example: erased user id cannot bind again",
     "horizon/iapkit: erased account has no access",
-    "horizon/iapkit: erased evidence cannot bind again",
+    "horizon/iapkit: erased user id cannot bind again",
+    "horizon/example: erased evidence cannot bind to another account",
+    "horizon/iapkit: another account can bind the erased evidence",
+    "horizon/iapkit: the new account receives the rechecked access",
     "horizon: an erased session cannot submit another purchase",
     "horizon: IAPKit removes account identity from persisted purchases",
     "Source revisions remain unchanged throughout execution"
   ],
-  "checkCount": 162,
+  "checkCount": 170,
   "trace": [
     {
       "provider": "example",
@@ -685,7 +699,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
+            "expiresAt": 1788945685203,
             "willRenew": true
           }
         ]
@@ -707,7 +721,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
+            "expiresAt": 1788945685203,
             "willRenew": true
           }
         ]
@@ -751,11 +765,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
-            "renewsAt": 1788914401810,
+            "expiresAt": 1788945685203,
+            "renewsAt": 1788945685203,
             "willRenew": true,
-            "startedAt": 1788914357068,
-            "updatedAt": 1788914357118
+            "startedAt": 1788945640495,
+            "updatedAt": 1788945640537
           }
         ]
       }
@@ -776,11 +790,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
-            "renewsAt": 1788914401810,
+            "expiresAt": 1788945685203,
+            "renewsAt": 1788945685203,
             "willRenew": true,
-            "startedAt": 1788914357068,
-            "updatedAt": 1788914357141
+            "startedAt": 1788945640495,
+            "updatedAt": 1788945640565
           }
         ]
       }
@@ -801,7 +815,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788914401810,
+            "expiresAt": 1788945685203,
             "willRenew": false
           }
         ]
@@ -862,7 +876,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788918002061,
+            "expiresAt": 1788949285452,
             "willRenew": true
           }
         ]
@@ -884,9 +898,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788917956810,
-            "startedAt": 1788914402088,
-            "updatedAt": 1788914402112
+            "expiresAt": 1788949240204,
+            "startedAt": 1788945685479,
+            "updatedAt": 1788945685501
           }
         ]
       }
@@ -907,7 +921,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788918002061,
+            "expiresAt": 1788949285452,
             "willRenew": true
           }
         ]

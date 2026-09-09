@@ -68,7 +68,21 @@ bun --conditions=openiap-source packages/kit/scripts/docs/export-commerce-intero
 
 The exporter rejects changed executed source. It produces the report and
 readable source snapshots used by the purchase guide. The docs build checks
-that recorded results, source hashes and available IAPKit source still match.
+that the report, snapshots, source hashes and `#L<n>` anchors agree with each
+other; it does not compare them with the current IAPKit sources.
+
+```sh
+bun run audit:commerce-evidence
+```
+
+This root audit lists every recorded input that changed, disappeared, or was
+added since the recording: IAPKit `server/` and `convex/`, the workspace
+lockfile and manifests, the protocol package sources and artifacts, the MCP
+client, and this harness. Drift is advisory: the recorded run stays valid for
+its recorded revision (a recording from an uncommitted tree is marked
+`-dirty`), so CI reports it as a warning on docs, kit, and protocol changes.
+Re-record before deploying docs when a displayed snapshot or a commerce code
+path changed.
 
 The first real run exposed a missing `entitlement.revoked` when the clock passed
 expiry before RTDN arrived. `convex/subscriptions/internal.test.ts` now checks

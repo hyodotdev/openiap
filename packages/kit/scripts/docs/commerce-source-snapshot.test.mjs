@@ -11,7 +11,11 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { assertSourceHashes, pinSources } from "./commerce-source-snapshot.mjs";
+import {
+  assertSourceHashes,
+  diffSourceHashes,
+  pinSources,
+} from "./commerce-source-snapshot.mjs";
 
 test("unchanged execution and copied source retain the initial fingerprints", async () => {
   const directory = mkdtempSync(join(tmpdir(), "commerce-source-test-"));
@@ -138,3 +142,38 @@ test.each(["addition", "removal"])(
     }
   },
 );
+
+test("diffSourceHashes reports changed, missing, allowed-missing and added inputs", () => {
+  const directory = mkdtempSync(join(tmpdir(), "commerce-source-test-"));
+  try {
+    mkdirSync(join(directory, "_generated"));
+    writeFileSync(join(directory, "_generated/optional.js"), "generated\n");
+    writeFileSync(join(directory, "provider.mjs"), "provider\n");
+    writeFileSync(join(directory, "handler.mjs"), "handler\n");
+    const report = pinSources(directory, () => [
+      "_generated/optional.js",
+      "provider.mjs",
+      "handler.mjs",
+    ]).hashes;
+    writeFileSync(join(directory, "provider.mjs"), "changed\n");
+    rmSync(join(directory, "handler.mjs"));
+    rmSync(join(directory, "_generated/optional.js"));
+    writeFileSync(join(directory, "new.mjs"), "new\n");
+    expect(
+      diffSourceHashes(directory, report, {
+        allowMissing: ["_generated/optional.js"],
+        inventory: ["provider.mjs", "new.mjs"],
+      }),
+    ).toEqual({
+      changed: ["provider.mjs"],
+      missing: ["handler.mjs"],
+      skipped: ["_generated/optional.js"],
+      added: ["new.mjs"],
+    });
+    expect(() =>
+      diffSourceHashes(directory, report, { allowMissing: ["provider.mjs"] }),
+    ).toThrow("Only recorded generated inputs may be absent");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

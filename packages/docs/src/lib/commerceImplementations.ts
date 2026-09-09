@@ -104,13 +104,13 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
     },
     kit: {
       description:
-        'IAPKit binds the verified purchase row. Amazon uses the store user, receipt, and environment; Horizon uses the store user and SKU. Neither can move to another app account through this call.',
+        'IAPKit binds the verified purchase row. Amazon uses the store user, receipt, and environment; Horizon uses the store user and SKU. Only an entitled purchase binds, at most 20 per app account, and a binding never moves; after erasure another app account may claim the same evidence as a first binding.',
       file: 'convex/purchases/mutation.ts',
       symbol: 'bindVerifiedPurchaseAsServer',
-      line: 17,
+      line: 20,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
-        'Checks role enforcement, conflicting accounts, project isolation, and erasure during binding.',
+        'Checks role enforcement, conflicting accounts, the per-account cap, consumables, project isolation, and erasure during binding.',
     },
   },
   storeAccess: {
@@ -127,10 +127,10 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
     },
     kit: {
       description:
-        'IAPKit rechecks every linked Amazon or Horizon purchase, then rereads ownership after those calls. A rejected product is removed from productIds; an outage fails the read. These products have no invented subscription records.',
+        'IAPKit rechecks every linked Amazon or Horizon purchase from its own rate budget, then rereads ownership after those calls. A rejected product is removed from productIds; an outage fails the read; an exhausted budget answers RATE_LIMITED. These products have no invented subscription records.',
       file: 'convex/purchases/action.ts',
       symbol: 'readBoundPurchaseEntitlements',
-      line: 15,
+      line: 18,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
         'Checks revoked ownership, upstream failures, bounded reads, and ownership changes during verification.',
