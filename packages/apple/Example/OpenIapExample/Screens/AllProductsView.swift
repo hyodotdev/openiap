@@ -293,6 +293,10 @@ struct AllProductsView: View {
             return "auto-renewable"
         case .nonRenewingSubscription:
             return "non-renewing"
+        case .subscriptionBundle:
+            return "subscription-bundle"
+        case .subscriptionSuite:
+            return "subscription-suite"
         }
     }
 
@@ -306,6 +310,10 @@ struct AllProductsView: View {
             return .blue
         case .nonRenewingSubscription:
             return .indigo
+        case .subscriptionBundle:
+            return .teal
+        case .subscriptionSuite:
+            return .mint
         }
     }
 
