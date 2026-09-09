@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import { hmacSha256Hex } from "../utils/sha256";
-import { buildEventPayload } from "../commerce/deliveryState";
 import {
   applySubscriptionEventHandler,
   bindSubscriptionToUserHandler,
@@ -314,7 +313,9 @@ describe("subscription erasure across replacement tokens", () => {
       const successorErasureJob = successorErased
         ? await erasureJob("successor-owner")
         : undefined;
-      const destinationId = await db.insert("outboundDestinations", {
+      // A destination exists so an emitted revocation would be delivered;
+      // none is, which is the point of the assertions below.
+      await db.insert("outboundDestinations", {
         projectId: PROJECT_ID,
         enabled: true,
         eventTypes: ["entitlement.revoked"],
@@ -335,24 +336,19 @@ describe("subscription erasure across replacement tokens", () => {
       await applySubscriptionEventHandler(ctx, args);
       await applySubscriptionEventHandler(ctx, args);
 
+      // The erased owner was unlinked, not the subscription. The successor
+      // bound the replacement token afterwards, so that live association
+      // survives the merge and nothing is revoked.
       expect(db.rows("subscriptions")).toHaveLength(1);
-      expect(db.rows("subscriptions")[0]).toMatchObject({
-        accountErased: true,
-      });
-      expect(db.rows("subscriptions")[0].userId).toBeUndefined();
-      const revocations = db
-        .rows("commerceEvents")
-        .filter((event) => event.eventType === "entitlement.revoked");
+      expect(db.rows("subscriptions")[0].accountErased).toBeUndefined();
+      expect(db.rows("subscriptions")[0].userId).toBe("successor-owner");
+      expect(
+        db
+          .rows("commerceEvents")
+          .filter((event) => event.eventType === "entitlement.revoked"),
+      ).toEqual([]);
+      expect(db.rows("outboundDeliveries")).toEqual([]);
       if (successorErased) {
-        expect(revocations).toEqual([]);
-        expect(
-          db
-            .rows("commerceEvents")
-            .some(
-              (event) =>
-                event.sourceEventId === linkedId && event.userId !== undefined,
-            ),
-        ).toBe(false);
         await drainSubscriptionUserErasurePage(
           ctx,
           successorErasureJob as never,
@@ -360,26 +356,6 @@ describe("subscription erasure across replacement tokens", () => {
         expect(
           db.rows("commerceEvents").some((event) => event.userId !== undefined),
         ).toBe(false);
-        expect(db.rows("outboundDeliveries")).toEqual([]);
-      } else {
-        expect(revocations).toHaveLength(1);
-        expect(buildEventPayload(revocations[0] as never)).toMatchObject({
-          eventType: "entitlement.revoked",
-          userId: "successor-owner",
-          productId: "premium_monthly",
-          sourceStoreEventId: "late-erased-link",
-          subscription: { active: false },
-        });
-        expect(
-          buildEventPayload(revocations[0] as never).price,
-        ).toBeUndefined();
-        expect(db.rows("outboundDeliveries")).toEqual([
-          expect.objectContaining({
-            eventId: revocations[0]._id,
-            destinationId,
-            status: "pending",
-          }),
-        ]);
       }
       expect(
         JSON.stringify(
@@ -394,62 +370,83 @@ describe("subscription erasure across replacement tokens", () => {
     { erasedToken: TOKEN, successorExists: true, boundToken: undefined },
     { erasedToken: TOKEN, successorExists: true, boundToken: "replacement" },
     { erasedToken: "replacement", successorExists: true, boundToken: TOKEN },
-  ])("preserves erasure and removes linked ownership: %j", async (testCase) => {
-    const db = new MemDb();
-    const ctx = makeCtx(db);
-    for (const purchaseToken of testCase.successorExists
-      ? [TOKEN, "replacement"]
-      : [TOKEN]) {
-      const id = await recordVerifiedSubscriptionHandler(ctx, {
-        projectId: PROJECT_ID as never,
-        platform: "Android",
-        purchaseToken,
-        productId: "premium_monthly",
-        purchaseState: "ENTITLED",
-        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
-      });
-      if (purchaseToken === testCase.erasedToken)
-        await db.patch(id!, { accountErased: true });
-      if (purchaseToken === testCase.boundToken)
-        await bindSubscriptionToUserHandler(ctx, {
+  ])(
+    "merges an erased record without dropping a live binding: %j",
+    async (testCase) => {
+      const db = new MemDb();
+      const ctx = makeCtx(db);
+      for (const purchaseToken of testCase.successorExists
+        ? [TOKEN, "replacement"]
+        : [TOKEN]) {
+        const id = await recordVerifiedSubscriptionHandler(ctx, {
           projectId: PROJECT_ID as never,
+          platform: "Android",
           purchaseToken,
-          userId: "linked-owner",
+          productId: "premium_monthly",
+          purchaseState: "ENTITLED",
+          subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
         });
-    }
-    const eventId = await seedWebhookEvent(db, {
-      type: "SubscriptionStarted",
-      notificationId: "erased-replacement",
-      occurredAt: Date.now(),
-    });
-    await db.patch(eventId, {
-      purchaseToken: "replacement",
-      linkedPurchaseToken: TOKEN,
-    });
-    await applySubscriptionEventHandler(ctx, {
-      projectId: PROJECT_ID as never,
-      eventId: eventId as never,
-    });
-
-    expect(db.rows("subscriptions")).toHaveLength(1);
-    expect(db.rows("subscriptions")[0]).toMatchObject({
-      purchaseToken: "replacement",
-      accountErased: true,
-    });
-    expect(db.rows("subscriptions")[0].userId).toBeUndefined();
-    for (const purchaseToken of [TOKEN, "replacement"]) {
-      const args = {
+        if (purchaseToken === testCase.erasedToken)
+          await db.patch(id!, { accountErased: true });
+        if (purchaseToken === testCase.boundToken)
+          await bindSubscriptionToUserHandler(ctx, {
+            projectId: PROJECT_ID as never,
+            purchaseToken,
+            userId: "linked-owner",
+          });
+      }
+      const eventId = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "erased-replacement",
+        occurredAt: Date.now(),
+      });
+      await db.patch(eventId, {
+        purchaseToken: "replacement",
+        linkedPurchaseToken: TOKEN,
+      });
+      await applySubscriptionEventHandler(ctx, {
         projectId: PROJECT_ID as never,
-        purchaseToken,
-        userId: "new-owner",
-      };
-      expect(await bindSubscriptionToUserHandler(ctx, args)).toBeNull();
-      expect(await rebindSubscriptionToUserHandler(ctx, args)).toBeNull();
-    }
-    expect(
-      db.rows("commerceEvents").some((event) => event.userId !== undefined),
-    ).toBe(false);
-  });
+        eventId: eventId as never,
+      });
+
+      expect(db.rows("subscriptions")).toHaveLength(1);
+      const merged = db.rows("subscriptions")[0];
+      expect(merged.purchaseToken).toBe("replacement");
+      // The merge must not attribute the record to anyone who did not bind it,
+      // and it must not revoke the binder who did.
+      expect(
+        db
+          .rows("commerceEvents")
+          .every(
+            (event) =>
+              event.userId === undefined || event.userId === "linked-owner",
+          ),
+      ).toBe(true);
+      expect(
+        db
+          .rows("commerceEvents")
+          .some((event) => event.eventType === "entitlement.revoked"),
+      ).toBe(false);
+      if (testCase.boundToken) {
+        // A live binding on either side is a later association than the erasure,
+        // so it survives and the marker does not carry.
+        expect(merged.userId).toBe("linked-owner");
+        expect(merged.accountErased).toBeUndefined();
+      } else {
+        expect(merged.userId).toBeUndefined();
+        expect(merged.accountErased).toBe(true);
+        // Unowned again, so the record can be associated with someone new.
+        expect(
+          await bindSubscriptionToUserHandler(ctx, {
+            projectId: PROJECT_ID as never,
+            purchaseToken: "replacement",
+            userId: "new-owner",
+          }),
+        ).not.toBeNull();
+        expect(db.rows("subscriptions")[0].accountErased).toBeUndefined();
+      }
+    },
+  );
 });
 
 describe("bindSubscriptionToUser amount handling", () => {
@@ -3007,26 +3004,36 @@ describe("user binding authorization", () => {
     expect(owned.rows("subscriptions")[0].userId).toBe("victim");
   });
 
-  it.each([undefined, "real-owner"])(
-    "refuses operator rebind of a tombstoned record (owner: %s)",
-    async (userId) => {
-      const db = new MemDb();
-      await seedBound(db, userId);
-      await db.patch(db.rows("subscriptions")[0]._id, {
-        accountErased: true,
-      });
-      const before = structuredClone(db.rows("subscriptions"));
-      expect(
-        await rebindSubscriptionToUserHandler(makeCtx(db), {
-          projectId: PROJECT_ID as never,
-          purchaseToken: TOKEN,
-          userId: "real-owner",
-        }),
-      ).toBeNull();
-      expect(db.rows("subscriptions")).toEqual(before);
-      expect(db.rows("commerceEvents")).toEqual([]);
-    },
-  );
+  // Erasure unlinked the previous owner. Once the job is gone the record is
+  // unowned, and an operator may associate it again exactly as a purchase can.
+  it("rebinds a record whose erased owner has already been unlinked", async () => {
+    const db = new MemDb();
+    await seedBound(db, undefined);
+    await db.patch(db.rows("subscriptions")[0]._id, { accountErased: true });
+    expect(
+      await rebindSubscriptionToUserHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "real-owner",
+      }),
+    ).not.toBeNull();
+    const row = db.rows("subscriptions")[0];
+    expect(row.userId).toBe("real-owner");
+    expect(row.accountErased).toBeUndefined();
+  });
+
+  it("still refuses to move a record away from its live owner", async () => {
+    const db = new MemDb();
+    await seedBound(db, "real-owner");
+    expect(
+      await bindSubscriptionToUserHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "someone-else",
+      }),
+    ).toBeNull();
+    expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
+  });
 
   it.each(["queued", "running", "completed"])(
     "refuses rebind into or out of an account with a %s erasure job",

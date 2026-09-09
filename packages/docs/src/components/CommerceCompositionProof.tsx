@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { COMMERCE_STORE_LABELS } from '../../lib/commerceImplementations';
+import { COMMERCE_STORE_LABELS } from '../lib/commerceImplementations';
 import { Link } from 'react-router-dom';
-import CodeBlock from '../../components/CodeBlock';
-import report from '../../../public/commerce-composition/iapkit-run.json';
+import CodeBlock from './CodeBlock';
+import report from '../../public/commerce-composition/iapkit-run.json';
 
 const STAGES = [
   {

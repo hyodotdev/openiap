@@ -66,9 +66,18 @@ currently in state `ENTITLED` binds. Amazon consumables verify as
 ledger fulfills them once; Horizon exposes no consumable distinction. An app
 account holds at most 20 bound purchases per project. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
-the refusal; a new binding can never push an account past the read bound. The
-read keeps that bound as a backstop and fails closed rather than answering
-partially.
+the refusal; a new binding can never push an account past the read bound. Amazon
+answers `CANCELED` or `INAUTHENTIC` only for a receipt the account no longer
+holds, and a resubscribe issues a new receipt id, so that row releases its
+binding and frees the slot. Horizon keeps its binding: its rejection is a
+point-in-time answer on a row keyed by user and sku, which the same customer
+reuses when they resubscribe.
+
+The read fails closed rather than answering partially, so a store it cannot
+reach fails the whole operation. Disabling a store the project already sells
+through has the same effect: the rows it granted stay bound and valid, and
+omitting them would be a partial answer. Release those rows, or re-enable the
+store, before the read succeeds again.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
 returning `productIds`. Rechecks draw on their own per-project bucket (300
@@ -87,9 +96,12 @@ that id while its erasure job is retained (seven days), so the erased user’s o
 verification or binding retries cannot relink it in that window. The evidence itself is
 not tombstoned: a later `bindPurchase` from another app account, such as the
 same person’s new account, creates a new association exactly like a first
-binding. Apple and Google subscription records keep their permanent erasure
-marker (`convex/subscriptions/internal.ts`); the store-coverage run records the
-Amazon and Horizon rebind.
+binding. Apple and Google subscription records behave the same way
+(`convex/subscriptions/internal.ts`): erasure unlinks the owner, and a later
+bind or operator rebind associates the record again and clears the marker. When
+a token rotation merges two records, a live binding on either side is a later
+association than the erasure, so it survives and the marker does not carry. The
+store-coverage run records the Amazon and Horizon rebind.
 Consumable quantity and durable fulfillment remain the application’s ledger.
 
 ## Event vocabulary

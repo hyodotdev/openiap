@@ -1,9 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import AnchorLink from '../../../components/AnchorLink';
-import CodeBlock from '../../../components/CodeBlock';
-import SEO from '../../../components/SEO';
-import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import AnchorLink from './AnchorLink';
+import CodeBlock from './CodeBlock';
+import SEO from './SEO';
+import { useScrollToHash } from '../hooks/useScrollToHash';
 import VideoSlot, { type VideoVariant } from './VideoSlot';
 
 type VideoKey =

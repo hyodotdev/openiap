@@ -1,6 +1,6 @@
 import StoreExampleTemplate, {
   type StoreExampleConfig,
-} from './StoreExampleTemplate';
+} from '../../../components/StoreExampleTemplate';
 
 const ANDROID_VIDEO_BASE = '/examples/google/videos';
 const ANDROID_POSTER = '/examples/google/home.webp';

@@ -5,7 +5,7 @@ import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
 import { COMMERCE_ROLES } from '../../lib/commerceEcosystem';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
-import CommerceCompositionProof from './CommerceCompositionProof';
+import CommerceCompositionProof from '../../components/CommerceCompositionProof';
 import '../../styles/commerce-protocol.css';
 
 function CommerceEcosystemGuide(): React.JSX.Element {

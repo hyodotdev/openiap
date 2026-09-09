@@ -294,11 +294,9 @@ export async function applySubscriptionEventHandler(
     linkedExisting &&
     existingByCurrentToken._id !== linkedExisting._id
   ) {
-    const accountErased =
-      existingByCurrentToken.accountErased === true ||
-      linkedExisting.accountErased === true;
+    // Two accounts on one subscription is a conflict whether or not either row
+    // carries an erasure marker; a marker never decides which of them wins.
     if (
-      !accountErased &&
       existingByCurrentToken.userId &&
       linkedExisting.userId &&
       existingByCurrentToken.userId !== linkedExisting.userId
@@ -308,6 +306,15 @@ export async function applySubscriptionEventHandler(
         message: "Linked Google purchase tokens belong to different users.",
       });
     }
+    // The marker records that the row's own owner was erased. A live binding on
+    // either row is a later, valid association, so it survives the merge and
+    // the marker does not carry.
+    const boundUserId =
+      existingByCurrentToken.userId ?? linkedExisting.userId ?? undefined;
+    const accountErased =
+      !boundUserId &&
+      (existingByCurrentToken.accountErased === true ||
+        linkedExisting.accountErased === true);
     const survivor = preferredReplacementSnapshot(
       existingByCurrentToken,
       linkedExisting,
@@ -316,43 +323,6 @@ export async function applySubscriptionEventHandler(
       survivor._id === existingByCurrentToken._id
         ? linkedExisting
         : existingByCurrentToken;
-    const invalidatedBinding = accountErased
-      ? [survivor, removed].find(
-          (sub) =>
-            !sub.accountErased &&
-            sub.userId &&
-            sub.lastEventId &&
-            isActive(sub, sub.updatedAt),
-        )
-      : undefined;
-    if (
-      invalidatedBinding?.userId &&
-      !(await isUserErasureRequested(ctx, project, invalidatedBinding.userId))
-    ) {
-      // Reconcile the prior grant without repeating a charge or an erased identity.
-      await emitCommerceEvent(ctx, {
-        projectId: args.projectId,
-        transition: null,
-        active: false,
-        previouslyActive: true,
-        sourceEvent: {
-          ...storedEvent,
-          currency: undefined,
-          priceAmountMicros: undefined,
-          amountProvenance: undefined,
-        },
-        subscriptionId: invalidatedBinding._id,
-        subscription: {
-          state: invalidatedBinding.state,
-          productId: invalidatedBinding.productId,
-          expiresAt: invalidatedBinding.expiresAt,
-          renewsAt: invalidatedBinding.renewsAt,
-          willRenew: invalidatedBinding.willRenew,
-          cancellationReason: invalidatedBinding.cancellationReason,
-          userId: invalidatedBinding.userId,
-        },
-      });
-    }
     const removedPeriod = await fetchBillingPeriod(
       ctx,
       args.projectId,
@@ -370,7 +340,7 @@ export async function applySubscriptionEventHandler(
       ...survivor,
       purchaseToken: storedEvent.purchaseToken,
       accountErased: accountErased || undefined,
-      userId: accountErased ? undefined : (survivor.userId ?? removed.userId),
+      userId: boundUserId,
       startedAt: Math.min(survivor.startedAt, removed.startedAt),
     };
     await ctx.db.patch(survivor._id, {
@@ -1330,7 +1300,7 @@ export async function rebindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub || sub.accountErased) return null;
+  if (!sub) return null;
   if (
     sub.userId &&
     sub.userId !== args.userId &&
@@ -1351,7 +1321,11 @@ export async function rebindSubscriptionToUserHandler(
   const sourceEvent = entitled
     ? await retainedSourceEventFor(ctx, args.projectId, sub)
     : null;
-  await ctx.db.patch(sub._id, { userId: args.userId, updatedAt: now });
+  await ctx.db.patch(sub._id, {
+    userId: args.userId,
+    accountErased: undefined,
+    updatedAt: now,
+  });
   if (!entitled) return { subscriptionId: sub._id, notified: true };
   if (!sourceEvent) {
     // Every retained trace of the originating notification is gone, so no
@@ -1409,7 +1383,7 @@ export async function bindSubscriptionToUserHandler(
   const sub = supersedingResolution.aliased
     ? supersedingResolution.subscription
     : await findSubscriptionByToken(ctx, args.projectId, args.purchaseToken);
-  if (!sub || sub.accountErased) return null;
+  if (!sub) return null;
   if (sub.userId === args.userId) return sub._id;
   if (sub.userId) {
     // Reported the same as an unknown token. A distinct error would tell any
@@ -1422,8 +1396,11 @@ export async function bindSubscriptionToUserHandler(
     return null;
   }
   const now = Date.now();
+  // Erasure only unlinked the previous owner; this is a new association, and
+  // the pending-erasure gate above still refuses a user who is being erased.
   await ctx.db.patch(sub._id, {
     userId: args.userId,
+    accountErased: undefined,
     updatedAt: now,
   });
 

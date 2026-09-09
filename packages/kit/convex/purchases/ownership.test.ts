@@ -25,6 +25,7 @@ vi.mock("./horizon", () => ({ verifyHorizonReceipt: stubs.horizon }));
 import { bindVerifiedPurchaseAsServer } from "./mutation";
 import { boundPurchasesForUser } from "./internal";
 import { readBoundPurchaseEntitlements } from "./action";
+import { AmazonSandboxNotEnabledError } from "./errors";
 
 const project = { _id: "p1", userErasureHashKey: "local-hash-key" };
 type Row = Record<string, unknown>;
@@ -304,6 +305,30 @@ it("fails the entire read on upstream failure, preserving the saved verdict", as
   expect(runMutation).toHaveBeenCalledTimes(1);
   expect(rows[0].isValid).toBe(true);
   expect(runQuery).toHaveBeenCalledTimes(1);
+});
+
+it("fails the read when a store the project disabled cannot answer", async () => {
+  // The rows that store granted are still bound and still valid, so omitting
+  // them would be the partial answer SPEC "Fail-close" forbids.
+  stubs.amazon.mockRejectedValue(new AmazonSandboxNotEnabledError());
+  const rows = [
+    {
+      _id: "a",
+      isValid: true,
+      productId: "coins",
+      requestData: {
+        store: "amazon",
+        userId: "store-alice",
+        receiptId: "receipt",
+        sandbox: true,
+      },
+    },
+  ];
+  const runQuery = vi.fn().mockResolvedValue(rows);
+  const runMutation = vi.fn();
+  await expect(
+    refresh({ runQuery, runMutation }, { apiKey: "server", userId: "alice" }),
+  ).rejects.toThrow();
 });
 
 it("does not return an unrefreshed purchase bound during the read", async () => {

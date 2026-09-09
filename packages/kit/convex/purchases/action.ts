@@ -33,9 +33,11 @@ export const readBoundPurchaseEntitlements = action({
         project._id,
         purchases.length,
       );
-    // A store this pass cannot reach fails the read: the reference
-    // implementation answers the same way, so the interop evidence stays
-    // comparable. See the note in COMMERCE-EVENTS.md before changing it.
+    // A store this pass cannot reach fails the read, including when the project
+    // has since disabled it: the rows it granted are still bound and still
+    // valid, so omitting them would be the partial answer SPEC "Fail-close"
+    // forbids. Re-enable the store, or release the rows, before the read
+    // succeeds again.
     const rechecked = new Set<Id<"purchases">>();
     for (const purchase of purchases) {
       const evidence = purchase.requestData;

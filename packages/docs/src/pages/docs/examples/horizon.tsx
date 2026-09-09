@@ -1,6 +1,6 @@
 import StoreExampleTemplate, {
   type StoreExampleConfig,
-} from './StoreExampleTemplate';
+} from '../../../components/StoreExampleTemplate';
 
 const HORIZON_VIDEO_BASE = '/examples/horizon/videos';
 const HORIZON_POSTER = '/examples/horizon/home.webp';

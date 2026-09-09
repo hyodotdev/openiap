@@ -4,7 +4,7 @@ import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
-import VideoSlot from './VideoSlot';
+import VideoSlot from '../../../components/VideoSlot';
 
 const FIREOS_VIDEO_BASE = '/examples/amazon/videos';
 const FIREOS_POSTER = '/examples/amazon/home.webp';

@@ -136,6 +136,9 @@ export const markReceiptInvalid = internalMutation({
       statsCounted: true,
       storeStatsCounted: true,
       updatedAt: Date.now(),
+      // Same reasoning as the recheck lane: an Amazon receipt marked invalid is
+      // dead, so it must not keep occupying the account's bind cap.
+      ...(purchase.store === "amazon" ? { appUserId: undefined } : {}),
     });
 
     // `hasOrderId` is unchanged by this patch, but passing it both as
