@@ -279,11 +279,14 @@ the Play row, then confirm `horizonEnabled=false` and `fireOsEnabled=false` in
 in `android/app/build.gradle`.
 
 **A Play "not compatible with your device" banner does not block billing.** The
-Martie production listing sets `minSdkVersion 31`, so Play marks Android 11
-devices incompatible, but a side-loaded license-tester build still buys and
-verifies normally. Confirm with the native `packages/google` Example, which
-shares the application id and enables `OpenIapLog` on its subscription screen,
-before blaming the store.
+Martie production listing sets `minSdkVersion 31`, so Play marks an Android 11
+device incompatible and refuses to install that artifact. The examples this
+repository builds declare a lower minimum and install fine: `packages/google`
+Example inherits `minSdk = 23` from the library, and the Expo example ships 24.
+Both use the `dev.hyo.martie` application id, so a license tester buys and
+verifies through them normally despite the banner. Confirm with the
+`packages/google` Example, whose subscription screen enables `OpenIapLog` and
+prints the real `BillingResult`, before blaming the store.
 
 **iOS keeps a scene session per bundle id.** Any other app built with
 `dev.hyo.martie` — the SwiftUI `packages/apple/Example`, or the Godot and
