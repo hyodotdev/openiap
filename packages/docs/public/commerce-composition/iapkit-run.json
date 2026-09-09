@@ -18,7 +18,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
+            "expiresAt": 1788970154661,
             "willRenew": true
           }
         ]
@@ -30,7 +30,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788946840644,
+          "expiresAt": 1788970154661,
           "willRenew": false
         }
       },
@@ -46,7 +46,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "8809498f-2538-4806-8dd7-a59387a423c2",
+        "jobId": "79decd9b-02b5-444e-ab96-aa4c64e7d600",
         "status": "completed"
       }
     },
@@ -68,11 +68,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
-            "renewsAt": 1788946840644,
+            "expiresAt": 1788970154661,
+            "renewsAt": 1788970154661,
             "willRenew": true,
-            "startedAt": 1788946795882,
-            "updatedAt": 1788946795911
+            "startedAt": 1788970109915,
+            "updatedAt": 1788970109947
           }
         ]
       },
@@ -83,10 +83,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788946840644,
+          "expiresAt": 1788970154661,
           "willRenew": false,
-          "startedAt": 1788946795882,
-          "updatedAt": 1788946795987
+          "startedAt": 1788970109915,
+          "updatedAt": 1788970110037
         }
       },
       "expired": {
@@ -101,7 +101,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "ns7dt2wpf09esph6y4jjjdp87n8e36z8",
+        "jobId": "ns77w9bvzak0c7z5q06qmjhs218e3hsc",
         "status": "completed"
       }
     }
@@ -176,7 +176,7 @@
   },
   "sources": {
     "openiap": {
-      "baseRevision": "acdfd15ea4b3185532262b3fedeeea546d8ed289",
+      "baseRevision": "05f4eead7474c247df1e8815e8ef17d6a11f0d8b",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "64fe711a2fedbc6de411f710bc8cf2469fa4733538a7b26a7ae343f69fd73a0b",
@@ -264,7 +264,7 @@
         "convex/projects/setupStatus.test.ts": "e4a5ef47959a097451b3d1da6e218106735ceb1e4f9ec4b3d589e3505061fcfd",
         "convex/projects/setupStatus.ts": "0d3f21379df3cd480d21e5c99c0baf65b4c65aa49276929f1de8eea241cbb5d6",
         "convex/projects/writable.ts": "8c023e994c9d9b69f49c829da4400b4ad168c43033d500d770cd7f2702c93f44",
-        "convex/purchases/action.ts": "9a732f6fd78b761f9112932a3fdebe5ca73b6b1092d66065b0d796f6532bfec2",
+        "convex/purchases/action.ts": "0e97198e21c08040da9ffc1a5b23566c7fc5929db5d2a1ee5b69b12ab8a95116",
         "convex/purchases/amazon-reconciliation.test.ts": "a1817dae0fcd240b9359b0b32abbc179ebb114db23eff0d620a114b9cbb9239b",
         "convex/purchases/amazon.test.ts": "06bb593ab429f7d2444be69873c64ff9311fbfdb69d90eabaa54cbff967b32fb",
         "convex/purchases/amazon.ts": "7273b417e1ef6eb1af0e9cc1d11f722ee3b6e7626d9ec4135ad7952c289a49a6",
@@ -279,12 +279,12 @@
         "convex/purchases/horizon.test.ts": "8a9481eb8a6f9e0bec76c2a3de14e281486b6acd01905c178164d4bcc52b178a",
         "convex/purchases/horizon.ts": "bb38fcdefc2013183069c433fcf8f0be1df720c66a4085053eb2c38f3a4559db",
         "convex/purchases/identity.ts": "e7dbdf51c6e8e02ac00c2291b1aa31cf2ef68891fa37d063d5d8de078a6847ba",
-        "convex/purchases/internal.ts": "6b408bf1eef458f39563eee7e904cdc525d4539293255d01ee7463f7b1d39d66",
+        "convex/purchases/internal.ts": "5deb4c17e2df013c9dc3c1fb4f00aca0f7aa7be628ff1c9f5f48eaa2807546fe",
         "convex/purchases/ios-handler.test.ts": "65778d7c0b50503bd55c01d4eadfce069d558b49c5c4b8b61a67fe3cfc74475c",
         "convex/purchases/ios.test.ts": "05af2d8a48886a9ff2efdcfdb44ff2890a13f906ea222b17e0a8bc516ae889eb",
         "convex/purchases/ios.ts": "cffa1b76420bf3c722f273dd3fe83dcd1fcff0c502acb098d616e6f2bd555ca5",
         "convex/purchases/mutation.ts": "0f825acb9375c1e7d39af042055eb06f3d9a595eb26c2559d39e939126557718",
-        "convex/purchases/ownership.test.ts": "524460498cfbf2da444825a7ebd6ea85a88760f735554debbfb2c49fbdccdeed",
+        "convex/purchases/ownership.test.ts": "74f8e107a6b9d96a52ad8c82b3fb013ee243c4145bdbc90d127952eb1e01f24b",
         "convex/purchases/purchaseState.ts": "6f5463c7e1f75edc39e474005f6996ac63be8ee3a1c3a2d419e7607d4080a67c",
         "convex/purchases/query.ts": "3e3defc6e7896df32c69e9f3cc19eb4253858f5c3ae62018a8f9417da7a76d15",
         "convex/purchases/retry.test.ts": "53f384b1a49596cdf454944d5693b366a4819fcd156f8ffad72a9fe39a1b696e",
@@ -347,9 +347,9 @@
         "server/api/commerce/conformance.test.ts": "899281919296be4f38de4e6b48b059b6e0a6cca90558bc3758dc9bcd559e1435",
         "server/api/commerce/errors.ts": "e95477f606fb7fac954351a5825ad9efbd14d9b4901900b1e7a0ebfd7bab8434",
         "server/api/commerce/graphql.ts": "8c45733a958c875d5a123e4fd0b1fa56981f9adb0fc6c80104fb4ce6727448e2",
-        "server/api/commerce/handlers.ts": "a5cb904c534e9df9a730d566a22b3dc227a366563f3846c4e0cab8312b465ed7",
+        "server/api/commerce/handlers.ts": "5c2b9a56931260d69cf0774733791ead43245cb4c1ea6c413048ab9980174c28",
         "server/api/commerce/routes.rate-limit.test.ts": "5e7d260771101ae3cd9218d3c63ed9c7ba91a010e550bc09b969635595bb85ab",
-        "server/api/commerce/routes.test.ts": "2bbeebd9b8edae12e342ae1242db7e348cf364af14f2e029069000f7919eb3c9",
+        "server/api/commerce/routes.test.ts": "9fe0962dc5f49a49639f4d88cfc7097280a0c80bcf931674c1d10cdf6b7008ec",
         "server/api/commerce/routes.ts": "e8383e409de76264dfe04d3aaec00c57b7ae2e0204a83744cd653b8c10e3b4b1",
         "server/api/commerce/validation.ts": "cc84b422b537abb374ef32825d07f8a65f357e30a001b1a814464d5d6797f3f1",
         "server/api/commerce/verificationAdmission.ts": "b0d35496fbb88bd0e2e0157fccc18bc35a0f439af360265fd1f4bf348b1b1525",
@@ -442,7 +442,7 @@
       }
     },
     "workspace": {
-      "baseRevision": "acdfd15ea4b3185532262b3fedeeea546d8ed289",
+      "baseRevision": "05f4eead7474c247df1e8815e8ef17d6a11f0d8b",
       "hashes": {
         "bun.lock": "689a0cf2cda86b3b9d29b5f4f9bba1a39013c9223bb6b753df0e001cce64dff9",
         "package.json": "18b4f901c4ca8ee9374ab9c50d3db9825dce2abab2dddfdb1a03a052b5571d76",
@@ -486,7 +486,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-09-09T09:40:41.753Z",
+  "recordedAt": "2026-09-09T16:09:15.802Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -699,7 +699,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
+            "expiresAt": 1788970154661,
             "willRenew": true
           }
         ]
@@ -721,7 +721,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
+            "expiresAt": 1788970154661,
             "willRenew": true
           }
         ]
@@ -765,11 +765,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
-            "renewsAt": 1788946840644,
+            "expiresAt": 1788970154661,
+            "renewsAt": 1788970154661,
             "willRenew": true,
-            "startedAt": 1788946795882,
-            "updatedAt": 1788946795911
+            "startedAt": 1788970109915,
+            "updatedAt": 1788970109947
           }
         ]
       }
@@ -790,11 +790,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
-            "renewsAt": 1788946840644,
+            "expiresAt": 1788970154661,
+            "renewsAt": 1788970154661,
             "willRenew": true,
-            "startedAt": 1788946795882,
-            "updatedAt": 1788946795931
+            "startedAt": 1788970109915,
+            "updatedAt": 1788970109974
           }
         ]
       }
@@ -815,7 +815,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788946840644,
+            "expiresAt": 1788970154661,
             "willRenew": false
           }
         ]
@@ -876,7 +876,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788950440888,
+            "expiresAt": 1788973754911,
             "willRenew": true
           }
         ]
@@ -898,9 +898,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788950395645,
-            "startedAt": 1788946840911,
-            "updatedAt": 1788946840935
+            "expiresAt": 1788973709661,
+            "startedAt": 1788970154938,
+            "updatedAt": 1788970154963
           }
         ]
       }
@@ -921,7 +921,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788950440888,
+            "expiresAt": 1788973754911,
             "willRenew": true
           }
         ]

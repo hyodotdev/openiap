@@ -127,10 +127,10 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
     },
     kit: {
       description:
-        'IAPKit rechecks every linked Amazon or Horizon purchase from its own rate budget, then rereads ownership after those calls. A rejected product is removed from productIds; an outage fails the read; an exhausted budget answers RATE_LIMITED. These products have no invented subscription records.',
+        'IAPKit rechecks every linked Amazon or Horizon purchase from its own rate budget, then rereads ownership after those calls. A rejected product is removed from productIds, and so is one bound after the recheck pass; an outage fails the read; an exhausted budget answers RATE_LIMITED. These products have no invented subscription records.',
       file: 'convex/purchases/action.ts',
       symbol: 'readBoundPurchaseEntitlements',
-      line: 18,
+      line: 19,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
         'Checks revoked ownership, upstream failures, bounded reads, the recheck budget, and ownership changes during verification.',
