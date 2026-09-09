@@ -294,9 +294,9 @@ export async function entitlements(
   subscriptions: SubscriptionStatusSnapshot[];
 }> {
   const userId = requireUserId(input.userId);
-  // The operation declares no verdict codes: a store this read cannot
-  // reconfirm leaves its products out of the answer, so only the caller's own
-  // faults (auth, rate limit) and genuine internal errors surface here.
+  // The operation declares no verdict codes, so a store fault fails the read as
+  // an internal error; only the caller's own faults (auth, rate limit) keep
+  // their own codes.
   let purchases: { productIds: string[] };
   try {
     purchases = await client.action(

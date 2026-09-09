@@ -69,14 +69,17 @@ account holds at most 20 bound purchases per project. The 21st binding answers
 the refusal; a new binding can never push an account past the read bound. Before
 refusing, IAPKit releases the caller's own bound purchases the store no longer
 honours, so refunded and revoked receipts cannot hold the cap for good. A row
-keeps its binding until the cap is actually contended, which leaves the
-entitlements read unchanged.
+keeps its binding until the cap is actually contended, so the entitlements read
+is unchanged until then; a released row needs a fresh `bindPurchase` before it
+is read again.
 
 The read fails closed rather than answering partially, so a store it cannot
 reach fails the whole operation. Disabling a store the project already sells
 through has the same effect: the rows it granted stay bound and valid, and
-omitting them would be a partial answer. Release those rows, or re-enable the
-store, before the read succeeds again.
+omitting them would be a partial answer. Re-enabling the store restores the
+read. Nothing else releases those rows — the recheck throws before it can mark
+them invalid, so the bind cap never reclaims them, and only `eraseUser` clears
+the binding.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
 returning `productIds`. Rechecks draw on their own per-project bucket (300

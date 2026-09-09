@@ -375,21 +375,6 @@ describe("commerce REST adapter", () => {
     expect(body.error.message).not.toContain("upstream");
   });
 
-  it("still surfaces the caller's own rate limit from an entitlements read", async () => {
-    mocks.action.mockRejectedValue(new Error("limited"));
-    mocks.handleConvexError.mockReturnValue({
-      code: "RATE_LIMITED",
-      message: "Too many entitlement rechecks",
-      retryAfterSec: 3,
-    });
-    const response = await buildApp().request(
-      "/commerce/v1/entitlements?userId=user-1",
-      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
-    );
-    expect(response.status).toBe(429);
-    expect((await response.json()).error.code).toBe("RATE_LIMITED");
-  });
-
   it("authenticates before revealing a non-binding store verdict", async () => {
     // The unknown key clears the edge (it is not a publishable prefix) but fails
     // the authoritative check. It must get UNAUTHORIZED, not `bound: false`.

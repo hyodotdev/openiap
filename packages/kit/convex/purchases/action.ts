@@ -10,7 +10,7 @@ import { verifyHorizonReceipt } from "./horizon";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import {
   assertEntitlementRecheckAdmission,
   getProjectByApiKey,
@@ -37,7 +37,8 @@ export const readBoundPurchaseEntitlements = action({
     // has since disabled it: the rows it granted are still bound and still
     // valid, so omitting them would be the partial answer SPEC "Fail-close"
     // forbids. Re-enable the store, or release the rows, before the read
-    // succeeds again.
+    // succeeds again; nothing else releases those rows, because this throw
+    // happens before anything can mark them invalid.
     const rechecked = new Set<Id<"purchases">>();
     for (const purchase of purchases) {
       const evidence = purchase.requestData;
@@ -59,7 +60,12 @@ export const readBoundPurchaseEntitlements = action({
           { recheck: true },
         );
       } else {
-        continue;
+        // Bind admits amazon and horizon only, so this is stored state the read
+        // cannot classify. Fail-close forbids answering from the rest.
+        throw new ConvexError({
+          code: "INTERNAL_ERROR",
+          message: "Unsupported bound purchase",
+        });
       }
       rechecked.add(purchase._id);
     }

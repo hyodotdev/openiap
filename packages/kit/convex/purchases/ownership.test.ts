@@ -197,6 +197,10 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
         (row) => row.appUserId === "alice" && row.isValid === false,
       ),
     ).toEqual([]);
+    // Only the dead half is freed: ten live rows plus the one just bound.
+    expect(
+      rows.purchases.filter((row) => row.appUserId === "alice"),
+    ).toHaveLength(11);
     // Reclaiming is not a refusal, so operators see no cap warning.
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
@@ -352,7 +356,9 @@ it("fails the read when a store the project disabled cannot answer", async () =>
   const runMutation = vi.fn();
   await expect(
     refresh({ runQuery, runMutation }, { apiKey: "server", userId: "alice" }),
-  ).rejects.toThrow();
+  ).rejects.toThrow(AmazonSandboxNotEnabledError);
+  // It stopped at the store, so it never re-read ownership to answer partially.
+  expect(runQuery).toHaveBeenCalledTimes(1);
 });
 
 it("does not return an unrefreshed purchase bound during the read", async () => {

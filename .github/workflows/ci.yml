@@ -641,7 +641,8 @@ jobs:
         # repository serves a stale index. Playwright downloads its own
         # chromium, so drop that source first: nothing here needs it.
         run: |
-          sudo rm -f /etc/apt/sources.list.d/google-chrome.list
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+            /etc/apt/sources.list.d/google-chrome.sources
           bunx playwright install --with-deps chromium
 
       - name: Build docs site
