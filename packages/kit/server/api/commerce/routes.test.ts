@@ -360,31 +360,34 @@ describe("commerce REST adapter", () => {
     );
   });
 
-  it("reports VERIFICATION_FAILED as 502 when an ownership recheck cannot reach the store", async () => {
+  it("answers with a declared code when the bound-purchase read itself faults", async () => {
+    // The operation declares no verdict code, so an unclassifiable fault is an
+    // internal error, never a 502 the manifest does not list.
     mocks.action.mockRejectedValue(new Error("upstream down"));
     mocks.handleConvexError.mockReturnValue(null);
     const response = await buildApp().request(
       "/commerce/v1/entitlements?userId=user-1",
       { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
     );
-    expect(response.status).toBe(502);
+    expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body.error.code).toBe("VERIFICATION_FAILED");
+    expect(body.error.code).toBe("INTERNAL_ERROR");
     expect(body.error.message).not.toContain("upstream");
   });
 
-  it("reports CONFLICT as 409 when ownership changes during an entitlements read", async () => {
-    mocks.action.mockRejectedValue(new Error("boom"));
+  it("still surfaces the caller's own rate limit from an entitlements read", async () => {
+    mocks.action.mockRejectedValue(new Error("limited"));
     mocks.handleConvexError.mockReturnValue({
-      code: "CONFLICT",
-      message: "Ownership changed; retry the read",
+      code: "RATE_LIMITED",
+      message: "Too many entitlement rechecks",
+      retryAfterSec: 3,
     });
     const response = await buildApp().request(
       "/commerce/v1/entitlements?userId=user-1",
       { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
     );
-    expect(response.status).toBe(409);
-    expect((await response.json()).error.code).toBe("CONFLICT");
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("RATE_LIMITED");
   });
 
   it("authenticates before revealing a non-binding store verdict", async () => {

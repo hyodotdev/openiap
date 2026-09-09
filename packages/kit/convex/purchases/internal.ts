@@ -684,9 +684,11 @@ export const boundPurchasesForUser = internalQuery({
         q.eq("projectId", args.projectId).eq("appUserId", args.userId),
       )
       .take(MAX_BOUND_PURCHASES_PER_USER + 1);
+    // Binding enforces the cap, so passing it here means the stored rows drifted.
+    // That is ours, not the caller's: never answer INVALID_REQUEST for it.
     if (rows.length > MAX_BOUND_PURCHASES_PER_USER)
       throw new ConvexError({
-        code: "INVALID_INPUT",
+        code: "INTERNAL_ERROR",
         message: "Bound purchase read limit exceeded",
       });
     return rows.filter((row) => !row.accountErased);

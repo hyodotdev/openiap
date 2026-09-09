@@ -310,11 +310,15 @@ it("does not return an unrefreshed purchase bound during the read", async () => 
   const runQuery = vi
     .fn()
     .mockResolvedValueOnce([])
-    .mockResolvedValueOnce([{ _id: "new" }]);
+    .mockResolvedValueOnce([{ _id: "new", isValid: true, productId: "late" }]);
   const runMutation = vi.fn();
-  await expect(
-    refresh({ runQuery, runMutation }, { apiKey: "server", userId: "alice" }),
-  ).rejects.toThrow("Ownership changed");
+  // The row appeared after the recheck pass, so it is absent from the answer.
+  expect(
+    await refresh(
+      { runQuery, runMutation },
+      { apiKey: "server", userId: "alice" },
+    ),
+  ).toEqual({ productIds: [] });
   // An empty first read pays no recheck admission.
   expect(runMutation).not.toHaveBeenCalled();
 });

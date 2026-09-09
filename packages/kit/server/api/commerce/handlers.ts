@@ -294,8 +294,9 @@ export async function entitlements(
   subscriptions: SubscriptionStatusSnapshot[];
 }> {
   const userId = requireUserId(input.userId);
-  // Rechecks ask the store again, so their failures are verdict failures (502),
-  // not provider faults; a CONFLICT is the ownership set moving mid-read.
+  // The operation declares no verdict codes: a store this read cannot
+  // reconfirm leaves its products out of the answer, so only the caller's own
+  // faults (auth, rate limit) and genuine internal errors surface here.
   let purchases: { productIds: string[] };
   try {
     purchases = await client.action(
@@ -303,7 +304,7 @@ export async function entitlements(
       { apiKey: context.apiKey, userId },
     );
   } catch (error) {
-    rethrowAsProtocolError(error, "VERIFICATION_FAILED");
+    rethrowAsProtocolError(error, "INTERNAL_ERROR");
   }
   try {
     const result = await client.query(api.subscriptions.query.entitlementsV2, {

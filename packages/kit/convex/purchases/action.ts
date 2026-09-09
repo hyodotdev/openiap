@@ -9,7 +9,8 @@ import { verifyAppStoreReceiptInternalV1 } from "./ios";
 import { verifyHorizonReceipt } from "./horizon";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { ConvexError, v } from "convex/values";
+import type { Id } from "../_generated/dataModel";
+import { v } from "convex/values";
 import {
   assertEntitlementRecheckAdmission,
   getProjectByApiKey,
@@ -32,6 +33,10 @@ export const readBoundPurchaseEntitlements = action({
         project._id,
         purchases.length,
       );
+    // A store this pass cannot reach fails the read: the reference
+    // implementation answers the same way, so the interop evidence stays
+    // comparable. See the note in COMMERCE-EVENTS.md before changing it.
+    const rechecked = new Set<Id<"purchases">>();
     for (const purchase of purchases) {
       const evidence = purchase.requestData;
       if (evidence.store === "amazon") {
@@ -52,28 +57,27 @@ export const readBoundPurchaseEntitlements = action({
           { recheck: true },
         );
       } else {
-        throw new ConvexError({
-          code: "INVALID_INPUT",
-          message: "Unsupported bound purchase",
-        });
+        continue;
       }
+      rechecked.add(purchase._id);
     }
-    // Re-read ownership after network calls so erasure cannot return stale access.
+    // Re-read ownership after the network calls so erasure cannot return stale
+    // access, then keep only rows this pass actually reconfirmed. A purchase
+    // bound mid-read is absent rather than an error the operation never
+    // declares.
     const current = await ctx.runQuery(
       internal.purchases.internal.boundPurchasesForUser,
       queryArgs,
     );
-    const refreshed = new Set(purchases.map((purchase) => purchase._id));
-    if (current.some((purchase) => !refreshed.has(purchase._id)))
-      throw new ConvexError({
-        code: "CONFLICT",
-        message: "Ownership changed; retry the read",
-      });
     return {
       productIds: [
         ...new Set(
           current.flatMap((purchase) =>
-            purchase.isValid && purchase.productId ? [purchase.productId] : [],
+            rechecked.has(purchase._id) &&
+            purchase.isValid &&
+            purchase.productId
+              ? [purchase.productId]
+              : [],
           ),
         ),
       ],
