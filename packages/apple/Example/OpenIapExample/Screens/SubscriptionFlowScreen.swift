@@ -811,7 +811,7 @@ struct SubscriptionFlowScreen: View {
         print("   📋 Purchase Details:")
         print("      • Transaction ID: \(purchase.id)")
         print("      • Product ID: \(purchase.productId)")
-        print("      • Platform: \(purchase.platform)")
+        print("      • Store: \(purchase.store)")
         print("      • Purchase State: \(purchase.purchaseState)")
         print("      • Is Auto-Renewing: \(purchase.isAutoRenewing)")
 
