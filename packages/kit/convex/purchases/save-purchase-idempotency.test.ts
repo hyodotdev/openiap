@@ -884,3 +884,45 @@ describe("savePurchaseInternal — persistIfChanged", () => {
     expect(row.updatedAt).toEqual(expect.any(Number));
   });
 });
+
+describe("savePurchaseInternal — Amazon recheck skip", () => {
+  it("leaves the reconcile deadline untouched when only the store body moved", async () => {
+    const db = new MemDb();
+    db.seedOrg(ORG_ID);
+    db.seedProject(PROJECT_ID, ORG_ID);
+    const ctx = makeCtx(db);
+    const body = {
+      productId: "premium",
+      productType: "ENTITLED",
+      receiptId: "receipt",
+      purchaseDate: 1,
+      cancelDate: null,
+    };
+    const amazon = buildArgs({
+      store: "amazon",
+      remoteId: "sandbox:store-alice:receipt",
+      requestData: {
+        store: "amazon",
+        userId: "store-alice",
+        receiptId: "receipt",
+        sandbox: true,
+      },
+      remoteResponse: JSON.stringify(body),
+      environment: "Sandbox",
+    });
+    await savePurchaseInternal({ ctx, ...amazon });
+    const [before] = await db.query("purchases").collect();
+    expect(before.nextAmazonReconcileAt).toEqual(expect.any(Number));
+
+    await savePurchaseInternal({
+      ctx,
+      ...amazon,
+      persistIfChanged: true,
+      remoteResponse: JSON.stringify({ ...body, renewalDate: 2 }),
+    });
+    const [after] = await db.query("purchases").collect();
+    expect(after.nextAmazonReconcileAt).toBe(before.nextAmazonReconcileAt);
+    expect(after.remoteResponse).toBe(JSON.stringify(body));
+    expect(after.updatedAt).toBeUndefined();
+  });
+});

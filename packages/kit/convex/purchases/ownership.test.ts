@@ -123,6 +123,7 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
   });
   it.each([
     { state: HarmonizedPurchaseState.CANCELED },
+    { isValid: false },
     { state: HarmonizedPurchaseState.READY_TO_CONSUME },
     { projectId: "other" },
     { store: "google" },
@@ -152,6 +153,11 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
         appUserId: "alice",
         store,
         remoteId: `bound-${i}`,
+        // Revoked rows still occupy the account's slots.
+        state:
+          i % 2 === 0
+            ? HarmonizedPurchaseState.ENTITLED
+            : HarmonizedPurchaseState.CANCELED,
       })),
     );
     expect(await bind(ctx, args)).toEqual({ bound: false });
@@ -159,14 +165,18 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
       bound: false,
     });
     expect(purchase.appUserId).toBeUndefined();
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]?.[0]).toContain("bound purchase limit");
+    // Known and unknown evidence take the same path and log the same line.
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[0]).toEqual([
+      expect.stringContaining("bound purchase limit"),
+      { projectId: "p1", store },
+    ]);
     expect(await bind(ctx, { ...args, remoteId: "bound-3" })).toEqual({
       bound: true,
     });
     warn.mockRestore();
   });
-  it("lets the erased user bind again once the erasure job is gone", async () => {
+  it("binds erased evidence for the erased user when no erasure job is retained", async () => {
     const { ctx, purchase } = setup({ accountErased: true });
     expect(await bind(ctx, args)).toEqual({ bound: true });
     expect(purchase.appUserId).toBe("alice");
@@ -286,12 +296,12 @@ it("fails the entire read on upstream failure, preserving the saved verdict", as
     },
   ];
   const runQuery = vi.fn().mockResolvedValue(rows);
+  const runMutation = vi.fn();
   await expect(
-    refresh(
-      { runQuery, runMutation: vi.fn() },
-      { apiKey: "server", userId: "alice" },
-    ),
+    refresh({ runQuery, runMutation }, { apiKey: "server", userId: "alice" }),
   ).rejects.toThrow("upstream");
+  // The budget was charged before the failing store call.
+  expect(runMutation).toHaveBeenCalledTimes(1);
   expect(rows[0].isValid).toBe(true);
   expect(runQuery).toHaveBeenCalledTimes(1);
 });

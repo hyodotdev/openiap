@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { inventories } from "../packages/kit/scripts/docs/commerce-source-snapshot.mjs";
-import { auditCommerceEvidence } from "./audit-commerce-evidence.mjs";
+import {
+  auditCommerceEvidence,
+  shortRevision,
+} from "./audit-commerce-evidence.mjs";
 
 const hash = (file) =>
   createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -40,6 +43,7 @@ function fixture() {
     "export-commerce-interop.mjs",
     "commerce-interop-fixture.ts",
     "commerce-source-snapshot.mjs",
+    "commerce-store-coverage.mjs",
     "commerce-source-snapshot.test.mjs",
   ])
     write(harness, name, `// ${name}\n`);
@@ -122,6 +126,7 @@ describe("recorded input inventory", () => {
       expect(names).toEqual([
         "commerce-interop-fixture.ts",
         "commerce-source-snapshot.mjs",
+        "commerce-store-coverage.mjs",
         "export-commerce-interop.mjs",
         "run-commerce-interop.mjs",
       ]);
@@ -144,5 +149,12 @@ describe("recorded input inventory", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+describe("shortRevision", () => {
+  test("keeps the runner's dirty marker", () => {
+    expect(shortRevision("abcdef1234567890")).toBe("abcdef12");
+    expect(shortRevision("abcdef1234567890-dirty")).toBe("abcdef12-dirty");
   });
 });

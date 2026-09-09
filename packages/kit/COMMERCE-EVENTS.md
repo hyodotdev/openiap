@@ -66,7 +66,9 @@ currently in state `ENTITLED` binds. Amazon consumables verify as
 ledger fulfills them once; Horizon exposes no consumable distinction. An app
 account holds at most 20 bound purchases per project. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
-the refusal; a new binding can never push an account past the read bound.
+the refusal; a new binding can never push an account past the read bound. The
+read keeps that bound as a backstop and fails closed rather than answering
+partially.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
 returning `productIds`. Rechecks draw on their own per-project bucket (300
@@ -81,8 +83,8 @@ to report Apple/Google subscription records; use `entitlements` to authorize
 products.
 
 Account erasure unlinks these purchases from the erased app user id and refuses
-that id while its erasure job is retained (seven days), so verification or
-binding retries cannot resurrect the erased association. The evidence itself is
+that id while its erasure job is retained (seven days), so the erased user’s own
+verification or binding retries cannot relink it in that window. The evidence itself is
 not tombstoned: a later `bindPurchase` from another app account, such as the
 same person’s new account, creates a new association exactly like a first
 binding. Apple and Google subscription records keep their permanent erasure

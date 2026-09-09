@@ -133,7 +133,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
       line: 18,
       checkFile: 'convex/purchases/ownership.test.ts',
       check:
-        'Checks revoked ownership, upstream failures, bounded reads, and ownership changes during verification.',
+        'Checks revoked ownership, upstream failures, bounded reads, the recheck budget, and ownership changes during verification.',
     },
   },
   bind: {

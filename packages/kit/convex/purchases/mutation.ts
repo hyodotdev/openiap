@@ -47,6 +47,29 @@ export const bindVerifiedPurchaseAsServer = mutation({
       });
     if (await isUserErasureRequested(ctx, resolved.project, args.userId))
       return { bound: false };
+    // The cap is decided from the caller's own rows before any evidence lookup,
+    // so neither the answer nor the log depends on someone else's purchase.
+    const bound = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", resolved.project._id).eq("appUserId", args.userId),
+      )
+      .take(MAX_BOUND_PURCHASES_PER_USER);
+    if (bound.length >= MAX_BOUND_PURCHASES_PER_USER) {
+      if (
+        bound.some(
+          (row) => row.store === args.store && row.remoteId === args.remoteId,
+        )
+      )
+        return { bound: true };
+      // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
+      // is visible to operators only through this log line.
+      console.warn("[commerce] bindPurchase refused: bound purchase limit", {
+        projectId: resolved.project._id,
+        store: args.store,
+      });
+      return { bound: false };
+    }
     const purchase = await ctx.db
       .query("purchases")
       .withIndex("by_project_and_remote", (q) =>
@@ -61,24 +84,10 @@ export const bindVerifiedPurchaseAsServer = mutation({
     // fulfilled once by the app's own ledger.
     if (
       purchase.state !== HarmonizedPurchaseState.ENTITLED ||
+      !purchase.isValid ||
       !purchase.productId
     )
       return { bound: false };
-    const bound = await ctx.db
-      .query("purchases")
-      .withIndex("by_project_and_app_user", (q) =>
-        q.eq("projectId", resolved.project._id).eq("appUserId", args.userId),
-      )
-      .take(MAX_BOUND_PURCHASES_PER_USER);
-    if (bound.length >= MAX_BOUND_PURCHASES_PER_USER) {
-      // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
-      // is visible to operators only through this log line.
-      console.warn("[commerce] bindPurchase refused: bound purchase limit", {
-        projectId: resolved.project._id,
-        store: args.store,
-      });
-      return { bound: false };
-    }
     // Erasure only unlinked the previous owner; this is a new association.
     await ctx.db.patch(purchase._id, {
       appUserId: args.userId,

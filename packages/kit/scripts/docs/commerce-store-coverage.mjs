@@ -268,7 +268,7 @@ export async function runStoreCoverage({
       }
       // The erased user id stays refused while its job is retained; IAPKit's
       // Amazon/Horizon evidence does not, unlike the example's permanent mark.
-      if (store !== "apple") {
+      if (["amazon", "horizon"].includes(store)) {
         const next = `store_next_${store}`;
         check(
           `${store}/example: erased evidence cannot bind to another account`,
