@@ -91,6 +91,12 @@ Run this row as part of every full E2E regression. When the request is narrowed
 to IAPKit, run this row plus the focused package/example checks that support it;
 do not rerun unrelated framework/store rows.
 
+Read the "Device and Workspace State That Silently Breaks a Row" section of
+`.codex/skills/iapkit-e2e-martie/SKILL.md` first. A leftover store flavor in the
+generated Android project, a leftover iOS scene session from another app sharing
+the bundle id, and prebuilt React Native each break a row in a way that looks
+like a store or account failure.
+
 Prerequisites:
 
 - A connected iPhone or Google Play-capable Android phone with a sandbox/tester
