@@ -245,7 +245,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'eraseUser starts a project-scoped job. The worker removes identity from purchases, subscriptions, and events in batches, waiting for claimed deliveries before cleaning those events.',
       file: 'convex/subscriptions/internal.ts',
       symbol: 'drainSubscriptionUserErasurePage',
-      line: 1491,
+      line: 1468,
       checkFile: 'convex/subscriptions/mutation.test.ts',
       check:
         'Erasure request tests cover server authorization and repeated requests, including already completed jobs.',
