@@ -36,9 +36,8 @@ export const readBoundPurchaseEntitlements = action({
     // A store this pass cannot reach fails the read, including when the project
     // has since disabled it: the rows it granted are still bound and still
     // valid, so omitting them would be the partial answer SPEC "Fail-close"
-    // forbids. Re-enable the store, or release the rows, before the read
-    // succeeds again; nothing else releases those rows, because this throw
-    // happens before anything can mark them invalid.
+    // forbids. Re-enabling the store is the way back: this throw happens before
+    // anything can mark those rows invalid, so nothing else releases them.
     const rechecked = new Set<Id<"purchases">>();
     for (const purchase of purchases) {
       const evidence = purchase.requestData;
