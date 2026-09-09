@@ -16,7 +16,7 @@
   "kit/server/api/commerce/routes.test.ts": "bd3b63011c571af56e4438743116ec1774222a8f8d26dd7cc0ed32d581d94986",
   "kit/convex/purchases/mutation.ts": "2a81b08d228c1e334146cf532dd7f97b6b025c7b13a920725259b014e5a47519",
   "kit/convex/purchases/ownership.test.ts": "70001215d39218a2bae2b80044564c4d37f9b322dacbd55314b8bfb3778f516a",
-  "kit/convex/purchases/action.ts": "db1b7ea8eb6c0581524e65877ca28198dc49ebcc43b38588f05d0b934d81d43a",
+  "kit/convex/purchases/action.ts": "480600898eb66a3b01057eb0217851f43c88e04d40d3151b0c74f320be93b33b",
   "kit/convex/subscriptions/mutation.ts": "b780bab187d90d93eb4f7c5f9e8c5edde2ede313023a189b116a691b7506bade",
   "kit/convex/subscriptions/internal.test.ts": "5d30a9e0d775f11d0c293ea850ab12b6809522f3cac69db3d34ea06c0ed8b11d",
   "kit/convex/subscriptions/query.ts": "f6de34dfbc28c8fcf2111b3063a21b95d1e58940bbb79665711f803de9b1afe0",
