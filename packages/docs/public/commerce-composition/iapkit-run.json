@@ -18,7 +18,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
+            "expiresAt": 1788913550781,
             "willRenew": true
           }
         ]
@@ -30,7 +30,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788908348743,
+          "expiresAt": 1788913550781,
           "willRenew": false
         }
       },
@@ -46,7 +46,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "d3373352-e171-4f06-8621-b1cd038b6735",
+        "jobId": "94ad855b-8ba4-404c-81aa-055279b3bf9e",
         "status": "completed"
       }
     },
@@ -68,11 +68,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
-            "renewsAt": 1788908348743,
+            "expiresAt": 1788913550781,
+            "renewsAt": 1788913550781,
             "willRenew": true,
-            "startedAt": 1788908304065,
-            "updatedAt": 1788908304108
+            "startedAt": 1788913506041,
+            "updatedAt": 1788913506075
           }
         ]
       },
@@ -83,10 +83,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788908348743,
+          "expiresAt": 1788913550781,
           "willRenew": false,
-          "startedAt": 1788908304065,
-          "updatedAt": 1788908304201
+          "startedAt": 1788913506041,
+          "updatedAt": 1788913506154
         }
       },
       "expired": {
@@ -101,7 +101,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "ns70njbmnkcn4g7e228hhac7x18e0j8x",
+        "jobId": "ns704p5frnd07c3c2jeyepqdvd8e2bh7",
         "status": "completed"
       }
     }
@@ -170,7 +170,7 @@
   },
   "sources": {
     "openiap": {
-      "baseRevision": "4be06d309ae4b1e1bc8ed1281a6527ec4b63aed7",
+      "baseRevision": "f0703f7b67d6756cad9819e7e0ef21a5e25b4305",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "64fe711a2fedbc6de411f710bc8cf2469fa4733538a7b26a7ae343f69fd73a0b",
@@ -404,7 +404,7 @@
       "optionalGeneratedFiles": []
     },
     "example": {
-      "baseRevision": "e52900c2f040a0c9aa895e4a605b4f3e84940652",
+      "baseRevision": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
       "hashes": {
         "README.md": "31b768b8b9d031a7f95f912919ac3ea61e2e394a41d9762af00f0e6276e6ff03",
         "capture.mjs": "4940347c92713f47965400fa9dca0908372ec2b3627612fccf40eb6b636a85a2",
@@ -436,10 +436,10 @@
       }
     },
     "workspace": {
-      "baseRevision": "4be06d309ae4b1e1bc8ed1281a6527ec4b63aed7",
+      "baseRevision": "f0703f7b67d6756cad9819e7e0ef21a5e25b4305",
       "hashes": {
-        "bun.lock": "341275b0262a7087fe094f85f30b9a543f69ee287fb74108386b2853b7cfaab8",
-        "package.json": "1eff664275a06c15e8ad718a7191facee0f4cfdb38651de00cc1c47da30d7357",
+        "bun.lock": "689a0cf2cda86b3b9d29b5f4f9bba1a39013c9223bb6b753df0e001cce64dff9",
+        "package.json": "0472abcd4836eda06b216a25a48ee779055e69bd263f6d74b58ef437c86d726b",
         "packages/mcp-server/package.json": "81583f86c66b2e7cfc514ab06bcfe25951e4159397bba39ea3c56e1b6bb2f7c7",
         "packages/mcp-server/src/kit-client.ts": "6f3db1c10a1b8bd91ca1b224f4cf2bc47b131362e3a2ed106ff794d95df585da",
         "specs/commerce-protocol/examples/entitlement-granted-no-subscription.json": "e9cd83b903032b2a86d05cf58330c70d86a2cd392603e4c466353194f42f8213",
@@ -480,7 +480,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-09-08T22:59:10.235Z",
+  "recordedAt": "2026-09-09T00:25:51.813Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -685,7 +685,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
+            "expiresAt": 1788913550781,
             "willRenew": true
           }
         ]
@@ -707,7 +707,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
+            "expiresAt": 1788913550781,
             "willRenew": true
           }
         ]
@@ -751,11 +751,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
-            "renewsAt": 1788908348743,
+            "expiresAt": 1788913550781,
+            "renewsAt": 1788913550781,
             "willRenew": true,
-            "startedAt": 1788908304065,
-            "updatedAt": 1788908304108
+            "startedAt": 1788913506041,
+            "updatedAt": 1788913506075
           }
         ]
       }
@@ -776,11 +776,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
-            "renewsAt": 1788908348743,
+            "expiresAt": 1788913550781,
+            "renewsAt": 1788913550781,
             "willRenew": true,
-            "startedAt": 1788908304065,
-            "updatedAt": 1788908304131
+            "startedAt": 1788913506041,
+            "updatedAt": 1788913506097
           }
         ]
       }
@@ -801,7 +801,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788908348743,
+            "expiresAt": 1788913550781,
             "willRenew": false
           }
         ]
@@ -862,7 +862,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788911949294,
+            "expiresAt": 1788917151028,
             "willRenew": true
           }
         ]
@@ -884,9 +884,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788911903744,
-            "startedAt": 1788908349332,
-            "updatedAt": 1788908349369
+            "expiresAt": 1788917105782,
+            "startedAt": 1788913551054,
+            "updatedAt": 1788913551077
           }
         ]
       }
@@ -907,7 +907,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788911949294,
+            "expiresAt": 1788917151028,
             "willRenew": true
           }
         ]
