@@ -25,7 +25,7 @@ function CommerceGettingStarted(): React.JSX.Element {
         description="Connect your backend to a provider: verify a purchase, bind it to a user, and read access."
       />
       <h1>Follow one purchase.</h1>
-      <p className="commerce-lead">
+      <p>
         Alice buys Premium in your app. Follow her purchase from the store’s
         payment screen to the moment she can open paid content.
       </p>

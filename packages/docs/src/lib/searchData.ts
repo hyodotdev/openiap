@@ -979,7 +979,7 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'commerce-protocol-implementation',
-    title: 'Commerce Protocol Build and Review',
+    title: 'Commerce Protocol Build and review',
     category: 'Documentation',
     description:
       'Choose your services, give AI a product brief, and review the running purchase flow',

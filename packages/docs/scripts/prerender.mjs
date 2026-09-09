@@ -71,13 +71,18 @@ export function pageHtml(template, rendered, path) {
     `Invalid canonical path: ${path}`
   );
   const metadata = [];
-  const body = rendered.replace(
-    /<title>[\s\S]*?<\/title>|<(?:meta|link)\s[^>]*\/>/g,
-    (tag) => {
+  // An SVG icon's <title> is body content, not the document title.
+  const svgs = [];
+  const body = rendered
+    .replace(
+      /<svg[\s\S]*?<\/svg>/g,
+      (svg) => `\u0000${svgs.push(svg) - 1}\u0000`
+    )
+    .replace(/<title>[\s\S]*?<\/title>|<(?:meta|link)\s[^>]*\/>/g, (tag) => {
       metadata.push(tag.replace(/^<(\w+)/, '<$1 data-prerender="true"'));
       return '';
-    }
-  );
+    })
+    .replace(/\u0000(\d+)\u0000/g, (_, index) => svgs[Number(index)]);
   const head = metadata.join('\n');
   const canonicals = [
     ...head.matchAll(/<link\b[^>]*rel="canonical"[^>]*href="([^"]+)"/g),
@@ -172,6 +177,9 @@ async function prerender() {
         );
       }
     }
+    // Unknown and client-redirected routes fall back to the bare shell, not
+    // to the prerendered homepage with its canonical URL and body.
+    await writeFile(join(root, 'dist/_app.html'), template);
     for (const { path, html } of pages) {
       const destination = join(
         root,

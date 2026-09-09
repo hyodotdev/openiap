@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-08T21:06:25.027Z
+> Generated: 2026-09-09T00:37:16.162Z
 
 ## Choose an SDK and verify the implementation
 
@@ -19,8 +19,8 @@ using OpenIAP SDKs.
 
 Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
 Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays
-with the six-step flow and its build brief. For Quest, start at
-https://openiap.dev/commerce-protocol/getting-started?store=horizon.
+with the six-step flow and its build brief. For Quest, open that page and
+select Meta Horizon.
 Each step compares the small, runnable SQLite example with IAPKit's handlers
 and checks. Read the code for the responsibility being implemented:
 - Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
@@ -3568,7 +3568,7 @@ storage or tooling.
 - Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
 - Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
 - Commerce Protocol Integration Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
-- Commerce Protocol Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
 - Commerce Protocol AI Build Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks

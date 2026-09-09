@@ -52,7 +52,7 @@ export const readBoundPurchaseEntitlements = action({
     const refreshed = new Set(purchases.map((purchase) => purchase._id));
     if (current.some((purchase) => !refreshed.has(purchase._id)))
       throw new ConvexError({
-        code: "INVALID_INPUT",
+        code: "CONFLICT",
         message: "Ownership changed; retry the read",
       });
     return {

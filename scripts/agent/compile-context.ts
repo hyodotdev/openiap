@@ -248,8 +248,8 @@ using OpenIAP SDKs.
 
 Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
 Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays
-with the six-step flow and its build brief. For Quest, start at
-https://openiap.dev/commerce-protocol/getting-started?store=horizon.
+with the six-step flow and its build brief. For Quest, open that page and
+select Meta Horizon.
 Each step compares the small, runnable SQLite example with IAPKit's handlers
 and checks. Read the code for the responsibility being implemented:
 - Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
@@ -696,7 +696,7 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
 - Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
 - Commerce Protocol Integration Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
-- Commerce Protocol Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
 - Commerce Protocol AI Build Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
@@ -988,7 +988,7 @@ identifier, or central runtime.
 - Use a provider: https://openiap.dev/commerce-protocol/getting-started
 - Build your part: https://openiap.dev/commerce-protocol/ecosystem
 - Role-specific AI integration brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
-- Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Build and review: https://openiap.dev/commerce-protocol/implementation
 - Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
 - AI build brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
 - Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough

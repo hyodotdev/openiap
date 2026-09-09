@@ -71,7 +71,11 @@ renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues to
 report Apple/Google subscription records; use `entitlements` to authorize products.
 
 Account erasure unlinks these purchases and keeps an evidence tombstone so
-verification or binding retries cannot resurrect the erased association.
+verification or binding retries cannot resurrect the erased association. The
+tombstone is permanent: that receipt or store-user/SKU pair never binds to any
+app account again, including a new account the same person creates. The erased
+app user id itself is refused only while its erasure job is retained (seven
+days).
 Consumable quantity and durable fulfillment remain the application’s ledger.
 
 ## Event vocabulary

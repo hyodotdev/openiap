@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { COMMERCE_STORE_LABELS } from '../../lib/commerceImplementations';
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../components/CodeBlock';
 import report from '../../../public/commerce-composition/iapkit-run.json';
@@ -49,8 +50,8 @@ export default function CommerceCompositionProof(): React.JSX.Element {
         <strong>
           One app backend. One event receiver. Two commerce providers.
         </strong>{' '}
-        We kept the app running and changed its provider setting from the
-        example to IAPKit, then back again. The consumer code changed in{' '}
+        The same app backend and receiver ran against the example, then IAPKit,
+        then the example again. The consumer code changed in{' '}
         <strong>0 files</strong>.
       </p>
       <p>
@@ -139,22 +140,13 @@ export default function CommerceCompositionProof(): React.JSX.Element {
             key={store}
             to={`/commerce-protocol/getting-started?store=${store}#purchase-buy`}
           >
-            {
-              {
-                apple: 'Follow Apple',
-                google: 'Follow Google Play',
-                amazon: 'Follow Amazon',
-                horizon: 'Follow Meta Horizon',
-              }[store]
-            }{' '}
-            →
+            Follow {COMMERCE_STORE_LABELS[store]} →
           </Link>
         ))}
       </div>
       <p>
         Store responses, Apple signature verification, and account sessions are
-        fixtures in this run. It does not establish device checkout or Nami SDK
-        compatibility. Read the{' '}
+        fixtures in this run. It does not establish device checkout. Read the{' '}
         <a href="/commerce-source/kit/scripts/docs/commerce-store-coverage.mjs.html">
           store comparison code
         </a>
@@ -249,11 +241,6 @@ bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.m
           signature verification are fixtures; the worker’s existing transport
           hook sends to localhost. Real store purchases and public HTTPS DNS/TLS
           are separate deployment checks.
-        </p>
-        <p>
-          The first run exposed a missing IAPKit revocation after the clock
-          passed expiry. The corrected handler and two regression cases now pass
-          alongside this full replay.
         </p>
         <p>
           The earlier{' '}

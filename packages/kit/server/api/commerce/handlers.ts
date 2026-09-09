@@ -63,6 +63,7 @@ const SAFE_MESSAGE: Record<string, string> = {
   INVALID_REQUEST: "The request is invalid",
   RATE_LIMITED: "Too many requests. Retry after the indicated delay.",
   VERIFICATION_FAILED: "The provider could not obtain a verdict from the store",
+  CONFLICT: "Ownership changed during the read; retry",
   INTERNAL_ERROR: "The operation failed",
 };
 
@@ -293,11 +294,18 @@ export async function entitlements(
   subscriptions: SubscriptionStatusSnapshot[];
 }> {
   const userId = requireUserId(input.userId);
+  // Rechecks ask the store again, so their failures are verdict failures (502),
+  // not provider faults; a CONFLICT is the ownership set moving mid-read.
+  let purchases: { productIds: string[] };
   try {
-    const purchases = await client.action(
+    purchases = await client.action(
       api.purchases.action.readBoundPurchaseEntitlements,
       { apiKey: context.apiKey, userId },
     );
+  } catch (error) {
+    rethrowAsProtocolError(error, "VERIFICATION_FAILED");
+  }
+  try {
     const result = await client.query(api.subscriptions.query.entitlementsV2, {
       apiKey: context.apiKey,
       userId,

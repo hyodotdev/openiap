@@ -113,7 +113,11 @@ function CommerceProtocol(): React.JSX.Element {
         onToggle={(event) => {
           const open = event.currentTarget.open;
           if (open && exampleStep === null) showExample(1);
-          if (!open && exampleStep !== null) navigate('#architecture');
+          if (!open && exampleStep !== null)
+            navigate('#architecture', {
+              replace: true,
+              state: { commerceKeepScroll: true },
+            });
         }}
       >
         <summary>

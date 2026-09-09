@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { COMMERCE_STORE_LABELS } from '../lib/commerceImplementations';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -202,12 +203,7 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
     requestedStore === 'google'
       ? requestedStore
       : 'apple';
-  const storeLabel = {
-    apple: 'Apple',
-    google: 'Google Play',
-    amazon: 'Amazon',
-    horizon: 'Meta Horizon',
-  }[store];
+  const storeLabel = COMMERCE_STORE_LABELS[store];
   const recheck = store === 'amazon' || store === 'horizon';
   const steps = STEPS.map((entry) => {
     if (entry.id === 'buy')
@@ -225,7 +221,7 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
       return {
         ...entry,
         title: 'Check whether Alice still owns Premium.',
-        description: `Your backend requests Alice’s entitlements. IAPKit asks ${storeLabel} again using the saved store identity and purchase evidence. A negative answer removes Premium from the result. A store outage fails the request so your app can apply its retry policy.`,
+        description: `Your backend requests Alice’s entitlements. The provider asks ${storeLabel} again using the saved store identity and purchase evidence. A negative answer removes Premium from the result. A store outage fails the request so your app can apply its retry policy.`,
         nodes: [
           {
             kind: 'server' as const,
@@ -234,7 +230,7 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
           },
           {
             kind: 'server' as const,
-            title: 'IAPKit',
+            title: 'Commerce provider',
             detail: 'Rechecks saved purchases',
           },
           {
@@ -246,7 +242,7 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
         result:
           'Confirmed ownership → Premium. Rejected ownership → no access.',
         reason:
-          'IAPKit does not currently emit Amazon or Horizon subscription lifecycle events. Use entitlements.productIds for access; an empty subscriptions list does not mean that no product is owned. Do not infer renewal, refund, or expiry dates from a verification verdict.',
+          'A provider may emit no Amazon or Horizon subscription lifecycle events (IAPKit currently does not). Use entitlements.productIds for access; an empty subscriptions list does not mean that no product is owned. Do not infer renewal, refund, or expiry dates from a verification verdict.',
         term: 'Current ownership',
         definition:
           'A store answer at the time of the check. Your backend owns caching and retry policy. Consumable credits need a separate durable fulfillment ledger; an owned SKU is not a quantity to credit repeatedly.',
@@ -296,21 +292,14 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
             className={`language-tab ${store === id ? 'active' : ''}`}
             aria-current={store === id ? 'true' : undefined}
           >
-            {
-              {
-                apple: 'Apple',
-                google: 'Google Play',
-                amazon: 'Amazon',
-                horizon: 'Meta Horizon',
-              }[id]
-            }
+            {COMMERCE_STORE_LABELS[id]}
           </Link>
         ))}
       </nav>
       {recheck && (
-        <p className="commerce-store-context">
+        <p>
           {store === 'horizon'
-            ? 'For Quest, link the Meta user to your app session before binding the verified SKU. IAPKit keeps the Meta app secret on the server.'
+            ? 'For Quest, link the Meta user to your app session before binding the verified SKU. The provider keeps the Meta app secret on the server.'
             : 'For Amazon, keep the store user and receipt together. App Tester uses sandbox evidence; production receipts use the production RVS environment.'}{' '}
           <Link
             to={`/docs/setup/store/${store === 'horizon' ? 'horizon' : 'amazon'}`}

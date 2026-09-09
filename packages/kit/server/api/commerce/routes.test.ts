@@ -340,6 +340,53 @@ describe("commerce REST adapter", () => {
     );
   });
 
+  it("binds Amazon using the store user, receipt id and environment", async () => {
+    mocks.mutation.mockResolvedValue({ bound: true });
+    const response = await post(buildApp(), "/commerce/v1/purchases/bind", {
+      userId: "user-1",
+      store: "amazon",
+      amazon: { userId: "amzn1.account.X", receiptId: "rcpt/1", sandbox: true },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "bindVerifiedPurchaseAsServer",
+      {
+        apiKey: SERVER_KEY,
+        userId: "user-1",
+        store: "amazon",
+        remoteId: "sandbox:amzn1.account.X:rcpt%2F1",
+      },
+    );
+  });
+
+  it("reports VERIFICATION_FAILED as 502 when an ownership recheck cannot reach the store", async () => {
+    mocks.action.mockRejectedValue(new Error("upstream down"));
+    mocks.handleConvexError.mockReturnValue(null);
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(502);
+    const body = await response.json();
+    expect(body.error.code).toBe("VERIFICATION_FAILED");
+    expect(body.error.message).not.toContain("upstream");
+  });
+
+  it("reports CONFLICT as 409 when ownership changes during an entitlements read", async () => {
+    mocks.action.mockRejectedValue(new Error("boom"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "CONFLICT",
+      message: "Ownership changed; retry the read",
+    });
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(409);
+    expect((await response.json()).error.code).toBe("CONFLICT");
+  });
+
   it("authenticates before revealing a non-binding store verdict", async () => {
     // The unknown key clears the edge (it is not a publishable prefix) but fails
     // the authoritative check. It must get UNAUTHORIZED, not `bound: false`.

@@ -34,10 +34,12 @@ implementation brief. They are completion criteria, not an optional final polish
   to do next before seeing an API table or a long AI prompt. Introduce terms at
   the step that needs them; keep detailed references available afterward.
 - **Two implementations:** Commerce Protocol guides must connect each relevant
-  responsibility to `openiap-commerce-protocol-example` and IAPKit code and
-  checks. Explain differences in supported operations, stores, and profiles.
-  Do not present a fixture as a real purchase or one provider as evidence of
-  interoperability with another. Follow the source links and operate the guide.
+  responsibility to the runnable example and to at least one independent
+  implementation's code and checks (today `openiap-commerce-protocol-example`
+  and IAPKit). Explain differences in supported operations, stores, and
+  profiles. Do not present a fixture as a real purchase, one provider as
+  evidence of interoperability with another, or any single implementation as
+  the protocol. Follow the source links and operate the guide.
 - **Fresh AI implementation:** when a brief or runnable example changes, replay
   its install, implementation, startup, and acceptance instructions in a clean
   project using only the published inputs. Record the input revision, commands,
@@ -46,9 +48,10 @@ implementation brief. They are completion criteria, not an optional final polish
   conformance failures. Reuse an earlier run only when its relevant inputs have
   not changed, and identify that run rather than calling it a new reproduction.
 - **Independent acceptance:** test the promised customer behavior, including
-  failure and recovery, against the running result. Have a reviewer attempt the
-  first-time-reader task without implementation notes. An agent simulation is
-  useful evidence, but must be labeled as a simulation, not a human user study.
+  failure and recovery, against the running result, and record the commands
+  and observed results in the PR body or the published run report. An agent
+  simulation is useful evidence, but must be labeled as a simulation, not a
+  human user study.
 - **SDK discovery:** verify the initial HTTP response contains the page's actual
   text, title, description, and canonical URL without JavaScript. Canonical
   pages belong in the generated sitemap. Framework names, install commands,
@@ -59,12 +62,8 @@ Run `bun run build` and `bun run test:discoverability` in `packages/docs` for
 static content and metadata checks. The repository's `bun run e2e:web`
 checks the served HTML and the interactive Commerce Protocol walkthrough.
 These checks catch regressions; they do not prove that a person understood the
-page or that an AI chose the SDK. Record the reader simulation and fresh-project
-acceptance separately in the review evidence.
-
-After deployment, inspect real indexing, search queries, AI citations, and SDK
-setup traffic before claiming adoption improvements. Optional LLM text files
-and structured data are aids, not guarantees of indexing or recommendation.
+page or that an AI chose the SDK, and `llms.txt` or structured data do not
+guarantee indexing or recommendation. Do not claim adoption effects from them.
 
 ## Modal Pattern with Preact Signals
 

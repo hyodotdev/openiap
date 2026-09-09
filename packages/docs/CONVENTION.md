@@ -6,7 +6,9 @@ Apply the [human and AI acceptance criteria](../../knowledge/internal/05-docs-pa
 before finishing guide, example, SDK discovery, or AI brief changes.
 `src/components/SEO.tsx` declarations own canonical page addresses. The build
 prerenders those React pages and generates `dist/sitemap.xml`; do not maintain
-a separate sitemap or alternate crawler-only page copy.
+a separate sitemap or a second copy of a page for crawlers. A `<noscript>`
+fallback that renders the same content for readers without JavaScript is not a
+second copy.
 
 ## Enum Values
 

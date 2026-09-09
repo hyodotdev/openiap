@@ -1,7 +1,12 @@
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
-import { COMMERCE_IMPLEMENTATIONS } from '../../lib/commerceImplementations';
+import {
+  COMMERCE_IMPLEMENTATIONS,
+  COMMERCE_STORE_LABELS,
+  isCommerceStore,
+} from '../../lib/commerceImplementations';
 import { COMMERCE_PROTOCOL_LINKS, IAPKIT_URL } from '../../lib/config';
 import { Link, useLocation } from 'react-router-dom';
+import type { To } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
 import SEO from '../../components/SEO';
@@ -14,7 +19,7 @@ function CommerceImplementation(): React.JSX.Element {
   const { search } = useLocation();
   const store = new URLSearchParams(search).get('store');
   const recheck = store === 'amazon' || store === 'horizon';
-  const journey = (hash = '') => ({
+  const journey = (hash = ''): To => ({
     pathname: '/commerce-protocol/getting-started',
     search,
     hash,
@@ -22,12 +27,12 @@ function CommerceImplementation(): React.JSX.Element {
   return (
     <div className="doc-page commerce-implementation">
       <SEO
-        title="Commerce Protocol: Build with AI"
+        title="Commerce Protocol: Build and review"
         path="/commerce-protocol/implementation"
         description="Define your product and expected behavior. Give AI the Commerce Protocol contract and working example, then review the running result."
       />
       <h1>Build your purchase flow.</h1>
-      <p className="commerce-lead">
+      <p>
         Choose who runs the purchase backend, describe what your users should
         experience, and review a running app.
       </p>
@@ -53,7 +58,7 @@ function CommerceImplementation(): React.JSX.Element {
         </p>
         <div className="commerce-role-benefits">
           <article>
-            <h2>Use a managed service</h2>
+            <h3>Use a managed service</h3>
             <p>
               <a href={IAPKIT_URL}>IAPKit</a> runs purchase verification,
               subscription records, and event delivery. Your backend calls it to
@@ -61,7 +66,7 @@ function CommerceImplementation(): React.JSX.Element {
             </p>
           </article>
           <article>
-            <h2>Run your own backend</h2>
+            <h3>Run your own backend</h3>
             <p>
               Use <a href={EXAMPLE}>openiap-commerce-protocol-example</a> to
               build in your stack. Your team runs the store connections,
@@ -104,7 +109,7 @@ function CommerceImplementation(): React.JSX.Element {
           <summary>Open the brief to copy</summary>
           <CodeBlock language="text">{`Integrate OpenIAP Commerce Protocol into this project.
 Product and desired behavior: [what users should be able to do].
-Store and product type: ${store === 'horizon' ? 'Meta Horizon' : store === 'amazon' ? 'Amazon' : store === 'google' ? 'Google Play' : store === 'apple' ? 'Apple' : '[Apple, Google Play, Amazon, or Meta Horizon]'}; [subscription, durable purchase, or consumable].
+Store and product type: ${isCommerceStore(store) ? COMMERCE_STORE_LABELS[store] : '[Apple, Google Play, Amazon, or Meta Horizon]'}; [subscription, durable purchase, or consumable].
 Services to use or own: [name them, or ask me to choose].
 
 Implementation references:
@@ -189,11 +194,8 @@ Keep changes uncommitted for review.`}</CodeBlock>
         <details className="commerce-run-details">
           <summary>Additional exercise: AI built a new fixture app</summary>
           <p>
-            A separate AI started with an empty project and built Field Notes, a
-            subscription app using Node.js and SQLite. Another AI reviewed the
-            running app and repeated installation and checks in a clean copy.
-            The review found and fixed a test setup dependency and an incorrect
-            status message after reload.
+            Field Notes is a subscription app built from the brief alone, in
+            Node.js and SQLite, then reinstalled and rechecked in a clean copy.
           </p>
           <p>
             <a href="/commerce-example/ai-reproduction.md">

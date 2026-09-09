@@ -985,15 +985,6 @@
   padding: 0 var(--spacing-lg) var(--spacing-lg);
 }
 
-.commerce-run-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm) var(--spacing-lg);
-  padding: var(--spacing-md) 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-}
-
 .commerce-build-caption {
   display: flex;
   align-items: center;

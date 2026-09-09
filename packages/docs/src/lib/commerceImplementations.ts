@@ -1,5 +1,18 @@
 import { COMMERCE_PROTOCOL_LINKS } from './config';
 
+export type CommerceStore = 'apple' | 'google' | 'amazon' | 'horizon';
+
+export const COMMERCE_STORE_LABELS: Record<CommerceStore, string> = {
+  apple: 'Apple',
+  google: 'Google Play',
+  amazon: 'Amazon',
+  horizon: 'Meta Horizon',
+};
+
+export function isCommerceStore(value: string | null): value is CommerceStore {
+  return value !== null && value in COMMERCE_STORE_LABELS;
+}
+
 export const COMMERCE_IMPLEMENTATIONS = {
   example: {
     name: 'openiap-commerce-protocol-example',
@@ -48,7 +61,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'IAPKit receives that store evidence through verifyPurchase. The paywall, store purchase screen, and app login stay with your app; IAPKit does not replace them.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchase',
-      line: 220,
+      line: 221,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'Route tests cover evidence parsing and errors with mocked store calls; they do not perform a mobile purchase.',
@@ -71,7 +84,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The handler sends evidence to the Apple, Google, Meta, or Amazon verifier and returns the same isValid answer. Store-specific work stays behind this call.',
       file: 'server/api/commerce/handlers.ts',
       symbol: 'verifyPurchaseVerdict',
-      line: 168,
+      line: 169,
       checkFile: 'server/api/commerce/routes.test.ts',
       check:
         'The route suite checks unreachable verification and retry behavior using mocked store I/O.',
