@@ -669,8 +669,9 @@ func _on_purchase_error(error):
           </a>
         </h3>
         <p>
-          The current release zip ships an iOS-only GDExtension, so the editor
-          on every desktop — Windows, Linux, and macOS alike — logs{' '}
+          The current release zip ships an iOS-only GDExtension, so on Godot
+          4.8-dev3 and older the editor on every desktop — Windows, Linux, and
+          macOS alike — logs{' '}
           <code>
             No GDExtension library found for current OS and architecture
           </code>{' '}
