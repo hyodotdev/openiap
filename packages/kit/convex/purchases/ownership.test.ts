@@ -144,9 +144,10 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     expect(purchase.appUserId).toBe("bob");
     expect(purchase.accountErased).toBeUndefined();
   });
-  it("answers bound:false at the per-account cap without revealing evidence", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { rows, ctx, purchase } = setup();
+  function fillCap(
+    rows: Record<string, Row[]>,
+    overrides: (index: number) => Row = () => ({}),
+  ) {
     rows.purchases.push(
       ...Array.from({ length: 20 }, (_, i) => ({
         _id: `bound-${i}`,
@@ -154,13 +155,16 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
         appUserId: "alice",
         store,
         remoteId: `bound-${i}`,
-        // Revoked rows still occupy the account's slots.
-        state:
-          i % 2 === 0
-            ? HarmonizedPurchaseState.ENTITLED
-            : HarmonizedPurchaseState.CANCELED,
+        state: HarmonizedPurchaseState.ENTITLED,
+        isValid: true,
+        ...overrides(i),
       })),
     );
+  }
+  it("answers bound:false at the per-account cap without revealing evidence", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { rows, ctx, purchase } = setup();
+    fillCap(rows);
     expect(await bind(ctx, args)).toEqual({ bound: false });
     expect(await bind(ctx, { ...args, remoteId: "nobody-knows" })).toEqual({
       bound: false,
@@ -175,6 +179,26 @@ describe.each(["amazon", "horizon"] as const)("%s ownership", (store) => {
     expect(await bind(ctx, { ...args, remoteId: "bound-3" })).toEqual({
       bound: true,
     });
+    warn.mockRestore();
+  });
+  it("reclaims the caller's own dead rows before refusing at the cap", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { rows, ctx, purchase } = setup();
+    // A refunded receipt is worthless to the account and must not hold a slot.
+    fillCap(rows, (i: number) =>
+      i % 2 === 0
+        ? {}
+        : { state: HarmonizedPurchaseState.CANCELED, isValid: false },
+    );
+    expect(await bind(ctx, args)).toEqual({ bound: true });
+    expect(purchase.appUserId).toBe("alice");
+    expect(
+      rows.purchases.filter(
+        (row) => row.appUserId === "alice" && row.isValid === false,
+      ),
+    ).toEqual([]);
+    // Reclaiming is not a refusal, so operators see no cap warning.
+    expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
   it("binds erased evidence for the erased user when no erasure job is retained", async () => {

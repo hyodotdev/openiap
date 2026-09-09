@@ -120,20 +120,6 @@ export async function savePurchaseInternal({
       .first();
 
     if (existing) {
-      // Amazon answers CANCELED or INAUTHENTIC only for a receipt the account
-      // no longer holds, and a resubscribe issues a new receiptId, so the row
-      // is dead. Release its binding in every lane, including the reconciler
-      // and a recheck that merely confirms the stored verdict, or twenty
-      // refunded receipts would occupy the cap for good. Horizon keeps its
-      // binding: its INAUTHENTIC is a point-in-time answer on a row keyed by
-      // (userId, sku), which the same customer reuses when they resubscribe.
-      if (
-        existing.appUserId &&
-        store === "amazon" &&
-        (state === HarmonizedPurchaseState.CANCELED ||
-          state === HarmonizedPurchaseState.INAUTHENTIC)
-      )
-        await ctx.db.patch(existing._id, { appUserId: undefined });
       // A recheck that confirms the stored verdict is a read, not a write: the
       // raw store body may move (renewal dates), and the reconciler keeps its
       // own cadence, so only the verdict decides.

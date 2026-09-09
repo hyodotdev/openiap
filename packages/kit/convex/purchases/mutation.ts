@@ -62,13 +62,23 @@ export const bindVerifiedPurchaseAsServer = mutation({
         )
       )
         return { bound: true };
-      // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
-      // is visible to operators only through this log line.
-      console.warn("[commerce] bindPurchase refused: bound purchase limit", {
-        projectId: resolved.project._id,
-        store: args.store,
-      });
-      return { bound: false };
+      // Refunded and revoked receipts would otherwise hold the cap for good:
+      // nothing clears `appUserId` and there is no unbind operation. Reclaim
+      // the caller's own dead rows before refusing, so the answer still comes
+      // from their rows alone. A row keeps its binding until the cap is
+      // actually contended, which leaves the entitlements read unchanged.
+      const reclaimed = bound.filter((row) => !(row.isValid ?? false));
+      for (const row of reclaimed)
+        await ctx.db.patch(row._id, { appUserId: undefined });
+      if (reclaimed.length === 0) {
+        // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
+        // is visible to operators only through this log line.
+        console.warn("[commerce] bindPurchase refused: bound purchase limit", {
+          projectId: resolved.project._id,
+          store: args.store,
+        });
+        return { bound: false };
+      }
     }
     const purchase = await ctx.db
       .query("purchases")
@@ -136,9 +146,6 @@ export const markReceiptInvalid = internalMutation({
       statsCounted: true,
       storeStatsCounted: true,
       updatedAt: Date.now(),
-      // Same reasoning as the recheck lane: an Amazon receipt marked invalid is
-      // dead, so it must not keep occupying the account's bind cap.
-      ...(purchase.store === "amazon" ? { appUserId: undefined } : {}),
     });
 
     // `hasOrderId` is unchanged by this patch, but passing it both as

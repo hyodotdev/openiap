@@ -66,12 +66,11 @@ currently in state `ENTITLED` binds. Amazon consumables verify as
 ledger fulfills them once; Horizon exposes no consumable distinction. An app
 account holds at most 20 bound purchases per project. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
-the refusal; a new binding can never push an account past the read bound. Amazon
-answers `CANCELED` or `INAUTHENTIC` only for a receipt the account no longer
-holds, and a resubscribe issues a new receipt id, so that row releases its
-binding and frees the slot. Horizon keeps its binding: its rejection is a
-point-in-time answer on a row keyed by user and sku, which the same customer
-reuses when they resubscribe.
+the refusal; a new binding can never push an account past the read bound. Before
+refusing, IAPKit releases the caller's own bound purchases the store no longer
+honours, so refunded and revoked receipts cannot hold the cap for good. A row
+keeps its binding until the cap is actually contended, which leaves the
+entitlements read unchanged.
 
 The read fails closed rather than answering partially, so a store it cannot
 reach fails the whole operation. Disabling a store the project already sells
