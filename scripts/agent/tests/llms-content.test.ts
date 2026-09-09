@@ -22,6 +22,31 @@ const compiledContext = fs.readFileSync(
 );
 
 describe("generated LLM references", () => {
+  test("connects SDK selection to current implementation inputs and evidence", () => {
+    for (const reference of [quickReference, fullReference]) {
+      expect(reference).toContain("https://openiap.dev/languages");
+      expect(reference).toContain("https://openiap.dev/docs/setup");
+      expect(reference).toContain(
+        "openiap-commerce-protocol-example/blob/main/BUILD.md",
+      );
+      expect(reference).toContain(
+        "openiap-commerce-protocol-example/blob/main/INTEGRATE.md",
+      );
+      expect(reference).toContain(
+        "https://github.com/hyodotdev/openiap/tree/main/packages/kit",
+      );
+      expect(reference).toContain(
+        "Separate fixture checks, real store sandbox tests, and profile conformance",
+      );
+      expect(reference).not.toContain(
+        "https://openiap.dev/commerce-example/build-brief.md",
+      );
+      expect(reference).not.toContain(
+        "https://openiap.dev/commerce-example/integration-brief.md",
+      );
+    }
+  });
+
   test("keeps IAPKit product notes out of the OpenIAP AI reference", () => {
     expect(kitQuickReference).toContain("includeClientPayload=true");
     expect(kitQuickReference).toContain("includeClientPayload: true");

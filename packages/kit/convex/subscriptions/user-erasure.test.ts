@@ -105,6 +105,15 @@ describe("subscription user erasure", () => {
         })),
         { _id: "subscriptions_other", projectId, userId: "other-user" },
       ],
+      purchases: [
+        ...Array.from({ length: 101 }, (_, index) => ({
+          _id: `purchases_${index}`,
+          projectId,
+          appUserId: userId,
+          store: index % 2 ? "amazon" : "horizon",
+        })),
+        { _id: "purchases_other", projectId, appUserId: "other-user" },
+      ],
       commerceEvents: [
         ...Array.from({ length: 101 }, (_, index) => ({
           _id: `commerceEvents_${index}`,
@@ -158,6 +167,15 @@ describe("subscription user erasure", () => {
     expect(
       db.tables.commerceEvents.filter((row) => row.userId === userId),
     ).toEqual([]);
+    expect(
+      db.tables.purchases.filter((row) => row.appUserId === userId),
+    ).toEqual([]);
+    expect(
+      db.tables.purchases
+        .slice(0, 101)
+        .every((row) => row.accountErased === true),
+    ).toBe(true);
+    expect(db.tables.purchases.at(-1)?.appUserId).toBe("other-user");
     expect(db.tables.subscriptions.at(-1)?.userId).toBe("other-user");
     expect(db.tables.commerceEvents.at(-1)?.userId).toBe("other-user");
     expect(db.tables.commerceEvents.map((row) => row._id)).not.toContain(

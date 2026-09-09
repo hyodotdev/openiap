@@ -1,6 +1,6 @@
 import StoreExampleTemplate, {
   type StoreExampleConfig,
-} from './StoreExampleTemplate';
+} from '../../../components/StoreExampleTemplate';
 import { IOS_CONFIG } from './ios';
 import { ANDROID_CONFIG } from './android';
 import { HORIZON_CONFIG } from './horizon';

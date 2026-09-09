@@ -1,5 +1,3 @@
-import { useEffect } from 'react';
-
 interface SEOProps {
   title?: string;
   description?: string;
@@ -8,6 +6,7 @@ interface SEOProps {
   type?: 'website' | 'article';
   image?: string;
   includeAppSchema?: boolean;
+  noIndex?: boolean;
 }
 
 const BASE_URL = 'https://openiap.dev';
@@ -24,75 +23,12 @@ function SEO({
   type = 'website',
   image,
   includeAppSchema = false,
+  noIndex = false,
 }: SEOProps) {
   const pageTitle = title ? `${title} | OpenIAP` : DEFAULT_TITLE;
   const pageDescription = description || DEFAULT_DESCRIPTION;
-  const canonicalUrl = `${BASE_URL}${path}`;
+  const canonicalUrl = `${BASE_URL}${path || '/'}`;
   const imageUrl = `${BASE_URL}${image || DEFAULT_IMAGE}`;
-
-  useEffect(() => {
-    const upsertMeta = (
-      attribute: 'name' | 'property',
-      key: string,
-      content: string
-    ): void => {
-      const alternateAttribute = attribute === 'name' ? 'property' : 'name';
-      let element = document.head.querySelector<HTMLMetaElement>(
-        `meta[${attribute}="${key}"], meta[${alternateAttribute}="${key}"]`
-      );
-
-      if (!element) {
-        element = document.createElement('meta');
-        document.head.appendChild(element);
-      }
-
-      element.removeAttribute(alternateAttribute);
-      element.setAttribute(attribute, key);
-      element.content = content;
-      element.dataset.openiapSeo = 'true';
-    };
-
-    const upsertCanonical = (): void => {
-      let element = document.head.querySelector<HTMLLinkElement>(
-        'link[rel="canonical"]'
-      );
-
-      if (!element) {
-        element = document.createElement('link');
-        element.rel = 'canonical';
-        document.head.appendChild(element);
-      }
-
-      element.href = canonicalUrl;
-      element.dataset.openiapSeo = 'true';
-    };
-
-    upsertMeta('name', 'title', pageTitle);
-    upsertMeta('name', 'description', pageDescription);
-    if (keywords) {
-      upsertMeta('name', 'keywords', keywords);
-    } else {
-      const staleKeywords = document.head.querySelector<HTMLMetaElement>(
-        'meta[name="keywords"], meta[property="keywords"]'
-      );
-
-      if (staleKeywords?.dataset.openiapSeo === 'true') {
-        staleKeywords.remove();
-      }
-    }
-    upsertMeta('property', 'og:type', type);
-    upsertMeta('property', 'og:url', canonicalUrl);
-    upsertMeta('property', 'og:title', pageTitle);
-    upsertMeta('property', 'og:description', pageDescription);
-    upsertMeta('property', 'og:image', imageUrl);
-    upsertMeta('property', 'og:site_name', 'OpenIAP');
-    upsertMeta('name', 'twitter:card', 'summary_large_image');
-    upsertMeta('name', 'twitter:url', canonicalUrl);
-    upsertMeta('name', 'twitter:title', pageTitle);
-    upsertMeta('name', 'twitter:description', pageDescription);
-    upsertMeta('name', 'twitter:image', imageUrl);
-    upsertCanonical();
-  }, [canonicalUrl, imageUrl, keywords, pageDescription, pageTitle, type]);
 
   // Schema.org structured data for SoftwareApplication
   const schemaOrg = {
@@ -118,6 +54,25 @@ function SEO({
   return (
     <>
       <title>{pageTitle}</title>
+      <meta name="title" content={pageTitle} />
+      <meta name="description" content={pageDescription} />
+      <meta
+        name="robots"
+        content={noIndex ? 'noindex, follow' : 'index, follow'}
+      />
+      {keywords && <meta name="keywords" content={keywords} />}
+      <link rel="canonical" href={canonicalUrl} />
+      <meta property="og:type" content={type} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:title" content={pageTitle} />
+      <meta property="og:description" content={pageDescription} />
+      <meta property="og:image" content={imageUrl} />
+      <meta property="og:site_name" content="OpenIAP" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:url" content={canonicalUrl} />
+      <meta name="twitter:title" content={pageTitle} />
+      <meta name="twitter:description" content={pageDescription} />
+      <meta name="twitter:image" content={imageUrl} />
       {includeAppSchema && (
         <script type="application/ld+json">{JSON.stringify(schemaOrg)}</script>
       )}

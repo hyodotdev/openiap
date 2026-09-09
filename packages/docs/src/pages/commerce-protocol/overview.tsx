@@ -1,29 +1,58 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useCallback, useEffect } from 'react';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from 'react-router-dom';
 import { ArrowRight, BookOpen, Play } from 'lucide-react';
 import SEO from '../../components/SEO';
 import CommerceEcosystem from '../../components/CommerceEcosystem';
 import CommerceProtocolDiagram from '../../components/CommerceProtocolDiagram';
 import CommerceBuildWalkthrough from '../../components/CommerceBuildWalkthrough';
-import { useScrollToHash } from '../../hooks/useScrollToHash';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import '../../styles/commerce-protocol.css';
 
 function CommerceProtocol(): React.JSX.Element {
-  useScrollToHash();
-  const { hash } = useLocation();
-  const [exampleStep, setExampleStep] = useState<number | null>(null);
+  const { hash, state } = useLocation();
+  const navigate = useNavigate();
+  const navigationType = useNavigationType();
+  const stepMatch = /^#build-step-([1-9]\d*)$/.exec(hash);
+  const requestedStep = stepMatch ? Number(stepMatch[1]) : null;
+  const exampleStep =
+    requestedStep !== null && Number.isSafeInteger(requestedStep)
+      ? requestedStep
+      : hash === '#build-walkthrough'
+        ? 1
+        : null;
+  const showExample = useCallback(
+    (step: number): void => {
+      navigate(`#build-step-${step}`);
+    },
+    [navigate]
+  );
+
   useEffect(() => {
-    if (hash === '#build-walkthrough') setExampleStep(1);
-  }, [hash]);
-  const showExample = (step: number): void => {
-    setExampleStep(step);
-    requestAnimationFrame(() =>
-      document
-        .getElementById('build-walkthrough')
-        ?.scrollIntoView({ block: 'start' })
-    );
-  };
+    if (
+      !hash ||
+      hash.startsWith('#architecture-') ||
+      state?.commerceKeepScroll ||
+      exampleStep !== null
+    )
+      return;
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(hash.slice(1));
+      target?.scrollIntoView({
+        block: 'start',
+        behavior:
+          navigationType === 'POP' ||
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'instant'
+            : 'smooth',
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash, state, exampleStep, navigationType]);
   return (
     <div className="doc-page commerce-protocol-page commerce-overview">
       <SEO
@@ -43,7 +72,8 @@ function CommerceProtocol(): React.JSX.Element {
           </h1>
           <p>
             A shared contract for paywalls, commerce services, and data
-            platforms. Bring your business to apps built with OpenIAP.
+            platforms. Understand how the parts connect, choose what your
+            product owns, and give AI the contract to implement it.
           </p>
           <div className="commerce-actions">
             <Link className="btn btn-primary" to="#architecture">
@@ -54,7 +84,7 @@ function CommerceProtocol(): React.JSX.Element {
               className="btn btn-secondary"
               onClick={() => showExample(1)}
             >
-              <Play size={15} aria-hidden="true" /> See AI build it
+              <Play size={15} aria-hidden="true" /> See it working
             </button>
           </div>
         </div>
@@ -66,14 +96,14 @@ function CommerceProtocol(): React.JSX.Element {
           </Link>
         </div>
       </header>
-      <CommerceEcosystem />
+      <CommerceProtocolDiagram onShowExample={showExample} />
       <details className="commerce-explore-section">
         <summary>
-          <span>Inside the commerce backend</span>
-          <small>Verification, ownership, access, and delivery</small>
+          <span>Explore the wider ecosystem</span>
+          <small>Paywalls, commerce services, and data platforms</small>
         </summary>
         <div className="commerce-explore-content">
-          <CommerceProtocolDiagram onShowExample={showExample} />
+          <CommerceEcosystem />
         </div>
       </details>
       <details
@@ -82,18 +112,23 @@ function CommerceProtocol(): React.JSX.Element {
         open={exampleStep !== null}
         onToggle={(event) => {
           const open = event.currentTarget.open;
-          setExampleStep((current) => (open ? (current ?? 1) : null));
+          if (open && exampleStep === null) showExample(1);
+          if (!open && exampleStep !== null)
+            navigate('#architecture', {
+              replace: true,
+              state: { commerceKeepScroll: true },
+            });
         }}
       >
         <summary>
-          <span>See how AI built it</span>
-          <small>Six source checkpoints · build, inspect, fix, recheck</small>
+          <span>See a subscription in action</span>
+          <small>Purchase, access, cancellation, and recovery</small>
         </summary>
         {exampleStep !== null && (
           <div className="commerce-explore-content">
             <CommerceBuildWalkthrough
               selected={exampleStep}
-              onSelect={setExampleStep}
+              onSelect={showExample}
             />
           </div>
         )}

@@ -100,7 +100,7 @@ function CommerceWhitepaper(): React.JSX.Element {
           <Link to="/commerce-protocol#build-walkthrough">
             recorded AI-built example
           </Link>{' '}
-          in six milestones, then use the{' '}
+          in seven milestones, then use the{' '}
           <Link to="/commerce-protocol/implementation">AI build brief</Link> in
           your own repository. Sections 5.6–5.7 connect business roles and the
           blueprint to the captured results and their limits. The{' '}

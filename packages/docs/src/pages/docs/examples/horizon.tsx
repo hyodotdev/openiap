@@ -1,6 +1,6 @@
 import StoreExampleTemplate, {
   type StoreExampleConfig,
-} from './StoreExampleTemplate';
+} from '../../../components/StoreExampleTemplate';
 
 const HORIZON_VIDEO_BASE = '/examples/horizon/videos';
 const HORIZON_POSTER = '/examples/horizon/home.webp';
@@ -16,7 +16,7 @@ export const HORIZON_CONFIG: StoreExampleConfig = {
     title: 'Horizon OS Example',
     description:
       'OpenIAP Meta Horizon Billing example walkthrough for Quest purchases, subscriptions, restore flows, and entitlement verification.',
-    path: '/docs/example/horizon',
+    path: '/docs/example',
     keywords:
       'OpenIAP Horizon example, Meta Horizon Billing example, Quest IAP video, Horizon entitlement verification',
   },

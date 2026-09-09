@@ -107,14 +107,17 @@ still return to the normal PR loop.
 
 From a clean local `main` equal to `origin/main`:
 
-1. Run `npm run deploy` and wait for successful production completion.
-2. Fetch the production release page and generated LLM documents with a cache
+1. Run `bun run audit:commerce-evidence`. If it reports drift, re-record the
+   IAPKit interop per `packages/kit/scripts/docs/commerce-interop.md` before
+   deploying; the guide page shows the recorded revision either way.
+2. Run `npm run deploy` and wait for successful production completion.
+3. Fetch the production release page and generated LLM documents with a cache
    buster. Confirm the new release title, API name, versions, and generated
    timestamp are present.
-3. If the OpenIAP Spec advanced, dispatch the docs release workflow with the
+4. If the OpenIAP Spec advanced, dispatch the docs release workflow with the
    current version and verify the resulting `docs-{spec}` GitHub Release points
    to the deployed commit.
-4. Recheck required CI for the final `main` head and report any still-pending
+5. Recheck required CI for the final `main` head and report any still-pending
    external listing or registry state separately.
 
 ## 6. Leave the shipped comment

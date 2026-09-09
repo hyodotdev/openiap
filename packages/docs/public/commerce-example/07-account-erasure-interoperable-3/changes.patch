@@ -1,0 +1,27 @@
+diff --git a/checkpoint.json b/checkpoint.json
+index e139d74..4453b9a 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-interoperable-2",
++  "id": "07-account-erasure-interoperable-3",
+   "title": "Delete the account",
+   "built": "Account erasure with shared receiver and retry coordination",
+   "result": "The account identity is removed; retries and restart cannot restore it.",
+-  "previous": "07-account-erasure-interoperable"
++  "previous": "07-account-erasure-interoperable-2"
+ }
+diff --git a/erasure.mjs b/erasure.mjs
+index 90164eb..fb977b1 100644
+--- a/erasure.mjs
++++ b/erasure.mjs
+@@ -1,6 +1,6 @@
+ import { createHmac, randomBytes, randomUUID } from "node:crypto";
+ 
+-// The random key prevents a database-only reader from guessing short user IDs.
++// Retain a stable retry marker without storing the user ID verbatim.
+ export function createErasureLedger(db) {
+   db.exec(`
+     PRAGMA secure_delete = ON;

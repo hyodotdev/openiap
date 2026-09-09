@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { chromium, request as playwrightRequest } from "@playwright/test";
+import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -35,6 +36,11 @@ const SITES = [
       "/docs/setup/store/horizon",
       "/docs/setup/store/onside",
       "/docs/updates/releases",
+      "/commerce-protocol",
+      "/commerce-protocol/getting-started",
+      "/commerce-protocol/implementation",
+      "/commerce-protocol/operations",
+      "/commerce-protocol/authentication",
     ],
     apiRoutes: ["/llms.txt", "/llms-full.txt"],
   },
@@ -627,6 +633,21 @@ async function checkSite(browser, request, site) {
   const failures = [];
   const summaries = [];
 
+  if (site.name === "docs") {
+    try {
+      const count = await checkDocsInitialHtml(request, site.baseUrl);
+      summaries.push(
+        `docs ${count} sitemap pages contain readable HTML and exact canonical URLs`,
+      );
+      await checkCommerceJourney(browser, site.baseUrl);
+      summaries.push(
+        "docs purchase steps, paired code references, and AI brief passed on desktop and mobile",
+      );
+    } catch (error) {
+      failures.push(error.message);
+    }
+  }
+
   for (const route of site.apiRoutes ?? []) {
     try {
       await checkHttpRoute(request, site, route, [200, 301, 302]);
@@ -714,7 +735,11 @@ async function main() {
   const allSummaries = [];
 
   try {
-    for (const site of SITES) {
+    const sites = process.env.WEB_E2E_SITE
+      ? SITES.filter((site) => site.name === process.env.WEB_E2E_SITE)
+      : SITES;
+    assert(sites.length > 0, "WEB_E2E_SITE must be docs or iapkit");
+    for (const site of sites) {
       const result = await checkSite(browser, request, site);
       allFailures.push(...result.failures);
       allSummaries.push(...result.summaries);
@@ -735,7 +760,157 @@ async function main() {
     return;
   }
 
-  console.log("web-e2e: docs and IAPKit passed");
+  console.log("web-e2e: selected sites passed");
+}
+
+export async function checkDocsInitialHtml(request, baseUrl) {
+  const sitemap = await request.get(`${baseUrl}/sitemap.xml`);
+  assert.equal(sitemap.status(), 200, "Sitemap must be served");
+  const urls = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+    (match) => match[1],
+  );
+  assert(urls.length > 0, "Sitemap has no canonical pages");
+  for (const name of [
+    "expo",
+    "react-native",
+    "flutter",
+    "godot",
+    "kmp",
+    "maui",
+  ]) {
+    assert(
+      urls.includes(`https://openiap.dev/docs/setup/${name}`),
+      `${name} setup missing from sitemap`,
+    );
+  }
+  for (const url of urls) {
+    const route = new URL(url).pathname;
+    const response = await request.get(new URL(route, baseUrl).href);
+    assert.equal(response.status(), 200, `${route}: HTTP status`);
+    const html = await response.text();
+    const head = html.match(/<head>[\s\S]*?<\/head>/)?.[0] ?? "";
+    assert.equal(
+      (head.match(/rel="canonical"/g) ?? []).length,
+      1,
+      `${route}: one canonical`,
+    );
+    assert(head.includes(`href="${url}"`), `${route}: incorrect canonical`);
+    assert(
+      /<title\b[^>]*>[^<]+<\/title>/.test(head),
+      `${route}: missing title`,
+    );
+    assert(
+      /name="description" content="[^"]+"/.test(head),
+      `${route}: missing description`,
+    );
+    assert(
+      /<h1\b[^>]*>[\s\S]*?<\/h1>/.test(html),
+      `${route}: empty client-only page`,
+    );
+    if (route === "/commerce-protocol/getting-started") {
+      assert(
+        html.includes("<noscript>"),
+        "Purchase steps need a readable fallback",
+      );
+      for (const topic of ["buy", "verify", "bind", "access", "events"]) {
+        assert(
+          html.includes(`data-topic="${topic}"`),
+          `${topic}: missing initial-HTML example comparison`,
+        );
+      }
+    }
+  }
+  return urls.length;
+}
+
+export async function checkCommerceJourney(browser, baseUrl) {
+  for (const width of [1280, 390]) {
+    const context = await browser.newContext({
+      viewport: { width, height: 900 },
+      reducedMotion: "reduce",
+      permissions: ["clipboard-read", "clipboard-write"],
+    });
+    try {
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page.goto(`${baseUrl}/commerce-protocol/getting-started`);
+      for (const [index, topic] of [
+        "buy",
+        "verify",
+        "bind",
+        "access",
+        "events",
+        "erase",
+      ].entries()) {
+        const pair = page.locator(
+          `.commerce-journey-content [data-topic="${topic}"]`,
+        );
+        await pair.waitFor();
+        assert.equal(
+          await pair.locator(".commerce-implementation-source").count(),
+          2,
+        );
+        const links = await pair
+          .locator(".commerce-implementation-source")
+          .evaluateAll((anchors) => anchors.map((a) => a.href));
+        assert(links.some((url) => url.includes("/commerce-source/example/")));
+        assert(links.some((url) => url.includes("/commerce-source/kit/")));
+        await pair.locator("summary").click();
+        assert.equal(await pair.locator("details a:visible").count(), 2);
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth,
+          ),
+          false,
+        );
+        for (const url of links) {
+          const source = await page.request.get(url);
+          assert.equal(source.status(), 200);
+          assert((await source.text()).includes("Source snapshot"));
+        }
+        if (index < 5) {
+          await page.getByRole("link", { name: /^Next:/ }).click();
+          await page.waitForFunction(() =>
+            document.activeElement?.matches(".commerce-journey h2"),
+          );
+        }
+      }
+      await page.reload();
+      await page
+        .locator('.commerce-journey-content [data-topic="erase"]')
+        .waitFor();
+      await page.getByRole("link", { name: "Build this for your app" }).click();
+      await page.getByText("Open the brief to copy", { exact: true }).click();
+      await page.getByRole("button", { name: "Copy", exact: true }).click();
+      const brief = await page.evaluate(() => navigator.clipboard.readText());
+      assert(
+        brief.includes(
+          "https://github.com/hyodotdev/openiap-commerce-protocol-example",
+        ),
+      );
+      assert(
+        brief.includes(
+          "https://github.com/hyodotdev/openiap/tree/main/packages/kit",
+        ),
+      );
+      await page.waitForFunction(
+        () =>
+          document.head
+            .querySelector('link[rel="canonical"]')
+            ?.getAttribute("href") ===
+          "https://openiap.dev/commerce-protocol/implementation",
+      );
+      assert.equal(await page.locator('head link[rel="canonical"]').count(), 1);
+      assert.equal(
+        await page.locator('head meta[name="description"]').count(),
+        1,
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  }
 }
 
 const isMain =

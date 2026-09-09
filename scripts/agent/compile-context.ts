@@ -234,6 +234,36 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
   const versions = readInstallationVersions();
   const generatedAt = new Date().toISOString();
+  const implementationEntryPoints = `## Choose an SDK and verify the implementation
+
+Start with the app's existing framework. Use https://openiap.dev/languages for
+the supported SDKs, install commands, platforms, and source repositories, then
+follow that framework's guide at https://openiap.dev/docs/setup. Use its actual
+types and lifecycle patterns; do not copy another language's API spelling.
+
+The mobile SDK handles the store purchase. The Commerce Protocol package
+provides a server-side contract and conformance artifacts, not a mobile SDK or
+a hosted backend. IAPKit is one backend implementation, not a requirement for
+using OpenIAP SDKs.
+
+Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
+Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays
+with the six-step flow and its build brief. For Quest, open that page and
+select Meta Horizon.
+Each step compares the small, runnable SQLite example with IAPKit's handlers
+and checks. Read the code for the responsibility being implemented:
+- Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
+- IAPKit service: https://github.com/hyodotdev/openiap/tree/main/packages/kit
+- IAPKit integration documentation: https://kit.openiap.dev/docs
+- Build a backend: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
+- Connect a product role: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+
+Explain what the person gets and what they must decide before showing code.
+Implement in the target project, install and run from clean source, and verify
+the promised behavior. Report commands, actual results, and remaining work.
+Separate fixture checks, real store sandbox tests, and profile conformance;
+do not claim one from another or hide failures by reducing the declared scope.
+`;
   const deprecationMigrationReference = `## Deprecations and major-version migration
 
 - OpenIAP 3.0, \`react-native-iap\` 16.0.0, \`expo-iap\` 5.0.0,
@@ -269,6 +299,8 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
 > Generated: ${generatedAt}
+
+${implementationEntryPoints}
 
 ## Table of Contents
 1. Installation
@@ -663,9 +695,9 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Commerce Protocol: https://openiap.dev/commerce-protocol
 - Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
 - Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
-- Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
-- Commerce Protocol Build with AI: https://openiap.dev/commerce-protocol/implementation
-- Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
+- Commerce Protocol Integration Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
+- Commerce Protocol AI Build Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
@@ -689,6 +721,8 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
 > Generated: ${generatedAt}
+
+${implementationEntryPoints}
 
 ## Installation
 
@@ -953,21 +987,35 @@ identifier, or central runtime.
 - Docs: https://openiap.dev/commerce-protocol
 - Use a provider: https://openiap.dev/commerce-protocol/getting-started
 - Build your part: https://openiap.dev/commerce-protocol/ecosystem
-- Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
-- Build with AI: https://openiap.dev/commerce-protocol/implementation
+- Role-specific AI integration brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Build and review: https://openiap.dev/commerce-protocol/implementation
 - Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
-- AI build brief: https://openiap.dev/commerce-example/build-brief.md
+- AI build brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
 - Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough
 - Whitepaper and PDF: https://openiap.dev/commerce-protocol/whitepaper
 - Webhook contract: https://openiap.dev/commerce-protocol/webhooks
 - Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
 
-The recorded example follows six build milestones with reviewed source revisions, AI tasks,
+The recorded example follows seven build milestones with reviewed source revisions, AI tasks,
 code changes, actual captures, and a correction/recheck log. It uses a fictional
 store and controlled clock with real local HTTP, SQLite and signed delivery. It is not a production provider or a
 full profile conformance claim. Its execution report is available at
 https://openiap.dev/commerce-example/run.json.
+The IAPKit replacement check keeps the same app backend and receiver while
+switching between the example and IAPKit for Apple, Google, Amazon and Horizon.
+Apple/Google subscription checks cover cancellation, expiry and signed events.
+Amazon/Horizon checks cover store-user binding, current ownership rechecks,
+rejection, outage and recovery; read entitlements.productIds rather than
+inventing subscription records or lifecycle events. All four cover account
+erasure. Store identity must be authenticated by the app backend. Consumable
+quantities need a separate durable fulfillment ledger.
+Actual IAPKit handlers and local Convex storage run with fixture store
+responses; Apple cryptographic verification and Google OIDC are substituted.
+This does not prove device checkout or real store authentication. Read the
+scope, command and source hashes at
+https://openiap.dev/commerce-protocol/ecosystem#composition-proof and
+https://openiap.dev/commerce-composition/iapkit-run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.

@@ -31,9 +31,9 @@ function SetupIndex() {
       />
       <h1>Framework Setup</h1>
       <p>
-        Pick the framework you ship in. Every supported framework wraps the same
-        OpenIAP specification, so the API surface, type names, and event
-        patterns are consistent across stacks — only the install steps differ.
+        Pick the framework you ship in. The SDKs share the OpenIAP purchase
+        contract, with language-specific types, callbacks, and lifecycle
+        patterns. Follow your framework's guide for working code.
       </p>
 
       <section>

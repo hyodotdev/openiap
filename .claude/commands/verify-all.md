@@ -40,6 +40,10 @@ set -euo pipefail
 # Docs formatting, typecheck, and production bundle
 (cd packages/docs && bun run format:check && bun run build)
 
+# Advisory: recorded IAPKit interop evidence versus the current sources
+bun test ./scripts/audit-commerce-evidence.test.mjs
+bun run audit:commerce-evidence || echo "commerce evidence differs from current sources; re-record before deploying docs"
+
 # Swift build and unit tests (packages/apple)
 (cd packages/apple && swift test)
 

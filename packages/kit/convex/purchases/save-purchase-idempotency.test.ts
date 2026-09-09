@@ -55,9 +55,20 @@ class MemQuery {
     return new MemQuery(filtered);
   }
 
-  filter(_cb: unknown): MemQuery {
-    void _cb;
-    return this;
+  filter(
+    build: (query: {
+      field: (name: string) => string;
+      eq: (field: string, value: unknown) => (row: Row) => boolean;
+    }) => (row: Row) => boolean,
+  ): MemQuery {
+    return new MemQuery(
+      this.rows.filter(
+        build({
+          field: (name) => name,
+          eq: (field, value) => (row) => row[field] === value,
+        }),
+      ),
+    );
   }
 
   async first(): Promise<Row | null> {
@@ -257,6 +268,22 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     ctx = makeCtx(db);
   });
 
+  it("does not overwrite another store with the same opaque remote identity", async () => {
+    await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: "same-id" }) });
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: "same-id",
+        store: "horizon",
+        requestData: { store: "horizon", userId: "viewer", sku: "premium" },
+        remoteResponse: JSON.stringify({ success: true, sku: "premium" }),
+      }),
+    });
+    const rows = await db.query("purchases").collect();
+    expect(rows).toHaveLength(2);
+    expect(rows.map((row) => row.store).sort()).toEqual(["google", "horizon"]);
+  });
+
   it("same (projectId, remoteId) twice produces exactly one purchase row", async () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
@@ -287,12 +314,12 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({
       ctx,
       ...buildArgs({
-        store: "horizon",
+        store: "amazon",
         remoteId: "legacy-shared-id",
         requestData: {
-          store: "horizon",
-          userId: "horizon-user",
-          sku: "premium_monthly",
+          store: "amazon",
+          userId: "amazon-user",
+          receiptId: "legacy-shared-id",
         },
         remoteResponse: JSON.stringify({ sku: "premium_monthly" }),
         state: HarmonizedPurchaseState.INAUTHENTIC,
@@ -303,7 +330,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     const rows = await db.query("purchases").collect();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      store: "horizon",
+      store: "amazon",
       isValid: false,
       statsCounted: true,
       storeStatsCounted: true,
@@ -312,8 +339,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       total: 1,
       apple: 0,
       google: 0,
-      horizon: 1,
-      amazon: 0,
+      horizon: 0,
+      amazon: 1,
       googleOrders: 0,
       valid: 0,
       invalid: 1,
@@ -809,5 +836,93 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     expect(stats.total).toBe(1);
     expect(stats.valid).toBe(1);
     expect(stats.invalid).toBe(0);
+  });
+});
+
+describe("savePurchaseInternal — persistIfChanged", () => {
+  it("leaves an unchanged verdict untouched and still writes a changed one", async () => {
+    const db = new MemDb();
+    db.seedOrg(ORG_ID);
+    db.seedProject(PROJECT_ID, ORG_ID);
+    const ctx = makeCtx(db);
+    const horizon = buildArgs({
+      store: "horizon",
+      remoteId: "viewer:premium",
+      requestData: { store: "horizon", userId: "viewer", sku: "premium" },
+      remoteResponse: JSON.stringify({ success: true, sku: "premium" }),
+    });
+    await savePurchaseInternal({ ctx, ...horizon });
+    await savePurchaseInternal({ ctx, ...horizon, persistIfChanged: true });
+    // A moving store body with the same verdict is still a read.
+    await savePurchaseInternal({
+      ctx,
+      ...horizon,
+      persistIfChanged: true,
+      remoteResponse: JSON.stringify({
+        success: true,
+        sku: "premium",
+        grantTimeMs: 1,
+      }),
+    });
+    let [row] = await db.query("purchases").collect();
+    expect(db.purchaseCount()).toBe(1);
+    expect(row.updatedAt).toBeUndefined();
+
+    await savePurchaseInternal({
+      ctx,
+      ...horizon,
+      persistIfChanged: true,
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      isValid: false,
+      remoteResponse: JSON.stringify({ success: false, sku: "premium" }),
+    });
+    [row] = await db.query("purchases").collect();
+    expect(row).toMatchObject({
+      state: HarmonizedPurchaseState.INAUTHENTIC,
+      isValid: false,
+    });
+    expect(row.updatedAt).toEqual(expect.any(Number));
+  });
+});
+
+describe("savePurchaseInternal — Amazon recheck skip", () => {
+  it("leaves the reconcile deadline untouched when only the store body moved", async () => {
+    const db = new MemDb();
+    db.seedOrg(ORG_ID);
+    db.seedProject(PROJECT_ID, ORG_ID);
+    const ctx = makeCtx(db);
+    const body = {
+      productId: "premium",
+      productType: "ENTITLED",
+      receiptId: "receipt",
+      purchaseDate: 1,
+      cancelDate: null,
+    };
+    const amazon = buildArgs({
+      store: "amazon",
+      remoteId: "sandbox:store-alice:receipt",
+      requestData: {
+        store: "amazon",
+        userId: "store-alice",
+        receiptId: "receipt",
+        sandbox: true,
+      },
+      remoteResponse: JSON.stringify(body),
+      environment: "Sandbox",
+    });
+    await savePurchaseInternal({ ctx, ...amazon });
+    const [before] = await db.query("purchases").collect();
+    expect(before.nextAmazonReconcileAt).toEqual(expect.any(Number));
+
+    await savePurchaseInternal({
+      ctx,
+      ...amazon,
+      persistIfChanged: true,
+      remoteResponse: JSON.stringify({ ...body, renewalDate: 2 }),
+    });
+    const [after] = await db.query("purchases").collect();
+    expect(after.nextAmazonReconcileAt).toBe(before.nextAmazonReconcileAt);
+    expect(after.remoteResponse).toBe(JSON.stringify(body));
+    expect(after.updatedAt).toBeUndefined();
   });
 });

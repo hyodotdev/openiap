@@ -1,0 +1,100 @@
+diff --git a/checkpoint.json b/checkpoint.json
+index c2753c1..9344586 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-interoperable-5",
++  "id": "07-account-erasure-interoperable-6",
+   "title": "Delete the account",
+   "built": "Apple, Google, Amazon and Horizon evidence, ownership checks and account erasure",
+   "result": "The same account flow covers four store evidence shapes; Amazon and Horizon access is rechecked.",
+-  "previous": "07-account-erasure-interoperable-4"
++  "previous": "07-account-erasure-interoperable-5"
+ }
+diff --git a/provider.mjs b/provider.mjs
+index 3a50693..3e23093 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -212,12 +212,13 @@ export function createProvider(path, now, fixture = FIXTURE) {
+           fixture.startsAt,
+         );
+       }
++      const expired = !fixture.pointInTime && now() >= fixture.expiresAt;
+       return {
+         store: fixture.store,
+-        isValid: verdict.accepted && now() < fixture.expiresAt,
++        isValid: verdict.accepted && !expired,
+         state: !verdict.accepted
+           ? "INAUTHENTIC"
+-          : now() >= fixture.expiresAt
++          : expired
+             ? "EXPIRED"
+             : "ENTITLED",
+         ...(verdict.accepted ? { productId: fixture.productId } : {}),
+diff --git a/verify-stores.mjs b/verify-stores.mjs
+index 30d87ff..01bc808 100644
+--- a/verify-stores.mjs
++++ b/verify-stores.mjs
+@@ -7,6 +7,7 @@ export async function verifyStores() {
+   const checks = [];
+   for (const store of ["apple", "google", "amazon", "horizon"]) {
+     let current = true;
++    let time = Date.now();
+     const input = toVerifyPurchaseInput(
+       { store, purchaseToken: "fictional-proof", productId: "premium.monthly" },
+       { storeUserId: "fixture-store-user", amazonSandbox: true },
+@@ -22,12 +23,12 @@ export async function verifyStores() {
+       evidence,
+       userId: "alice",
+       productId: "premium.monthly",
+-      startsAt: Date.now(),
+-      expiresAt: Date.now() + 60000,
++      startsAt: time,
++      expiresAt: time + 60000,
+       pointInTime: ["amazon", "horizon"].includes(store),
+       currentVerdict: () => current,
+     };
+-    const provider = createProvider(":memory:", Date.now, fixture);
++    const provider = createProvider(":memory:", () => time, fixture);
+     const check = (label, actual, expected) => {
+       assert.deepEqual(actual, expected, `${store}: ${label}`);
+       checks.push(`${store}: ${label}`);
+@@ -130,6 +131,36 @@ export async function verifyStores() {
+         (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
+         false,
+       );
++      for (const [label, offset] of [
++        ["before", -1],
++        ["at", 0],
++        ["after", 1],
++      ]) {
++        time = fixture.expiresAt + offset;
++        const verdict = (await call("verifyPurchase", input)).result;
++        check(
++          `verification ${label} the fixture deadline respects the store's access model`,
++          [verdict.isValid, verdict.state],
++          fixture.pointInTime || offset < 0
++            ? [true, "ENTITLED"]
++            : [false, "EXPIRED"],
++        );
++      }
++      if (fixture.pointInTime) {
++        current = false;
++        const rejected = (await call("verifyPurchase", input)).result;
++        check(
++          "a negative ownership verdict remains rejected after the fixture deadline",
++          [rejected.isValid, rejected.state],
++          [false, "INAUTHENTIC"],
++        );
++        current = "outage";
++        check(
++          "an ownership verification outage remains an error after the fixture deadline",
++          (await call("verifyPurchase", input)).status,
++          502,
++        );
++      }
+     } finally {
+       provider.close();
+     }

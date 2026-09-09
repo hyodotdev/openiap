@@ -43,6 +43,8 @@ export function protocolCodeForConvexError(code: string): string | null {
       return "INVALID_REQUEST";
     case "RATE_LIMITED":
       return "RATE_LIMITED";
+    case "CONFLICT":
+      return "CONFLICT";
     default:
       return null;
   }

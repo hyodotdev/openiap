@@ -1,355 +1,147 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
-import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
-import TLDRBox from '../../../components/TLDRBox';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
-function AIAssistants() {
+const REFERENCES = [
+  {
+    id: 'quick-reference',
+    name: 'OpenIAP quick reference',
+    url: 'https://openiap.dev/llms.txt',
+    description:
+      'SDK installation, purchase APIs, types, and links to the implementation guides.',
+  },
+  {
+    id: 'full-reference',
+    name: 'OpenIAP full reference',
+    url: 'https://openiap.dev/llms-full.txt',
+    description:
+      'Detailed API behavior and the normative Commerce Protocol specification.',
+  },
+  {
+    id: 'iapkit-reference',
+    name: 'IAPKit reference',
+    url: 'https://kit.openiap.dev/llms.txt',
+    description:
+      'Hosted API configuration and product-specific behavior when you choose IAPKit.',
+  },
+] as const;
+
+export default function AIAssistants() {
   useScrollToHash();
 
   return (
     <div className="doc-page">
       <SEO
-        title="AI Assistants"
-        description="Use the OpenIAP client and Commerce Protocol references with AI coding assistants, while keeping IAPKit product context separate."
+        title="Build In-App Purchases with AI"
+        description="Choose the OpenIAP SDK for your app, give your coding assistant the matching references, and verify purchases, restore, and access before shipping."
         path="/docs/guides/ai-assistants"
-        keywords="OpenIAP AI reference, Commerce Protocol AI context, Cursor, GitHub Copilot, Claude, ChatGPT, LLM documentation"
       />
-      <h1>AI Assistants</h1>
+      <h1>Build in-app purchases with AI</h1>
       <p>
-        OpenIAP provides AI-optimized references for the client SDK contract and
-        the vendor-neutral Commerce Protocol.
+        You choose what to sell and who should get access. Your coding assistant
+        installs the SDK, connects the purchase flow, and runs the checks. Start
+        with your app, then inspect the result together.
       </p>
 
-      <TLDRBox>
-        <ul>
-          <li>
-            <strong>Quick Reference</strong>:{' '}
-            <a
-              href="https://openiap.dev/llms.txt"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              llms.txt
-            </a>{' '}
-            (~300 lines)
-          </li>
-          <li>
-            <strong>Full Reference</strong>:{' '}
-            <a
-              href="https://openiap.dev/llms-full.txt"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              llms-full.txt
-            </a>{' '}
-            (~3,000 lines)
-          </li>
-        </ul>
-      </TLDRBox>
-
-      <Callout kind="note" title="Keep the product context separate">
-        Use the OpenIAP files for SDK APIs, shared types, purchase lifecycle,
-        and the Commerce Protocol. For IAPKit hosted APIs, dashboard setup,
-        compatibility, operations, or MCP, load{' '}
-        <a
-          href="https://kit.openiap.dev/llms.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          kit.openiap.dev/llms.txt
-        </a>{' '}
-        or the{' '}
-        <a
-          href="https://kit.openiap.dev/docs/ai-assistants"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          IAPKit AI guide
-        </a>
-        . IAPKit is an implementation of the protocol, not part of its normative
-        definition.
-      </Callout>
-
       <section>
-        <AnchorLink id="ai-optimized-documentation" level="h2">
-          AI-Optimized Documentation
+        <AnchorLink id="choose-sdk" level="h2">
+          1. Choose the SDK for your app
         </AnchorLink>
-        <p>We provide two formats optimized for AI consumption:</p>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1rem',
-            marginTop: '1rem',
-          }}
-        >
-          <div
-            style={{
-              padding: '1.5rem',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <h4 style={{ margin: '0 0 0.5rem 0' }}>
-              <a
-                href="https://openiap.dev/llms.txt"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                llms.txt
-              </a>
-            </h4>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
-              <strong>Concise API overview (~300 lines)</strong>
-            </p>
-            <ul
-              style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}
-            >
-              <li>Installation basics</li>
-              <li>API signatures</li>
-              <li>Core types</li>
-              <li>Common patterns</li>
-              <li>Commerce Protocol overview</li>
-            </ul>
-          </div>
-          <div
-            style={{
-              padding: '1.5rem',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <h4 style={{ margin: '0 0 0.5rem 0' }}>
-              <a
-                href="https://openiap.dev/llms-full.txt"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                llms-full.txt
-              </a>
-            </h4>
-            <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
-              <strong>
-                Complete API and protocol reference (~3,000 lines)
-              </strong>
-            </p>
-            <ul
-              style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}
-            >
-              <li>Full configuration options</li>
-              <li>Complete API documentation</li>
-              <li>All type definitions</li>
-              <li>Platform-specific APIs</li>
-              <li>Error codes & troubleshooting</li>
-              <li>Normative Commerce Protocol specification</li>
-            </ul>
-          </div>
-        </div>
+        <p>
+          Open the <Link to="/languages">SDK list</Link> and follow your
+          framework’s <Link to="/docs/setup">setup guide</Link>. Give the AI
+          that guide and access to your project. It should use the existing
+          framework, package manager, and login system.
+        </p>
+        <p>
+          Decide which stores you support, which products are subscriptions or
+          one-time purchases, and what each product unlocks. The AI should
+          explain any missing decision before building around an assumption.
+        </p>
       </section>
 
       <section>
         <AnchorLink id="integration" level="h2">
-          Integration with AI Assistants
-        </AnchorLink>
-
-        <AnchorLink id="cursor" level="h3">
-          Cursor
-        </AnchorLink>
-        <p>Add OpenIAP documentation as a custom doc source:</p>
-        <ol>
-          <li>
-            Open <strong>Settings</strong> → <strong>Features</strong> →{' '}
-            <strong>Docs</strong>
-          </li>
-          <li>
-            Click <strong>Add new doc</strong>
-          </li>
-          <li>
-            Enter URL:{' '}
-            <a
-              href="https://openiap.dev/llms.txt"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <code>https://openiap.dev/llms.txt</code>
-            </a>
-          </li>
-          <li>
-            Name it <strong>OpenIAP</strong>
-          </li>
-        </ol>
-        <p>
-          Then use <code>@OpenIAP</code> in your prompts to reference the
-          documentation.
-        </p>
-
-        <AnchorLink id="github-copilot" level="h3">
-          GitHub Copilot
-        </AnchorLink>
-        <p>Reference the documentation URL directly in your chat prompts:</p>
-        <CodeBlock language="typescript">{`// In Copilot Chat:
-// "Using https://openiap.dev/llms.txt as reference,
-// help me implement subscription purchase flow"`}</CodeBlock>
-
-        <AnchorLink id="claude-chatgpt" level="h3">
-          Claude / ChatGPT
-        </AnchorLink>
-        <p>Two approaches work well:</p>
-        <ol>
-          <li>
-            <strong>URL Reference</strong>: Provide the documentation URL and
-            ask the AI to fetch it
-          </li>
-          <li>
-            <strong>Direct Paste</strong>: Copy the content from{' '}
-            <a
-              href="https://openiap.dev/llms.txt"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              llms.txt
-            </a>{' '}
-            and paste it directly into your conversation
-          </li>
-        </ol>
-
-        <AnchorLink id="claude-code" level="h3">
-          Repository-aware CLI assistants
+          2. Connect purchase to access
         </AnchorLink>
         <p>
-          Keep shared instructions in your project's <code>AGENTS.md</code>.
-          Codex and Grok read that file directly. Claude Code and Gemini use{' '}
-          <code>CLAUDE.md</code> and <code>GEMINI.md</code> by default, so point
-          those names at the same file instead of copying its contents:
+          Follow{' '}
+          <Link to="/commerce-protocol/getting-started">
+            one purchase from payment to access
+          </Link>
+          . Each step compares the runnable example with IAPKit and links to the
+          corresponding code and checks. Your app owns login and fulfillment;
+          the commerce backend verifies evidence and keeps purchase and access
+          records for the capabilities it supports.
         </p>
-        <CodeBlock language="text">{`# AGENTS.md
-
-## IAP Reference
-For in-app purchase implementation, reference: https://openiap.dev/llms.txt`}</CodeBlock>
-        <CodeBlock language="bash">{`# macOS and Linux
-ln -s AGENTS.md CLAUDE.md
-ln -s AGENTS.md GEMINI.md`}</CodeBlock>
+        <p>
+          For an existing product, give the AI the{' '}
+          <a href="https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md">
+            integration brief
+          </a>
+          . To implement a backend, use the{' '}
+          <Link to="/commerce-protocol/implementation">
+            backend build guide
+          </Link>
+          . IAPKit is an available backend; OpenIAP SDKs do not require an
+          IAPKit account.
+        </p>
       </section>
 
       <section>
-        <AnchorLink id="documentation-contents" level="h2">
-          Documentation Contents
+        <AnchorLink id="acceptance" level="h2">
+          3. Check the result before shipping
         </AnchorLink>
-
-        <AnchorLink id="quick-reference" level="h3">
-          Quick Reference (llms.txt)
-        </AnchorLink>
+        <p>
+          Ask the AI to install and run from clean source, show the purchase
+          flow, and provide the commands and actual test results. Then try these
+          customer actions in your chosen store’s sandbox:
+        </p>
         <ul>
-          <li>Installation instructions for all platforms</li>
-          <li>Core API signatures and usage</li>
-          <li>Essential types (Product, Purchase, Subscription)</li>
-          <li>Common implementation patterns</li>
-          <li>Error handling basics</li>
-          <li>Commerce Protocol boundary and key guarantees</li>
+          <li>Buy a product and receive the intended access.</li>
+          <li>
+            Cancel or leave a purchase pending; neither should create new
+            access.
+          </li>
+          <li>
+            Restore and repeat a purchase callback without granting the same
+            benefit twice.
+          </li>
+          <li>
+            For subscriptions, cancel renewal and retain access until the paid
+            period expires.
+          </li>
+          <li>
+            Sign in as another user and confirm the ownership policy is
+            enforced.
+          </li>
         </ul>
-
-        <AnchorLink id="full-reference" level="h3">
-          Full Reference (llms-full.txt)
-        </AnchorLink>
-        <ul>
-          <li>Complete configuration options</li>
-          <li>All API methods with full documentation</li>
-          <li>Complete type definitions</li>
-          <li>Platform-specific APIs (iOS and Android)</li>
-          <li>All error codes and handling</li>
-          <li>Implementation patterns and best practices</li>
-          <li>Troubleshooting guide</li>
-          <li>Commerce Protocol schemas, webhooks, and conformance rules</li>
-        </ul>
+        <p>
+          Use the <Link to="/docs/guides/testing">testing guide</Link> for store
+          setup. The local Commerce Protocol example uses fictional purchases;
+          its passing checks do not replace a device and store sandbox run.
+        </p>
       </section>
 
       <section>
-        <AnchorLink id="example-prompts" level="h2">
-          Example Prompts
+        <AnchorLink id="ai-optimized-documentation" level="h2">
+          References for your coding assistant
         </AnchorLink>
-        <p>Here are some effective prompts to use with AI assistants:</p>
-
-        <h4>Basic Setup</h4>
-        <CodeBlock language="typescript">{`"Using OpenIAP documentation, show me how to initialize
-the IAP connection in a React Native app"`}</CodeBlock>
-
-        <h4>Subscriptions</h4>
-        <CodeBlock language="typescript">{`"How do I implement subscription purchase with OpenIAP?
-Include handling for both iOS and Android."`}</CodeBlock>
-
-        <h4>Error Handling</h4>
-        <CodeBlock language="typescript">{`"What errors can occur during purchase and how should
-I handle them with OpenIAP?"`}</CodeBlock>
-
-        <h4>Platform-Specific</h4>
-        <CodeBlock language="typescript">{`"Show me how to use showManageSubscriptionsIOS
-to open subscription management on iOS"`}</CodeBlock>
-
-        <h4>Purchase Restoration</h4>
-        <CodeBlock language="typescript">{`"How do I restore previous purchases using
-getAvailablePurchases in OpenIAP?"`}</CodeBlock>
-
-        <h4>Server-side Commerce Protocol</h4>
-        <CodeBlock language="typescript">{`"Using the OpenIAP Commerce Protocol, design an idempotent webhook
-consumer that verifies exact request bytes and handles unordered retries."`}</CodeBlock>
-      </section>
-
-      <section>
-        <AnchorLink id="best-practices" level="h2">
-          Best Practices
-        </AnchorLink>
-        <ul>
-          <li>
-            <strong>Be specific about OpenIAP</strong>: Mention "OpenIAP" or
-            "expo-iap" / "react-native-iap" in your prompts to get
-            library-specific answers
-          </li>
-          <li>
-            <strong>Reference the documentation URL</strong>: Include the
-            llms.txt URL for accurate, up-to-date information
-          </li>
-          <li>
-            <strong>Specify your platform</strong>: Mention iOS, Android, or
-            both to get platform-appropriate code
-          </li>
-          <li>
-            <strong>Specify your framework</strong>: Mention React Native, Expo,
-            Flutter, Swift, Kotlin, .NET MAUI/C#, or Godot for
-            framework-specific examples
-          </li>
-          <li>
-            <strong>Request code examples</strong>: Ask for working code
-            snippets with proper error handling
-          </li>
+        <p>
+          Ask your assistant to read the relevant links. If it cannot fetch
+          them, provide the contents directly. A URL in a prompt does not prove
+          that its contents were loaded.
+        </p>
+        <ul id="documentation-contents">
+          {REFERENCES.map((reference) => (
+            <li key={reference.id} id={reference.id}>
+              <a href={reference.url}>{reference.name}</a> —{' '}
+              {reference.description}
+            </li>
+          ))}
         </ul>
       </section>
-
-      <Callout kind="tip">
-        For complex implementations, start with{' '}
-        <a
-          href="https://openiap.dev/llms.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          llms.txt
-        </a>{' '}
-        for quick answers, then reference{' '}
-        <a
-          href="https://openiap.dev/llms-full.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          llms-full.txt
-        </a>{' '}
-        when you need detailed type information or platform-specific APIs.
-      </Callout>
     </div>
   );
 }
-
-export default AIAssistants;

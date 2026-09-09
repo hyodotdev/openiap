@@ -55,6 +55,57 @@ from. `commerceEvents.entitlementActive` denormalizes that answer onto the
 event, and the delivered body carries it as `subscription.active`, so a consumer
 can act without joining back.
 
+## Account access for Amazon and Horizon
+
+Commerce Protocol `bindPurchase` connects a verified Amazon receipt or Horizon
+store-user/SKU pair to one app account in `purchases.appUserId`. The backend
+calling it must establish that the store account belongs to its signed-in user.
+Bindings cannot move between app accounts through this operation. Only evidence
+currently in state `ENTITLED` binds. Amazon consumables verify as
+`READY_TO_CONSUME` and answer `bound: false`, because the application’s own
+ledger fulfills them once; Horizon exposes no consumable distinction. An app
+account holds at most 20 bound purchases per project. The 21st binding answers
+`bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
+the refusal; a new binding can never push an account past the read bound. Before
+refusing, IAPKit releases the caller's own bound purchases the store no longer
+honours, so refunded and revoked receipts cannot hold the cap for good. A row
+keeps its binding until the cap is actually contended, so the entitlements read
+is unchanged until then; a released row needs a fresh `bindPurchase` before it
+is read again.
+
+The read fails closed rather than answering partially, so a store it cannot
+reach fails the whole operation. Disabling a store the project already sells
+through has the same effect: the rows it granted stay bound and valid, and
+omitting them would be a partial answer. Re-enabling the store restores the
+read. Nothing else releases those rows — the recheck throws before it can mark
+them invalid, so the bind cap never reclaims them, and only `eraseUser` clears
+the binding.
+
+`entitlements` rechecks these linked purchases with RVS or Meta Graph before
+returning `productIds`. Rechecks draw on their own per-project bucket (300
+tokens refilling at 5 per second, one token per bound purchase; a bucket holding
+fewer tokens than the read costs answers `RATE_LIMITED` with a retry hint), so
+access reads cannot starve receipt verification, and a recheck whose verdict is
+unchanged writes nothing back. The read rereads ownership after the network
+calls; erasure or an upstream failure cannot turn the last saved verdict into
+fresh access. These are ownership checks, so they add no synthetic subscription
+rows, renewal/expiry dates, or lifecycle events. `subscriptionStatus` continues
+to report Apple/Google subscription records; use `entitlements` to authorize
+products.
+
+Account erasure unlinks these purchases from the erased app user id and refuses
+that id while its erasure job is retained (seven days), so the erased user’s own
+verification or binding retries cannot relink it in that window. The evidence itself is
+not tombstoned: a later `bindPurchase` from another app account, such as the
+same person’s new account, creates a new association exactly like a first
+binding. Apple and Google subscription records behave the same way
+(`convex/subscriptions/internal.ts`): erasure unlinks the owner, and a later
+bind or operator rebind associates the record again and clears the marker. When
+a token rotation merges two records, a live binding on either side is a later
+association than the erasure, so it survives and the marker does not carry. The
+store-coverage run records the Amazon and Horizon rebind.
+Consumable quantity and durable fulfillment remain the application’s ledger.
+
 ## Event vocabulary
 
 The event types are the lifecycle transitions the state machine already

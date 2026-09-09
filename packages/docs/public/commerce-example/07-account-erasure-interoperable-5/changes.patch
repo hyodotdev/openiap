@@ -1,0 +1,29 @@
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+index 7cfb8c3..122ee9f 100644
+--- a/INTEGRATE.md
++++ b/INTEGRATE.md
+@@ -91,7 +91,8 @@ implement that callback by copying a user ID from the request body.
+ 
+ ## Select the store before implementing
+ 
+-The same six protocol operations carry these four evidence shapes:
++Follow the six-step purchase flow with your chosen store. Verification and
++binding use these evidence shapes:
+ 
+ | Store | Purchase evidence | IAPKit access path |
+ | --- | --- | --- |
+diff --git a/checkpoint.json b/checkpoint.json
+index 9aad24e..c2753c1 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-interoperable-4",
++  "id": "07-account-erasure-interoperable-5",
+   "title": "Delete the account",
+   "built": "Apple, Google, Amazon and Horizon evidence, ownership checks and account erasure",
+   "result": "The same account flow covers four store evidence shapes; Amazon and Horizon access is rechecked.",
+-  "previous": "07-account-erasure-interoperable-3"
++  "previous": "07-account-erasure-interoperable-4"
+ }

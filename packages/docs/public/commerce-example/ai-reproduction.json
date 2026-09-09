@@ -1,0 +1,976 @@
+{
+  "recordedAt": "2026-09-08T16:19:57.230073+00:00",
+  "scope": "One separate-context AI built a new local Field Notes app from an empty project, using the displayed brief and public references. Another AI reviewed and replayed it. Same host and tools; no prior conversation or existing local implementation provided to the builder. This is not a security sandbox or an external-company adoption study. Completion review added erasure, explicit fixture capability declarations and full local conformance. The current documentation brief has been strengthened since the original prompt recorded below.",
+  "prompt": "Integrate OpenIAP Commerce Protocol into this project.\nProduct and desired behavior: Field Notes is a subscription notes app. Build a local browser demo where Alice can buy Premium, cancel renewal while keeping paid access, and lose access at expiry. Bob must not be able to take Alice’s purchase..\nServices to use or own: Own the commerce backend and event receiver. Use fictional purchases and local fixture users for this first review; no external accounts or credentials. Choose a small stack for this empty project..\n\nReference: https://github.com/hyodotdev/openiap-commerce-protocol-example\nRead INTEGRATE.md for my role; follow BUILD.md for a commerce backend.\nInspect this project's instructions and stack. Install openiap-commerce-protocol; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.\n\nImplement the connection using existing project patterns. Start with a runnable local result. Run the applicable success and failure checks, fix failures, and rerun them.\nShow the running URL and user-visible outcomes, with source and verification commands for future changes. Separate fixture evidence from real store/deployment checks; list remaining work and product decisions.\nKeep changes uncommitted for review.\n",
+  "promptSha256": "4009e4594d627c78fe1154a1d987c5a709c41c8b1cb6d66aa6dba6562353ada6",
+  "reference": {
+    "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
+    "revision": "e52900c2f040a0c9aa895e4a605b4f3e84940652",
+    "briefs": [
+      "INTEGRATE.md",
+      "BUILD.md"
+    ]
+  },
+  "runtime": {
+    "node": "24.16.0",
+    "npm": "11.13.0",
+    "contractPackage": "openiap-commerce-protocol@0.1.0",
+    "protocol": "1.0",
+    "storage": "Node built-in SQLite"
+  },
+  "localTests": {
+    "groups": 13,
+    "passed": 13,
+    "failed": 0,
+    "lifecycleVectors": 100,
+    "note": "Vector cases are nested within the test groups, not added to the group count."
+  },
+  "independentAcceptance": {
+    "checks": [
+      "Unauthenticated discovery succeeds",
+      "Capabilities validate against the published schema",
+      "Alice starts without access",
+      "Fixture purchase verifies",
+      "Verification response validates",
+      "Verification alone grants no access",
+      "Verification credential cannot bind",
+      "Verification credential cannot enumerate entitlements",
+      "Server binds Alice",
+      "Binding result validates",
+      "Alice gains one product",
+      "Access result validates",
+      "Access response contains no purchase token",
+      "Conflicting owner is rejected without disclosure (SPEC 4.4)",
+      "Bob still has no access",
+      "Premium note is server-gated before login",
+      "Alice can read her Premium note",
+      "Cancellation request succeeds",
+      "Cancellation preserves paid access",
+      "Cancellation stops renewal",
+      "Cancellation preserves the deadline",
+      "Subscription result validates",
+      "Access remains active one millisecond before expiry",
+      "Access closes exactly at expiry without an expiry notification",
+      "Expired entitlement list is empty",
+      "Premium note closes on the backend at expiry",
+      "pending checkout grants Bob no access",
+      "canceled checkout grants Bob no access",
+      "invalid checkout grants Bob no access"
+    ],
+    "observations": [
+      {
+        "path": "/commerce/v1/capabilities",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "specVersion": "1.0",
+          "fixtureOnly": true,
+          "profiles": {
+            "verification": "1.0",
+            "entitlements": "1.0",
+            "events": "1.0",
+            "accountLifecycle": "1.0"
+          },
+          "bindings": {
+            "rest": "1.0"
+          },
+          "implementation": {
+            "name": "Field Notes local fixture backend",
+            "version": "0.1.0"
+          },
+          "eventTypes": [
+            "subscription.started",
+            "subscription.renewed",
+            "subscription.recovered",
+            "subscription.entered_grace_period",
+            "subscription.entered_billing_retry",
+            "subscription.expired",
+            "subscription.canceled",
+            "subscription.uncanceled",
+            "subscription.revoked",
+            "subscription.refunded",
+            "subscription.product_changed",
+            "subscription.price_changed",
+            "subscription.deferred",
+            "subscription.paused",
+            "subscription.resumed",
+            "entitlement.granted",
+            "entitlement.revoked"
+          ],
+          "stores": {
+            "google": {
+              "initialValidation": {
+                "provider": true,
+                "implementation": true,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "serverNotifications": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "subscriptions": {
+                "provider": true,
+                "implementation": true,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "renewalEvents": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "refundEvents": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "expiration": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "reconciliation": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "entitlements": {
+                "provider": true,
+                "implementation": true,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              },
+              "revenueAmount": {
+                "provider": true,
+                "implementation": false,
+                "notes": "Fixture-only descriptor: Google-shaped evidence and local subscription records. No Google API or store notification integration."
+              }
+            }
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_alice",
+          "productIds": [],
+          "subscriptions": []
+        }
+      },
+      {
+        "path": "/commerce/v1/purchases/verify",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "store": "google",
+          "isValid": true,
+          "state": "ENTITLED",
+          "productId": "fieldnotes.premium.monthly",
+          "environment": "fixture"
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_alice",
+          "productIds": [],
+          "subscriptions": []
+        }
+      },
+      {
+        "path": "/commerce/v1/purchases/bind",
+        "method": "POST",
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "FORBIDDEN",
+            "message": "A server credential is required."
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_alice",
+        "method": "GET",
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "FORBIDDEN",
+            "message": "A server credential is required."
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/purchases/bind",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "bound": true
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_alice",
+          "productIds": [
+            "fieldnotes.premium.monthly"
+          ],
+          "subscriptions": [
+            {
+              "productId": "fieldnotes.premium.monthly",
+              "state": "Active",
+              "active": true,
+              "store": "google",
+              "expiresAt": 1791536400000,
+              "willRenew": true,
+              "renewsAt": 1791536400000,
+              "startedAt": 1788944400000,
+              "updatedAt": 1788944400000
+            }
+          ]
+        }
+      },
+      {
+        "path": "/commerce/v1/purchases/bind",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "bound": false
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_bob",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_bob",
+          "productIds": [],
+          "subscriptions": []
+        }
+      },
+      {
+        "path": "/api/session",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "userId": "user_alice"
+        }
+      },
+      {
+        "path": "/api/premium-note",
+        "method": "GET",
+        "status": 401,
+        "body": {
+          "error": {
+            "code": "UNAUTHORIZED",
+            "message": "Choose a fixture user first."
+          }
+        }
+      },
+      {
+        "path": "/api/premium-note",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "title": "The quiet morning",
+          "text": "Some thoughts need more room. Take the long path home. Remember the light on the water."
+        }
+      },
+      {
+        "path": "/commerce/v1/subscriptions/status?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "active": true,
+          "subscription": {
+            "productId": "fieldnotes.premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1791536400000,
+            "willRenew": true,
+            "renewsAt": 1791536400000,
+            "startedAt": 1788944400000,
+            "updatedAt": 1788944400000
+          }
+        }
+      },
+      {
+        "path": "/api/cancel",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "status": {
+            "active": true,
+            "subscription": {
+              "productId": "fieldnotes.premium.monthly",
+              "state": "Active",
+              "active": true,
+              "store": "google",
+              "expiresAt": 1791536400000,
+              "willRenew": false,
+              "startedAt": 1788944400000,
+              "updatedAt": 1788944400000
+            }
+          },
+          "message": "Renewal is off. Paid Premium access remains until expiry."
+        }
+      },
+      {
+        "path": "/commerce/v1/subscriptions/status?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "active": true,
+          "subscription": {
+            "productId": "fieldnotes.premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1791536400000,
+            "willRenew": false,
+            "startedAt": 1788944400000,
+            "updatedAt": 1788944400000
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/subscriptions/status?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "active": true,
+          "subscription": {
+            "productId": "fieldnotes.premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1791536400000,
+            "willRenew": false,
+            "startedAt": 1788944400000,
+            "updatedAt": 1788944400000
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/subscriptions/status?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "active": false,
+          "subscription": {
+            "productId": "fieldnotes.premium.monthly",
+            "state": "Active",
+            "active": false,
+            "store": "google",
+            "expiresAt": 1791536400000,
+            "willRenew": false,
+            "startedAt": 1788944400000,
+            "updatedAt": 1788944400000
+          }
+        }
+      },
+      {
+        "path": "/commerce/v1/entitlements?userId=user_alice",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_alice",
+          "productIds": [],
+          "subscriptions": []
+        }
+      },
+      {
+        "path": "/api/premium-note",
+        "method": "GET",
+        "status": 403,
+        "body": {
+          "error": {
+            "code": "FORBIDDEN",
+            "message": "Premium access is required."
+          }
+        }
+      },
+      {
+        "path": "/api/session",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "userId": "user_bob"
+        }
+      },
+      {
+        "path": "/api/checkout",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "outcome": "pending",
+          "verdict": {
+            "store": "google",
+            "isValid": false,
+            "state": "PENDING",
+            "environment": "fixture"
+          },
+          "message": "Purchase pending. Premium stays locked until verification succeeds."
+        }
+      },
+      {
+        "path": "/api/me",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_bob",
+          "status": {
+            "active": false
+          },
+          "entitlements": {
+            "userId": "user_bob",
+            "productIds": [],
+            "subscriptions": []
+          }
+        }
+      },
+      {
+        "path": "/api/checkout",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "outcome": "canceled",
+          "message": "Checkout canceled. No purchase was made."
+        }
+      },
+      {
+        "path": "/api/me",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_bob",
+          "status": {
+            "active": false
+          },
+          "entitlements": {
+            "userId": "user_bob",
+            "productIds": [],
+            "subscriptions": []
+          }
+        }
+      },
+      {
+        "path": "/api/checkout",
+        "method": "POST",
+        "status": 200,
+        "body": {
+          "outcome": "failed",
+          "verdict": {
+            "store": "google",
+            "isValid": false,
+            "state": "INAUTHENTIC",
+            "environment": "fixture"
+          },
+          "message": "Evidence rejected. Premium stays locked."
+        }
+      },
+      {
+        "path": "/api/me",
+        "method": "GET",
+        "status": 200,
+        "body": {
+          "userId": "user_bob",
+          "status": {
+            "active": false
+          },
+          "entitlements": {
+            "userId": "user_bob",
+            "productIds": [],
+            "subscriptions": []
+          }
+        }
+      }
+    ],
+    "scope": "Separate verifier over real HTTP in a fresh database. Fixture clock moved directly only for the exact-deadline assertion; no store or production credentials."
+  },
+  "cleanReplay": {
+    "directory": "/var/folders/zp/pwtvb2g50tz9hl05qgcgg63w0000gn/T/field-notes-completion-1g170af6",
+    "commands": [
+      {
+        "command": [
+          "npm",
+          "ci",
+          "--ignore-scripts"
+        ],
+        "exitCode": 0
+      },
+      {
+        "command": [
+          "npm",
+          "test"
+        ],
+        "exitCode": 0
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "conformance"
+        ],
+        "exitCode": 0
+      },
+      {
+        "command": [
+          "node",
+          "/Users/hyodotdev/.codex/visualizations/2026/09/08/01a0803b-b945-72e2-b34b-b16056325b77/commerce-ai-reproduction-20260909/independent-check.mjs",
+          "/var/folders/zp/pwtvb2g50tz9hl05qgcgg63w0000gn/T/field-notes-completion-1g170af6",
+          "/Users/hyodotdev/.codex/visualizations/2026/09/08/01a0803b-b945-72e2-b34b-b16056325b77/commerce-ai-reproduction-20260909/completion/independent.json"
+        ],
+        "exitCode": 0
+      }
+    ],
+    "negativeControl": {
+      "detected": true,
+      "exitCode": 1,
+      "mutation": "processedAt < expiresAt changed to <= in a disposable copy",
+      "restored": true
+    },
+    "sourceRestored": true,
+    "applicationEnvironmentVariables": []
+  },
+  "negativeControl": {
+    "detected": true,
+    "exitCode": 1,
+    "mutation": "processedAt < expiresAt changed to <= in a disposable copy",
+    "restored": true
+  },
+  "uiReloadChecks": {
+    "source": "Clean source-only replay",
+    "results": [
+      {
+        "stage": "purchase then reload",
+        "banner": "Alice’s Premium is active. Renewal is on.",
+        "access": "Premium is active",
+        "noteVisible": true
+      },
+      {
+        "stage": "ownership conflict",
+        "banner": "Ownership stays with the fixture purchaser. No transfer is allowed.",
+        "access": "Free plan",
+        "noteVisible": false
+      },
+      {
+        "stage": "cancel then reload",
+        "banner": "Alice’s Premium is active. Renewal is off; paid access remains until expiry.",
+        "access": "Premium is active",
+        "noteVisible": true
+      },
+      {
+        "stage": "expiry then reload",
+        "banner": "Alice’s paid period has ended. Premium is locked.",
+        "access": "Free plan",
+        "noteVisible": false
+      },
+      {
+        "stage": "account deletion",
+        "banner": "Account data erased from this provider and the app’s inbox. Existing sessions are signed out.",
+        "access": "Free plan",
+        "noteVisible": false
+      }
+    ],
+    "errors": [],
+    "mobileOverflow": false
+  },
+  "failuresAndCorrections": [
+    "Published runner exposed known-store mismatched evidence being classified before schema validation; ordering corrected and the case passed.",
+    "First source-only replay passed installation but failed 3 of 11 groups because data/ and evidence/ were assumed to exist. Test bootstrap now creates them; final fresh replay passes all 11.",
+    "Reloaded Premium account showed a free-plan banner. Initial banner now comes from backend access; purchase/cancel/expiry reload checks pass.",
+    "Completed the previously failing eraseUser operations: atomic provider deletion, app inbox cleanup, session revocation, in-flight delivery coordination and identity-free replay tombstones. Repeat and restart checks pass.",
+    "Declaring only a subset reduced runner coverage during review; the final explicit fixture descriptor declares all four profiles. Tests require every original case ID to remain covered. All 46 final cases pass. No real store support is claimed.",
+    "The first new erasure assertion expected HTTP 200. The installed binding requires HTTP 202; the server already used that generated status and the assertion was corrected."
+  ],
+  "fullConformance": {
+    "passed": 46,
+    "total": 46,
+    "ok": true,
+    "exitCode": 0,
+    "remaining": [],
+    "claim": "All four profiles and REST pass in the explicitly fictional fixture environment. This is not real store, public HTTPS, or production conformance.",
+    "priorCaseIdsPreserved": true,
+    "descriptorScope": "fixtureOnly: true; per-store notes explicitly describe fixtures; real Google API and notification integration are absent."
+  },
+  "readerSimulation": {
+    "method": "AI cognitive walkthrough of rendered pages, not a human participant study.",
+    "journey": [
+      "Buy",
+      "Verify",
+      "Connect the user",
+      "Open Premium",
+      "Keep it current"
+    ],
+    "personas": [
+      "App owner who wants Premium with existing login",
+      "Service builder who only needs one commerce responsibility"
+    ],
+    "checks": [
+      {
+        "question": "Where do I start?",
+        "answer": "Overview, then Follow a purchase. The sidebar keeps reference pages separate."
+      },
+      {
+        "question": "What does each word mean?",
+        "answer": "The story explains purchase evidence, provider, binding, authentication, entitlements and webhooks at the relevant step. Each reference page opens with a definition and an example."
+      },
+      {
+        "question": "What do I choose and hand to AI?",
+        "answer": "Build and review orders service ownership, a copyable product brief, then observable customer checks."
+      },
+      {
+        "question": "Can I move through the story and return?",
+        "answer": "Five steps, Next/Previous, URL state, browser back, keyboard focus and smooth/reduced-motion transitions."
+      },
+      {
+        "question": "Where is exact implementation information?",
+        "answer": "Per-step source links and expandable API details; Profiles and Authentication explain responsibilities before contract tables."
+      }
+    ],
+    "browserVerification": {
+      "checks": [
+        {
+          "route": "getting-started",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "implementation",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "operations",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "profiles",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "authentication",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "capabilities",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "conformance",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "rest",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "graphql",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "webhooks",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "versioning",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "ecosystem",
+          "width": 1440,
+          "overflow": false
+        },
+        {
+          "route": "getting-started",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "implementation",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "operations",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "profiles",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "authentication",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "capabilities",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "conformance",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "rest",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "graphql",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "webhooks",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "versioning",
+          "width": 393,
+          "overflow": false
+        },
+        {
+          "route": "ecosystem",
+          "width": 393,
+          "overflow": false
+        }
+      ],
+      "journeyNavigation": true,
+      "keyboardFocus": true,
+      "deepLinks": true,
+      "buildOrder": true,
+      "errors": []
+    },
+    "limits": [
+      "No external human study or independent company reproduction"
+    ]
+  },
+  "sourceArchive": {
+    "file": "ai-reproduction-source.tar.gz",
+    "sha256": "bc65cf19a6a0536a5a4b1b2954228f1fbee05b111b8ac27578865c3b498429c4",
+    "files": {
+      "README.md": "6280632029e0e6c2dc071f53731b551520004abfe0cf97db40f328dd173fb508",
+      "REPORT.md": "ddfe24dffe176faf2bb0a1d0ada96324699d7df34afd21d93a472d9f38495aaf",
+      "evidence/1-contract.log": "d94792e342b3df0de824d333970dd7cd0f601c449f708a0c2dd723bc05fc764f",
+      "evidence/2-verification.log": "eb3f1a263c818b8139fd345655d651ebf2bf65dba54f9fe52ffe419056820dd1",
+      "evidence/3-ownership.log": "7815c3add851e235a2ab1a03c97d2f30e6677f30c398a92459d66ad52187dfce",
+      "evidence/4-lifecycle.log": "7b74f954fcb2058f9533fcd7320fe59e843de858ded98b4bd5cc321c68d9bc85",
+      "evidence/5-delivery-attempt-1.log": "b56bcfee1a0ad3af06534583cb534387bab1ccc248f44ab4848455c66a850951",
+      "evidence/5-delivery-fixed.log": "4523ca403b61804f039b8b8cf965d9f0888924849ca774907f6a6f53c16a75c7",
+      "evidence/5-delivery.log": "6730ab0a39cab3e11de7da7329bbfcb75f43a0007422875c87e7c64d95db8b9c",
+      "evidence/6-recovery.log": "035b25a0438f09fcecc8abaa8b1f581c4e14ff06134e954219ffeed1683f739a",
+      "evidence/7-review-fixes.log": "dc72c313826af492797804e406ef29bf3a966ea1f8cb89956efcc111362c24eb",
+      "evidence/capture-attempt-1.log": "eb1c28d258ff586bb46e7cb080847f97587e50cda89f51ff33c3b33dfd7d1c65",
+      "evidence/checkpoints/1-contract.tar.gz": "b4115c91b37fafe873959b71b0ce87a12bf436e8126668108b348dd735dffe61",
+      "evidence/checkpoints/1-contract.tar.gz.sha256": "eeb3aea44cb7b43e2bd6ca6913954a489231bdab4247570dbab6c201aaa14b76",
+      "evidence/checkpoints/2-verification.tar.gz": "d71914193e9e971523519897528f8051f5f3c9ee30148abebc4958afcba0488b",
+      "evidence/checkpoints/2-verification.tar.gz.sha256": "3d26516b08a3ae5de6faf2a12365d231d8c3ac4b6e03c9197d1d12286cc78953",
+      "evidence/checkpoints/3-ownership.tar.gz": "d08bb3c1cc603b22fc675edc72a51f7798bdfbd45d3274d570c234629c2acb2d",
+      "evidence/checkpoints/3-ownership.tar.gz.sha256": "97c847d8673e4f9efe5c7362dd0f077a3e09f903193f7305de14ed0d53d60894",
+      "evidence/checkpoints/4-lifecycle.tar.gz": "2ffc72fc141f7836187305077b00253a097d2917e13ca02b0c337c2f150eecf9",
+      "evidence/checkpoints/4-lifecycle.tar.gz.sha256": "d67467dc07e13d6454e09e82d4239f0a3553a6d5d5c8ee9f3c77f2537e13784e",
+      "evidence/checkpoints/5-delivery.tar.gz": "d101955c14a9dba3ec0eaa50c8f56cecbac5607baf75e48dd6f60e1fa243a7e8",
+      "evidence/checkpoints/5-delivery.tar.gz.sha256": "0162e4cbf901254b6d4e544d3f87d0acb934fbd755b8bd8c196e1388f3120ef9",
+      "evidence/checkpoints/6-recovery.tar.gz": "d3afca2dc4b0055ef2ca4e3af121535f38b0a7eaf9fd9358534d142236769e62",
+      "evidence/checkpoints/6-recovery.tar.gz.sha256": "ad494daf9293e538ba8dcbe23bf120edf4660778cfbb9d527233f3a89de9e9f1",
+      "evidence/checkpoints/7-review-fixes.tar.gz": "31afcfbf188e6be061ded7b7fc0746e8609ea797ae49fe44ed70b37729d1e79a",
+      "evidence/checkpoints/7-review-fixes.tar.gz.sha256": "f25a513e1fd9601595a544858a0e1fd0fe68760cf5b8224794bb824a7640e670",
+      "evidence/clean-replay.json": "1fadb6e53b2e17a2f22cb8a62bdc970ad8df7430ae547a53dc6c199b85ad0b79",
+      "evidence/clean-replay.log": "48464a9bcfdafb2112b1e5b0539af7df8c0442623ad8ecf7f063713b365227cb",
+      "evidence/completion/account-erasure-desktop.png": "6f0f4a0faf2928b4ee0850154ece078f9c1876a1bfa48763d4b429f9e1a1cb4a",
+      "evidence/completion/account-erasure-mobile.png": "2256ac7d6eeb873007654b772a276ea1809cdbeb886561b8d6d76651b6601880",
+      "evidence/completion/browser.json": "b626baa3f3c5e86bcd3950be5ea9eb3a113cf59d4c6dc8747e3f9737d919b9b3",
+      "evidence/completion/conformance.log": "a3d5305f544f0d270482c31782b50a7c6a02094ee549c0b29cfa1b7b5e3dcd88",
+      "evidence/completion/independent.json": "f78c4e6c348bd675dab2d476b4dff77d8b579d8db8ca26866b88d4f0db238a3a",
+      "evidence/completion/independent.log": "2d6eece9127c5211aeda362058c99726ef82ecc31a28cdd136403cb009b4615d",
+      "evidence/completion/install.log": "086f0031e0f96fdfdd22598faefbaf0a8c26bdb2c540c5a3606b3d12f5862191",
+      "evidence/completion/negative-control.log": "5755842fa7e8d701ad8bff9f4cfaeeb4a86b1b388c1681922077fafead2ec38f",
+      "evidence/completion/replay.json": "a9d0b34e767033e6b79a98f2bdbc0b0fb3a186887c905d970eef6246952ab35a",
+      "evidence/completion/tests.log": "9681cd1a2698de26cf8eb56372eb044c4f8eda7bdf1c1f2a4c01ef786eacb022",
+      "evidence/conformance-attempt-1.json": "2ed54eccca4aa66dba6e2638985ecec153329c7e2f4fc49fa4b7a5e899f2bf88",
+      "evidence/conformance-before-completion.json": "d724a520af517d713a99e526e61f850a150d372c191ee5c8ecdbcb2e30be9287",
+      "evidence/conformance-command.log": "cd3541b979afe62ae7d7b13769f5d7e54d7f737ca94b9648e1a59b0b196ea958",
+      "evidence/conformance.json": "0f1d7c0597b9fe6cb0f12e157123c970c6552a29de0277a5965a029e7af91945",
+      "evidence/exercised-demo-state.json": "6439a5794e83d915e60265bc666496592fd2ceb084037a34bbbca82b43bb3164",
+      "evidence/independent-fresh-tests-failed.log": "0c449ca91898a0fdeb7e6c5803a58eed808aaea99c967b3b5a088b6ab4431eef",
+      "evidence/independent-replay-setup.json": "0f6eacdcac73c3b03587de85e0cb8066d2b2e80bd8342fb667f5536fe72cd7cc",
+      "evidence/initial-build-report.md": "f28fc67873461520db456868d2ebe0881a4572a55128b78d55e6281e2137456c",
+      "evidence/openapi-check.json": "219318259c8a4be71555404b095276053d29c8f826c8c4770bbafc98f38c27dc",
+      "evidence/ready-desktop.png": "617090264144026603431511d26c44f43ecfe9a13ead4426901266ed1fc705cf",
+      "evidence/ready-state.json": "7c39eaa1084849167be8df1e63e7c22c31a5cacd4518bde8ebef14d0f7e9e32d",
+      "evidence/reload-checks.json": "9d58a31e967b959c9afaae9a655dc150518ee84f1762e3ffa4c8dcba295ce0f6",
+      "evidence/reload-checks.log": "2ad392c520d825998fbce6a341b10324cac102e5e507ab81c6ba85573e280161",
+      "evidence/reload-expired-mobile.png": "30442351c8f64d497364f09d2b600f4adc7076952d2412758466b11fc41d57a6",
+      "evidence/screens/2026-09-08T16-11-15.208Z/1-contract.png": "2f0032f99377097a93ed07e349eb19f86ae521dbb0da2b8da695c69c6b367306",
+      "evidence/screens/2026-09-08T16-11-15.208Z/2-verification.png": "62cb3d00ea83fcbfe12576248808e1b71a3ce06cbabcc86649e3e75e6d26a2f5",
+      "evidence/screens/2026-09-08T16-11-15.208Z/3-ownership.png": "04aaeb977e6e5e7946ec08501b96b54f2eee5f5edfba1c1796f1705cc4d6cd31",
+      "evidence/screens/2026-09-08T16-11-15.208Z/4-lifecycle.png": "5c20a1da1347ba4378341be8910caa5e5b6c2d431314b9234c7c71d7d369bfe5",
+      "evidence/screens/2026-09-08T16-11-15.208Z/5-delivery.png": "9cab5594d76349b35f621fc203151a80225c35bcf4399b52220d0b9aed05ef3b",
+      "evidence/screens/2026-09-08T16-11-15.208Z/6-recovery.png": "1083b0fc9ce6fe41889ab1caee643ffbe0c09bf43205f0608d6410f913084511",
+      "evidence/screens/2026-09-08T16-11-15.208Z/capture-report.json": "698da611a63462b79476a4a3de55295213bd931dbefd77e134aaf3ee72109247",
+      "evidence/source-hashes.json": "1403e1b24cd3634b12d50196f38225347ca4c6ff20a3e3e8a61159475364da16",
+      "package-lock.json": "88049c5e7cfd4c51f9cc6ed7e7642779413b38ddf047a7cb758dfd7513b50ef6",
+      "package.json": "984428792cc161c2e2a83962109fe4229d5bc7ec37da19042bf085638454792e",
+      "public/index.html": "967816f80b828120dac7cd72ba10cf3c0d3deab3b1e042f63abd6b7a45a1c87d",
+      "scripts/capture.mjs": "6488a11f1c8e6464228362b3a4733164ddebe1607eb442f7d4957cf8a9f7d836",
+      "scripts/checkpoint.mjs": "35e29cfa747220d80fabbae12a8931b57bb076d32226603f53b89af9d57c984c",
+      "scripts/conformance.mjs": "6b1457c3e8880739226e79fdd592e7aeef15c8b68950ebd8c5165ee788b84feb",
+      "scripts/test.mjs": "5a59ef823a34da5d6cfa76cb20ffce0e0f718f8b3b01786fbb6761c695cd5e13",
+      "scripts/verify-reloads.mjs": "e9ab67840e85efb7075fea9fc19fba83859b3c1fc5e065ced4f3fdaa643044e8",
+      "src/commerce.mjs": "d373761c691b44f7cdcb44fdcc0029e0f756e86945b7b6789e061d0fdac42845",
+      "src/contract.mjs": "24f4a402661b36e60b3751c49397432740a647840cf3a95d8c00ff4fc8ef1bb5",
+      "src/fixtures.mjs": "c67fd2ac930f9afb6e7895195730f49a533db5a5e473cc24768a32eb5728195a",
+      "src/server.mjs": "9326a0a20248ae82097677a209e528a62ac334b476d3cfd6704da237efd7f4ab",
+      "src/storage.mjs": "c48f186e80a24d8e98100c5628f28aa159b388941137674cfd8f3f1ba1f492d2",
+      "src/webhooks.mjs": "d3f19ba5a64cd8d23e065ed6210a3614b00a9cb3b656451497efee9a125c6049",
+      "test/commerce.test.mjs": "422240cb19a47162875a25af183491c100bbbfe16635965a8b16983f104e595d",
+      "test/webhooks.test.mjs": "64091205635640e80d41baab1b24075391b307e3d53cf1b25aa533025f931a71"
+    }
+  },
+  "limitations": [
+    "Fictional store evidence, fixture sessions, and controlled clock",
+    "One process with separate SQLite commerce and inbox databases",
+    "Recovery covers orderly close/reopen, not OS crash or machine loss",
+    "Real stores, real login, multi-tenant deployments and public HTTPS operations were not exercised",
+    "External recipients must erase their own previously delivered copies; the local app demonstrates its own cleanup"
+  ],
+  "independentBrowserCheck": {
+    "source": "Clean source-only replay",
+    "results": [
+      {
+        "stage": "purchase then reload",
+        "banner": "Alice’s Premium is active. Renewal is on.",
+        "access": "Premium is active",
+        "noteVisible": true
+      },
+      {
+        "stage": "ownership conflict",
+        "banner": "Ownership stays with the fixture purchaser. No transfer is allowed.",
+        "access": "Free plan",
+        "noteVisible": false
+      },
+      {
+        "stage": "cancel then reload",
+        "banner": "Alice’s Premium is active. Renewal is off; paid access remains until expiry.",
+        "access": "Premium is active",
+        "noteVisible": true
+      },
+      {
+        "stage": "expiry then reload",
+        "banner": "Alice’s paid period has ended. Premium is locked.",
+        "access": "Free plan",
+        "noteVisible": false
+      },
+      {
+        "stage": "account deletion",
+        "banner": "Account data erased from this provider and the app’s inbox. Existing sessions are signed out.",
+        "access": "Free plan",
+        "noteVisible": false
+      }
+    ],
+    "errors": [],
+    "mobileOverflow": false
+  },
+  "initialBuild": {
+    "recordedAt": "2026-09-08T16:19:57.230073+00:00",
+    "fullConformance": {
+      "passed": 38,
+      "total": 42,
+      "ok": false,
+      "exitCode": 1,
+      "remaining": [
+        "eraseUser: 3 cases",
+        "undeclared REST binding: 1 case"
+      ],
+      "claim": "No complete profile or binding conformance claimed."
+    },
+    "localTests": {
+      "groups": 13,
+      "passed": 13,
+      "failed": 0,
+      "lifecycleVectors": 100,
+      "note": "Vector cases are nested within the test groups, not added to the group count."
+    },
+    "readerSimulation": {
+      "method": "Cognitive walkthrough by the implementing assistant, using the rendered local page as an imagined first-time reader. This is a simulation, not research with human participants.",
+      "personas": [
+        "App owner adding Premium with an existing login and paywall",
+        "Data-service builder receiving subscription events"
+      ],
+      "before": [
+        {
+          "question": "What will I get?",
+          "finding": "The opening says connection and working behavior, but does not identify the concrete deliverables."
+        },
+        {
+          "question": "What must I choose?",
+          "finding": "The brief asks for service choices before the page explains own versus managed commerce or which roles need a full backend."
+        },
+        {
+          "question": "How do I get started?",
+          "finding": "The full prompt occupies the main reading path before role and acceptance guidance."
+        }
+      ],
+      "changes": [
+        "Named running local demo, behavior checks, and maintainable source in the introduction",
+        "Moved product role and own/managed service decisions ahead of the prompt",
+        "Moved user-visible acceptance outcomes ahead of the prompt",
+        "Collapsed the long implementation brief; retained a direct link and existing Copy control"
+      ],
+      "after": [
+        {
+          "question": "What do I get?",
+          "answer": "A running local demo, behavior checks, and source for future changes.",
+          "pageEvidence": "Opening What you get back paragraph"
+        },
+        {
+          "question": "What do I decide?",
+          "answer": "My role, desired customer behavior, and which services I own or buy.",
+          "pageEvidence": "Choose what your business runs"
+        },
+        {
+          "question": "Does a paywall or data service need its own full commerce backend?",
+          "answer": "No; AI implements the selected connection and does not need to build every role.",
+          "pageEvidence": "Your role paragraph"
+        },
+        {
+          "question": "What does AI do, and what do I review?",
+          "answer": "AI implements and tests; I review purchase success, no grant for pending/canceled/failed purchases, cancellation versus expiry, and retry/restart behavior.",
+          "pageEvidence": "Introduction and Review the result your users will see"
+        },
+        {
+          "question": "Can I actually give the instructions to my agent?",
+          "answer": "Clicked Get the AI brief, expanded Open the brief to copy, and clicked Copy; copied state became true at #build-brief.",
+          "pageEvidence": "Observed in mobile browser at 393px with no horizontal document overflow"
+        }
+      ],
+      "limits": [
+        "No measured comprehension or task completion time from an external reader",
+        "An independent company still needs to validate its own product and service integration"
+      ]
+    }
+  },
+  "updatedAt": "2026-09-08T17:24:34.999638+00:00"
+}

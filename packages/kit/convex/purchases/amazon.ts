@@ -1,6 +1,9 @@
 "use node";
 
-import { v } from "convex/values";
+import { buildAmazonRemoteId } from "./identity";
+export { buildAmazonRemoteId } from "./identity";
+
+import { v, type Infer } from "convex/values";
 
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -23,9 +26,12 @@ import {
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
   applyExpectedProductId,
+  getProjectByApiKey,
   getVerificationProjectByApiKey,
   isValidState,
   receiptResponseValidator,
+  type ReceiptResponse,
+  type RecheckOptions,
 } from "./shared";
 
 const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
@@ -71,6 +77,7 @@ interface PersistAmazonVerdictArgs {
   state: HarmonizedPurchaseState;
   requestIp?: string;
   verificationDurationMs?: number;
+  persistIfChanged?: boolean;
 }
 
 function describeError(error: unknown): string {
@@ -116,18 +123,6 @@ export function buildAmazonRvsUrl(args: {
     `/user/${encodePathSegment(args.userId)}` +
     `/receiptId/${encodePathSegment(args.receiptId)}`
   );
-}
-
-export function buildAmazonRemoteId(args: {
-  userId: string;
-  receiptId: string;
-  sandbox: boolean;
-}): string {
-  return [
-    args.sandbox ? "sandbox" : "production",
-    encodePathSegment(args.userId),
-    encodePathSegment(args.receiptId),
-  ].join(":");
 }
 
 export function mapAmazonReceiptState(
@@ -389,6 +384,7 @@ async function persistAmazonVerdict(
     environment: args.environment,
     requestIp: args.requestIp,
     verificationDurationMs: args.verificationDurationMs,
+    persistIfChanged: args.persistIfChanged,
   });
 }
 
@@ -449,109 +445,121 @@ export async function waitForAmazonRateSlot(args: {
   return now();
 }
 
+const amazonVerificationArgs = v.object({
+  apiKey: v.string(),
+  userId: v.string(),
+  receiptId: v.string(),
+  sandbox: v.optional(v.boolean()),
+  expectedProductId: v.optional(v.string()),
+  requestIp: v.optional(v.string()),
+});
+
 export const verifyAmazonReceiptInternalV1 = action({
-  args: {
-    apiKey: v.string(),
-    userId: v.string(),
-    receiptId: v.string(),
-    sandbox: v.optional(v.boolean()),
-    expectedProductId: v.optional(v.string()),
-    requestIp: v.optional(v.string()),
-  },
+  args: amazonVerificationArgs.fields,
   returns: receiptResponseValidator,
-  handler: async (ctx, args) => {
-    const verificationStart = Date.now();
-    const project = await getVerificationProjectByApiKey(ctx, args.apiKey);
-    const sandbox = args.sandbox === true;
-    const environment = environmentForSandbox(sandbox);
-    const sharedSecret = resolveAmazonSharedSecret({
-      sandbox,
-      amazonSandboxEnabled: project.amazonSandboxEnabled === true,
-      amazonSharedSecret: project.amazonSharedSecret,
-    });
-    const requestData: AmazonRequestData = {
-      store: "amazon",
-      userId: args.userId,
-      receiptId: args.receiptId,
-      sandbox,
-      ...(args.expectedProductId !== undefined
-        ? { expectedProductId: args.expectedProductId }
-        : {}),
-    };
-    const applicationId = project.androidPackageName ?? `amazon:${project._id}`;
-    const remoteId = buildAmazonRemoteId({
-      userId: args.userId,
-      receiptId: args.receiptId,
-      sandbox,
-    });
+  handler: verifyAmazonReceipt,
+});
 
-    let receiptData: AmazonReceiptData;
-    try {
-      receiptData = await requestAmazonReceipt({
-        sharedSecret,
-        userId: args.userId,
-        receiptId: args.receiptId,
-        sandbox,
-        maxAttempts: 3,
+export async function verifyAmazonReceipt(
+  ctx: ActionCtx,
+  args: Infer<typeof amazonVerificationArgs>,
+  options: RecheckOptions = {},
+): Promise<ReceiptResponse> {
+  const verificationStart = Date.now();
+  const project = options.recheck
+    ? await getProjectByApiKey(ctx, args.apiKey)
+    : await getVerificationProjectByApiKey(ctx, args.apiKey);
+  const sandbox = args.sandbox === true;
+  const environment = environmentForSandbox(sandbox);
+  const sharedSecret = resolveAmazonSharedSecret({
+    sandbox,
+    amazonSandboxEnabled: project.amazonSandboxEnabled === true,
+    amazonSharedSecret: project.amazonSharedSecret,
+  });
+  const requestData: AmazonRequestData = {
+    store: "amazon",
+    userId: args.userId,
+    receiptId: args.receiptId,
+    sandbox,
+    ...(args.expectedProductId !== undefined
+      ? { expectedProductId: args.expectedProductId }
+      : {}),
+  };
+  const applicationId = project.androidPackageName ?? `amazon:${project._id}`;
+  const remoteId = buildAmazonRemoteId({
+    userId: args.userId,
+    receiptId: args.receiptId,
+    sandbox,
+  });
+
+  let receiptData: AmazonReceiptData;
+  try {
+    receiptData = await requestAmazonReceipt({
+      sharedSecret,
+      userId: args.userId,
+      receiptId: args.receiptId,
+      sandbox,
+      maxAttempts: 3,
+    });
+  } catch (error) {
+    if (error instanceof AmazonReceiptInvalidError) {
+      const state = stateForAmazonInvalidError(error);
+      await persistAmazonVerdict(ctx, {
+        projectId: project._id,
+        applicationId,
+        remoteId,
+        requestData,
+        environment,
+        remoteResponse: JSON.stringify({
+          error: error.errorCode,
+          message: error.errorMessage,
+          details: error.errorDetails ?? null,
+        }),
+        state,
+        requestIp: args.requestIp,
+        verificationDurationMs: Date.now() - verificationStart,
+        persistIfChanged: options.recheck,
       });
-    } catch (error) {
-      if (error instanceof AmazonReceiptInvalidError) {
-        const state = stateForAmazonInvalidError(error);
-        await persistAmazonVerdict(ctx, {
-          projectId: project._id,
-          applicationId,
-          remoteId,
-          requestData,
-          environment,
-          remoteResponse: JSON.stringify({
-            error: error.errorCode,
-            message: error.errorMessage,
-            details: error.errorDetails ?? null,
-          }),
-          state,
-          requestIp: args.requestIp,
-          verificationDurationMs: Date.now() - verificationStart,
-        });
-        return { isValid: false, state, environment };
-      }
-
-      // Network, timeout, throttling, configuration, and protocol failures are
-      // not store verdicts. Never replace a previously valid snapshot with an
-      // UNKNOWN row just because this attempt could not reach/parse RVS.
-      if (error instanceof ReceiptVerificationError) throw error;
-      throw new AmazonReceiptVerificationError(describeError(error));
+      return { isValid: false, state, environment };
     }
 
-    const state = mapAmazonReceiptState(receiptData);
-    const storeReceiptResponse = {
-      isValid: isValidState(state),
-      state,
-      productId: receiptData.productId,
-      environment,
-    };
-    const receiptResponse = applyExpectedProductId(
-      storeReceiptResponse,
-      args.expectedProductId,
-    );
+    // Network, timeout, throttling, configuration, and protocol failures are
+    // not store verdicts. Never replace a previously valid snapshot with an
+    // UNKNOWN row just because this attempt could not reach/parse RVS.
+    if (error instanceof ReceiptVerificationError) throw error;
+    throw new AmazonReceiptVerificationError(describeError(error));
+  }
 
-    // Persist Amazon's verdict, not the caller-scoped expectedProductId check.
-    // This mirrors Apple/Google and keeps a typo from corrupting the row that
-    // the background reconciler will refresh later.
-    await persistAmazonVerdict(ctx, {
-      projectId: project._id,
-      applicationId,
-      remoteId,
-      requestData,
-      environment,
-      remoteResponse: JSON.stringify(receiptData),
-      state,
-      requestIp: args.requestIp,
-      verificationDurationMs: Date.now() - verificationStart,
-    });
+  const state = mapAmazonReceiptState(receiptData);
+  const storeReceiptResponse = {
+    isValid: isValidState(state),
+    state,
+    productId: receiptData.productId,
+    environment,
+  };
+  const receiptResponse = applyExpectedProductId(
+    storeReceiptResponse,
+    args.expectedProductId,
+  );
 
-    return receiptResponse;
-  },
-});
+  // Persist Amazon's verdict, not the caller-scoped expectedProductId check.
+  // This mirrors Apple/Google and keeps a typo from corrupting the row that
+  // the background reconciler will refresh later.
+  await persistAmazonVerdict(ctx, {
+    projectId: project._id,
+    applicationId,
+    remoteId,
+    requestData,
+    environment,
+    remoteResponse: JSON.stringify(receiptData),
+    state,
+    requestIp: args.requestIp,
+    verificationDurationMs: Date.now() - verificationStart,
+    persistIfChanged: options.recheck,
+  });
+
+  return receiptResponse;
+}
 
 /**
  * Reconcile active Amazon purchase snapshots without inventing subscription
@@ -559,7 +567,8 @@ export const verifyAmazonReceiptInternalV1 = action({
  * caps the 20-row worst case near 200 seconds, below the five-minute cron
  * interval so independent workers do not overlap their per-worker TPS budget.
  * Starts are spaced by 200ms (at most 5 TPS), reserving half of Amazon's
- * documented 10 TPS ceiling for foreground verification traffic.
+ * documented 10 TPS ceiling for the two foreground lanes: receipt verification
+ * and the entitlement rechecks, which draw on their own admission bucket.
  */
 export const reconcileAmazonPurchases = internalAction({
   args: {},

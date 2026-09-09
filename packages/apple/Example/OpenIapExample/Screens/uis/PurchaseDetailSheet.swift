@@ -16,7 +16,7 @@ struct PurchaseDetailSheet: View {
         var items: [DetailItem] = [
             DetailItem(label: "Purchase ID", value: purchase.id),
             DetailItem(label: "Product ID", value: purchase.productId),
-            DetailItem(label: "Platform", value: purchase.platform.rawValue.uppercased()),
+            DetailItem(label: "Store", value: purchase.store.rawValue.uppercased()),
             DetailItem(label: "Purchase State", value: purchase.purchaseState.rawValue.capitalized),
             DetailItem(label: "Quantity", value: String(purchase.quantity)),
             DetailItem(label: "Auto Renewing", value: boolLabel(purchase.isAutoRenewing))

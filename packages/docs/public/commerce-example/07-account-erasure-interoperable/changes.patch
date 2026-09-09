@@ -1,0 +1,341 @@
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index 6e6cfd4..112a019 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -41,6 +41,7 @@ export const SOURCE_FILES = [
+   "composition/README.md",
+   "composition/app-backend.mjs",
+   "composition/app-backend.test.mjs",
++  "composition/receiver.test.mjs",
+   "composition/commerce-client.mjs",
+   "composition/export.mjs",
+   "composition/memory-provider.mjs",
+diff --git a/checkpoint.json b/checkpoint.json
+index 75c152c..4860ddb 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-reviewed",
++  "id": "07-account-erasure-interoperable",
+   "title": "Delete the account",
+-  "built": "Account erasure with readable identity state",
++  "built": "Account erasure with shared receiver and retry coordination",
+   "result": "The account identity is removed; retries and restart cannot restore it.",
+-  "previous": "07-account-erasure"
++  "previous": "07-account-erasure-reviewed"
+ }
+diff --git a/composition/README.md b/composition/README.md
+index 00ffd08..f0da5f6 100644
+--- a/composition/README.md
++++ b/composition/README.md
+@@ -19,7 +19,7 @@ required. The runner creates its fixture credentials, webhook keys, temporary
+ databases, and local HTTP ports, then cleans up after itself. Installing
+ dependencies needs registry access; the composition run uses loopback HTTP only.
+ 
+-The existing six-step dashboard remains available through `npm start` at
++The seven-step dashboard, including account deletion, remains available through `npm start` at
+ `http://127.0.0.1:5181`. Set `COMMERCE_LAB_PORT` only to change that port.
+ 
+ ## Follow the code
+@@ -49,7 +49,10 @@ and an optional `extensions["partner.segment"]` string survives storage without
+ consumer. The consumer also rejects a malformed successful API response.
+ 
+ Each emitter/project has its own configured endpoint, secret, and inbox
+-database. Equal event IDs from different emitters therefore do not collide.
++database in this baseline run. For the IAPKit replacement run, `startAppBackend`
++keeps one application endpoint and one receiver alive. Configure that receiver
++with named emitters and separate signing keys bound to each project ID; equal
++event IDs from different providers then remain distinct in the same inbox.
+ This does not identify duplicate real-world facts across a provider cutover.
+ 
+ ## Make and verify one change
+diff --git a/composition/app-backend.mjs b/composition/app-backend.mjs
+index 04475a7..1d63f4f 100644
+--- a/composition/app-backend.mjs
++++ b/composition/app-backend.mjs
+@@ -21,6 +21,7 @@ export function startAppBackend({ path, providers, receiver, resolveSession }) {
+     for (const row of db.query("SELECT * FROM erasure_requests").all()) {
+       try {
+         receiver.eraseUser(row.user_id);
++        await Promise.allSettled([...(inFlight.get(row.user_id) ?? [])]);
+         const result = await clients[row.provider].call("eraseUser", {
+           userId: row.user_id,
+         });
+@@ -83,7 +84,6 @@ export function startAppBackend({ path, providers, receiver, resolveSession }) {
+               ).run(userId, name);
+           })();
+           receiver.eraseUser(userId);
+-          await Promise.allSettled([...(inFlight.get(userId) ?? [])]);
+           const pending = await drainErasure();
+           return Response.json({
+             accepted: true,
+diff --git a/composition/app-backend.test.mjs b/composition/app-backend.test.mjs
+index 7f2da7c..dc43f6c 100644
+--- a/composition/app-backend.test.mjs
++++ b/composition/app-backend.test.mjs
+@@ -19,7 +19,8 @@ test("account deletion waits for in-flight fulfillment and retries provider eras
+   const gate = new Promise((resolve) => {
+     releaseBind = resolve;
+   });
+-  let rejectErase = true;
++  let rejectErase = true,
++    eraseCalls = 0;
+   const server = Bun.serve({
+     hostname: "127.0.0.1",
+     port: 0,
+@@ -28,8 +29,10 @@ test("account deletion waits for in-flight fulfillment and retries provider eras
+         signalBind();
+         await gate;
+       }
+-      if (new URL(request.url).pathname.endsWith("/erase") && rejectErase)
+-        return new Response(null, { status: 503 });
++      if (new URL(request.url).pathname.endsWith("/erase")) {
++        eraseCalls++;
++        if (rejectErase) return new Response(null, { status: 503 });
++      }
+       return provider.fetch(request);
+     },
+   });
+@@ -65,12 +68,21 @@ test("account deletion waits for in-flight fulfillment and retries provider eras
+       await Bun.sleep(10);
+     }
+     expect((await fetch(app.url + "/access")).status).toBe(401);
++    let workerFinished = false;
++    const background = app.drainErasure().then((pending) => {
++      workerFinished = true;
++      return pending;
++    });
++    await Bun.sleep(20);
++    expect(workerFinished).toBe(false);
++    expect(eraseCalls).toBe(0);
+     releaseBind();
+     expect(await (await purchase).json()).toEqual({ access: false });
+     expect(await (await deletion).json()).toEqual({
+       accepted: true,
+       status: "queued",
+     });
++    expect(await background).toBe(1);
+     await app.close();
+     app = startAppBackend(options);
+     expect(
+diff --git a/composition/receiver.test.mjs b/composition/receiver.test.mjs
+new file mode 100644
+index 0000000..24e83b4
+--- /dev/null
++++ b/composition/receiver.test.mjs
+@@ -0,0 +1,97 @@
++import { test, expect } from "bun:test";
++import { Database } from "bun:sqlite";
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { WEBHOOK, COMMERCE_EVENT_VERSION } from "openiap-commerce-protocol";
++import { createReceiver, sign } from "../webhooks.mjs";
++
++test("one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users", async () => {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-receiver-"));
++  const path = join(directory, "inbox.sqlite");
++  const now = Date.now();
++  const emitters = [
++    { name: "example", projectId: "example_project", secret: "example-key" },
++    { name: "iapkit", projectId: "kit_project", secret: "kit-key" },
++  ];
++  const event = {
++    eventId: "same-event-id",
++    eventType: "subscription.canceled",
++    eventVersion: COMMERCE_EVENT_VERSION,
++    occurredAt: now,
++    processedAt: now,
++    store: "fixture",
++    environment: "local-fixture",
++    projectId: emitters[0].projectId,
++    userId: "alice",
++    productId: "premium.monthly",
++    subscription: {
++      productId: "premium.monthly",
++      state: "Active",
++      active: true,
++      expiresAt: now + 60000,
++      willRenew: false,
++    },
++  };
++  const old = new Database(path, { create: true });
++  old.exec(
++    "CREATE TABLE inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
++  );
++  old
++    .query("INSERT INTO inbox VALUES (?, ?)")
++    .run(event.eventId, JSON.stringify(event));
++  old.close();
++  let receiver = createReceiver(path, emitters, () => now);
++  const post = (emitter, value) => {
++    const body = JSON.stringify(value),
++      timestamp = String(Math.floor(now / 1000));
++    return receiver.fetch(
++      new Request("http://localhost/webhooks/commerce", {
++        method: "POST",
++        body,
++        headers: {
++          [WEBHOOK.timestampHeader]: timestamp,
++          [WEBHOOK.signatureHeader]: sign(emitter.secret, timestamp, body),
++          [WEBHOOK.eventIdHeader]: value.eventId,
++        },
++      }),
++    );
++  };
++  try {
++    expect(await (await post(emitters[0], event)).json()).toEqual({
++      accepted: true,
++      duplicate: true,
++    });
++    const kitEvent = { ...event, projectId: emitters[1].projectId };
++    expect((await post(emitters[0], kitEvent)).status).toBe(401);
++    expect(receiver.count()).toBe(1);
++    expect(await (await post(emitters[1], kitEvent)).json()).toEqual({
++      accepted: true,
++      duplicate: false,
++    });
++    expect(receiver.count()).toBe(2);
++    receiver.close();
++    receiver = createReceiver(path, emitters, () => now);
++    expect(await (await post(emitters[1], kitEvent)).json()).toEqual({
++      accepted: true,
++      duplicate: true,
++    });
++    expect(receiver.eraseUser("alice")).toBe(2);
++    receiver.close();
++    receiver = createReceiver(path, emitters, () => now);
++    for (const emitter of emitters)
++      expect(
++        await (
++          await post(emitter, {
++            ...event,
++            projectId: emitter.projectId,
++            eventId: "late-event",
++          })
++        ).json(),
++      ).toEqual({ accepted: true, discarded: "erased-user" });
++    expect(receiver.count()).toBe(0);
++  } finally {
++    receiver.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++});
+diff --git a/consumer.mjs b/consumer.mjs
+index cb052b8..1e240f3 100644
+--- a/consumer.mjs
++++ b/consumer.mjs
+@@ -7,7 +7,7 @@ import { WEBHOOK, COMMERCE_EVENT_VERSION } from "openiap-commerce-protocol";
+ import { createReceiver, sign } from "./webhooks.mjs";
+ import { validate } from "./contract.mjs";
+ 
+-// One configured emitter/project and signing key per receiver database.
++// One app inbox; named emitters can bind separate signing keys to project IDs.
+ export function startConsumer({ secret, path, port = 0, now = Date.now }) {
+   assert(secret, "Set COMMERCE_WEBHOOK_SECRET to the provider signing secret.");
+   let receiver = createReceiver(path, secret, now);
+diff --git a/package.json b/package.json
+index d920e9e..8186b2e 100644
+--- a/package.json
++++ b/package.json
+@@ -5,7 +5,7 @@
+   "type": "module",
+   "scripts": {
+     "start": "bun server.mjs",
+-    "test": "bun verify.mjs && bun test composition/app-backend.test.mjs",
++    "test": "bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs",
+     "capture": "bun capture.mjs",
+     "verify:checkpoints": "bun verify-checkpoints.mjs",
+     "test:tooling": "bun test checkpoint-tools.test.mjs",
+diff --git a/webhooks.mjs b/webhooks.mjs
+index d8e18c4..f9b059d 100644
+--- a/webhooks.mjs
++++ b/webhooks.mjs
+@@ -34,23 +34,58 @@ export function authentic(secrets, timestamp, body, signatures, nowSeconds) {
+ }
+ 
+ export function createReceiver(path, secret, now) {
++  const emitters =
++    typeof secret === "string" ? [{ name: "default", secret }] : secret;
++  if (
++    !Array.isArray(emitters) ||
++    !emitters.length ||
++    emitters.some(
++      (entry) =>
++        !entry.name ||
++        !entry.secret ||
++        (typeof secret !== "string" && !entry.projectId),
++    )
++  )
++    throw new Error(
++      "Configure each emitter with a name, project ID, and signing secret",
++    );
++  if (new Set(emitters.map((entry) => entry.name)).size !== emitters.length)
++    throw new Error("Emitter names must be unique");
+   const db = new Database(path, { create: true });
+   db.exec(
+     "CREATE TABLE IF NOT EXISTS inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
+   );
+   const erasures = createErasureLedger(db);
++  // Upgrade old single-emitter event IDs without losing durable deduplication.
++  db.transaction(() => {
++    for (const row of db.query("SELECT event_id, body FROM inbox").all()) {
++      const event = JSON.parse(row.body);
++      if (row.event_id !== event.eventId) continue;
++      const matching = emitters.filter(
++        (entry) => entry.projectId === event.projectId,
++      );
++      const name = matching.length === 1 ? matching[0].name : "default";
++      const identity = JSON.stringify([name, event.projectId, event.eventId]);
++      db.query("INSERT OR IGNORE INTO inbox VALUES (?, ?)").run(
++        identity,
++        row.body,
++      );
++      db.query("DELETE FROM inbox WHERE event_id = ?").run(row.event_id);
++    }
++  })();
+ 
+   async function fetch(request) {
+     const bytes = new Uint8Array(await request.arrayBuffer());
+-    if (
+-      !authentic(
+-        [secret],
++    const authenticated = emitters.filter((emitter) =>
++      authentic(
++        [emitter.secret],
+         request.headers.get(WEBHOOK.timestampHeader),
+         bytes,
+         request.headers.get(WEBHOOK.signatureHeader),
+         Math.floor(now() / 1000),
+-      )
+-    ) {
++      ),
++    );
++    if (!authenticated.length) {
+       return new Response("Invalid signature", { status: 401 });
+     }
+     let body, event;
+@@ -64,12 +99,20 @@ export function createReceiver(path, secret, now) {
+       return new Response("Invalid event", { status: 400 });
+     if (request.headers.get(WEBHOOK.eventIdHeader) !== event.eventId)
+       return new Response("Event ID mismatch", { status: 400 });
++    const emitter = authenticated.find(
++      (entry) => !entry.projectId || entry.projectId === event.projectId,
++    );
++    if (!emitter)
++      return new Response("Unexpected emitter project", { status: 401 });
+     if (event.userId && erasures.has(event.userId))
+       return Response.json({ accepted: true, discarded: "erased-user" });
+     // Inbox insertion is the durable effect; downstream jobs can consume it later.
+     const result = db
+       .query("INSERT OR IGNORE INTO inbox VALUES (?, ?)")
+-      .run(event.eventId, body);
++      .run(
++        JSON.stringify([emitter.name, event.projectId, event.eventId]),
++        body,
++      );
+     return Response.json({ accepted: true, duplicate: result.changes === 0 });
+   }
+ 

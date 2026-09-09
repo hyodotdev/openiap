@@ -199,6 +199,10 @@ const schema = defineSchema({
     // Persistent admission backstop for public receipt-verification actions.
     verificationAdmissionTokens: v.optional(v.number()),
     verificationAdmissionRefilledAt: v.optional(v.number()),
+    // Separate bucket for entitlement rechecks (one store call per bound
+    // purchase), so access reads cannot starve receipt verification.
+    entitlementRecheckTokens: v.optional(v.number()),
+    entitlementRecheckRefilledAt: v.optional(v.number()),
     // Keyed user-erasure lookup without retaining a dictionary-testable hash.
     userErasureHashKey: v.optional(v.string()),
 
@@ -455,6 +459,8 @@ const schema = defineSchema({
   purchases: defineTable({
     projectId: v.id("projects"),
     store: purchaseStoreValidator,
+    appUserId: v.optional(v.string()),
+    accountErased: v.optional(v.boolean()),
     applicationId: v.string(), // bundleId or packageName
     remoteId: v.optional(v.string()),
     requestData: purchaseRequestDataValidator,
@@ -507,6 +513,7 @@ const schema = defineSchema({
     ])
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
+    .index("by_project_and_app_user", ["projectId", "appUserId"])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
     .index("by_store_isValid_nextAmazonReconcileAt", [
       "store",
@@ -747,6 +754,7 @@ const schema = defineSchema({
   // Apple does not have this problem — `originalTransactionId` is stable
   // across the entire entitlement lifetime.
   subscriptions: defineTable({
+    accountErased: v.optional(v.boolean()),
     projectId: v.id("projects"),
     purchaseToken: v.string(),
     userId: v.optional(v.string()),

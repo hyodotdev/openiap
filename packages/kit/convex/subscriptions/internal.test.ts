@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
+import { hmacSha256Hex } from "../utils/sha256";
 import {
   applySubscriptionEventHandler,
   bindSubscriptionToUserHandler,
   rebindSubscriptionToUserHandler,
+  drainSubscriptionUserErasurePage,
   buildVerifiedSubscriptionSnapshot,
   getCurrentProductIdByTokenHandler,
   getSourceProductIdByTokenHandler,
@@ -37,6 +39,10 @@ class MemQuery {
 
   async collect(): Promise<Row[]> {
     return [...this.rows];
+  }
+
+  async take(count: number): Promise<Row[]> {
+    return this.rows.slice(0, count);
   }
 }
 
@@ -143,6 +149,72 @@ function makeCtx(db: MemDb) {
 const PROJECT_ID = "projects_seed_1";
 const TOKEN = "purchase_token_1";
 
+describe("entitlement events across the expiry deadline", () => {
+  it.each([false, true])(
+    "revokes once when the clock expires before notifications (cancel first: %s)",
+    async (cancelFirst) => {
+      vi.useFakeTimers();
+      try {
+        vi.setSystemTime(1_000);
+        const db = new MemDb();
+        const started = await seedWebhookEvent(db, {
+          type: "SubscriptionStarted",
+          notificationId: "clock-start",
+          occurredAt: 1_000,
+        });
+        await db.patch(started, { expiresAt: 2_000, renewsAt: 2_000 });
+        await applySubscriptionEventHandler(makeCtx(db), {
+          projectId: PROJECT_ID as never,
+          eventId: started as never,
+        });
+        await bindSubscriptionToUserHandler(makeCtx(db), {
+          projectId: PROJECT_ID as never,
+          purchaseToken: TOKEN,
+          userId: "clock-user",
+        });
+        vi.setSystemTime(3_000);
+        if (cancelFirst) {
+          const canceled = await seedWebhookEvent(db, {
+            type: "SubscriptionStarted",
+            notificationId: "clock-cancel",
+            occurredAt: 2_500,
+          });
+          await db.patch(canceled, {
+            type: "SubscriptionCanceled",
+            expiresAt: 2_000,
+            renewsAt: undefined,
+            willRenew: false,
+          });
+          await applySubscriptionEventHandler(makeCtx(db), {
+            projectId: PROJECT_ID as never,
+            eventId: canceled as never,
+          });
+        }
+        const expired = await seedWebhookEvent(db, {
+          type: "SubscriptionExpired",
+          notificationId: "clock-expire",
+          occurredAt: 3_000,
+        });
+        await db.patch(expired, { expiresAt: 2_000 });
+        const args = {
+          projectId: PROJECT_ID as never,
+          eventId: expired as never,
+        };
+        await applySubscriptionEventHandler(makeCtx(db), args);
+        await applySubscriptionEventHandler(makeCtx(db), args);
+        expect(
+          db
+            .rows("commerceEvents")
+            .filter((row) => String(row.eventType).startsWith("entitlement."))
+            .map((row) => row.eventType),
+        ).toEqual(["entitlement.granted", "entitlement.revoked"]);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+});
+
 async function seedWebhookEvent(
   db: MemDb,
   args: {
@@ -180,6 +252,202 @@ async function seedWebhookEvent(
     receivedAt: args.occurredAt,
   });
 }
+
+describe("subscription erasure across replacement tokens", () => {
+  it.each([false, true])(
+    "reconciles a granted successor without restoring erased identities (successor erasure requested: %s)",
+    async (successorErased) => {
+      const db = new MemDb();
+      const ctx = makeCtx(db);
+      const hashKey = "erasure-test-key";
+      await db.patch(PROJECT_ID, { userErasureHashKey: hashKey });
+      async function erasureJob(userId: string): Promise<string> {
+        return db.insert("subscriptionUserErasureJobs", {
+          projectId: PROJECT_ID,
+          userId,
+          userIdHash: await hmacSha256Hex(hashKey, userId),
+          status: "queued",
+          subscriptionsErased: 0,
+          commerceEventsErased: 0,
+        });
+      }
+      await recordVerifiedSubscriptionHandler(ctx, {
+        projectId: PROJECT_ID as never,
+        platform: "Android",
+        purchaseToken: TOKEN,
+        productId: "premium_monthly",
+        purchaseState: "ENTITLED",
+      });
+      await bindSubscriptionToUserHandler(ctx, {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "erased-owner",
+      });
+      await drainSubscriptionUserErasurePage(
+        ctx,
+        (await erasureJob("erased-owner")) as never,
+      );
+      const startedId = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "successor-granted",
+        occurredAt: 1_000,
+      });
+      await db.patch(startedId, {
+        purchaseToken: "replacement",
+        expiresAt: Date.now() + 60_000,
+      });
+      await applySubscriptionEventHandler(ctx, {
+        projectId: PROJECT_ID as never,
+        eventId: startedId as never,
+      });
+      await bindSubscriptionToUserHandler(ctx, {
+        projectId: PROJECT_ID as never,
+        purchaseToken: "replacement",
+        userId: "successor-owner",
+      });
+      const grant = db
+        .rows("commerceEvents")
+        .find((event) => event.eventType === "entitlement.granted");
+      expect(grant?.userId).toBe("successor-owner");
+
+      const successorErasureJob = successorErased
+        ? await erasureJob("successor-owner")
+        : undefined;
+      // A destination exists so an emitted revocation would be delivered;
+      // none is, which is the point of the assertions below.
+      await db.insert("outboundDestinations", {
+        projectId: PROJECT_ID,
+        enabled: true,
+        eventTypes: ["entitlement.revoked"],
+      });
+      const linkedId = await seedWebhookEvent(db, {
+        type: "SubscriptionProductChanged",
+        notificationId: "late-erased-link",
+        occurredAt: 2_000,
+      });
+      await db.patch(linkedId, {
+        purchaseToken: "replacement",
+        linkedPurchaseToken: TOKEN,
+      });
+      const args = {
+        projectId: PROJECT_ID as never,
+        eventId: linkedId as never,
+      };
+      await applySubscriptionEventHandler(ctx, args);
+      await applySubscriptionEventHandler(ctx, args);
+
+      // The erased owner was unlinked, not the subscription. The successor
+      // bound the replacement token afterwards, so that live association
+      // survives the merge and nothing is revoked.
+      expect(db.rows("subscriptions")).toHaveLength(1);
+      expect(db.rows("subscriptions")[0].accountErased).toBeUndefined();
+      expect(db.rows("subscriptions")[0].userId).toBe("successor-owner");
+      expect(
+        db
+          .rows("commerceEvents")
+          .filter((event) => event.eventType === "entitlement.revoked"),
+      ).toEqual([]);
+      expect(db.rows("outboundDeliveries")).toEqual([]);
+      if (successorErased) {
+        await drainSubscriptionUserErasurePage(
+          ctx,
+          successorErasureJob as never,
+        );
+        expect(
+          db.rows("commerceEvents").some((event) => event.userId !== undefined),
+        ).toBe(false);
+      }
+      expect(
+        JSON.stringify(
+          [...db.tables.values()].map((rows) => [...rows.values()]),
+        ),
+      ).not.toContain("erased-owner");
+    },
+  );
+
+  it.each([
+    { erasedToken: TOKEN, successorExists: false, boundToken: undefined },
+    { erasedToken: TOKEN, successorExists: true, boundToken: undefined },
+    { erasedToken: TOKEN, successorExists: true, boundToken: "replacement" },
+    { erasedToken: "replacement", successorExists: true, boundToken: TOKEN },
+  ])(
+    "merges an erased record without dropping a live binding: %j",
+    async (testCase) => {
+      const db = new MemDb();
+      const ctx = makeCtx(db);
+      for (const purchaseToken of testCase.successorExists
+        ? [TOKEN, "replacement"]
+        : [TOKEN]) {
+        const id = await recordVerifiedSubscriptionHandler(ctx, {
+          projectId: PROJECT_ID as never,
+          platform: "Android",
+          purchaseToken,
+          productId: "premium_monthly",
+          purchaseState: "ENTITLED",
+          subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        });
+        if (purchaseToken === testCase.erasedToken)
+          await db.patch(id!, { accountErased: true });
+        if (purchaseToken === testCase.boundToken)
+          await bindSubscriptionToUserHandler(ctx, {
+            projectId: PROJECT_ID as never,
+            purchaseToken,
+            userId: "linked-owner",
+          });
+      }
+      const eventId = await seedWebhookEvent(db, {
+        type: "SubscriptionStarted",
+        notificationId: "erased-replacement",
+        occurredAt: Date.now(),
+      });
+      await db.patch(eventId, {
+        purchaseToken: "replacement",
+        linkedPurchaseToken: TOKEN,
+      });
+      await applySubscriptionEventHandler(ctx, {
+        projectId: PROJECT_ID as never,
+        eventId: eventId as never,
+      });
+
+      expect(db.rows("subscriptions")).toHaveLength(1);
+      const merged = db.rows("subscriptions")[0];
+      expect(merged.purchaseToken).toBe("replacement");
+      // The merge must not attribute the record to anyone who did not bind it,
+      // and it must not revoke the binder who did.
+      expect(
+        db
+          .rows("commerceEvents")
+          .every(
+            (event) =>
+              event.userId === undefined || event.userId === "linked-owner",
+          ),
+      ).toBe(true);
+      expect(
+        db
+          .rows("commerceEvents")
+          .some((event) => event.eventType === "entitlement.revoked"),
+      ).toBe(false);
+      if (testCase.boundToken) {
+        // A live binding on either side is a later association than the erasure,
+        // so it survives and the marker does not carry.
+        expect(merged.userId).toBe("linked-owner");
+        expect(merged.accountErased).toBeUndefined();
+      } else {
+        expect(merged.userId).toBeUndefined();
+        expect(merged.accountErased).toBe(true);
+        // Unowned again, so the record can be associated with someone new.
+        expect(
+          await bindSubscriptionToUserHandler(ctx, {
+            projectId: PROJECT_ID as never,
+            purchaseToken: "replacement",
+            userId: "new-owner",
+          }),
+        ).not.toBeNull();
+        expect(db.rows("subscriptions")[0].accountErased).toBeUndefined();
+      }
+    },
+  );
+});
 
 describe("bindSubscriptionToUser amount handling", () => {
   it("does not repeat an amount the webhook already reported", async () => {
@@ -2735,6 +3003,64 @@ describe("user binding authorization", () => {
     ).resolves.toBeNull();
     expect(owned.rows("subscriptions")[0].userId).toBe("victim");
   });
+
+  // Erasure unlinked the previous owner. Once the job is gone the record is
+  // unowned, and an operator may associate it again exactly as a purchase can.
+  it("rebinds a record whose erased owner has already been unlinked", async () => {
+    const db = new MemDb();
+    await seedBound(db, undefined);
+    await db.patch(db.rows("subscriptions")[0]._id, { accountErased: true });
+    expect(
+      await rebindSubscriptionToUserHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "real-owner",
+      }),
+    ).not.toBeNull();
+    const row = db.rows("subscriptions")[0];
+    expect(row.userId).toBe("real-owner");
+    expect(row.accountErased).toBeUndefined();
+  });
+
+  it("still refuses to move a record away from its live owner", async () => {
+    const db = new MemDb();
+    await seedBound(db, "real-owner");
+    expect(
+      await bindSubscriptionToUserHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        purchaseToken: TOKEN,
+        userId: "someone-else",
+      }),
+    ).toBeNull();
+    expect(db.rows("subscriptions")[0].userId).toBe("real-owner");
+  });
+
+  it.each(["queued", "running", "completed"])(
+    "refuses rebind into or out of an account with a %s erasure job",
+    async (status) => {
+      for (const erasedUser of ["source-user", "target-user"]) {
+        const db = new MemDb();
+        await seedBound(db, "source-user");
+        const hashKey = "erasure-test-key";
+        await db.patch(PROJECT_ID, { userErasureHashKey: hashKey });
+        await db.insert("subscriptionUserErasureJobs", {
+          projectId: PROJECT_ID,
+          userIdHash: await hmacSha256Hex(hashKey, erasedUser),
+          status,
+        });
+        const before = structuredClone(db.rows("subscriptions"));
+        expect(
+          await rebindSubscriptionToUserHandler(makeCtx(db), {
+            projectId: PROJECT_ID as never,
+            purchaseToken: TOKEN,
+            userId: "target-user",
+          }),
+        ).toBeNull();
+        expect(db.rows("subscriptions")).toEqual(before);
+        expect(db.rows("commerceEvents")).toEqual([]);
+      }
+    },
+  );
 
   // A consumer gating access on commerce events must be told the purchase
   // moved, or the wrong user keeps access and the real one never gets it.

@@ -99,6 +99,28 @@ it and a test proves it. `SPEC.md` §14 exists to hold the rest: an honestly
 listed gap is useful, a specified-but-absent feature is a lie a consumer will
 build against.
 
+## Public collaboration and implementation evidence
+
+Open a public issue before changing shared behavior. Use the Commerce Protocol
+proposal form and follow the project's [significant-decision review process](https://openiap.dev/docs/foundation/governance#significant-decisions).
+Include the use case, affected roles and implementations, a runnable example
+with an expected result and rejection case, and the MAJOR/MINOR impact.
+Explain why an existing profile or extension cannot express the requirement.
+
+Apply the same schema and behavioral checks to every implementation, including
+IAPKit. A feature's presence in IAPKit is not sufficient evidence for acceptance.
+Record relevant implementation affiliations, objections, their resolution, and
+the decision rationale in the issue. Identify who actually reviewed or ran the
+example; missing independent review stays an explicit gap, not an endorsement.
+The current project lead retains the decision authority described by governance.
+
+For interoperability reports, include source revisions or hashes, commands,
+the compared configurations without credential values, changed adapter/client
+files, results, and limits. Separate same-project fixtures, external implementer
+reproductions, store sandbox runs, and production observations. Preserve failing
+cases and disclose required client changes; two green schema checks alone do
+not demonstrate interchangeable implementations.
+
 ## The deployed wire format constrains us
 
 Event schema version 1.0 is deployed and its payload shape is published. A

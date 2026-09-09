@@ -28,6 +28,7 @@ export default function NotFound() {
         title="Page Not Found"
         description="The page you're looking for doesn't exist. Return to OpenIAP documentation for in-app purchase guides and API references."
         path="/404"
+        noIndex
       />
       <div
         style={{

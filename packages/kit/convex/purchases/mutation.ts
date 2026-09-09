@@ -1,5 +1,12 @@
-import { internalMutation } from "../_generated/server";
-import { v } from "convex/values";
+import { internalMutation, mutation } from "../_generated/server";
+import { ConvexError, v } from "convex/values";
+import { resolveProjectByApiKeyFromDb } from "../projects/helpers";
+import {
+  isValidSubscriptionUserId,
+  MAX_BOUND_PURCHASES_PER_USER,
+} from "../subscriptions/limits";
+import { isUserErasureRequested } from "../subscriptions/erasure";
+
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -10,6 +17,95 @@ import {
 } from "./stats";
 import { getProjectById } from "../projects/helpers";
 
+export const bindVerifiedPurchaseAsServer = mutation({
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+    store: v.union(v.literal("amazon"), v.literal("horizon")),
+    remoteId: v.string(),
+  },
+  returns: v.object({ bound: v.boolean() }),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved)
+      throw new ConvexError({
+        code: "INVALID_API_KEY",
+        message: "Invalid credential",
+      });
+    if (
+      !isValidSubscriptionUserId(args.userId) ||
+      !args.remoteId ||
+      args.remoteId.length > 65536
+    )
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Invalid purchase identity",
+      });
+    if (await isUserErasureRequested(ctx, resolved.project, args.userId))
+      return { bound: false };
+    // The cap is decided from the caller's own rows before any evidence lookup,
+    // so neither the answer nor the log depends on someone else's purchase.
+    const bound = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", resolved.project._id).eq("appUserId", args.userId),
+      )
+      .take(MAX_BOUND_PURCHASES_PER_USER);
+    if (bound.length >= MAX_BOUND_PURCHASES_PER_USER) {
+      if (
+        bound.some(
+          (row) => row.store === args.store && row.remoteId === args.remoteId,
+        )
+      )
+        return { bound: true };
+      // Refunded and revoked receipts would otherwise hold the cap for good:
+      // nothing clears `appUserId` and there is no unbind operation. Reclaim
+      // the caller's own dead rows before refusing, so the answer still comes
+      // from their rows alone. A row keeps its binding until the cap is
+      // actually contended, which leaves the entitlements read unchanged.
+      const reclaimed = bound.filter((row) => !(row.isValid ?? false));
+      for (const row of reclaimed)
+        await ctx.db.patch(row._id, { appUserId: undefined });
+      if (reclaimed.length === 0) {
+        // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
+        // is visible to operators only through this log line.
+        console.warn("[commerce] bindPurchase refused: bound purchase limit", {
+          projectId: resolved.project._id,
+          store: args.store,
+        });
+        return { bound: false };
+      }
+    }
+    const purchase = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_remote", (q) =>
+        q.eq("projectId", resolved.project._id).eq("remoteId", args.remoteId),
+      )
+      .filter((q) => q.eq(q.field("store"), args.store))
+      .unique();
+    if (!purchase) return { bound: false };
+    if (purchase.appUserId)
+      return { bound: purchase.appUserId === args.userId };
+    // Only a currently entitled purchase binds; an Amazon consumable is
+    // fulfilled once by the app's own ledger.
+    if (
+      purchase.state !== HarmonizedPurchaseState.ENTITLED ||
+      !purchase.isValid ||
+      !purchase.productId
+    )
+      return { bound: false };
+    // Erasure only unlinked the previous owner; this is a new association.
+    await ctx.db.patch(purchase._id, {
+      appUserId: args.userId,
+      accountErased: undefined,
+    });
+    return { bound: true };
+  },
+});
 // Mark purchase as inauthentic.
 //
 // Internal-only on purpose: nothing in the dashboard or server calls this —

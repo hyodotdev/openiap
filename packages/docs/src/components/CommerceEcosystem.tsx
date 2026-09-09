@@ -34,7 +34,7 @@ function CommerceEcosystem(): React.JSX.Element {
   };
   return (
     <section
-      id="architecture"
+      id="commerce-ecosystem"
       className="commerce-ecosystem"
       aria-labelledby="ecosystem-heading"
     >

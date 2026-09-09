@@ -1,3 +1,4 @@
+import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
@@ -23,13 +24,24 @@ function CommerceGraphql() {
         path="/commerce-protocol/graphql"
         keywords="OpenIAP Commerce Protocol GraphQL, commerce GraphQL API"
       />
-      <h1>GraphQL binding</h1>
+      <h1>GraphQL</h1>
+      <p>
+        GraphQL is another way to make the same provider requests. You send a
+        query to one endpoint and choose the result fields your backend needs. A{' '}
+        <strong>binding</strong> defines how those requests follow the protocol.
+      </p>
+      <p>
+        Use it if your backend already works with GraphQL. Alice’s ownership and
+        access rules stay the same as REST; supporting both formats is optional
+        for a provider.
+      </p>
       <p>
         The same six operations at one <code>POST</code> endpoint, whose path
         each provider documents, executing exactly the generated schema
         projection (<code>generated/bindings/operations.graphql</code>). The
         same authentication and account rules apply to both bindings.
       </p>
+      <CommerceImplementationComparison topic="graphql" />
       <section>
         <AnchorLink id="example" level="h2">
           Calling it
@@ -70,9 +82,9 @@ curl --fail-with-body "$COMMERCE_GRAPHQL_URL" \\
           verify this binding.
         </p>
         <Callout kind="important">
-          There is no Subscription root, ever: the operation surface is bounded
-          request/response, and the compiler rejects a stream a shipped app
-          could hold open. See{' '}
+          This API uses individual requests and responses. It has no GraphQL
+          Subscription stream. Receive ongoing changes through server-to-server
+          webhooks; your app backend owns any device notification. See{' '}
           <a
             href={`${SPEC_URL}#7-graphql-binding`}
             target="_blank"

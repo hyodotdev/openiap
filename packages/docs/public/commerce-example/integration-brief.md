@@ -23,7 +23,7 @@ Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`
 or `bun install`. This example's runtime is Bun. The contract is
 `openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
 
-- `npm run demo:bridge`: maps Apple/Google OpenIAP purchase fields into the
+- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
   installed verification schema; rejects missing or unsupported evidence.
 - `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
   HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
@@ -35,6 +35,13 @@ The [receiver setup guide](https://github.com/hyodotdev/openiap-commerce-protoco
 gives the endpoint, configuration, and limits.
 
 ## Task for the AI
+
+Use the [purchase walkthrough](https://openiap.dev/commerce-protocol/getting-started)
+to compare this example with [IAPKit's service implementation](https://github.com/hyodotdev/openiap/tree/main/packages/kit)
+at each step. This repository shows the small local implementation; IAPKit shows
+store adapters, project credentials, erasure, and both API bindings. Follow the
+linked handlers and checks for the responsibility you own. The installed
+specification defines the required behavior; neither implementation changes it.
 
 Inspect this repository's purchase flow and choose the role from the table.
 Install `openiap-commerce-protocol` with this repository's package manager.
@@ -55,7 +62,7 @@ for the app team. Follow these boundaries:
    UI, targeting, or product catalog API; document this host adapter explicitly.
 2. **App connection:** the app uses its OpenIAP library to fetch products and
    request a store purchase. Its purchase callback sends evidence to its
-   authenticated backend. Use `client-bridge.mjs` there to map Apple/Google
+   authenticated backend. Use `client-bridge.mjs` there to map Apple, Google, Amazon, and Horizon
    purchase fields into a verification input; this does not authenticate the
    evidence. Keep server keys and user selection on that backend. Verify, bind
    under the ownership policy, read current access, fulfill durably, then finish
@@ -76,9 +83,49 @@ for the app team. Follow these boundaries:
 
 The current client `verifyPurchaseWithProvider` helper supports IAPKit's own
 API. A different provider name or base URL does not turn it into this protocol.
-Other providers connect through the app backend's REST or GraphQL calls. The
-Apple/Google helper does not support Amazon or Horizon, whose protocol evidence
-requires store-specific user identifiers distinct from the app's user ID.
+Other providers connect through the app backend's REST or GraphQL calls. Amazon and Horizon require a store-specific user identifier distinct from the
+app user ID. Pass it as `context.storeUserId` to the bridge after authenticating
+the store account link. `startAppBackend` requires `resolveStoreUser` for these
+stores and rejects evidence belonging to a different store account. Never
+implement that callback by copying a user ID from the request body.
+
+## Select the store before implementing
+
+Follow the six-step purchase flow with your chosen store. Verification and
+binding use these evidence shapes:
+
+| Store | Purchase evidence | IAPKit access path |
+| --- | --- | --- |
+| Apple | `apple.jws` from the store purchase | Bind the verified subscription; read its current state and listen for lifecycle events |
+| Google | `google.purchaseToken` | Bind the verified subscription; read its current state and listen for lifecycle events |
+| Amazon | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS |
+| Meta Horizon | `horizon.userId`, `horizon.sku` | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta |
+
+For Amazon and Horizon, use `entitlements.productIds` for access. IAPKit does
+not invent a subscription record, expiry date, or lifecycle event for these
+ownership checks. An empty `subscriptions` list can accompany owned products.
+A negative store answer removes the product; a failed store call fails the
+read. Decide caching and outage policy in the app backend. Reads currently
+fail if an account has more than 20 linked Amazon/Horizon purchase rows.
+
+For Quest, verify Meta's user proof on your authenticated backend before linking
+that Meta user to the app account. Follow the official
+[Meta user verification guide](https://developers.meta.com/horizon/documentation/android-apps/ps-ownership/).
+For Amazon, establish the store account association through your application's
+trusted sign-in and ownership policy. Receipt possession alone does not prove
+which app account may claim it. The runnable comparison uses explicit fictional
+session links; it does not implement your authentication provider.
+
+Keep consumable fulfillment separate: record each granted unit durably and
+idempotently before finishing/consuming. A verified SKU is not a new quantity
+to credit on every read. The protocol walkthrough demonstrates Premium access;
+it does not implement a wallet or sell a Nami paywall.
+
+For IAPKit setup, configure Apple bundle/App ID and Server API signing key,
+Google package and service account, Meta App ID/secret, or Amazon RVS shared
+secret in the project. Keep secrets on the server. Enable Amazon sandbox only
+for App Tester evidence. The local comparison requires none of these real
+credentials; its external store responses are fixtures.
 
 ## Deliver and prove the connection
 

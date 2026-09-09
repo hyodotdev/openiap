@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-07T18:20:02.056Z",
+  "recordedAt": "2026-09-08T22:46:50.749Z",
   "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.",
   "checks": [
     "Fixture request matches the installed schema",
@@ -76,7 +76,7 @@
     "Verification role cannot enumerate users",
     "Malformed input is refused",
     "A real store is not falsely accepted",
-    "Erasure is explicitly unimplemented",
+    "Erasure rejects verification credentials",
     "Cancellation after expiry is ignored",
     "Expired fixture evidence has an expired verdict",
     "Tampered HTTP body has no inbox effect",
@@ -132,18 +132,109 @@
     "apple: matches the installed verification input schema",
     "google: maps evidence without forwarding client identity",
     "google: matches the installed verification input schema",
+    "amazon: uses server-selected store identity, distinct from the app user",
+    "amazon: matches the installed verification input schema",
+    "horizon: uses server-selected store identity, distinct from the app user",
+    "horizon: matches the installed verification input schema",
     "Rejects missing purchase",
     "Rejects unknown store",
-    "Rejects Amazon needs its own adapter",
-    "Rejects Horizon needs its own adapter",
+    "Rejects Amazon requires its authenticated store user",
+    "Rejects Horizon requires its authenticated store user",
     "Rejects missing evidence",
     "Rejects blank evidence",
     "Rejects non-string evidence",
-    "Rejects oversized evidence"
+    "Rejects oversized evidence",
+    "apple: unverified evidence cannot bind",
+    "apple: matching evidence verifies",
+    "apple: verification alone gives no access",
+    "apple: verification credentials cannot bind",
+    "apple: binding and retry keep one owner",
+    "apple: binding and retry keep one owner",
+    "apple: another account cannot claim the purchase",
+    "apple: owned product is accessible",
+    "apple: erasure completes",
+    "apple: erasure removes access",
+    "apple: erased evidence cannot be claimed",
+    "apple: verification before the fixture deadline respects the store's access model",
+    "apple: verification at the fixture deadline respects the store's access model",
+    "apple: verification after the fixture deadline respects the store's access model",
+    "google: unverified evidence cannot bind",
+    "google: matching evidence verifies",
+    "google: verification alone gives no access",
+    "google: verification credentials cannot bind",
+    "google: binding and retry keep one owner",
+    "google: binding and retry keep one owner",
+    "google: another account cannot claim the purchase",
+    "google: owned product is accessible",
+    "google: erasure completes",
+    "google: erasure removes access",
+    "google: erased evidence cannot be claimed",
+    "google: verification before the fixture deadline respects the store's access model",
+    "google: verification at the fixture deadline respects the store's access model",
+    "google: verification after the fixture deadline respects the store's access model",
+    "amazon: unverified evidence cannot bind",
+    "amazon: matching evidence verifies",
+    "amazon: verification alone gives no access",
+    "amazon: verification credentials cannot bind",
+    "amazon: binding and retry keep one owner",
+    "amazon: binding and retry keep one owner",
+    "amazon: another account cannot claim the purchase",
+    "amazon: owned product is accessible",
+    "amazon: an outage is an error, not cached access",
+    "amazon: a negative recheck removes access",
+    "amazon: a confirmed recheck restores ownership",
+    "amazon: erasure completes",
+    "amazon: erasure removes access",
+    "amazon: erased evidence cannot be claimed",
+    "amazon: verification before the fixture deadline respects the store's access model",
+    "amazon: verification at the fixture deadline respects the store's access model",
+    "amazon: verification after the fixture deadline respects the store's access model",
+    "amazon: a negative ownership verdict remains rejected after the fixture deadline",
+    "amazon: an ownership verification outage remains an error after the fixture deadline",
+    "horizon: unverified evidence cannot bind",
+    "horizon: matching evidence verifies",
+    "horizon: verification alone gives no access",
+    "horizon: verification credentials cannot bind",
+    "horizon: binding and retry keep one owner",
+    "horizon: binding and retry keep one owner",
+    "horizon: another account cannot claim the purchase",
+    "horizon: owned product is accessible",
+    "horizon: an outage is an error, not cached access",
+    "horizon: a negative recheck removes access",
+    "horizon: a confirmed recheck restores ownership",
+    "horizon: erasure completes",
+    "horizon: erasure removes access",
+    "horizon: erased evidence cannot be claimed",
+    "horizon: verification before the fixture deadline respects the store's access model",
+    "horizon: verification at the fixture deadline respects the store's access model",
+    "horizon: verification after the fixture deadline respects the store's access model",
+    "horizon: a negative ownership verdict remains rejected after the fixture deadline",
+    "horizon: an ownership verification outage remains an error after the fixture deadline",
+    "An active purchase has a delivered event copy",
+    "Erasure during delivery completes",
+    "An in-flight event cannot resurrect receiver data",
+    "An in-flight acknowledgement cannot resurrect the outbox",
+    "Repeated erase survives restart",
+    "An old signed event remains discarded after restart",
+    "A new event ID cannot bypass erasure",
+    "Verification cannot bind an erased purchase",
+    "Stale binding cannot restore an erased account",
+    "Another account cannot claim erased evidence",
+    "Erased account is inactive before paid expiry",
+    "Late lifecycle processing carries no erased identity",
+    "Persisted protocol records contain no erased user ID",
+    "Unknown-user erasure is accepted",
+    "Verification credentials cannot erase users",
+    "Provider erasure completes",
+    "Erasure retry after restart returns the same job",
+    "Purchase has no account identity",
+    "App event copies are erased",
+    "Erased account has no access",
+    "A stale binding retry cannot restore identity"
   ],
   "standalone": {
     "version": "0.1.0",
-    "passed": 138
+    "passed": 229
   },
   "milestones": [
     {
@@ -672,6 +763,97 @@
         "report": "06-recover-reviewed-8/run.json",
         "previousSource": "06-recover-reviewed-7/source.tar.gz",
         "passed": 138
+      }
+    },
+    {
+      "step": 7,
+      "title": "Delete the account",
+      "built": "Idempotent erasure + receiver cleanup + durable deletion guard",
+      "result": "Alice is removed from purchases and event copies. Late deliveries cannot restore her account data.",
+      "simulatedTime": "2026-10-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": null,
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "willRenew": 0
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "eraseUser",
+          "httpStatus": 403,
+          "body": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "forbidden"
+            }
+          }
+        },
+        {
+          "operation": "eraseUser",
+          "httpStatus": 202,
+          "body": {
+            "accepted": true,
+            "jobId": "f350d8b6-da5f-4374-9af4-31cbd392efbb",
+            "status": "completed"
+          }
+        },
+        {
+          "operation": "eraseUser",
+          "httpStatus": 202,
+          "body": {
+            "accepted": true,
+            "jobId": "f350d8b6-da5f-4374-9af4-31cbd392efbb",
+            "status": "completed"
+          }
+        },
+        {
+          "operation": "entitlements",
+          "httpStatus": 200,
+          "body": {
+            "userId": "demo_alice",
+            "productIds": [],
+            "subscriptions": []
+          }
+        },
+        {
+          "operation": "bindPurchase",
+          "httpStatus": 200,
+          "body": {
+            "bound": false
+          }
+        }
+      ],
+      "checks": [
+        "Verification credentials cannot erase users",
+        "Provider erasure completes",
+        "Erasure retry after restart returns the same job",
+        "Purchase has no account identity",
+        "App event copies are erased",
+        "Erased account has no access",
+        "A stale binding retry cannot restore identity"
+      ],
+      "totalChecks": 34,
+      "screenshot": "07-account-erasure-interoperable-6/screen.png",
+      "build": {
+        "request": "Delete the account from provider records and delivered event copies, including concurrent delivery and restart.",
+        "change": "Added idempotent erasure, a persistent deletion ledger, receiver cleanup and the seventh dashboard step.",
+        "review": "The running example checks erasure during delivery, repeated jobs, storage reopening, late signed events and stale purchase requests. The shared app waits for in-flight fulfillment before provider erasure; one receiver accepts separately authenticated providers without event-ID collisions.",
+        "id": "07-account-erasure-interoperable-6",
+        "label": "Erase",
+        "source": "07-account-erasure-interoperable-6/source.tar.gz",
+        "changes": "07-account-erasure-interoperable-6/changes.patch",
+        "report": "07-account-erasure-interoperable-6/run.json",
+        "previousSource": "07-account-erasure-interoperable-5/source.tar.gz",
+        "passed": 229
       }
     }
   ]

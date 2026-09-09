@@ -32,6 +32,14 @@ Implement the backend in my project. Do not require an OpenIAP or IAPKit checkou
 and do not invent request fields, response shapes, role rules, or enum values.
 Follow my repository's instructions. Keep work uncommitted for review.
 
+Read this example alongside [IAPKit's service source](https://github.com/hyodotdev/openiap/tree/main/packages/kit).
+The [purchase walkthrough](https://openiap.dev/commerce-protocol/getting-started)
+connects each step to both implementations and their checks. Use this example
+to understand the small SQLite flow; use IAPKit to study real store adapters,
+project authorization, account erasure, and the GraphQL adapter. Compare the
+relevant code at each milestone without making either repository a runtime
+dependency of the new project.
+
 ## Start with a reviewable local result
 
 Use the stack already in my repository. If this is an empty project, choose a
@@ -66,10 +74,30 @@ Build these milestones in order:
    events profile requires the public HTTPS destination protections in the spec.
 6. **Recovery:** reopen the databases with pending deliveries, resume processing,
    and prove that neither ownership nor receiver deduplication disappears.
+7. **Account deletion:** remove provider identity and recipient copies, retry the
+   same erasure after restart, and reject stale account requests and late events.
 
 After each milestone, run it. Show the command, actual API result, storage
 change, and passing assertions. Capture the working screen. Do not manufacture
 logs, screenshots, conformance counts, or claims about capabilities not tested.
+
+## Complete the local implementation
+
+Before calling the result complete, implement erasure for the account lifecycle:
+remove the user identity from provider records and event history, preserve other
+users, and prevent a late retry from restoring erased recipient data. Keep
+provider erasure separate from the recipient's responsibility for delivered
+copies. Exercise erasure during delivery, on repetition, and after restart.
+
+Run the portable conformance runner for every selected profile and binding.
+Do not finish with tests that expect known conformance failures. Keep every
+previously exercised case in the completed run; changing declarations must not
+hide a failure. Describe fixture-only capabilities explicitly, without implying
+that a real store API or notification channel was connected.
+
+Copy only source and package metadata into an empty directory. Install, test,
+and start it there, without the development database or output directories.
+Check the visible app after purchase, cancellation, expiry, reload, and deletion.
 
 ## Deliver
 
@@ -77,15 +105,24 @@ logs, screenshots, conformance counts, or claims about capabilities not tested.
 - One command that verifies the demonstrated flow and exits nonzero on failure.
 - A short visual walkthrough, with real captured results for each milestone.
 - The exact scope and remaining work, including real store validation,
-  authentication, erasure, multi-tenant isolation, public HTTPS delivery,
-  operations, and full profile conformance. Keep the main explanation short;
+  real authentication, multi-tenant isolation, public HTTPS delivery, and
+  operations. Include the passing local conformance report and its fixture scope. Keep the main explanation short;
   link the specification for details.
+
+## Match the selected store
+
+Read the store table in `INTEGRATE.md` before replacing the fixture. Exercise
+all evidence shapes the provider advertises. Keep the app account distinct
+from the Amazon/Meta store user, and reject a claim for someone else's store
+account. Recheck ownership for Amazon/Horizon access; never invent subscription
+or notification support to make their flow look like Apple/Google. Prove
+negative rechecks, outages, conflicting bindings, erasure, and restart.
 
 ## Then extend toward a production provider
 
 Ask me which real store, backend identity system, and deployment environment to
-integrate before using credentials or external services. Implement the remaining
-operations of each chosen profile, including erasure for `accountLifecycle`.
+integrate before using credentials or external services. Replace fictional store and session adapters with the chosen integrations.
+Keep the completed profile behavior and erasure checks passing.
 Run the portable conformance runner for every advertised binding and profile;
 also run real store sandbox, recovery, isolation, and load tests. Treat IAPKit as
 an implementation example, never as a replacement for the protocol's contract.

@@ -96,6 +96,12 @@ second type-copy command or maintain another target list.
 
 ### Changing the Commerce Protocol
 
+Start shared behavior proposals with the **Commerce Protocol proposal** issue
+form. The [protocol contribution procedure](specs/commerce-protocol/CONVENTION.md#public-collaboration-and-implementation-evidence)
+defines the evidence and compatibility review. You can also contribute an
+independent reproduction using the [service composition example](https://openiap.dev/commerce-protocol/ecosystem#composition-proof)
+without proposing a contract change.
+
 1. Edit `specs/commerce-protocol/SPEC.md` and the owning GraphQL layer
    under `schema/`.
 2. Run `cd specs/commerce-protocol && bun run build` to regenerate the

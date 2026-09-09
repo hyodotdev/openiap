@@ -1,0 +1,639 @@
+diff --git a/BUILD.md b/BUILD.md
+index 94a7142..f9c0629 100644
+--- a/BUILD.md
++++ b/BUILD.md
+@@ -109,6 +109,15 @@ Check the visible app after purchase, cancellation, expiry, reload, and deletion
+   operations. Include the passing local conformance report and its fixture scope. Keep the main explanation short;
+   link the specification for details.
+ 
++## Match the selected store
++
++Read the store table in `INTEGRATE.md` before replacing the fixture. Exercise
++all evidence shapes the provider advertises. Keep the app account distinct
++from the Amazon/Meta store user, and reject a claim for someone else's store
++account. Recheck ownership for Amazon/Horizon access; never invent subscription
++or notification support to make their flow look like Apple/Google. Prove
++negative rechecks, outages, conflicting bindings, erasure, and restart.
++
+ ## Then extend toward a production provider
+ 
+ Ask me which real store, backend identity system, and deployment environment to
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+index ba56c4a..7cfb8c3 100644
+--- a/INTEGRATE.md
++++ b/INTEGRATE.md
+@@ -23,7 +23,7 @@ Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`
+ or `bun install`. This example's runtime is Bun. The contract is
+ `openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
+ 
+-- `npm run demo:bridge`: maps Apple/Google OpenIAP purchase fields into the
++- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
+   installed verification schema; rejects missing or unsupported evidence.
+ - `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
+   HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
+@@ -62,7 +62,7 @@ for the app team. Follow these boundaries:
+    UI, targeting, or product catalog API; document this host adapter explicitly.
+ 2. **App connection:** the app uses its OpenIAP library to fetch products and
+    request a store purchase. Its purchase callback sends evidence to its
+-   authenticated backend. Use `client-bridge.mjs` there to map Apple/Google
++   authenticated backend. Use `client-bridge.mjs` there to map Apple, Google, Amazon, and Horizon
+    purchase fields into a verification input; this does not authenticate the
+    evidence. Keep server keys and user selection on that backend. Verify, bind
+    under the ownership policy, read current access, fulfill durably, then finish
+@@ -83,9 +83,48 @@ for the app team. Follow these boundaries:
+ 
+ The current client `verifyPurchaseWithProvider` helper supports IAPKit's own
+ API. A different provider name or base URL does not turn it into this protocol.
+-Other providers connect through the app backend's REST or GraphQL calls. The
+-Apple/Google helper does not support Amazon or Horizon, whose protocol evidence
+-requires store-specific user identifiers distinct from the app's user ID.
++Other providers connect through the app backend's REST or GraphQL calls. Amazon and Horizon require a store-specific user identifier distinct from the
++app user ID. Pass it as `context.storeUserId` to the bridge after authenticating
++the store account link. `startAppBackend` requires `resolveStoreUser` for these
++stores and rejects evidence belonging to a different store account. Never
++implement that callback by copying a user ID from the request body.
++
++## Select the store before implementing
++
++The same six protocol operations carry these four evidence shapes:
++
++| Store | Purchase evidence | IAPKit access path |
++| --- | --- | --- |
++| Apple | `apple.jws` from the store purchase | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Google | `google.purchaseToken` | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Amazon | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS |
++| Meta Horizon | `horizon.userId`, `horizon.sku` | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta |
++
++For Amazon and Horizon, use `entitlements.productIds` for access. IAPKit does
++not invent a subscription record, expiry date, or lifecycle event for these
++ownership checks. An empty `subscriptions` list can accompany owned products.
++A negative store answer removes the product; a failed store call fails the
++read. Decide caching and outage policy in the app backend. Reads currently
++fail if an account has more than 20 linked Amazon/Horizon purchase rows.
++
++For Quest, verify Meta's user proof on your authenticated backend before linking
++that Meta user to the app account. Follow the official
++[Meta user verification guide](https://developers.meta.com/horizon/documentation/android-apps/ps-ownership/).
++For Amazon, establish the store account association through your application's
++trusted sign-in and ownership policy. Receipt possession alone does not prove
++which app account may claim it. The runnable comparison uses explicit fictional
++session links; it does not implement your authentication provider.
++
++Keep consumable fulfillment separate: record each granted unit durably and
++idempotently before finishing/consuming. A verified SKU is not a new quantity
++to credit on every read. The protocol walkthrough demonstrates Premium access;
++it does not implement a wallet or sell a Nami paywall.
++
++For IAPKit setup, configure Apple bundle/App ID and Server API signing key,
++Google package and service account, Meta App ID/secret, or Amazon RVS shared
++secret in the project. Keep secrets on the server. Enable Amazon sandbox only
++for App Tester evidence. The local comparison requires none of these real
++credentials; its external store responses are fixtures.
+ 
+ ## Deliver and prove the connection
+ 
+diff --git a/README.md b/README.md
+index a11d8e0..c806211 100644
+--- a/README.md
++++ b/README.md
+@@ -60,8 +60,10 @@ If port 5181 is occupied, run `COMMERCE_LAB_PORT=5183 npm start`.
+ | Data / automation    | [Event receiver guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md) | A ready signed-event receiver with a durable inbox                   |
+ | Integrated platform  | [Integration brief](INTEGRATE.md)                                                                                 | How the roles compose without splitting account authority            |
+ 
+-`client-bridge.mjs` maps Apple/Google OpenIAP purchase fields into the installed
++`client-bridge.mjs` maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the installed
+ verification schema **on the app backend**. Run `npm run demo:bridge` to check it.
++`npm test` also exercises all four fixture shapes through verification, binding,
++access and erasure. Amazon/Horizon cases include negative rechecks and outages.
+ It does not perform a mobile purchase or authenticate store evidence. The
+ current client `verifyPurchaseWithProvider` helper uses IAPKit's own API; other
+ providers connect through the app's authenticated backend.
+diff --git a/ai-task.md b/ai-task.md
+index 7a2e80f..e6aa254 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,63 +1,13 @@
+-# Review the completed backend
+-
+-Apply the Fable 5.1 max CLI review to the final checkpoint. Add the missing
+-first-binding grant event in the same transaction as ownership, reject a
+-premature expiry without consuming its observation, and verify both rollback
+-and expiry boundaries. Correct test labels to describe what they exercise.
+-
+-Repair patch generation without rewriting historical source or screenshots.
+-Build patches from the preceding archived source and verify their hashes.
+-Install and test each archive outside the monorepo with npm. Capture the revised
+-final screen on desktop and mobile, then export only matching source evidence.
+-
+-Keep the original six checkpoints as history. Explain their incomplete discovery
+-and missing grant behavior; do not describe them as conformant providers. Keep
+-all changes uncommitted for maintainer review.
+-
+-Apply the second review: retain gate delivery state for delayed expiry,
+-retain store occurrence on delayed binding, preserve consecutive failure logs,
+-and state actual package contents and runtime requirements. Add a ready-to-run
+-generic event receiver for an existing backend, reusing the same receiver
+-handler. Demonstrate signed lifecycle ingestion, duplicate delivery, tampering,
+-and persisted inbox recovery over real local HTTP. Keep all samples fictional.
+-
+-Add composable integration roles: experience, commerce, and data. Ship a short
+-AI integration brief and a backend helper that maps Apple/Google OpenIAP
+-purchase fields into the installed verification schema. Test invalid inputs
+-and exclude client-supplied identity. Keep paywall UI APIs product-specific,
+-current IAPKit-only client helpers explicit, and store/device proof separate
+-from local fixtures. Reuse the existing consumer and contract validators.
+-
+-The first bridge test failed because store evidence was nested under an extra
+-`evidence` key. Keep the failure output, use the installed input schema's
+-top-level `apple`/`google` members, and rerun that boundary check.
+-
+-Apply the third CLI review. Make the integration brief reachable from the docs
+-site with absolute setup, source, and build-brief links. Accept signed webhook
+-delivery behind a reverse proxy that preserves the public Host header. Keep
+-unfinished captures from blocking completed history, retain equal-time fixture
+-transitions, record the observed duplicate response, and configure Yarn's
+-node-modules linker. Preserve the proxy failure and rerun the checks.
+-
+-Prepare the standalone example for its first public commit. Rewrite the README
+-around clone, run, inspect, choose a role, and verify. Put receiver and capture
+-setup in repository documentation so the example works before the docs site is
+-deployed. Preserve every earlier archive. Record this documentation revision,
+-verify all source archives again, and export a stable current-source download.
+-Add CI that tests runtime, tooling, archives and the documentation export. This
+-revision is a local publication review, not another completed external review.
+-
+-Fix the first Linux CI failure without rewriting historical recordings. macOS
+-AppleDouble metadata must not count as source. Exclude it on extraction, omit it
+-from new archives, and add a portable extraction regression test. Capture the
+-corrected tooling, verify every source revision, and rerun GitHub CI.
+-
+-Correct the final CLI review finding: exercise cancellation at the expiry
+-observation timestamp so the check reaches the expired-state guard. Preserve
+-the earlier capture, record this revision, and verify its archive and patch.
+-
+-Apply the Codex review: authenticate webhook body bytes before UTF-8 decoding.
+-Reject altered UTF-8 and inserted BOM bytes with an unchanged signature. Reject
+-authentically signed malformed UTF-8 before storage, and accept correctly signed
+-Unicode and BOM bodies. Keep the reproduced failure, preserve old checkpoints,
+-then capture and verify the corrected revision.
++# Cover the four IAPKit store boundaries
++
++Map Apple, Google, Amazon and Meta Horizon evidence into the installed protocol.
++Keep store identity distinct from the app session; Amazon and Horizon claims
++must pass the host's authenticated store-account link. Add matching fixture
++provider paths and execute ownership, rejection, outage and erasure cases.
++Compare the same application backend with IAPKit's actual handlers and local
++Convex storage. Mark external store calls as fixtures and do not invent a
++subscription lifecycle or a consumable wallet from a SKU ownership result.
++
++Run npm test and the provider comparison, capture the current source, and verify
++it from an empty directory. Preserve the previous checkpoint. Keep all changes
++uncommitted for maintainer review.
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+index 61adf66..8ef96bc 100644
+--- a/checkpoint-tools.mjs
++++ b/checkpoint-tools.mjs
+@@ -31,6 +31,7 @@ export const SOURCE_FILES = [
+   "provider.mjs",
+   "erasure.mjs",
+   "verify-erasure.mjs",
++  "verify-stores.mjs",
+   "webhooks.mjs",
+   "consumer.mjs",
+   "client-bridge.mjs",
+diff --git a/checkpoint.json b/checkpoint.json
+index 4453b9a..9aad24e 100644
+--- a/checkpoint.json
++++ b/checkpoint.json
+@@ -1,8 +1,8 @@
+ {
+   "step": 7,
+-  "id": "07-account-erasure-interoperable-3",
++  "id": "07-account-erasure-interoperable-4",
+   "title": "Delete the account",
+-  "built": "Account erasure with shared receiver and retry coordination",
+-  "result": "The account identity is removed; retries and restart cannot restore it.",
+-  "previous": "07-account-erasure-interoperable-2"
++  "built": "Apple, Google, Amazon and Horizon evidence, ownership checks and account erasure",
++  "result": "The same account flow covers four store evidence shapes; Amazon and Horizon access is rechecked.",
++  "previous": "07-account-erasure-interoperable-3"
+ }
+diff --git a/client-bridge.mjs b/client-bridge.mjs
+index 1d5d64a..248d314 100644
+--- a/client-bridge.mjs
++++ b/client-bridge.mjs
+@@ -2,18 +2,43 @@ import assert from "node:assert/strict";
+ import { operation, validate } from "./contract.mjs";
+ 
+ // Run on the app backend; the provider still authenticates the store evidence.
+-export function toVerifyPurchaseInput(purchase) {
++export function toVerifyPurchaseInput(purchase, context = {}) {
+   const { store, purchaseToken } = purchase ?? {};
+-  if (!["apple", "google"].includes(store))
+-    throw new Error("This adapter supports Apple and Google purchases only");
+-  if (typeof purchaseToken !== "string" || !purchaseToken.trim())
+-    throw new Error("Purchase evidence is required");
+-  const input = {
+-    store,
+-    ...(store === "apple"
+-      ? { apple: { jws: purchaseToken } }
+-      : { google: { purchaseToken } }),
++  let input;
++  const required = (value) => {
++    if (typeof value !== "string" || !value.trim())
++      throw new Error("Purchase evidence is required");
++    return value;
+   };
++  switch (store) {
++    case "apple":
++      input = { store, apple: { jws: required(purchaseToken) } };
++      break;
++    case "google":
++      input = { store, google: { purchaseToken: required(purchaseToken) } };
++      break;
++    case "amazon":
++      input = {
++        store,
++        amazon: {
++          userId: required(context.storeUserId),
++          receiptId: required(purchaseToken),
++          ...(context.amazonSandbox === true ? { sandbox: true } : {}),
++        },
++      };
++      break;
++    case "horizon":
++      input = {
++        store,
++        horizon: {
++          userId: required(context.storeUserId),
++          sku: required(purchase.productId),
++        },
++      };
++      break;
++    default:
++      throw new Error("Unsupported purchase store");
++  }
+   if (!validate(operation("verifyPurchase").input, input))
+     throw new Error("Purchase evidence does not match the protocol input");
+   return input;
+@@ -39,15 +64,50 @@ export function runBridgeDemo() {
+     assert(validate(operation("verifyPurchase").input, input));
+     checks.push(`${store}: matches the installed verification input schema`);
+   }
++  for (const store of ["amazon", "horizon"]) {
++    const input = toVerifyPurchaseInput(
++      {
++        store,
++        purchaseToken: "receipt-1",
++        productId: "premium.monthly",
++        userId: "untrusted-app-user",
++      },
++      { storeUserId: "authenticated-store-user", amazonSandbox: true },
++    );
++    assert.deepEqual(
++      input,
++      store === "amazon"
++        ? {
++            store,
++            amazon: {
++              userId: "authenticated-store-user",
++              receiptId: "receipt-1",
++              sandbox: true,
++            },
++          }
++        : {
++            store,
++            horizon: {
++              userId: "authenticated-store-user",
++              sku: "premium.monthly",
++            },
++          },
++    );
++    checks.push(
++      `${store}: uses server-selected store identity, distinct from the app user`,
++    );
++    assert(validate(operation("verifyPurchase").input, input));
++    checks.push(`${store}: matches the installed verification input schema`);
++  }
+   for (const [label, purchase] of [
+     ["missing purchase", null],
+     ["unknown store", { store: "unknown", purchaseToken: "fictional" }],
+     [
+-      "Amazon needs its own adapter",
++      "Amazon requires its authenticated store user",
+       { store: "amazon", purchaseToken: "fictional" },
+     ],
+     [
+-      "Horizon needs its own adapter",
++      "Horizon requires its authenticated store user",
+       { store: "horizon", purchaseToken: "fictional" },
+     ],
+     ["missing evidence", { store: "apple" }],
+diff --git a/composition/app-backend.mjs b/composition/app-backend.mjs
+index 1d63f4f..5803dbb 100644
+--- a/composition/app-backend.mjs
++++ b/composition/app-backend.mjs
+@@ -3,7 +3,13 @@ import { createCommerceClient } from "./commerce-client.mjs";
+ import { createErasureLedger } from "../erasure.mjs";
+ 
+ // resolveSession is the host app's authentication boundary, supplied by the caller.
+-export function startAppBackend({ path, providers, receiver, resolveSession }) {
++export function startAppBackend({
++  path,
++  providers,
++  receiver,
++  resolveSession,
++  resolveStoreUser,
++}) {
+   const db = new Database(path, { create: true });
+   db.exec(
+     "CREATE TABLE IF NOT EXISTS erasure_requests (user_id TEXT, provider TEXT, PRIMARY KEY(user_id, provider))",
+@@ -48,6 +54,16 @@ export function startAppBackend({ path, providers, receiver, resolveSession }) {
+       try {
+         if (url.pathname === "/purchase" && request.method === "POST") {
+           const input = await request.json();
++          if (erased.has(userId))
++            return new Response("Unauthenticated", { status: 401 });
++          if (input.store === "amazon" || input.store === "horizon") {
++            const storeUser = await resolveStoreUser?.(request, input.store);
++            if (!storeUser || input[input.store]?.userId !== storeUser)
++              return new Response(
++                "Store account is not linked to this session",
++                { status: 403 },
++              );
++          }
+           if (erased.has(userId))
+             return new Response("Unauthenticated", { status: 401 });
+           const work = clients[selected].fulfill(input, {
+diff --git a/provider.mjs b/provider.mjs
+index 37c5b19..3a50693 100644
+--- a/provider.mjs
++++ b/provider.mjs
+@@ -31,9 +31,28 @@ export function isEntitled(state, expiresAt, now) {
+ 
+ // This adapter recognizes one fictional purchase; it never contacts a store.
+ function fixtureEvidence(input) {
+-  return input.store === "google"
+-    ? input.google?.purchaseToken
+-    : input.evidence;
++  switch (input.store) {
++    case "apple":
++      return input.apple?.jws;
++    case "google":
++      return input.google?.purchaseToken;
++    case "amazon":
++      return (
++        input.amazon &&
++        JSON.stringify([
++          input.amazon.userId,
++          input.amazon.receiptId,
++          input.amazon.sandbox === true,
++        ])
++      );
++    case "horizon":
++      return (
++        input.horizon &&
++        JSON.stringify([input.horizon.userId, input.horizon.sku])
++      );
++    default:
++      return input.evidence;
++  }
+ }
+ 
+ function verifyFixture(input, fixture) {
+@@ -43,7 +62,9 @@ function verifyFixture(input, fixture) {
+   if (evidence === "local-upstream-outage") {
+     return { error: "VERIFICATION_FAILED" };
+   }
+-  return { accepted: evidence === fixture.evidence };
++  const current = fixture.currentVerdict?.();
++  if (current === "outage") return { error: "VERIFICATION_FAILED" };
++  return { accepted: evidence === fixture.evidence && current !== false };
+ }
+ 
+ export function createProvider(path, now, fixture = FIXTURE) {
+@@ -89,6 +110,18 @@ export function createProvider(path, now, fixture = FIXTURE) {
+   }
+ 
+   function entitlements(userId) {
++    if (fixture.pointInTime) {
++      const current = fixture.currentVerdict?.();
++      if (current === "outage") return { error: "VERIFICATION_FAILED" };
++      return {
++        userId,
++        productIds:
++          current === false
++            ? []
++            : [...new Set(rowsFor(userId).map((row) => row.product_id))],
++        subscriptions: [],
++      };
++    }
+     const subscriptions = rowsFor(userId)
+       .map(snapshot)
+       .filter((row) => row.active);
+@@ -126,8 +159,14 @@ export function createProvider(path, now, fixture = FIXTURE) {
+         capabilityNames.map((key) => [
+           key,
+           {
+-            provider: supported.has(key),
+-            implementation: supported.has(key),
++            provider:
++              supported.has(key) &&
++              (!fixture.pointInTime ||
++                ["initialValidation", "entitlements"].includes(key)),
++            implementation:
++              supported.has(key) &&
++              (!fixture.pointInTime ||
++                ["initialValidation", "entitlements"].includes(key)),
+             notes:
+               "Local fixture demonstration only; no real store integration or profile conformance claim.",
+           },
+@@ -200,7 +239,11 @@ export function createProvider(path, now, fixture = FIXTURE) {
+         const row = db
+           .query("SELECT * FROM purchases WHERE fingerprint = ?")
+           .get(key);
+-        if (updated.changes && isEntitled(row.state, row.expires_at, now())) {
++        if (
++          updated.changes &&
++          !fixture.pointInTime &&
++          isEntitled(row.state, row.expires_at, now())
++        ) {
+           enqueue("entitlement.granted", row, row.observed_at);
+           db.query(
+             "UPDATE purchases SET entitlement_granted = 1 WHERE fingerprint = ?",
+@@ -224,6 +267,7 @@ export function createProvider(path, now, fixture = FIXTURE) {
+       })();
+     },
+     subscriptionStatus(input) {
++      if (fixture.pointInTime) return { active: false };
+       const snapshots = rowsFor(input.userId).map(snapshot);
+       const subscription = snapshots.find((row) => row.active) ?? snapshots[0];
+       return {
+diff --git a/verify-stores.mjs b/verify-stores.mjs
+new file mode 100644
+index 0000000..30d87ff
+--- /dev/null
++++ b/verify-stores.mjs
+@@ -0,0 +1,142 @@
++import assert from "node:assert/strict";
++import { createProvider, CREDENTIALS } from "./provider.mjs";
++import { operation } from "./contract.mjs";
++import { toVerifyPurchaseInput } from "./client-bridge.mjs";
++
++export async function verifyStores() {
++  const checks = [];
++  for (const store of ["apple", "google", "amazon", "horizon"]) {
++    let current = true;
++    const input = toVerifyPurchaseInput(
++      { store, purchaseToken: "fictional-proof", productId: "premium.monthly" },
++      { storeUserId: "fixture-store-user", amazonSandbox: true },
++    );
++    const evidence =
++      store === "amazon"
++        ? JSON.stringify(["fixture-store-user", "fictional-proof", true])
++        : store === "horizon"
++          ? JSON.stringify(["fixture-store-user", "premium.monthly"])
++          : "fictional-proof";
++    const fixture = {
++      store,
++      evidence,
++      userId: "alice",
++      productId: "premium.monthly",
++      startsAt: Date.now(),
++      expiresAt: Date.now() + 60000,
++      pointInTime: ["amazon", "horizon"].includes(store),
++      currentVerdict: () => current,
++    };
++    const provider = createProvider(":memory:", Date.now, fixture);
++    const check = (label, actual, expected) => {
++      assert.deepEqual(actual, expected, `${store}: ${label}`);
++      checks.push(`${store}: ${label}`);
++    };
++    async function call(name, body, credential = CREDENTIALS.server) {
++      const spec = operation(name),
++        url = new URL(spec.path, "http://fixture.invalid");
++      if (spec.method === "GET")
++        for (const [key, value] of Object.entries(body ?? {}))
++          url.searchParams.set(key, value);
++      const response = await provider.fetch(
++        new Request(url, {
++          method: spec.method,
++          headers: {
++            authorization: credential,
++            "content-type": "application/json",
++          },
++          ...(spec.method === "POST" ? { body: JSON.stringify(body) } : {}),
++        }),
++      );
++      return { status: response.status, result: await response.json() };
++    }
++    try {
++      check(
++        "unverified evidence cannot bind",
++        (await call("bindPurchase", { ...input, userId: "alice" })).result
++          .bound,
++        false,
++      );
++      check(
++        "matching evidence verifies",
++        (await call("verifyPurchase", input)).result.isValid,
++        true,
++      );
++      check(
++        "verification alone gives no access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "verification credentials cannot bind",
++        (
++          await call(
++            "bindPurchase",
++            { ...input, userId: "alice" },
++            CREDENTIALS.verification,
++          )
++        ).status,
++        403,
++      );
++      for (let i = 0; i < 2; i++)
++        check(
++          "binding and retry keep one owner",
++          (await call("bindPurchase", { ...input, userId: "alice" })).result
++            .bound,
++          true,
++        );
++      check(
++        "another account cannot claim the purchase",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++      check(
++        "owned product is accessible",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        ["premium.monthly"],
++      );
++      if (fixture.pointInTime) {
++        current = "outage";
++        check(
++          "an outage is an error, not cached access",
++          (await call("entitlements", { userId: "alice" })).status,
++          502,
++        );
++        current = false;
++        check(
++          "a negative recheck removes access",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          [],
++        );
++        current = true;
++        check(
++          "a confirmed recheck restores ownership",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          ["premium.monthly"],
++        );
++      }
++      check(
++        "erasure completes",
++        (await call("eraseUser", { userId: "alice" })).result.status,
++        "completed",
++      );
++      check(
++        "erasure removes access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "erased evidence cannot be claimed",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++    } finally {
++      provider.close();
++    }
++  }
++  return checks;
++}
++if (import.meta.main)
++  console.log(
++    `Store fixtures: ${(await verifyStores()).length} checks passed. No store contacted.`,
++  );
+diff --git a/verify.mjs b/verify.mjs
+index 060c6f2..424d7dd 100644
+--- a/verify.mjs
++++ b/verify.mjs
+@@ -8,6 +8,7 @@ import { runConsumerDemo } from "./consumer.mjs";
+ import { runBridgeDemo } from "./client-bridge.mjs";
+ import { startLab } from "./server.mjs";
+ import { authentic, createReceiver, deliver, sign } from "./webhooks.mjs";
++import { verifyStores } from "./verify-stores.mjs";
+ import { verifyErasure } from "./verify-erasure.mjs";
+ 
+ export async function verifyLab({ compareSigner } = {}) {
+@@ -427,6 +428,7 @@ export async function verifyLab({ compareSigner } = {}) {
+   }
+   checks.push(...(await runConsumerDemo()).checks);
+   checks.push(...runBridgeDemo());
++  checks.push(...(await verifyStores()));
+   checks.push(...(await verifyErasure()));
+   return checks;
+ }

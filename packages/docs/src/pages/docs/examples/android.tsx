@@ -1,6 +1,6 @@
 import StoreExampleTemplate, {
   type StoreExampleConfig,
-} from './StoreExampleTemplate';
+} from '../../../components/StoreExampleTemplate';
 
 const ANDROID_VIDEO_BASE = '/examples/google/videos';
 const ANDROID_POSTER = '/examples/google/home.webp';
@@ -16,7 +16,7 @@ export const ANDROID_CONFIG: StoreExampleConfig = {
     title: 'Android Example',
     description:
       'OpenIAP Google Play Billing example walkthrough for Android purchases, subscriptions, restore flows, and IAPKit verification.',
-    path: '/docs/example/android',
+    path: '/docs/example',
     keywords:
       'OpenIAP Android example, Google Play Billing example, Android IAP video, Play purchase verification',
   },

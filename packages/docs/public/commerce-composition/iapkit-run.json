@@ -1,0 +1,1163 @@
+{
+  "results": {
+    "example": {
+      "label": "openiap-commerce-protocol-example",
+      "before": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "bound": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "willRenew": true
+          }
+        ]
+      },
+      "canceled": {
+        "active": true,
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "store": "google",
+          "expiresAt": 1788979811375,
+          "willRenew": false
+        }
+      },
+      "expired": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "erased": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "erasure": {
+        "accepted": true,
+        "jobId": "69b80402-3885-461f-b651-75733f6f649c",
+        "status": "completed"
+      }
+    },
+    "iapkit": {
+      "label": "IAPKit",
+      "before": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "bound": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "renewsAt": 1788979811375,
+            "willRenew": true,
+            "startedAt": 1788979766600,
+            "updatedAt": 1788979766630
+          }
+        ]
+      },
+      "canceled": {
+        "active": true,
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "store": "google",
+          "expiresAt": 1788979811375,
+          "willRenew": false,
+          "startedAt": 1788979766600,
+          "updatedAt": 1788979766714
+        }
+      },
+      "expired": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "erased": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "erasure": {
+        "accepted": true,
+        "jobId": "ns7bzm80e4mg3rs6m0t9wxzb518e2qcs",
+        "status": "completed"
+      }
+    }
+  },
+  "storeCoverage": {
+    "apple": {
+      "example": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 1,
+        "storeRecheck": false
+      },
+      "iapkit": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 1,
+        "storeRecheck": false
+      }
+    },
+    "amazon": {
+      "example": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 0,
+        "storeRecheck": true
+      },
+      "iapkit": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 0,
+        "storeRecheck": true
+      }
+    },
+    "horizon": {
+      "example": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 0,
+        "storeRecheck": true
+      },
+      "iapkit": {
+        "verified": true,
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": 0,
+        "storeRecheck": true
+      }
+    }
+  },
+  "harnessHashes": {
+    "capture-public.ts": "61c84f775680c236a2ed431854d17d56280e49ded25273057c81725e17a15b20",
+    "capture.ts": "249648ea7221062c9aa72f44ba3a0aa04a26d2080a3b35d62515fa68aaadc788",
+    "commerce-interop-fixture.ts": "cb06b02f482a052134c9a9b17c92e9abae6fc35fed1fddb4b6ad0563d6c437be",
+    "commerce-source-snapshot.mjs": "54fac3a2d26fda3a2976181508f0b071758e4e8ea91550027bd63f185289c718",
+    "commerce-store-coverage.mjs": "e292a2dd490bfa7362d22456743456e508330be61150d98176cbe508682be345",
+    "compare-commerce-example.ts": "e6b03062b3e5f6dfa0c95cfc5fa06efba3af58505739cf06e7e775d51bf228ef",
+    "export-commerce-interop.mjs": "3ee337858c8f95f63cfe3b7881bfec9efa98649badd6d6da8942d09832509bcf",
+    "render-mockups.ts": "c191503733e1e12a1c52a35efba0b6939255d7b3c1c4d1a716526a7ead4ec3e0",
+    "run-commerce-interop.mjs": "2841e6ae339d8b133b17d520cf29b4832915f871d44c9ec44b6df056b0a940e4",
+    "seed-testapp.ts": "b1364e3d9c77edbc72a6996069d50bfdba6b59b385c05c54c9e793d020ebc617"
+  },
+  "sources": {
+    "openiap": {
+      "baseRevision": "4e8163c11ed448f6af261c00a34c17d7458c565d",
+      "hashes": {
+        "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
+        "convex/ResendOTP.ts": "64fe711a2fedbc6de411f710bc8cf2469fa4733538a7b26a7ae343f69fd73a0b",
+        "convex/_generated/api.d.ts": "c21b38e8a3a168c541c24aa62899967ce6a21509b2cd58dd627619f0e362449c",
+        "convex/_generated/api.js": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70",
+        "convex/_generated/dataModel.d.ts": "db177073d16a4393c7a96bcdc3a2a904e88c2432d54d138ca7715cc431982c17",
+        "convex/_generated/server.d.ts": "2b536ee08d434dd044efe0302aeaf4ccb00cd08af10c9f8c7bc7a6734e4aa49b",
+        "convex/_generated/server.js": "0cdd1d842b9458d8a6f2444c35eb9929312316a384ca76a4b1d964bedde8a6f2",
+        "convex/analytics/action.ts": "8efd120f7fbad0c0fa89f1c46e6d7f982e4b585ade856351315b67dae31c3714",
+        "convex/apiKeys/helpers.test.ts": "f01c0bc9e176a10d0acb36560c0520ca3f90767a63263f13860f649f8ae324b4",
+        "convex/apiKeys/helpers.ts": "19108c68009238679d6c30ad87109683d379fbefbc60baa05a9d42cabcd96872",
+        "convex/apiKeys/internal.test.ts": "27ad06a38919b8936e01c42f1c98cdd603c1d624eabb952e4589c1f4efa9199c",
+        "convex/apiKeys/internal.ts": "c9e73fdd3f4b7d5bae241e8baef438c4dbae309b2c69ca929a9ac6c8c9cb0519",
+        "convex/apiKeys/mutation.ts": "79ecae6990a748a12a9a12187b63070706550989bb3236aad1c84d0b0f2f2d3a",
+        "convex/apiKeys/query.ts": "5eb6dfe16c8d8afcd9a0a1aa2fcf765453be2d6ca7bf556884eb0a8e5f3deb5b",
+        "convex/auth.config.ts": "3fd31060734a38e5eaa3ea6d134ced4810f436aceda5eb8c2d0347ea3f410813",
+        "convex/auth.ts": "cfd8b4deac46e9b726338b8c76515cc039269005becd3642552c6c0f89e7ec98",
+        "convex/authWindow.test.ts": "12063867fce96dcb769f32132492d83b04c19f337c4b62a0754d3688c09b57e0",
+        "convex/authWindow.ts": "7e0e42461e73d2d22db02ec365d79ad98f6f65d1ce00d2b5a55635c70580a4f6",
+        "convex/certificates/apple_root_certificates.ts": "226280b45dbae4786327b416faaa36ec4c7191cc711e33fa1c0882b35c7580f0",
+        "convex/commerce/capabilities.ts": "2e2158922e05ed919bb8c5de5e581d180466cbf4f2e803f3684708f92b52c2f8",
+        "convex/commerce/contract.test.ts": "e81a95ba17155570b049322108b0e9ffa2e1a7f9f335dea974dabc2b6de68731",
+        "convex/commerce/contract.ts": "6fb90420d35d72096f66062a52caff9a7079f561d90921e5d5930ba70a884a9b",
+        "convex/commerce/delivery.test.ts": "31cd2dae1ec8da9f2f2a2159a622587ffbe895380c04878eed9f8726b4722bef",
+        "convex/commerce/delivery.ts": "05941b61f771e5437e98f4f10baed4865ccb7c93a27871e6b29cfe8fb265c5cc",
+        "convex/commerce/deliveryState.ts": "fa4581af509d31ec277356eaa7eb2491948835763c0833b683365c540a57bfd2",
+        "convex/commerce/destinations.handlers.test.ts": "60b80edc6a6110d4bb1ebdc3025eddfe8da717d6d930083b5e4b72345ff8091b",
+        "convex/commerce/destinations.test.ts": "241e9918500d6f0b93db43ec93911fac238aea700370e5953465460a5685fdd9",
+        "convex/commerce/destinations.ts": "9406f31d2c74e6f82fed652716f2a8a4f8aea4f11d58dacfabfe52c3497711fc",
+        "convex/commerce/internal.test.ts": "83cd1a9437bbd6b171dbfc5b712c428d869ad2eb8b8d1dc5a8fa61b44bcf804e",
+        "convex/commerce/internal.ts": "09c0d7433dd4bad55134905379ef1b67a0aef09dbfdf48080f69d705762c33ef",
+        "convex/commerce/signing.test.ts": "ac90aacba35f88e75cbf723cd7e0117c327cc670b18cd2da416fe3db8ade8706",
+        "convex/commerce/signing.ts": "7fc0f41006e58bc91a4797348042b7fe0e1d37f391d0ef5038259413c4fd084a",
+        "convex/commerce/spec.conformance.test.ts": "d6a371f0fa4ae8c288b2358b322ff4225d03cf5071fe591c689db0b77c621719",
+        "convex/convex.config.ts": "5cda299b1355c97b5f09741a0df9270706358f2accf8c4e7ceeea3a25af36cd0",
+        "convex/crons.ts": "a218e46223db4edc6587829121eda6b12e70698b7facd74389e801136a12ae74",
+        "convex/files/action.ts": "12f027c7812d7f9d86ae2350473292933e5aa2a6a7ed86d9935b5918f83c7b02",
+        "convex/files/internal.ts": "16e2ba18b5e4c7ad50c7a1167d6c5c230efb8a27b9f41c940a6b2142b3915471",
+        "convex/files/mutation.ts": "8ffd5fa9fa41841427fd7b1baa844f275a1eaa03f131a26df2dcd568fbad063e",
+        "convex/files/query.ts": "f6c9df4743519c3cf0b8e0788c575cff2ed3b4a5823ad2c3b6df672272902aeb",
+        "convex/files/review-screenshot.test.ts": "f9d625006753bc40b505efcfd63c39861685750aa9924f05c3366993af41c9ba",
+        "convex/files/storage.ts": "7397e6f3178dd8725a1032649fa1daf235d043ae384c2b40b014caab693e0644",
+        "convex/files/validation.test.ts": "13c97e9348b3e05ed27b05ef0acd56cde97625f165e060e47830ae47fe560b6a",
+        "convex/files/validation.ts": "dd942e3efd7a9ab04516ce1897a46c1b4140df07a40b04d09596d470797e0f36",
+        "convex/http.ts": "307ea39aed1b1b0780028b827000b13a121dd82ee9eba2b3dac9397a9d77cbfa",
+        "convex/migrations.ts": "0df8e0d81a8fc5b23dc58c2643f12a9adc3d84363ccb0f3afdf262ad35166164",
+        "convex/orders/action.ts": "f8b212e13cae7fbb5337c3f26eb5aa40ea76bfc491ab50b4b2af08711e989177",
+        "convex/orders/shared.test.ts": "10db20a4f91d553b28ab20ab59b25ed16c7722b00d59ada5c52c48fe840f67e4",
+        "convex/orders/shared.ts": "7ad1f6271adfc055ce54b1bede16fcbe8a72010b841080789a5e8072e59aec65",
+        "convex/organizations/internal.ts": "471282c4587c6c7e93cfa86412b0e57299ebbbeef51adb55f3f84c0f1cb11f22",
+        "convex/organizations/mutation.ts": "f5e60218c7edc6ca7a74e31da2307e1ebfd9f2be46eb9512ebfafcd086ffec2f",
+        "convex/organizations/query.ts": "7f2c91ccea7955b13831bdbf0e9b436c642985ece1cc68595aade424154b8ffb",
+        "convex/plans.ts": "0995a5b88828ed1edfd85091678bc4d5d498042e9f5997ff03d28bb726dfe639",
+        "convex/products/asc.test.ts": "ce3770a3eaa8e4f634045074c2ab28eda54e935613208e584a74835feaf2eaab",
+        "convex/products/asc.ts": "956bd3702ce130906ec03083a84e0101792cb207a34d4ac5347981eb604354c9",
+        "convex/products/ascReview.test.ts": "871f971d4cecbf7d7671cf92e3f6f52c259fe6c2bd0d356f39ac07eee573c08b",
+        "convex/products/ascReview.ts": "cf57cd1509d61b42acc21b9b714740e040a470351d72048597275adb1d48f2c7",
+        "convex/products/jobs.test.ts": "293080e735944f4ef75f3ba70e119a024c51966c203aeb149d2a40e57babdf35",
+        "convex/products/jobs.ts": "e9fcd8db72556d906bd63668ace6cb8052c31b7fd09a88b218f71c5e9cd118f8",
+        "convex/products/jwt.test.ts": "0e2b74a40b7e9f092fc68d98544ae4b9512451e2c365363b840648f44efe8280",
+        "convex/products/jwt.ts": "796fdee72d8dacc9a8960f6b2a5d929b9b9ab39d5ec9e23af89aa001e8c13f94",
+        "convex/products/localizations.test.ts": "4b8e73c1c91d8fe073c87c37f7cd3a1ae2087b2d17036e83330dbf53c6f7b4cf",
+        "convex/products/localizations.ts": "7b03e4f165bde2e5099fdac4445c4a5351b3e08537ad8f8a164e1ad6d1a32689",
+        "convex/products/mutation.test.ts": "c4237667b838f0bfcfbaff3b7d78137571f8aebb6daa60d9c70068a73bec0061",
+        "convex/products/mutation.ts": "60173a588026282887d539d9b8d0def1291858a74ae8584a7c3b9f4c68d6907c",
+        "convex/products/play.test.ts": "81c5f92212e3517b021d20346fecae224e240e09e25dde4b599c2af20a89474d",
+        "convex/products/play.ts": "829e0c11552c32a2f9a59d274507995aefad96680405e26b6059e944b65f3ea5",
+        "convex/products/query.test.ts": "f73793982e59b29653b2eaeec4e1ee892962951bc2fc03e2efa90e9079e9fdf5",
+        "convex/products/query.ts": "23b348541a46061a8b89bd792fc4412835686f13f0aa2523ed10b54e69b656b1",
+        "convex/products/regions.test.ts": "524d28668d710a8df7ab1d528b0e072646fd8d3dec98efcb438d80faac4dd5bf",
+        "convex/products/regions.ts": "1d2d18cdc7fc4da4f5193020b123387c03737f792720c0567b4f3a36c9bdbd90",
+        "convex/products/sync.test.ts": "eb1661fdf3a54039ff21c3ec820cce86abe1e12a8ad54195563141a8fd3c1036",
+        "convex/products/sync.ts": "afe5a96d23de426924f8ac0cb4c45a717007608bb6fa5f26d7d5542dabfa443e",
+        "convex/products/syncResult.ts": "f408374cb30216db4f189d32ad1f2bd269893f75785eb322a2d05c2a2daaa533",
+        "convex/projects/get-project-by-api-key.test.ts": "287d6e4916493f7aab42fe1538f68ca4bd2755e6e6d7d0193671cb1161901cb3",
+        "convex/projects/helpers.test.ts": "74e25fa5b91effe1a8c44b533e22af45aac1fd644c06b0dfd35510ca528f9a1a",
+        "convex/projects/helpers.ts": "66a7c8c86a734c7baf5d18aee2736b44c3177d11635bf5b608099526e51c0d1e",
+        "convex/projects/internal.ts": "29135b683849677d73b86d7a4ab8de1e7a17eabf8b3232c943aeba9d20008555",
+        "convex/projects/mutation.test.ts": "0d979e358647114c9a299744ebaf19784379f67591849d97dda9be548d826ea5",
+        "convex/projects/mutation.ts": "58ec28854eec50b4dda874c15666fe2b92d43dca160e106c85d3494996afe6b1",
+        "convex/projects/project-child-pending-deletion-query.test.ts": "065a40edcc405ef5821fa8eb96df0771b9421d04e74176c2912d7c6ff4b7db71",
+        "convex/projects/project-child-pending-deletion.test.ts": "286400b458622bcd9a1cf66a63067176d9e2c4f33354f7e1b88c4e787eb27abf",
+        "convex/projects/query.test.ts": "d77ca0ce49c8e06a3fa78bef70c24f207780658580358465617cb11e1d4e4e9f",
+        "convex/projects/query.ts": "c85d1124170e9a5d98d5154e8df8a21d53cff99c22362a39ba66a03f9ebd0f02",
+        "convex/projects/setupStatus.test.ts": "e4a5ef47959a097451b3d1da6e218106735ceb1e4f9ec4b3d589e3505061fcfd",
+        "convex/projects/setupStatus.ts": "0d3f21379df3cd480d21e5c99c0baf65b4c65aa49276929f1de8eea241cbb5d6",
+        "convex/projects/writable.ts": "8c023e994c9d9b69f49c829da4400b4ad168c43033d500d770cd7f2702c93f44",
+        "convex/purchases/action.ts": "480600898eb66a3b01057eb0217851f43c88e04d40d3151b0c74f320be93b33b",
+        "convex/purchases/amazon-reconciliation.test.ts": "a1817dae0fcd240b9359b0b32abbc179ebb114db23eff0d620a114b9cbb9239b",
+        "convex/purchases/amazon.test.ts": "06bb593ab429f7d2444be69873c64ff9311fbfdb69d90eabaa54cbff967b32fb",
+        "convex/purchases/amazon.ts": "7273b417e1ef6eb1af0e9cc1d11f722ee3b6e7626d9ec4135ad7952c289a49a6",
+        "convex/purchases/android.test.ts": "5b9060d98bf249babb70c2449878d748cbd3ce4bf177db07050b63e3befbcf3d",
+        "convex/purchases/android.ts": "91a9305cd14d8072f464c464f46878bc400b062524fa5f80e11c9a7ae16bd416",
+        "convex/purchases/cleanup.test.ts": "b9052bf2ca1dd2403c1bbbb6a6795fe508d285d1057d0228cdb0a4909eabe9cb",
+        "convex/purchases/cleanup.ts": "1237255a5da0c54baff57a65e30e26ddb186c6efae6c15b215b4c6d61f098e16",
+        "convex/purchases/errors.test.ts": "edc7a7d9b1527cdd1e528cb4e331091b43296802d8989c01bf108492a2ad34f8",
+        "convex/purchases/errors.ts": "c011b818d85f51cde972aad60e0e26439d2cd375569532d9ecca5073a2d4afef",
+        "convex/purchases/extract-order-id.test.ts": "dfb834cfb08accccc1e53a3b72615cefae09d0477fb80252f984b4b8965f1109",
+        "convex/purchases/extract-product-id.test.ts": "210381901a21c0f91018ff1c20902c65ffb0800510fa2dc1992a9e6d30c18646",
+        "convex/purchases/horizon.test.ts": "8a9481eb8a6f9e0bec76c2a3de14e281486b6acd01905c178164d4bcc52b178a",
+        "convex/purchases/horizon.ts": "bb38fcdefc2013183069c433fcf8f0be1df720c66a4085053eb2c38f3a4559db",
+        "convex/purchases/identity.ts": "e7dbdf51c6e8e02ac00c2291b1aa31cf2ef68891fa37d063d5d8de078a6847ba",
+        "convex/purchases/internal.ts": "5deb4c17e2df013c9dc3c1fb4f00aca0f7aa7be628ff1c9f5f48eaa2807546fe",
+        "convex/purchases/ios-handler.test.ts": "65778d7c0b50503bd55c01d4eadfce069d558b49c5c4b8b61a67fe3cfc74475c",
+        "convex/purchases/ios.test.ts": "05af2d8a48886a9ff2efdcfdb44ff2890a13f906ea222b17e0a8bc516ae889eb",
+        "convex/purchases/ios.ts": "cffa1b76420bf3c722f273dd3fe83dcd1fcff0c502acb098d616e6f2bd555ca5",
+        "convex/purchases/mutation.ts": "2a81b08d228c1e334146cf532dd7f97b6b025c7b13a920725259b014e5a47519",
+        "convex/purchases/ownership.test.ts": "70001215d39218a2bae2b80044564c4d37f9b322dacbd55314b8bfb3778f516a",
+        "convex/purchases/purchaseState.ts": "6f5463c7e1f75edc39e474005f6996ac63be8ee3a1c3a2d419e7607d4080a67c",
+        "convex/purchases/query.ts": "3e3defc6e7896df32c69e9f3cc19eb4253858f5c3ae62018a8f9417da7a76d15",
+        "convex/purchases/retry.test.ts": "53f384b1a49596cdf454944d5693b366a4819fcd156f8ffad72a9fe39a1b696e",
+        "convex/purchases/retry.ts": "6d92062c2051fb02b90ced4aba581ee6083cf6001f76309429f8c9b3b43aa81e",
+        "convex/purchases/save-purchase-idempotency.test.ts": "4b5aa48d33c49784ba095a7d9096811349d668732356fb9fcfca7ff17b8b36bc",
+        "convex/purchases/shared.test.ts": "a63833a80ead6c415536550a616575ccbfab3e83843b45c12987e5952ffbec14",
+        "convex/purchases/shared.ts": "1c12fb1a9bcba4701d43f397027b04b261d9d0b97d0ebfef6e77a3f43b134150",
+        "convex/purchases/stats-integration.test.ts": "90c25d92b00ae9791b8ed661d6d8de3cb94eee556b9d4c5c988698844967071a",
+        "convex/purchases/stats.test.ts": "082fd2664825353c74ce3412aaf01f9c490bf185c93cd220e015c38ab3c4d1b6",
+        "convex/purchases/stats.ts": "2cf237450746ac6713d48a4ffc7c17a36b0725f8f4e4e366e628dad291c4a086",
+        "convex/purchases/verificationAdmission.test.ts": "f6e114b4850f773601f4fec0b0ec190df2cffafc1aa870b7cc885c64ddfffdc9",
+        "convex/purchases/verificationAdmission.ts": "f0c26477ea733d8da3d03f26045312887e2a0c74f21837167866d67886285f32",
+        "convex/schema.ts": "1c678fa8e357d66de246bcb3dd60b7a2cdf7e947278a4fe0a848f9f8f015caeb",
+        "convex/subscriptions/erasure.ts": "2e710408c2b68bf6ac5fc20e499c6178639e8a636f3150db1f9fae82361da898",
+        "convex/subscriptions/internal.test.ts": "5d30a9e0d775f11d0c293ea850ab12b6809522f3cac69db3d34ea06c0ed8b11d",
+        "convex/subscriptions/internal.ts": "85742ebbb6d2f9307276e08598b09cfb42e7551b74f93b772341ba1ddd2af3cf",
+        "convex/subscriptions/limits.ts": "ff5c30d39c4ca6d47b2933d012b74e20077149d3d826bf3535f948df28a12e90",
+        "convex/subscriptions/monthlyMicros.ts": "5debc322ceae2a0cbb5bf46ba8448c2f8d93055283046b1117edd20aa32cf67b",
+        "convex/subscriptions/mutation.test.ts": "dd89c082b0257562961ced0966edad30911a7ec806648fcfc2828b42c3084ab2",
+        "convex/subscriptions/mutation.ts": "b780bab187d90d93eb4f7c5f9e8c5edde2ede313023a189b116a691b7506bade",
+        "convex/subscriptions/query.test.ts": "f3621aa334a48fcdb4a0b71f0b5d2c1dd6a4ee44c6a3813b81012e5d12269b68",
+        "convex/subscriptions/query.ts": "f6de34dfbc28c8fcf2111b3063a21b95d1e58940bbb79665711f803de9b1afe0",
+        "convex/subscriptions/revenueMetrics.test.ts": "43c85daf22f472e80ee416af41d9f72727378efb5ede5c5d63c374b2afcba8ee",
+        "convex/subscriptions/revenueMetrics.ts": "9d9481a9fcb2f1370dd0a45bb5ffdb2b816621d0c906f78ea4d107cd9e99d145",
+        "convex/subscriptions/selectLatest.test.ts": "b1594669b03a8154dea0254727ac507cd2bc57bceba7ee413e1af1b4bebd2973",
+        "convex/subscriptions/selectLatest.ts": "7fa3f64707a92d1ed7c08fccae2876eab147421806720f51a2d47cc3b5dfffa0",
+        "convex/subscriptions/stateMachine.test.ts": "17cdd3bd384f95698ff489b6751acd4abd90e8d4a795a36dd20e2d433394deaf",
+        "convex/subscriptions/stateMachine.ts": "b53630a4b214de71b817310170fff0a7b46be221194c716960287560333cb50f",
+        "convex/subscriptions/stats.ts": "5a1e480e979eb9c21e68ba215cf1f1b097ff9955b2d5056e00f124f1e88da351",
+        "convex/subscriptions/user-erasure.test.ts": "50317b61eb4a76924bcd77b93cde8438425fb20e0262620ddcc3546ce80d35ca",
+        "convex/test.setup.ts": "324b5c1019ab736b6ac397bbeb191640f98127bcbfbdc1f587b0f16718893ae7",
+        "convex/tsconfig.json": "86078315f73e0bfa8f0738f8fa1266dbb6135c18707fbab18b6dd7b5e67d18e2",
+        "convex/userProfiles/action.ts": "94b1f74716468c0398b4ad22b85829e04a6ee59d8e5b78856fea712677a0c509",
+        "convex/userProfiles/drain-account-deletion.test.ts": "7987e86a913809f926b11912e98b4660276e596848f16ae4bce079de51998aee",
+        "convex/userProfiles/internal.ts": "3876c3716396c2302bebccff20fad9f3e79875f356d1c0d2edfa1bea2894ff30",
+        "convex/userProfiles/mutation.ts": "e55edb734f5063205857701da1bb84d8e4dddae21be455561bbf4f9e45362d81",
+        "convex/userProfiles/query.ts": "ed795a70c74d954c77814a84eaa32833db2d4489f827dd8144b6ffca798adf01",
+        "convex/users/internal.test.ts": "9bc712955dad8a73e67c7f9b5ced71cd844376ae9c59a033825608e2884dbdaf",
+        "convex/users/internal.ts": "1caa94f3e6e2fc094660ddc84b8a63da4b3aade2d75bc0c7428abc8ff3376eb1",
+        "convex/users/query.ts": "672846b3cbc482b720d69d39372675719b9e8a4a17138ba01952f870e7da40ab",
+        "convex/utils/concurrency.test.ts": "b126af585a114e9f87a382c0cab689547215d5a78390ba9cedb4644f52dfa5c7",
+        "convex/utils/concurrency.ts": "50eba9e2cd8b326d5a8ff4923d7d1bc4e6257dddff1cc154b8bf2bc6bf5db9c7",
+        "convex/utils/currency.ts": "ffe7b0e6d12cd523bd3400edf2c9c67e6d38218f2ef3506662a49b865644d050",
+        "convex/utils/errors.test.ts": "26e50ec9404c439f83b7ca6f5485df114acdef672c6aeac01beec2715e880f86",
+        "convex/utils/errors.ts": "3e3f81c961df6b33ab637e0a22c99db83a973f3a420e691d94d40efa176c9aee",
+        "convex/utils/helpers.test.ts": "8db12ab02e5175415d6bddfa789b3e3f836f1c301ff0625bac6684872d6df6e3",
+        "convex/utils/helpers.ts": "7c12d56eb226b304265e7b285727377f910c6203ec69ff7f11a48f39c764fd07",
+        "convex/utils/sha256.ts": "86508c4ecae45bcd7a406646ad52bd36a9d29484f0c2a25dfe05e8ed0b19acf0",
+        "convex/utils/validation.ts": "7a37fa20192538bbc5323ca78ff6974d3f5cfebf8a2d0880235cc6a574853e3c",
+        "convex/webhooks/apple.test.ts": "c027636b85ae16139a48ab7e954add9db4cd85fa790e69a2c73d088a53e027f0",
+        "convex/webhooks/apple.ts": "79c411da387c57e9db6f304b706a44359cf4ad4d0ea5b16e08d9746252376cfd",
+        "convex/webhooks/conformance.test.ts": "7db2bbb3887958ed8009847598dd65dc0986a009fefc95c314e7b8eb0d5e4909",
+        "convex/webhooks/google.test.ts": "36d4671dbd5d6a1d05866d0c80dbf6e79c573fbfdc19201c0145dcdfae8ff496",
+        "convex/webhooks/google.ts": "838c028ccf5e1148aefc8ec50d2e9440e240fcbc75fcb4adf4935c04924ae15c",
+        "convex/webhooks/internal.test.ts": "da09eb34d905ca597838f2a75d3fc168be66dc7f25c2526d742c70b9e4bc8d94",
+        "convex/webhooks/internal.ts": "5901bfbf1b619c642005b50581152f1bd4db962b229e306c01b86a73a7626ed3",
+        "convex/webhooks/shared.test.ts": "9b1bc4fc95c6cdac577139d4a3d0fe8af2d2f17c05c9245477560046f4be52b8",
+        "convex/webhooks/shared.ts": "cc452f2fe85f236208024b75696c9d33465307319823cffe53a04262b730d3db",
+        "package.json": "1182cc98122c21521339bc9dc261e354dd1259a0fa1d9df8fcc9554b6f212fa4",
+        "server/api/commerce/conformance.test.ts": "899281919296be4f38de4e6b48b059b6e0a6cca90558bc3758dc9bcd559e1435",
+        "server/api/commerce/errors.ts": "e95477f606fb7fac954351a5825ad9efbd14d9b4901900b1e7a0ebfd7bab8434",
+        "server/api/commerce/graphql.ts": "8c45733a958c875d5a123e4fd0b1fa56981f9adb0fc6c80104fb4ce6727448e2",
+        "server/api/commerce/handlers.ts": "3d92ef7dc0cf1fc3bd0c0acb6aa1488b0f9d2737561ec7f886eb15553e92a27d",
+        "server/api/commerce/routes.rate-limit.test.ts": "5e7d260771101ae3cd9218d3c63ed9c7ba91a010e550bc09b969635595bb85ab",
+        "server/api/commerce/routes.test.ts": "bd3b63011c571af56e4438743116ec1774222a8f8d26dd7cc0ed32d581d94986",
+        "server/api/commerce/routes.ts": "e8383e409de76264dfe04d3aaec00c57b7ae2e0204a83744cd653b8c10e3b4b1",
+        "server/api/commerce/validation.ts": "cc84b422b537abb374ef32825d07f8a65f357e30a001b1a814464d5d6797f3f1",
+        "server/api/commerce/verificationAdmission.ts": "b0d35496fbb88bd0e2e0157fccc18bc35a0f439af360265fd1f4bf348b1b1525",
+        "server/api/v1/in-flight-limit.test.ts": "af59d08681871f3abe5c82b58b20866f1c9774f731e719f2b210a434021018ef",
+        "server/api/v1/in-flight-limit.ts": "6a017425b1ce8f0405656338c60663953d5c9865b940311f349a379755107aa0",
+        "server/api/v1/mcp-contract.test.ts": "2481291bbf0a679979a6bd8979673e4f7e39f33423c5896efd9542abe4e1ad9e",
+        "server/api/v1/middleware.test.ts": "7d40f0a9c5912d661089876a3bb031fa76eb181d42cce5473dde27f4ca3c3859",
+        "server/api/v1/middleware.ts": "318b7fd449ed5ef3abcd148f3ade565063c74c2c8aa60decde600391530d97ed",
+        "server/api/v1/products.test.ts": "e374eff0e459fb2c6af26d4bf91e94cefab4d22158d2a73e8ad06fbd3906baab",
+        "server/api/v1/products.ts": "e8ab84fc84c48e67607729399cb1863e159415a8ce3fb0c15c87fb37e24edd38",
+        "server/api/v1/rate-limit.test.ts": "8af3a26833e07f1873f01531163f54a15562462b1ea7c58b4a6743b25b50d71d",
+        "server/api/v1/rate-limit.ts": "86f870ecb0b24748015ec3313f6cefc11bdf4fc7c7efb0ed2e218c228145aca9",
+        "server/api/v1/replay-guard.integration.test.ts": "d19dd85d805f5ddf67b5de6b3b627e65bae1ea2783d6b798ff72ebde6ff8d82f",
+        "server/api/v1/replay-guard.test.ts": "a7d2dcafda01329fed0af256146d59a72aa5fe622847ad237827d5cc4f67aacd",
+        "server/api/v1/replay-guard.ts": "5ed1c74eb80778eb79f62730c458587f86c2ae2431bb0a540a34876e69c5fce8",
+        "server/api/v1/request-body.test.ts": "a2a3a19117b1957d23b1753aae7cca8fdb38bec074d0b1e87c9233f2616e240f",
+        "server/api/v1/request-body.ts": "abc51b2d1cfaff29ea10ce5e5470b861250f81a31acbefc6bd0dee3399f239c3",
+        "server/api/v1/request-logger.test.ts": "4281b16b454ded5040cb4b286f44427c1e8d08424928c35fdee21ffa64c10dbb",
+        "server/api/v1/request-logger.ts": "13404c120cb82392c374ab4a22aaa6c52e53d4792c351045a24bf3f406f02a1b",
+        "server/api/v1/response-contract.test.ts": "e8e7dd0ceb4efacb3b26d546570d1f603c4463d2eba00793dae38cd51f92ca0a",
+        "server/api/v1/response-contract.ts": "67c5c97724162c941a2e24444d1de605fb15469469c913c7201ca9e277077c42",
+        "server/api/v1/route-input-schemas.test.ts": "3f9b89e6dfc3730ede596fcbf22f00d61a6b7349d83ae30583cda08a06892cb0",
+        "server/api/v1/route-input-schemas.ts": "e501ee1bd3e04c1dbdee2c5a70517da32e3eba744400eb2b69d821fddeb2d358",
+        "server/api/v1/route-response-schemas.test.ts": "41737df37e2172c872b4dcd3458528b75d793476b2991c33cbc08e95cd70c560",
+        "server/api/v1/route-response-schemas.ts": "2521b8c703f7d201b3790bbfbaaa6bc6a29637ac36b0b486f7e087be92b7ea02",
+        "server/api/v1/routes.test.ts": "5f76cc4e496b19d935a03246cbdae7a4387248003921f43797b675b3fac7cd8a",
+        "server/api/v1/routes.ts": "3027f90f4128ddbd95c65bfc93d071c4ec7935e6fad2af921d903244673e670c",
+        "server/api/v1/subscriptions.test.ts": "fc841ee0937894360fed0ecda1ec1520a1bec1b556a40dfcdca8ea44007ceee9",
+        "server/api/v1/subscriptions.ts": "25096eac92dadd0cc408efd89d736972e9c8723af46395f32c187e9ff7d42d5a",
+        "server/api/v1/validator-path.test.ts": "ab4925c48e63705f97ee8537976e776fd7fca2296a9c0a2a64e1c50aa8f991f5",
+        "server/api/v1/validator.test.ts": "869c61f1105936895e1563be58ba01ade1a3a1af8b179a810396370fb9284120",
+        "server/api/v1/validator.ts": "96dda15fafad415fc47271d0038d252d7133d5b3782aec17a33199b36604b073",
+        "server/api/v1/webhooks.test.ts": "a767e9d79000cb208b26899f21b128f22bb4c67575ff22d771a9d887ab50d2fb",
+        "server/api/v1/webhooks.ts": "8e358d0b40609b56d7386d9ff0b0d1c1145e60f76dbceaef1ca4c2f5c495895d",
+        "server/api/v2/route-schemas.ts": "e7db69e3e3e5b5eb52d03ca2a2bb05f1bd9b3b8a2cfb747a02aff02555e9e9d7",
+        "server/api/v2/routes.test.ts": "e964e387caf56413b69fd5e4bc1da8791358be6b8f5bc11717ad94372120250b",
+        "server/api/v2/routes.ts": "e92c2ec043226b3b4069b10722c2df0c18c8a6c5a0c0ce5a7099ae304cae7ca0",
+        "server/api/v2/subscriptions.test.ts": "6f186bfd8e27bdb71240cd228be5abb253cc738d4190134e3a3cf9bacd4185ec",
+        "server/api/v2/subscriptions.ts": "6aef9ed115825b54d8452802a5b69670960908d634863374f70ac8368911a034",
+        "server/bun.d.ts": "1aedd96d736cadda1a1f54bacf20effa6a5e1ddddc39e9deb0ec38a758224ae8",
+        "server/convex.test.ts": "23a46cd650da6f5939b4fbbaa57c42ef5a6266ac2405a55969a6c3d973a2cc6f",
+        "server/convex.ts": "f63b5d431b74ecad5d6ed637ad34814be4dacea640ebe80f392a1248c391fd5e",
+        "server/health.test.ts": "ca25074c9d68d95a2729116889b9a8270e95a4fa94d6189a0e8a55254573b0ad",
+        "server/health.ts": "630f80ed526ccad7d3bf8851ba9ed4744fc1c268af2879ee98100e6d91947430",
+        "server/mcp.test.ts": "b3826201a416f5b66fe69d2723eeaf464ccdf47e8f35695f3f8a6453d3083a50",
+        "server/mcp.ts": "5fd101b488b3757896e25e890be1baf5b92b0831231df5057f6797407f0bd1ff",
+        "server/sentry.test.ts": "35acf04ad26f814b52a1ea0da3c03f1cc35c6efd0c73ed1f0762ae71f9304ca9",
+        "server/sentry.ts": "97b37ab62bfe0d6bb08cffdbdfe24020e1118af4e41d965e535251d352200c51",
+        "server/server.test.ts": "b6ff5bfea51a740b3cc1d0405e12de7bbfb116f9cf2e798b7644edf337bd62f8",
+        "server/server.ts": "e21e9fd48afe56901f3031cf707c9da3ab99c363088313e19059327e2b19ec3e",
+        "server/staticPaths.test.ts": "c0642f61bcba8991ac5f4293893860aaa6a4a56154b937d3191a0d82f8079297",
+        "server/staticPaths.ts": "22ac0a799ea3270f092024d7ad186106089b2796a9577122bad0b458cbfcb282",
+        "server/utils/env.test.ts": "9a4a3b75f332b130978a593368206b992875c3fc5427463c98ee03bad6a32f61",
+        "server/utils/env.ts": "588f2c38bc12d9ca3a9884a8b01596eaa589cead31951dd501310874297e4c86",
+        "src/convex.ts": "1731bf0c6a180b4f329767e8ff6767cad55fe3047f7fa2b47b7a98b10d0d58d6",
+        "tsconfig.json": "10513719ec1a2d5c345d77fd807afa83a891ba9673e1a05cd03264f35639af9b"
+      },
+      "optionalGeneratedFiles": []
+    },
+    "example": {
+      "baseRevision": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
+      "hashes": {
+        "README.md": "31b768b8b9d031a7f95f912919ac3ea61e2e394a41d9762af00f0e6276e6ff03",
+        "capture.mjs": "4940347c92713f47965400fa9dca0908372ec2b3627612fccf40eb6b636a85a2",
+        "checkpoint-tools.mjs": "137fb2798a7e73e2db9a716d8cd3ea78fe3155ab0651ecae39f1e629634ec19c",
+        "checkpoint-tools.test.mjs": "1ea348330db8dab85694ac79cfec76e9d3af1729263a6a05cae61e10e41b2175",
+        "client-bridge.mjs": "a6760f1a9059e650fa19ef96403b16f7860390fce390262276020bd2cc7d5078",
+        "composition/app-backend.mjs": "4b2b617634026ab2d1d936c29e246f47eb2f2d31769ff204df745785f9f6f55d",
+        "composition/app-backend.test.mjs": "9fbfc7fdb393b95bdf803dfb77e44a5d4311e5812e33a987b371a6b4a32a3b41",
+        "composition/commerce-client.mjs": "f1f1a056bc76801df25111cb12fdcde501d507a5461ef8b15bfe2f57979cd03c",
+        "composition/export.mjs": "ccc84dee42d59b1d2b09f16aec2b77a774765dd6fab0f341b01f1043a2e88225",
+        "composition/memory-provider.mjs": "edf6a7567ead756dc4a5c15d5b5b14f4d4314db31e3aa3c01c8ec543754fcc31",
+        "composition/purchase-flow.mjs": "ce6f98426c36eab346e900ac06ed31f2d387e542c518a48c92a67f7bae147ec8",
+        "composition/receiver.test.mjs": "1559036d9f0804017eeff544ed0eef7d7328111515eaeb38f6787cba815a1151",
+        "composition/run.mjs": "0e7aa1c8c5cab79f06d9853fa5b91f0e15f0322b4574b5f1a97f1ea119fc9b14",
+        "consumer.mjs": "d8e168238270309157d52ca777fea30f1d37bae38b96e88148314c894bdb1b4c",
+        "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
+        "erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
+        "export-docs.mjs": "47cf25c7ba1942fb833ac6b496c1e06b4ae06a61f6328330c6a6a4337c164f84",
+        "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c",
+        "package.json": "396fc93b7d50240739af2b817c172ffab8692245bd919de3b26ee713b56d455b",
+        "provider.mjs": "682b2c24797d5007373c1951641b2f6f156c933e654b2ad1865219be64b15d51",
+        "scenario.mjs": "b8ff9024afd67701b5f70916a61fa7d538eaec281aa4b5cc660e1c205932a32d",
+        "server.mjs": "b0f185a3954fbe1d7a4dd15f0dc8638afcf04e386ec730ae17a15860784d9e36",
+        "verify-checkpoints.mjs": "ece22b0480bafa41ad8c65e37a5705eaf67c3f8b47c62339f9b1b33a90edd6d2",
+        "verify-erasure.mjs": "65feaff2e8eb0a3247ecdbc0f511c8eef5e07a4c2c63155b07409ba7cb19be88",
+        "verify-stores.mjs": "6a9ea6071aebddac158435b8577f4b31914d902191f6cc1476683ea6d9bac3dd",
+        "verify.mjs": "d3bfb64cb50672f9671162d28c82c961b7b4ef65ede147e6653d5c41204ff8b2",
+        "webhooks.mjs": "4838bac7a9083440998409aa1ab543999495ea6a907036bc78ba2002feb588b2"
+      }
+    },
+    "workspace": {
+      "baseRevision": "4e8163c11ed448f6af261c00a34c17d7458c565d",
+      "hashes": {
+        "bun.lock": "689a0cf2cda86b3b9d29b5f4f9bba1a39013c9223bb6b753df0e001cce64dff9",
+        "package.json": "18b4f901c4ca8ee9374ab9c50d3db9825dce2abab2dddfdb1a03a052b5571d76",
+        "packages/mcp-server/package.json": "81583f86c66b2e7cfc514ab06bcfe25951e4159397bba39ea3c56e1b6bb2f7c7",
+        "packages/mcp-server/src/kit-client.ts": "6f3db1c10a1b8bd91ca1b224f4cf2bc47b131362e3a2ed106ff794d95df585da",
+        "specs/commerce-protocol/examples/entitlement-granted-no-subscription.json": "e9cd83b903032b2a86d05cf58330c70d86a2cd392603e4c466353194f42f8213",
+        "specs/commerce-protocol/examples/entitlement-revoked.json": "e5306e8d4675d26317cd76a32005249351abd81e5fe142839cce245ec2854e1c",
+        "specs/commerce-protocol/examples/provider-capabilities.json": "f1ba640faf62838e58a307cc72bb97ca4dceedb2ea27f50ffc7675e025b76578",
+        "specs/commerce-protocol/examples/store-event-mapping.json": "907506ab65c3ced5a681936e7d116a90ef84ba3d315722c5b870ef144de7b546",
+        "specs/commerce-protocol/examples/subscription-canceled.json": "53336bfcb08fba307ee479cc264391d49250521ff0b463790eab96a6d12fd1d4",
+        "specs/commerce-protocol/examples/subscription-product-changed.json": "a213650fbf124f44a59df01113bf5ffe005df7f5c1facd2e002779c82fa68de7",
+        "specs/commerce-protocol/examples/subscription-renewed.json": "1d4f449aeb433f61c4e91f626e2d3c14da332da83245d2110eb32e7b97208939",
+        "specs/commerce-protocol/examples/verify-purchase-request.json": "069c09b7d691547206baa6e4fdfb49450de192c998d9234fb92fdb69ebf6e029",
+        "specs/commerce-protocol/examples/verify-purchase-result.json": "de3c2a1f5924900c4e30628f27296b5ec034f53e8b38cc739eb363fbd3ce002a",
+        "specs/commerce-protocol/generated/bindings/graphql-operations.json": "e32115193c8175fd885221346342af8b2e7d7753632af4895b65e4c44ee57d9e",
+        "specs/commerce-protocol/generated/bindings/http-binding.json": "fbf596f8c655146fa3eb6b8b6882dcee77556202333272681e8af511916f53d0",
+        "specs/commerce-protocol/generated/bindings/introspection-signature.json": "6e0bacf0f882b5e0f76fdd739f43692de6e33d60a8a7e1734c835efe7f5f64f1",
+        "specs/commerce-protocol/generated/bindings/operations-sdl.json": "d4e51dde69fa56e140975cb3d4c98f2b77ef2c13928cc9d7aac5c43bb47373c3",
+        "specs/commerce-protocol/generated/openapi/commerce-protocol.openapi.json": "23d2195f5efb5e968826d49221b88491f2c89fe6af152e35c234041b16cc1ba5",
+        "specs/commerce-protocol/generated/schemas/commerce-event.schema.json": "999cf57c40d49c1af66bac09a0b495939bdecdca593b15f0d06d74f146196234",
+        "specs/commerce-protocol/generated/schemas/commerce-protocol.bundle.schema.json": "58dad9b450afa8a4aee836023f95e23da656e8238a1356569b346e48e00bf753",
+        "specs/commerce-protocol/generated/schemas/operations.schema.json": "4502d4e565cfc67cbd662e96acf2547bf65f8e4b3687346ead38e24d6e7a6c20",
+        "specs/commerce-protocol/generated/schemas/primitives.schema.json": "72f26596b27b281b7690dded54e494bff64c0541f0d90596abffb17b3b082ae0",
+        "specs/commerce-protocol/generated/schemas/provider-capabilities.schema.json": "1968dfdbc0487f78fc2c3e034e4ff9fc8308ab3f341d073e9b6a57fa3f635469",
+        "specs/commerce-protocol/generated/schemas/store-event-mapping.schema.json": "1de55452ec4646e275895cc40aeb63052ad61b7934fd3c66944f54eb53686513",
+        "specs/commerce-protocol/generated/vectors/lifecycle.json": "c301783a1e8a8f94439e47bb4b65a358a0ff3a29eca23e1144c85fc8c7dcd3f5",
+        "specs/commerce-protocol/generated/vectors/operations.json": "d3f763152748cde31d7419f348eb29bedf1027fcaa16235070791553416192a0",
+        "specs/commerce-protocol/package.json": "15413af6492fa69ab51e11143f0750ea61346a506f58e84460cd3ee7041cb5f8",
+        "specs/commerce-protocol/src/index.mjs": "57f2b16e67fa5674eea144e91c44ba65e7e9ea8d6fb756280757f2708d8c5ecb"
+      },
+      "optionalGeneratedFiles": []
+    }
+  },
+  "runtime": {
+    "bun": "1.3.13",
+    "convex": "1.44.0"
+  },
+  "command": "bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs ../openiap-commerce-protocol-example <new-output-directory>",
+  "configurationChanges": [
+    "Commerce base URL and server credential",
+    "Separate webhook signing keys, each bound to its provider and project",
+    "Example fixture store adapter configured to recognize the same synthetic Google token"
+  ],
+  "recordedAt": "2026-09-09T18:50:12.469Z",
+  "checks": [
+    "example: app and receiver endpoints remain unchanged",
+    "example: empty provider gives no access",
+    "example: actual verification accepts fixture",
+    "example: verification alone does not grant access",
+    "example: unchanged app fulfills the purchase",
+    "example: repeated fulfillment is idempotent",
+    "example: body cannot select account identity",
+    "example: another user cannot claim the purchase",
+    "example: publishable verification credentials cannot erase",
+    "example: same receiver persists an authenticated grant",
+    "example: cancellation stops renewal but keeps paid access",
+    "iapkit: app and receiver endpoints remain unchanged",
+    "iapkit: empty provider gives no access",
+    "iapkit: actual verification accepts fixture",
+    "iapkit: verification alone does not grant access",
+    "iapkit: unchanged app fulfills the purchase",
+    "iapkit: repeated fulfillment is idempotent",
+    "iapkit: body cannot select account identity",
+    "iapkit: another user cannot claim the purchase",
+    "iapkit: publishable verification credentials cannot erase",
+    "iapkit: same receiver persists an authenticated grant",
+    "iapkit: cancellation stops renewal but keeps paid access",
+    "example: app and receiver endpoints remain unchanged",
+    "Switching back restores the same persisted access",
+    "IAPKit 503 leaves a durable pending delivery",
+    "IAPKit pending deliveries survive process restart",
+    "example: cancellation retry reaches unchanged receiver",
+    "iapkit: cancellation retry reaches unchanged receiver",
+    "Lost acknowledgements and receiver restart create no duplicate effects",
+    "example: app and receiver endpoints remain unchanged",
+    "example: access expires before a store notification",
+    "iapkit: app and receiver endpoints remain unchanged",
+    "iapkit: access expires before a store notification",
+    "Repeated IAPKit store notification is deduplicated",
+    "example: receiver observes revocation",
+    "iapkit: receiver observes revocation",
+    "App account deletion is accepted",
+    "App completes erasure across both configured providers",
+    "Deleted session cannot submit a late purchase",
+    "example: erased user has no access",
+    "example: repeated erasure returns the same completed job",
+    "iapkit: erased user has no access",
+    "iapkit: repeated erasure returns the same completed job",
+    "IAPKit persisted subscription, event and job identities are removed",
+    "Example purchase identity is removed",
+    "Previously delivered app event identities are removed",
+    "Late signed redeliveries after erasure and restart cannot restore identities",
+    "Consumer source files are byte-for-byte unchanged during replacement",
+    "apple/example: keeps the same app and receiver",
+    "apple/example: starts without access",
+    "apple/example: unverified evidence cannot bind",
+    "apple/example: verifies the store-specific input",
+    "apple/example: verification alone grants no account access",
+    "apple/example: app purchase succeeds",
+    "apple/example: app receives access",
+    "apple/example: binding is repeatable",
+    "apple/example: another account cannot claim the purchase",
+    "apple/example: access includes only verified products",
+    "apple/example: tokenless access does not leak store evidence",
+    "apple/iapkit: keeps the same app and receiver",
+    "apple/iapkit: starts without access",
+    "apple/iapkit: unverified evidence cannot bind",
+    "apple/iapkit: verifies the store-specific input",
+    "apple/iapkit: verification alone grants no account access",
+    "apple/iapkit: app purchase succeeds",
+    "apple/iapkit: app receives access",
+    "apple/iapkit: binding is repeatable",
+    "apple/iapkit: another account cannot claim the purchase",
+    "apple/iapkit: access includes only verified products",
+    "apple/iapkit: tokenless access does not leak store evidence",
+    "apple: switching back needs no consumer edit",
+    "apple: the app accepts account erasure",
+    "apple: both providers complete erasure",
+    "apple/example: erased account has no access",
+    "apple/example: erased user id cannot bind again",
+    "apple/iapkit: erased account has no access",
+    "apple/iapkit: erased user id cannot bind again",
+    "apple: an erased session cannot submit another purchase",
+    "apple: IAPKit removes account identity from persisted purchases",
+    "amazon/example: keeps the same app and receiver",
+    "amazon/example: starts without access",
+    "amazon/example: unverified evidence cannot bind",
+    "amazon/example: verifies the store-specific input",
+    "amazon/example: verification alone grants no account access",
+    "amazon/example: app purchase succeeds",
+    "amazon/example: app receives access",
+    "amazon/example: binding is repeatable",
+    "amazon/example: another account cannot claim the purchase",
+    "amazon/example: access includes only verified products",
+    "amazon/example: tokenless access does not leak store evidence",
+    "amazon/example: does not invent subscription lifecycle records",
+    "amazon/example: rejects another store account in the app session",
+    "amazon/example: an upstream outage fails the access read",
+    "amazon/example: a negative store recheck removes access",
+    "amazon/example: rechecked ownership restores access",
+    "amazon/iapkit: keeps the same app and receiver",
+    "amazon/iapkit: starts without access",
+    "amazon/iapkit: unverified evidence cannot bind",
+    "amazon/iapkit: verifies the store-specific input",
+    "amazon/iapkit: verification alone grants no account access",
+    "amazon/iapkit: app purchase succeeds",
+    "amazon/iapkit: app receives access",
+    "amazon/iapkit: binding is repeatable",
+    "amazon/iapkit: another account cannot claim the purchase",
+    "amazon/iapkit: access includes only verified products",
+    "amazon/iapkit: tokenless access does not leak store evidence",
+    "amazon/iapkit: does not invent subscription lifecycle records",
+    "amazon/iapkit: rejects another store account in the app session",
+    "amazon/iapkit: an upstream outage fails the access read",
+    "amazon/iapkit: a negative store recheck removes access",
+    "amazon/iapkit: rechecked ownership restores access",
+    "amazon/iapkit: an unchanged recheck verdict is not written back",
+    "amazon: switching back needs no consumer edit",
+    "amazon: the app accepts account erasure",
+    "amazon: both providers complete erasure",
+    "amazon/example: erased account has no access",
+    "amazon/example: erased user id cannot bind again",
+    "amazon/iapkit: erased account has no access",
+    "amazon/iapkit: erased user id cannot bind again",
+    "amazon/example: erased evidence cannot bind to another account",
+    "amazon/iapkit: another account can bind the erased evidence",
+    "amazon/iapkit: the new account receives the rechecked access",
+    "amazon: an erased session cannot submit another purchase",
+    "amazon: IAPKit removes account identity from persisted purchases",
+    "horizon/example: keeps the same app and receiver",
+    "horizon/example: starts without access",
+    "horizon/example: unverified evidence cannot bind",
+    "horizon/example: verifies the store-specific input",
+    "horizon/example: verification alone grants no account access",
+    "horizon/example: app purchase succeeds",
+    "horizon/example: app receives access",
+    "horizon/example: binding is repeatable",
+    "horizon/example: another account cannot claim the purchase",
+    "horizon/example: access includes only verified products",
+    "horizon/example: tokenless access does not leak store evidence",
+    "horizon/example: does not invent subscription lifecycle records",
+    "horizon/example: rejects another store account in the app session",
+    "horizon/example: an upstream outage fails the access read",
+    "horizon/example: a negative store recheck removes access",
+    "horizon/example: rechecked ownership restores access",
+    "horizon/iapkit: keeps the same app and receiver",
+    "horizon/iapkit: starts without access",
+    "horizon/iapkit: unverified evidence cannot bind",
+    "horizon/iapkit: verifies the store-specific input",
+    "horizon/iapkit: verification alone grants no account access",
+    "horizon/iapkit: app purchase succeeds",
+    "horizon/iapkit: app receives access",
+    "horizon/iapkit: binding is repeatable",
+    "horizon/iapkit: another account cannot claim the purchase",
+    "horizon/iapkit: access includes only verified products",
+    "horizon/iapkit: tokenless access does not leak store evidence",
+    "horizon/iapkit: does not invent subscription lifecycle records",
+    "horizon/iapkit: rejects another store account in the app session",
+    "horizon/iapkit: an upstream outage fails the access read",
+    "horizon/iapkit: a negative store recheck removes access",
+    "horizon/iapkit: rechecked ownership restores access",
+    "horizon/iapkit: an unchanged recheck verdict is not written back",
+    "horizon: switching back needs no consumer edit",
+    "horizon: the app accepts account erasure",
+    "horizon: both providers complete erasure",
+    "horizon/example: erased account has no access",
+    "horizon/example: erased user id cannot bind again",
+    "horizon/iapkit: erased account has no access",
+    "horizon/iapkit: erased user id cannot bind again",
+    "horizon/example: erased evidence cannot bind to another account",
+    "horizon/iapkit: another account can bind the erased evidence",
+    "horizon/iapkit: the new account receives the rechecked access",
+    "horizon: an erased session cannot submit another purchase",
+    "horizon: IAPKit removes account identity from persisted purchases",
+    "Source revisions remain unchanged throughout execution"
+  ],
+  "checkCount": 170,
+  "trace": [
+    {
+      "provider": "example",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "example",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "example",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "willRenew": true
+          }
+        ]
+      }
+    },
+    {
+      "provider": "example",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "willRenew": true
+          }
+        ]
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "renewsAt": 1788979811375,
+            "willRenew": true,
+            "startedAt": 1788979766600,
+            "updatedAt": 1788979766630
+          }
+        ]
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "renewsAt": 1788979811375,
+            "willRenew": true,
+            "startedAt": 1788979766600,
+            "updatedAt": 1788979766654
+          }
+        ]
+      }
+    },
+    {
+      "provider": "example",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "google",
+            "expiresAt": 1788979811375,
+            "willRenew": false
+          }
+        ]
+      }
+    },
+    {
+      "provider": "example",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "interop_alice",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/account",
+      "method": "DELETE",
+      "status": 200,
+      "result": {
+        "accepted": true,
+        "status": "queued"
+      }
+    },
+    {
+      "provider": "iapkit",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 401,
+      "result": null
+    },
+    {
+      "store": "apple",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_apple",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "apple",
+            "expiresAt": 1788983411623,
+            "willRenew": true
+          }
+        ]
+      }
+    },
+    {
+      "store": "apple",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_apple",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "apple",
+            "expiresAt": 1788983366375,
+            "startedAt": 1788979811648,
+            "updatedAt": 1788979811673
+          }
+        ]
+      }
+    },
+    {
+      "store": "apple",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "store_apple",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "apple",
+            "expiresAt": 1788983411623,
+            "willRenew": true
+          }
+        ]
+      }
+    },
+    {
+      "store": "apple",
+      "path": "/account",
+      "method": "DELETE",
+      "status": 200,
+      "result": {
+        "accepted": true,
+        "status": "queued"
+      }
+    },
+    {
+      "store": "apple",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 401,
+      "result": null
+    },
+    {
+      "store": "amazon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_amazon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 403,
+      "result": null
+    },
+    {
+      "store": "amazon",
+      "path": "/access",
+      "method": "GET",
+      "status": 503,
+      "result": {
+        "error": "Commerce provider unavailable; retry the request."
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_amazon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 403,
+      "result": null
+    },
+    {
+      "store": "amazon",
+      "path": "/access",
+      "method": "GET",
+      "status": 503,
+      "result": {
+        "error": "Commerce provider unavailable; retry the request."
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "store_amazon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/account",
+      "method": "DELETE",
+      "status": 200,
+      "result": {
+        "accepted": true,
+        "status": "queued"
+      }
+    },
+    {
+      "store": "amazon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 401,
+      "result": null
+    },
+    {
+      "store": "horizon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_horizon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 403,
+      "result": null
+    },
+    {
+      "store": "horizon",
+      "path": "/access",
+      "method": "GET",
+      "status": 503,
+      "result": {
+        "error": "Commerce provider unavailable; retry the request."
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "userId": "store_horizon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 403,
+      "result": null
+    },
+    {
+      "store": "horizon",
+      "path": "/access",
+      "method": "GET",
+      "status": 503,
+      "result": {
+        "error": "Commerce provider unavailable; retry the request."
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/access",
+      "method": "GET",
+      "status": 200,
+      "result": {
+        "userId": "store_horizon",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": []
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/account",
+      "method": "DELETE",
+      "status": 200,
+      "result": {
+        "accepted": true,
+        "status": "queued"
+      }
+    },
+    {
+      "store": "horizon",
+      "path": "/purchase",
+      "method": "POST",
+      "status": 401,
+      "result": null
+    }
+  ],
+  "consumerHashes": {
+    "composition/app-backend.mjs": "4b2b617634026ab2d1d936c29e246f47eb2f2d31769ff204df745785f9f6f55d",
+    "composition/commerce-client.mjs": "f1f1a056bc76801df25111cb12fdcde501d507a5461ef8b15bfe2f57979cd03c",
+    "consumer.mjs": "d8e168238270309157d52ca777fea30f1d37bae38b96e88148314c894bdb1b4c",
+    "webhooks.mjs": "4838bac7a9083440998409aa1ab543999495ea6a907036bc78ba2002feb588b2",
+    "erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
+    "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2"
+  },
+  "changedConsumerFiles": [],
+  "providerOrder": [
+    "example",
+    "iapkit",
+    "example"
+  ],
+  "backendVersion": "precompiled-2026-08-25-7cce8fb",
+  "scope": {
+    "actual": [
+      "IAPKit Hono routes and handlers",
+      "Apple, Google, Amazon and Horizon verification action bodies; Google RTDN action",
+      "Amazon and Horizon stored purchase binding, fresh ownership reads and erasure",
+      "Convex persistence, authorization, subscription transitions, erasure scheduler and delivery leases",
+      "IAPKit outbound signing and result recording",
+      "Original example SQLite provider",
+      "One app backend and one receiver, real loopback HTTP",
+      "Actual Convex process restart with pending deliveries"
+    ],
+    "fixtures": [
+      "Google Play HTTP and OIDC, Amazon RVS and Meta Graph responses",
+      "Apple signed-transaction verifier, Server API and test signing-key loader at their external boundaries",
+      "Paid subscription and app sessions",
+      "HTTPS destination transport redirected to the loopback receiver through the existing worker injection"
+    ],
+    "excluded": [
+      "Real store purchase, device SDK integration and store cryptographic verification",
+      "Public HTTPS DNS/TLS delivery",
+      "Automatic migration of existing purchases between providers",
+      "Unrelated image processing and scheduled maintenance crons"
+    ]
+  }
+}

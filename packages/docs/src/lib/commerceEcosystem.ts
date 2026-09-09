@@ -2,6 +2,8 @@ export const COMMERCE_ROLES = [
   {
     id: 'experience',
     title: 'Experience',
+    benefit:
+      'Keep your paywall, targeting, and experiments. Connect product selection to the app’s existing purchase flow.',
     examples: 'Paywalls · offers · experiments',
     owns: 'Presentation, targeting, and product selection',
     input:
@@ -14,6 +16,8 @@ export const COMMERCE_ROLES = [
   {
     id: 'commerce',
     title: 'Commerce services',
+    benefit:
+      'Choose your store adapters, database, and service model. Give app backends a defined contract they can test and reuse.',
     examples: 'Verification · identity binding · access',
     owns: 'Store evidence validation, purchase ownership, and current entitlement state',
     input: 'Store evidence; the app backend’s authenticated user identity',
@@ -26,6 +30,8 @@ export const COMMERCE_ROLES = [
   {
     id: 'data',
     title: 'Data & automation',
+    benefit:
+      'Build a receiver for normalized events, then reuse it across compatible emitters. Own your reports, audiences, and workflows.',
     examples: 'Analytics · attribution · CRM',
     owns: 'Event ingestion and its own business models and workflows',
     input: 'Authenticated normalized events from a configured emitter',

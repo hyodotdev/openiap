@@ -152,7 +152,13 @@ jobs:
       - name: Install Playwright chromium
         # smoke-browser.ts loads the SPA in headless Chromium to catch
         # runtime bundle crashes that HTTP probes miss (see PR #120).
-        run: bunx playwright install --with-deps chromium
+        # `--with-deps` runs apt, which fails whenever Google's Chrome
+        # repository serves a stale index. Playwright downloads its own
+        # chromium, so drop that source first: nothing here needs it.
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/google-chrome.list \
+            /etc/apt/sources.list.d/google-chrome.sources
+          bunx playwright install --with-deps chromium
 
       - name: Smoke test compiled server
         run: ./scripts/smoke-server.sh
