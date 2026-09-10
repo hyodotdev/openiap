@@ -30,6 +30,7 @@ export const nativeWorkflows = Object.freeze([
 
 export const ciFilterJobs = Object.freeze({
   android: ["ci:test-android"],
+  cli: ["ci:test-cli"],
   docs: ["ci:test-docs"],
   gql: ["ci:test-gql"],
   ios: ["ci:test-ios", "ci:test-ios-compiler-boundaries"],

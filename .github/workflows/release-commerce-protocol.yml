@@ -1,4 +1,4 @@
-name: "A. Release: openiap-commerce-protocol"
+name: "A. Release: @hyodotdev/openiap-commerce-protocol"
 
 # Two-phase release, matching the other npm lanes: this workflow bumps and tags
 # on the release branch, then dispatches itself on the tag ref so npm provenance
@@ -193,7 +193,8 @@ jobs:
           gh auth setup-git
           TAG="openiap-commerce-protocol-$VERSION"
           node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
-            commerce-protocol "$RELEASE_BRANCH" "$TAG" "$VERSION"
+            commerce-protocol "$RELEASE_BRANCH" "$TAG" "$VERSION" \
+            @hyodotdev/openiap-commerce-protocol
           git checkout "$TAG"
 
       - name: Assert verified release head is unchanged
@@ -206,12 +207,12 @@ jobs:
         env:
           VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          if NPM_OUTPUT=$(npm view "openiap-commerce-protocol@$VERSION" version 2>&1); then
+          if NPM_OUTPUT=$(npm view "@hyodotdev/openiap-commerce-protocol@$VERSION" version 2>&1); then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Unable to verify openiap-commerce-protocol@$VERSION on npm"
+            echo "::error::Unable to verify @hyodotdev/openiap-commerce-protocol@$VERSION on npm"
             echo "$NPM_OUTPUT"
             exit 1
           fi
@@ -233,7 +234,7 @@ jobs:
           TAG="openiap-commerce-protocol-$VERSION"
           EXPECTED_COMMIT=$(git rev-parse "$TAG^{commit}")
           node "$RUNNER_TEMP/verify-npm-release-provenance.mjs" \
-            openiap-commerce-protocol "$VERSION" "$EXPECTED_COMMIT" "$TAG" \
+            @hyodotdev/openiap-commerce-protocol "$VERSION" "$EXPECTED_COMMIT" "$TAG" \
             release-commerce-protocol.yml
 
       - name: Commit and tag
@@ -246,7 +247,7 @@ jobs:
           gh auth setup-git
           TAG="openiap-commerce-protocol-$VERSION"
           git add specs/commerce-protocol/package.json
-          git commit -m "chore(release): openiap-commerce-protocol@$VERSION"
+          git commit -m "chore(release): @hyodotdev/openiap-commerce-protocol@$VERSION"
           git tag -a "$TAG" -m "Release $TAG"
           git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
@@ -317,12 +318,12 @@ jobs:
           ### Install
 
           \`\`\`bash
-          npm install openiap-commerce-protocol@$VERSION
+          npm install @hyodotdev/openiap-commerce-protocol@$VERSION
           \`\`\`
 
           ### Links
 
-          - [npm](https://www.npmjs.com/package/openiap-commerce-protocol/v/$VERSION)
+          - [npm](https://www.npmjs.com/package/@hyodotdev/openiap-commerce-protocol/v/$VERSION)
           - [Specification](https://github.com/hyodotdev/openiap/blob/$TAG/$SPEC_PATH)
           EOF
 
@@ -330,7 +331,7 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: openiap-commerce-protocol-${{ steps.bump.outputs.version }}
-          name: openiap-commerce-protocol ${{ steps.bump.outputs.version }}
+          name: "@hyodotdev/openiap-commerce-protocol ${{ steps.bump.outputs.version }}"
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
@@ -493,12 +494,12 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          if NPM_OUTPUT=$(npm view "openiap-commerce-protocol@$VERSION" version 2>&1); then
+          if NPM_OUTPUT=$(npm view "@hyodotdev/openiap-commerce-protocol@$VERSION" version 2>&1); then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Unable to verify openiap-commerce-protocol@$VERSION on npm"
+            echo "::error::Unable to verify @hyodotdev/openiap-commerce-protocol@$VERSION on npm"
             echo "$NPM_OUTPUT"
             exit 1
           fi
@@ -524,7 +525,7 @@ jobs:
           # ready. Allow five minutes for the immutable provenance to propagate.
           for _attempt in {1..30}; do
             if node scripts/verify-npm-release-provenance.mjs \
-              openiap-commerce-protocol "$VERSION" "$GITHUB_SHA" \
+              @hyodotdev/openiap-commerce-protocol "$VERSION" "$GITHUB_SHA" \
               "openiap-commerce-protocol-$VERSION" release-commerce-protocol.yml; then
               VERIFIED=true
               break

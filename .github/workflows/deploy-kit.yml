@@ -13,7 +13,7 @@ on:
       # @hyodotdev/openiap-mcp-server/web straight from source, so an
       # MCP-server change must redeploy kit or it never ships (issue #287).
       - "packages/mcp-server/**"
-      # The kit server imports openiap-commerce-protocol at runtime and the
+      # The kit server imports @hyodotdev/openiap-commerce-protocol at runtime and the
       # compiled binary embeds its generated artifacts (the route manifest,
       # error map, and capability descriptor), so a spec change must redeploy
       # kit or the served /commerce/v1 surface silently diverges from the spec.

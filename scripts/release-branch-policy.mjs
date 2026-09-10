@@ -44,7 +44,7 @@ export const versionSources = {
     read: (root) => readJson(root, "packages/conformance/package.json").version,
   },
   "commerce-protocol": {
-    label: "openiap-commerce-protocol",
+    label: "@hyodotdev/openiap-commerce-protocol",
     read: readCommerceProtocolVersion,
   },
   docs: {

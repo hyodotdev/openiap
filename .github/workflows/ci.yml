@@ -165,6 +165,7 @@ jobs:
       ios: ${{ steps.filter.outputs.ios }}
       docs: ${{ steps.filter.outputs.docs }}
       web: ${{ steps.filter.outputs.web }}
+      cli: ${{ steps.filter.outputs.cli }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -224,6 +225,64 @@ jobs:
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
+            cli:
+              # The suite reads packages/cli/README.md as a contract input, so
+              # a README edit has to run it.
+              - 'packages/cli/**'
+              - '.github/workflows/ci.yml'
+  test-cli:
+    name: Test CLI
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # The package ships no dependencies and is run by whatever node a user
+      # has, so pin the oldest supported one rather than the runner default.
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+
+      - name: Run CLI tests
+        working-directory: packages/cli
+        run: npm test
+
+      # The repository-wide bin/ rule would stop `git add` from tracking the
+      # executable at all, so it would be missing from a publish checkout.
+      - name: The published tarball carries the executable
+        working-directory: packages/cli
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e "
+            const [{files}] = require('./pack.json');
+            if (!files.some((one) => one.path === 'bin/openiap.mjs')) {
+              throw new Error('bin/openiap.mjs is not in the tarball');
+            }
+          "
+          rm pack.json
+
+      - name: The executable loads
+        run: node packages/cli/bin/openiap.mjs --help
+
+      - name: The doctor exits 1 on a project it proves is broken
+        run: |
+          mkdir -p /tmp/doctor-fixture/android/app
+          printf 'horizonEnabled=false\nfireOsEnabled=false\n' \
+            > /tmp/doctor-fixture/android/gradle.properties
+          printf 'missingDimensionStrategy "platform", "horizon"\n' \
+            > /tmp/doctor-fixture/android/app/build.gradle
+          if node packages/cli/bin/openiap.mjs doctor /tmp/doctor-fixture; then
+            echo "expected a non-zero exit for a mismatched flavor" >&2
+            exit 1
+          fi
+
   test-commerce-protocol:
     name: Test Commerce Protocol
     runs-on: ubuntu-latest
@@ -338,7 +397,7 @@ jobs:
           for i in 1 2 3; do
             bun install --frozen-lockfile \
               --filter openiap-monorepo \
-              --filter @hyodotdev/openiap && break
+              --filter @hyodotdev/openiap-client-protocol && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5

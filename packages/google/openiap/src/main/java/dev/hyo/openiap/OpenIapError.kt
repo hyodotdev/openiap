@@ -178,9 +178,19 @@ sealed class OpenIapError : Exception() {
     object InitConnection : OpenIapError() {
         val CODE = ErrorCode.InitConnection.rawValue
         override val code = CODE
-        override val message = MESSAGE
+        override val message = buildMessage()
 
         const val MESSAGE = "Failed to initialize billing connection"
+
+        /** Name the store this binary links; the same build is correct on its own device. */
+        private fun buildMessage(): String {
+            val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
+            return if (store.lowercase() == "play") {
+                MESSAGE
+            } else {
+                "$MESSAGE. This build targets the $store store, not Google Play."
+            }
+        }
     }
 
     open class QueryProduct(
@@ -391,7 +401,7 @@ sealed class OpenIapError : Exception() {
                 NetworkError.CODE to NetworkError.MESSAGE,
                 UnknownError.CODE to UnknownError.MESSAGE,
                 NotPrepared.CODE to NotPrepared.MESSAGE,
-                InitConnection.CODE to InitConnection.MESSAGE,
+                InitConnection.CODE to InitConnection.message,
                 QueryProduct.CODE to QueryProduct.MESSAGE,
                 EmptySkuList.CODE to EmptySkuList.MESSAGE,
                 SkuNotFound.CODE to SkuNotFound.MESSAGE,

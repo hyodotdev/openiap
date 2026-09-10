@@ -146,7 +146,7 @@ if git diff --cached --name-only --diff-filter=ACMR \
   bun run --filter @hyodotdev/openiap-kit test
 
   echo "→ spec suite (rebuilds generated artifacts and byte-compares them)"
-  bun run --filter openiap-commerce-protocol test
+  bun run --filter @hyodotdev/openiap-commerce-protocol test
 
   # Bun-compile + boot probe. Most expensive step (~10-15s) but the
   # only thing that catches startup regressions: missing env, bind

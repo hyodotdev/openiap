@@ -2,7 +2,7 @@
 
 `specs/client` is the authored source of truth for the OpenIAP client API and
 multiplatform type system. Its publishable npm package is
-`@hyodotdev/openiap`; the private repository root is not that package.
+`@hyodotdev/openiap-client-protocol`; the private repository root is not that package.
 
 This directory is a specification and code-generation toolchain, not a hosted
 service. It may publish generated types and portable client source artifacts,

@@ -3,7 +3,7 @@ import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import AnchorLink from '../../components/AnchorLink';
 import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
-import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
+import httpBinding from '@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json';
 
 const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 

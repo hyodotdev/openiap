@@ -26,12 +26,18 @@ and [AI integration brief](https://openiap.dev/commerce-example/integration-brie
 to connect your product to apps using OpenIAP. These product roles do not add
 protocol profiles or a universal paywall API.
 
+The package rename preserves the contract and export paths. Replace unscoped
+imports with `@hyodotdev/openiap-commerce-protocol`, including `/conformance`
+and artifact subpaths. Existing release tags remain immutable; release with a
+normal version bump rather than retrying the unscoped 0.1.0 tag.
+
 ## Start implementing
 
-Install the contract in your own backend project with your favorite package manager:
+The first usable release of `@hyodotdev/openiap-commerce-protocol` is
+pending. Until then, install the existing 0.1.0 artifact under the new import name:
 
 ```sh
-npm install openiap-commerce-protocol
+npm install @hyodotdev/openiap-commerce-protocol@npm:openiap-commerce-protocol@0.1.0
 ```
 
 Or use `pnpm add`, `yarn add`, or `bun add` with the same package name.
@@ -90,7 +96,7 @@ Review only the authored surfaces, in this order:
    operation surface, and validation directives.
    [`generated/commerce-protocol.graphql`](./generated/commerce-protocol.graphql)
    is their generated single-file assembly (also exported at the package path
-   `openiap-commerce-protocol/commerce-protocol.graphql`).
+   `@hyodotdev/openiap-commerce-protocol/commerce-protocol.graphql`).
 3. [`examples/`](./examples/) — representative documents and store mappings.
 4. [`vectors/signatures.json`](./vectors/signatures.json) — hand-authored
    cryptographic truth cases.
@@ -159,7 +165,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const report = await runConformance({
   adapters: [

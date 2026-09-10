@@ -1656,7 +1656,7 @@ function checkGqlRuntimeExports() {
     for (const [condition, actual, expected] of checks) {
       if (actual !== expected) {
         fail(
-          `@hyodotdev/openiap ${groupName} export ${definition.exportKey}${condition ? ` (${condition})` : ""} should point to ${expected}`,
+          `@hyodotdev/openiap-client-protocol ${groupName} export ${definition.exportKey}${condition ? ` (${condition})` : ""} should point to ${expected}`,
         );
       }
     }
@@ -1810,8 +1810,9 @@ function checkKitBuilderCopiesRuntimeWorkspaceSources() {
       if (!exists(manifestPath)) continue;
       const packageName = readJson(manifestPath).name;
       if (!packageName) continue;
+      const packageSpecifier = new RegExp(`["']${escapeRegExp(packageName)}(?:/|["'])`);
       const importedAtRuntime = runtimeFiles.some((file) =>
-        read(file).includes(`"${packageName}`),
+        packageSpecifier.test(read(file)),
       );
       if (!importedAtRuntime) continue;
       if (!dockerfile.includes(`COPY ${root}/${name} `)) {
@@ -4132,7 +4133,7 @@ function checkFrameworkDependencyHygiene() {
     "Google README install version",
   );
   // The client specification README ships as the npm README of
-  // @hyodotdev/openiap; specification READMEs opt into the generated sponsor
+  // @hyodotdev/openiap-client-protocol; specification READMEs opt into the generated sponsor
   // block through markers, and this one must keep them.
   expectIncludes(
     "specs/client/README.md",
@@ -5124,7 +5125,7 @@ function checkFrameworkDependencyHygiene() {
     "docs deploy wrapper must not duplicate root deployment behavior",
   );
   // A plain `vercel` triggers a remote build whose `bun install` cannot
-  // resolve the workspace:* dependency (openiap-commerce-protocol). The
+  // resolve the workspace:* dependency (@hyodotdev/openiap-commerce-protocol). The
   // preview deploy must prebuild locally and ship with --prebuilt, exactly as
   // production does.
   expectIncludes(

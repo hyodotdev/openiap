@@ -1,7 +1,8 @@
+import { COMMERCE_PROTOCOL_INSTALL } from '../../lib/config';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import { Link, useLocation } from 'react-router-dom';
-import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
-import evidence from 'openiap-commerce-protocol/examples/verify-purchase-request.json';
+import httpBinding from '@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json';
+import evidence from '@hyodotdev/openiap-commerce-protocol/examples/verify-purchase-request.json';
 import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
 import CodeBlock from '../../components/CodeBlock';
@@ -132,7 +133,11 @@ function CommerceGettingStarted(): React.JSX.Element {
           <AnchorLink id="install-contract" level="h2">
             1. Install the contract
           </AnchorLink>
-          <PackageInstall packageName="openiap-commerce-protocol" />
+          <p>
+            The first usable scoped release is being prepared. This alias
+            installs the published 0.1.0 contract under its new import name.
+          </p>
+          <PackageInstall packageName={COMMERCE_PROTOCOL_INSTALL} />
           <p>
             The package gives your backend the contract, schemas, and
             conformance tools. Obtain a compatible provider endpoint and

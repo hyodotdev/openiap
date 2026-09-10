@@ -400,7 +400,7 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
 
-### Updating `@hyodotdev/openiap` Types and the Derived Version
+### Updating `@hyodotdev/openiap-client-protocol` Types and the Derived Version
 
 1. Update the canonical schema without directly changing the `spec` version.
    Native version writers keep `spec` equal to the lower semantic version of
@@ -496,7 +496,7 @@ Before writing or editing anything, **ALWAYS** review:
 
 ### Code Generation Architecture
 
-The `@hyodotdev/openiap` package uses two guarded generation lanes over one
+The `@hyodotdev/openiap-client-protocol` package uses two guarded generation lanes over one
 authored schema inventory:
 
 ```text

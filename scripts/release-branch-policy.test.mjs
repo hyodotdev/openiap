@@ -253,7 +253,10 @@ test("release version commits use package@version subjects", () => {
     ["release-kmp.yml", "kmp-iap@$VERSION"],
     ["release-maui.yml", "maui-iap@$VERSION"],
     ["release-conformance.yml", "openiap-conformance@$VERSION"],
-    ["release-commerce-protocol.yml", "openiap-commerce-protocol@$VERSION"],
+    [
+      "release-commerce-protocol.yml",
+      "@hyodotdev/openiap-commerce-protocol@$VERSION",
+    ],
   ]) {
     const expectedCommit = `git commit -m "chore(release): ${subject}"`;
     const versionCommits = readWorkflow(filename)
@@ -1719,10 +1722,7 @@ test("Commerce Protocol current retries survive the specification directory move
     deployJob,
     /defaults:\n\s+run:\n\s+working-directory: specs\/commerce-protocol/u,
   );
-  assert.match(
-    bumpStep,
-    /working-directory: specs\/commerce-protocol/u,
-  );
+  assert.match(bumpStep, /working-directory: specs\/commerce-protocol/u);
   assert.match(workflow, /SPEC_PATH="specs\/openiap-kit\/SPEC\.md"/u);
 });
 
@@ -1874,4 +1874,35 @@ test("next receives the same core and framework CI coverage", () => {
       filename,
     );
   }
+});
+
+test("Commerce Protocol current retries cannot reuse an unscoped npm release", () => {
+  assert.throws(
+    () =>
+      assertReleaseTag(
+        {
+          packageId: "commerce-protocol",
+          branch: "main",
+          tag: "openiap-commerce-protocol-0.1.0",
+          expectedVersion: "0.1.0",
+          expectedName: "@hyodotdev/openiap-commerce-protocol",
+        },
+        (args) => {
+          assert.equal(
+            args[0],
+            "show",
+            "reject package identity before fetching or checking out a tag",
+          );
+          return JSON.stringify({
+            name: "openiap-commerce-protocol",
+            version: "0.1.0",
+          });
+        },
+      ),
+    /different npm package/,
+  );
+  assert.match(
+    readWorkflow("release-commerce-protocol.yml"),
+    /commerce-protocol "\$RELEASE_BRANCH" "\$TAG" "\$VERSION" \\\n\s+@hyodotdev\/openiap-commerce-protocol/,
+  );
 });

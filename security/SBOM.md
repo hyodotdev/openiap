@@ -542,3 +542,8 @@ published descriptors when an advisory needs an affected-version list.
 
 See [README.md](README.md) for the full vulnerability-management picture and
 [CRA.md](CRA.md) for how this maps onto Cyber Resilience Act expectations.
+
+Commerce Protocol SBOM filenames keep the `openiap-commerce-protocol-` prefix.
+The root package name, npm PURL, and distribution link follow the manifest in
+the release commit, preserving unscoped historical releases and scoped future
+releases.

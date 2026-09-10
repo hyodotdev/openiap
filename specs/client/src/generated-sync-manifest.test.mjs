@@ -131,7 +131,7 @@ describe("generated sync manifest", () => {
       readRepositoryFile("specs/client/package.json"),
     );
     const rootPackageJson = JSON.parse(readRepositoryFile("package.json"));
-    expect(packageJson.name).toBe("@hyodotdev/openiap");
+    expect(packageJson.name).toBe("@hyodotdev/openiap-client-protocol");
     expect(packageJson.publishConfig).toEqual({ access: "public" });
     expect(rootPackageJson).toMatchObject({
       name: "openiap-monorepo",
@@ -225,7 +225,7 @@ describe("generated sync manifest", () => {
     );
     const setupIndex = normalizedParityJob.indexOf("uses: oven-sh/setup-bun@");
     const installIndex = normalizedParityJob.indexOf(
-      "bun install --frozen-lockfile --filter openiap-monorepo --filter @hyodotdev/openiap",
+      "bun install --frozen-lockfile --filter openiap-monorepo --filter @hyodotdev/openiap-client-protocol",
     );
 
     expect(syncIndex).toBeGreaterThanOrEqual(0);

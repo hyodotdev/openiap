@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
@@ -43,6 +44,37 @@ export default function AIAssistants() {
         installs the SDK, connects the purchase flow, and runs the checks. Start
         with your app, then inspect the result together.
       </p>
+
+      <section>
+        <AnchorLink id="start-in-your-project" level="h2">
+          Start in your project
+        </AnchorLink>
+        <p>
+          Building an app, paywall, commerce service, or data product? The
+          OpenIAP CLI prepares an implementation brief for your role. Give it to
+          your coding assistant alongside the customer outcome you want. Your
+          existing stack and service choices stay yours.
+        </p>
+        <p>
+          A usable CLI release is still pending on npm. From an OpenIAP
+          checkout, run:
+        </p>
+        <CodeBlock language="bash">
+          {'node packages/cli/bin/openiap.mjs init /path/to/your/product'}
+        </CodeBlock>
+        <p>
+          The command reads local files and prints a brief. Your assistant
+          implements it when you paste the brief into your project. See the{' '}
+          <a href="https://github.com/hyodotdev/openiap/tree/main/packages/cli">
+            CLI guide
+          </a>{' '}
+          for scripted use, or{' '}
+          <Link to="/commerce-protocol/ecosystem">
+            choose your product’s role
+          </Link>{' '}
+          directly in the docs. Continue below for an app integration.
+        </p>
+      </section>
 
       <section>
         <AnchorLink id="choose-sdk" level="h2">

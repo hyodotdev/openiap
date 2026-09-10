@@ -31,7 +31,7 @@ function Versions() {
     <div className="doc-page">
       <SEO
         title="Versions"
-        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and the OpenIAP client specification (@hyodotdev/openiap)."
+        description="OpenIAP ecosystem versions - latest releases for openiap-apple, openiap-google, and the OpenIAP client specification (@hyodotdev/openiap-client-protocol)."
         path="/docs/updates/versions"
       />
       <h1>Versions &amp; Release Channels</h1>
@@ -139,7 +139,7 @@ function Versions() {
 
       <section>
         <AnchorLink id="openiap-gql" level="h2">
-          @hyodotdev/openiap Client Specification
+          @hyodotdev/openiap-client-protocol Client Specification
         </AnchorLink>
         <p>
           The GraphQL schema powers API docs and SDK generators. Review the

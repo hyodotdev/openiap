@@ -1250,7 +1250,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const report = await runConformance({
   adapters: [

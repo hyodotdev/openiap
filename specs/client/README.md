@@ -1,4 +1,4 @@
-# @hyodotdev/openiap Specification and Code Generation
+# @hyodotdev/openiap-client-protocol Specification and Code Generation
 
 [![Generate Types](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 
@@ -11,6 +11,10 @@
 <!-- markdownlint-enable MD033 -->
 
 _The OpenIAP client contract and multiplatform codegen toolkit._
+
+Renamed from the unpublished workspace package `@hyodotdev/openiap`, which now
+names the CLI in `packages/cli`. Update type and `kit-api` imports to
+`@hyodotdev/openiap-client-protocol`. A usable npm release of this package is still pending.
 
 This package is the single source of truth for the OpenIAP client GraphQL schema. The SDL
 files live in `src/` and are split into common (`type.graphql`, `api.graphql`), error

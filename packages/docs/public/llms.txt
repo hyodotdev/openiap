@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-09-09T00:37:16.162Z
+> Generated: 2026-09-10T19:03:28.262Z
 
 ## Choose an SDK and verify the implementation
 
@@ -34,6 +34,16 @@ Implement in the target project, install and run from clean source, and verify
 the promised behavior. Report commands, actual results, and remaining work.
 Separate fixture checks, real store sandbox tests, and profile conformance;
 do not claim one from another or hide failures by reducing the declared scope.
+
+When a purchase fails and the error does not say why, read the project before
+the code. The checks that pay off, none of which produce an error saying what
+is wrong: the store flavor the Android build links against the flags that
+selected it, a secret `openiap-kit_sk_` key in a file the app bundle ships, an
+Expo env name the bundler will not inline, an IAPKit base URL that already
+carries the verification path, and an iOS Info.plist naming a scene delegate
+class the target does not contain. https://github.com/hyodotdev/openiap/tree/main/packages/cli
+runs all of them read-only. A checkout cannot answer for store account state,
+device state, or Play billing availability, so do not report those as passing.
 
 
 ## Installation

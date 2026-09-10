@@ -5,7 +5,7 @@ entitlement infrastructure for the OpenIAP ecosystem. The hosted service at
 [kit.openiap.dev](https://kit.openiap.dev) is a React 19 SPA + Hono on Bun +
 Convex backend, all shipped as one Fly.io binary. **Unlike other packages in
 this monorepo, this is a deployable application, not a publishable library.**
-It does not consume `@hyodotdev/openiap` type generation; it has its own
+It does not consume `@hyodotdev/openiap-client-protocol` type generation; it has its own
 Convex schema as the source of truth for purchase-validation models.
 
 For setup, operations, and deploy details, see [`README.md`](./README.md).
@@ -281,7 +281,7 @@ Trivy stay CI-only) plus the Commerce Protocol suite from `ci.yml`:
 2. `bun run --filter @hyodotdev/openiap-kit lint` (tsc + eslint)
 3. prettier check on `src` / `server` / `convex`
 4. `bun run --filter @hyodotdev/openiap-kit test` (vitest)
-5. `bun run --filter openiap-commerce-protocol test` (spec suite + drift check)
+5. `bun run --filter @hyodotdev/openiap-commerce-protocol test` (spec suite + drift check)
 6. `bun run --filter @hyodotdev/openiap-kit smoke:server` (compile + boot probe)
 7. `bun run --filter @hyodotdev/openiap-mcp-server lint` and `test` (served at `/mcp`)
 

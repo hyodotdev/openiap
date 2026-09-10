@@ -5,7 +5,7 @@
 // schemas, calls the shared handler, and maps the outcome back.
 
 import { Hono, type Context, type Next } from "hono";
-import HTTP_BINDING from "openiap-commerce-protocol/generated/bindings/http-binding.json";
+import HTTP_BINDING from "@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json";
 
 import {
   apiKeyValidationError,

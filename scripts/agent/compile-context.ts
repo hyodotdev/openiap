@@ -263,6 +263,16 @@ Implement in the target project, install and run from clean source, and verify
 the promised behavior. Report commands, actual results, and remaining work.
 Separate fixture checks, real store sandbox tests, and profile conformance;
 do not claim one from another or hide failures by reducing the declared scope.
+
+When a purchase fails and the error does not say why, read the project before
+the code. The checks that pay off, none of which produce an error saying what
+is wrong: the store flavor the Android build links against the flags that
+selected it, a secret \`openiap-kit_sk_\` key in a file the app bundle ships, an
+Expo env name the bundler will not inline, an IAPKit base URL that already
+carries the verification path, and an iOS Info.plist naming a scene delegate
+class the target does not contain. https://github.com/hyodotdev/openiap/tree/main/packages/cli
+runs all of them read-only. A checkout cannot answer for store account state,
+device state, or Play billing availability, so do not report those as passing.
 `;
   const deprecationMigrationReference = `## Deprecations and major-version migration
 

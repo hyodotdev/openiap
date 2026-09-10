@@ -98,7 +98,7 @@ function parseRemoteTagCommit(output, tag) {
 }
 
 export function assertReleaseTag(
-  { packageId, branch, tag, expectedVersion },
+  { packageId, branch, tag, expectedVersion, expectedName },
   runGit = defaultRunGit,
 ) {
   const config = PACKAGE_CONFIG[packageId];
@@ -134,6 +134,11 @@ export function assertReleaseTag(
     );
   }
   const tagVersion = config.version(metadata);
+  if (expectedName && JSON.parse(metadata).name !== expectedName) {
+    throw new Error(
+      `${tag} belongs to a different npm package. Release a new version instead of retrying current.`,
+    );
+  }
   if (tagVersion !== version) {
     throw new Error(
       `${tag} metadata version is ${tagVersion || "missing"}, expected ${version}`,
@@ -179,13 +184,14 @@ export function assertReleaseTag(
 }
 
 async function main() {
-  const [packageId, branch, tag, expectedVersion] = process.argv.slice(2);
+  const [packageId, branch, tag, expectedVersion, expectedName] =
+    process.argv.slice(2);
   if (!packageId || !branch || !tag || !expectedVersion) {
     throw new Error(
-      "Usage: node scripts/assert-release-tag.mjs <package> <branch> <tag> <version>",
+      "Usage: node scripts/assert-release-tag.mjs <package> <branch> <tag> <version> [npm-package-name]",
     );
   }
-  assertReleaseTag({ packageId, branch, tag, expectedVersion });
+  assertReleaseTag({ packageId, branch, tag, expectedVersion, expectedName });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

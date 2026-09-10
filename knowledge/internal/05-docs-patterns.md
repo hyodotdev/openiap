@@ -368,7 +368,7 @@ const allNotes: Note[] = [
     element: (
       <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
         <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
-          📅 @hyodotdev/openiap v3.4.0 / openiap-apple v3.4.0 - Feature
+          📅 @hyodotdev/openiap-client-protocol v3.4.0 / openiap-apple v3.4.0 - Feature
           Description
         </AnchorLink>
         {/* Content here */}

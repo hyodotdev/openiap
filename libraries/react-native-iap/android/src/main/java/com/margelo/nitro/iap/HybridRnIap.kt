@@ -435,12 +435,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 if (!ok) {
                     val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", Exception(error.message))
-                    throw OpenIapException(
-                        toErrorJson(
-                            error = error,
-                            messageOverride = "Failed to initialize connection"
-                        )
-                    )
+                    // No override: the error names the store this binary links,
+                    // which a fixed string here would throw away.
+                    throw OpenIapException(toErrorJson(error = error))
                 }
                 true
             } catch (e: Exception) {

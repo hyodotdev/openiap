@@ -23,6 +23,7 @@ This document provides an overview for AI agents working across the OpenIAP mono
 ```text
 openiap/
 ├── packages/
+│   ├── cli/           # `openiap init` + `doctor` CLI (npm)
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation site (React/Vite/Vercel)
 │   ├── google/        # Android library

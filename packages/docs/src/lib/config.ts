@@ -48,3 +48,7 @@ export const COMMERCE_PROTOCOL_LINKS = {
   example: 'https://github.com/hyodotdev/openiap-commerce-protocol-example',
   exampleSource: '/commerce-example/source.tar.gz',
 } as const;
+
+// Keep the new import path usable until the first usable scoped release.
+export const COMMERCE_PROTOCOL_INSTALL =
+  '@hyodotdev/openiap-commerce-protocol@npm:openiap-commerce-protocol@0.1.0';

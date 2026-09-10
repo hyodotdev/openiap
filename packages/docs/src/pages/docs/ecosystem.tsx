@@ -34,7 +34,7 @@ function Ecosystem() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <strong>@hyodotdev/openiap</strong>
+              <strong>@hyodotdev/openiap-client-protocol</strong>
             </a>
             : authored client GraphQL contract and type generator shared by all
             OpenIAP libraries.

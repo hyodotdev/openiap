@@ -172,7 +172,7 @@ if ! bun run build; then
     exit 1
 fi
 
-# The docs package depends on the workspace-local `openiap-commerce-protocol`
+# The docs package depends on the workspace-local `@hyodotdev/openiap-commerce-protocol`
 # package, which Vercel's remote `bun install` cannot resolve from an upload
 # of packages/docs alone. Build locally (where the workspace exists) and ship
 # the prebuilt output instead of letting Vercel install and build remotely.

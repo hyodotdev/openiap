@@ -1,3 +1,4 @@
+import { COMMERCE_PROTOCOL_INSTALL } from '../../lib/config';
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import {
   COMMERCE_IMPLEMENTATIONS,
@@ -118,7 +119,7 @@ Implementation references:
 - Step-by-step comparison: https://openiap.dev/commerce-protocol/getting-started${search}
 Read the example's INTEGRATE.md for my role; follow BUILD.md for a commerce backend. Compare each responsibility with IAPKit's corresponding handler and tests. The example uses fictional purchases and all six REST operations, including erasure; IAPKit also shows store integrations and GraphQL. Use the contract as the authority, not either implementation's shortcuts.
 Check the chosen store and product type before implementing. IAPKit's Apple/Google subscription path uses subscription state and lifecycle events. Its Amazon/Horizon ownership path rechecks saved evidence on entitlements reads; use productIds, not subscription expiry or invented events. Authenticate the store account link on the app backend. Keep consumable quantities in a separate durable fulfillment ledger.
-Inspect this project's instructions and stack. Install openiap-commerce-protocol; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.
+Inspect this project's instructions and stack. Install ${COMMERCE_PROTOCOL_INSTALL}; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.
 
 Implement the connection using existing project patterns. Start with a runnable local result. For a provider, complete every selected profile, including account erasure and event delivery; advertise only completed profiles and bindings. Run the applicable conformance and product checks. Fix every failure and rerun; a test that expects a known failure does not complete the implementation. Repeat installation, tests, and startup from a clean source-only copy.
 Show the running URL and user-visible outcomes, with source and verification commands for future changes. Separate fixture evidence from real store/deployment checks; list remaining work and product decisions.

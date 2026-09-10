@@ -1,5 +1,5 @@
 {
-  "name": "openiap-commerce-protocol",
+  "name": "@hyodotdev/openiap-commerce-protocol",
   "version": "0.1.0",
   "type": "module",
   "types": "./src/index.d.ts",

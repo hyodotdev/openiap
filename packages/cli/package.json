@@ -1,0 +1,39 @@
+{
+  "name": "@hyodotdev/openiap",
+  "version": "0.1.0",
+  "description": "Start an OpenIAP integration with AI and check local purchase configuration",
+  "keywords": [
+    "openiap",
+    "in-app-purchase",
+    "doctor",
+    "cli"
+  ],
+  "homepage": "https://github.com/hyodotdev/openiap/tree/main/packages/cli",
+  "type": "module",
+  "license": "MIT",
+  "author": "hyodotdev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyodotdev/openiap.git",
+    "directory": "packages/cli"
+  },
+  "bin": {
+    "openiap": "bin/openiap.mjs"
+  },
+  "files": [
+    "LICENSE",
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

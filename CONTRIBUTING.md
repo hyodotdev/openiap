@@ -8,15 +8,15 @@ This guide explains how to contribute to the OpenIAP monorepo.
 openiap/
 ├── packages/
 │   ├── apple/         # iOS/macOS native implementation
+│   ├── cli/           # `openiap doctor` command line tool
 │   ├── conformance/   # Behavioral conformance suite
 │   ├── docs/          # Documentation site (openiap.dev)
 │   ├── google/        # Android native implementation
 │   ├── kit/           # Hosted purchase and entitlement service
 │   └── mcp-server/    # IAPKit MCP server
 ├── specs/
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract & type generation (SSOT)
-│       └── commerce-protocol/  # Server-side Commerce Protocol
+│   ├── client/             # Client GraphQL contract & type generation (SSOT)
+│   └── commerce-protocol/  # Server-side Commerce Protocol
 ├── plugins/
 │   └── openiap/       # Codex and Claude Code integration
 ├── libraries/
