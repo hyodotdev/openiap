@@ -3124,9 +3124,11 @@ test("Commerce Protocol SBOM identity follows the release manifest across the np
       JSON.stringify({ name, version: "0.1.0", license: "MIT" }),
     );
     try {
+      const tag = `${name.startsWith("@") ? "hyodotdev-" : ""}openiap-commerce-protocol-0.1.0`;
       const { document, fileName } = await generateSbom("commerce-protocol", {
         root,
         runGit: stubGit,
+        releaseTag: tag,
       });
       assert.equal(fileName, "openiap-commerce-protocol-0.1.0.cdx.json");
       assert.equal(document.metadata.component.name, name);
@@ -3134,9 +3136,13 @@ test("Commerce Protocol SBOM identity follows the release manifest across the np
         document.metadata.component.purl,
         `pkg:npm/${name.replaceAll("@", "%40")}@0.1.0`,
       );
+      assert.deepEqual(componentFromTag(tag), {
+        componentId: "commerce-protocol",
+        version: "0.1.0",
+      });
       const options = {
         fileName,
-        releaseTag: "openiap-commerce-protocol-0.1.0",
+        releaseTag: tag,
         releaseCommit: stubCommit,
         commercePackageName: name,
       };
@@ -3167,22 +3173,35 @@ test("Commerce Protocol SBOM identity follows the release manifest across the np
   }
 });
 
-
 test("new scoped packages retain safe SBOM filenames and verifiable release identities", async () => {
   for (const [id, name, prefix] of [
-    ["client-protocol", "@hyodotdev/openiap-client-protocol", "openiap-client-protocol"],
+    [
+      "client-protocol",
+      "@hyodotdev/openiap-client-protocol",
+      "openiap-client-protocol",
+    ],
     ["cli", "@hyodotdev/openiap", "openiap"],
   ]) {
-    const { document, fileName } = await generateSbom(id, { root: repoRoot, runGit: stubGit });
+    const { document, fileName } = await generateSbom(id, {
+      root: repoRoot,
+      runGit: stubGit,
+    });
     const version = document.metadata.component.version;
     const tag = `${prefix}-${version}`;
     assert.equal(document.metadata.component.name, name);
-    assert.equal(document.metadata.component.purl, `pkg:npm/%40hyodotdev/${prefix}@${version}`);
+    assert.equal(
+      document.metadata.component.purl,
+      `pkg:npm/%40hyodotdev/${prefix}@${version}`,
+    );
     assert.equal(fileName, `${prefix}-${version}.cdx.json`);
     assert.deepEqual(componentFromTag(tag), { componentId: id, version });
-    assert.doesNotThrow(() => verifyPublishedSbom(JSON.stringify(document), {
-      fileName, releaseTag: tag, releaseCommit: stubCommit,
-    }));
+    assert.doesNotThrow(() =>
+      verifyPublishedSbom(JSON.stringify(document), {
+        fileName,
+        releaseTag: tag,
+        releaseCommit: stubCommit,
+      }),
+    );
   }
 });
 
@@ -3190,7 +3209,10 @@ test("pub version ranges lose YAML quoting without losing constraint bounds", ()
   const root = mkdtempSync(resolve(tmpdir(), "openiap-pub-constraints-"));
   try {
     for (const value of ['">=3.1.4 <3.2.0"', "'>=3.1.4 <3.2.0'"]) {
-      writeFileSync(resolve(root, "pubspec.yaml"), `dependencies:\n  platform: ${value}\n`);
+      writeFileSync(
+        resolve(root, "pubspec.yaml"),
+        `dependencies:\n  platform: ${value}\n`,
+      );
       const [dependency] = extractPub(root, { manifest: "pubspec.yaml" });
       assert.equal(dependency.version, ">=3.1.4 <3.2.0");
       assert.equal(dependency.purl, "pkg:pub/platform@%3E%3D3.1.4%20%3C3.2.0");

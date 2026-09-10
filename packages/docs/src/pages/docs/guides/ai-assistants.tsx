@@ -55,13 +55,8 @@ export default function AIAssistants() {
           your coding assistant alongside the customer outcome you want. Your
           existing stack and service choices stay yours.
         </p>
-        <p>
-          A usable CLI release is still pending on npm. From an OpenIAP
-          checkout, run:
-        </p>
-        <CodeBlock language="bash">
-          {'node packages/cli/bin/openiap.mjs init /path/to/your/product'}
-        </CodeBlock>
+        <p>With Node.js 20 or later, run in your project:</p>
+        <CodeBlock language="bash">{'npx @hyodotdev/openiap'}</CodeBlock>
         <p>
           The command reads local files and prints a brief. Your assistant
           implements it when you paste the brief into your project. See the{' '}
@@ -109,7 +104,7 @@ export default function AIAssistants() {
         </p>
         <p>
           For an existing product, give the AI the{' '}
-          <a href="https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md">
+          <a href="https://openiap.dev/commerce-example/integration-brief.md">
             integration brief
           </a>
           . To implement a backend, use the{' '}

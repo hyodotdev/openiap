@@ -1810,7 +1810,9 @@ function checkKitBuilderCopiesRuntimeWorkspaceSources() {
       if (!exists(manifestPath)) continue;
       const packageName = readJson(manifestPath).name;
       if (!packageName) continue;
-      const packageSpecifier = new RegExp(`["']${escapeRegExp(packageName)}(?:/|["'])`);
+      const packageSpecifier = new RegExp(
+        `["']${escapeRegExp(packageName)}(?:/|["'])`,
+      );
       const importedAtRuntime = runtimeFiles.some((file) =>
         packageSpecifier.test(read(file)),
       );
@@ -3942,7 +3944,6 @@ function checkFrameworkDependencyHygiene() {
   const googleCoroutinesVersion = googleCoroutineVersions[0];
 
   for (const [packagePath, versionKey] of [
-    ["specs/client/package.json", "spec"],
     ["packages/docs/package.json", "spec"],
     ["packages/google/package.json", "google"],
     ["packages/apple/package.json", "apple"],
@@ -4930,7 +4931,6 @@ function checkFrameworkDependencyHygiene() {
     "scripts/sync-versions.sh",
     [
       "set -euo pipefail",
-      'sync_package_json_version "specs/client/package.json" "spec"',
       'sync_package_json_version "packages/docs/package.json" "spec"',
       'sync_package_json_version "packages/google/package.json" "google"',
       'sync_package_json_version "packages/apple/package.json" "apple"',
@@ -4947,10 +4947,18 @@ function checkFrameworkDependencyHygiene() {
     ["bun install --frozen-lockfile"],
     "GQL README must document Bun installs",
   );
-  expectNotIncludes(
+  expectIncludes(
     "specs/client/README.md",
-    ["npm install"],
-    "GQL README must not document npm installs",
+    [
+      "npm install @hyodotdev/openiap-client-protocol",
+      "checkout of the OpenIAP repository",
+    ],
+    "Client README must separate package consumption from repository generation",
+  );
+  expectNotIncludes(
+    "scripts/sync-versions.sh",
+    ['sync_package_json_version "specs/client/package.json"'],
+    "Client npm versions are independent of the native spec floor",
   );
   expectIncludes(
     ".gitignore",
@@ -5019,7 +5027,7 @@ function checkFrameworkDependencyHygiene() {
       'update-native google "$VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
       "packages/*/openiap-versions.json",
-      "specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "packages/docs/package.json packages/google/package.json packages/apple/package.json",
     ],
     "Google update-version must preserve openiap-versions.json fields",
   );
@@ -5044,7 +5052,7 @@ function checkFrameworkDependencyHygiene() {
       'node "$REPO_ROOT/scripts/release-branch-policy.mjs"',
       'update-native apple "$NEW_VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
-      "specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "packages/docs/package.json packages/google/package.json packages/apple/package.json",
       'git commit -m "chore(release): openiap-apple@$NEW_VERSION"',
       "git pull --rebase origin main",
       "git push origin HEAD:main",
@@ -5325,7 +5333,7 @@ function checkFrameworkDependencyHygiene() {
       [
         "./scripts/sync-release-generated.sh",
         "packages/docs/src/generated/version-metadata.json",
-        "specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+        "packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
         "release-branch-policy.mjs assert-floor",
         "Release branch moved after verification; rerun the release workflow",

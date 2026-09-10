@@ -683,6 +683,11 @@ test("existing release tags must match metadata, origin, and release-branch ance
       "openiap-commerce-protocol-3.1.0",
       '{"version":"3.1.0"}',
     ],
+    [
+      "commerce-protocol",
+      "hyodotdev-openiap-commerce-protocol-3.1.0",
+      '{"name":"@hyodotdev/openiap-commerce-protocol","version":"3.1.0"}',
+    ],
     ["docs", "docs-3.1.0", '{"spec":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],

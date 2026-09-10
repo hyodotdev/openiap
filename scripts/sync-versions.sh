@@ -47,7 +47,6 @@ PY
 
 echo ""
 echo "📦 Syncing package metadata..."
-sync_package_json_version "specs/client/package.json" "spec"
 sync_package_json_version "packages/docs/package.json" "spec"
 sync_package_json_version "packages/google/package.json" "google"
 sync_package_json_version "packages/apple/package.json" "apple"

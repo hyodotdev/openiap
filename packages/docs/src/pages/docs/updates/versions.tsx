@@ -18,6 +18,17 @@ const APPLE_SWIFT_URL =
 const APPLE_COCOAPODS_BADGE =
   'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
 const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
+const NPM_PACKAGES = [
+  ['@hyodotdev/openiap-client-protocol', 'Client API and generated types'],
+  [
+    '@hyodotdev/openiap-commerce-protocol',
+    'Server operations, events, and conformance',
+  ],
+  [
+    '@hyodotdev/openiap',
+    'AI implementation briefs and local configuration checks',
+  ],
+] as const;
 const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap/releases';
 
 function Versions() {
@@ -138,8 +149,38 @@ function Versions() {
       </section>
 
       <section>
+        <AnchorLink id="openiap-npm" level="h2">
+          OpenIAP npm packages
+        </AnchorLink>
+        <p>
+          These packages version independently of the native SDKs. Each badge
+          reads the published npm latest tag.
+        </p>
+        <ul>
+          {NPM_PACKAGES.map(([name, description]) => (
+            <li key={name}>
+              <a
+                href={`https://www.npmjs.com/package/${name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flexWrap: 'wrap', gap: '0.5rem' }}
+              >
+                <code>{name}</code>{' '}
+                <img
+                  src={`https://img.shields.io/npm/v/${name}/latest`}
+                  alt={`${name} npm version`}
+                  style={{ verticalAlign: 'middle' }}
+                />
+              </a>{' '}
+              — {description}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
         <AnchorLink id="openiap-gql" level="h2">
-          @hyodotdev/openiap-client-protocol Client Specification
+          OpenIAP Spec and native bindings
         </AnchorLink>
         <p>
           The GraphQL schema powers API docs and SDK generators. Review the
@@ -159,7 +200,7 @@ function Versions() {
             rel="noopener noreferrer"
             className="btn btn-secondary no-icon"
           >
-            Latest tag: {latestGqlRelease.tag} ↗
+            SDK compatibility tag: {latestGqlRelease.tag} ↗
           </a>
           <a
             href={GQL_RELEASES_URL}

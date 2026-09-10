@@ -32,7 +32,10 @@ export const PACKAGE_CONFIG = {
   },
   "commerce-protocol": {
     ...commerceProtocolManifest,
-    tags: (version) => [`openiap-commerce-protocol-${version}`],
+    tags: (version) => [
+      `${openiapNpmPackages["commerce-protocol"].tagPrefix}-${version}`,
+      `openiap-commerce-protocol-${version}`,
+    ],
     version: (content) => JSON.parse(content).version,
   },
   docs: {

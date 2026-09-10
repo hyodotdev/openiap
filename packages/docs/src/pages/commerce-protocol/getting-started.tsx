@@ -133,10 +133,6 @@ function CommerceGettingStarted(): React.JSX.Element {
           <AnchorLink id="install-contract" level="h2">
             1. Install the contract
           </AnchorLink>
-          <p>
-            The first usable scoped release is being prepared. This alias
-            installs the published 0.1.0 contract under its new import name.
-          </p>
           <PackageInstall packageName={COMMERCE_PROTOCOL_INSTALL} />
           <p>
             The package gives your backend the contract, schemas, and

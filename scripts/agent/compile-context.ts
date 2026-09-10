@@ -255,8 +255,8 @@ and checks. Read the code for the responsibility being implemented:
 - Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
 - IAPKit service: https://github.com/hyodotdev/openiap/tree/main/packages/kit
 - IAPKit integration documentation: https://kit.openiap.dev/docs
-- Build a backend: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
-- Connect a product role: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Build a backend: https://openiap.dev/commerce-example/build-brief.md
+- Connect a product role: https://openiap.dev/commerce-example/integration-brief.md
 
 Explain what the person gets and what they must decide before showing code.
 Implement in the target project, install and run from clean source, and verify
@@ -705,9 +705,9 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
 - Commerce Protocol: https://openiap.dev/commerce-protocol
 - Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
 - Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
-- Commerce Protocol Integration Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
 - Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
-- Commerce Protocol AI Build Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
+- Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
@@ -997,10 +997,10 @@ identifier, or central runtime.
 - Docs: https://openiap.dev/commerce-protocol
 - Use a provider: https://openiap.dev/commerce-protocol/getting-started
 - Build your part: https://openiap.dev/commerce-protocol/ecosystem
-- Role-specific AI integration brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
 - Build and review: https://openiap.dev/commerce-protocol/implementation
 - Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
-- AI build brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
+- AI build brief: https://openiap.dev/commerce-example/build-brief.md
 - Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough
 - Whitepaper and PDF: https://openiap.dev/commerce-protocol/whitepaper
 - Webhook contract: https://openiap.dev/commerce-protocol/webhooks

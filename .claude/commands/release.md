@@ -126,8 +126,8 @@ For a multi-package release train, use this order when affected:
 7. `release-kmp.yml`
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
-   - `client-protocol`: `@hyodotdev/openiap-client-protocol`, `version=current`
-     only; its version must equal the native-derived `spec` floor.
+   - `client-protocol`: `@hyodotdev/openiap-client-protocol`; independent npm
+     package version. Native SDK compatibility still uses the derived `spec` floor.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.
@@ -144,11 +144,18 @@ GitHub environment and **Allow direct npm publish** enabled. No npm token is
 required. The workflow verifies the source run, immutable tag, and registry
 provenance; a retry must preserve all three.
 
-The initial `0.0.0-bootstrap.0` versions reserve names only. For the first
-functional Commerce release, choose `patch` or higher: the existing
-`openiap-commerce-protocol-0.1.0` tag belongs to the unscoped package and cannot
-be reused. Client and CLI use `openiap-client-protocol-<version>` and
-`openiap-<version>` tags respectively; Docs keeps `docs-<spec>`.
+The initial `0.0.0-bootstrap.0` versions reserve names only. All three scoped
+packages start at `0.1.0`. Use `version=current` for the initial stable release.
+Commerce uses `hyodotdev-openiap-commerce-protocol-<version>` tags; historical
+unscoped tags stay immutable. Client and CLI use
+`openiap-client-protocol-<version>` and `openiap-<version>` tags; Docs keeps
+`docs-<spec>`.
+
+For an explicitly authorized alpha or beta on `next`, select `version=exact`
+and `target_version=0.1.0-alpha.0` (or the requested prerelease). Leave
+`target_version` empty for other modes. Prereleases publish to npm's `next`
+dist-tag. Keep prerelease version commits off `main`; merge reviewed source
+changes, then publish the stable version from `main`.
 
 Train rules (mistake guards):
 

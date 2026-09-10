@@ -4,21 +4,16 @@ Connect your app, paywall, commerce service, or data product to OpenIAP.
 Choose your role, then give the implementation brief to your coding assistant
 in your existing project. Use `doctor` to check local purchase configuration.
 
-The npm package name is `@hyodotdev/openiap`. A usable npm release is still
-pending; run it from a checkout of this repository:
+Requires Node.js 20 or later.
 
-```bash
-node packages/cli/bin/openiap.mjs init /path/to/your/product
-```
-
-After its first usable npm release, run `npx @hyodotdev/openiap` in your project.
+[![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
 
 ## Start with your role
 
 ```bash
-openiap                              # choose a role in your terminal
-openiap init ./my-product --role experience
-openiap doctor ./my-app --json
+npx @hyodotdev/openiap                              # choose a role in your terminal
+npx @hyodotdev/openiap init ./my-product --role experience
+npx @hyodotdev/openiap doctor ./my-app --json
 ```
 
 | Role | Connect |
@@ -79,6 +74,9 @@ Most of these produce no error message that says what is actually wrong.
 
 ## What it does not find
 
+Dynamic app configuration is never executed. Reading an unprefixed environment
+variable there does not prove it reaches the app; secret values stay warnings.
+
 A checkout cannot answer for a device or a store account. The command prints
 these as unchecked rather than guessing:
 
@@ -90,10 +88,10 @@ these as unchecked rather than guessing:
 ## Usage
 
 ```bash
-openiap doctor            # the working directory
-openiap doctor ./my-app   # a project elsewhere
-openiap doctor --json     # one JSON report
-openiap --version         # the version and nothing else
+npx @hyodotdev/openiap doctor            # the working directory
+npx @hyodotdev/openiap doctor ./my-app   # a project elsewhere
+npx @hyodotdev/openiap doctor --json     # one JSON report
+npx @hyodotdev/openiap --version         # the version and nothing else
 ```
 
 Exit code is `1` when there is an error, `0` otherwise.

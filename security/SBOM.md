@@ -40,7 +40,7 @@ The distribution and release-tag columns are prose and are not machine-checked:
 | `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
 | `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
 | `docs`              | `openiap-spec`              | GitHub Release                             | `docs-<version>`                      |
-| `commerce-protocol` | `openiap-commerce-protocol` | npm                                        | `openiap-commerce-protocol-<version>` |
+| `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
 | `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
 | `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
 

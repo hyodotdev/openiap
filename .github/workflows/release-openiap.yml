@@ -17,7 +17,7 @@ on:
           - cli
         default: client-protocol
       version:
-        description: "Version bump (Client Protocol requires current)"
+        description: "Version bump, current retry, or exact target"
         required: true
         type: choice
         options:
@@ -26,7 +26,13 @@ on:
           - major
           - current
           - rc-bump
+          - exact
         default: current
+      target_version:
+        description: "Required for exact, e.g. 0.1.0-alpha.0; otherwise leave empty"
+        required: false
+        default: ""
+        type: string
       prerelease:
         description: "Publish as prerelease from next (-rc.1)"
         required: false
@@ -75,11 +81,12 @@ jobs:
       - name: Enforce stable and prerelease branches
         env:
           VERSION_TYPE: ${{ inputs.version }}
+          TARGET_VERSION: ${{ inputs.target_version }}
           IS_PRERELEASE: ${{ inputs.prerelease }}
         run: >-
           node scripts/release-branch-policy.mjs guard "$PACKAGE_ID"
           "$VERSION_TYPE" "$IS_PRERELEASE"
-          "$GITHUB_REF_NAME"
+          "$GITHUB_REF_NAME" "$TARGET_VERSION"
 
   validate:
     name: Verify selected package
@@ -180,9 +187,13 @@ jobs:
         working-directory: ${{ env.PACKAGE_DIR }}
         env:
           VERSION_TYPE: ${{ inputs.version }}
+          TARGET_VERSION: ${{ inputs.target_version }}
           IS_PRERELEASE: ${{ inputs.prerelease }}
         run: |
           if [ "$VERSION_TYPE" = "current" ]; then
+            NEW_VERSION=$(node -p "require('./package.json').version")
+          elif [ "$VERSION_TYPE" = "exact" ]; then
+            npm version "$TARGET_VERSION" --no-git-tag-version --workspaces=false
             NEW_VERSION=$(node -p "require('./package.json').version")
           elif [ "$VERSION_TYPE" = "rc-bump" ]; then
             npm version prerelease --preid=rc --no-git-tag-version --workspaces=false

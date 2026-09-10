@@ -74,8 +74,11 @@ export function androidStoreChecks(root) {
   if (propertiesText === null && !app) return [];
 
   const properties = propertiesText ? parseProperties(propertiesText) : null;
+  // OpenIAP Gradle scripts read these properties with Groovy toBoolean().
   const enabled = (name) =>
-    properties?.get(name)?.value.toLowerCase() === "true";
+    ["true", "1", "y"].includes(
+      properties?.get(name)?.value.trim().toLowerCase(),
+    );
   const horizon = enabled("horizonEnabled");
   const fireOs = enabled("fireOsEnabled");
   const findings = [];
@@ -215,14 +218,12 @@ const SECRET_KEY = /openiap-kit_sk_[A-Za-z0-9]{16,}/;
 
 /**
  * Whether a name assigned in an env file reaches the bundle: a dotenv
- * transform inlines the bare name, an app.config that reads it embeds the
- * value in the shipped manifest, Expo's bundler inlines `EXPO_PUBLIC_`, and a
+ * transform inlines the bare name, Expo's bundler inlines `EXPO_PUBLIC_`, and a
  * Flutter app shipping `.env` as an asset copies the file verbatim.
  */
 function reachesBundle(root, framework, name, file) {
   const deps = dependencies(root);
   if (DOTENV_PACKAGES.some((one) => deps[one])) return true;
-  if (emitsAtConfigTime(root, name)) return true;
   // Only Expo's bundler inlines this prefix; elsewhere the name is read by
   // nothing, which is what `iapkit-env-unexpected-expo-prefix` reports.
   if (framework === "expo" && name.startsWith("EXPO_PUBLIC_")) return true;
@@ -341,7 +342,6 @@ function envReadPatterns(name) {
       `\\{[^{}]*\\b${safe}\\b[^{}]*\\}\\s*=\\s*process\\.env\\b`,
       "s",
     ),
-    spread: /\.\.\.\s*process\.env\b/,
   };
 }
 
@@ -361,31 +361,6 @@ function readAtConfigTime(root, name) {
         return Boolean(match) && !quoted(one.line, match.index);
       })
     );
-  });
-}
-
-/**
- * Whether a bundled file puts the value into what it exports. Presence guards
- * -- `if (!process.env.X)`, `throw`, a log, a comparison -- read the variable
- * without emitting it, and the documented setup uses exactly those.
- */
-function emitsAtConfigTime(root, name) {
-  const reads = envReadPatterns(name);
-  const guard =
-    /(?:if\s*\(|[!=<>]=?=?\s*$|Boolean\s*\(|throw\b|console\.\w+\s*\(|typeof\s+$)/;
-  return BUNDLED_FILES.some((file) => {
-    const text = read(root, file);
-    if (text === null) return false;
-    const lines = codeLines(text);
-    if (reads.destructured.test(lines.map((one) => one.line).join("\n")))
-      return true;
-    if (lines.some((one) => reads.spread.test(one.line))) return true;
-    return lines.some((one) => {
-      const match = reads.dotted.exec(one.line) ?? reads.indexed.exec(one.line);
-      if (!match || quoted(one.line, match.index)) return false;
-      const before = one.line.slice(0, match.index);
-      return !guard.test(before.trimEnd()) && !/!\s*$/.test(before);
-    });
   });
 }
 

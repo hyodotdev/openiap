@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-10T19:03:28.262Z
+> Generated: 2026-09-10T23:03:02.319Z
 
 ## Choose an SDK and verify the implementation
 
@@ -26,8 +26,8 @@ and checks. Read the code for the responsibility being implemented:
 - Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
 - IAPKit service: https://github.com/hyodotdev/openiap/tree/main/packages/kit
 - IAPKit integration documentation: https://kit.openiap.dev/docs
-- Build a backend: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
-- Connect a product role: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Build a backend: https://openiap.dev/commerce-example/build-brief.md
+- Connect a product role: https://openiap.dev/commerce-example/integration-brief.md
 
 Explain what the person gets and what they must decide before showing code.
 Implement in the target project, install and run from clean source, and verify
@@ -3577,9 +3577,9 @@ storage or tooling.
 - Commerce Protocol: https://openiap.dev/commerce-protocol
 - Commerce Protocol Use a Provider: https://openiap.dev/commerce-protocol/getting-started
 - Commerce Protocol Business Roles: https://openiap.dev/commerce-protocol/ecosystem
-- Commerce Protocol Integration Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md
+- Commerce Protocol Integration Brief: https://openiap.dev/commerce-example/integration-brief.md
 - Commerce Protocol Build and review: https://openiap.dev/commerce-protocol/implementation
-- Commerce Protocol AI Build Brief: https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md
+- Commerce Protocol AI Build Brief: https://openiap.dev/commerce-example/build-brief.md
 - Commerce Protocol Whitepaper: https://openiap.dev/commerce-protocol/whitepaper
 - Commerce Protocol Webhook Contract: https://openiap.dev/commerce-protocol/webhooks
 - Commerce Protocol Specification: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md

@@ -23,11 +23,7 @@ export function releasePackage(packageId, root = process.cwd()) {
     const versions = JSON.parse(
       readFileSync(resolve(root, "openiap-versions.json"), "utf8"),
     );
-    if (version !== assertSpecMatchesNativeFloor(versions)) {
-      throw new Error(
-        "Client Protocol must match the native-derived spec version",
-      );
-    }
+    assertSpecMatchesNativeFloor(versions);
   }
   return { ...config, directory: dirname(config.path), version };
 }

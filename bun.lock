@@ -182,7 +182,7 @@
     },
     "specs/client": {
       "name": "@hyodotdev/openiap-client-protocol",
-      "version": "3.4.0",
+      "version": "0.1.0",
       "devDependencies": {
         "@graphql-codegen/add": "^6.0.0",
         "@graphql-codegen/cli": "^6.0.0",

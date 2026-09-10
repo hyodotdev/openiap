@@ -32,7 +32,7 @@ export const openiapNpmPackages = {
   "commerce-protocol": {
     name: "@hyodotdev/openiap-commerce-protocol",
     path: commerceProtocolManifest.path,
-    tagPrefix: "openiap-commerce-protocol",
+    tagPrefix: "hyodotdev-openiap-commerce-protocol",
   },
   cli: {
     name: "@hyodotdev/openiap",
@@ -378,15 +378,17 @@ function runGuard(args) {
   const versionManifest = readVersionManifest();
   const specFloor = assertSpecMatchesNativeFloor(versionManifest);
   const currentVersion = validateVersion(source.read(repoRoot), source.label);
-  if (packageId === "client-protocol") {
-    if (versionMode !== "current" || currentVersion !== specFloor) {
-      throw new Error(
-        "Client Protocol releases use current and must match the native-derived spec version",
-      );
+  if (Object.hasOwn(openiapNpmPackages, packageId)) {
+    if (
+      !["current", "patch", "minor", "major", "rc-bump", "exact"].includes(
+        versionMode,
+      )
+    ) {
+      throw new Error(`Unknown npm version mode '${versionMode}'`);
     }
-    if (targetVersion && targetVersion !== specFloor) {
+    if ((versionMode === "exact") !== Boolean(targetVersion)) {
       throw new Error(
-        "Client Protocol target must match the native-derived spec version",
+        "An exact release requires target-version; other modes must omit it",
       );
     }
   }

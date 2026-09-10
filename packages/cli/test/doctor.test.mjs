@@ -861,9 +861,7 @@ test("a file that exists but cannot be read is a finding", () => {
   );
 });
 
-test("an app.config that reads the bare name embeds the key it reads", () => {
-  // The same run already computes this; grading it as unproven let a shipping
-  // key exit 0.
+test("an app.config env read remains unproven without executing configuration", () => {
   withProject(
     {
       ...EXPO,
@@ -875,7 +873,7 @@ test("an app.config that reads the bare name embeds the key it reads", () => {
       const finding = doctor(root).findings.find((one) =>
         one.id.startsWith("iapkit-secret-key"),
       );
-      assert.equal(finding.id, "iapkit-secret-key-in-client");
+      assert.equal(finding.id, "iapkit-secret-key-in-env");
     },
   );
 });
@@ -1884,15 +1882,17 @@ test("the same fixtures report the class missing when it is absent", () => {
   }
 });
 
-test("a read is not an export", () => {
-  // A presence guard resolves the variable without putting it in the manifest,
-  // and the documented setup uses exactly that shape.
-  const guards = [
-    "if (!process.env.IAPKIT_API_KEY) { throw new Error('set it') }\nmodule.exports = {expo:{name:'a'}};\n",
-    "console.log(Boolean(process.env.IAPKIT_API_KEY));\nmodule.exports = {};\n",
-    "const has = process.env.IAPKIT_API_KEY !== undefined;\nmodule.exports = {};\n",
-  ];
-  for (const body of guards) {
+test("dynamic config reads do not prove a secret reaches the public manifest", () => {
+  for (const body of [
+    "if (!process.env.IAPKIT_API_KEY) throw new Error('set it'); module.exports = {name:'a',slug:'a'};",
+    "const { IAPKIT_API_KEY } = process.env; if (!IAPKIT_API_KEY) throw new Error('set it'); module.exports = {name:'a',slug:'a'};",
+    "const {\n IAPKIT_API_KEY,\n} = process.env; module.exports = {extra:{IAPKIT_API_KEY}};",
+    "const buildEnv = {...process.env}; module.exports = {name:'a',slug:'a'};",
+    "module.exports = {extra:{...process.env}};",
+    "useAtBuildTime(process.env.IAPKIT_API_KEY); module.exports = {name:'a',slug:'a'};",
+    "module.exports = {extra:{key: process.env.IAPKIT_API_KEY}};",
+    "module.exports = {extra:{key: `${process.env.IAPKIT_API_KEY}`}};",
+  ]) {
     withProject(
       {
         ...EXPO,
@@ -1901,52 +1901,16 @@ test("a read is not an export", () => {
       },
       (root) => {
         const result = doctor(root);
+        assert.equal(result.errors, 0, body);
         assert.ok(
-          result.findings.some((one) => one.id === "iapkit-secret-key-in-env"),
+          result.findings.some(
+            (one) =>
+              one.id === "iapkit-secret-key-in-env" && one.level === "warning",
+          ),
+          body,
         );
-        assert.equal(result.errors, 0);
+        assert.ok(!result.findings.some((one) => /Rotate/.test(one.fix)), body);
       },
-    );
-  }
-  withProject(
-    {
-      ...EXPO,
-      ".env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
-      "app.config.js":
-        "module.exports = {expo:{extra:{k: process.env.IAPKIT_API_KEY}}};\n",
-    },
-    (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
-  );
-});
-
-test("an apostrophe earlier on the line does not make the rest prose", () => {
-  for (const body of [
-    'module.exports = {expo:{extra:{name:"Hyo\'s App", k: process.env.IAPKIT_API_KEY}}};\n',
-    "module.exports = {expo:{extra:{k: `${process.env.IAPKIT_API_KEY}`}}};\n",
-  ]) {
-    withProject(
-      {
-        ...EXPO,
-        ".env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
-        "app.config.js": body,
-      },
-      (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
-    );
-  }
-});
-
-test("a destructure Prettier wrapped is still a destructure", () => {
-  for (const body of [
-    "const {\n  IAPKIT_API_KEY,\n} = process.env;\nmodule.exports = {expo:{extra:{IAPKIT_API_KEY}}};\n",
-    "module.exports = {expo:{extra:{...process.env}}};\n",
-  ]) {
-    withProject(
-      {
-        ...EXPO,
-        ".env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
-        "app.config.js": body,
-      },
-      (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
     );
   }
 });
@@ -2251,7 +2215,7 @@ test("nested Flutter env assets expose every assigned secret", () => {
   );
 });
 
-test("EAS build-only keys are warnings unless app config exports them", () => {
+test("EAS build-only keys remain warnings with dynamic app configuration", () => {
   for (const exported of [false, true]) {
     withProject(
       {
@@ -2270,7 +2234,7 @@ test("EAS build-only keys are warnings unless app config exports them", () => {
         const finding = doctor(root).findings.find(
           (one) => one.file === "eas.json",
         );
-        assert.equal(finding.level, exported ? "error" : "warning");
+        assert.equal(finding.level, "warning");
       },
     );
   }
@@ -2321,5 +2285,39 @@ test("EAS platform environments override shared values and retain exposed secret
       }),
     },
     (root) => assert.deepEqual(ids(root), []),
+  );
+});
+
+test("store flags use Groovy boolean values for both Android stores", () => {
+  for (const [flag, store] of [
+    ["horizonEnabled", "horizon"],
+    ["fireOsEnabled", "amazon"],
+  ]) {
+    for (const value of ["true", "TRUE", "1", "y", "Y"]) {
+      withProject(
+        {
+          ...EXPO,
+          "android/gradle.properties": `${flag}=${value}\n`,
+          "android/app/build.gradle": `missingDimensionStrategy "platform", "${store}"\n`,
+        },
+        (root) => {
+          assert.ok(
+            !ids(root).includes("android-store-flavor-mismatch"),
+            `${flag}=${value}`,
+          );
+          assert.ok(
+            ids(root).includes("android-store-not-play"),
+            `${flag}=${value}`,
+          );
+        },
+      );
+    }
+  }
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties": "horizonEnabled=1\nfireOsEnabled=y\n",
+    },
+    (root) => assert.ok(ids(root).includes("android-store-flavor-conflict")),
   );
 });

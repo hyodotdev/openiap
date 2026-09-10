@@ -117,7 +117,7 @@ Implementation references:
 - Runnable teaching backend: ${EXAMPLE}
 - IAPKit service source: ${COMMERCE_IMPLEMENTATIONS.kit.url}
 - Step-by-step comparison: https://openiap.dev/commerce-protocol/getting-started${search}
-Read the example's INTEGRATE.md for my role; follow BUILD.md for a commerce backend. Compare each responsibility with IAPKit's corresponding handler and tests. The example uses fictional purchases and all six REST operations, including erasure; IAPKit also shows store integrations and GraphQL. Use the contract as the authority, not either implementation's shortcuts.
+Read ${COMMERCE_PROTOCOL_LINKS.integrationBrief} for my role; follow ${COMMERCE_PROTOCOL_LINKS.buildBrief} for a commerce backend. Compare each responsibility with IAPKit's corresponding handler and tests. The example uses fictional purchases and all six REST operations, including erasure; IAPKit also shows store integrations and GraphQL. Use the contract as the authority, not either implementation's shortcuts.
 Check the chosen store and product type before implementing. IAPKit's Apple/Google subscription path uses subscription state and lifecycle events. Its Amazon/Horizon ownership path rechecks saved evidence on entitlements reads; use productIds, not subscription expiry or invented events. Authenticate the store account link on the app backend. Keep consumable quantities in a separate durable fulfillment ledger.
 Inspect this project's instructions and stack. Install ${COMMERCE_PROTOCOL_INSTALL}; use its SPEC.md, generated bindings/schemas, and conformance tools as the contract.
 
@@ -125,11 +125,13 @@ Implement the connection using existing project patterns. Start with a runnable 
 Show the running URL and user-visible outcomes, with source and verification commands for future changes. Separate fixture evidence from real store/deployment checks; list remaining work and product decisions.
 Keep changes uncommitted for review.`}</CodeBlock>
           <p>
-            The reference repository already contains a backend, dashboard,
-            database, event receiver, and tests. Its{' '}
-            <a href={`${EXAMPLE}/blob/main/INTEGRATE.md`}>integration brief</a>{' '}
-            scopes the role; its{' '}
-            <a href={`${EXAMPLE}/blob/main/BUILD.md`}>backend build brief</a>{' '}
+            The reference repository contains a backend, dashboard, database,
+            event receiver, and tests. The{' '}
+            <a href={COMMERCE_PROTOCOL_LINKS.integrationBrief}>
+              integration brief
+            </a>{' '}
+            scopes the role; the{' '}
+            <a href={COMMERCE_PROTOCOL_LINKS.buildBrief}>backend build brief</a>{' '}
             defines seven implementation milestones, including account erasure.
             The running fixture covers all six REST operations. Complete the
             real store, authentication, isolation, and deployment obligations of
