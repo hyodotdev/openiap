@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
   allowsPrereleaseMetadata,
@@ -1419,7 +1420,8 @@ test("production docs are guarded as stable-only", () => {
   );
 });
 
-test("production docs require a verified Vercel deployment result", () => {
+test("production docs require a verified Vercel deployment result", (context) => {
+  isolateGitEnvironment(context);
   const temporaryRoot = mkdtempSync(resolve(tmpdir(), "openiap-deploy-"));
   const remoteRoot = mkdtempSync(resolve(tmpdir(), "openiap-deploy-origin-"));
 
