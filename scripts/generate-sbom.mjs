@@ -34,6 +34,7 @@ import { parseXml } from "./xml-document.mjs";
 import {
   commerceProtocolManifest,
   compareSemVer,
+  openiapNpmPackages,
   validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
@@ -193,6 +194,25 @@ const LEGACY_SBOM_REPAIRS = new Map([
  * which released input describes its runtime dependencies.
  */
 const COMPONENTS = {
+  ...Object.fromEntries(
+    ["client-protocol", "cli"].map((id) => {
+      const config = openiapNpmPackages[id];
+      return [
+        id,
+        {
+          sbomName: config.tagPrefix,
+          name: config.name,
+          type: id === "cli" ? "application" : "library",
+          purl: (version) =>
+            `pkg:npm/${config.name.replaceAll("@", "%40")}@${version}`,
+          distribution: (version) =>
+            `https://www.npmjs.com/package/${config.name}/v/${version}`,
+          directory: dirname(config.path),
+          source: { kind: "npm", manifest: config.path },
+        },
+      ];
+    }),
+  ),
   apple: {
     sbomName: "openiap",
     type: "library",
@@ -731,7 +751,8 @@ function commerceIdentity(packageName) {
   return {
     ...COMPONENTS["commerce-protocol"],
     sbomName: packageName,
-    purl: (version) => `pkg:npm/${packageName.replace("@", "%40")}@${version}`,
+    purl: (version) =>
+      `pkg:npm/${packageName.replaceAll("@", "%40")}@${version}`,
     distribution: (version) =>
       `https://www.npmjs.com/package/${packageName}/v/${version}`,
   };
@@ -834,7 +855,7 @@ export function parseTrivyExceptions(contents) {
 // pass between merging it and publishing. Listing it here is the explicit,
 // reviewable way to say "not shipped yet"; the entry comes out when it ships
 // and the floor goes in.
-export const UNRELEASED_COMPONENTS = new Set([]);
+export const UNRELEASED_COMPONENTS = new Set(["client-protocol", "cli"]);
 
 export const SBOM_COVERAGE_FLOOR = {
   // Every released component is anchored to the first release required to
@@ -1370,7 +1391,7 @@ export function buildSbom({
       component: {
         "bom-ref": componentRef,
         type: definition.type,
-        name: definition.sbomName,
+        name: definition.name ?? definition.sbomName,
         version,
         purl,
         supplier: SUPPLIER,
@@ -1559,7 +1580,7 @@ export function verifyPublishedSbom(
   }
   const expectedPurl = definition.purl(resolvedTag.version);
   if (
-    root?.name !== definition.sbomName ||
+    root?.name !== (definition.name ?? definition.sbomName) ||
     root?.version !== resolvedTag.version ||
     root?.purl !== expectedPurl ||
     root?.["bom-ref"] !== expectedPurl

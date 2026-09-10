@@ -19,6 +19,12 @@ import {
 } from "./project.mjs";
 import { finding } from "./findings.mjs";
 
+function withoutXmlComments(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, (comment) =>
+    comment.replace(/[^\r\n]/g, " "),
+  );
+}
+
 /** A value read from a project file is data, never a line of this report. */
 function oneLine(value) {
   return (
@@ -179,24 +185,25 @@ function horizonAppIdCheck(root) {
   );
   const manifests = shipped
     .map((one) => `android/app/src/${one}/AndroidManifest.xml`)
-    .filter((one) => read(root, one) !== null);
+    .map((file) => ({ file, text: read(root, file) }))
+    .filter(({ text }) => text !== null);
   if (manifests.length === 0) return [];
-  const declares = (file) =>
+  const declares = ({ text }) =>
     // An XML comment holds disabled configuration, the same as a Gradle one.
-    read(root, file)
-      .replace(/<!--[\s\S]*?-->/g, "")
-      .includes("com.meta.horizon.platform.HORIZON_APP_ID");
+    withoutXmlComments(text).includes(
+      "com.meta.horizon.platform.HORIZON_APP_ID",
+    );
   if (manifests.some(declares)) return [];
   // Point at the manifest the id belongs in, not whichever the disk listed.
   const preferred =
-    manifests.find((one) => one.includes("/horizon/")) ??
-    manifests.find((one) => one.includes("/main/")) ??
+    manifests.find(({ file }) => file.includes("/horizon/")) ??
+    manifests.find(({ file }) => file.includes("/main/")) ??
     manifests[0];
   return [
     finding(
       "android-horizon-app-id-missing",
       "warning",
-      preferred,
+      preferred.file,
       "The Horizon store is selected but no shipped manifest declares HORIZON_APP_ID.",
       "Set the Horizon app id in your OpenIAP plugin configuration and regenerate, unless Gradle injects it as a manifest placeholder.",
     ),
@@ -546,9 +553,7 @@ export function iosSceneChecks(root, framework) {
 
     // A plist declares one delegate per scene role, and the roles after the
     // first were never examined.
-    const activePlist = plist.replace(/<!--[\s\S]*?-->/g, (comment) =>
-      comment.replace(/[^\r\n]/g, " "),
-    );
+    const activePlist = withoutXmlComments(plist);
     for (const declared of activePlist.matchAll(
       /<key>UISceneDelegateClassName<\/key>\s*(?:<string>([^<]*)<\/string>|<string\s*\/>)/g,
     )) {

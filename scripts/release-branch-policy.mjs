@@ -23,6 +23,24 @@ export const commerceProtocolManifest = {
   historicalPaths: ["specs/openiap-kit/package.json"],
 };
 
+export const openiapNpmPackages = {
+  "client-protocol": {
+    name: "@hyodotdev/openiap-client-protocol",
+    path: "specs/client/package.json",
+    tagPrefix: "openiap-client-protocol",
+  },
+  "commerce-protocol": {
+    name: "@hyodotdev/openiap-commerce-protocol",
+    path: commerceProtocolManifest.path,
+    tagPrefix: "openiap-commerce-protocol",
+  },
+  cli: {
+    name: "@hyodotdev/openiap",
+    path: "packages/cli/package.json",
+    tagPrefix: "openiap",
+  },
+};
+
 const readCommerceProtocolVersion = (root) => {
   const candidates = [
     commerceProtocolManifest.path,
@@ -35,6 +53,15 @@ const readCommerceProtocolVersion = (root) => {
 };
 
 export const versionSources = {
+  ...Object.fromEntries(
+    Object.entries(openiapNpmPackages).map(([id, config]) => [
+      id,
+      {
+        label: config.name,
+        read: (root) => readJson(root, config.path).version,
+      },
+    ]),
+  ),
   apple: {
     label: "openiap-apple",
     read: (root) => readJson(root, "openiap-versions.json").apple,
@@ -351,6 +378,21 @@ function runGuard(args) {
   const versionManifest = readVersionManifest();
   const specFloor = assertSpecMatchesNativeFloor(versionManifest);
   const currentVersion = validateVersion(source.read(repoRoot), source.label);
+  if (packageId === "client-protocol") {
+    if (versionMode !== "current" || currentVersion !== specFloor) {
+      throw new Error(
+        "Client Protocol releases use current and must match the native-derived spec version",
+      );
+    }
+    if (targetVersion && targetVersion !== specFloor) {
+      throw new Error(
+        "Client Protocol target must match the native-derived spec version",
+      );
+    }
+  }
+  if (packageId === "conformance") {
+    throw new Error("The standalone conformance npm package is retired");
+  }
   const validatedTargetVersion = targetVersion
     ? validateVersion(targetVersion, `${source.label} target version`)
     : "";

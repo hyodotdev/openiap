@@ -5,10 +5,21 @@ import { fileURLToPath } from "node:url";
 
 import {
   commerceProtocolManifest,
+  openiapNpmPackages,
   validateVersion,
 } from "./release-branch-policy.mjs";
 
 export const PACKAGE_CONFIG = {
+  ...Object.fromEntries(
+    Object.entries(openiapNpmPackages).map(([id, config]) => [
+      id,
+      {
+        path: config.path,
+        tags: (version) => [`${config.tagPrefix}-${version}`],
+        version: (content) => JSON.parse(content).version,
+      },
+    ]),
+  ),
   apple: {
     path: "openiap-versions.json",
     tags: (version) => [version, `apple-v${version}`],

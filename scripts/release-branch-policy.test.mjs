@@ -33,10 +33,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const releaseWorkflows = {
   apple: { filename: "release-apple.yml", guardedJobs: 1 },
-  "commerce-protocol": {
-    filename: "release-commerce-protocol.yml",
-    guardedJobs: 1,
-  },
+  openiap: { filename: "release-openiap.yml", guardedJobs: 1 },
   expo: { filename: "release-expo.yml", guardedJobs: 2 },
   flutter: { filename: "release-flutter.yml", guardedJobs: 3 },
   godot: { filename: "release-godot.yml", guardedJobs: 2 },
@@ -252,11 +249,7 @@ test("release version commits use package@version subjects", () => {
     ["release-godot.yml", "godot-iap@$VERSION"],
     ["release-kmp.yml", "kmp-iap@$VERSION"],
     ["release-maui.yml", "maui-iap@$VERSION"],
-    ["release-conformance.yml", "openiap-conformance@$VERSION"],
-    [
-      "release-commerce-protocol.yml",
-      "@hyodotdev/openiap-commerce-protocol@$VERSION",
-    ],
+    ["release-openiap.yml", "$PACKAGE_NAME@$VERSION"],
   ]) {
     const expectedCommit = `git commit -m "chore(release): ${subject}"`;
     const versionCommits = readWorkflow(filename)
@@ -660,7 +653,9 @@ test("all package release workflows enforce the branch policy", () => {
     const workflow = readWorkflow(filename);
     assert.match(
       workflow,
-      new RegExp(`release-branch-policy\\.mjs guard ${packageId}`),
+      packageId === "openiap"
+        ? /release-branch-policy\.mjs guard "\$PACKAGE_ID"/u
+        : new RegExp(`release-branch-policy\\.mjs guard ${packageId}`),
       filename,
     );
     assert.equal(
@@ -1625,8 +1620,8 @@ test("native releases refuse branch drift after the verified head", () => {
   }
 });
 
-test("conformance npm publication binds the exact source run attempt", () => {
-  const workflow = readWorkflow("release-conformance.yml");
+test("OpenIAP npm publication binds the exact source run attempt", () => {
+  const workflow = readWorkflow("release-openiap.yml");
   assert.match(workflow, /source_run_attempt:/u);
   assert.match(
     workflow,
@@ -1671,7 +1666,7 @@ test("conformance npm publication binds the exact source run attempt", () => {
   );
   assert.match(
     publishedProvenanceStep,
-    /if node scripts\/verify-npm-release-provenance\.mjs \\\n\s+openiap-conformance "\$VERSION" "\$GITHUB_SHA"/u,
+    /if node scripts\/verify-npm-release-provenance\.mjs \\\n\s+"\$PACKAGE_NAME" "\$VERSION" "\$GITHUB_SHA"/u,
   );
   assert.match(publishedProvenanceStep, /^\s*sleep 10\s*$/mu);
   assert.match(
@@ -1680,80 +1675,39 @@ test("conformance npm publication binds the exact source run attempt", () => {
   );
 });
 
-test("Commerce Protocol npm publication binds the exact source run attempt", () => {
-  const workflow = readWorkflow("release-commerce-protocol.yml");
-  assert.match(workflow, /source_run_attempt:/u);
+test("OpenIAP publication binds the workflow and selected package tag", () => {
+  const workflow = readWorkflow("release-openiap.yml");
   assert.match(
     workflow,
-    /-f source_run_id="\$GITHUB_RUN_ID" \\\n\s+-f source_run_attempt="\$GITHUB_RUN_ATTEMPT"/u,
+    /SOURCE_PATH" != "\.github\/workflows\/release-openiap\.yml"/u,
   );
+  assert.match(workflow, /"\$TAG_PREFIX-\$VERSION" "\$GITHUB_SHA"/u);
+  assert.match(workflow, /-f package="\$PACKAGE_ID"/u);
   assert.match(
-    workflow,
-    /actions\/runs\/\$SOURCE_RUN_ID\/attempts\/\$SOURCE_RUN_ATTEMPT/u,
+    extractNamedStep(workflow, "Bump version").source,
+    /working-directory: \$\{\{ env\.PACKAGE_DIR \}\}/u,
   );
-  assert.match(
-    workflow,
-    /SOURCE_PATH" != "\.github\/workflows\/release-commerce-protocol\.yml"/u,
-  );
-  assert.match(
-    workflow,
-    /"openiap-commerce-protocol-\$VERSION" "\$GITHUB_SHA"/u,
-  );
-  const authorizationGuard = workflow.indexOf(
-    "Verify source run authorized this release tag",
-  );
-  const publish = workflow.indexOf(
-    "- name: Publish to npm",
-    authorizationGuard,
-  );
-  assert.ok(authorizationGuard >= 0);
-  assert.ok(authorizationGuard < publish);
 });
 
-test("Commerce Protocol current retries survive the specification directory move", () => {
-  const workflow = readWorkflow("release-commerce-protocol.yml");
-  const deployJob = workflow.slice(
-    workflow.indexOf("\n  deploy:"),
-    workflow.indexOf("\n  publish-npm:"),
+test("standalone conformance publication is retired", () => {
+  const manifest = JSON.parse(
+    readFileSync(
+      resolve(repoRoot, "packages/conformance/package.json"),
+      "utf8",
+    ),
   );
-  const bumpStep = extractNamedStep(workflow, "Bump version").source;
-
-  assert.doesNotMatch(
-    deployJob,
-    /defaults:\n\s+run:\n\s+working-directory: specs\/commerce-protocol/u,
-  );
-  assert.match(bumpStep, /working-directory: specs\/commerce-protocol/u);
-  assert.match(workflow, /SPEC_PATH="specs\/openiap-kit\/SPEC\.md"/u);
-});
-
-test("conformance releases cannot under-version breaking suite changes", () => {
-  const workflow = readWorkflow("release-conformance.yml");
-  const checkoutTag = workflow.indexOf(
-    "- name: Checkout release tag (current version)",
-  );
-  const suiteMajor = workflow.indexOf(
-    "- name: Enforce npm major covers suite major",
-  );
-  const registryCheck = workflow.indexOf(
-    "- name: Check npm for an existing version",
-  );
-
-  assert.ok(checkoutTag < suiteMajor);
-  assert.ok(suiteMajor < registryCheck);
-  assert.match(
-    workflow.slice(suiteMajor, registryCheck),
-    /PACKAGE_MAJOR.*-lt.*SUITE_MAJOR/u,
-  );
-  assert.match(
-    workflow.slice(suiteMajor, registryCheck),
-    /Release with version=major/u,
-  );
+  assert.equal(manifest.private, true);
+  for (const filename of [
+    "release-conformance.yml",
+    "release-commerce-protocol.yml",
+  ]) {
+    assert.throws(() => readWorkflow(filename), { code: "ENOENT" });
+  }
 });
 
 test("npm trusted publishers use a supported Node runtime", () => {
   for (const filename of [
-    "release-commerce-protocol.yml",
-    "release-conformance.yml",
+    "release-openiap.yml",
     "release-expo.yml",
     "release-react-native.yml",
   ]) {
@@ -1778,8 +1732,7 @@ test("release pushes expose credentials only in their owning step", () => {
   for (const filename of [
     "release.yml",
     "release-apple.yml",
-    "release-commerce-protocol.yml",
-    "release-conformance.yml",
+    "release-openiap.yml",
     "release-expo.yml",
     "release-flutter.yml",
     "release-godot.yml",
@@ -1902,7 +1855,7 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
     /different npm package/,
   );
   assert.match(
-    readWorkflow("release-commerce-protocol.yml"),
-    /commerce-protocol "\$RELEASE_BRANCH" "\$TAG" "\$VERSION" \\\n\s+@hyodotdev\/openiap-commerce-protocol/,
+    readWorkflow("release-openiap.yml"),
+    /"\$PACKAGE_ID" "\$RELEASE_BRANCH" "\$TAG" "\$VERSION" \\\n\s+"\$PACKAGE_NAME"/,
   );
 });

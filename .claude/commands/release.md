@@ -125,19 +125,30 @@ For a multi-package release train, use this order when affected:
 6. `release-godot.yml`
 7. `release-kmp.yml`
 8. `release-maui.yml`
-9. `release-commerce-protocol.yml` — independent of the client/native spec
-   floor. Release it when the Commerce Protocol's authored contract,
-   conformance runner, or generated artifacts changed; skip it otherwise.
-   Its package version is independent of the protocol's MAJOR.MINOR version.
-10. `release-conformance.yml` — independent of the native/spec floor. Release it
-    when the behavior spec, runner, or adapter contract changed; skip it
-    otherwise. Its version is the conformance **suite** version, not the spec
-    version, so it does not participate in the `spec = min(google, apple)`
-    invariant.
-11. `npm run deploy`; run `release.yml` with `version=current` only when the
+9. `release-openiap.yml` — select one affected package per run:
+   - `client-protocol`: `@hyodotdev/openiap-client-protocol`, `version=current`
+     only; its version must equal the native-derived `spec` floor.
+   - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
+     package version, released when its contract, runner, or artifacts change.
+   - `cli`: `@hyodotdev/openiap`; independent package version.
+     The standalone `openiap-conformance` package is retired. Its suite remains
+     internal; its historical release tags stay immutable.
+10. `npm run deploy`; run `release.yml` with `version=current` only when the
     native-derived `spec` advanced. If a Docs GitHub Release is requested while
     `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
     cannot represent a new release.
+
+All three scoped packages use the npm GitHub Trusted Publisher for owner
+`hyodotdev`, repository `openiap`, workflow `release-openiap.yml`, with no
+GitHub environment and **Allow direct npm publish** enabled. No npm token is
+required. The workflow verifies the source run, immutable tag, and registry
+provenance; a retry must preserve all three.
+
+The initial `0.0.0-bootstrap.0` versions reserve names only. For the first
+functional Commerce release, choose `patch` or higher: the existing
+`openiap-commerce-protocol-0.1.0` tag belongs to the unscoped package and cannot
+be reused. Client and CLI use `openiap-client-protocol-<version>` and
+`openiap-<version>` tags respectively; Docs keeps `docs-<spec>`.
 
 Train rules (mistake guards):
 

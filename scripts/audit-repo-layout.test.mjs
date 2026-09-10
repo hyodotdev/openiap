@@ -646,3 +646,29 @@ test("a spacer row does not de-classify a tree", () => {
     );
   }
 });
+
+test("expanded tree paths cannot escape or alias their parent", () => {
+  for (const name of [
+    "packages/../../outside",
+    "packages/./cli",
+    "packages/../cli",
+    "packages\\..\\outside",
+    "C:\\outside",
+    "/outside",
+  ]) {
+    assert.equal(
+      findDocumentedTreePaths(
+        [
+          "```text",
+          "openiap/",
+          "├── packages/",
+          `└── ${name}/`,
+          "```",
+          "",
+        ].join("\n"),
+      ),
+      null,
+      name,
+    );
+  }
+});

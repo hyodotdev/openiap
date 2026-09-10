@@ -45,6 +45,7 @@ jobs:
       - name: Test release automation
         run: >-
           node --test scripts/release-branch-policy.test.mjs
+          scripts/release-openiap.test.mjs
           scripts/audit-release-sync-script.test.mjs
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
@@ -180,6 +181,7 @@ jobs:
           predicate-quantifier: some-with-excludes
           filters: |
             gql:
+              - '.github/workflows/release-openiap.yml'
               - 'specs/client/**'
               - 'packages/conformance/**'
               - 'scripts/**'
@@ -229,6 +231,10 @@ jobs:
               # The suite reads packages/cli/README.md as a contract input, so
               # a README edit has to run it.
               - 'packages/cli/**'
+              - 'scripts/release-openiap.mjs'
+              - 'scripts/release-openiap.test.mjs'
+              - 'scripts/release-branch-policy.mjs'
+              - '.github/workflows/release-openiap.yml'
               - '.github/workflows/ci.yml'
   test-cli:
     name: Test CLI

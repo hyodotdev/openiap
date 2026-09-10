@@ -1,5 +1,9 @@
 import {
+  closeSync,
+  constants,
+  fstatSync,
   lstatSync,
+  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -36,14 +40,19 @@ function isAbsent(file) {
 /** Reading a file has three outcomes, not two. */
 function readState(root, relative) {
   const file = path.join(root, relative);
+  let descriptor;
   try {
-    if (isAbsent(file)) return { state: "absent" };
-    // A FIFO blocks readFileSync until someone writes; a directory is not a
-    // config file. Neither is absent, so neither may be read as one.
-    if (!statSync(file).isFile()) return { state: "unreadable" };
-    return { state: "read", text: readFileSync(file, "utf8") };
+    // Check the opened file; a pathname can be replaced by a FIFO before open.
+    descriptor = openSync(
+      file,
+      constants.O_RDONLY | (constants.O_NONBLOCK ?? 0),
+    );
+    if (!fstatSync(descriptor).isFile()) return { state: "unreadable" };
+    return { state: "read", text: readFileSync(descriptor, "utf8") };
   } catch {
-    return { state: "unreadable" };
+    return { state: isAbsent(file) ? "absent" : "unreadable" };
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
   }
 }
 

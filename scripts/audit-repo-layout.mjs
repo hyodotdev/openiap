@@ -203,7 +203,13 @@ function parseTreeBlock(lines) {
     const name = branch[2].replace(/\/$/u, "");
     // An entry that names nothing, or names its way out of the tree, resolves
     // to a path that exists whatever the tree meant.
-    if (name === "" || name === "." || name === ".." || name.startsWith("/")) {
+    const segments = name.split(/[\\/]/u);
+    if (
+      name === "" ||
+      path.posix.isAbsolute(name) ||
+      path.win32.isAbsolute(name) ||
+      segments.some((segment) => segment === "." || segment === "..")
+    ) {
       return null;
     }
     // Any indent at all is a child, however compactly the trunk is drawn.

@@ -1094,6 +1094,18 @@ test("an app id inside an XML comment is disabled configuration", () => {
   );
 });
 
+test("XML comment removal cannot join a split Horizon app id", () => {
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties": "horizonEnabled=true\n",
+      "android/app/src/main/AndroidManifest.xml":
+        '<manifest><meta-data android:name="com.meta.horizon.platform.HORIZON_<!-- gap -->APP_ID"/></manifest>',
+    },
+    (root) => assert.ok(ids(root).includes("android-horizon-app-id-missing")),
+  );
+});
+
 test("a value read from a project file cannot forge a row of the report", () => {
   withProject(
     {
@@ -1208,7 +1220,11 @@ test("unreadable iOS sources cannot prove a scene delegate is missing", () => {
 test("broken links in ignored generated iOS directories stay ignored", () => {
   withProject({ ...EXPO, "ios/App/Info.plist": "<plist/>" }, (root) => {
     for (const directory of [
-      "Pods", "build", "DerivedData", "node_modules", "App.xcodeproj",
+      "Pods",
+      "build",
+      "DerivedData",
+      "node_modules",
+      "App.xcodeproj",
     ]) {
       symlinkSync(
         path.join(root, "missing-generated"),
@@ -1260,7 +1276,8 @@ test("a broken ancestor of a declared Flutter env asset is unreadable", () => {
       symlinkSync(path.join(root, "missing-assets"), path.join(root, "assets"));
       assert.ok(
         doctor(root).findings.some(
-          (one) => one.id === "project-file-unreadable" && one.file === "assets/.env",
+          (one) =>
+            one.id === "project-file-unreadable" && one.file === "assets/.env",
         ),
       );
     },

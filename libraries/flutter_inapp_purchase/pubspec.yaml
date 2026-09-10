@@ -14,7 +14,8 @@ dependencies:
     sdk: flutter
   http: ^1.2.0
   meta: ^1.11.0
-  platform: ^3.1.4
+  # Keep the legacy Platform API while supporting Dart 3.0.
+  platform: ">=3.1.4 <3.2.0"
 
 dev_dependencies:
   flutter_test:

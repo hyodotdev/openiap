@@ -265,3 +265,49 @@ test("a FIFO where a config file belongs does not hang the command", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("a file replaced with a FIFO during a read cannot block doctor", () => {
+  const root = project({ ...EXPO, ".env": "SAFE=value\n" });
+  try {
+    const hook = path.join(root, "swap.cjs");
+    writeFileSync(
+      hook,
+      `
+      const fs = require('node:fs');
+      const { execFileSync } = require('node:child_process');
+      const { syncBuiltinESMExports } = require('node:module');
+      const target = ${JSON.stringify(path.join(root, ".env"))};
+      let swapped = false;
+      const swap = (file) => {
+        if (String(file) !== target || swapped) return;
+        swapped = true;
+        fs.unlinkSync(target);
+        execFileSync('mkfifo', [target]);
+      };
+      const stat = fs.statSync;
+      fs.statSync = function(file, ...args) {
+        const value = stat.call(this, file, ...args);
+        swap(file);
+        return value;
+      };
+      const open = fs.openSync;
+      fs.openSync = function(file, ...args) {
+        swap(file);
+        return open.call(this, file, ...args);
+      };
+      syncBuiltinESMExports();
+    `,
+    );
+    const result = run(["doctor", root], {
+      timeout: 10_000,
+      env: {
+        ...process.env,
+        NODE_OPTIONS: `--require=${JSON.stringify(hook)}`,
+      },
+    });
+    assert.equal(result.code, 1);
+    assert.match(result.stdout, /project-file-unreadable/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
