@@ -1,0 +1,19 @@
+name: "A. Release: OpenIAP npm packages"
+
+# Register the workflow on main so a reviewed next ref can receive dispatches.
+# The scoped-package implementation replaces this registration in PR #448.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registration:
+    name: Workflow registration only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report registration status
+        run: |
+          echo "Workflow registered. No package publication was attempted."
+          echo "Use the reviewed next ref for prereleases; PR #448 enables stable releases."

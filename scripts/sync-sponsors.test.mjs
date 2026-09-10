@@ -4,6 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
   discoverReadmes,
@@ -384,7 +386,76 @@ test("rejects hardcoded funding URLs outside the generated block", () => {
   }
 });
 
-test("audits sponsor surfaces from the staged snapshot", () => {
+test("Git fixtures preserve the invoking worktree and index", (context) => {
+  const environment = {
+    PATH: process.env.PATH,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: os.devNull,
+  };
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-hook-owner-"));
+  const worktree = `${root}-linked`;
+  context.after(() => {
+    fs.rmSync(worktree, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, encoding: "utf8", env: environment });
+  git("init", "-q");
+  fs.writeFileSync(path.join(root, "sentinel"), "committed\n");
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.com",
+    "commit",
+    "-qm",
+    "owner",
+  );
+  git("worktree", "add", "-q", "-b", "linked", worktree);
+  fs.writeFileSync(path.join(worktree, "sentinel"), "staged\n");
+  git("-C", worktree, "add", "sentinel");
+  const gitDir = git("-C", worktree, "rev-parse", "--absolute-git-dir").trim();
+  const trackedState = [
+    path.join(root, ".git/config"),
+    path.join(gitDir, "index"),
+  ];
+  const before = trackedState.map((file) => fs.readFileSync(file));
+  const refs = git("show-ref");
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "--test-name-pattern=^(audits sponsor surfaces from the staged snapshot|production docs require a verified Vercel deployment result)$",
+      fileURLToPath(import.meta.url),
+      fileURLToPath(
+        new URL("./release-branch-policy.test.mjs", import.meta.url),
+      ),
+    ],
+    {
+      cwd: worktree,
+      env: {
+        ...environment,
+        GIT_DIR: gitDir,
+        GIT_COMMON_DIR: path.join(root, ".git"),
+        GIT_INDEX_FILE: path.join(gitDir, "index"),
+        GIT_WORK_TREE: worktree,
+      },
+      stdio: "pipe",
+    },
+  );
+  assert.equal(git("show-ref"), refs);
+  for (const [index, file] of trackedState.entries()) {
+    assert.deepEqual(fs.readFileSync(file), before[index], file);
+  }
+  assert.equal(
+    fs.readFileSync(path.join(worktree, "sentinel"), "utf8"),
+    "staged\n",
+  );
+});
+
+test("audits sponsor surfaces from the staged snapshot", (context) => {
+  isolateGitEnvironment(context);
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-sponsor-index-"));
 
   try {
