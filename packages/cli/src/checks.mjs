@@ -115,7 +115,9 @@ export function androidStoreChecks(root) {
   // Build types may legitimately link different stores, so a mismatch is not
   // about how many are declared: it is that none of them is the one the flags
   // selected, which only a half-finished regeneration produces.
-  const selects = properties
+  const hasStoreFlags =
+    properties?.has("fireOsEnabled") || properties?.has("horizonEnabled");
+  const selects = hasStoreFlags
     ? fireOs
       ? "amazon"
       : horizon

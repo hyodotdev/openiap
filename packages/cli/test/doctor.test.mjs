@@ -60,6 +60,19 @@ test("a Play project with nothing else set reports nothing", () => {
   );
 });
 
+test("unrelated Gradle properties do not imply a Play store selection", () => {
+  for (const properties of ["", "org.gradle.jvmargs=-Xmx2048m\n"]) {
+    withProject(
+      {
+        "android/gradle.properties": properties,
+        "android/app/build.gradle.kts":
+          'missingDimensionStrategy("platform", "amazon")\n',
+      },
+      (root) => assert.deepEqual(ids(root), ["android-store-not-play"]),
+    );
+  }
+});
+
 test("a Horizon build is reported before it reaches a Play device", () => {
   withProject(
     {
@@ -1260,6 +1273,65 @@ test("deep iOS sources remain searchable through directory cycles", () => {
     (root) => {
       symlinkSync(path.join(root, "ios"), path.join(root, "ios/App/Loop"));
       assert.deepEqual(doctor(root).findings, []);
+    },
+  );
+});
+
+test("Flutter directory assets expose direct env files without bundling nested directories", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter:\n    sdk: flutter\nflutter:\n  assets:\n    - assets/config/\n",
+      "assets/config/.env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
+      "assets/config/nested/.env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
+    },
+    (root) => {
+      const result = doctor(root);
+      const exposures = result.findings.filter(
+        (one) => one.id === "iapkit-secret-key-in-client",
+      );
+      assert.equal(exposures.length, 1);
+      assert.equal(exposures[0].file, "assets/config/.env");
+      assert.equal(exposures[0].level, "error");
+      assert.ok(!JSON.stringify(result).includes(SECRET_KEY));
+    },
+  );
+});
+
+test("Flutter asset membership follows YAML paths, comments, and directory entries", () => {
+  for (const assets of [
+    "    - assets/config/ # bundled config",
+    "    - 'assets/config/'",
+    '    - "assets/config/" # bundled config',
+    "  - assets/config/",
+    "    - path: assets/config/\n      platforms: [android, ios]",
+  ]) {
+    withProject(
+      {
+        "pubspec.yaml": `name: app\nflutter:\n  assets:\n${assets}\n`,
+        "assets/config/.env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
+      },
+      (root) => {
+        const exposures = doctor(root).findings.filter(
+          (one) => one.id === "iapkit-secret-key-in-client",
+        );
+        assert.equal(exposures.length, 1, assets);
+        assert.equal(exposures[0].level, "error");
+        assert.equal(exposures[0].file, "assets/config/.env");
+      },
+    );
+  }
+});
+
+test("unrelated YAML lists do not declare bundled Flutter assets", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\nflutter_gen:\n  assets:\n    exclude:\n      - assets/config/\n",
+      "assets/config/.env": `IAPKIT_API_KEY=${SECRET_KEY}\n`,
+    },
+    (root) => {
+      assert.ok(!ids(root).includes("iapkit-secret-key-in-client"));
     },
   );
 });

@@ -10,6 +10,7 @@ import {
   statSync,
 } from "node:fs";
 import path from "node:path";
+import { parseDocument } from "yaml";
 
 /** Paths this run could not read; `doctor` turns the set into findings. */
 export const unreadable = new Set();
@@ -355,9 +356,29 @@ export const BUNDLED_FILES = [
 export function pubspecAssets(root) {
   const pubspec = read(root, "pubspec.yaml");
   if (!pubspec) return [];
-  return [...pubspec.matchAll(/^\s*-\s*([^\s#]+)\s*$/gm)]
-    .map((one) => one[1])
-    .filter((one) => !one.endsWith("/"));
+  let assets;
+  try {
+    const document = parseDocument(pubspec, { prettyErrors: false });
+    if (document.errors.length || document.warnings.length) {
+      unreadable.add("pubspec.yaml");
+      return [];
+    }
+    assets = document.toJS({ maxAliasCount: 100 })?.flutter?.assets ?? [];
+    if (!Array.isArray(assets)) throw new Error("Invalid assets");
+  } catch {
+    unreadable.add("pubspec.yaml");
+    return [];
+  }
+  return assets
+    .map((asset) => (typeof asset === "string" ? asset : asset?.path))
+    .filter((asset) => typeof asset === "string")
+    .flatMap((asset) =>
+      asset.endsWith("/")
+        ? listDir(root, asset)
+            .map((entry) => path.join(asset, entry))
+            .filter((file) => !isDirectory(root, file))
+        : [asset],
+    );
 }
 
 /**

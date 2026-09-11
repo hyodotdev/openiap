@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -58,8 +59,58 @@ const SECRET = `openiap-kit_sk_${"4f2a9c1e".repeat(8)}`;
 test("--version prints only the version", () => {
   const { code, stdout } = run(["--version"]);
   assert.equal(code, 0);
-  assert.match(stdout, /^\d+\.\d+\.\d+\n$/);
+  const manifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(stdout, `${manifest.version}\n`);
   assert.equal(run(["-v"]).stdout, stdout);
+});
+
+test("--version preserves prerelease identifiers", (context) => {
+  const root = mkdtempSync(path.join(tmpdir(), "openiap-cli-version-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const packageRoot = fileURLToPath(new URL("..", import.meta.url));
+  for (const directory of ["bin", "src"])
+    cpSync(path.join(packageRoot, directory), path.join(root, directory), {
+      recursive: true,
+    });
+  cpSync(
+    path.dirname(fileURLToPath(import.meta.resolve("yaml/package.json"))),
+    path.join(root, "node_modules/yaml"),
+    { recursive: true },
+  );
+  for (const version of ["0.1.0-alpha.0", "0.1.0-beta.0", "0.1.0"]) {
+    writeFileSync(path.join(root, "package.json"), JSON.stringify({ version }));
+    assert.equal(
+      execFileSync(
+        process.execPath,
+        [path.join(root, "bin/openiap.mjs"), "--version"],
+        { encoding: "utf8" },
+      ),
+      `${version}\n`,
+    );
+  }
+});
+
+test("invalid pubspec diagnostics never print source values", (context) => {
+  const root = project({});
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const pubspec of [
+    `flutter: [${SECRET}`,
+    `flutter: !${SECRET} {assets: []}`,
+    "flutter: {assets: *missing}",
+  ]) {
+    writeFileSync(path.join(root, "pubspec.yaml"), pubspec);
+    const result = run(["doctor", root, "--json"]);
+    assert.equal(result.code, 1);
+    assert.equal(result.stderr, "");
+    assert.ok(!result.stdout.includes(SECRET));
+    assert.ok(
+      JSON.parse(result.stdout).findings.some(
+        (one) => one.file === "pubspec.yaml" && one.level === "error",
+      ),
+    );
+  }
 });
 
 test("no arguments and --help both explain the command", () => {

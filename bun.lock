@@ -28,6 +28,9 @@
       "bin": {
         "openiap": "bin/openiap.mjs",
       },
+      "dependencies": {
+        "yaml": "^2.9.0",
+      },
     },
     "packages/conformance": {
       "name": "openiap-conformance",
