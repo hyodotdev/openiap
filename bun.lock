@@ -197,7 +197,7 @@
     },
     "specs/commerce-protocol": {
       "name": "@hyodotdev/openiap-commerce-protocol",
-      "version": "0.1.0",
+      "version": "0.1.0-alpha.0",
       "devDependencies": {
         "ajv": "^8.17.1",
         "graphql": "^16.11.0",
