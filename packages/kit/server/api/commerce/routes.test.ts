@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { buildSchema, getIntrospectionQuery, printSchema } from "graphql";
-import operationsSdl from "openiap-commerce-protocol/generated/bindings/operations-sdl.json";
+import operationsSdl from "@hyodotdev/openiap-commerce-protocol/generated/bindings/operations-sdl.json";
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),

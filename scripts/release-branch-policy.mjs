@@ -23,6 +23,24 @@ export const commerceProtocolManifest = {
   historicalPaths: ["specs/openiap-kit/package.json"],
 };
 
+export const openiapNpmPackages = {
+  "client-protocol": {
+    name: "@hyodotdev/openiap-client-protocol",
+    path: "specs/client/package.json",
+    tagPrefix: "openiap-client-protocol",
+  },
+  "commerce-protocol": {
+    name: "@hyodotdev/openiap-commerce-protocol",
+    path: commerceProtocolManifest.path,
+    tagPrefix: "hyodotdev-openiap-commerce-protocol",
+  },
+  cli: {
+    name: "@hyodotdev/openiap",
+    path: "packages/cli/package.json",
+    tagPrefix: "openiap",
+  },
+};
+
 const readCommerceProtocolVersion = (root) => {
   const candidates = [
     commerceProtocolManifest.path,
@@ -35,6 +53,15 @@ const readCommerceProtocolVersion = (root) => {
 };
 
 export const versionSources = {
+  ...Object.fromEntries(
+    Object.entries(openiapNpmPackages).map(([id, config]) => [
+      id,
+      {
+        label: config.name,
+        read: (root) => readJson(root, config.path).version,
+      },
+    ]),
+  ),
   apple: {
     label: "openiap-apple",
     read: (root) => readJson(root, "openiap-versions.json").apple,
@@ -44,7 +71,7 @@ export const versionSources = {
     read: (root) => readJson(root, "packages/conformance/package.json").version,
   },
   "commerce-protocol": {
-    label: "openiap-commerce-protocol",
+    label: "@hyodotdev/openiap-commerce-protocol",
     read: readCommerceProtocolVersion,
   },
   docs: {
@@ -351,6 +378,23 @@ function runGuard(args) {
   const versionManifest = readVersionManifest();
   const specFloor = assertSpecMatchesNativeFloor(versionManifest);
   const currentVersion = validateVersion(source.read(repoRoot), source.label);
+  if (Object.hasOwn(openiapNpmPackages, packageId)) {
+    if (
+      !["current", "patch", "minor", "major", "rc-bump", "exact"].includes(
+        versionMode,
+      )
+    ) {
+      throw new Error(`Unknown npm version mode '${versionMode}'`);
+    }
+    if ((versionMode === "exact") !== Boolean(targetVersion)) {
+      throw new Error(
+        "An exact release requires target-version; other modes must omit it",
+      );
+    }
+  }
+  if (packageId === "conformance") {
+    throw new Error("The standalone conformance npm package is retired");
+  }
   const validatedTargetVersion = targetVersion
     ? validateVersion(targetVersion, `${source.label} target version`)
     : "";

@@ -384,11 +384,11 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             if (ok) {
                                 safe.success("Billing client ready")
                             } else {
-                                safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, "responseCode: -1")
+                                safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, "responseCode: -1")
                             }
                         } catch (e: Exception) {
                             OpenIapLog.error("Error during initConnection: ${e.message}", e)
-                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, e.message)
+                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, e.message)
                         }
                     }
                 }
@@ -1103,7 +1103,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         connectionReady = ok
                         emitConnectionUpdated(ok)
                         if (!ok) {
-                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, "Failed to initialize connection")
+                            safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.message, "Failed to initialize connection")
                             return
                         }
                     } else {

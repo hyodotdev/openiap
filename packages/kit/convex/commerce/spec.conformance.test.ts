@@ -17,7 +17,7 @@ import {
   WEBHOOK,
   commerceEventSchema,
   primitivesSchema,
-} from "openiap-commerce-protocol";
+} from "@hyodotdev/openiap-commerce-protocol";
 import { describe, expect, it } from "vitest";
 
 import type { Doc } from "../_generated/dataModel";
@@ -139,7 +139,9 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
 
   const signatureVectors = JSON.parse(
     readFileSync(
-      resolveSpec("openiap-commerce-protocol/vectors/signatures.json"),
+      resolveSpec(
+        "@hyodotdev/openiap-commerce-protocol/vectors/signatures.json",
+      ),
       "utf8",
     ),
   ) as {
@@ -293,7 +295,7 @@ describe("kit's capabilities agree with the published descriptor", () => {
   const descriptor = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/provider-capabilities.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/provider-capabilities.json",
       ),
       "utf8",
     ),
@@ -355,7 +357,9 @@ describe("kit's capabilities agree with the published descriptor", () => {
 describe("kit reproduces the specification's lifecycle vectors", () => {
   const vectors = JSON.parse(
     readFileSync(
-      resolveSpec("openiap-commerce-protocol/generated/vectors/lifecycle.json"),
+      resolveSpec(
+        "@hyodotdev/openiap-commerce-protocol/generated/vectors/lifecycle.json",
+      ),
       "utf8",
     ),
   ) as {
@@ -489,7 +493,7 @@ describe("kit can produce everything the store mapping promises", () => {
   const mapping = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/store-event-mapping.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/store-event-mapping.json",
       ),
       "utf8",
     ),
@@ -599,7 +603,7 @@ describe("kit's cancellation vocabulary is one the specification names", () => {
   const described = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/generated/schemas/commerce-event.schema.json",
+        "@hyodotdev/openiap-commerce-protocol/generated/schemas/commerce-event.schema.json",
       ),
       "utf8",
     ),
@@ -797,7 +801,7 @@ describe("every mapping row produces the event it promises", () => {
   const mapping = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/store-event-mapping.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/store-event-mapping.json",
       ),
       "utf8",
     ),

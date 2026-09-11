@@ -6,7 +6,7 @@ import type { DataTableColumn } from '../../components/DataTable';
 import ExternalRedirect from '../../components/ExternalRedirect';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
-import commerceEventSchema from 'openiap-commerce-protocol/generated/schemas/commerce-event.schema.json';
+import commerceEventSchema from '@hyodotdev/openiap-commerce-protocol/generated/schemas/commerce-event.schema.json';
 import { Link, useLocation } from 'react-router-dom';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 

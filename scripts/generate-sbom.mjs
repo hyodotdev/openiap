@@ -34,6 +34,7 @@ import { parseXml } from "./xml-document.mjs";
 import {
   commerceProtocolManifest,
   compareSemVer,
+  openiapNpmPackages,
   validateVersion,
   versionSources,
 } from "./release-branch-policy.mjs";
@@ -193,6 +194,25 @@ const LEGACY_SBOM_REPAIRS = new Map([
  * which released input describes its runtime dependencies.
  */
 const COMPONENTS = {
+  ...Object.fromEntries(
+    ["client-protocol", "cli"].map((id) => {
+      const config = openiapNpmPackages[id];
+      return [
+        id,
+        {
+          sbomName: config.tagPrefix,
+          name: config.name,
+          type: id === "cli" ? "application" : "library",
+          purl: (version) =>
+            `pkg:npm/${config.name.replaceAll("@", "%40")}@${version}`,
+          distribution: (version) =>
+            `https://www.npmjs.com/package/${config.name}/v/${version}`,
+          directory: dirname(config.path),
+          source: { kind: "npm", manifest: config.path },
+        },
+      ];
+    }),
+  ),
   apple: {
     sbomName: "openiap",
     type: "library",
@@ -719,6 +739,25 @@ function sourceForRoot(source, root) {
     : source;
 }
 
+function commerceIdentity(packageName) {
+  if (
+    ![
+      "openiap-commerce-protocol",
+      "@hyodotdev/openiap-commerce-protocol",
+    ].includes(packageName)
+  ) {
+    throw new Error(`Unknown Commerce Protocol package name '${packageName}'`);
+  }
+  return {
+    ...COMPONENTS["commerce-protocol"],
+    sbomName: packageName,
+    purl: (version) =>
+      `pkg:npm/${packageName.replaceAll("@", "%40")}@${version}`,
+    distribution: (version) =>
+      `https://www.npmjs.com/package/${packageName}/v/${version}`,
+  };
+}
+
 export function releaseTagFor(componentId, version) {
   const tags = PACKAGE_CONFIG[componentId]?.tags(version);
   if (!tags?.length) {
@@ -816,7 +855,7 @@ export function parseTrivyExceptions(contents) {
 // pass between merging it and publishing. Listing it here is the explicit,
 // reviewable way to say "not shipped yet"; the entry comes out when it ships
 // and the floor goes in.
-export const UNRELEASED_COMPONENTS = new Set([]);
+export const UNRELEASED_COMPONENTS = new Set(["client-protocol", "cli"]);
 
 export const SBOM_COVERAGE_FLOOR = {
   // Every released component is anchored to the first release required to
@@ -1279,8 +1318,12 @@ export function buildSbom({
   timestamp,
   dependencies,
   vulnerabilities = [],
+  commercePackageName,
 }) {
-  const definition = COMPONENTS[componentId];
+  const definition =
+    componentId === "commerce-protocol" && commercePackageName
+      ? commerceIdentity(commercePackageName)
+      : COMPONENTS[componentId];
   if (!definition) {
     throw new Error(`Unknown SBOM component: ${componentId}`);
   }
@@ -1348,7 +1391,7 @@ export function buildSbom({
       component: {
         "bom-ref": componentRef,
         type: definition.type,
-        name: definition.sbomName,
+        name: definition.name ?? definition.sbomName,
         version,
         purl,
         supplier: SUPPLIER,
@@ -1465,7 +1508,14 @@ export function verifySbomGeneratorAttestation(
 
 export function verifyPublishedSbom(
   serialized,
-  { fileName, releaseTag, releaseCommit, generatorCommit, digest } = {},
+  {
+    fileName,
+    releaseTag,
+    releaseCommit,
+    generatorCommit,
+    digest,
+    commercePackageName,
+  } = {},
 ) {
   const content = Buffer.isBuffer(serialized)
     ? serialized
@@ -1487,7 +1537,10 @@ export function verifyPublishedSbom(
   if (!resolvedTag) {
     throw new Error(`Unknown published SBOM release tag '${releaseTag}'`);
   }
-  const definition = COMPONENTS[resolvedTag.componentId];
+  const definition =
+    resolvedTag.componentId === "commerce-protocol"
+      ? commerceIdentity(commercePackageName)
+      : COMPONENTS[resolvedTag.componentId];
   const expectedFileName = sbomFileName(
     resolvedTag.componentId,
     resolvedTag.version,
@@ -1527,7 +1580,7 @@ export function verifyPublishedSbom(
   }
   const expectedPurl = definition.purl(resolvedTag.version);
   if (
-    root?.name !== definition.sbomName ||
+    root?.name !== (definition.name ?? definition.sbomName) ||
     root?.version !== resolvedTag.version ||
     root?.purl !== expectedPurl ||
     root?.["bom-ref"] !== expectedPurl
@@ -2071,6 +2124,16 @@ export async function generateSbom(
     timestamp,
     dependencies,
     vulnerabilities,
+    ...(componentId === "commerce-protocol"
+      ? {
+          commercePackageName: JSON.parse(
+            readFileSync(
+              resolve(root, sourceForRoot(definition.source, root).manifest),
+              "utf8",
+            ),
+          ).name,
+        }
+      : {}),
   });
 
   return {
@@ -2239,12 +2302,29 @@ async function main() {
       "rev-parse",
       `${options.tag}^{commit}`,
     ]);
+    let commercePackageName;
+    if (componentFromTag(options.tag)?.componentId === "commerce-protocol") {
+      for (const manifest of [
+        commerceProtocolManifest.path,
+        ...commerceProtocolManifest.historicalPaths,
+      ]) {
+        let content;
+        try {
+          content = defaultRunGit(["show", `${releaseCommit}:${manifest}`]);
+        } catch {
+          continue;
+        }
+        commercePackageName = JSON.parse(content).name;
+        break;
+      }
+    }
     const verified = verifyPublishedSbom(readFileSync(path), {
       fileName: path,
       releaseTag: options.tag,
       releaseCommit,
       generatorCommit: options.generatorCommit,
       digest: options.digest,
+      commercePackageName,
     });
     console.log(
       `Verified ${basename(path)} for ${options.tag} with generator ${verified.generatorCommit}`,

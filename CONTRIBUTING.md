@@ -8,15 +8,15 @@ This guide explains how to contribute to the OpenIAP monorepo.
 openiap/
 ├── packages/
 │   ├── apple/         # iOS/macOS native implementation
+│   ├── cli/           # `openiap doctor` command line tool
 │   ├── conformance/   # Behavioral conformance suite
 │   ├── docs/          # Documentation site (openiap.dev)
 │   ├── google/        # Android native implementation
 │   ├── kit/           # Hosted purchase and entitlement service
 │   └── mcp-server/    # IAPKit MCP server
 ├── specs/
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract & type generation (SSOT)
-│       └── commerce-protocol/  # Server-side Commerce Protocol
+│   ├── client/             # Client GraphQL contract & type generation (SSOT)
+│   └── commerce-protocol/  # Server-side Commerce Protocol
 ├── plugins/
 │   └── openiap/       # Codex and Claude Code integration
 ├── libraries/
@@ -169,7 +169,7 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
   never bump it independently.
 - The Commerce Protocol has an independent version in
   `specs/commerce-protocol/package.json`. Release it through
-  `release-commerce-protocol.yml`; it is not the client/native `spec` floor.
+  `release-openiap.yml` with `package=commerce-protocol`; it is not the client/native `spec` floor.
 - Framework library versions live in each library's package metadata and release workflow.
 - Native version writers update their native key and the derived `spec`
   atomically. `./scripts/sync-versions.sh` then verifies that invariant and
@@ -181,7 +181,7 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
 | Workflow                        | Scope                                                                       |
 | ------------------------------- | --------------------------------------------------------------------------- |
 | `ci.yml`                        | Client spec, Commerce Protocol, IAPKit conformance, Apple, Google, and docs |
-| `release-commerce-protocol.yml` | Version and publish the independent Commerce Protocol npm package           |
+| `release-openiap.yml`           | Publish the scoped Client Protocol, Commerce Protocol, or CLI package       |
 | `ci-react-native-iap.yml`       | Lint + test                                                                 |
 | `ci-expo-iap.yml`               | Lint + test                                                                 |
 | `ci-flutter-inapp-purchase.yml` | Analyze + test                                                              |

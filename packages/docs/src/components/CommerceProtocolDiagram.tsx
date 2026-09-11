@@ -1,3 +1,4 @@
+import { COMMERCE_PROTOCOL_INSTALL } from '../lib/config';
 import { useEffect, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -79,14 +80,14 @@ const PARTS = {
     step: 3,
   },
   contract: {
-    label: 'openiap-commerce-protocol',
+    label: 'Commerce Protocol',
     title: 'The contract your AI implements',
     description:
       'Install the specification, schemas, API bindings, and conformance tools in your own project. Your AI builds the runtime; the package itself does not start a server.',
     reference: '/commerce-protocol/implementation',
     referenceLabel: 'Build with AI',
     step: 1,
-    packageName: 'openiap-commerce-protocol',
+    packageName: COMMERCE_PROTOCOL_INSTALL,
   },
 } satisfies Record<string, CommerceArchitecturePart>;
 

@@ -60,8 +60,8 @@ describe("published package", () => {
         "--input-type=module",
         "--eval",
         [
-          'import { ErrorCode } from "@hyodotdev/openiap";',
-          'import { kitApi } from "@hyodotdev/openiap/kit-api";',
+          'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
+          'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
           "console.log(ErrorCode.Unknown, typeof kitApi);",
         ].join(" "),
       ],
@@ -75,8 +75,8 @@ describe("published package", () => {
     writeFileSync(
       join(consumerRoot, "consumer.ts"),
       [
-        'import { ErrorCode } from "@hyodotdev/openiap";',
-        'import { kitApi } from "@hyodotdev/openiap/kit-api";',
+        'import { ErrorCode } from "@hyodotdev/openiap-client-protocol";',
+        'import { kitApi } from "@hyodotdev/openiap-client-protocol/kit-api";',
         "const code: ErrorCode = ErrorCode.Unknown;",
         "void code;",
         "void kitApi;",

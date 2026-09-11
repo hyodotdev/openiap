@@ -13,7 +13,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const baseUrl = process.env.COMMERCE_BASE_URL;
 const credentials = {
@@ -93,8 +93,11 @@ function CommerceConformance() {
             instance.
           </p>
           <p>
-            Install <code>openiap-commerce-protocol</code> and <code>ajv</code>
-            with your package manager. Save this as{' '}
+            Follow the{' '}
+            <Link to="/commerce-protocol/getting-started#install-contract">
+              contract installation guide
+            </Link>{' '}
+            and add <code>ajv</code> with your package manager. Save this as{' '}
             <code>check-conformance.mjs</code>
             and run it with Node.js or Bun. The built-in adapters add the Bearer
             prefix: supply token values without that prefix. Set

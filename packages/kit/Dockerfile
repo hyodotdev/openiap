@@ -4,7 +4,7 @@ FROM oven/bun:1.4.1-slim@sha256:887d0f37f674c69984be4e397fef29ca0d74df1e75155431
 
 # Build context is the monorepo root (see deploy-kit.yml + scripts/deploy-prod.sh).
 # This is required because the workspace lockfile lives at the root, not under
-# packages/kit/, and Bun resolves workspace deps (`@hyodotdev/openiap` etc.)
+# packages/kit/, and Bun resolves workspace deps (`@hyodotdev/openiap-client-protocol` etc.)
 # via the root `package.json` `workspaces` field.
 
 # --- Install deps --------------------------------------------------------
@@ -24,6 +24,7 @@ COPY packages/docs/package.json ./packages/docs/
 # "lockfile had changes, but lockfile is frozen".
 COPY packages/mcp-server/package.json ./packages/mcp-server/
 COPY packages/conformance/package.json ./packages/conformance/
+COPY packages/cli/package.json ./packages/cli/
 COPY specs/commerce-protocol/package.json ./specs/commerce-protocol/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
@@ -36,7 +37,7 @@ COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
 # The MCP client imports the client specification's public kit-api subpath.
 COPY specs/client ./specs/client
-# Kit runtime code imports openiap-commerce-protocol (generated schemas,
+# Kit runtime code imports @hyodotdev/openiap-commerce-protocol (generated schemas,
 # binding manifest, capability descriptor); without the sources the workspace
 # symlink dangles inside the image and only inside the image.
 COPY specs/commerce-protocol ./specs/commerce-protocol

@@ -5,9 +5,10 @@
 
 ## Monorepo Structure
 
-```
+```text
 openiap/
 ├── packages/
+│   ├── cli/           # `openiap init` + `doctor` CLI (npm, Node)
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── google/        # Android library (Kotlin)
@@ -15,9 +16,8 @@ openiap/
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── specs/             # Publishable specifications; never deployed services
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract + multiplatform code generation
-│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
+│   ├── client/             # Client GraphQL contract + multiplatform code generation
+│   └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -49,6 +49,7 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
+| Developer-facing command line tools              | `packages/cli/`         |
 | Specifications, generators, and conformance data | `specs/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
@@ -84,7 +85,7 @@ manifests under `specs/`.
 ### specs/client
 
 **Purpose:** Authored OpenIAP client API contract and multiplatform type
-generation. The publishable package name is `@hyodotdev/openiap`.
+generation. The publishable package name is `@hyodotdev/openiap-client-protocol`.
 
 - Contains the GraphQL SDL defining the client API and its types
 - Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#

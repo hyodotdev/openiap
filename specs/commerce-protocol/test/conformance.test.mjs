@@ -397,7 +397,7 @@ describe("the portable conformance runner", () => {
         // regardless of the (possibly broken) query the caller supplied.
         const canonical = {
           query: (
-            await import("openiap-commerce-protocol/generated/bindings/graphql-operations.json")
+            await import("@hyodotdev/openiap-commerce-protocol/generated/bindings/graphql-operations.json")
           ).default.operations[name.charAt(0).toLowerCase() + name.slice(1)]
             .document,
           operationName: name,

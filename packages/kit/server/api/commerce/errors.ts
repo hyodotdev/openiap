@@ -1,7 +1,7 @@
 // Direct JSON imports embed the generated artifacts into the compiled
 // binary; the spec package's runtime loader reads files that do not exist
 // inside a single-file build.
-import HTTP_BINDING from "openiap-commerce-protocol/generated/bindings/http-binding.json";
+import HTTP_BINDING from "@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json";
 
 /**
  * One protocol operation failure. Messages cross the trust boundary, so they

@@ -922,7 +922,7 @@ function extractPub(root, { manifest }) {
     const match = line.match(/^ {2}([a-z0-9_]+):\s*(.*)$/u);
     if (!match) continue;
     const [, name, rawConstraint] = match;
-    const constraint = rawConstraint.trim();
+    const constraint = rawConstraint.trim().replace(/^(['"])(.*)\1$/u, "$2");
     if (!constraint) {
       const nested = lines[index + 1]?.trim();
       if (name === "flutter" && nested === "sdk: flutter") continue;

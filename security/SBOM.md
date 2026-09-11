@@ -28,19 +28,21 @@ The releasable components are defined by `versionSources` in
 from either, so a component cannot be released without also being described.
 The distribution and release-tag columns are prose and are not machine-checked:
 
-| Component           | SBOM name                   | Distribution                     | Release tag                           |
-| ------------------- | --------------------------- | -------------------------------- | ------------------------------------- |
-| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager | `<version>`                           |
-| `google`            | `openiap-google`            | Maven Central                    | `google-<version>`                    |
-| `react-native`      | `react-native-iap`          | npm                              | `react-native-iap-<version>`          |
-| `expo`              | `expo-iap`                  | npm                              | `expo-iap-<version>`                  |
-| `conformance`       | `openiap-conformance`       | npm                              | `openiap-conformance-<version>`       |
-| `flutter`           | `flutter_inapp_purchase`    | pub.dev                          | `flutter-iap-<version>`               |
-| `kmp`               | `kmp-iap`                   | Maven Central                    | `kmp-iap-<version>`                   |
-| `maui`              | `OpenIap.Maui`              | NuGet                            | `maui-iap-<version>`                  |
-| `godot`             | `godot-iap`                 | GitHub Release                   | `godot-iap-<version>`                 |
-| `docs`              | `openiap-spec`              | GitHub Release                   | `docs-<version>`                      |
-| `commerce-protocol` | `openiap-commerce-protocol` | npm                              | `openiap-commerce-protocol-<version>` |
+| Component           | SBOM name                   | Distribution                               | Release tag                           |
+| ------------------- | --------------------------- | ------------------------------------------ | ------------------------------------- |
+| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager           | `<version>`                           |
+| `google`            | `openiap-google`            | Maven Central                              | `google-<version>`                    |
+| `react-native`      | `react-native-iap`          | npm                                        | `react-native-iap-<version>`          |
+| `expo`              | `expo-iap`                  | npm                                        | `expo-iap-<version>`                  |
+| `conformance`       | `openiap-conformance`       | npm (retired)                              | `openiap-conformance-<version>`       |
+| `flutter`           | `flutter_inapp_purchase`    | pub.dev                                    | `flutter-iap-<version>`               |
+| `kmp`               | `kmp-iap`                   | Maven Central                              | `kmp-iap-<version>`                   |
+| `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
+| `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
+| `docs`              | `openiap-spec`              | GitHub Release                             | `docs-<version>`                      |
+| `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
+| `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
+| `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
 
 `packages/kit` (IAPKit) is deliberately outside this list. It is a deployed
 service rather than a distributed package: consumers call it over HTTPS and
@@ -75,19 +77,22 @@ without an SBOM asset is not automatically a failure. The boundary is recorded
 as `SBOM_COVERAGE_FLOOR` in `scripts/generate-sbom.mjs`, derived from the
 published releases rather than chosen:
 
-| Component                          | First release required to carry an SBOM         |
-| ---------------------------------- | ----------------------------------------------- |
-| `apple`                            | `3.2.0`                                         |
-| `docs`                             | `docs-3.2.0`                                    |
-| `expo`                             | `expo-iap-5.3.0`                                |
-| `flutter`                          | `flutter-iap-10.3.0`                            |
-| `godot`                            | `godot-iap-3.3.0`                               |
-| `google`                           | `google-3.3.0`                                  |
-| `kmp`                              | `kmp-iap-3.3.0`                                 |
-| `maui`                             | `maui-iap-2.3.0`                                |
-| `react-native`                     | `react-native-iap-16.3.0`                       |
-| `conformance`                      | `openiap-conformance-1.0.0`                     |
-| `commerce-protocol`                | `openiap-commerce-protocol-0.1.0`               |
+| Component           | First release required to carry an SBOM |
+| ------------------- | --------------------------------------- |
+| `apple`             | `3.2.0`                                 |
+| `docs`              | `docs-3.2.0`                            |
+| `expo`              | `expo-iap-5.3.0`                        |
+| `flutter`           | `flutter-iap-10.3.0`                    |
+| `godot`             | `godot-iap-3.3.0`                       |
+| `google`            | `google-3.3.0`                          |
+| `kmp`               | `kmp-iap-3.3.0`                         |
+| `maui`              | `maui-iap-2.3.0`                        |
+| `react-native`      | `react-native-iap-16.3.0`               |
+| `conformance`       | `openiap-conformance-1.0.0`             |
+| `commerce-protocol` | `openiap-commerce-protocol-0.1.0`       |
+
+Client Protocol and CLI have only metadata bootstrap packages so far. They
+remain in `UNRELEASED_COMPONENTS` until their first functional release.
 
 Every released component is anchored here. "Covered from its first release"
 cannot be proved from a release list that might be missing that release, so a
@@ -542,3 +547,8 @@ published descriptors when an advisory needs an affected-version list.
 
 See [README.md](README.md) for the full vulnerability-management picture and
 [CRA.md](CRA.md) for how this maps onto Cyber Resilience Act expectations.
+
+Commerce Protocol SBOM filenames keep the `openiap-commerce-protocol-` prefix.
+The root package name, npm PURL, and distribution link follow the manifest in
+the release commit, preserving unscoped historical releases and scoped future
+releases.

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-09T00:37:16.148Z
+> Last updated: 2026-09-10T22:54:04.267Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -284,9 +284,10 @@ const IsSubscription: boolean; // No PascalCase for variables
 
 ## Monorepo Structure
 
-```
+```text
 openiap/
 ├── packages/
+│   ├── cli/           # `openiap init` + `doctor` CLI (npm, Node)
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── google/        # Android library (Kotlin)
@@ -294,9 +295,8 @@ openiap/
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── specs/             # Publishable specifications; never deployed services
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract + multiplatform code generation
-│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
+│   ├── client/             # Client GraphQL contract + multiplatform code generation
+│   └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -328,6 +328,7 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
+| Developer-facing command line tools              | `packages/cli/`         |
 | Specifications, generators, and conformance data | `specs/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
@@ -363,7 +364,7 @@ manifests under `specs/`.
 ### specs/client
 
 **Purpose:** Authored OpenIAP client API contract and multiplatform type
-generation. The publishable package name is `@hyodotdev/openiap`.
+generation. The publishable package name is `@hyodotdev/openiap-client-protocol`.
 
 - Contains the GraphQL SDL defining the client API and its types
 - Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#
@@ -1407,11 +1408,12 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
 
-### Updating `@hyodotdev/openiap` Types and the Derived Version
+### Updating Client Protocol Types and Native Compatibility
 
 1. Update the canonical schema without directly changing the `spec` version.
    Native version writers keep `spec` equal to the lower semantic version of
    `google` and `apple`; sync fails instead of silently repairing drift.
+   The Client Protocol npm package has an independent version in its own manifest.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -1503,7 +1505,7 @@ Before writing or editing anything, **ALWAYS** review:
 
 ### Code Generation Architecture
 
-The `@hyodotdev/openiap` package uses two guarded generation lanes over one
+The `@hyodotdev/openiap-client-protocol` package uses two guarded generation lanes over one
 authored schema inventory:
 
 ```text
@@ -2033,7 +2035,7 @@ const allNotes: Note[] = [
     element: (
       <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
         <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
-          📅 @hyodotdev/openiap v3.4.0 / openiap-apple v3.4.0 - Feature
+          📅 OpenIAP Spec v3.4.0 / openiap-apple v3.4.0 - Feature
           Description
         </AnchorLink>
         {/* Content here */}
@@ -2600,8 +2602,10 @@ Version ownership is split:
 - The shared `spec` is always the lower semantic version of `google` and
   `apple`
 - Native version writers update their native key and derive `spec` atomically;
-  sync then verifies the invariant and refreshes `specs/client/package.json`,
-  `packages/docs/package.json`, and other derived copies
+  sync then verifies the invariant and refreshes `packages/docs/package.json`
+  and other derived copies
+- The three scoped npm packages own their versions in their package manifests;
+  Client Protocol npm releases do not change the native-derived `spec`
 - Production docs deployment consumes the derived current `spec`; it must not
   accept an independently selected spec version
 
@@ -6337,7 +6341,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const report = await runConformance({
   adapters: [

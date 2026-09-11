@@ -91,7 +91,7 @@ const SPEC_NODES: DiagramNode[] = [
   },
   {
     id: 'openiap-gql',
-    name: '@hyodotdev/openiap',
+    name: 'Client Protocol',
     note: 'Client contract · type SSOT',
     icon: '/logos/openiap-gql.webp',
     href: `${GITHUB_TREE}/specs/client`,
@@ -304,7 +304,7 @@ function EcosystemDiagram() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            types from @hyodotdev/openiap
+            types from @hyodotdev/openiap-client-protocol
           </a>
           <div className="eco-band-body eco-band-body--grid">
             {LIBRARIES.map((lib) => {
@@ -418,9 +418,9 @@ function EcosystemDiagram() {
       </div>
 
       <figcaption className="eco-caption">
-        <strong>@hyodotdev/openiap</strong> generates the type system for the
-        core native packages <em>and</em> for every framework library, and the
-        core packages are bundled into each library. The{' '}
+        <strong>@hyodotdev/openiap-client-protocol</strong> generates the type
+        system for the core native packages <em>and</em> for every framework
+        library, and the core packages are bundled into each library. The{' '}
         <strong>Commerce Protocol</strong> defines the portable server-side
         lifecycle, entitlement, event, and webhook contract independently of any
         implementation, and the providers listed under it implement that

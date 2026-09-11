@@ -1,4 +1,4 @@
-# @hyodotdev/openiap Specification and Code Generation
+# @hyodotdev/openiap-client-protocol Specification and Code Generation
 
 [![Generate Types](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
 
@@ -11,6 +11,35 @@
 <!-- markdownlint-enable MD033 -->
 
 _The OpenIAP client contract and multiplatform codegen toolkit._
+
+[![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-client-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-client-protocol)
+
+## Use the contract
+
+```bash
+npm install @hyodotdev/openiap-client-protocol
+```
+
+```ts
+import { ErrorCode, type PurchaseError } from '@hyodotdev/openiap-client-protocol';
+
+function isCanceled(error: PurchaseError): boolean {
+  return error.code === ErrorCode.UserCancelled;
+}
+```
+
+The root export provides TypeScript types and runtime enums. The `/kit-api`
+export provides the portable IAPKit client helper. Generated native types are
+available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
+For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
+
+This package has its own npm version. The native SDK compatibility version
+remains the OpenIAP Spec version recorded in `openiap-versions.json`.
+
+## Develop the specification
+
+The generator runs from a checkout of the OpenIAP repository; it is not included
+in the npm package. Run the commands below from `specs/client` unless stated otherwise.
 
 This package is the single source of truth for the OpenIAP client GraphQL schema. The SDL
 files live in `src/` and are split into common (`type.graphql`, `api.graphql`), error

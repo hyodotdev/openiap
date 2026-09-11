@@ -428,6 +428,11 @@ export function isRecoverableError(error: unknown): boolean {
   return !!code && (recoverableErrors as string[]).includes(code);
 }
 
+/**
+ * End-user copy for a known error code, derived from the code by design: the
+ * native message can name build configuration a customer must not be shown.
+ * Developers get that diagnostic as `error.message`.
+ */
 export function getUserFriendlyErrorMessage(error: ErrorLike): string {
   const errorCode = extractCode(error);
 

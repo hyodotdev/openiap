@@ -46,5 +46,9 @@ export const COMMERCE_PROTOCOL_LINKS = {
   spec: `${COMMERCE_SPEC_SOURCE}/SPEC.md`,
   capabilitiesExample: `${COMMERCE_SPEC_SOURCE}/examples/provider-capabilities.json`,
   example: 'https://github.com/hyodotdev/openiap-commerce-protocol-example',
+  buildBrief: 'https://openiap.dev/commerce-example/build-brief.md',
+  integrationBrief: 'https://openiap.dev/commerce-example/integration-brief.md',
   exampleSource: '/commerce-example/source.tar.gz',
 } as const;
+
+export const COMMERCE_PROTOCOL_INSTALL = '@hyodotdev/openiap-commerce-protocol';

@@ -12,7 +12,7 @@ import {
   createRestAdapter,
   operationVectors,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 import {
   CONTENT_TYPE,
@@ -370,7 +370,7 @@ describe("IAPKit dual-binding conformance", () => {
     expect(response.status).toBe(200);
     const served = await response.json();
     const { $comment, ...published } = (
-      await import("openiap-commerce-protocol/examples/provider-capabilities.json")
+      await import("@hyodotdev/openiap-commerce-protocol/examples/provider-capabilities.json")
     ).default as Record<string, unknown>;
     expect($comment).toBeTruthy();
     expect(served).toEqual(published);

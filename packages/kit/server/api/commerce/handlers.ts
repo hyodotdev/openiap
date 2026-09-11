@@ -3,7 +3,7 @@
 // these; business logic stays below, in the same Convex functions the
 // published /v1 and /v2 surfaces already use.
 
-import capabilitiesExample from "openiap-commerce-protocol/examples/provider-capabilities.json";
+import capabilitiesExample from "@hyodotdev/openiap-commerce-protocol/examples/provider-capabilities.json";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";

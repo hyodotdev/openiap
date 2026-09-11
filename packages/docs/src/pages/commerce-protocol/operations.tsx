@@ -1,7 +1,7 @@
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { Link } from 'react-router-dom';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
-import httpBinding from 'openiap-commerce-protocol/generated/bindings/http-binding.json';
+import httpBinding from '@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json';
 import AnchorLink from '../../components/AnchorLink';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';

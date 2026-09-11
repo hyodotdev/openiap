@@ -505,20 +505,11 @@ class HybridRnIap: HybridRnIapSpec {
                 RnIapLog.payload(
                     "finishTransaction", ["transactionId": iosParams.transactionId]
                 )
-                var purchasePayload = await MainActor.run { () -> [String: Any]? in
-                    self.purchasePayloadById[iosParams.transactionId]
-                }
-                if purchasePayload == nil {
-                    RnIapLog.warn("Missing cached purchase payload for \(iosParams.transactionId); falling back to identifier-only finish")
-                    purchasePayload = ["transactionIdentifier": iosParams.transactionId]
-                }
-                guard let purchasePayload else {
-                    throw OpenIapException.make(code: .purchaseError, message: "Missing purchase context for \(iosParams.transactionId)")
-                }
-                let sanitizedPayload = RnIapHelper.sanitizeDictionary(purchasePayload)
-                RnIapLog.payload("finishTransaction.nativePayload", sanitizedPayload)
-                let purchaseInput = try OpenIapSerialization.purchaseInput(from: purchasePayload)
                 _ = try await self.runConnectedOperation {
+                    guard let purchaseInput = try await self.purchaseToFinish(
+                        transactionId: iosParams.transactionId,
+                        loadTransactions: { try await OpenIapModule.shared.getAllTransactionsIOS() }
+                    ) else { return }
                     try await OpenIapModule.shared.finishTransaction(
                         purchase: purchaseInput,
                         isConsumable: nil
@@ -1383,6 +1374,25 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     // MARK: - Private Helper Methods
+
+    func purchaseToFinish(
+        transactionId: String,
+        loadTransactions: () async throws -> [OpenIAP.PurchaseIOS]
+    ) async throws -> OpenIAP.PurchaseInput? {
+        guard UInt64(transactionId) != nil else {
+            throw OpenIapException.make(code: .purchaseError, message: "Invalid transaction identifier")
+        }
+        if let payload = await MainActor.run(body: { self.purchasePayloadById[transactionId] }) {
+            return try OpenIapSerialization.purchaseInput(from: payload)
+        }
+        // Restored purchases can outlive the bridge cache.
+        let transactions = try await loadTransactions()
+        guard let purchase = transactions.first(where: { $0.id == transactionId }) else {
+            // Finished consumables may no longer appear in StoreKit history.
+            return nil
+        }
+        return .purchaseIos(purchase)
+    }
 
     private func enqueueLifecycleOperation<T>(
         _ operation: @escaping () async throws -> T

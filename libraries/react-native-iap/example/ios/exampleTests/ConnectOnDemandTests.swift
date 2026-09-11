@@ -6,6 +6,69 @@ import OpenIAP
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class ConnectOnDemandTests: XCTestCase {
 
+    func testFinishResolvesRestoredPurchaseWithoutBridgeCache() async throws {
+        let hybrid = HybridRnIap()
+        guard case .purchaseIos(let other) = try makePurchase(id: "100"),
+              case .purchaseIos(let restored) = try makePurchase(id: "200") else {
+            return XCTFail("Expected iOS purchases")
+        }
+
+        let purchase = try await hybrid.purchaseToFinish(transactionId: "200") {
+            [other, restored]
+        }
+
+        XCTAssertEqual(purchase?.id, "200")
+        XCTAssertEqual(purchase?.productId, "premium")
+    }
+
+    func testFinishUsesCachedEventWithoutReloadingHistory() async throws {
+        let hybrid = HybridRnIap()
+        _ = try await hybrid.enqueueConnectOperation { true }.value
+        _ = try await hybrid.enqueuePurchaseUpdateDelivery(
+            makePurchase(id: "200"),
+            expectedEpoch: hybrid.currentConnectionEpoch(),
+            includeDuplicateListeners: false
+        ).value
+
+        let purchase = try await hybrid.purchaseToFinish(transactionId: "200") {
+            XCTFail("An event already provides the complete purchase")
+            return []
+        }
+
+        XCTAssertEqual(purchase?.id, "200")
+        XCTAssertEqual(purchase?.productId, "premium")
+        _ = try await hybrid.enqueueEndOperation { true }.value
+    }
+
+    func testFinishedConsumableMissingFromHistoryNeedsNoFinish() async throws {
+        let purchase = try await HybridRnIap().purchaseToFinish(transactionId: "200") { [] }
+        XCTAssertNil(purchase)
+    }
+
+    func testFinishPropagatesHistoryLookupFailure() async throws {
+        let expected = NSError(domain: "StoreKitLookup", code: 1)
+        do {
+            _ = try await HybridRnIap().purchaseToFinish(transactionId: "200") {
+                throw expected
+            }
+            XCTFail("A failed lookup must not report a finished transaction")
+        } catch {
+            XCTAssertEqual(error as NSError, expected)
+        }
+    }
+
+    func testFinishRejectsInvalidIdentifierBeforeHistoryLookup() async throws {
+        do {
+            _ = try await HybridRnIap().purchaseToFinish(transactionId: "invalid") {
+                XCTFail("An invalid transaction must not query StoreKit")
+                return []
+            }
+            XCTFail("Expected invalid transaction error")
+        } catch let error as OpenIapException {
+            XCTAssertTrue(error.localizedDescription.contains("Invalid transaction identifier"))
+        }
+    }
+
     func testStoreCallWithoutInitConnectionConnectsAndAttachesListeners() async throws {
         let hybrid = HybridRnIap()
 

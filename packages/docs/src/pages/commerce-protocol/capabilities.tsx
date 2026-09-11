@@ -1,6 +1,6 @@
 import CommerceImplementationComparison from '../../components/CommerceImplementationComparison';
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
-import capabilitiesExample from 'openiap-commerce-protocol/examples/provider-capabilities.json';
+import capabilitiesExample from '@hyodotdev/openiap-commerce-protocol/examples/provider-capabilities.json';
 import AnchorLink from '../../components/AnchorLink';
 import SEO from '../../components/SEO';
 

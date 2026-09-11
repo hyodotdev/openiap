@@ -10,7 +10,7 @@
     "clean": "./gradlew clean"
   },
   "dependencies": {
-    "@hyodotdev/openiap": "workspace:*"
+    "@hyodotdev/openiap-client-protocol": "workspace:*"
   },
   "packageManager": "bun@1.3.13"
 }

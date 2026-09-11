@@ -1462,6 +1462,8 @@ export {
   ErrorCodeMapping,
   createPurchaseError,
   createPurchaseErrorFromPlatform,
+  getUserFriendlyErrorMessage,
+  isUserCancelledError,
 } from './utils/errorMapping';
 export type {
   PurchaseError as ExpoPurchaseError,

@@ -27,10 +27,10 @@ describe("generated LLM references", () => {
       expect(reference).toContain("https://openiap.dev/languages");
       expect(reference).toContain("https://openiap.dev/docs/setup");
       expect(reference).toContain(
-        "openiap-commerce-protocol-example/blob/main/BUILD.md",
+        "https://openiap.dev/commerce-example/build-brief.md",
       );
       expect(reference).toContain(
-        "openiap-commerce-protocol-example/blob/main/INTEGRATE.md",
+        "https://openiap.dev/commerce-example/integration-brief.md",
       );
       expect(reference).toContain(
         "https://github.com/hyodotdev/openiap/tree/main/packages/kit",
@@ -39,10 +39,10 @@ describe("generated LLM references", () => {
         "Separate fixture checks, real store sandbox tests, and profile conformance",
       );
       expect(reference).not.toContain(
-        "https://openiap.dev/commerce-example/build-brief.md",
+        "openiap-commerce-protocol-example/blob/main/BUILD.md",
       );
       expect(reference).not.toContain(
-        "https://openiap.dev/commerce-example/integration-brief.md",
+        "openiap-commerce-protocol-example/blob/main/INTEGRATE.md",
       );
     }
   });

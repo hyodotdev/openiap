@@ -1,5 +1,7 @@
 # OpenIAP Commerce Protocol
 
+[![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-commerce-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-commerce-protocol)
+
 A vendor-neutral specification for the **server side** of in-app purchases.
 
 OpenIAP normalizes the client-side purchase API across stores. This normalizes
@@ -28,22 +30,19 @@ protocol profiles or a universal paywall API.
 
 ## Start implementing
 
-Install the contract in your own backend project with your favorite package manager:
-
 ```sh
-npm install openiap-commerce-protocol
+npm install @hyodotdev/openiap-commerce-protocol
 ```
 
 Or use `pnpm add`, `yarn add`, or `bun add` with the same package name.
 
-Give your AI the installed package's `SPEC.md` and `generated/` artifacts.
-Package 0.1.0 does not ship `DESIGN.md`; use the
-[online whitepaper](https://openiap.dev/commerce-protocol/whitepaper) for architecture. The package supplies the contract; your AI implements the backend.
+Give your AI the installed package's `SPEC.md`, `DESIGN.md`, and `generated/`
+artifacts. The package supplies the contract; your AI implements the backend.
 
 - **See what AI built:** the [recorded walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
   shows a real local HTTP + SQLite backend in six milestones, with captured
   responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/implementation#iapkit) explains what was tested. Give the
-  [build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md)
+  [build brief](https://openiap.dev/commerce-example/build-brief.md)
   to your AI to build the same flow in your own stack.
 - **Integrate your backend:** [Use a provider](https://openiap.dev/commerce-protocol/getting-started)
   walks through discovery, verification, account binding, and entitlement reads.
@@ -90,7 +89,7 @@ Review only the authored surfaces, in this order:
    operation surface, and validation directives.
    [`generated/commerce-protocol.graphql`](./generated/commerce-protocol.graphql)
    is their generated single-file assembly (also exported at the package path
-   `openiap-commerce-protocol/commerce-protocol.graphql`).
+   `@hyodotdev/openiap-commerce-protocol/commerce-protocol.graphql`).
 3. [`examples/`](./examples/) — representative documents and store mappings.
 4. [`vectors/signatures.json`](./vectors/signatures.json) — hand-authored
    cryptographic truth cases.
@@ -143,13 +142,11 @@ Three rules that are easy to get wrong, all specified in detail in `SPEC.md`:
 
 ## Calling a provider
 
-Every conforming provider serves the same six operations — verify a purchase,
-read status and entitlements, bind a purchase to your own user id, erase a
-user, and read the provider's capability descriptor — over REST
-(`/commerce/v1/...`, described by the generated OpenAPI document) or GraphQL
-(the generated schema projection), with one shared error-code space. `SPEC.md`
-§4–§8 define the surface; a backend written against it keeps working when the
-provider behind it changes.
+Start with the provider's capability descriptor. Every conforming provider
+supports discovery; its declared profiles determine which purchase, status,
+entitlement, binding, and erasure operations it supports. Check those profiles
+before calling an operation. REST and GraphQL bindings share one error-code
+space. `SPEC.md` §4–§8 define the surface and authorization rules.
 
 ## Certifying a provider
 
@@ -159,7 +156,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const report = await runConformance({
   adapters: [
@@ -223,7 +220,7 @@ specification_, so any of the three can feed it.
 
 ## Status
 
-Version 0.1.0, specifying protocol version 1.0. The event vocabulary,
+Implements protocol version 1.0. The event vocabulary,
 envelope, webhook contract, operation surface, REST and GraphQL bindings, and
 portable conformance runner are implemented and tested. `SPEC.md` §14 lists
 what is deliberately not in this version.

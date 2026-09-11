@@ -21,6 +21,26 @@ using the plugin:
 - **Claude Code**: export `IAPKIT_API_KEY` before starting Claude Code; the
   plugin's MCP config expands it into the `Authorization` header.
 
+## Reading a Project Before the Tools
+
+When a purchase flow fails and the error does not say why, read the project
+before the code. These misconfigurations produce no message that names them:
+
+- The Android build links one store while the build flags select another, or
+  targets Horizon or Amazon on a device that only has Google Play.
+- A secret `openiap-kit_sk_` key sits in a file the app bundle ships.
+- An Expo env name the bundler will not inline, so the key reads as undefined.
+- An IAPKit base URL that already carries `/v1/purchase/verify`.
+- An iOS `Info.plist` naming a scene delegate class the target lacks, which
+  opens the app to a black screen with no crash.
+
+`openiap doctor` (https://github.com/hyodotdev/openiap/tree/main/packages/cli)
+checks all of them read-only and reports findings with stable ids; `--json`
+returns `{framework, findings, errors, warnings, notCheckedLocally}`.
+
+Store account state, device state, and Play billing availability are not in
+any file. Do not report those as passing.
+
 ## Operating Rules
 
 - Start by reviewing the app's current purchase flow and SDK usage before

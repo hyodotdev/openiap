@@ -123,7 +123,27 @@ class OpenIapErrorTest {
     fun `InitConnection has correct code and message`() {
         val error = OpenIapError.InitConnection
         assertEquals(ErrorCode.InitConnection.rawValue, error.code)
-        assertEquals("Failed to initialize billing connection", error.message)
+        assertEquals(
+            "Failed to initialize billing connection",
+            OpenIapError.InitConnection.MESSAGE,
+        )
+        assertTrue(error.message.startsWith(OpenIapError.InitConnection.MESSAGE))
+    }
+
+    // The generic failure reads like a store outage on every device. A non-Play
+    // flavor names the store it links, and stops there: the same build is
+    // correct on that store's own device, so it must not prescribe a rebuild.
+    @Test
+    fun `InitConnection names a non-Play flavor`() {
+        val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
+        val message = OpenIapError.InitConnection.message
+        if (store == "play") {
+            assertEquals(OpenIapError.InitConnection.MESSAGE, message)
+        } else {
+            assertTrue(message.contains(store))
+            assertFalse(message.contains("rebuild"))
+        }
+        assertEquals(message, OpenIapError.defaultMessage(OpenIapError.InitConnection.CODE))
     }
 
     @Test

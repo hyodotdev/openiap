@@ -1658,9 +1658,13 @@ test("pub dependencies exclude the Flutter SDK itself", () => {
   );
   assert.deepEqual(
     dependencies.map((entry) => entry.version),
-    ["^1.2.0", "^1.11.0", "^3.1.4"],
+    ["^1.2.0", "^1.11.0", ">=3.1.4 <3.2.0"],
   );
-  assert.ok(dependencies.every((entry) => entry.purl.includes("@%5E")));
+  assert.ok(
+    dependencies.every((entry) =>
+      entry.purl.endsWith(`@${encodeURIComponent(entry.version)}`),
+    ),
+  );
 });
 
 test("framework SBOMs include every shipped native runtime contract", async () => {
@@ -2122,7 +2126,9 @@ test("a POM licence is recorded only when the declarations agree", async () => {
 
 test("a long-form target framework moniker is valid", () => {
   const { parseNugetNuspec } = dependencyTesting;
-  const context = { url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec" };
+  const context = {
+    url: "https://api.nuget.org/v3-flatcontainer/x/1/x.nuspec",
+  };
   const nuspec = (framework) =>
     `<package><metadata><id>X</id><dependencies>` +
     `<group targetFramework="${framework}">` +
@@ -2138,7 +2144,11 @@ test("a long-form target framework moniker is valid", () => {
     "net9.0",
     "net9.0-windows10.0.19041",
   ]) {
-    assert.equal(parseNugetNuspec(nuspec(framework), context).length, 1, framework);
+    assert.equal(
+      parseNugetNuspec(nuspec(framework), context).length,
+      1,
+      framework,
+    );
   }
 
   // A `<group>` with no targetFramework is the fallback group, which NuGet's
@@ -2170,7 +2180,10 @@ test("a long-form target framework moniker is valid", () => {
   assert.equal(scoped(tfm, other), "optional");
 
   for (const framework of ["net 9.0", "-net9.0"]) {
-    assert.throws(() => parseNugetNuspec(nuspec(framework), context), /target framework/u);
+    assert.throws(
+      () => parseNugetNuspec(nuspec(framework), context),
+      /target framework/u,
+    );
   }
 });
 
@@ -2208,7 +2221,6 @@ test("the XML reader refuses documents that are not well-formed", () => {
     ["A"],
   );
 });
-
 
 test("an unusable licence URL still counts as a declaration", async () => {
   // Dropping it outright turned "MIT and something else" into a bare MIT
@@ -3097,4 +3109,115 @@ test("a nuspec must nest, not merely contain the four tags", () => {
       ),
     /(?:well-formed XML|<dependencies> outside <metadata>)/u,
   );
+});
+
+test("Commerce Protocol SBOM identity follows the release manifest across the npm rename", async () => {
+  for (const name of [
+    "openiap-commerce-protocol",
+    "@hyodotdev/openiap-commerce-protocol",
+  ]) {
+    const root = mkdtempSync(resolve(tmpdir(), "openiap-commerce-identity-"));
+    const manifest = resolve(root, "specs/commerce-protocol/package.json");
+    mkdirSync(dirname(manifest), { recursive: true });
+    writeFileSync(
+      manifest,
+      JSON.stringify({ name, version: "0.1.0", license: "MIT" }),
+    );
+    try {
+      const tag = `${name.startsWith("@") ? "hyodotdev-" : ""}openiap-commerce-protocol-0.1.0`;
+      const { document, fileName } = await generateSbom("commerce-protocol", {
+        root,
+        runGit: stubGit,
+        releaseTag: tag,
+      });
+      assert.equal(fileName, "openiap-commerce-protocol-0.1.0.cdx.json");
+      assert.equal(document.metadata.component.name, name);
+      assert.equal(
+        document.metadata.component.purl,
+        `pkg:npm/${name.replaceAll("@", "%40")}@0.1.0`,
+      );
+      assert.deepEqual(componentFromTag(tag), {
+        componentId: "commerce-protocol",
+        version: "0.1.0",
+      });
+      const options = {
+        fileName,
+        releaseTag: tag,
+        releaseCommit: stubCommit,
+        commercePackageName: name,
+      };
+      assert.doesNotThrow(() =>
+        verifyPublishedSbom(JSON.stringify(document), options),
+      );
+      assert.throws(
+        () =>
+          verifyPublishedSbom(JSON.stringify(document), {
+            ...options,
+            commercePackageName: name.startsWith("@")
+              ? "openiap-commerce-protocol"
+              : "@hyodotdev/openiap-commerce-protocol",
+          }),
+        /identity does not match/,
+      );
+      assert.throws(
+        () =>
+          verifyPublishedSbom(JSON.stringify(document), {
+            ...options,
+            commercePackageName: undefined,
+          }),
+        /Unknown Commerce Protocol package name/,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("new scoped packages retain safe SBOM filenames and verifiable release identities", async () => {
+  for (const [id, name, prefix] of [
+    [
+      "client-protocol",
+      "@hyodotdev/openiap-client-protocol",
+      "openiap-client-protocol",
+    ],
+    ["cli", "@hyodotdev/openiap", "openiap"],
+  ]) {
+    const { document, fileName } = await generateSbom(id, {
+      root: repoRoot,
+      runGit: stubGit,
+    });
+    const version = document.metadata.component.version;
+    const tag = `${prefix}-${version}`;
+    assert.equal(document.metadata.component.name, name);
+    assert.equal(
+      document.metadata.component.purl,
+      `pkg:npm/%40hyodotdev/${prefix}@${version}`,
+    );
+    assert.equal(fileName, `${prefix}-${version}.cdx.json`);
+    assert.deepEqual(componentFromTag(tag), { componentId: id, version });
+    assert.doesNotThrow(() =>
+      verifyPublishedSbom(JSON.stringify(document), {
+        fileName,
+        releaseTag: tag,
+        releaseCommit: stubCommit,
+      }),
+    );
+  }
+});
+
+test("pub version ranges lose YAML quoting without losing constraint bounds", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-pub-constraints-"));
+  try {
+    for (const value of ['">=3.1.4 <3.2.0"', "'>=3.1.4 <3.2.0'"]) {
+      writeFileSync(
+        resolve(root, "pubspec.yaml"),
+        `dependencies:\n  platform: ${value}\n`,
+      );
+      const [dependency] = extractPub(root, { manifest: "pubspec.yaml" });
+      assert.equal(dependency.version, ">=3.1.4 <3.2.0");
+      assert.equal(dependency.purl, "pkg:pub/platform@%3E%3D3.1.4%20%3C3.2.0");
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

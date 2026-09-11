@@ -493,8 +493,10 @@ Version ownership is split:
 - The shared `spec` is always the lower semantic version of `google` and
   `apple`
 - Native version writers update their native key and derive `spec` atomically;
-  sync then verifies the invariant and refreshes `specs/client/package.json`,
-  `packages/docs/package.json`, and other derived copies
+  sync then verifies the invariant and refreshes `packages/docs/package.json`
+  and other derived copies
+- The three scoped npm packages own their versions in their package manifests;
+  Client Protocol npm releases do not change the native-derived `spec`
 - Production docs deployment consumes the derived current `spec`; it must not
   accept an independently selected spec version
 
