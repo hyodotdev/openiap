@@ -1,5 +1,15 @@
 # Changelog
 
+## 10.6.1 (2026-09-11)
+
+- chore(release): openiap-google@3.5.1
+- feat: add cli and scoped protocol releases
+- feat: complete commerce implementation guide (#445)
+- fix: repair Horizon examples and release evidence (#430)
+- refactor(specs): nest client and commerce specifications under specs/openiap (#421)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.6.0 (2026-09-03)
 
 - feat(flutter): add Android IAP opt-out (#422)
