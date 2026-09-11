@@ -393,14 +393,15 @@ test("the same secret on a public name is still an error", () => {
   );
 });
 
-test("a secret in app.config is an error whatever the framework", () => {
+test("a secret literal in executable app.config is unproven", () => {
   withProject(
     { ...EXPO, "app.config.js": `export default {key: '${SECRET_KEY}'};\n` },
     (root) => {
       const finding = doctor(root).findings.find((one) =>
         one.id.startsWith("iapkit-secret-key"),
       );
-      assert.equal(finding.id, "iapkit-secret-key-in-client");
+      assert.equal(finding.id, "iapkit-secret-key-in-config");
+      assert.equal(finding.level, "warning");
     },
   );
 });
@@ -1722,7 +1723,7 @@ test("a template literal is a string, not the start of a comment", () => {
       ...EXPO,
       "app.config.js": `const patterns = [\`assets/*\`, \`fonts/*\`];\nexport default {k: '${SECRET_KEY}'};\n`,
     },
-    (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
+    (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-config")),
   );
 });
 
@@ -1757,7 +1758,7 @@ test("a regex literal does not hide what follows it", () => {
     `const safe = /[^/*]+/g;\nexport default {k: '${SECRET_KEY}'};\n`,
   ]) {
     withProject({ ...EXPO, "app.config.js": body }, (root) =>
-      assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
+      assert.ok(ids(root).includes("iapkit-secret-key-in-config")),
     );
   }
 });
@@ -1882,7 +1883,7 @@ test("a quote with no partner on its line is not a string", () => {
       ...EXPO,
       "app.config.js": `const re = /"/;\nexport default {k: '${SECRET_KEY}'};\n`,
     },
-    (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-client")),
+    (root) => assert.ok(ids(root).includes("iapkit-secret-key-in-config")),
   );
   withProject(
     {
@@ -1987,12 +1988,53 @@ test("dynamic config reads do not prove a secret reaches the public manifest", (
   }
 });
 
-test("Expo resolves app.config.json before app.json", () => {
-  for (const file of ["app.config.json", "app.config.mts", "app.json"]) {
+test("static app configuration containing a secret remains an error", () => {
+  for (const file of ["app.config.json", "app.json"]) {
     withProject(
       { ...EXPO, [file]: `{"expo":{"extra":{"k":"${SECRET_KEY}"}}}` },
       (root) =>
         assert.ok(ids(root).includes("iapkit-secret-key-in-client"), file),
+    );
+  }
+});
+
+test("build-only secret literals in dynamic config do not claim exposure", () => {
+  for (const extension of ["js", "cjs", "mjs", "ts", "cts", "mts"]) {
+    const file = `app.config.${extension}`;
+    withProject(
+      {
+        ...EXPO,
+        [file]: `module.exports = ({config}) => {\n  const buildOnlySecret = '${SECRET_KEY}';\n  void buildOnlySecret;\n  throw new Error('Doctor must not execute this file');\n  return {...config, name:'Fixture', slug:'fixture'};\n};`,
+      },
+      (root) => {
+        const result = doctor(root);
+        const finding = result.findings.find(
+          (one) => one.id === "iapkit-secret-key-in-config",
+        );
+        assert.equal(result.errors, 0);
+        assert.equal(finding.level, "warning");
+        assert.equal(finding.file, file);
+        assert.equal(finding.line, 2);
+        assert.ok(!result.findings.some((one) => /Rotate/.test(one.fix)));
+        assert.ok(!JSON.stringify(result).includes(SECRET_KEY));
+      },
+    );
+  }
+});
+
+test("an executable config declared as a Flutter asset ships verbatim", () => {
+  for (const asset of ["app.config.js", "./app.config.js"]) {
+    withProject(
+      {
+        "pubspec.yaml": `name: app\nflutter:\n  assets:\n    - ${asset}\n`,
+        "app.config.js": `const buildOnlySecret = '${SECRET_KEY}';`,
+      },
+      (root) => {
+        const finding = doctor(root).findings.find(
+          (one) => one.id === "iapkit-secret-key-in-client",
+        );
+        assert.equal(finding.level, "error", asset);
+      },
     );
   }
 });

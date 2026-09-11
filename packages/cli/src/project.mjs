@@ -338,10 +338,8 @@ const ENV_TEMPLATE = /\.(example|sample|template)$/;
 /** What Flutter's `dotenv` is pointed at: `env`, `env.prod`, `.env.ci`. */
 const FLUTTER_ENV = /(^|\.)env(\..+)?$/;
 
-/** Files whose whole contents are compiled into the app bundle. */
+/** App configuration files inspected without evaluating executable exports. */
 export const BUNDLED_FILES = [
-  // Expo resolves these in this order, so a key in the first one is the one
-  // that ships even when a later file also exists.
   "app.config.ts",
   "app.config.mts",
   "app.config.cts",
@@ -378,7 +376,8 @@ export function pubspecAssets(root) {
             .map((entry) => path.join(asset, entry))
             .filter((file) => !isDirectory(root, file))
         : [asset],
-    );
+    )
+    .map((asset) => path.normalize(asset));
 }
 
 /**

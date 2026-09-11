@@ -10,6 +10,7 @@ export const FINDING_IDS = Object.freeze([
   "android-horizon-app-id-missing",
   "iapkit-secret-key-in-client",
   "iapkit-secret-key-in-env",
+  "iapkit-secret-key-in-config",
   "iapkit-env-missing-expo-prefix",
   "iapkit-env-unexpected-expo-prefix",
   "iapkit-base-url-invalid",

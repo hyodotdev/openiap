@@ -233,7 +233,7 @@ function reachesBundle(root, framework, name, file) {
   return pubspecAssets(root).includes(file);
 }
 
-/** A secret key in a client file ships to every device that installs the app. */
+/** Distinguish bundled secrets from values used only during configuration. */
 export function secretKeyChecks(root, framework) {
   const findings = [];
   for (const file of clientFiles(root)) {
@@ -300,10 +300,23 @@ export function secretKeyChecks(root, framework) {
       continue;
     }
 
-    // A key on a comment line is not shipped; anywhere else in a bundled file
-    // it is, whether or not it sits inside a string.
     const found = codeLines(text).find((one) => SECRET_KEY.test(one.line));
     if (!found) continue;
+    const dynamicConfig =
+      BUNDLED_FILES.includes(file) && !file.endsWith(".json");
+    if (dynamicConfig && !pubspecAssets(root).includes(file)) {
+      findings.push(
+        finding(
+          "iapkit-secret-key-in-config",
+          "warning",
+          file,
+          "An IAPKit secret key appears in executable app configuration. Nothing here proves it reaches the bundle.",
+          "Keep build-time secrets out of exported app configuration.",
+          { line: found.number },
+        ),
+      );
+      continue;
+    }
     findings.push(
       finding(
         "iapkit-secret-key-in-client",

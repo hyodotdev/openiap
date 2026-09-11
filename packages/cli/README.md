@@ -16,12 +16,12 @@ npx @hyodotdev/openiap init ./my-product --role experience
 npx @hyodotdev/openiap doctor ./my-app --json
 ```
 
-| Role | Connect |
-| --- | --- |
-| `app` | Purchases to customer access |
-| `experience` | Paywalls and experiments to the app's purchase flow |
-| `commerce` | Verification and access through the Commerce Protocol |
-| `data` | Normalized events to analytics and automation |
+| Role         | Connect                                               |
+| ------------ | ----------------------------------------------------- |
+| `app`        | Purchases to customer access                          |
+| `experience` | Paywalls and experiments to the app's purchase flow   |
+| `commerce`   | Verification and access through the Commerce Protocol |
+| `data`       | Normalized events to analytics and automation         |
 
 The brief points your assistant to the matching implementation guide. Fill in
 the customer outcome, choose any missing product decisions, and review the
@@ -62,20 +62,22 @@ Most of these produce no error message that says what is actually wrong.
 | `android-horizon-app-id-missing`    | warning | Horizon is selected but no manifest declares an app id.                                                                                                                                                       |
 | `iapkit-secret-key-in-client`       | error   | A secret key is on a name that reaches the app bundle.                                                                                                                                                        |
 | `iapkit-secret-key-in-env`          | warning | A secret key is in an env file on a name nothing here proves is inlined.                                                                                                                                      |
+| `iapkit-secret-key-in-config`       | warning | Executable app configuration contains a secret, but its presence in the app bundle is unproven.                                                                                                               |
 | `iapkit-env-missing-expo-prefix`    | warning | Expo inlines only `EXPO_PUBLIC_` names, so the bare name reads as undefined.                                                                                                                                  |
 | `iapkit-env-unexpected-expo-prefix` | warning | An `EXPO_PUBLIC_` name is set where nothing inlines that prefix.                                                                                                                                              |
 | `iapkit-base-url-has-path`          | both    | The base URL is not a bare origin; every SDK rejects a path, userinfo, a query or a fragment.                                                                                                                 |
 | `iapkit-base-url-invalid`           | both    | The base URL is not a URL.                                                                                                                                                                                    |
 | `iapkit-base-url-scheme`            | both    | The base URL is not http or https.                                                                                                                                                                            |
 | `ios-scene-delegate-missing`        | both    | The Info.plist names a scene delegate the target lacks; the app opens to a black screen. Error when the plist names the app's own module or no class at all, warning when a linked framework could supply it. |
-| `project-file-unreadable`           | error   | A path could not be read, so nothing in it was checked.                                                                                                                                          |
+| `project-file-unreadable`           | error   | A path could not be read, so nothing in it was checked.                                                                                                                                                       |
 | `project-manifest-unreadable`       | error   | package.json exists but will not parse, so framework detection read nothing.                                                                                                                                  |
 | `project-not-a-directory`           | error   | The path given is not a readable directory.                                                                                                                                                                   |
 
 ## What it does not find
 
-Dynamic app configuration is never executed. Reading an unprefixed environment
-variable there does not prove it reaches the app; secret values stay warnings.
+Dynamic app configuration is never executed. Secret literals in it stay warnings
+unless the file is a declared bundled asset. Reading an unprefixed environment
+variable during configuration also does not prove its value reaches the app.
 
 A checkout cannot answer for a device or a store account. The command prints
 these as unchecked rather than guessing:
