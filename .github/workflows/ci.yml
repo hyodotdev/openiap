@@ -244,6 +244,7 @@ jobs:
               - 'scripts/release-branch-policy.mjs'
               - '.github/workflows/release-openiap.yml'
               - '.github/workflows/ci.yml'
+              - 'bun.lock'
   test-cli:
     name: Test CLI
     needs: changes
