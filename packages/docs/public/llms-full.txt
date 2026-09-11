@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-11T10:49:46.232Z
+> Generated: 2026-09-11T12:51:39.134Z
 
 ## Choose an SDK and verify the implementation
 
@@ -110,7 +110,7 @@ Download `godot-iap-3.5.0.zip` from GitHub Releases, extract it to
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:3.5.0")
+    implementation("io.github.hyochan:kmp-iap:3.5.1")
 }
 ```
 
