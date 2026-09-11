@@ -18,7 +18,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
+            "expiresAt": 1789133288931,
             "willRenew": true
           }
         ]
@@ -30,7 +30,7 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788979811375,
+          "expiresAt": 1789133288931,
           "willRenew": false
         }
       },
@@ -46,7 +46,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "69b80402-3885-461f-b651-75733f6f649c",
+        "jobId": "077a6d1a-198b-46d8-982f-06bffc800780",
         "status": "completed"
       }
     },
@@ -68,11 +68,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
-            "renewsAt": 1788979811375,
+            "expiresAt": 1789133288931,
+            "renewsAt": 1789133288931,
             "willRenew": true,
-            "startedAt": 1788979766600,
-            "updatedAt": 1788979766630
+            "startedAt": 1789133244219,
+            "updatedAt": 1789133244253
           }
         ]
       },
@@ -83,10 +83,10 @@
           "state": "Active",
           "active": true,
           "store": "google",
-          "expiresAt": 1788979811375,
+          "expiresAt": 1789133288931,
           "willRenew": false,
-          "startedAt": 1788979766600,
-          "updatedAt": 1788979766714
+          "startedAt": 1789133244219,
+          "updatedAt": 1789133244346
         }
       },
       "expired": {
@@ -101,7 +101,7 @@
       },
       "erasure": {
         "accepted": true,
-        "jobId": "ns7bzm80e4mg3rs6m0t9wxzb518e2qcs",
+        "jobId": "ns76x749507f9tp804671x2f118e6spv",
         "status": "completed"
       }
     }
@@ -176,7 +176,7 @@
   },
   "sources": {
     "openiap": {
-      "baseRevision": "4e8163c11ed448f6af261c00a34c17d7458c565d",
+      "baseRevision": "668e813eebc9e04ab31cde6c9755c2ebff30fcb3",
       "hashes": {
         "convex.json": "6729d387a51478b37dee8cde82aac578f0fc9ad50dd706f3d70551a45b78450d",
         "convex/ResendOTP.ts": "64fe711a2fedbc6de411f710bc8cf2469fa4733538a7b26a7ae343f69fd73a0b",
@@ -210,7 +210,7 @@
         "convex/commerce/internal.ts": "09c0d7433dd4bad55134905379ef1b67a0aef09dbfdf48080f69d705762c33ef",
         "convex/commerce/signing.test.ts": "ac90aacba35f88e75cbf723cd7e0117c327cc670b18cd2da416fe3db8ade8706",
         "convex/commerce/signing.ts": "7fc0f41006e58bc91a4797348042b7fe0e1d37f391d0ef5038259413c4fd084a",
-        "convex/commerce/spec.conformance.test.ts": "d6a371f0fa4ae8c288b2358b322ff4225d03cf5071fe591c689db0b77c621719",
+        "convex/commerce/spec.conformance.test.ts": "0bb6edf0f73a9abd6060abd62e72d53f6f7a0bb8e4d9700dd7fecdb360b8f2e0",
         "convex/convex.config.ts": "5cda299b1355c97b5f09741a0df9270706358f2accf8c4e7ceeea3a25af36cd0",
         "convex/crons.ts": "a218e46223db4edc6587829121eda6b12e70698b7facd74389e801136a12ae74",
         "convex/files/action.ts": "12f027c7812d7f9d86ae2350473292933e5aa2a6a7ed86d9935b5918f83c7b02",
@@ -343,15 +343,15 @@
         "convex/webhooks/internal.ts": "5901bfbf1b619c642005b50581152f1bd4db962b229e306c01b86a73a7626ed3",
         "convex/webhooks/shared.test.ts": "9b1bc4fc95c6cdac577139d4a3d0fe8af2d2f17c05c9245477560046f4be52b8",
         "convex/webhooks/shared.ts": "cc452f2fe85f236208024b75696c9d33465307319823cffe53a04262b730d3db",
-        "package.json": "1182cc98122c21521339bc9dc261e354dd1259a0fa1d9df8fcc9554b6f212fa4",
-        "server/api/commerce/conformance.test.ts": "899281919296be4f38de4e6b48b059b6e0a6cca90558bc3758dc9bcd559e1435",
-        "server/api/commerce/errors.ts": "e95477f606fb7fac954351a5825ad9efbd14d9b4901900b1e7a0ebfd7bab8434",
-        "server/api/commerce/graphql.ts": "8c45733a958c875d5a123e4fd0b1fa56981f9adb0fc6c80104fb4ce6727448e2",
-        "server/api/commerce/handlers.ts": "3d92ef7dc0cf1fc3bd0c0acb6aa1488b0f9d2737561ec7f886eb15553e92a27d",
+        "package.json": "fddf3cbf65a4fda1313c34627b621fbda8e0e9d11f6c30a3cdaaa5a7c49b3ed8",
+        "server/api/commerce/conformance.test.ts": "80590271bd4d8069546445bc00049fabfa7cfebc84d5422c5e8cbc2f8c8340b6",
+        "server/api/commerce/errors.ts": "41716fdfbb77d6f5018651d6b5c012e01aadafafca36de607dcb94d30152231a",
+        "server/api/commerce/graphql.ts": "e383ed390f6065575fd9f382c6cc4ade606cb1e21b207a11b57e59d87146a911",
+        "server/api/commerce/handlers.ts": "aff3bb2148229a2ee023513f3c2810362c4a4275ca7dfd31ba700710f6bd4fd9",
         "server/api/commerce/routes.rate-limit.test.ts": "5e7d260771101ae3cd9218d3c63ed9c7ba91a010e550bc09b969635595bb85ab",
-        "server/api/commerce/routes.test.ts": "bd3b63011c571af56e4438743116ec1774222a8f8d26dd7cc0ed32d581d94986",
-        "server/api/commerce/routes.ts": "e8383e409de76264dfe04d3aaec00c57b7ae2e0204a83744cd653b8c10e3b4b1",
-        "server/api/commerce/validation.ts": "cc84b422b537abb374ef32825d07f8a65f357e30a001b1a814464d5d6797f3f1",
+        "server/api/commerce/routes.test.ts": "70f1474354e417a66287b5b32e9eb1d6025692d525d40923cb81e2b65954ac42",
+        "server/api/commerce/routes.ts": "3a882f89076e56933b9591d877f51b369492b3502b5045766ce0d1a0cf807a58",
+        "server/api/commerce/validation.ts": "e72bd8f9d271ec3f1fafafa5f3ee072a4d2fcd433ffe0bac16d9b662977dfe82",
         "server/api/commerce/verificationAdmission.ts": "b0d35496fbb88bd0e2e0157fccc18bc35a0f439af360265fd1f4bf348b1b1525",
         "server/api/v1/in-flight-limit.test.ts": "af59d08681871f3abe5c82b58b20866f1c9774f731e719f2b210a434021018ef",
         "server/api/v1/in-flight-limit.ts": "6a017425b1ce8f0405656338c60663953d5c9865b940311f349a379755107aa0",
@@ -387,7 +387,7 @@
         "server/api/v2/route-schemas.ts": "e7db69e3e3e5b5eb52d03ca2a2bb05f1bd9b3b8a2cfb747a02aff02555e9e9d7",
         "server/api/v2/routes.test.ts": "e964e387caf56413b69fd5e4bc1da8791358be6b8f5bc11717ad94372120250b",
         "server/api/v2/routes.ts": "e92c2ec043226b3b4069b10722c2df0c18c8a6c5a0c0ce5a7099ae304cae7ca0",
-        "server/api/v2/subscriptions.test.ts": "6f186bfd8e27bdb71240cd228be5abb253cc738d4190134e3a3cf9bacd4185ec",
+        "server/api/v2/subscriptions.test.ts": "513d6279e96a144ed7ae31f16d8009976b18e1a6371cc5429b8ee114e086eaa8",
         "server/api/v2/subscriptions.ts": "6aef9ed115825b54d8452802a5b69670960908d634863374f70ac8368911a034",
         "server/bun.d.ts": "1aedd96d736cadda1a1f54bacf20effa6a5e1ddddc39e9deb0ec38a758224ae8",
         "server/convex.test.ts": "23a46cd650da6f5939b4fbbaa57c42ef5a6266ac2405a55969a6c3d973a2cc6f",
@@ -442,12 +442,12 @@
       }
     },
     "workspace": {
-      "baseRevision": "4e8163c11ed448f6af261c00a34c17d7458c565d",
+      "baseRevision": "668e813eebc9e04ab31cde6c9755c2ebff30fcb3",
       "hashes": {
-        "bun.lock": "689a0cf2cda86b3b9d29b5f4f9bba1a39013c9223bb6b753df0e001cce64dff9",
+        "bun.lock": "1aecec66e29c2cff4f242b7c593bc590a55a512f81051017f4ce4a64e99b2061",
         "package.json": "18b4f901c4ca8ee9374ab9c50d3db9825dce2abab2dddfdb1a03a052b5571d76",
-        "packages/mcp-server/package.json": "81583f86c66b2e7cfc514ab06bcfe25951e4159397bba39ea3c56e1b6bb2f7c7",
-        "packages/mcp-server/src/kit-client.ts": "6f3db1c10a1b8bd91ca1b224f4cf2bc47b131362e3a2ed106ff794d95df585da",
+        "packages/mcp-server/package.json": "f1cb21bf38501e60286e3999c6f394486098f3230a91d95e335499cb8f0c4aa6",
+        "packages/mcp-server/src/kit-client.ts": "a21c38fef8b70facd55189b7f27d14ab2dfb0a516eb4f19369e6b21466fd130f",
         "specs/commerce-protocol/examples/entitlement-granted-no-subscription.json": "e9cd83b903032b2a86d05cf58330c70d86a2cd392603e4c466353194f42f8213",
         "specs/commerce-protocol/examples/entitlement-revoked.json": "e5306e8d4675d26317cd76a32005249351abd81e5fe142839cce245ec2854e1c",
         "specs/commerce-protocol/examples/provider-capabilities.json": "f1ba640faf62838e58a307cc72bb97ca4dceedb2ea27f50ffc7675e025b76578",
@@ -470,7 +470,7 @@
         "specs/commerce-protocol/generated/schemas/store-event-mapping.schema.json": "1de55452ec4646e275895cc40aeb63052ad61b7934fd3c66944f54eb53686513",
         "specs/commerce-protocol/generated/vectors/lifecycle.json": "c301783a1e8a8f94439e47bb4b65a358a0ff3a29eca23e1144c85fc8c7dcd3f5",
         "specs/commerce-protocol/generated/vectors/operations.json": "d3f763152748cde31d7419f348eb29bedf1027fcaa16235070791553416192a0",
-        "specs/commerce-protocol/package.json": "15413af6492fa69ab51e11143f0750ea61346a506f58e84460cd3ee7041cb5f8",
+        "specs/commerce-protocol/package.json": "30f1bee303e6b6ce53ec719af9eeb548ad5e5effae34eb1031e99e45be3c4299",
         "specs/commerce-protocol/src/index.mjs": "57f2b16e67fa5674eea144e91c44ba65e7e9ea8d6fb756280757f2708d8c5ecb"
       },
       "optionalGeneratedFiles": []
@@ -486,7 +486,7 @@
     "Separate webhook signing keys, each bound to its provider and project",
     "Example fixture store adapter configured to recognize the same synthetic Google token"
   ],
-  "recordedAt": "2026-09-09T18:50:12.469Z",
+  "recordedAt": "2026-09-11T13:28:10.134Z",
   "checks": [
     "example: app and receiver endpoints remain unchanged",
     "example: empty provider gives no access",
@@ -699,7 +699,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
+            "expiresAt": 1789133288931,
             "willRenew": true
           }
         ]
@@ -721,7 +721,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
+            "expiresAt": 1789133288931,
             "willRenew": true
           }
         ]
@@ -765,11 +765,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
-            "renewsAt": 1788979811375,
+            "expiresAt": 1789133288931,
+            "renewsAt": 1789133288931,
             "willRenew": true,
-            "startedAt": 1788979766600,
-            "updatedAt": 1788979766630
+            "startedAt": 1789133244219,
+            "updatedAt": 1789133244253
           }
         ]
       }
@@ -790,11 +790,11 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
-            "renewsAt": 1788979811375,
+            "expiresAt": 1789133288931,
+            "renewsAt": 1789133288931,
             "willRenew": true,
-            "startedAt": 1788979766600,
-            "updatedAt": 1788979766654
+            "startedAt": 1789133244219,
+            "updatedAt": 1789133244279
           }
         ]
       }
@@ -815,7 +815,7 @@
             "state": "Active",
             "active": true,
             "store": "google",
-            "expiresAt": 1788979811375,
+            "expiresAt": 1789133288931,
             "willRenew": false
           }
         ]
@@ -876,7 +876,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788983411623,
+            "expiresAt": 1789136889195,
             "willRenew": true
           }
         ]
@@ -898,9 +898,9 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788983366375,
-            "startedAt": 1788979811648,
-            "updatedAt": 1788979811673
+            "expiresAt": 1789136843931,
+            "startedAt": 1789133289223,
+            "updatedAt": 1789133289252
           }
         ]
       }
@@ -921,7 +921,7 @@
             "state": "Active",
             "active": true,
             "store": "apple",
-            "expiresAt": 1788983411623,
+            "expiresAt": 1789136889195,
             "willRenew": true
           }
         ]

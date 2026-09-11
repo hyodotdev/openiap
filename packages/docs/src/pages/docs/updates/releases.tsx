@@ -30,6 +30,55 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+interface ReleaseChange extends ReleaseMetadata {
+  description: React.ReactNode;
+}
+
+const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
+  {
+    name: '@hyodotdev/openiap',
+    version: '0.1.0',
+    tag: 'openiap-0.1.0',
+    description: (
+      <>
+        adds <code>init</code> briefs for app, experience, commerce, and data
+        roles, plus <code>doctor</code> checks for local store, credential, and
+        iOS scene configuration.
+      </>
+    ),
+  },
+  {
+    name: '@hyodotdev/openiap-client-protocol',
+    version: '0.1.0',
+    tag: 'openiap-client-protocol-0.1.0',
+    description:
+      'defines the OpenIAP client API and provides generated types for TypeScript, Swift, Kotlin, Dart, GDScript, and C#.',
+  },
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.1.0',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.1.0',
+    description:
+      'provides server operations, REST and GraphQL bindings, signed event contracts, and a portable conformance runner.',
+  },
+];
+
+const OPENIAP_TOOLING_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.5.1', tag: 'google-3.5.1' },
+  {
+    name: 'react-native-iap',
+    version: '16.6.0',
+    tag: 'react-native-iap-16.6.0',
+  },
+  { name: 'expo-iap', version: '5.6.0', tag: 'expo-iap-5.6.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.6.1',
+    tag: 'flutter-iap-10.6.1',
+  },
+  { name: 'kmp-iap', version: '3.5.1', tag: 'kmp-iap-3.5.1' },
+];
+
 const androidGradleCompatibilityReleases = [
   ['react-native-iap 16.5.1', 'react-native-iap-16.5.1'],
   ['expo-iap 5.5.1', 'expo-iap-5.5.1'],
@@ -311,6 +360,147 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'openiap-cli-and-protocols-2026-09-11',
+      date: new Date('2026-09-11'),
+      element: (
+        <div key="openiap-cli-and-protocols-2026-09-11" style={noteCardStyle}>
+          <AnchorLink id="openiap-cli-and-protocols-2026-09-11" level="h4">
+            September 11, 2026 - OpenIAP CLI and protocol packages
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Connect an app, paywall, commerce service, or data product to
+            OpenIAP with an implementation brief for your coding assistant.
+            Install the client and server contracts independently (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/448"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #448
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            {OPENIAP_TOOLING_CHANGES.map((release) => (
+              <li key={release.tag}>
+                <strong>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </strong>{' '}
+                - {release.description}
+              </li>
+            ))}
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.5.1</strong> - identifies the linked
+              Amazon or Horizon store when <code>initConnection()</code> fails;
+              framework SDKs preserve that diagnostic.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.6.0 / expo-iap 5.6.0</strong> - export{' '}
+              <code>getUserFriendlyErrorMessage()</code> for known error codes
+              while retaining developer diagnostics in{' '}
+              <code>error.message</code>; Expo also exports{' '}
+              <code>isUserCancelledError()</code>.
+            </li>
+            <li>
+              <strong>react-native-iap 16.6.0</strong> - fixes{' '}
+              <code>finishTransaction()</code> for restored iOS purchases when
+              the bridge cache is empty.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.6.1</strong> - constrains the{' '}
+              <code>platform</code> dependency to preserve its existing API and
+              Dart 3.0 compatibility.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Requires Node.js 20+; run <code>npx @hyodotdev/openiap</code> to
+              choose a role, then give the printed brief to your coding
+              assistant.
+            </li>
+            <li>
+              Run <code>npx @hyodotdev/openiap doctor --json</code> for local
+              diagnostics; commands only read files and cannot verify device or
+              store-account state.
+            </li>
+            <li>
+              Client Protocol npm versions are independent of native SDK
+              compatibility; Commerce Protocol 0.1.0 implements protocol 1.0.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              {OPENIAP_TOOLING_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {getReleaseLabel(release)}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'android-gradle-compatibility-2026-09-07',
       date: new Date('2026-09-07'),
