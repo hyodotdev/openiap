@@ -256,6 +256,22 @@ test("native version sync preserves independent stable and prerelease npm versio
   }
 });
 
+test("Commerce release commits have browser smoke prerequisites", () => {
+  const workflow = parse(
+    readFileSync(join(root, ".github/workflows/release-openiap.yml"), "utf8"),
+  );
+  const steps = workflow.jobs.deploy.steps;
+  const dependencies = steps.findIndex((step) =>
+    step.run?.includes("bun install --frozen-lockfile"),
+  );
+  const browser = steps.findIndex((step) =>
+    step.run?.includes("playwright install --with-deps chromium"),
+  );
+  const commit = steps.findIndex((step) => step.run?.includes("git commit -m"));
+  assert.ok(dependencies >= 0 && dependencies < browser && browser < commit);
+  assert.equal(steps[browser].if, "${{ env.PACKAGE_ID == 'commerce-protocol' }}");
+});
+
 test("workflow exact bumps write alpha, beta, and stable versions to the selected manifest", (t) => {
   const { directory } = fixture(t);
   const workflow = parse(
