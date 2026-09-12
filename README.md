@@ -27,7 +27,7 @@ The contracts every package and library implements live under `specs/`. They are
 
 This monorepo contains all OpenIAP packages:
 
-- **[CLI](packages/cli)** - `@hyodotdev/openiap` starts an AI implementation brief for your product with `openiap init` and checks local configuration with `openiap doctor`. Run `npx @hyodotdev/openiap` in your project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
+- **[CLI](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
 
 - **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
 - **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)

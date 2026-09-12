@@ -43,7 +43,86 @@ assert.equal(
 assert.equal(hash(reproduction.prompt), reproduction.promptSha256);
 console.log('AI reproduction: recorded prompt and source archive match.');
 
+const paywallRead = (name) => readFileSync(new URL(name, reproductionAssets));
+const fresh = JSON.parse(paywallRead('fresh-build.json'));
+const freshReplay = JSON.parse(paywallRead('fresh-public-replay.json'));
+assert.equal(hash(paywallRead('fresh-source.tar.gz')), fresh.archiveSha256);
+assert.equal(freshReplay.sourceCommit, fresh.sourceCommit);
+assert(freshReplay.steps.every((step) => step.exitCode === 0));
+const experience = JSON.parse(paywallRead('experience-verification.json'));
+assert.equal(
+  hash(paywallRead('experience-source.tar.gz')),
+  experience.source.sha256
+);
+assert.equal(
+  experience.distributionFollowup.archiveSha256,
+  experience.source.sha256
+);
+assert(
+  experience.distributionFollowup.steps.every((step) => step.exitCode === 0)
+);
+assert.equal(
+  JSON.parse(paywallRead('reader-followup.json')).archives[
+    'experience-source.tar.gz'
+  ],
+  experience.source.sha256
+);
+const connection = JSON.parse(paywallRead('paywall-build.json'));
+const harness = JSON.parse(paywallRead('paywall-harness.json'));
+const provider = JSON.parse(paywallRead('paywall-provider-run.json'));
+assert(harness.ok && harness.source.status === '');
+assert.equal(harness.source.commit, connection.sourceCommit);
+assert.deepEqual(harness.suite, connection.verification);
+assert.equal(
+  hash(paywallRead('paywall-source.tar.gz')),
+  connection.archiveSha256
+);
+assert.equal(harness.checks.length, connection.harness.checks);
+for (const id of [
+  'cli-handoff',
+  'regressions',
+  'purchase-outcomes',
+  'purchase-renewal-cancel',
+  'shared-receiver',
+  'redelivery',
+  'process-restart',
+  'source-stability',
+])
+  assert(
+    harness.checks.some((check) => check.id === id),
+    `Missing connection check: ${id}`
+  );
+assert(provider.freshConnection.ok);
+assert.equal(provider.freshConnection.source.revision, connection.sourceCommit);
+assert.equal(provider.reproduction.freshExampleCommit, connection.sourceCommit);
+assert.equal(
+  provider.freshConnection.checks.length,
+  connection.providerVerification.checks
+);
+assert.equal(
+  hash(paywallRead('paywall-provider-harness.patch')),
+  provider.reproduction.patchSha256
+);
+console.log(
+  'Commerce connection: source archive, local replay and independent provider evidence agree.'
+);
+
 const interop = JSON.parse(read('iapkit-run.json'));
+assert.deepEqual(
+  provider.freshConnection,
+  interop.freshConnection,
+  'Provider reports contain different connection results'
+);
+assert.deepEqual(
+  provider.reproduction,
+  interop.reproduction,
+  'Provider reports reference different reproduction inputs'
+);
+assert.equal(
+  provider.harnessHashes['run-commerce-interop.mjs'],
+  interop.harnessHashes['run-commerce-interop.mjs'],
+  'Provider reports reference different executed harnesses'
+);
 const interopSources = JSON.parse(read('iapkit-source.json'));
 const interopManifest = JSON.parse(read('iapkit-source-manifest.json'));
 assert.equal(interop.checkCount, interop.checks.length);

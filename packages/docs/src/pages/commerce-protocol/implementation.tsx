@@ -245,10 +245,23 @@ Keep changes uncommitted for review.`}</CodeBlock>
           store credentials or environment variables, using Bun for HTTP and
           SQLite. The protocol itself does not require Bun.
         </p>
+        <p>
+          Use the{' '}
+          <a href={COMMERCE_PROTOCOL_LINKS.exampleSource}>
+            source archive recorded with this walkthrough
+          </a>{' '}
+          to reproduce all seven milestones. The{' '}
+          <a href={EXAMPLE}>GitHub repository</a> also contains development
+          history; its current branch can differ from the recorded source.
+          OpenIAP CLI is optional: <code>init</code> prints a starting brief,
+          and <code>doctor</code> checks supported app configuration. Neither
+          command runs this backend or its protocol checks.
+        </p>
         <details className="commerce-run-details">
           <summary>Manual setup and runtime details</summary>
-          <CodeBlock language="bash">{`git clone ${EXAMPLE}.git
-cd openiap-commerce-protocol-example
+          <p>With Bun installed, start in an empty directory:</p>
+          <CodeBlock language="bash">{`curl --fail --location https://openiap.dev${COMMERCE_PROTOCOL_LINKS.exampleSource} -o source.tar.gz
+tar -xzf source.tar.gz
 npm ci
 npm test
 npm start`}</CodeBlock>

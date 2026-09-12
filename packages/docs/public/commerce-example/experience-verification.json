@@ -1,0 +1,265 @@
+{
+  "sourceHashes": {
+    ".gitignore": "50b276cb902abd8b3018e368cd251db0a5c36b289b00a7fffd18e0e399c7f637",
+    ".yarnrc.yml": "473e6def86fc03638120e0c01d0c8bbab095677256460fa4ea763e5d4697f270",
+    "LICENSE": "243adbe048bbec60be2faf9ae1e62c5221327d20ffbc13b1c80e82fa98127af1",
+    "AGENTS.md": "38764ea47552533ab5db55f7ade8c0025e2d7af9163715ce89f2d719f5475712",
+    "README.md": "e670ab5b61d100c91de25eac3cc79d33ced42067f5e406b00bd91086340f637b",
+    "BUILD.md": "6cbf93448cf2d1925d24517a4dcac72f92f8b04538b5810cb95d0db005f7130b",
+    "INTEGRATE.md": "f5391d87c54735b41237afa0fc9e852aa457ae0ca01622b5e4db19c22990ad4c",
+    "ai-task.md": "2577865cb3e1a38dca6159d283f7c2140af15e89a5249029cd24a99153bd3e6b",
+    "checkpoint.json": "5db99c8e53c5e441bb0d3a9058339f679873d1ade99bedd01d8c41b2653acc48",
+    "package.json": "8bd624dd16a280d6bad14f05c4322477f11dbdcaff87b4afa42bcb0ee856a85c",
+    "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c",
+    "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
+    "provider.mjs": "682b2c24797d5007373c1951641b2f6f156c933e654b2ad1865219be64b15d51",
+    "erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
+    "verify-erasure.mjs": "65feaff2e8eb0a3247ecdbc0f511c8eef5e07a4c2c63155b07409ba7cb19be88",
+    "verify-stores.mjs": "6a9ea6071aebddac158435b8577f4b31914d902191f6cc1476683ea6d9bac3dd",
+    "webhooks.mjs": "4838bac7a9083440998409aa1ab543999495ea6a907036bc78ba2002feb588b2",
+    "consumer.mjs": "d8e168238270309157d52ca777fea30f1d37bae38b96e88148314c894bdb1b4c",
+    "client-bridge.mjs": "a6760f1a9059e650fa19ef96403b16f7860390fce390262276020bd2cc7d5078",
+    "scenario.mjs": "b8ff9024afd67701b5f70916a61fa7d538eaec281aa4b5cc660e1c205932a32d",
+    "server.mjs": "b0f185a3954fbe1d7a4dd15f0dc8638afcf04e386ec730ae17a15860784d9e36",
+    "verify.mjs": "d3bfb64cb50672f9671162d28c82c961b7b4ef65ede147e6653d5c41204ff8b2",
+    "dashboard.html": "50a19acc0810453fa2ef55f4e5e958b4ba428764fc5a5edc10e262f9c990e532",
+    "composition/README.md": "88288d996bd821549c600b1fd5502b2abd504483498ba524c91bd1abba164664",
+    "composition/app-backend.mjs": "4b2b617634026ab2d1d936c29e246f47eb2f2d31769ff204df745785f9f6f55d",
+    "composition/app-backend.test.mjs": "9fbfc7fdb393b95bdf803dfb77e44a5d4311e5812e33a987b371a6b4a32a3b41",
+    "composition/receiver.test.mjs": "1559036d9f0804017eeff544ed0eef7d7328111515eaeb38f6787cba815a1151",
+    "composition/commerce-client.mjs": "f1f1a056bc76801df25111cb12fdcde501d507a5461ef8b15bfe2f57979cd03c",
+    "composition/export.mjs": "ccc84dee42d59b1d2b09f16aec2b77a774765dd6fab0f341b01f1043a2e88225",
+    "composition/memory-provider.mjs": "edf6a7567ead756dc4a5c15d5b5b14f4d4314db31e3aa3c01c8ec543754fcc31",
+    "composition/purchase-flow.mjs": "4bb63482f3f70fbf94537dbd85171ae480ca53cddfd3e7b3d628a2dcc1ccd81a",
+    "composition/purchase-flow.test.mjs": "70d1312e8beb3280c656f70ad3812775c48725a15083d006c51349b49cf2d1c0",
+    "composition/experience.mjs": "27f5d80a5ce200b9a03efeec7a432f74ccceb26e5c7d7513a1deaf20ce7cb6be",
+    "composition/experience.html": "de9d2d32bd4894fc9600adea49fd90d160a433514e8602efca4a055cb1a31dda",
+    "composition/experience.test.mjs": "d1d0f854c7243f893e42558d8b7ccff4c5dd70ad98ee9f67fe5508c47263afa1",
+    "composition/run.mjs": "0e7aa1c8c5cab79f06d9853fa5b91f0e15f0322b4574b5f1a97f1ea119fc9b14",
+    "capture.mjs": "4940347c92713f47965400fa9dca0908372ec2b3627612fccf40eb6b636a85a2",
+    "export-docs.mjs": "47cf25c7ba1942fb833ac6b496c1e06b4ae06a61f6328330c6a6a4337c164f84",
+    "checkpoint-tools.mjs": "ee655833783287e9084bc8153149ab2f4b5586c6c2f9213533c59063277ca5c7",
+    "checkpoint-tools.test.mjs": "1ea348330db8dab85694ac79cfec76e9d3af1729263a6a05cae61e10e41b2175",
+    "verify-checkpoints.mjs": "ece22b0480bafa41ad8c65e37a5705eaf67c3f8b47c62339f9b1b33a90edd6d2"
+  },
+  "commands": [
+    {
+      "command": "npm ci",
+      "exitCode": 0,
+      "seconds": 0.61,
+      "output": "\nadded 10 packages, and audited 11 packages in 490ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   fsevents@2.3.2 (install: (install scripts present))\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    {
+      "command": "npx --yes @hyodotdev/openiap init --role experience",
+      "exitCode": 0,
+      "seconds": 0.69,
+      "output": "# OpenIAP implementation brief\n\nPaste this into your coding assistant in the project below.\n\nProject path (data): \"<example-project>\"\nRole: Experience \u2014 connect a paywall or experiment\nFramework hint: not detected; inspect the project\nDesired outcome: [describe one thing your customer should be able to do]\n\nRead the project instructions and inspect the existing stack. Keep its login, product model, and services. Ask me to choose missing stores, products, service providers, and ownership policies before implementing those choices.\n\nRead https://openiap.dev/commerce-protocol/ecosystem#experience and the references it links for this role. If a reference is unavailable, ask for its contents; do not guess the contract. Use Client Protocol for app purchase APIs and Commerce Protocol for backend connections. Use the supported capabilities of my chosen services; no particular backend is required.\n\nImplement the smallest working connection for my role. Keep credentials on their intended side of the app/backend boundary. Follow the role's implementation and conformance requirements, including failure and recovery. Do not claim another role merely because this product connects to it.\n\nRun the result from clean source. Show the customer outcome, the commands and actual test results, and any remaining product or deployment decisions. Distinguish local fixtures from real store sandbox evidence. Keep changes uncommitted for review.\n",
+      "sourceFilesUnchanged": true
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "seconds": 0.49,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs composition/purchase-flow.test.mjs composition/experience.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase [1.01ms]\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [61.32ms]\n\ncomposition/experience.test.mjs:\n(pass) paywall outcomes and lifecycle events execute through the running app and provider [18.50ms]\n\ncomposition/receiver.test.mjs:\n(pass) the original SQLite and memory composition remains compatible with the receiver [35.20ms]\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [3.07ms]\n\n 5 pass\n 0 fail\n 76 expect() calls\nRan 5 tests across 4 files. [172.00ms]\n"
+    },
+    {
+      "command": "npm run demo:bridge",
+      "exitCode": 0,
+      "seconds": 0.14,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 demo:bridge\n> bun client-bridge.mjs\n\nClient boundary: 16 checks passed against the installed contract. Fixture fields only; no SDK checkout or store contacted.\n"
+    },
+    {
+      "command": "npm run demo:consumer",
+      "exitCode": 0,
+      "seconds": 0.16,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 demo:consumer\n> bun consumer.mjs demo\n\nReceiver ready: 7 events saved once; 24 checks passed. No external service contacted.\n"
+    },
+    {
+      "command": "npm run test:tooling",
+      "exitCode": 0,
+      "seconds": 0.17,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\ncheckpoint-tools.test.mjs:\n(pass) archive extraction excludes macOS metadata and preserves source hashes [11.63ms]\n(pass) patches preserve path-like source text across additions, changes, and deletions [43.95ms]\n(pass) failed attempts get new numbers and private paths are redacted [0.98ms]\n(pass) unfinished captures do not hide completed records [1.27ms]\n(pass) checkpoint replay follows predecessors instead of directory name order [1.54ms]\n\n 5 pass\n 0 fail\nRan 5 tests across 1 file. [71.00ms]\n"
+    }
+  ],
+  "recordedAt": "2026-09-12T16:23:17.710466+00:00",
+  "workflow": "AI implemented and repaired an existing example in this session, then replayed the documented commands from an independently extracted source archive. This is not an independent one-prompt or blank-project build.",
+  "source": {
+    "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
+    "baseCommit": "f23f663e4220abdd709ab4cb340798d5c468cd4c",
+    "archive": "experience-source.tar.gz",
+    "sha256": "fa796407cedaf32e334cab1da8ea094f3afbb3f9dbf6913cdae48861c73c7687",
+    "includesUncommittedChanges": true,
+    "note": "Use this archive to reproduce this run. It includes the fix and verification UI beyond the base commit; GitHub main may contain an earlier example."
+  },
+  "runtime": {
+    "bun": "1.3.13",
+    "node": "v22.22.0",
+    "npm": "11.17.0",
+    "protocolPackage": "openiap-commerce-protocol@0.1.0"
+  },
+  "startup": {
+    "command": "npm run demo:experience",
+    "observedOutput": "Paywall connection demo: http://127.0.0.1:5184",
+    "scope": "Fictional store and Alice session. Real local HTTP, SQLite, and signed events."
+  },
+  "ui": {
+    "outcomes": [
+      {
+        "mode": "pending",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "pending",
+        "trace": "Host purchase callback: premium.monthly"
+      },
+      {
+        "mode": "canceled",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "canceled",
+        "trace": "Host purchase callback: premium.monthly"
+      },
+      {
+        "mode": "failed",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "failed",
+        "trace": "Host purchase callback: premium.monthly"
+      },
+      {
+        "mode": "denied",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "failed",
+        "trace": "Host purchase callback: premium.monthlyBackend fulfillment: POST /demo/denied-purchase"
+      },
+      {
+        "mode": "purchased",
+        "access": "Premium open",
+        "finishes": "1",
+        "status": "fulfilled",
+        "trace": "Host purchase callback: premium.monthlyBackend fulfillment: POST /app/purchaseStore finish callback (simulated)"
+      }
+    ],
+    "lifecycle": [
+      {
+        "action": "cancel",
+        "access": "Premium open",
+        "delivery": "2 events saved \u00b7 Delivery completed",
+        "events": "entitlement.granted \u00b7 demo_alice \u00b7 7e5e628f-03c9-4d12-bea1-a2ef9fcf69fcsubscription.canceled \u00b7 demo_alice \u00b7 a35243bf-4bf4-4e82-8247-119a8562dabc",
+        "response": "{\n  \"deliveries\": [\n    {\n      \"eventId\": \"7e5e628f-03c9-4d12-bea1-a2ef9fcf69fc\",\n      \"deliveryId\": \"17c08b3f-8450-4c0f-ba68-b0f38ecd3a60\",\n      \"httpStatus\": 200,\n      \"attempt\": 1,\n      \"status\": \"delivered\"\n    },\n    {\n      \"eventId\": \"a35243bf-4bf4-4e82-8247-119a8562dabc\",\n      \"deliveryId\": \"96e16ae3-ea93-4f10-b841-ecfbfa28a41c\",\n      \"httpStatus\": 200,\n      \"attempt\": 1,\n      \"status\": \"delivered\"\n    }\n  ]\n}"
+      },
+      {
+        "action": "redeliver",
+        "access": "Premium open",
+        "delivery": "2 events saved \u00b7 Duplicate ignored",
+        "events": "entitlement.granted \u00b7 demo_alice \u00b7 7e5e628f-03c9-4d12-bea1-a2ef9fcf69fcsubscription.canceled \u00b7 demo_alice \u00b7 a35243bf-4bf4-4e82-8247-119a8562dabc",
+        "response": "{\n  \"accepted\": true,\n  \"duplicate\": true\n}"
+      },
+      {
+        "action": "reopen",
+        "access": "Premium open",
+        "delivery": "2 events saved \u00b7 Inbox reopened",
+        "events": "entitlement.granted \u00b7 demo_alice \u00b7 7e5e628f-03c9-4d12-bea1-a2ef9fcf69fcsubscription.canceled \u00b7 demo_alice \u00b7 a35243bf-4bf4-4e82-8247-119a8562dabc",
+        "response": "{\n  \"savedEvents\": 2\n}"
+      },
+      {
+        "action": "expire",
+        "access": "Locked",
+        "delivery": "4 events saved \u00b7 Delivery completed",
+        "events": "entitlement.granted \u00b7 demo_alice \u00b7 7e5e628f-03c9-4d12-bea1-a2ef9fcf69fcsubscription.canceled \u00b7 demo_alice \u00b7 a35243bf-4bf4-4e82-8247-119a8562dabcsubscription.expired \u00b7 demo_alice \u00b7 fb10467e-2ae9-4728-bf04-2516b00fd9aeentitlement.revoked \u00b7 demo_alice \u00b7 01b30803-adb4-4aec-aa15-0ca1dbe4406a",
+        "response": "{\n  \"deliveries\": [\n    {\n      \"eventId\": \"fb10467e-2ae9-4728-bf04-2516b00fd9ae\",\n      \"deliveryId\": \"518b71b7-c227-43cd-90f7-59474aa145de\",\n      \"httpStatus\": 200,\n      \"attempt\": 1,\n      \"status\": \"delivered\"\n    },\n    {\n      \"eventId\": \"01b30803-adb4-4aec-aa15-0ca1dbe4406a\",\n      \"deliveryId\": \"9b27b1e9-4c82-4acb-98be-4c9ca527b4d2\",\n      \"httpStatus\": 200,\n      \"attempt\": 1,\n      \"status\": \"delivered\"\n    }\n  ]\n}"
+      }
+    ],
+    "mobile": {
+      "columns": "343px",
+      "scrollWidth": 375,
+      "width": 390
+    },
+    "desktop": {
+      "columns": "500px 500px",
+      "scrollWidth": 1265,
+      "width": 1280
+    }
+  },
+  "attempts": [
+    {
+      "kind": "product bug",
+      "resultBefore": {
+        "status": "fulfilled",
+        "access": {
+          "access": false
+        },
+        "finishCalls": 1
+      },
+      "failureLog": "bun test v1.3.13 (bf2e2cec)\n\ncomposition/purchase-flow.test.mjs:\n 7 |     const flow = createPurchaseFlow({\n 8 |       purchase: async () => ({ status: \"purchased\", evidence: {} }),\n 9 |       fulfill: async () => access,\n10 |       finish: async () => { finishes++; },\n11 |     });\n12 |     expect(await flow(\"premium.monthly\")).toEqual({ status: \"failed\" });\n                                               ^\nerror: expect(received).toEqual(expected)\n\n  {\n-   \"status\": \"failed\",\n+   \"access\": undefined,\n+   \"status\": \"fulfilled\",\n  }\n\n- Expected  - 1\n+ Received  + 2\n\n      at <anonymous> (<local-path>/composition/purchase-flow.test.mjs:12:43)\n(fail) denied or malformed fulfillment never reports success or finishes a purchase [2.67ms]\n\n 0 pass\n 1 fail\n 1 expect() calls\nRan 1 test across 1 file. [14.00ms]\n",
+      "fix": "Require an entitlement productIds array containing the selected product before finishing or returning fulfilled.",
+      "resultAfter": {
+        "status": "failed",
+        "finishCalls": 0
+      }
+    },
+    {
+      "kind": "test assertion correction",
+      "failureLog": "bun test v1.3.13 (bf2e2cec)\n\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase [0.35ms]\n\ncomposition/experience.test.mjs:\n38 |     expect(finishes).toBe(1);\n39 |     expect((await call(\"/demo/state\")).purchases[0].userId).toBe(fixture.userId);\n40 |     expect((await call(\"/app/access\")).productIds).toEqual([fixture.productId]);\n41 |     await call(\"/demo/cancel\", {});\n42 |     const canceled = await call(\"/demo/state\");\n43 |     expect(canceled.purchases[0].willRenew).toBe(false);\n                                                 ^\nerror: expect(received).toBe(expected)\n\nExpected: false\nReceived: 0\n\n      at <anonymous> (<local-path>/composition/experience.test.mjs:43:45)\n(fail) paywall outcomes and lifecycle events execute through the running app and provider [70.00ms]\n\n 1 pass\n 1 fail\n 41 expect() calls\nRan 2 tests across 2 files. [142.00ms]\n",
+      "fix": "SQLite inspect returns willRenew as 0; assert that storage value and separately assert the API boolean false. Runtime cancellation behavior was unchanged."
+    },
+    {
+      "kind": "mobile layout",
+      "before": {
+        "viewportWidth": 390,
+        "scrollWidth": 518
+      },
+      "fix": "Show a short event-delivery outcome; keep the actual response in an expandable preformatted block.",
+      "after": {
+        "viewportWidth": 390,
+        "scrollWidth": 375
+      }
+    }
+  ],
+  "comparison": {
+    "reference": "https://github.com/hyodotdev/openiap/blob/main/packages/kit/scripts/docs/run-commerce-interop.mjs",
+    "finding": "IAPKit replacement checks already assert the selected product is in the app backend productIds response. The host adapter now enforces that same condition before finish. This run did not start IAPKit or claim a new interop result."
+  },
+  "limits": [
+    "Store purchase callback, evidence, user session, and clock are fixtures.",
+    "The denial endpoint is a demo control; it is not a Commerce Protocol operation.",
+    "SQLite reopening is in-process; it is not OS crash recovery.",
+    "No real store, mobile SDK checkout, external product integration, revenue calculation, production deployment, or full profile conformance was tested.",
+    "Passing these example checks does not verify a different project. Run equivalent checks against that implementation."
+  ],
+  "screenshots": [
+    "experience-verified.png",
+    "experience-mobile.png"
+  ],
+  "distributionFollowup": {
+    "recordedAt": "2026-09-12T22:48:28.755509+00:00",
+    "scope": "Documentation wording only. All implementation and test files are byte-for-byte unchanged from the originally verified archive.",
+    "previousArchiveSha256": "b4c345ee68f48df6afeb14b9255783780c26dd1ee2332b641ab17bd775987836",
+    "archiveSha256": "fa796407cedaf32e334cab1da8ea094f3afbb3f9dbf6913cdae48861c73c7687",
+    "changedFile": "INTEGRATE.md",
+    "previousFileSha256": "ed3851d6432deedb85d2d0cc3edcca8fe52f58c79c99b68a9aa54616b010949b",
+    "fileSha256": "f5391d87c54735b41237afa0fc9e852aa457ae0ca01622b5e4db19c22990ad4c",
+    "steps": [
+      {
+        "command": [
+          "npm",
+          "ci"
+        ],
+        "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-experience-bundle-o3ht5mb4/source",
+        "exitCode": 0,
+        "stdout": "\nadded 10 packages, and audited 11 packages in 362ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+        "stderr": "npm warn allow-scripts 1 package has install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   fsevents@2.3.2 (install: (install scripts present))\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+      },
+      {
+        "command": [
+          "npm",
+          "test"
+        ],
+        "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-experience-bundle-o3ht5mb4/source",
+        "exitCode": 0,
+        "stdout": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs composition/purchase-flow.test.mjs composition/experience.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n",
+        "stderr": "\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [59.70ms]\n\ncomposition/experience.test.mjs:\n(pass) paywall outcomes and lifecycle events execute through the running app and provider [16.69ms]\n\ncomposition/receiver.test.mjs:\n(pass) the original SQLite and memory composition remains compatible with the receiver [32.56ms]\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [3.31ms]\n\n 5 pass\n 0 fail\n 76 expect() calls\nRan 5 tests across 4 files. [169.00ms]\n"
+      }
+    ]
+  }
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, ReactNode } from 'react';
+import StaticExamples, { useStaticExamples } from './StaticExamples';
 
 type Platform = 'ios' | 'android' | 'amazon' | 'horizon';
 
@@ -30,6 +31,7 @@ function platformFromHash(availablePlatforms: Platform[]): Platform | null {
 }
 
 function PlatformTabs({ children }: PlatformTabsProps) {
+  const isStatic = useStaticExamples();
   const availablePlatforms = useMemo(
     () => PLATFORM_ORDER.filter((platform) => children[platform] !== undefined),
     [
@@ -61,6 +63,17 @@ function PlatformTabs({ children }: PlatformTabsProps) {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [availablePlatforms]);
 
+  const examples = availablePlatforms
+    .filter((platform) => isStatic || platform !== activeTab)
+    .map((platform) => (
+      <details key={platform}>
+        <summary>{PLATFORM_LABELS[platform]} example</summary>
+        {children[platform]}
+      </details>
+    ));
+
+  if (isStatic) return <>{examples}</>;
+
   return (
     <div className="platform-tabs">
       <div className="platform-tabs-header">
@@ -75,6 +88,7 @@ function PlatformTabs({ children }: PlatformTabsProps) {
         ))}
       </div>
       <div className="platform-tabs-content">{children[activeTab]}</div>
+      <StaticExamples>{examples}</StaticExamples>
     </div>
   );
 }

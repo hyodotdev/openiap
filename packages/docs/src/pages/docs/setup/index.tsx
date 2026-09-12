@@ -31,9 +31,9 @@ function SetupIndex() {
       />
       <h1>Framework Setup</h1>
       <p>
-        Pick the framework you ship in. The SDKs share the OpenIAP purchase
-        contract, with language-specific types, callbacks, and lifecycle
-        patterns. Follow your framework's guide for working code.
+        Choose your app’s framework for install commands and working code. To
+        have an assistant handle setup,{' '}
+        <Link to="/docs/guides/ai-assistants">build with AI</Link>.
       </p>
 
       <section>
@@ -70,10 +70,7 @@ function SetupIndex() {
         <AnchorLink id="before-you-start" level="h2">
           Before You Start
         </AnchorLink>
-        <p>
-          Each framework guide assumes you've already finished the platform
-          store configuration. Complete those first:
-        </p>
+        <p>Complete your store’s setup before testing purchases:</p>
         <ul>
           <li>
             <Link to="/docs/ios-setup">iOS Setup</Link> — App Store Connect
@@ -90,14 +87,11 @@ function SetupIndex() {
         </ul>
       </section>
 
-      <section>
+      <details>
+        <summary>API and implementation references</summary>
         <AnchorLink id="cross-cutting" level="h2">
-          Cross-Cutting Topics
+          Shared references
         </AnchorLink>
-        <p>
-          These pages apply regardless of which framework you pick — read them
-          once, then jump back to your framework guide:
-        </p>
         <ul>
           <li>
             <Link to="/docs/apis">API Reference</Link> — every function,
@@ -123,7 +117,7 @@ function SetupIndex() {
             shape and error codes
           </li>
         </ul>
-      </section>
+      </details>
     </div>
   );
 }

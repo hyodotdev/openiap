@@ -9,6 +9,14 @@ export interface ApiItem {
 }
 
 export const apiData: ApiItem[] = [
+  {
+    id: 'openiap-cli',
+    title: 'OpenIAP CLI: init and doctor',
+    category: 'Guides',
+    description:
+      'Optional AI implementation briefs and repeatable local configuration checks with JSON output',
+    path: '/docs/guides/ai-assistants#start-in-your-project',
+  },
   // Connection Management
   {
     id: 'init-connection',
