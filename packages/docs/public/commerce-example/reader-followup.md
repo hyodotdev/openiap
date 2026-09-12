@@ -95,4 +95,4 @@ checks were reviewed for the selected-product access condition; IAPKit was not
 run again. The reference's earlier backend/receiver checks remain separate.
 Store responses and login are fictional; HTTP and SQLite execute locally.
 
-The current reference bundle has a documentation-only wording correction. Its implementation is unchanged and `npm ci` / `npm test` were rerun successfully. [Distribution hashes and rerun output](https://openiap.dev/commerce-example/experience-verification.json) preserve the original archive hash; earlier input hashes remain the historical download record.
+The current reference bundle has a documentation-only wording correction. Its implementation is unchanged and `npm ci` / `npm test` were rerun successfully. [Distribution hashes and rerun output](https://openiap.dev/commerce-example/experience-verification.json) record both `distributionFollowup.previousArchiveSha256` and the current `archiveSha256`; earlier input hashes remain the historical download record.

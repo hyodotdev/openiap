@@ -94,6 +94,7 @@ for (const id of [
   );
 assert(provider.freshConnection.ok);
 assert.equal(provider.freshConnection.source.revision, connection.sourceCommit);
+assert.equal(provider.reproduction.freshExampleCommit, connection.sourceCommit);
 assert.equal(
   provider.freshConnection.checks.length,
   connection.providerVerification.checks
@@ -107,6 +108,21 @@ console.log(
 );
 
 const interop = JSON.parse(read('iapkit-run.json'));
+assert.deepEqual(
+  provider.freshConnection,
+  interop.freshConnection,
+  'Provider reports contain different connection results'
+);
+assert.deepEqual(
+  provider.reproduction,
+  interop.reproduction,
+  'Provider reports reference different reproduction inputs'
+);
+assert.equal(
+  provider.harnessHashes['run-commerce-interop.mjs'],
+  interop.harnessHashes['run-commerce-interop.mjs'],
+  'Provider reports reference different executed harnesses'
+);
 const interopSources = JSON.parse(read('iapkit-source.json'));
 const interopManifest = JSON.parse(read('iapkit-source-manifest.json'));
 assert.equal(interop.checkCount, interop.checks.length);

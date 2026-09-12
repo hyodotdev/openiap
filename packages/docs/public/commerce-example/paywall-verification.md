@@ -64,17 +64,20 @@ attribution policy. A paywall-only product can leave analytics to another servic
 
 | Responsibility | Example code | Boundary |
 | --- | --- | --- |
-| Paywall and simulated host callback | [paywall.html](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/paywall.html), [paywall.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/paywall.mjs) | `/paywall/*` is this app's demo interface. It is not a protocol API. |
-| Purchase verification, ownership and access | [server.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/server.mjs), [backend.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/backend.mjs) | Actual local requests to `/commerce/v1/purchases/verify`, `/purchases/bind`, and `/entitlements`. |
-| Subscription changes | [backend.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/backend.mjs) | `/fixture/renew` and `/fixture/cancel` simulate store observations. They are not public protocol operations. |
-| Signed delivery and durable inbox | [delivery.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/delivery.mjs) | The producer sends the same CommerceEvent envelope to `/webhooks/commerce` over local HTTP. |
-| Experiment association and reporting | [attribution.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/attribution.mjs) | Product-owned join keyed by project, store, environment, purchase chain and bound user. No experiment fields are added to the protocol. |
-| Customer outcomes and failure cases | [paywall.test.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/paywall.test.mjs) | Also rejects tampering, handles missing amounts/currencies, preserves mappings on reopen, and erases them with the customer. |
+| Paywall and simulated host callback | [paywall.html](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/paywall.html), [paywall.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/paywall.mjs) | `/paywall/*` is this app's demo interface. It is not a protocol API. |
+| Purchase verification, ownership and access | [server.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/server.mjs), [backend.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/backend.mjs) | Actual local requests to `/commerce/v1/purchases/verify`, `/purchases/bind`, and `/entitlements`. |
+| Subscription changes | [backend.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/backend.mjs) | `/fixture/renew` and `/fixture/cancel` simulate store observations. They are not public protocol operations. |
+| Signed delivery and durable inbox | [delivery.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/delivery.mjs) | The producer sends the same CommerceEvent envelope to `/webhooks/commerce` over local HTTP. |
+| Experiment association and reporting | [attribution.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/attribution.mjs) | Product-owned join keyed by project, store, environment, purchase chain and bound user. No experiment fields are added to the protocol. |
+| Customer outcomes and failure cases | [paywall.test.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/paywall.test.mjs) | Also rejects tampering, handles missing amounts/currencies, preserves mappings on reopen, and erases them with the customer. |
 
 The default host fixture catalog supplies the purchase-chain/account association.
 `paywall.mjs` reads access through the configured provider's HTTP API. Configure
 its server-side `provider.baseUrl` and `provider.credential` for another provider;
-keep credentials out of the browser. The receiver accepts one configured
+keep credentials out of the browser. Provider requests require HTTPS; plain HTTP
+is accepted only for literal IPv4/IPv6 loopback addresses in local tests.
+Redirects are rejected so a provider cannot forward credentials to another URL.
+The receiver accepts one configured
 `projectId` and signing `secret`; use a separate database for each emitter.
 `/fixture/*` controls belong only to the local demo provider.
 
@@ -107,7 +110,7 @@ MRR, ARPU, a refund ledger, or complete financial reporting.
 ## Verify an independent provider
 
 The same `paywall.mjs`, `delivery.mjs` and `attribution.mjs` also have a provider
-check in [verify-provider.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/verify-provider.mjs). The OpenIAP local IAPKit
+check in [verify-provider.mjs](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/verify-provider.mjs). The OpenIAP local IAPKit
 harness supplies its real HTTP routes, Convex functions, RTDN normalizer and
 outbound signer. Google responses and OIDC remain fixtures. No hosted account
 or production write is involved.
@@ -145,8 +148,8 @@ store checkout nor integration with an external paywall/analytics product.
 It does not add a production events-profile or GraphQL conformance claim.
 
 The first full run caught an invalid capability declaration. The
-[failed output](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/evidence/paywall-first-run.json) is retained; the declaration was
-corrected without dropping a test or profile. [Initial connection test output](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/8ad87ffaa55aab1e2585285fe2ca320441e31209/evidence/paywall-tests.json)
+[failed output](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/evidence/paywall-first-run.json) is retained; the declaration was
+corrected without dropping a test or profile. [Initial connection test output](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6d5e5e9a3d3aaae449679780bf014e469c38d900/evidence/paywall-tests.json)
 includes the original regression suite and the new connection tests.
 
 ## Acceptance checklist for your implementation
@@ -161,6 +164,6 @@ includes the original regression suite and the new connection tests.
 | Signatures, retries, restart and erasure | `delivery.test.mjs`, `recovery.test.mjs`, `erasure.test.mjs`, `npm run verify` | Public HTTPS deployment and operational monitoring. |
 | Unknown amounts and currencies are honest | `paywall.test.mjs`: reporting | Refund reconciliation, taxes, conversion and financial reporting. |
 
-Verified source: [8ad87ffaa55aab1e2585285fe2ca320441e31209](https://github.com/hyodotdev/openiap-commerce-protocol-example/tree/8ad87ffaa55aab1e2585285fe2ca320441e31209).
+Verified source: [6d5e5e9a3d3aaae449679780bf014e469c38d900](https://github.com/hyodotdev/openiap-commerce-protocol-example/tree/6d5e5e9a3d3aaae449679780bf014e469c38d900).
 [Recorded CLI, tests, HTTP and restart results](./paywall-harness.json).
 [Independent provider run](./paywall-provider-run.json) · [Exact sources and commands to reproduce it](./paywall-provider-reproduction.md).

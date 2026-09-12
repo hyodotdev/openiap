@@ -302,15 +302,15 @@ Verify these customer outcomes in the target integration:
 
 Choose the role the product supplies. The person can run
 \`npx @hyodotdev/openiap init --role ROLE\` in their existing project, replacing
-ROLE with experience, commerce, or data, then give you the full output with
+ROLE with app, experience, commerce, or data, then give you the full output with
 their desired outcome.
 Explain the handoff concretely: the CLI prints a document and exits without
 changing project files or starting an AI or server. The person opens the same
 project in their coding assistant, pastes the full terminal output into its
 chat input, appends their desired outcome, and sends one message. This is when
 the assistant reads the project, implements, runs, and tests the connection.
-Use experience for a paywall/experiment connection, commerce for a purchase
-backend, and data for an event receiver. A product may supply several roles;
+Use app for an app purchase integration, experience for a paywall/experiment
+connection, commerce for a purchase backend, and data for an event receiver. A product may supply several roles;
 connect the others to chosen compatible services rather than building them all.
 Read https://openiap.dev/commerce-example/integration-brief.md and the selected
 role's guide. For commerce, also read the backend build brief. Implement the

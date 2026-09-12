@@ -1,12 +1,12 @@
 {
   "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
   "branch": "codex/commerce-protocol-from-scratch",
-  "sourceCommit": "8ad87ffaa55aab1e2585285fe2ca320441e31209",
-  "implementationCommit": "8ad87ffaa55aab1e2585285fe2ca320441e31209",
-  "archiveSha256": "a09ac5e158fbdd99d9743260ab5ac69eb7f07b3bb4f217d9181e37234be16cb9",
+  "sourceCommit": "6d5e5e9a3d3aaae449679780bf014e469c38d900",
+  "implementationCommit": "6d5e5e9a3d3aaae449679780bf014e469c38d900",
+  "archiveSha256": "c1dde6e0100e67fb53bb93e9a0fc5b0f7518ccc73e238c2e46d1e6438c158170",
   "verification": {
-    "tests": 19,
-    "assertions": 236,
+    "tests": 20,
+    "assertions": 264,
     "portableCases": 51
   },
   "state": {
@@ -27,7 +27,7 @@
     "report": {
       "events": [
         {
-          "eventId": "8e4f8623-84ae-4ea0-9ba7-6cc3c6af02cd",
+          "eventId": "2d70ebbd-50d8-42e2-a436-aa0055931cc9",
           "eventType": "subscription.started",
           "store": "apple",
           "customer": "alice-apple",
@@ -42,7 +42,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "296c2e3c-1a90-4e5c-baad-0fd6cfed56c1",
+          "eventId": "1ec93a59-73bb-4173-aaea-5f8d08a1f7b4",
           "eventType": "entitlement.granted",
           "store": "apple",
           "customer": "alice-apple",
@@ -53,7 +53,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "25a2ef9d-960c-4aa3-9374-c812cc98354e",
+          "eventId": "2af833f1-4ea2-43a7-bed9-b3f07a607c5a",
           "eventType": "subscription.renewed",
           "store": "apple",
           "customer": "alice-apple",
@@ -68,7 +68,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "c039aee3-f178-4a22-b07d-8018c5d004c7",
+          "eventId": "9bfc7a6e-0ecd-476c-9c70-72a61eaebea5",
           "eventType": "subscription.canceled",
           "store": "apple",
           "customer": "alice-apple",
@@ -79,7 +79,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "99e56698-1fcc-426a-8b69-8a143209658b",
+          "eventId": "7ad298c6-d22f-4588-acbb-292c2132725d",
           "eventType": "subscription.started",
           "store": "google",
           "customer": "alice-google",
@@ -90,7 +90,7 @@
           "treatment": "amount unknown"
         },
         {
-          "eventId": "51d94973-69ed-492f-bb2d-4fb8dadc1b8e",
+          "eventId": "d0226e7c-ca7d-413b-88f5-77dc7b7cf5dc",
           "eventType": "entitlement.granted",
           "store": "google",
           "customer": "alice-google",
@@ -112,7 +112,7 @@
       "unknownAmounts": 1,
       "reconciliation": 0
     },
-    "receiver": "http://127.0.0.1:60548/webhooks/commerce"
+    "receiver": "http://127.0.0.1:64196/webhooks/commerce"
   },
   "browserSourceCommit": "abdbcef40fc710540853aa46e0b374711b6047ba",
   "browser": {
@@ -254,12 +254,12 @@
   },
   "harness": {
     "checks": 8,
-    "recordedAt": "2026-09-12T22:33:55.578Z"
+    "recordedAt": "2026-09-12T23:30:59.527Z"
   },
   "providerVerification": {
     "checks": 19,
     "regressionChecks": 170,
-    "recordedAt": "2026-09-12T22:34:41.264Z",
+    "recordedAt": "2026-09-12T23:32:01.385Z",
     "state": {
       "stores": [
         {
@@ -272,7 +272,7 @@
       "report": {
         "events": [
           {
-            "eventId": "k1715ph1wq4es36qfy4zaj4rkn8e97ap",
+            "eventId": "k170f44178cvv77sqhvg40s0js8e9hf4",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -287,7 +287,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k17etn8behjan19mmt1mk492r18e91y7",
+            "eventId": "k171a5ef150sq387tj7v6df07n8e9x15",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -298,7 +298,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "k1798hyz9qvdswkeja10vr93fh8e9x05",
+            "eventId": "k176k27caa7dw7kwrj2e0vawrn8e81cj",
             "eventType": "subscription.renewed",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -313,7 +313,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "k17fbhhypwsvnjjzw6z74ewyrs8e943f",
+            "eventId": "k173fwzgbcfbs5acgttav0bd458e8g4e",
             "eventType": "subscription.canceled",
             "store": "google",
             "customer": "fresh_paywall_user",
@@ -335,7 +335,7 @@
         "unknownAmounts": 0,
         "reconciliation": 0
       },
-      "receiver": "http://127.0.0.1:60609/webhooks/commerce"
+      "receiver": "http://127.0.0.1:64276/webhooks/commerce"
     }
   }
 }

@@ -13,6 +13,10 @@ run these commands there. The older regression example lives on its review
 branch, not the repository's `main` branch.
 
 ```sh
+printf '%s  %s\n' \
+  d693d3e66f0ac66ef7ed86882b8678a07a144864e30817316a60b8fc13c4cbd7 \
+  paywall-provider-harness.patch | shasum -a 256 -c -
+
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
 git checkout 4b1316adf41d302783de2761866e5226e1b39a7f
@@ -28,7 +32,7 @@ cd ..
 
 git clone --branch codex/commerce-protocol-from-scratch --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git fresh-example
 cd fresh-example
-git checkout 8ad87ffaa55aab1e2585285fe2ca320441e31209
+git checkout 6d5e5e9a3d3aaae449679780bf014e469c38d900
 npm ci
 npm run verify
 cd ../openiap-provider-check

@@ -114,4 +114,4 @@ process. This run does not verify a real store purchase, a mobile SDK checkout,
 external product integrations, revenue reports, production reliability, or full protocol conformance.
 Test the user's actual login, provider, device, and store sandbox separately.
 
-The current reference bundle has a documentation-only wording correction. Its implementation is unchanged and `npm ci` / `npm test` were rerun successfully. [Distribution hashes and rerun output](https://openiap.dev/commerce-example/experience-verification.json) preserve the original archive hash; earlier input hashes remain the historical download record.
+The current reference bundle has a documentation-only wording correction. Its implementation is unchanged and `npm ci` / `npm test` were rerun successfully. [Distribution hashes and rerun output](https://openiap.dev/commerce-example/experience-verification.json) record both `distributionFollowup.previousArchiveSha256` and the current `archiveSha256`; earlier input hashes remain the historical download record.
