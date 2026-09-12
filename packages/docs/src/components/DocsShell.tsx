@@ -7,6 +7,8 @@ import type {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Bookmark } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import CodeBlock from './CodeBlock';
 import { DOCS_SIDEBAR } from '../lib/config';
 import { useDetailsTransition } from '../hooks/useDetailsTransition';
 
@@ -65,6 +67,7 @@ interface DocsShellProps {
  * collapsed state are one reader preference, so they are stored once here.
  */
 function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
+  const { pathname } = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [savedSidebarWidth, setSavedSidebarWidth] = useState(
@@ -348,6 +351,16 @@ function DocsShell({ nav, navLabel, wide = false, children }: DocsShellProps) {
         </button>
       </div>
       <main ref={contentRef} className="docs-content">
+        <details className="docs-ai-context" key={pathname}>
+          <summary>Use this page with AI</summary>
+          <p>Copy this into your coding assistant and add your request.</p>
+          <CodeBlock language="text">{`Read https://openiap.dev${pathname} and https://openiap.dev/llms.txt. Follow the reading instructions, detailed reference, and linked guides relevant to my task before making changes.
+Inspect my existing project and reuse its framework and conventions. Ask me for missing product decisions. Implement the requested behavior and run the applicable checks.
+Show the working result, the commands and actual test results, and any remaining limitations. Keep your explanation brief.
+
+My request: [describe what customers should be able to do]`}</CodeBlock>
+          <Link to="/docs/guides/ai-assistants">See an example request →</Link>
+        </details>
         {children}
       </main>
     </div>

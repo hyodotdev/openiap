@@ -6,6 +6,10 @@ import { join } from 'node:path';
 import { createServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
 import { mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { createServer as createViteServer } from 'vite';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { archiveDownloads } from '../vite.config.ts';
 import { canonicalPaths, pageHtml, sitemapXml } from './prerender.mjs';
 
@@ -69,6 +73,71 @@ test('publishes the same readable content and route metadata without JavaScript'
   assert(html.includes(`<div id="root">${content}</div>`));
   assert(html.indexOf('<title data-prerender') < html.indexOf('</head>'));
   assert.equal((html.match(/rel="canonical"/g) ?? []).length, 1);
+});
+
+test('includes every language and platform without nesting noscript fallbacks', async () => {
+  const vite = await createViteServer({
+    root: fileURLToPath(new URL('..', import.meta.url)),
+    server: { middlewareMode: true },
+    appType: 'custom',
+  });
+  try {
+    const { default: LanguageTabs } = await vite.ssrLoadModule(
+      '/src/components/LanguageTabs.tsx'
+    );
+    const { default: PlatformTabs } = await vite.ssrLoadModule(
+      '/src/components/PlatformTabs.tsx'
+    );
+    const languages = [
+      'swift',
+      'kotlin',
+      'typescript',
+      'dart',
+      'kmp',
+      'gdscript',
+      'csharp',
+    ];
+    const platforms = ['ios', 'android', 'amazon', 'horizon'];
+    const html = renderToStaticMarkup(
+      createElement(PlatformTabs, {
+        children: Object.fromEntries(
+          platforms.map((platform) => [
+            platform,
+            createElement(LanguageTabs, {
+              children: Object.fromEntries(
+                languages.map((language) => [
+                  language,
+                  createElement(
+                    'code',
+                    null,
+                    `example-${platform}-${language}`
+                  ),
+                ])
+              ),
+            }),
+          ])
+        ),
+      })
+    );
+    for (const platform of platforms) {
+      for (const language of languages) {
+        assert.equal(
+          html.split(`example-${platform}-${language}`).length - 1,
+          1
+        );
+      }
+    }
+    let depth = 0;
+    for (const [tag] of html.matchAll(/<\/?noscript>/g)) {
+      depth += tag === '<noscript>' ? 1 : -1;
+      assert(depth >= 0 && depth <= 1, 'Nested noscript breaks HTML parsing');
+    }
+    assert.equal(depth, 0);
+    const interactive = html.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+    assert.equal((interactive.match(/<code>/g) ?? []).length, 1);
+  } finally {
+    await vite.close();
+  }
 });
 
 test('rejects the empty SPA shell and homepage canonical regression', () => {

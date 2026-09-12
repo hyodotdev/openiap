@@ -1,4 +1,22 @@
 /* Documentation - Expo style layout */
+.docs-ai-context {
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.docs-ai-context summary {
+  cursor: pointer;
+  color: var(--primary-color);
+}
+
+.docs-ai-context .language-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .docs-container {
   display: flex;
   max-width: var(--max-width);

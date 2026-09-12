@@ -1,0 +1,1110 @@
+{
+  "sourceCommit": "abdbcef40fc710540853aa46e0b374711b6047ba",
+  "projectPath": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/openiap-paywall-public-ejdpi2qi/project",
+  "records": [
+    {
+      "command": [
+        "git",
+        "clone",
+        "--single-branch",
+        "--branch",
+        "codex/commerce-protocol-from-scratch",
+        "https://github.com/hyodotdev/openiap-commerce-protocol-example.git",
+        "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/openiap-paywall-public-ejdpi2qi/project"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Cloning into '/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/openiap-paywall-public-ejdpi2qi/project'...\n"
+    },
+    {
+      "command": [
+        "git",
+        "checkout",
+        "abdbcef40fc710540853aa46e0b374711b6047ba"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "Note: switching to 'abdbcef40fc710540853aa46e0b374711b6047ba'.\n\nYou are in 'detached HEAD' state. You can look around, make experimental\nchanges and commit them, and you can discard any commits you make in this\nstate without impacting any branches by switching back to a branch.\n\nIf you want to create a new branch to retain commits you create, you may\ndo so (now or later) by using -c with the switch command. Example:\n\n  git switch -c <new-branch-name>\n\nOr undo this operation with:\n\n  git switch -\n\nTurn off this advice by setting config variable advice.detachedHead to false\n\nHEAD is now at abdbcef feat(example): connect paywall and experiments\n"
+    },
+    {
+      "command": [
+        "npm",
+        "ci"
+      ],
+      "exitCode": 0,
+      "stdout": "\nadded 6 packages, and audited 7 packages in 475ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exitCode": 0,
+      "stdout": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun test\n\nbun test v1.3.13 (bf2e2cec)\n{\n  \"suite\": \"portable-conformance\",\n  \"ok\": true,\n  \"results\": [\n    {\n      \"id\": \"capabilities.version-agreement\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.success.contract.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.unknown-member-ignored.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.idempotent.repeat.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.success.contract.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.unknown-member-ignored.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.idempotent.repeat.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.store.unsupported\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.mismatched-evidence\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.honesty.binding-declared\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.unknown-evidence.not-bound\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.unknown-user.empty\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    }\n  ],\n  \"parityFailures\": []\n}\n",
+      "stderr": "\nconformance.test.mjs:\n(pass) published portable runner verifies the declared REST operation profiles [51.30ms]\n\npaywall.test.mjs:\n(pass) paywall purchase, renewal and cancellation join two store fixtures to the same experiment receiver [14.46ms]\n(pass) unsuccessful store results and denied ownership never finish a purchase [2.79ms]\n(pass) reporting uses event IDs, preserves currencies and unknowns, and leaves refunds for reconciliation [4.24ms]\n(pass) event-to-experiment joins survive reopening, reject reassignment, and erase with the customer [24.66ms]\n\nrecovery.test.mjs:\n(pass) access closes at the exact expiry boundary before the lifecycle observation [1.76ms]\n(pass) separate process survives abrupt termination with pending events, ownership, inbox, and expiry [3288.56ms]\n\ndelivery.test.mjs:\n(pass) published signature and response vectors pass against the new transport [0.86ms]\n(pass) real HTTP retry and lost acknowledgement retain bytes and IDs, deduplicate, reject tampering, and dead-letter [8.69ms]\n\nownership.test.mjs:\n(pass) only server role can bind; concurrent claims select one owner and reads contain no evidence [7.23ms]\n\nerasure.test.mjs:\n(pass) provider and recipient erase independently; late events, stale sessions, and repeated erasure cannot restore Alice [18.48ms]\n(pass) erasure during an in-flight delivery removes both copies and queued follow-ups [3.93ms]\n\nverification.test.mjs:\n(pass) verification accepts evidence without creating ownership, rejects bad evidence, and distinguishes outage [2.72ms]\n(pass) Google-shaped fixtures verify, bind, and preserve the store in tokenless results [2.27ms]\n\nbackend.test.mjs:\n(pass) HTTP server starts with an empty SQLite database and schema-valid discovery [3.23ms]\n\nlifecycle.test.mjs:\n(pass) cancellation keeps paid access and atomically saves one observation and immutable event [2.74ms]\n\n 16 pass\n 0 fail\n 194 expect() calls\nRan 16 tests across 9 files. [3.50s]\n"
+    },
+    {
+      "command": [
+        "npx",
+        "--yes",
+        "@hyodotdev/openiap",
+        "init",
+        "--role",
+        "data"
+      ],
+      "exitCode": 0,
+      "stdout": "# OpenIAP implementation brief\n\nPaste this into your coding assistant in the project below.\n\nProject path (data): \"/private/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/openiap-paywall-public-ejdpi2qi/project\"\nRole: Data — receive events for analytics or automation\nFramework hint: not detected; inspect the project\nDesired outcome: [describe one thing your customer should be able to do]\n\nRead the project instructions and inspect the existing stack. Keep its login, product model, and services. Ask me to choose missing stores, products, service providers, and ownership policies before implementing those choices.\n\nRead https://openiap.dev/commerce-protocol/getting-started#receive-events and the references it links for this role. If a reference is unavailable, ask for its contents; do not guess the contract. Use Client Protocol for app purchase APIs and Commerce Protocol for backend connections. Use the supported capabilities of my chosen services; no particular backend is required.\n\nImplement the smallest working connection for my role. Keep credentials on their intended side of the app/backend boundary. Follow the role's implementation and conformance requirements, including failure and recovery. Do not claim another role merely because this product connects to it.\n\nRun the result from clean source. Show the customer outcome, the commands and actual test results, and any remaining product or deployment decisions. Distinguish local fixtures from real store sandbox evidence. Keep changes uncommitted for review.\n",
+      "stderr": ""
+    }
+  ],
+  "cliChangedTrackedFiles": false,
+  "scope": "Clean public GitHub clone, install, tests and CLI brief. Not an independent AI implementation.",
+  "runtime": {
+    "steps": [
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/buy",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "fulfilled",
+          "finishCalls": 1,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/commerce/v1/purchases/verify",
+              "input": {
+                "store": "apple",
+                "apple": {
+                  "jws": "fixture.apple.premium"
+                }
+              },
+              "status": 200,
+              "response": {
+                "store": "apple",
+                "isValid": true,
+                "state": "ENTITLED",
+                "productId": "premium.monthly",
+                "environment": "sandbox"
+              }
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/commerce/v1/purchases/bind",
+              "input": {
+                "store": "apple",
+                "apple": {
+                  "jws": "fixture.apple.premium"
+                },
+                "userId": "alice-apple"
+              },
+              "status": 200,
+              "response": {
+                "bound": true
+              }
+            },
+            {
+              "method": "GET",
+              "destination": "http://127.0.0.1:5200/commerce/v1/entitlements?userId=alice-apple",
+              "status": 200,
+              "response": {
+                "userId": "alice-apple",
+                "productIds": [
+                  "premium.monthly"
+                ],
+                "subscriptions": [
+                  {
+                    "productId": "premium.monthly",
+                    "state": "Active",
+                    "active": true,
+                    "store": "apple",
+                    "expiresAt": 1791849600000,
+                    "willRenew": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/deliver",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=6f0b892e85f11341ac9c8eba01f361504dbdf3c54bafaccf668d32bed7d569b5",
+                "openiap-event-id": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+                "openiap-delivery-id": "41a326b1-1aa7-438e-96a7-c49456d84e72"
+              },
+              "body": {
+                "eventId": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+                "eventType": "subscription.started",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-0",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=52e451d429bc3eaa95a67686335e55af87c63c1aa910254c3499c1a296b28f5c",
+                "openiap-event-id": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+                "openiap-delivery-id": "4af525ad-0df1-4d45-9aa6-3a1830c0eb99"
+              },
+              "body": {
+                "eventId": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+                "eventType": "entitlement.granted",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/renew",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/fixture/renew",
+              "input": {
+                "userId": "alice-apple"
+              },
+              "status": 200,
+              "response": {
+                "changed": true
+              }
+            },
+            {
+              "method": "GET",
+              "destination": "http://127.0.0.1:5200/commerce/v1/entitlements?userId=alice-apple",
+              "status": 200,
+              "response": {
+                "userId": "alice-apple",
+                "productIds": [
+                  "premium.monthly"
+                ],
+                "subscriptions": [
+                  {
+                    "productId": "premium.monthly",
+                    "state": "Active",
+                    "active": true,
+                    "store": "apple",
+                    "expiresAt": 1794441600000,
+                    "willRenew": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/deliver",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=fd20af6f7a346937a7d3e21ccea209f5a385510ddd22688b2d652786dfa68eeb",
+                "openiap-event-id": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+                "openiap-delivery-id": "249eb199-ce73-475f-ad4d-e1c85b6079fd"
+              },
+              "body": {
+                "eventId": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+                "eventType": "subscription.renewed",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1794441600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-1",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/cancel",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/fixture/cancel",
+              "input": {
+                "userId": "alice-apple"
+              },
+              "status": 200,
+              "response": {
+                "changed": true,
+                "eventId": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696"
+              }
+            },
+            {
+              "method": "GET",
+              "destination": "http://127.0.0.1:5200/commerce/v1/entitlements?userId=alice-apple",
+              "status": 200,
+              "response": {
+                "userId": "alice-apple",
+                "productIds": [
+                  "premium.monthly"
+                ],
+                "subscriptions": [
+                  {
+                    "productId": "premium.monthly",
+                    "state": "Active",
+                    "active": true,
+                    "store": "apple",
+                    "expiresAt": 1794441600000,
+                    "willRenew": false,
+                    "cancellationReason": "UserCanceled"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/deliver",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=e655309f3175a2bce325a04624411ba8e3efd4df33fcd69d30f197d2a2bb601c",
+                "openiap-event-id": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+                "openiap-delivery-id": "f8613552-f82a-4cd5-b368-89a53faf4065"
+              },
+              "body": {
+                "eventId": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+                "eventType": "subscription.canceled",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1794441600000,
+                  "willRenew": false,
+                  "cancellationReason": "UserCanceled"
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-1",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/redeliver",
+          "body": {
+            "store": "apple",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=6f0b892e85f11341ac9c8eba01f361504dbdf3c54bafaccf668d32bed7d569b5",
+                "openiap-event-id": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+                "openiap-delivery-id": "41a326b1-1aa7-438e-96a7-c49456d84e72"
+              },
+              "body": {
+                "eventId": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+                "eventType": "subscription.started",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-0",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=52e451d429bc3eaa95a67686335e55af87c63c1aa910254c3499c1a296b28f5c",
+                "openiap-event-id": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+                "openiap-delivery-id": "4af525ad-0df1-4d45-9aa6-3a1830c0eb99"
+              },
+              "body": {
+                "eventId": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+                "eventType": "entitlement.granted",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=fd20af6f7a346937a7d3e21ccea209f5a385510ddd22688b2d652786dfa68eeb",
+                "openiap-event-id": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+                "openiap-delivery-id": "249eb199-ce73-475f-ad4d-e1c85b6079fd"
+              },
+              "body": {
+                "eventId": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+                "eventType": "subscription.renewed",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1794441600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-1",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=e655309f3175a2bce325a04624411ba8e3efd4df33fcd69d30f197d2a2bb601c",
+                "openiap-event-id": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+                "openiap-delivery-id": "f8613552-f82a-4cd5-b368-89a53faf4065"
+              },
+              "body": {
+                "eventId": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+                "eventType": "subscription.canceled",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "apple",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-apple",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "apple",
+                  "expiresAt": 1794441600000,
+                  "willRenew": false,
+                  "cancellationReason": "UserCanceled"
+                },
+                "originalTransactionId": "apple-demo-chain",
+                "transactionId": "apple-demo-chain-1",
+                "price": {
+                  "currency": "USD",
+                  "amountMicros": 4990000,
+                  "provenance": "store"
+                }
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/buy",
+          "body": {
+            "store": "google",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "fulfilled",
+          "finishCalls": 1,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/commerce/v1/purchases/verify",
+              "input": {
+                "store": "google",
+                "google": {
+                  "purchaseToken": "analytics-google"
+                }
+              },
+              "status": 200,
+              "response": {
+                "store": "google",
+                "isValid": true,
+                "state": "ENTITLED",
+                "productId": "premium.monthly",
+                "environment": "sandbox"
+              }
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:5200/commerce/v1/purchases/bind",
+              "input": {
+                "store": "google",
+                "google": {
+                  "purchaseToken": "analytics-google"
+                },
+                "userId": "alice-google"
+              },
+              "status": 200,
+              "response": {
+                "bound": true
+              }
+            },
+            {
+              "method": "GET",
+              "destination": "http://127.0.0.1:5200/commerce/v1/entitlements?userId=alice-google",
+              "status": 200,
+              "response": {
+                "userId": "alice-google",
+                "productIds": [
+                  "premium.monthly"
+                ],
+                "subscriptions": [
+                  {
+                    "productId": "premium.monthly",
+                    "state": "Active",
+                    "active": true,
+                    "store": "google",
+                    "expiresAt": 1791849600000,
+                    "willRenew": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/deliver",
+          "body": {
+            "store": "google",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=8e28fdd7963cea767a54d3283ad2e634893c200d42bdd6a3ef625152352a147d",
+                "openiap-event-id": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+                "openiap-delivery-id": "b1f396d9-74f5-4d4f-9b05-067f45854952"
+              },
+              "body": {
+                "eventId": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+                "eventType": "subscription.started",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "google",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-google",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "google",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "google-demo-chain",
+                "transactionId": "google-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=1eb0f8fa4d77d7b0b71114fb2f78dfe12b74eaf7118fa174b2459c6ec2d50d88",
+                "openiap-event-id": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+                "openiap-delivery-id": "f49c7bed-05aa-4f9c-887e-ae34abe8f105"
+              },
+              "body": {
+                "eventId": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+                "eventType": "entitlement.granted",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "google",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-google",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "google",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "google-demo-chain",
+                "transactionId": "google-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "request": {
+          "method": "POST",
+          "path": "/paywall/redeliver",
+          "body": {
+            "store": "google",
+            "outcome": "success"
+          }
+        },
+        "status": 200,
+        "response": {
+          "result": "completed",
+          "finishCalls": 0,
+          "trace": [
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=8e28fdd7963cea767a54d3283ad2e634893c200d42bdd6a3ef625152352a147d",
+                "openiap-event-id": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+                "openiap-delivery-id": "b1f396d9-74f5-4d4f-9b05-067f45854952"
+              },
+              "body": {
+                "eventId": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+                "eventType": "subscription.started",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "google",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-google",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "google",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "google-demo-chain",
+                "transactionId": "google-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            },
+            {
+              "method": "POST",
+              "destination": "http://127.0.0.1:57200/webhooks/commerce",
+              "headers": {
+                "Content-Type": "application/json",
+                "openiap-timestamp": "1789249855",
+                "openiap-signature": "v1=1eb0f8fa4d77d7b0b71114fb2f78dfe12b74eaf7118fa174b2459c6ec2d50d88",
+                "openiap-event-id": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+                "openiap-delivery-id": "f49c7bed-05aa-4f9c-887e-ae34abe8f105"
+              },
+              "body": {
+                "eventId": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+                "eventType": "entitlement.granted",
+                "eventVersion": "1.0",
+                "occurredAt": 1789257600000,
+                "processedAt": 1789257600000,
+                "store": "google",
+                "environment": "sandbox",
+                "projectId": "fresh-example",
+                "userId": "alice-google",
+                "productId": "premium.monthly",
+                "subscription": {
+                  "productId": "premium.monthly",
+                  "state": "Active",
+                  "active": true,
+                  "store": "google",
+                  "expiresAt": 1791849600000,
+                  "willRenew": true
+                },
+                "originalTransactionId": "google-demo-chain",
+                "transactionId": "google-demo-chain-0"
+              },
+              "status": 202,
+              "outcome": "delivered",
+              "attempt": 1
+            }
+          ]
+        }
+      },
+      {
+        "command": [
+          "npm",
+          "start"
+        ],
+        "environment": {
+          "PORT": "5200"
+        },
+        "stdout": "\n> openiap-commerce-protocol-example@0.0.0 start\n> bun server.mjs\n\nCommerce Protocol from scratch: http://127.0.0.1:5200\n",
+        "stderr": "",
+        "stoppedAfterVerification": true
+      },
+      {
+        "command": [
+          "npm",
+          "start"
+        ],
+        "environment": {
+          "PORT": "5200"
+        },
+        "stdout": "\n> openiap-commerce-protocol-example@0.0.0 start\n> bun server.mjs\n\nCommerce Protocol from scratch: http://127.0.0.1:5200\n",
+        "stderr": "",
+        "stoppedAfterVerification": true
+      }
+    ],
+    "beforeRestart": {
+      "stores": [
+        {
+          "id": "apple",
+          "label": "Apple fixture",
+          "variant": "A",
+          "access": true
+        },
+        {
+          "id": "google",
+          "label": "Google fixture",
+          "variant": "B",
+          "access": true
+        }
+      ],
+      "report": {
+        "events": [
+          {
+            "eventId": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+            "eventType": "subscription.started",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 4990000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+            "eventType": "entitlement.granted",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          },
+          {
+            "eventId": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+            "eventType": "subscription.renewed",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-1",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 4990000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+            "eventType": "subscription.canceled",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-1",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          },
+          {
+            "eventId": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+            "eventType": "subscription.started",
+            "store": "google",
+            "customer": "alice-google",
+            "transactionId": "google-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "B",
+            "amount": null,
+            "treatment": "amount unknown"
+          },
+          {
+            "eventId": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+            "eventType": "entitlement.granted",
+            "store": "google",
+            "customer": "alice-google",
+            "transactionId": "google-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "B",
+            "amount": null,
+            "treatment": "lifecycle only"
+          }
+        ],
+        "totals": [
+          {
+            "currency": "USD",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amountMicros": 9980000
+          }
+        ],
+        "unknownAmounts": 1,
+        "reconciliation": 0
+      },
+      "receiver": "http://127.0.0.1:57200/webhooks/commerce"
+    },
+    "afterRestart": {
+      "stores": [
+        {
+          "id": "apple",
+          "label": "Apple fixture",
+          "variant": "A",
+          "access": true
+        },
+        {
+          "id": "google",
+          "label": "Google fixture",
+          "variant": "B",
+          "access": true
+        }
+      ],
+      "report": {
+        "events": [
+          {
+            "eventId": "ec651593-8bdb-45d4-bf59-da4fc64ecbc8",
+            "eventType": "subscription.started",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 4990000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "0c71212d-c930-446d-88dc-3e2898b2ad6f",
+            "eventType": "entitlement.granted",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          },
+          {
+            "eventId": "d10be4a0-b94e-4dd4-a879-4bbca8d01645",
+            "eventType": "subscription.renewed",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-1",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 4990000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "08cde956-4a64-4eb8-a16b-ea0a5d6b0696",
+            "eventType": "subscription.canceled",
+            "store": "apple",
+            "customer": "alice-apple",
+            "transactionId": "apple-demo-chain-1",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          },
+          {
+            "eventId": "8e363c4a-ca0f-4908-805f-bc4f9e428983",
+            "eventType": "subscription.started",
+            "store": "google",
+            "customer": "alice-google",
+            "transactionId": "google-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "B",
+            "amount": null,
+            "treatment": "amount unknown"
+          },
+          {
+            "eventId": "9bdca4a3-2618-4969-a775-ede803c14dfe",
+            "eventType": "entitlement.granted",
+            "store": "google",
+            "customer": "alice-google",
+            "transactionId": "google-demo-chain-0",
+            "experiment": "onboarding",
+            "variant": "B",
+            "amount": null,
+            "treatment": "lifecycle only"
+          }
+        ],
+        "totals": [
+          {
+            "currency": "USD",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amountMicros": 9980000
+          }
+        ],
+        "unknownAmounts": 1,
+        "reconciliation": 0
+      },
+      "receiver": "http://127.0.0.1:57218/webhooks/commerce"
+    },
+    "reportSurvivedRestart": true
+  }
+}

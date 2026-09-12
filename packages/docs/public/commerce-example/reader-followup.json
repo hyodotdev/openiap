@@ -1,0 +1,161 @@
+{
+  "recordedAt": "2026-09-12T17:09:20.916441+00:00",
+  "type": "AI first-reader simulation in a separate existing-project fixture",
+  "scope": "Experience role only; same AI prepared the starter and performed the integration. Local preview plus published guides and npm contracts. Not an independent model or human study.",
+  "inputs": [
+    {
+      "url": "https://openiap.dev/commerce-example/integration-brief.md",
+      "finalUrl": "https://www.openiap.dev/commerce-example/integration-brief.md",
+      "status": 200,
+      "bytes": 10110,
+      "sha256": "7e87fa1661876c355857238407cfe11fc9dea980ddad2c019072b3be48b91e70"
+    },
+    {
+      "url": "https://openiap.dev/commerce-protocol/ecosystem",
+      "finalUrl": "https://www.openiap.dev/commerce-protocol/ecosystem",
+      "status": 200,
+      "bytes": 35895,
+      "sha256": "7f8926e874c3e3a7c2e01f1d2208fed44875ba4302e931a2895a6d129b1760c8"
+    },
+    {
+      "url": "http://127.0.0.1:4187/commerce-example/experience-verification.md",
+      "finalUrl": "http://127.0.0.1:4187/commerce-example/experience-verification.md",
+      "status": 200,
+      "bytes": 6664,
+      "sha256": "6602890d13bb9f53da03693b94d1c733b0de9bd8e98da06085a94d8821d0fa1a"
+    },
+    {
+      "url": "http://127.0.0.1:4187/commerce-example/experience-source.tar.gz",
+      "finalUrl": "http://127.0.0.1:4187/commerce-example/experience-source.tar.gz",
+      "status": 200,
+      "bytes": 65173,
+      "sha256": "b4c345ee68f48df6afeb14b9255783780c26dd1ee2332b641ab17bd775987836"
+    }
+  ],
+  "message": "# OpenIAP implementation brief\n\nPaste this into your coding assistant in the project below.\n\nProject path (data): \"<reader-run>/my-paywall\"\nRole: Experience \u2014 connect a paywall or experiment\nFramework hint: not detected; inspect the project\nDesired outcome: [describe one thing your customer should be able to do]\n\nRead the project instructions and inspect the existing stack. Keep its login, product model, and services. Ask me to choose missing stores, products, service providers, and ownership policies before implementing those choices.\n\nRead https://openiap.dev/commerce-protocol/ecosystem#experience and the references it links for this role. If a reference is unavailable, ask for its contents; do not guess the contract. Use Client Protocol for app purchase APIs and Commerce Protocol for backend connections. Use the supported capabilities of my chosen services; no particular backend is required.\n\nImplement the smallest working connection for my role. Keep credentials on their intended side of the app/backend boundary. Follow the role's implementation and conformance requirements, including failure and recovery. Do not claim another role merely because this product connects to it.\n\nRun the result from clean source. Show the customer outcome, the commands and actual test results, and any remaining product or deployment decisions. Distinguish local fixtures from real store sandbox evidence. Keep changes uncommitted for review.\n\nUse the following as the Desired outcome for the brief above.\nRead https://openiap.dev/commerce-example/integration-brief.md and follow its linked guides and example code for my role.\n\nConnect this paywall to the host app's existing OpenIAP purchase flow.\nKeep our UI, targeting, and experiments. Use the host's store-fetched products and purchase callback.\nShow pending, canceled, failed, and fulfilled results without treating a click as a purchase.\nOnly report fulfillment and finish the purchase after the backend grants the selected product.\n\nImplement this in my project. Use fictional data first.\nFor verification, read http://127.0.0.1:4187/commerce-example/experience-verification.md.\nDownload its linked example source into a separate temporary folder, then run npm ci and npm test there (Bun is required).\nUse the example's checks as a reference, then run equivalent checks against MY implementation for this role.\nFix failures and rerun. Show the changed files, commands, actual results, and anything not tested.\nShow my running app or service. Passing the example alone does not verify my project.",
+  "beforeUi": {
+    "access": "Locked",
+    "finishes": "0",
+    "status": "Not connected",
+    "variant": "layout-b"
+  },
+  "afterUi": {
+    "outcomes": [
+      {
+        "mode": "pending",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "pending",
+        "variant": "layout-b"
+      },
+      {
+        "mode": "canceled",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "canceled",
+        "variant": "layout-b"
+      },
+      {
+        "mode": "failed",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "failed",
+        "variant": "layout-b"
+      },
+      {
+        "mode": "denied",
+        "access": "Locked",
+        "finishes": "0",
+        "status": "failed",
+        "variant": "layout-b"
+      },
+      {
+        "mode": "purchased",
+        "access": "Premium open",
+        "finishes": "1",
+        "status": "fulfilled",
+        "variant": "layout-b"
+      }
+    ],
+    "mobile": {
+      "access": "Premium open",
+      "finishes": "1",
+      "scrollWidth": 375,
+      "status": "canceled",
+      "width": 390
+    },
+    "desktop": {
+      "scrollWidth": 1265,
+      "width": 1280
+    }
+  },
+  "starterHashes": {
+    "AGENTS.md": "2ea86ac678a677d0c88752117e00b7ce42cf328c8a49ee7257550b9161bc4870",
+    "app.mjs": "eb0aa9a6c9766b6cc7c100963b97106141eabe25961523ca7a794e6c7e11765c",
+    "host.mjs": "acc74f94834d63709f13c0c5c997dbfb8904c66245caae0a7d464c099206b530",
+    "index.html": "478076ce0b8e5060c3fa1a896895e0ff407c654ebafc8684a38ddecafa62e782",
+    "package.json": "0c2bb747d39415a9b81c235ce21fd2866f52803d3ede5eeca852ff1513eb013d",
+    "server.mjs": "7592dca36aaf85e1dafc7be661425a97acbaace5c87fc212772bfb1740b6f9c2"
+  },
+  "resultHashes": {
+    "AGENTS.md": "2ea86ac678a677d0c88752117e00b7ce42cf328c8a49ee7257550b9161bc4870",
+    "app.mjs": "bb15a292ab425e137c10ca58ee6603751e5b4f653c021070a7dfd35e56482fc8",
+    "host.mjs": "acc74f94834d63709f13c0c5c997dbfb8904c66245caae0a7d464c099206b530",
+    "index.html": "478076ce0b8e5060c3fa1a896895e0ff407c654ebafc8684a38ddecafa62e782",
+    "package-lock.json": "aa686cdede48a4761c32755d8910e9021320bde975d046ce806c71cdf78db061",
+    "package.json": "a5bdfded17d22ddab06e9a680a24fe4b9797f2590ab3755a8d4b8f8b595084f8",
+    "purchase-flow.mjs": "4bb63482f3f70fbf94537dbd85171ae480ca53cddfd3e7b3d628a2dcc1ccd81a",
+    "purchase.test.mjs": "bfd476c61ae150aa9d89e23baaf126b8b7dbf41e20405c282534f86a41fbe6ee",
+    "server.mjs": "4803744186d08e85021053e234132cc90f221f220401100d28623ab4d8d5ec0e"
+  },
+  "cliSourceFilesUnchanged": true,
+  "preservedFiles": [
+    "index.html",
+    "host.mjs"
+  ],
+  "referenceTest": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs composition/purchase-flow.test.mjs composition/experience.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n\ncomposition/purchase-flow.test.mjs:\n(pass) denied or malformed fulfillment never reports success or finishes a purchase [1.16ms]\n\ncomposition/app-backend.test.mjs:\n(pass) account deletion waits for in-flight fulfillment and retries provider erasure after app restart [65.02ms]\n\ncomposition/experience.test.mjs:\n(pass) paywall outcomes and lifecycle events execute through the running app and provider [24.83ms]\n\ncomposition/receiver.test.mjs:\n(pass) the original SQLite and memory composition remains compatible with the receiver [38.90ms]\n(pass) one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users [5.61ms]\n\n 5 pass\n 0 fail\n 76 expect() calls\nRan 5 tests across 4 files. [188.00ms]\n",
+  "ownInstall": "\nadded 1 package, and audited 2 packages in 345ms\n\nfound 0 vulnerabilities\n",
+  "ownTest": "\n> reader-paywall@1.0.0 test\n> bun test purchase.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\npurchase.test.mjs:\n(pass) this paywall adapter uses its own running gateway and preserves host boundaries [91.83ms]\n\n 1 pass\n 0 fail\n 31 expect() calls\nRan 1 test across 1 file. [147.00ms]\n",
+  "negativeControl": {
+    "expectedExitCode": 1,
+    "mutation": "Remove selected-product access guard in a disposable copy",
+    "output": "\n> reader-paywall@1.0.0 test\n> bun test purchase.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\npurchase.test.mjs:\n23 |    finish:async()=>{if(finishFails) throw Error('Store finish unavailable');finishes++;}\n24 |   });\n25 |   for(mode of ['pending','canceled','failed']){\n26 |    expect((await select(fixture.productId)).status).toBe(mode);expect(fulfills).toBe(0);expect(finishes).toBe(0);\n27 |   }\n28 |   mode='denied';expect((await select(fixture.productId)).status).toBe('failed');expect(finishes).toBe(0);\n                                                                      ^\nerror: expect(received).toBe(expected)\n\nExpected: \"failed\"\nReceived: \"fulfilled\"\n\n      at <anonymous> (<reader-run>/negative-control/purchase.test.mjs:28:66)\n(fail) this paywall adapter uses its own running gateway and preserves host boundaries [42.43ms]\n\n 0 pass\n 1 fail\n 15 expect() calls\nRan 1 test across 1 file. [87.00ms]\n"
+  },
+  "runtime": {
+    "bun": "1.3.13",
+    "node": "22.22.0",
+    "npm": "11.17.0",
+    "referenceContract": "openiap-commerce-protocol@0.1.0",
+    "developmentReference": "@hyodotdev/openiap-commerce-protocol@0.1.0"
+  },
+  "startupCommands": [
+    "COMMERCE_EXPERIENCE_PORT=5194 npm run demo:experience (reference)",
+    "npm start (my-paywall)"
+  ],
+  "limits": [
+    "Fictional store callbacks and Alice session; local HTTP and SQLite are real.",
+    "No real store checkout, external product integrations, device SDK, or new IAPKit run.",
+    "Only the experience role was applied in the separate app.",
+    "The host adapter is reused from the verified reference, not newly generated protocol code."
+  ],
+  "readerIssuesFixed": [
+    "SDK-only readers lacked a clear stopping point.",
+    "All roles shared one verification table, implying a paywall must also implement backend and event receiver.",
+    "The seven-step backend reference was not clearly marked optional.",
+    "The previous run verified the example, not a separate consuming project."
+  ],
+  "archives": {
+    "reader-starter.tar.gz": "7b13328d32932c3a0928230cc14919e61cc0f0da41c5154bdd7e80b1c88a5f6b",
+    "reader-result.tar.gz": "3b5668739414fab53624044dc6803c453f3caa92fd0951ec037970167b9b4f95",
+    "experience-source.tar.gz": "fa796407cedaf32e334cab1da8ea094f3afbb3f9dbf6913cdae48861c73c7687"
+  },
+  "distributionFollowup": {
+    "recordedAt": "2026-09-12T22:48:28.755509+00:00",
+    "scope": "Documentation wording only. All implementation and test files are byte-for-byte unchanged from the originally verified archive.",
+    "previousArchiveSha256": "b4c345ee68f48df6afeb14b9255783780c26dd1ee2332b641ab17bd775987836",
+    "archiveSha256": "fa796407cedaf32e334cab1da8ea094f3afbb3f9dbf6913cdae48861c73c7687",
+    "changedFile": "INTEGRATE.md",
+    "previousFileSha256": "ed3851d6432deedb85d2d0cc3edcca8fe52f58c79c99b68a9aa54616b010949b",
+    "fileSha256": "f5391d87c54735b41237afa0fc9e852aa457ae0ca01622b5e4db19c22990ad4c"
+  }
+}

@@ -362,7 +362,8 @@
   overflow-wrap: anywhere;
 }
 
-.commerce-implementation .code-block .language-text {
+.commerce-implementation .code-block .language-text,
+.ai-assistants .code-block .language-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -863,8 +864,1132 @@
   animation: commerce-overlay-enter 220ms ease-out both;
 }
 
-.commerce-build-tabs {
-  scroll-margin-top: 90px;
+.commerce-walkthrough {
+  container: commerce-walkthrough / inline-size;
+  --commerce-success: #34764e;
+}
+:root.dark .commerce-walkthrough {
+  --commerce-success: #a3dbb5;
+}
+.commerce-story {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 2fr);
+  gap: 24px;
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-primary);
+}
+.commerce-story-navigation {
+  min-width: 0;
+  scroll-margin-top: 110px;
+}
+.commerce-story-eyebrow {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+.doc-page .commerce-story-steps {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.commerce-story-steps::before {
+  position: absolute;
+  top: 26px;
+  bottom: 26px;
+  left: 26px;
+  border-left: 1px solid var(--border-color);
+  content: '';
+}
+.doc-page .commerce-story-steps li {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+.commerce-story-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.commerce-story-step:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.commerce-story-step[aria-current='step'] {
+  border-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+  background: color-mix(in srgb, var(--primary-light) 14%, var(--bg-primary));
+  color: var(--text-primary);
+}
+.commerce-story-step:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+}
+.commerce-story-node {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-primary);
+}
+.commerce-story-step[aria-current='step'] .commerce-story-node {
+  border-color: var(--primary-color);
+  background: var(--primary-light);
+  color: #2b211c;
+}
+.commerce-story-step-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.commerce-story-step-copy small {
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+.commerce-story-step-copy strong {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.commerce-story-chevron {
+  flex: 0 0 14px;
+  margin-left: auto;
+  opacity: 0;
+}
+.commerce-story-step[aria-current='step'] .commerce-story-chevron {
+  opacity: 1;
+}
+.commerce-story-panel {
+  min-width: 0;
+}
+.commerce-story .commerce-build-caption {
+  gap: 8px;
+  padding: 0;
+  margin-bottom: 20px;
+}
+.doc-page .commerce-story .commerce-build-caption h3 {
+  margin: 5px 0 0;
+  font-size: 1.125rem;
+}
+.commerce-story .commerce-step-controls .btn {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  padding: 0;
+  place-items: center;
+  border-color: var(--border-color);
+  border-radius: 50%;
+}
+.commerce-access-pass {
+  --pass-color: var(--text-secondary);
+  padding: 20px 20px 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--pass-color) 25%, transparent);
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      ellipse at top right,
+      color-mix(in srgb, var(--pass-color) 12%, transparent),
+      transparent 70%
+    ),
+    var(--bg-secondary);
+}
+.commerce-startup {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 24px;
+  font-size: var(--font-size-xs);
+}
+.commerce-startup .commerce-story-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.doc-page .commerce-startup p {
+  margin: 10px 0;
+  color: var(--text-secondary);
+  font-size: inherit;
+  line-height: 1.6;
+}
+.commerce-startup-command {
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+}
+.commerce-startup-command .code-block {
+  margin: 12px 0;
+}
+.commerce-startup-output-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+.commerce-startup-output {
+  display: block;
+  padding-left: 10px;
+  border-left: 2px solid var(--commerce-success);
+  color: var(--commerce-success);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.commerce-startup-services {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.commerce-startup-services > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  text-align: center;
+}
+.commerce-startup-services svg {
+  color: var(--primary-color);
+}
+.commerce-startup-services strong {
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+.commerce-startup-services span {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+.commerce-startup-result button {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-color);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.commerce-startup-result button svg {
+  vertical-align: middle;
+}
+.commerce-startup-result button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+}
+.commerce-startup-note {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+.commerce-access-pass[data-access='on'] {
+  --pass-color: var(--commerce-success);
+}
+.commerce-step-explainer {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.doc-page .commerce-step-purpose {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+.doc-page .commerce-step-playback {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.commerce-step-playback > svg {
+  flex-shrink: 0;
+}
+.commerce-step-execution {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+}
+.commerce-execution-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.commerce-execution-heading > a {
+  font-size: 0.6875rem;
+}
+.doc-page .commerce-step-execution p,
+.doc-page .commerce-operation-results p {
+  margin: 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.commerce-step-execution small {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  line-height: 1.5;
+}
+.commerce-step-execution .code-block {
+  margin: 12px 0;
+}
+.commerce-request-command > summary {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+.commerce-response-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.commerce-response-card {
+  min-width: 0;
+  padding: 12px;
+  border-left: 2px solid var(--primary-color);
+  background: var(--bg-secondary);
+}
+.commerce-response-card > strong {
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+.commerce-response-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.commerce-response-card dt {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  overflow-wrap: anywhere;
+}
+.commerce-response-card dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+.doc-page .commerce-response-card dd code {
+  padding: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font-size: 0.75rem;
+  white-space: normal;
+}
+.doc-page .commerce-purchase-next {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.commerce-purchase-change {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.commerce-purchase-snapshot {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+}
+.commerce-purchase-snapshot:last-child {
+  border-color: var(--primary-color);
+}
+.commerce-purchase-snapshot header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.commerce-purchase-snapshot header > span:last-child {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+.commerce-purchase-receipt,
+.commerce-purchase-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 144px;
+  padding: 16px 12px;
+  font-size: var(--font-size-xs);
+}
+.commerce-purchase-receipt > svg {
+  color: var(--primary-color);
+}
+.commerce-purchase-receipt > code {
+  align-self: flex-start;
+  font-size: 0.625rem;
+  overflow-wrap: anywhere;
+}
+.commerce-purchase-empty {
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.commerce-purchase-owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+.commerce-purchase-owner strong,
+.commerce-purchase-access strong {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.commerce-purchase-access {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+.commerce-purchase-access[data-access='on'] {
+  background: color-mix(in srgb, var(--commerce-success) 10%, transparent);
+}
+.commerce-purchase-access[data-access='on'],
+.commerce-purchase-access[data-access='on'] strong {
+  color: var(--commerce-success);
+}
+.commerce-purchase-takeaway {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0;
+}
+.commerce-purchase-takeaway > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--primary-color);
+}
+.doc-page .commerce-purchase-takeaway p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.commerce-purchase-takeaway strong {
+  display: block;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.commerce-story .commerce-story-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  justify-self: start;
+  margin-bottom: 20px;
+}
+.commerce-story-continue > svg {
+  flex-shrink: 0;
+}
+.commerce-example-evidence {
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+.commerce-evidence-heading,
+.commerce-evidence-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  font-size: 0.6875rem;
+}
+.commerce-evidence-heading {
+  justify-content: space-between;
+}
+.doc-page .commerce-evidence-title {
+  margin: 8px 0 16px;
+  font-size: var(--font-size-xs);
+}
+.commerce-evidence-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.doc-page .commerce-evidence-screen {
+  display: block;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.625rem;
+}
+.commerce-evidence-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.commerce-evidence-screen > span {
+  display: block;
+  width: 100%;
+  padding: 8px;
+}
+.doc-page .commerce-evidence-locate {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+.commerce-evidence-values {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.commerce-evidence-values dt {
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+}
+.commerce-evidence-values dd {
+  margin: 2px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+.commerce-evidence-links {
+  margin-top: 16px;
+}
+.doc-page .commerce-evidence-note {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  line-height: 1.5;
+}
+.commerce-pass-decision {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 16px;
+}
+.commerce-pass-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--pass-color) 25%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pass-color) 8%, transparent);
+  color: var(--pass-color);
+}
+.doc-page .commerce-pass-decision p {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-family-display);
+  font-size: clamp(1.125rem, 3cqi, 1.4rem);
+  letter-spacing: var(--tracking-display);
+  line-height: 1.3;
+}
+.commerce-pass-decision strong {
+  color: var(--pass-color);
+}
+.doc-page .commerce-story-explanation {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.commerce-technical-reference {
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+}
+.commerce-technical-reference > summary {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+.doc-page .commerce-technical-intro {
+  margin: 12px 0 20px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+}
+.commerce-story-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 24px;
+}
+.commerce-story-records > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+}
+.commerce-story-records svg {
+  flex-shrink: 0;
+}
+.commerce-story-records dt {
+  font-size: 0.625rem;
+}
+.commerce-story-records dd {
+  margin: 0 0 0 auto;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+}
+.commerce-story-proof-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.commerce-proof-passed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--commerce-success);
+  font-size: 0.625rem;
+}
+.commerce-story-proof .commerce-run-details {
+  font-size: var(--font-size-xs);
+}
+.commerce-story-proof summary svg {
+  display: inline;
+  margin: 0 4px -3px 0;
+}
+@container commerce-walkthrough (max-width: 560px) {
+  .commerce-story {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding: 16px;
+  }
+  .doc-page .commerce-story-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .commerce-story-steps::before,
+  .commerce-story-chevron {
+    display: none;
+  }
+  .commerce-story-step {
+    min-height: 58px;
+    gap: 8px;
+    padding: 8px;
+  }
+  .commerce-story .commerce-step-controls .btn {
+    width: 40px;
+    height: 40px;
+  }
+  .commerce-purchase-change {
+    gap: 8px;
+  }
+  .commerce-step-execution .code-block pre,
+  .commerce-step-execution .code-block code {
+    font-size: 12px;
+  }
+  .commerce-evidence-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .commerce-evidence-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .commerce-purchase-snapshot header,
+  .commerce-purchase-receipt,
+  .commerce-purchase-empty,
+  .commerce-purchase-access {
+    padding: 10px;
+  }
+  .commerce-purchase-owner {
+    gap: 4px;
+  }
+}
+
+.commerce-ai-workflow {
+  margin: 32px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-secondary);
+}
+.commerce-ai-workflow-header {
+  padding: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.doc-page .commerce-ai-workflow-header h3 {
+  margin: 0 0 20px;
+}
+.commerce-ai-role-options,
+.doc-page .commerce-ai-deliverables {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.commerce-ai-workflow .commerce-ai-role-options {
+  margin: 0;
+}
+.commerce-ai-workflow-content {
+  min-width: 0;
+  padding: 24px;
+}
+.doc-page .commerce-ai-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 16px;
+  font-size: var(--font-size-xs);
+}
+.commerce-ai-selection > span {
+  color: var(--text-secondary);
+}
+.commerce-ai-selection strong {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+.doc-page .commerce-ai-handoff {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 0 24px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  list-style: none;
+}
+.doc-page .commerce-ai-handoff li {
+  min-width: 0;
+  margin: 0;
+}
+.commerce-ai-handoff li + li {
+  border-left: 1px solid var(--border-color);
+}
+.doc-page .commerce-ai-handoff a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 14px 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.commerce-ai-handoff a:hover {
+  background: var(--bg-secondary);
+}
+.commerce-ai-handoff a:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -3px;
+}
+.commerce-ai-step-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  color: var(--primary-color);
+  font-size: var(--font-size-xs);
+}
+.commerce-ai-step-label {
+  display: grid;
+  gap: 4px;
+}
+.commerce-ai-step-label strong {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+.commerce-ai-step-label > span,
+.commerce-ai-paste-slot span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.doc-page .commerce-ai-step {
+  margin: 0;
+  padding: 28px 0;
+  border-top: 1px solid var(--border-color);
+}
+.doc-page .commerce-ai-step:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.doc-page .commerce-ai-step:last-child {
+  padding-bottom: 0;
+}
+.doc-page .commerce-ai-step > :first-child {
+  margin-top: 0;
+}
+.doc-page .commerce-ai-step > :last-child {
+  margin-bottom: 0;
+}
+.commerce-ai-message {
+  min-width: 0;
+  margin: 24px 0;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-primary);
+}
+.commerce-ai-message > summary {
+  padding: 18px 20px;
+  color: var(--primary-color);
+  font-weight: 500;
+  cursor: pointer;
+}
+.commerce-ai-message > summary:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+.commerce-ai-message[open] > summary {
+  border-bottom: 1px solid var(--border-color);
+}
+.commerce-ai-message-content {
+  min-width: 0;
+  padding: 20px;
+}
+.commerce-ai-paste-slot {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px dashed var(--primary-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+.commerce-ai-message .code-block {
+  margin-bottom: 0;
+}
+.doc-page .commerce-ai-terminal-output {
+  padding: 16px;
+  border-left: 2px solid var(--primary-color);
+  border-radius: 0;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.doc-page .commerce-ai-terminal-output + p {
+  margin-top: 24px;
+}
+.commerce-ai-role-options button {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.commerce-ai-role-options button[aria-pressed='true'] {
+  border-color: var(--primary-color);
+  box-shadow: inset 0 0 0 1px var(--primary-color);
+  background: var(--bg-secondary);
+}
+.commerce-ai-role-options button:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+}
+.commerce-ai-role-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.commerce-ai-role-title strong {
+  font-weight: 500;
+}
+.commerce-ai-role-check {
+  display: grid;
+  place-items: center;
+  flex: 0 0 20px;
+  height: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+}
+[aria-pressed='true'] .commerce-ai-role-check {
+  border-color: var(--primary-color);
+  color: var(--bg-primary);
+  background: var(--primary-color);
+}
+.commerce-ai-role-options .commerce-ai-role-detail {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.doc-page .commerce-ai-deliverables li {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+}
+.commerce-ai-deliverables strong {
+  font-weight: 500;
+}
+.commerce-ai-deliverables span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.doc-page .commerce-ai-build-record {
+  padding-left: 16px;
+  border-left: 2px solid var(--primary-color);
+  font-size: var(--font-size-xs);
+  line-height: 1.7;
+}
+.doc-page .commerce-ai-build-record p {
+  margin: 8px 0;
+  font-size: inherit;
+}
+.commerce-fresh-build {
+  margin: 32px 0;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+}
+.doc-page .commerce-fresh-build figure {
+  margin: 24px 0 16px;
+}
+.commerce-fresh-build figure img,
+.commerce-connection-example figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.commerce-connection-example {
+  margin: 32px 0;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 18px;
+  background: var(--bg-secondary);
+}
+
+.doc-page .commerce-connection-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+}
+
+.commerce-connection-flow li {
+  min-width: 0;
+  padding: 18px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.commerce-connection-label,
+.commerce-connection-flow strong {
+  display: block;
+}
+
+.commerce-connection-label {
+  color: var(--primary-color);
+  font-size: var(--font-size-xs);
+  margin-bottom: 14px;
+}
+
+.doc-page .commerce-connection-flow p,
+.doc-page .commerce-connection-note {
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.commerce-connection-flow a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.commerce-connection-record {
+  padding: 18px;
+  border: 1px solid var(--primary-color);
+  border-radius: 12px;
+}
+
+.commerce-connection-record > span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.commerce-connection-record > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.doc-page .commerce-connection-record p {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.commerce-connection-record strong {
+  display: block;
+  font-size: 1.4rem;
+  color: var(--text-primary);
+}
+
+.commerce-connection-example > details {
+  border-top: 1px solid var(--border-color);
+  padding: 16px 0;
+}
+
+.commerce-connection-example details[open] > summary {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 700px) {
+  .commerce-connection-example {
+    padding: 16px;
+  }
+  .doc-page .commerce-connection-flow,
+  .commerce-connection-record > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.commerce-fresh-build figcaption,
+.doc-page .commerce-fresh-verification {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.commerce-fresh-commits th[scope='row'] {
+  font-weight: 500;
+}
+@media (max-width: 600px) {
+  .commerce-fresh-build {
+    padding: 12px;
+  }
+  .ai-assistants.doc-page .commerce-fresh-commits th,
+  .ai-assistants.doc-page .commerce-fresh-commits td {
+    padding: 10px 6px;
+    font-size: var(--font-size-xs);
+  }
+}
+.commerce-build-task {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+.doc-page .commerce-build-task p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+.commerce-build-task a {
+  font-size: 0.6875rem;
+}
+@container commerce-walkthrough (max-width: 560px) {
+  .commerce-build-task {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .commerce-ai-role-options,
+  .doc-page .commerce-ai-deliverables {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .commerce-ai-workflow-header,
+  .commerce-ai-workflow-content {
+    padding: 16px;
+  }
+  .doc-page .commerce-ai-handoff {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .commerce-ai-handoff li:nth-child(3) {
+    border-left: 0;
+  }
+  .commerce-ai-handoff li:nth-child(n + 3) {
+    border-top: 1px solid var(--border-color);
+  }
+  .commerce-ai-handoff a {
+    gap: 8px;
+  }
+  .commerce-ai-message > summary,
+  .commerce-ai-message-content {
+    padding: 12px;
+  }
+}
+
+.ai-assistants.doc-page .commerce-outcome-table {
+  display: table;
+  table-layout: fixed;
+}
+
+.ai-assistants.doc-page .commerce-outcome-table th,
+.ai-assistants.doc-page .commerce-outcome-table td {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 @keyframes commerce-overlay-enter {
@@ -1011,17 +2136,6 @@
 .commerce-step-controls {
   display: flex;
   gap: var(--spacing-xs);
-}
-
-.commerce-capture-link {
-  display: block;
-}
-
-.commerce-capture-link img {
-  display: block;
-  width: 100%;
-  height: auto;
-  border-radius: 6px;
 }
 
 .commerce-run-details {

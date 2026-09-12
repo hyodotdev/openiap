@@ -1,8 +1,8 @@
 # @hyodotdev/openiap
 
-Connect your app, paywall, commerce service, or data product to OpenIAP.
-Choose your role, then give the implementation brief to your coding assistant
-in your existing project. Use `doctor` to check local purchase configuration.
+Prepare an OpenIAP implementation brief and check local purchase configuration.
+Use `init` to choose a starting guide for your coding assistant; use `doctor`
+to catch known configuration mistakes before a build or after an AI edit.
 
 Requires Node.js 20 or later.
 
@@ -16,6 +16,10 @@ npx @hyodotdev/openiap init ./my-product --role experience
 npx @hyodotdev/openiap doctor ./my-app --json
 ```
 
+The project directory must already exist. `init` prints Markdown to stdout;
+it does not create a project or a file. Without arguments, an interactive
+terminal opens the role picker; a non-interactive run prints help.
+
 | Role         | Connect                                               |
 | ------------ | ----------------------------------------------------- |
 | `app`        | Purchases to customer access                          |
@@ -27,10 +31,71 @@ The brief points your assistant to the matching implementation guide. Fill in
 the customer outcome, choose any missing product decisions, and review the
 running result. Run again for each role your product supplies.
 
-Both commands only read local files. They do not install dependencies, change
-your project, contact a server, or invoke an AI. `init` prints a brief; your
-coding assistant performs the implementation when you give it that brief.
-For scripts, select a role explicitly with `--role`.
+For scripts and coding agents, select a role explicitly with `--role`. To save
+the output, redirect it yourself. This creates or replaces `openiap-brief.md`:
+
+```bash
+npx @hyodotdev/openiap init --role commerce > openiap-brief.md
+```
+
+The CLI itself only reads local files. It does not install SDKs, execute app
+configuration, fetch the linked guides, contact a service, or invoke an AI.
+`npx` may download the CLI and its dependencies before running it.
+
+## In an existing project
+
+From your existing app directory, run `npx @hyodotdev/openiap init --role app`.
+This works even when the app already uses OpenIAP. It prints a starting brief;
+it does not analyze or migrate the existing purchase flow.
+
+When the command exits, copy the full document beginning with
+`# OpenIAP implementation brief`. Open the same project in your coding assistant
+(for example, Codex or Claude Code) and paste it into the assistant's **chat
+input**. Append your desired outcome below it, such as adding Premium while
+keeping your current login, paywall, and purchase integration. Send both as one
+message. The AI then inspects and edits the project, runs it, and reports tests.
+At the end of `init` alone, your files are unchanged and no AI or server is running.
+
+Follow the [AI handoff](https://openiap.dev/docs/guides/ai-assistants#commerce-ai-request),
+then inspect the [connection example and its evidence](https://openiap.dev/docs/guides/ai-assistants#commerce-connection-example).
+
+## Why use it with AI?
+
+`init` is an optional shortcut. It adds the project path, selected role, and a
+framework hint to a brief that links the maintained guide. It does not analyze
+your purchase code, select a backend, or check the implementation. If your
+assistant already has the relevant guide and project context, skip `init`.
+
+`doctor` supplies repeatable checks with stable finding IDs, file locations,
+suggested fixes, JSON output, and an error exit code. An assistant can inspect
+the same files itself; running the CLI makes these particular checks consistent
+across developers, agents, and CI. Review a finding, fix its cause, and rerun
+the same command. Pin the CLI version in CI to keep the rule set consistent.
+
+| Need | Use |
+| --- | --- |
+| Decide where an app, paywall, backend, or data service connects | `init --role …`, or the [role guide](https://openiap.dev/commerce-protocol/ecosystem) directly |
+| Catch supported local configuration mistakes | `doctor --json` in the target app directory |
+| See verification, ownership, access, and delivery execute | The [runnable Commerce Protocol example](https://github.com/hyodotdev/openiap-commerce-protocol-example) |
+| Verify a provider's protocol behavior | The [conformance tools](https://openiap.dev/commerce-protocol/conformance) and tests for its declared profiles |
+
+The CLI is not needed to run the example or use OpenIAP SDKs. The example is
+fixture-backed teaching code; neither its tests nor a clean `doctor` report
+prove that real store purchases work.
+
+## Check scope
+
+Run `doctor` at the target app root, not the monorepo root. It does not
+recursively discover apps. Framework hints recognize Expo, React Native,
+Flutter, and KMP dependency declarations; other stacks report `unknown`.
+The four `init` roles select guides, not four sets of diagnostic checks.
+
+Android checks inspect conventional `android/` Gradle and manifest files.
+iOS scene checks apply to Expo and React Native `ios/` projects. IAPKit key and
+URL checks read env and app configuration files, including relevant Flutter
+assets. They are not a general source-code or secret scan. A custom layout or
+missing native directory can leave a check skipped; inspect
+`notCheckedLocally` even when the command exits `0`.
 
 ## Severity
 

@@ -22,6 +22,14 @@ const repo = resolve(kit, "../..");
 const example = resolve(
   process.argv[2] ?? join(repo, "../openiap-commerce-protocol-example"),
 );
+const freshExample = process.argv[4] ? resolve(process.argv[4]) : null;
+const freshInputs = freshExample
+  ? pinSources(freshExample, () => [
+      ...new Bun.Glob("*.mjs").scanSync({ cwd: freshExample }),
+      "package.json",
+      "package-lock.json",
+    ])
+  : null;
 const revision = (cwd) => {
   const git = (args) => {
     const result = Bun.spawnSync(["git", ...args], { cwd });
@@ -194,10 +202,11 @@ try {
     key,
     publishable,
   });
-  const startedAt = Date.now(),
-    expiresAt = startedAt + 45000,
+  const startedAt = Date.now();
+  let expiresAt = startedAt + 45000,
     token = "local-interop-google-token",
-    userId = "interop_alice",
+    orderId = "GPA.local-fixture";
+  const userId = "interop_alice",
     productId = "premium.monthly";
   let googleState = "SUBSCRIPTION_STATE_ACTIVE";
   mock.module("googleapis", () => ({
@@ -218,7 +227,7 @@ try {
                   subscriptionState: googleState,
                   startTime: new Date(startedAt - 60000).toISOString(),
                   acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
-                  latestOrderId: "GPA.local-fixture",
+                  latestOrderId: orderId,
                   testPurchase: {},
                   lineItems: [
                     {
@@ -492,7 +501,14 @@ try {
         packageName: "dev.openiap.interop",
         eventTimeMillis: Date.now(),
         subscriptionNotification: {
-          notificationType: kind === "expire" ? 13 : kind === "cancel" ? 3 : 4,
+          notificationType:
+            kind === "expire"
+              ? 13
+              : kind === "cancel"
+                ? 3
+                : kind === "renew"
+                  ? 2
+                  : 4,
           purchaseToken: token,
           subscriptionId: productId,
         },
@@ -758,6 +774,45 @@ try {
     check,
     trace,
   });
+  let freshConnection;
+  if (freshExample) {
+    token = "fresh-paywall-google-token";
+    orderId = "GPA.fresh-fixture-0";
+    expiresAt = Date.now() + 60000;
+    googleState = "SUBSCRIPTION_STATE_ACTIVE";
+    const { verifyProvider } = await import(
+      join(freshExample, "verify-provider.mjs")
+    );
+    freshConnection = await verifyProvider({
+      provider: { baseUrl: kitServer.url.origin, credential: key },
+      projectId: seeded.projectId,
+      secret,
+      sample: {
+        id: "google",
+        label: "IAPKit Google fixture",
+        userId: "fresh_paywall_user",
+        productId,
+        variant: "A",
+        receipt: { store: "google", google: { purchaseToken: token } },
+      },
+      observe: async (kind) => {
+        if (kind === "renew") {
+          expiresAt += 60000;
+          orderId = "GPA.fresh-fixture-1";
+        }
+        return observe(kind, "fresh-paywall-" + kind);
+      },
+      deliver: (receive) => deliverPendingEventsHandler(ctx, receive),
+    });
+    freshInputs.assertUnchanged();
+    freshConnection.source = {
+      revision: revision(freshExample),
+      hashes: freshInputs.hashes,
+    };
+    console.log(
+      `Completed ${freshConnection.checks.length} fresh paywall checks.`,
+    );
+  }
   for (const snapshot of Object.values(inputs)) snapshot.assertUnchanged();
   check(
     "Source revisions remain unchanged throughout execution",
@@ -765,6 +820,7 @@ try {
     revisions,
   );
   const report = {
+    ...(freshConnection ? { freshConnection } : {}),
     results,
     storeCoverage,
     harnessHashes: inputs.harness.hashes,

@@ -38,6 +38,6 @@
   "kit/scripts/docs/compare-commerce-example.ts": "e6b03062b3e5f6dfa0c95cfc5fa06efba3af58505739cf06e7e775d51bf228ef",
   "kit/scripts/docs/export-commerce-interop.mjs": "3ee337858c8f95f63cfe3b7881bfec9efa98649badd6d6da8942d09832509bcf",
   "kit/scripts/docs/render-mockups.ts": "c191503733e1e12a1c52a35efba0b6939255d7b3c1c4d1a716526a7ead4ec3e0",
-  "kit/scripts/docs/run-commerce-interop.mjs": "2841e6ae339d8b133b17d520cf29b4832915f871d44c9ec44b6df056b0a940e4",
+  "kit/scripts/docs/run-commerce-interop.mjs": "2acbcaaef2ca6325197c540f3db8c18493e09514985b9430c6a572096682f789",
   "kit/scripts/docs/seed-testapp.ts": "b1364e3d9c77edbc72a6996069d50bfdba6b59b385c05c54c9e793d020ebc617"
 }
