@@ -747,6 +747,7 @@ function PurchaseFlowContainer() {
   // ============================================================
   const [purchaseResult, setPurchaseResult] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const purchaseRequestPendingRef = useRef(false);
   const [lastPurchase, setLastPurchase] = useState<Purchase | null>(null);
   const [refreshingAvailablePurchases, setRefreshingAvailablePurchases] =
     useState(false);
@@ -1184,6 +1185,8 @@ function PurchaseFlowContainer() {
   // ============================================================
   const handlePurchase = useCallback(
     (itemId: string) => {
+      if (purchaseRequestPendingRef.current) return;
+      purchaseRequestPendingRef.current = true;
       setIsProcessing(true);
       setPurchaseResult('Processing purchase...');
 
@@ -1205,24 +1208,28 @@ function PurchaseFlowContainer() {
           // },
         },
         type: 'in-app',
-      }).catch((error: PurchaseError) => {
-        console.log('requestPurchase failed:', {
-          code: error.code,
-          message: error.message,
-        });
-        setIsProcessing(false);
-        if (error.code === ErrorCode.UserCancelled) {
-          setPurchaseResult('Purchase cancelled by user');
-          return;
-        }
+      })
+        .catch((error: PurchaseError) => {
+          console.log('requestPurchase failed:', {
+            code: error.code,
+            message: error.message,
+          });
+          setIsProcessing(false);
+          if (error.code === ErrorCode.UserCancelled) {
+            setPurchaseResult('Purchase cancelled by user');
+            return;
+          }
 
-        setPurchaseResult(
-          `Purchase failed: ${formatErrorForDisplay(
-            error,
-            ErrorCode.PurchaseError,
-          )}`,
-        );
-      });
+          setPurchaseResult(
+            `Purchase failed: ${formatErrorForDisplay(
+              error,
+              ErrorCode.PurchaseError,
+            )}`,
+          );
+        })
+        .finally(() => {
+          purchaseRequestPendingRef.current = false;
+        });
     },
     [setIsProcessing, setPurchaseResult],
   );

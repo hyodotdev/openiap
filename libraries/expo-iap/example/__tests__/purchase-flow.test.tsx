@@ -167,6 +167,36 @@ describe('PurchaseFlow Component', () => {
     });
   });
 
+  it('opens one purchase when presses arrive before the button rerenders', async () => {
+    let rejectPurchase!: (error: unknown) => void;
+    (requestPurchase as jest.Mock).mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectPurchase = reject;
+        }),
+    );
+    const {getByText} = await render(<PurchaseFlow />);
+    await waitFor(() => expect(getStorefront).toHaveBeenCalled());
+    const button = getByText('Purchase');
+    let target = button.unstable_fiber;
+    while (target && typeof target.memoizedProps?.onPress !== 'function') {
+      target = target.return;
+    }
+    const press = target!.memoizedProps.onPress as () => void;
+
+    await act(async () => {
+      press();
+      press();
+    });
+
+    expect(requestPurchase).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      rejectPurchase({code: 'user-cancelled', message: 'Cancelled'});
+    });
+    await fireEvent.press(getByText('Purchase'));
+    expect(requestPurchase).toHaveBeenCalledTimes(2);
+  });
+
   it('routes Local (IAPKit) through the configured local server', async () => {
     await render(<PurchaseFlow />);
 
