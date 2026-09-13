@@ -205,6 +205,105 @@ describe('SubscriptionFlow Component', () => {
     expect(mockFetchProducts).toHaveBeenCalled();
   });
 
+  it.each([0, 1, 2, undefined])(
+    'submits only the selected Google plan, or cancels (%s)',
+    async (selection) => {
+      const subscription = createMockAndroidSubscription();
+      const offers = [
+        {
+          ...subscription.subscriptionOffers[0],
+          basePlanIdAndroid: 'prepaid',
+          offerTokenAndroid: 'prepaid-token',
+          pricingPhasesAndroid: {
+            pricingPhaseList: [
+              {
+                formattedPrice: '$4.99',
+                billingPeriod: 'P1M',
+                recurrenceMode: 3,
+              },
+            ],
+          },
+        },
+        {
+          ...subscription.subscriptionOffers[0],
+          basePlanIdAndroid: 'monthly',
+          offerTokenAndroid: 'renewing-token',
+          pricingPhasesAndroid: {
+            pricingPhaseList: [
+              {
+                formattedPrice: '$5.99',
+                billingPeriod: 'P1M',
+                recurrenceMode: 1,
+              },
+            ],
+          },
+        },
+      ];
+      mockUseIAP.mockReturnValue({
+        ...mockUseIAP(),
+        subscriptions: [{...subscription, subscriptionOffers: offers}],
+      });
+      const {getByText} = await renderConnectedSubscriptionFlow();
+      await fireEvent.press(getByText('Subscribe'));
+      expect(mockRequestPurchase).not.toHaveBeenCalled();
+      expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [
+            'prepaid · Prepaid · $4.99 / P1M',
+            'monthly · Auto-renewing · $5.99 / P1M',
+            'Cancel',
+          ],
+          cancelButtonIndex: 2,
+        }),
+        expect.any(Function),
+      );
+      await act(async () => {
+        mockShowActionSheetWithOptions.mock.calls[0][1](selection);
+      });
+      if (selection === 0 || selection === 1) {
+        expect(mockRequestPurchase).toHaveBeenCalledTimes(1);
+        expect(mockRequestPurchase).toHaveBeenCalledWith({
+          type: 'subs',
+          request: {
+            apple: {sku: subscription.id},
+            google: {
+              skus: [subscription.id],
+              subscriptionOffers: [
+                {
+                  sku: subscription.id,
+                  offerToken: offers[selection].offerTokenAndroid,
+                },
+              ],
+            },
+          },
+        });
+      } else {
+        expect(mockRequestPurchase).not.toHaveBeenCalled();
+        expect(
+          getByText('Subscription plan selection canceled.'),
+        ).toBeDefined();
+        expect(getByText('Subscribe')).toBeDefined();
+      }
+    },
+  );
+
+  it('shows the iOS base price and billing period instead of a discount', async () => {
+    mockUseIAP.mockReturnValue({
+      ...mockUseIAP(),
+      subscriptions: [
+        createMockSubscription({
+          displayPrice: '$99.99',
+          subscriptionPeriodNumberIOS: '1',
+          subscriptionPeriodUnitIOS: 'year',
+        }),
+      ],
+    });
+    const {getByText, queryByText} = await renderConnectedSubscriptionFlow();
+    expect(getByText('$99.99')).toBeDefined();
+    expect(getByText('per 1 year')).toBeDefined();
+    expect(queryByText('Free')).toBeNull();
+  });
+
   it('should display active subscriptions when available', async () => {
     const activeSubscription = {
       productId: 'dev.hyo.martie.premium',
