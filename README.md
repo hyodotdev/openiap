@@ -27,13 +27,12 @@ The contracts every package and library implements live under `specs/`. They are
 
 This monorepo contains all OpenIAP packages:
 
-- **[CLI](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
-
-- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
 - **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
 - **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.apple&label=version&logo=swift&color=orange&prefix=v)](https://github.com/hyodotdev/openiap/releases?q=Apple&expanded=true) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
 - **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
 - **[mcp-server](packages/mcp-server)** - IAPKit MCP server, hosted at [kit.openiap.dev/mcp](https://kit.openiap.dev/mcp) for AI coding agents
+- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
+- **[CLI](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
 
 ## Libraries
 
