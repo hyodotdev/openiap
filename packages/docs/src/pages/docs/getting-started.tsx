@@ -35,7 +35,7 @@ function GettingStarted() {
         <li>Try buying, restoring, and canceling in the store sandbox.</li>
       </ol>
 
-      <details>
+      <details open>
         <summary>Manual setup, code examples, and reference</summary>
         <section>
           <AnchorLink id="1-pick-platform" level="h2">

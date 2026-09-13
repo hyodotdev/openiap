@@ -455,6 +455,13 @@ Paste this into your coding assistant in the project below.`}</pre>
                 actions. If AI only shows the example’s dashboard, ask it to
                 show your implementation and its test results too.
               </p>
+              <p>
+                <a href="https://github.com/hyodotdev/openiap/blob/main/packages/docs/public/commerce-example/store-sandbox-verification.md">
+                  Real-store evidence: Apple lifecycle and Apple/Google
+                  purchases
+                </a>
+                . The report identifies the remaining unverified paths.
+              </p>
             </section>
           </div>
         </div>
