@@ -110,14 +110,14 @@
       "revenueAmount": {
         "provider": true,
         "implementation": true,
-        "notes": "This implementation reads recurringPrice from purchases.subscriptionsv2.get, the plan price rather than the settled charge, and reads no Orders API, so a reversal has no amount to attribute."
+        "notes": "This implementation reads recurringPrice from purchases.subscriptionsv2.get and reads no order for revenue, so a reversal has no amount to attribute."
       }
     },
     "horizon": {
       "initialValidation": {
         "provider": true,
         "implementation": true,
-        "notes": "Only verify_entitlement is called, so this implementation sees ownership and grant_time and never the purchase identity viewer_purchases carries."
+        "notes": "Only verify_entitlement is called, so this implementation never sees the purchase identity its companion endpoint carries."
       },
       "serverNotifications": {
         "provider": true,
@@ -137,7 +137,7 @@
       "refundEvents": {
         "provider": false,
         "implementation": false,
-        "notes": "Meta reports no subscription refund or revocation, so there is nothing to consume."
+        "notes": "There is nothing to consume for this store, so this implementation observes no subscription refund or revocation."
       },
       "expiration": {
         "provider": true,
@@ -183,7 +183,7 @@
       "refundEvents": {
         "provider": true,
         "implementation": false,
-        "notes": "This implementation polls Receipt Verification Service, which reports cancelDate and cancelReason, but only at its next poll."
+        "notes": "This implementation polls Receipt Verification Service, so it sees a cancellation only at its next poll."
       },
       "expiration": {
         "provider": true,

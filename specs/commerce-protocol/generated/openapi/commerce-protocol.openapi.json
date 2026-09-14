@@ -1085,7 +1085,7 @@
             "$ref": "#/components/schemas/CapabilitiesSupport"
           },
           "refundEvents": {
-            "description": "Refund or revocation is observable as a distinct lifecycle event.",
+            "description": "Refund or revocation of a subscription is observable as a distinct lifecycle event.",
             "$ref": "#/components/schemas/CapabilitiesSupport"
           },
           "expiration": {

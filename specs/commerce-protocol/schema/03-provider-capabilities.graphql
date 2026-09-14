@@ -94,7 +94,7 @@ type StoreCapabilities
   """
   renewalEvents: Support!
   """
-  Refund or revocation is observable as a distinct lifecycle event.
+  Refund or revocation of a subscription is observable as a distinct lifecycle event.
   """
   refundEvents: Support!
   """

@@ -1355,20 +1355,20 @@ open for additive documents, so a new document does not move the protocol
 version at all. The npm package version is separate again, and moves only when
 the release workflow publishes.
 
-| Change                                                                                                    | Version impact |
-| --------------------------------------------------------------------------------------------------------- | -------------- |
-| New optional member on an open object                                                                     | MINOR          |
-| New event type                                                                                            | MINOR          |
-| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR          |
-| New operation, new profile, or new optional operation input member                                        | MINOR          |
-| New protocol error code, or a new evidence member for a new store                                         | MINOR          |
-| New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR          |
-| Member removed, renamed, or given new meaning                                                             | MAJOR          |
-| Member type, nullability, or requiredness changed                                                         | MAJOR          |
-| Member added to or removed from a closed enumeration                                                      | MAJOR          |
-| Member added to a closed object (`Support`, `Fact`, `Mapping`, a tokenless result, or the error envelope) | MAJOR          |
-| Operation removed, or its path, method, auth role, or success status changed                              | MAJOR          |
-| New required operation input member                                                                       | MAJOR          |
+| Change                                                                                                    | Version impact    |
+| --------------------------------------------------------------------------------------------------------- | ----------------- |
+| New optional member on an open object                                                                     | MINOR             |
+| New event type                                                                                            | MINOR             |
+| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR             |
+| New operation, new profile, or new optional operation input member                                        | MINOR             |
+| New protocol error code, or a new evidence member for a new store                                         | MINOR             |
+| New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR once stable |
+| Member removed, renamed, or given new meaning                                                             | MAJOR             |
+| Member type, nullability, or requiredness changed                                                         | MAJOR             |
+| Member added to or removed from a closed enumeration                                                      | MAJOR             |
+| Member added to a closed object (`Support`, `Fact`, `Mapping`, a tokenless result, or the error envelope) | MAJOR             |
+| Operation removed, or its path, method, auth role, or success status changed                              | MAJOR             |
+| New required operation input member                                                                       | MAJOR             |
 
 A consumer MUST ignore members it does not recognise on an open object, and MUST
 ignore event types it does not recognise rather than failing. This is what makes

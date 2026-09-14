@@ -75,7 +75,7 @@ Requires notes unless both support axes are true, and forbids implementation sup
 directive @supportInvariant on OBJECT
 
 """
-Ties a store fact's three members together: `available` false exactly when `delivery` is `none`, a `surface` whenever it is true, and `notes` whenever it is false.
+Ties a store fact's members together: `available` false exactly when `delivery` is `none`, a `surface` whenever it is true and never when it is false, and `notes` whenever it is false.
 """
 directive @factInvariant on OBJECT
 
