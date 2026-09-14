@@ -32,7 +32,7 @@ This monorepo contains all OpenIAP packages:
 - **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
 - **[mcp-server](packages/mcp-server)** - IAPKit MCP server, hosted at [kit.openiap.dev/mcp](https://kit.openiap.dev/mcp) for AI coding agents
 - **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
-- **[CLI](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
+- **[cli](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
 
 ## Libraries
 
