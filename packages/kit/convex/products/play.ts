@@ -2278,6 +2278,7 @@ export function pickPlayRegionalPrice<
   );
 }
 
+/** Selects the best regional base-plan price while preserving its plan ID. */
 export function pickSubBasePlanPrice(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
@@ -2328,14 +2329,10 @@ export function pickSubBasePlanPrice(
   };
 }
 
-// Flatten a Play subscription's basePlans + (per base plan) offers
-// into kit's uniform `offers[]` shape. Each base plan becomes a
-// `kind: "BasePlan"` row carrying its billing period + USD price; each
-// associated subscription offer (free trial / intro discount, set up
-// in Play Console) becomes a Free-Trial / IntroPay* row. Prefers the
-// currency the kit row already carries, then USD, so a KRW/JPY-authored
-// subscription doesn't show its base plan in one currency and its
-// offers in another.
+/**
+ * Flattens Play base plans and their offers into the kit's uniform offer rows.
+ * Regional prices follow the shared authored-currency and US-first ranking.
+ */
 export function collectPlaySubscriptionOffers(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
