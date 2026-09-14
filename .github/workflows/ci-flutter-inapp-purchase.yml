@@ -13,6 +13,7 @@ on:
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "scripts/ci/retry-gradle.sh"
       - "!**/*.md"
   push:
     branches: [main, next]
@@ -26,6 +27,7 @@ on:
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "scripts/ci/retry-gradle.sh"
       - "!**/*.md"
 
 permissions:
@@ -92,7 +94,9 @@ jobs:
           working-directory: libraries/flutter_inapp_purchase
 
       - name: Android consumer build smoke test
-        run: bash scripts/verify-android-consumer-build.sh
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
       # The static audit checks that the example declares the Horizon
       # meta-data; only the merged manifest shows what the build resolved it
