@@ -2336,7 +2336,7 @@ export function pickSubBasePlanPrice(
 // currency the kit row already carries, then USD, so a KRW/JPY-authored
 // subscription doesn't show its base plan in one currency and its
 // offers in another.
-function collectPlaySubscriptionOffers(
+export function collectPlaySubscriptionOffers(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
 ): Array<{
