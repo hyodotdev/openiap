@@ -222,7 +222,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The delivery worker sends signed events to registered backend HTTPS endpoints and records attempts. Your receiver owns duplicate handling; the example shows how to build that side.',
       file: 'convex/commerce/delivery.ts',
       symbol: 'deliverPendingEventsHandler',
-      line: 173,
+      line: 168,
       checkFile: 'convex/commerce/delivery.test.ts',
       check:
         'Worker tests check signed requests, transport failures, and destination validation with test I/O.',
@@ -360,7 +360,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
         'The published conformance runner calls IAPKit’s real REST and GraphQL routes against fixture store/database I/O. Separate worker and mutation tests cover persistence responsibilities.',
       file: 'server/api/commerce/conformance.test.ts',
       symbol: 'IAPKit dual-binding conformance',
-      line: 323,
+      line: 307,
       checkFile: 'convex/commerce/spec.conformance.test.ts',
       check:
         'Run bun run test -- server/api/commerce/conformance.test.ts convex/commerce/spec.conformance.test.ts from packages/kit. These are local contract checks, not live store tests.',

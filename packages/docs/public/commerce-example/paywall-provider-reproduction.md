@@ -7,20 +7,15 @@ identity verification are fixtures; no production credentials are used.
 
 ## Prepare the exact sources
 
-Install Bun 1.3.13 and Node.js/npm. Download the
-[harness patch](./paywall-provider-harness.patch) into a new parent folder, then
-run these commands there. The older regression example lives on its review
-branch, not the repository's `main` branch.
+Install Bun 1.3.13 and Node.js/npm, then run these commands in a new parent
+folder. The harness now ships in the repository, so there is no patch to apply.
+The older regression example lives on its review branch, not the repository's
+`main` branch.
 
 ```sh
-printf '%s  %s\n' \
-  d693d3e66f0ac66ef7ed86882b8678a07a144864e30817316a60b8fc13c4cbd7 \
-  paywall-provider-harness.patch | shasum -a 256 -c -
-
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
-git checkout 4b1316adf41d302783de2761866e5226e1b39a7f
-git apply ../paywall-provider-harness.patch
+git checkout 44b329ea7921042d225d9c7824d898c716c0ed92
 bun install --frozen-lockfile
 cd ..
 

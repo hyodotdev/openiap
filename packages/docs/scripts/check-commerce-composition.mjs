@@ -99,9 +99,17 @@ assert.equal(
   provider.freshConnection.checks.length,
   connection.providerVerification.checks
 );
-assert.equal(
-  hash(paywallRead('paywall-provider-harness.patch')),
-  provider.reproduction.patchSha256
+assert.match(
+  provider.reproduction.openiapBaseCommit,
+  /^[0-9a-f]{40}$/u,
+  'Reproduction must name the exact openiap commit it was recorded against'
+);
+// The harness ships in the repository now, so instructions that still told a
+// reader to apply a patch would send them after a file they do not need.
+assert(
+  !('harnessPatch' in provider.reproduction) &&
+    !('patchSha256' in provider.reproduction),
+  'Reproduction must not claim a harness patch'
 );
 console.log(
   'Commerce connection: source archive, local replay and independent provider evidence agree.'
