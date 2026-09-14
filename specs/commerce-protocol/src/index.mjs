@@ -27,6 +27,7 @@ export const providerCapabilitiesSchema = load(
   "provider-capabilities.schema.json",
 );
 export const storeEventMappingSchema = load("store-event-mapping.schema.json");
+export const storeFactsSchema = load("store-facts.schema.json");
 export const operationsSchema = load("operations.schema.json");
 
 export const schemas = Object.freeze([
@@ -34,6 +35,7 @@ export const schemas = Object.freeze([
   commerceEventSchema,
   providerCapabilitiesSchema,
   storeEventMappingSchema,
+  storeFactsSchema,
   operationsSchema,
 ]);
 

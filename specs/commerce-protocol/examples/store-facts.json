@@ -1,0 +1,205 @@
+{
+  "$comment": "The store axis, stated once. A capability descriptor's `provider` value copies `available` from here; `delivery` and `surface` carry the shape a boolean cannot. Observations of vendor documentation, not obligations on the vendor.",
+  "specVersion": "1.0",
+  "stores": {
+    "apple": {
+      "initialValidation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "App Store Server API: Get Transaction Info"
+      },
+      "serverNotifications": {
+        "available": true,
+        "delivery": "push",
+        "surface": "App Store Server Notifications V2"
+      },
+      "subscriptions": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "App Store Server API: Get All Subscription Statuses"
+      },
+      "renewalEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "DID_RENEW notification"
+      },
+      "refundEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "REFUND, REFUND_REVERSED and REVOKE notifications"
+      },
+      "expiration": {
+        "available": true,
+        "delivery": "push",
+        "surface": "EXPIRED notification"
+      },
+      "reconciliation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "App Store Server API: Get All Subscription Statuses",
+        "notes": "Apple retries a notification five times over 72 hours; past that window only a re-read recovers the state."
+      },
+      "entitlements": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "App Store Server API: Get All Subscription Statuses"
+      },
+      "revenueAmount": {
+        "available": true,
+        "delivery": "push",
+        "surface": "price and currency on signedTransactionInfo (JWSTransactionDecodedPayload)"
+      }
+    },
+    "google": {
+      "initialValidation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "purchases.subscriptionsv2.get, and purchases.productsv2 for one-time products"
+      },
+      "serverNotifications": {
+        "available": true,
+        "delivery": "push",
+        "surface": "Google Play Real-Time Developer Notifications"
+      },
+      "subscriptions": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "purchases.subscriptionsv2.get",
+        "notes": "The notification carries only a version, a type and a purchase token, so the subscription resource must be read before an event can be completed."
+      },
+      "renewalEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_RENEWED notification, type 2"
+      },
+      "refundEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_REVOKED notification, type 12, and voidedPurchaseNotification"
+      },
+      "expiration": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_EXPIRED notification, type 13"
+      },
+      "reconciliation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "purchases.subscriptionsv2.get, and purchases.productsv2 for one-time products"
+      },
+      "entitlements": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "purchases.subscriptionsv2.get, and purchases.productsv2 for one-time products"
+      },
+      "revenueAmount": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "orders.get",
+        "notes": "No notification carries an amount. orders.get reports the settled charge and the refunded total; purchases.subscriptionsv2.get carries recurringPrice, which is the plan's price before discounts and tax rather than the amount charged. Prepaid plans carry no price there at all."
+      }
+    },
+    "horizon": {
+      "initialValidation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Graph verify_entitlement",
+        "notes": "Returns success and grant_time only. The companion viewer_purchases endpoint returns each purchase's id, grant_time and expiration_time."
+      },
+      "serverNotifications": {
+        "available": true,
+        "delivery": "push",
+        "surface": "Meta Horizon Webhooks"
+      },
+      "subscriptions": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Graph application/subscriptions",
+        "notes": "Returns id, sku, is_active, is_trial, period_start_time, period_end_time, next_renewal_time and cancellation_time."
+      },
+      "renewalEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "subscription_renewal_success webhook field"
+      },
+      "refundEvents": {
+        "available": false,
+        "delivery": "none",
+        "notes": "Meta reports refunds and chargebacks only for add-on orders, through order_status notification_type REFUNDED and CHARGEBACKED. No subscription webhook field and no field of the subscriptions resource reports a subscription refund or revocation: subscription_canceled carries a user-facing cancel_reason and subscription_expired carries no reason, so both end access without reporting a reversal. refund_iap_entitlement performs a refund rather than reporting one."
+      },
+      "expiration": {
+        "available": true,
+        "delivery": "push",
+        "surface": "subscription_expired webhook field",
+        "notes": "period_end_time and next_renewal_time on the subscription resource, like expiration_time on viewer_purchases, give the deadline ahead of time."
+      },
+      "reconciliation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Graph application/subscriptions and verify_entitlement"
+      },
+      "entitlements": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Graph verify_entitlement",
+        "notes": "Point-in-time: the answer is valid when asked and carries no validity window."
+      },
+      "revenueAmount": {
+        "available": true,
+        "delivery": "push",
+        "surface": "price terms on the subscription webhook payloads, and current_price_term / next_price_term on the subscription resource",
+        "notes": "Each carries term, currency and price. For add-ons no surface carries an amount: order_status has none, and the catalog endpoint prices catalog items rather than a user's orders."
+      }
+    },
+    "amazon": {
+      "initialValidation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Receipt Verification Service"
+      },
+      "serverNotifications": {
+        "available": true,
+        "delivery": "push",
+        "surface": "Amazon Real-Time Notifications"
+      },
+      "subscriptions": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Receipt Verification Service",
+        "notes": "Returns the current receipt state — autoRenewing, renewalDate, cancelDate, cancelReason, gracePeriodEndDate, freeTrialEndDate — but not the transitions that produced it. Real-Time Notifications carry the transitions."
+      },
+      "renewalEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_RENEWED notification"
+      },
+      "refundEvents": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_CANCELLED notification",
+        "notes": "The channel reports revocation but does not separate a refund from a cancellation. ENTITLEMENT_CANCELLED and CONSUMABLE_CANCELLED cover one-time products, which this axis does not."
+      },
+      "expiration": {
+        "available": true,
+        "delivery": "push",
+        "surface": "SUBSCRIPTION_EXPIRED notification"
+      },
+      "reconciliation": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Receipt Verification Service"
+      },
+      "entitlements": {
+        "available": true,
+        "delivery": "pull",
+        "surface": "Receipt Verification Service"
+      },
+      "revenueAmount": {
+        "available": true,
+        "delivery": "batch",
+        "surface": "Appstore Reporting API sales report",
+        "notes": "Neither Receipt Verification Service nor a Real-Time Notification payload carries an amount. The sales report is per-transaction — Sales Price, Estimated Earnings and Marketplace Currency, keyed by Receipt ID where one is present, with a transaction type of charge, refund, chargeback or chargeback reversal — but it is a batch export on a reporting cadence, not a value available at verification time."
+      }
+    }
+  }
+}

@@ -135,7 +135,7 @@ type CommerceEvent
   transactionId: NonEmptyString! @optional
 
   """
-  Store identity of the first transaction in this subscription chain, where the store exposes one.
+  Store identity of the first transaction in this subscription chain, or the store's own stable identity for the chain where it numbers subscriptions rather than transactions. Present where the store exposes either.
   """
   originalTransactionId: NonEmptyString! @optional
 

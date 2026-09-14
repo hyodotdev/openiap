@@ -288,7 +288,7 @@ export const COMMERCE_IMPLEMENTATION_TOPICS = {
     },
     kit: {
       description:
-        'IAPKit declares profiles, both API bindings, and support per store. Apple and Google have subscription events; Meta and Amazon do not. Read the descriptor before choosing a store integration.',
+        'IAPKit declares profiles, both API bindings, and support per store. IAPKit emits subscription events for Apple and Google, not yet for Meta or Amazon. Read the descriptor before choosing a store integration.',
       file: 'convex/commerce/capabilities.ts',
       symbol: 'PROVIDER_CAPABILITIES',
       line: 36,

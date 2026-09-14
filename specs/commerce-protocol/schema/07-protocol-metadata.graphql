@@ -69,6 +69,12 @@ extend schema
   @errorStatus(code: "UNSUPPORTED_PROFILE", http: 501)
   @errorStatus(code: "VERIFICATION_FAILED", http: 502)
   @document(
+    name: "store-facts"
+    title: "OpenIAP Commerce Protocol store facts"
+    description: "What each store's own commerce surface offers, stated once by this specification rather than restated by every implementation. A capability descriptor's `provider` axis answers the same question and MUST agree with this document. These are observations of vendor documentation at a point in time, so a consumer MUST treat an absent store or capability as unknown rather than as absent-from-the-store."
+    root: "StoreFacts"
+  )
+  @document(
     name: "store-event-mapping"
     title: "OpenIAP Commerce Protocol store event mapping"
     description: "How each store's own notification vocabulary maps onto the normalized event types. This is the reference an implementer follows to normalize a store notification without reverse-engineering an existing backend, and the reference a consumer reads to understand why a given store produces the events it does. A row states what a notification means, not that an emitter can always act on it: one that lacks the state to interpret a notification — a redelivery it already applied, a purchase whose product it cannot resolve, a token the store has superseded — emits nothing, and that is conformant."

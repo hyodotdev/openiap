@@ -1,0 +1,119 @@
+# Store facts ----------------------------------------------------------------
+
+scalar StoreFactMap
+  @jsonMap(
+    valueType: "StoreFact"
+    minProperties: 1
+    keyPattern: "^[a-z][a-z0-9_]*$"
+  )
+
+"""
+What each store's own commerce surface offers. A capability descriptor's `provider` axis answers the same question and MUST agree with this document; the descriptor keeps its `implementation` axis, which only that backend can answer.
+
+These are observations of vendor documentation at a point in time, not obligations on the vendor, so a consumer MUST treat an absent store or capability as unknown rather than as absent-from-the-store.
+"""
+type StoreFacts @jsonObject(additionalProperties: true) {
+  """
+  OpenIAP Commerce Protocol version this table was written against, as MAJOR.MINOR.
+  """
+  specVersion: MajorMinor!
+
+  """
+  Keyed by store, using the same open value space as the event envelope. A table lists only the stores this version has examined.
+  """
+  stores: StoreFactMap!
+}
+
+"""
+One store's commerce surface, capability by capability. The axis names match the capability descriptor's, so a reader can put the two documents side by side. The container stays open, so a consumer ignores an axis it does not recognise; every axis named here is required, so adding one obliges this specification to answer it for every store it lists.
+"""
+type StoreFact
+  @definition(schema: "store-facts")
+  @jsonObject(additionalProperties: true) {
+  """
+  Server-side receipt or token validation on demand.
+  """
+  initialValidation: Fact!
+  """
+  The store pushes lifecycle notifications to a backend.
+  """
+  serverNotifications: Fact!
+  """
+  The store exposes a subscription resource a canonical record can be built from.
+  """
+  subscriptions: Fact!
+  """
+  Renewal is reported as a distinct lifecycle signal.
+  """
+  renewalEvents: Fact!
+  """
+  Refund or revocation of a subscription is reported as a distinct lifecycle signal.
+  """
+  refundEvents: Fact!
+  """
+  Expiry is reported, rather than only inferred from a timestamp having passed.
+  """
+  expiration: Fact!
+  """
+  An authoritative endpoint can be re-read on a schedule, so a lost notification can be repaired.
+  """
+  reconciliation: Fact!
+  """
+  Current entitlement is answerable for access gating.
+  """
+  entitlements: Fact!
+  """
+  The store asserts an amount that can be attributed to revenue with `store` provenance.
+  """
+  revenueAmount: Fact!
+}
+
+"""
+How a store makes a capability reachable. This is the detail a boolean cannot carry, and the reason two stores that both answer "yes" can still need different integrations: one store pushes an amount on the notification, another returns it from a follow-up read, a third publishes it only in a periodic export. A surface is a server-reachable API; a report a human downloads from a vendor console is not one, and belongs in `notes` under an `available: false`. Where more than one surface offers the fact, `delivery` and `surface` name the most immediate: push before pull before batch.
+"""
+enum FactDelivery @definition(schema: "store-facts") {
+  """
+  The store sends it without being asked.
+  """
+  push
+  """
+  The store returns it from a request the backend makes.
+  """
+  pull
+  """
+  The store publishes it only in a periodic export, so it arrives late and in bulk.
+  """
+  batch
+  """
+  The store does not offer it. `available` is false exactly when delivery is `none`.
+  """
+  none
+}
+
+"""
+One store's answer for one capability. `available` is the value a capability descriptor's `provider` axis copies; `delivery` and `surface` carry the shape that boolean cannot.
+"""
+type Fact
+  @definition(schema: "store-facts")
+  @jsonObject(additionalProperties: false)
+  @factInvariant {
+  """
+  Whether the store offers this at all. A fact about the store, independent of any backend. False means no documented surface exists, which is a far stronger statement than "no backend has built it".
+  """
+  available: Boolean!
+
+  """
+  How the store makes it reachable. `none` exactly when `available` is false.
+  """
+  delivery: FactDelivery!
+
+  """
+  The store's own name for the endpoint, channel, report or field that provides it, verbatim enough for a reader to find the vendor page. Required whenever `available` is true, and forbidden when it is false: a surface on a false would qualify it in a form a validator accepts and a consumer ignores.
+  """
+  surface: NonEmptyString! @optional
+
+  """
+  Required whenever `available` is false, and wherever the surface carries a caveat an implementer would otherwise get wrong. A false MUST say which surfaces were examined.
+  """
+  notes: NonEmptyString! @optional
+}

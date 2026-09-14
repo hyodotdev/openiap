@@ -108,13 +108,14 @@ describe("the closed objects SPEC.md 12 names", () => {
   };
   for (const schema of schemas) walk(schema, schema.title);
 
-  it("is the capability axis, the mapping row, and the tokenless server reads", () => {
+  it("is the capability axis, the store fact, the mapping row, and the tokenless server reads", () => {
     // 9 tolerates unknown members on open objects, and closes exactly these:
-    // Support/Mapping (an unknown qualifier changes selection) and the
-    // tokenless server-read results (a closed object is what makes "no token
-    // can appear" enforceable by the schema rather than a name blocklist).
+    // Support/Fact/Mapping (an unknown qualifier changes what the value means)
+    // and the tokenless server-read results (a closed object is what makes "no
+    // token can appear" enforceable by the schema rather than a name blocklist).
     expect(closed.map((p) => p.split("#").pop()).sort()).toEqual([
       "EntitlementsResult",
+      "Fact",
       "Mapping",
       "ProtocolError",
       "ProtocolErrorResponse",

@@ -1085,7 +1085,7 @@
             "$ref": "#/components/schemas/CapabilitiesSupport"
           },
           "refundEvents": {
-            "description": "Refund or revocation is observable as a distinct lifecycle event.",
+            "description": "Refund or revocation of a subscription is observable as a distinct lifecycle event.",
             "$ref": "#/components/schemas/CapabilitiesSupport"
           },
           "expiration": {
@@ -1307,7 +1307,7 @@
         "additionalProperties": false,
         "properties": {
           "provider": {
-            "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend.",
+            "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend. Where the store facts document covers the store it MUST equal the matching `available` value there, and that document carries the `delivery` and `surface` detail this boolean cannot. The store space is open, so for a store that document has never examined this is the implementation's own claim and the only place the fact exists.",
             "type": "boolean"
           },
           "implementation": {
