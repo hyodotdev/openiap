@@ -8,11 +8,16 @@ set -u -o pipefail
 
 readonly max_attempts="${GRADLE_NETWORK_RETRY_ATTEMPTS:-3}"
 readonly base_delay_seconds="${GRADLE_NETWORK_RETRY_DELAY_SECONDS:-10}"
+readonly retryable_http_status='408|425|429|500|502|503|504|520|522|523|524'
 readonly fetch_pattern='could not (get|head|download).*https?://'
-readonly transient_transport_pattern='read timed out|connect timed out|connection timed out|connection reset|connection refused|could not resolve host|temporary failure in name resolution|name or service not known|network is unreachable|remote host terminated the handshake|tls handshake timeout|(http response code|status code)[^0-9]*(408|425|429|500|502|503|504|520|522|523|524)|bad gateway|service unavailable|gateway time-?out'
-# The wrapper downloads the Gradle distribution before Gradle exists, so this
-# failure carries none of the paired "could not get ... <cause>" lines above.
-readonly wrapper_download_pattern='exception in thread "main" java\.(io\.ioexception: server returned http response code[^0-9]*(408|425|429|5[0-9][0-9]) for url|net\.(sockettimeout|unknownhost|connect|nohttpresponse)exception)'
+readonly transient_transport_pattern='read timed out|connect timed out|connection timed out|connection reset|connection refused|could not resolve host|temporary failure in name resolution|name or service not known|network is unreachable|remote host terminated the handshake|tls handshake timeout|(http response code|status code)[^0-9]*('"$retryable_http_status"')|bad gateway|service unavailable|gateway time-?out'
+# The wrapper fetches the distribution before Gradle exists, so its failures
+# carry none of the paired "could not get ... <cause>" lines above. Every
+# alternative stays anchored to the main thread dying: a Gradle test JVM prints
+# its exceptions from a worker thread, so build output cannot reach these.
+# A checksum mismatch is deliberately absent — the wrapper reports it as
+# possible tampering, and retrying that would be wrong.
+readonly wrapper_download_pattern='exception in thread "main" java\.(lang\.runtimeexception: downloading from .* failed|io\.ioexception: server returned http response code[^0-9]*('"$retryable_http_status"') for url|net\.(sockettimeout|unknownhost|connect|socket)exception)'
 
 has_wrapper_download_failure() {
   grep -qiE "$wrapper_download_pattern" "$1"

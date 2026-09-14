@@ -727,7 +727,7 @@ test("compiled CodeQL Gradle builds reuse the transient-network retry guard", ()
   );
   assert.equal(
     (workflow.match(/scripts\/ci\/retry-gradle\.sh/gu) ?? []).length,
-    6,
+    7,
   );
   assert.match(workflow, /:openiap:compilePlayDebugKotlin/u);
   assert.match(workflow, /:library:compilePlayDebugKotlinAndroid/u);
