@@ -326,9 +326,10 @@ cases, including a grant that expired before binding.
 `transactionId` and `originalTransactionId` carry store-side transaction
 identity **where the store exposes it**. Neither is universally available:
 Google Play does not put one in a subscription notification — an emitter that
-wants it must read the store's subscription API — and Meta
-Horizon exposes no transaction identity at all. A consumer MUST NOT require
-them.
+wants it must read the store's subscription API — and Meta Horizon's
+entitlement check returns none, so an emitter that wants identity takes it from
+the store's purchase list, order webhook or subscription resource. A consumer
+MUST NOT require them.
 
 ## 3. Profiles
 

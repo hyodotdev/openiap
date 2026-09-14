@@ -63,7 +63,7 @@ calling it must establish that the store account belongs to its signed-in user.
 Bindings cannot move between app accounts through this operation. Only evidence
 currently in state `ENTITLED` binds. Amazon consumables verify as
 `READY_TO_CONSUME` and answer `bound: false`, because the application’s own
-ledger fulfills them once; Horizon exposes no consumable distinction. An app
+ledger fulfills them once; Horizon's `verify_entitlement` returns no product type. An app
 account holds at most 20 bound purchases per project. The 21st binding answers
 `bound: false`, as §4.4 requires for every non-binding outcome, and IAPKit logs
 the refusal; a new binding can never push an account past the read bound. Before
@@ -284,15 +284,17 @@ behavior everywhere.
 | Entitlements               | ✅    | ✅     | ⚠️ point-in-time | ⚠️ point-in-time |
 | Store-authoritative amount | ✅    | ✅     | ❌               | ❌               |
 
-Meta integrates only the Graph `verify_entitlement` endpoint: a one-shot check
-that the viewer owns the SKU. There is no notification channel, so there is no
-renewal, expiration or refund signal and no canonical subscription record.
-Entitlement is answerable only at the moment it is asked.
+IAPKit integrates only Meta's Graph `verify_entitlement` endpoint: a one-shot
+check that the viewer owns the SKU. Meta does publish subscription and order
+webhook fields and a subscriptions read API, but IAPKit uses neither, so it
+receives no renewal or expiration signal and keeps no canonical subscription
+record. Entitlement is answerable only at the moment it is asked.
 
 Amazon RVS validates receipts and a five-minute worker processes rows that are
 due on a 48-hour cadence. Backlog and retries can extend that interval. RVS
-alone does not carry enough lifecycle detail for a canonical subscription
-record, but each verification still answers point-in-time entitlement.
+reports the current receipt state, not the transitions between reads, so IAPKit
+builds no subscription record from it, but each verification still answers
+point-in-time entitlement.
 
 Apple and Google have no scheduled reconciliation pass. A notification lost past
 the store's retry window is not self-healing. Receipt verification bootstraps a

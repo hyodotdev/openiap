@@ -84,10 +84,11 @@ export const PROVIDER_CAPABILITIES: Record<
     supportsRevenueAmount: false,
     notes:
       "Only the Graph verify_entitlement endpoint is integrated: a one-shot " +
-      "check that the viewer owns the SKU. Meta exposes no server " +
-      "notifications to IAPKit, so there is no renewal, expiration or refund " +
-      "signal and no canonical subscription record. Entitlement is answerable " +
-      "only at the moment it is asked.",
+      "check that the viewer owns the SKU. Meta publishes subscription and " +
+      "order webhook fields and a subscriptions read API; IAPKit uses " +
+      "neither, so it sees no renewal or expiration signal and keeps no " +
+      "canonical subscription record. Entitlement is answerable only at the " +
+      "moment it is asked.",
   },
   amazon: {
     supportsInitialValidation: true,
@@ -102,10 +103,11 @@ export const PROVIDER_CAPABILITIES: Record<
     notes:
       "RVS validates receipts. Rows become due every 48 hours and a bounded " +
       "worker checks due work every five minutes, so backlog and retries can " +
-      "extend that interval. RVS alone does not carry " +
-      "enough lifecycle detail for a canonical subscription record, so no " +
-      "subscription rows or lifecycle events are produced. A verification " +
-      "still answers point-in-time entitlement.",
+      "extend that interval. RVS reports the current receipt state — " +
+      "renewalDate, autoRenewing, cancelDate, cancelReason, " +
+      "gracePeriodEndDate, freeTrialEndDate — not the transitions between " +
+      "reads, and IAPKit builds no subscription rows or lifecycle events " +
+      "from it. A verification still answers point-in-time entitlement.",
   },
 };
 

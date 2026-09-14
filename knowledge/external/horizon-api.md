@@ -154,9 +154,32 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 **Response:**
 ```json
 {
-  "success": true
+  "success": true,
+  "grant_time": 1744148687
 }
 ```
+
+### Viewer Purchases
+
+List the items a user owns, with the identity and expiry that
+`verify_entitlement` does not return.
+
+**Endpoint:**
+
+```http
+GET https://graph.oculus.com/$APP_ID/viewer_purchases
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `access_token` | string | `OC\|App_ID\|App_Secret` format |
+| `user_id` | string | The user ID |
+| `fields` | string | (Optional) Fields to return |
+
+Each purchase carries `id`, `grant_time`, `expiration_time` (`0` means
+indefinite) and `item{sku}`.
 
 ### Refund IAP Entitlement
 
@@ -177,6 +200,86 @@ POST https://graph.oculus.com/$APP_ID/refund_iap_entitlement
 | `sku` | string | SKU of item to refund |
 
 **Note:** Can only refund items not yet consumed via `consumeAsync()`.
+
+### Subscriptions (S2S)
+
+Meta exposes a server-side subscription resource.
+
+**Endpoint:**
+
+```http
+GET https://graph.oculus.com/application/subscriptions
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `access_token` | string | `OC\|App_ID\|App_Secret` format, or a user access token |
+| `owner_id` | string | (Optional) App-secret access token only |
+| `skus` | string | (Optional) Restrict to these subscription SKUs |
+| `is_active` | boolean | (Optional) Filter by active state |
+| `is_trial` | boolean | (Optional) Filter by trial state |
+| `fields` | string | (Optional) Fields to return |
+
+**Response fields:**
+
+| Field | Description |
+|-------|-------------|
+| `id` | Subscription identifier |
+| `sku` | Subscription SKU |
+| `owner{id}` | User identifier |
+| `is_active` | Whether the subscription is active |
+| `is_trial` | Whether the current period is a free trial |
+| `trial_type` | `FREE_TRIAL` or `INTRO_OFFER` |
+| `period_start_time` | Most recent period start |
+| `period_end_time` | Most recent period end |
+| `cancellation_time` | When the user cancelled |
+| `next_renewal_time` | Next billing date, including extensions |
+| `current_price_term` | `{ term, currency, price }` |
+| `next_price_term` | `{ term, currency, price }` |
+
+Two endpoints modify a subscription, both POST and both answering `success`:
+`https://graph.oculus.com/application/cancel_subscription` and
+`.../extend_subscription`. There is no refund or billing-history endpoint.
+
+### Webhooks
+
+Meta publishes server-to-server webhooks. Subscribe under **Development >
+Webhooks** in the Developer Dashboard with a callback URL and verify token; the
+endpoint must serve HTTPS with a certificate from a trusted CA. Subscription
+fields additionally require a completed Data Use Checkup for Subscriptions and
+User ID.
+
+Commerce fields:
+
+| Field | Fires when |
+|-------|-----------|
+| `order_status` | An add-on purchase completes or an existing purchase is updated |
+| `subscription_started` | A user starts or restarts a subscription |
+| `subscription_renewal_success` | A renewal succeeds |
+| `subscription_canceled` | A user cancels |
+| `subscription_uncanceled` | A user restores a cancelled subscription before it expires |
+| `subscription_expired` | A subscription period ends |
+
+`order_status` carries `event_time`, `user_id`, and `product_info` with
+`notification_type` (`PURCHASED`, `REFUNDED`, `CHARGEBACKED`), `sku`,
+`reporting_id` (a per-order UUID) and `developer_payload`. The subscription
+payloads carry the subscription id and SKU, `owner_id`, `period_start_time`,
+`period_end_time`, `next_renewal_time`, `is_active`, `is_trial`, and a price-term
+pair — `current_price_term` / `next_price_term`, spelled `current_offer` /
+`next_offer` in the renewal payload — with term, price and currency.
+`subscription_canceled` adds a user-facing `cancel_reason`; nothing reports a
+subscription refund, chargeback or revocation.
+
+Renewal and expiry volume scale with the subscriber base, so a receiver has to
+tolerate concurrent `subscription_renewal_success` and `subscription_expired`
+deliveries.
+
+> **OpenIAP Note**: IAPKit reads none of these surfaces today. The capability
+> descriptor in `specs/commerce-protocol/examples/` is the SSOT for that.
+
+
 
 ## Platform SDK IAP (Native)
 
@@ -282,4 +385,6 @@ The plugin:
 - [React Native on Quest](https://developers.meta.com/horizon/documentation/android-apps/react-native-apps)
 - [Expo Quest Setup](https://blog.swmansion.com/how-to-add-meta-quest-support-to-your-expo-app-68c52778b1fe)
 - [Subscriptions](https://developers.meta.com/horizon/resources/subscriptions/)
+- [Server APIs for Subscriptions](https://developers.meta.com/horizon/documentation/unity/ps-subscriptions-s2s/)
+- [Getting Started with Webhooks](https://developers.meta.com/horizon/documentation/unreal/ps-webhooks-getting-started/)
 - [Setting up Add-ons](https://developers.meta.com/horizon/resources/add-ons-setup/)

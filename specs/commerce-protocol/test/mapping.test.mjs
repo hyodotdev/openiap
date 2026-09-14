@@ -24,6 +24,15 @@ const mapping = JSON.parse(
   ),
 );
 
+const capabilities = JSON.parse(
+  readFileSync(
+    fileURLToPath(
+      new URL("../examples/provider-capabilities.json", import.meta.url),
+    ),
+    "utf8",
+  ),
+);
+
 const validator = () => {
   const ajv = new Ajv({ strict: true, allErrors: true });
   ajv.addSchema(bundleSchema, "bundle");
@@ -293,6 +302,19 @@ describe("store event mapping", () => {
       for (const event of entry.derivableByPolling ?? []) {
         expect(event.startsWith("entitlement.")).toBe(true);
       }
+    }
+  });
+
+  it("agrees with the capability descriptor about which stores publish a channel", () => {
+    // Both files state the same fact about a store in their own hand-written
+    // words, so correcting one and not the other publishes a contradiction.
+    // Neither can be checked against the vendor; each can be checked against
+    // the other.
+    for (const [store, entry] of Object.entries(mapping.stores)) {
+      expect(
+        entry.notificationChannel !== null,
+        `${store}: notificationChannel disagrees with serverNotifications.provider`,
+      ).toBe(capabilities.stores[store].serverNotifications.provider);
     }
   });
 });

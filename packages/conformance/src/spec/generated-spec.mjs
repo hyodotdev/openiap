@@ -71,7 +71,7 @@ export const CAPABILITY_MATRIX = Object.freeze({
     "Apple": "required",
     "Google": "required",
     "Amazon": "optional",
-    "Horizon": "unsupported"
+    "Horizon": "optional"
   }
 });
 
