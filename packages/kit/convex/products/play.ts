@@ -2295,12 +2295,21 @@ export function pickSubBasePlanPrice(
   type Candidate = {
     price: androidpublisher_v3.Schema$Money;
     basePlanId?: string;
+    regionCode?: string | null;
+    currencyCode?: string | null;
   };
   const candidates: Candidate[] = [];
   for (const plan of sub.basePlans ?? []) {
     const basePlanId = plan.basePlanId ?? undefined;
     for (const region of plan.regionalConfigs ?? []) {
-      if (region.price) candidates.push({ price: region.price, basePlanId });
+      if (region.price) {
+        candidates.push({
+          price: region.price,
+          basePlanId,
+          regionCode: region.regionCode,
+          currencyCode: region.price.currencyCode,
+        });
+      }
     }
   }
   if (candidates.length === 0) return {};
@@ -2310,12 +2319,8 @@ export function pickSubBasePlanPrice(
   // amount and the next push would convert from that already-converted
   // number. Falls back to USD — the most universally recognizable
   // dashboard value — for rows kit hasn't priced yet.
-  const preferred =
-    (preferredCurrency
-      ? candidates.find((c) => c.price.currencyCode === preferredCurrency)
-      : undefined) ??
-    candidates.find((c) => c.price.currencyCode === "USD") ??
-    candidates[0];
+  const preferred = pickPlayRegionalPrice(candidates, preferredCurrency);
+  if (!preferred) return {};
   return {
     priceAmountMicros: moneyToMicros(preferred.price),
     currency: preferred.price.currencyCode ?? undefined,
@@ -2382,13 +2387,16 @@ function collectPlaySubscriptionOffers(
   for (const plan of (sub.basePlans ?? []) as PlanWithOffers[]) {
     if (!plan.basePlanId) continue;
     const planRegions = plan.regionalConfigs ?? [];
-    const planPrice =
-      (preferredCurrency
-        ? planRegions.find((r) => r.price?.currencyCode === preferredCurrency)
-            ?.price
-        : undefined) ??
-      planRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
-      planRegions[0]?.price;
+    const planPrice = pickPlayRegionalPrice(
+      planRegions
+        .filter((region) => region.price)
+        .map((region) => ({
+          regionCode: region.regionCode,
+          currencyCode: region.price?.currencyCode,
+          price: region.price,
+        })),
+      preferredCurrency,
+    )?.price;
     out.push({
       id: plan.basePlanId,
       kind: "BasePlan",
@@ -2408,14 +2416,16 @@ function collectPlaySubscriptionOffers(
       const phases = offer.phases ?? [];
       phases.forEach((phase, i) => {
         const phaseRegions = phase.regionalConfigs ?? [];
-        const phasePrice =
-          (preferredCurrency
-            ? phaseRegions.find(
-                (r) => r.price?.currencyCode === preferredCurrency,
-              )?.price
-            : undefined) ??
-          phaseRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
-          phaseRegions[0]?.price;
+        const phasePrice = pickPlayRegionalPrice(
+          phaseRegions
+            .filter((region) => region.price)
+            .map((region) => ({
+              regionCode: region.regionCode,
+              currencyCode: region.price?.currencyCode,
+              price: region.price,
+            })),
+          preferredCurrency,
+        )?.price;
         // Phase with no price = free trial; with `recurrenceCount > 1`
         // = pay-as-you-go intro; otherwise = pay-up-front intro.
         let kind: "FreeTrial" | "IntroPayUpFront" | "IntroPayAsYouGo" =

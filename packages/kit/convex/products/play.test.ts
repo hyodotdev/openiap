@@ -1241,6 +1241,40 @@ describe("pickSubBasePlanPrice", () => {
   it("keeps the basePlanId paired with the price it picked", () => {
     expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("yearly");
   });
+
+  it("prefers the US price over an earlier non-US USD price", () => {
+    const multiRegion = {
+      basePlans: [
+        {
+          basePlanId: "monthly",
+          regionalConfigs: [
+            {
+              regionCode: "BH",
+              price: {
+                currencyCode: "USD",
+                units: "10",
+                nanos: 990_000_000,
+              },
+            },
+            {
+              regionCode: "US",
+              price: {
+                currencyCode: "USD",
+                units: "9",
+                nanos: 990_000_000,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(pickSubBasePlanPrice(multiRegion)).toMatchObject({
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      basePlanId: "monthly",
+    });
+  });
 });
 
 // Round 4: the regions-version fix only covered the success branch. On
