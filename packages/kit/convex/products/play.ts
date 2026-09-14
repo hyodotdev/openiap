@@ -557,11 +557,20 @@ async function performAndroidSync(
           ...(token ? { pageToken: token } : {}),
         });
         for (const listedSub of subs.data.subscriptions ?? []) {
-          const sub = await hydratePlaySubscriptionOffers(
-            androidpublisher,
-            packageName,
-            listedSub,
-          );
+          let sub: androidpublisher_v3.Schema$Subscription;
+          try {
+            sub = await hydratePlaySubscriptionOffers(
+              androidpublisher,
+              packageName,
+              listedSub,
+            );
+          } catch (error) {
+            failures.push({
+              productId: listedSub.productId ?? "(play subscription)",
+              reason: `offer import: ${error instanceof Error ? error.message : String(error)}`,
+            });
+            continue;
+          }
           if (!sub.productId) continue;
           const { priceAmountMicros, currency, basePlanId } =
             pickSubBasePlanPrice(
