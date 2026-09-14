@@ -2,6 +2,11 @@
 
 // Compares IAPKit's response enums against the spec every SDK generates from.
 //
+// Scope: the Client Protocol (specs/client) and IAPKit's own /v1 API, which
+// shipped SDKs decode. Commerce Protocol conformance is a separate proof:
+// packages/kit/convex/commerce/spec.conformance.test.ts and
+// packages/kit/server/api/commerce/conformance.test.ts.
+//
 // Covers the /v1 verify response and kit's write path, which declares the same
 // client-payload format set in four more files across a tsconfig split that
 // stops them sharing a constant.

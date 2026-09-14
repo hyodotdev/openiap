@@ -1,12 +1,12 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-09-14
-reason = "No patched image-size release exists; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-14
+reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-09-14
-reason = "No patched image-size release exists; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-14
+reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-vcc3-ghjq-m6fr"

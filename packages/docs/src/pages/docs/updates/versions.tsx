@@ -1,7 +1,7 @@
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { GQL_RELEASE, OPENIAP_VERSIONS } from '../../../lib/versioning';
+import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
@@ -19,7 +19,10 @@ const APPLE_COCOAPODS_BADGE =
   'https://img.shields.io/cocoapods/v/openiap?color=E35A5F&label=CocoaPods&logo=cocoapods';
 const APPLE_COCOAPODS_URL = 'https://cocoapods.org/pods/openiap';
 const NPM_PACKAGES = [
-  ['@hyodotdev/openiap-client-protocol', 'Client API and generated types'],
+  [
+    '@hyodotdev/openiap-client-protocol',
+    'Client API, and the TypeScript, Swift, Kotlin, Dart, GDScript, and C# types generated from it',
+  ],
   [
     '@hyodotdev/openiap-commerce-protocol',
     'Server operations, events, and conformance',
@@ -29,14 +32,9 @@ const NPM_PACKAGES = [
     'AI implementation briefs and local configuration checks',
   ],
 ] as const;
-const GQL_RELEASES_URL = 'https://github.com/hyodotdev/openiap/releases';
 
 function Versions() {
   useScrollToHash();
-  const latestGqlRelease = GQL_RELEASE ?? {
-    tag: '—',
-    pageUrl: GQL_RELEASES_URL,
-  };
 
   return (
     <div className="doc-page">
@@ -175,51 +173,6 @@ function Versions() {
               — {description}
             </li>
           ))}
-        </ul>
-      </section>
-
-      <section>
-        <AnchorLink id="openiap-gql" level="h2">
-          OpenIAP Spec and native bindings
-        </AnchorLink>
-        <p>
-          The GraphQL schema powers API docs and SDK generators. Review the
-          latest schema exports from the releases tab.
-        </p>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          <a
-            href={latestGqlRelease.pageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary no-icon"
-          >
-            SDK compatibility tag: {latestGqlRelease.tag} ↗
-          </a>
-          <a
-            href={GQL_RELEASES_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary no-icon"
-          >
-            View all releases
-          </a>
-        </div>
-        <ul>
-          <li>
-            Each release bundles TypeScript, Swift, Kotlin, Dart, GDScript, and
-            C# bindings.
-          </li>
-          <li>
-            Downloads mirror the assets linked from the documentation Types page
-            for the same tag.
-          </li>
         </ul>
       </section>
     </div>

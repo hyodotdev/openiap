@@ -208,6 +208,43 @@ direction rule below. `server/api/commerce/conformance.test.ts` runs the
 spec package's portable runner over both bindings and is the gate for
 declaring the `rest` and `graphql` bindings in the capability descriptor.
 
+Contract values follow one rule, and it splits on direction. A value kit puts
+on the wire is **pinned**, because a receiver kit cannot see has already
+decoded it: moving one is a migration decision, not a constant update. A value
+kit only consumes — to validate, route, or document — is **imported**, so it
+follows the protocol automatically.
+
+No transport constant is restated in shipped code. `convex/commerce/signing.ts`
+imports the header names, signature prefix, content type, and replay tolerance
+from `vectors/signatures.json` — with named imports, so the bundler keeps the
+constants and drops the signature test corpus that shares the file.
+`convex/commerce/contract.ts` imports the extension bounds from the generated
+primitives schema, and `server/api/commerce/` imports the HTTP manifest, bundle
+schema, GraphQL projection, and the published capability descriptor. The spec
+package's runtime index reads these artifacts with `node:fs`, which the Convex
+isolate cannot do, so kit imports the JSON directly and it is embedded at build
+time.
+
+The pins live in tests. `convex/commerce/contract.test.ts` holds the golden for
+the four header names, the content type, and the signature prefix;
+`convex/commerce/spec.conformance.test.ts` checks the other direction, that
+kit's vocabulary and emitted version are still what the protocol publishes. A
+protocol rename fails one of those on purpose. Move a golden only with a
+receiver migration, and update the receiver documentation in the same change —
+`COMMERCE-EVENTS.md`, `src/pages/docs/sections/webhooks.tsx`, and
+`packages/docs/src/pages/commerce-protocol/webhooks.tsx` all restate these
+names in prose, and `contract.test.ts` holds all three to them.
+
+`COMMERCE_EVENT_SCHEMA_VERSION` is the one wire value kept as a literal,
+because its type narrows `CommerceEvent.eventVersion`. A protocol bump fails
+`spec.conformance.test.ts` rather than the golden. The provenance and
+subscription-state unions are literal for the same typing reason and are
+equality-checked there too.
+
+The event, store, and environment lists in `contract.ts` are IAPKit capability
+declarations — what this implementation emits today — and stay local;
+`spec.conformance.test.ts` proves each value is one the protocol names.
+
 ## Webhook direction
 
 Two directions are supported, both server-to-server:

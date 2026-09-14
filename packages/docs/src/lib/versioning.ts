@@ -118,12 +118,6 @@ if (!KMP_PACKAGE_VERSION) {
 
 export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(parsedVersions));
 
-export const GQL_RELEASE = Object.freeze({
-  tag: OPENIAP_VERSIONS.spec,
-  pageUrl: `https://github.com/hyodotdev/openiap/releases/tag/${OPENIAP_VERSIONS.spec}`,
-  downloadPrefix: `https://github.com/hyodotdev/openiap/releases/download/${OPENIAP_VERSIONS.spec}/`,
-});
-
 export const ANDROID_SDK = Object.freeze({
   minSdk: GOOGLE_MIN_SDK,
   compileSdk: GOOGLE_COMPILE_SDK,
