@@ -92,7 +92,9 @@ jobs:
 
       - name: Android consumer build smoke test
         working-directory: libraries/flutter_inapp_purchase
-        run: bash scripts/verify-android-consumer-build.sh
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
   validate-ios:
     needs: [release-branch]

@@ -271,7 +271,8 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
         run: |
           flutter pub get
-          bash scripts/verify-android-consumer-build.sh
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
       - name: Build Godot Android wrapper
         if: matrix.component == 'godot'

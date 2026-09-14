@@ -102,6 +102,14 @@ for (const [name, output] of [
     "Could not HEAD https://repo.example/private.jar: status code 403",
   ],
   [
+    "a wrapper download rejected for a client error",
+    'Exception in thread \"main\" java.io.IOException: Server returned HTTP response code: 404 for URL: https://services.example/gradle-9.1.0-all.zip',
+  ],
+  [
+    "a test that prints a socket timeout from its own thread",
+    'Exception in thread \"pool-1\" java.net.SocketTimeoutException: fixture',
+  ],
+  [
     "an invalid plugin version",
     "Could not resolve plugin artifact 'example:missing:99.0.0'",
   ],
@@ -137,6 +145,34 @@ for (const [name, output] of [
     });
   });
 }
+
+test("retries a wrapper distribution download that hits a gateway error", () => {
+  // The wrapper fetches Gradle before Gradle exists, so this failure carries
+  // none of the paired "could not get ... <cause>" lines the matcher wants.
+  withCounterTest((counter) => {
+    const command = incrementScript(
+      counter,
+      "printf '%s\\n' 'Exception in thread \"main\" java.io.IOException: Server returned HTTP response code: 504 for URL: https://services.example/gradle-9.1.0-all.zip' >&2; exit 1",
+    );
+    const result = runRetry(command);
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
+
+test("retries a wrapper download that cannot resolve its host", () => {
+  withCounterTest((counter) => {
+    const command = incrementScript(
+      counter,
+      "printf '%s\\n' 'Exception in thread \"main\" java.net.UnknownHostException: services.example' >&2; exit 1",
+    );
+    const result = runRetry(command);
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
 
 test("stops after the configured number of transient attempts", () => {
   withCounterTest((counter) => {

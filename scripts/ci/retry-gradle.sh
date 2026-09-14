@@ -10,6 +10,13 @@ readonly max_attempts="${GRADLE_NETWORK_RETRY_ATTEMPTS:-3}"
 readonly base_delay_seconds="${GRADLE_NETWORK_RETRY_DELAY_SECONDS:-10}"
 readonly fetch_pattern='could not (get|head|download).*https?://'
 readonly transient_transport_pattern='read timed out|connect timed out|connection timed out|connection reset|connection refused|could not resolve host|temporary failure in name resolution|name or service not known|network is unreachable|remote host terminated the handshake|tls handshake timeout|(http response code|status code)[^0-9]*(408|425|429|500|502|503|504|520|522|523|524)|bad gateway|service unavailable|gateway time-?out'
+# The wrapper downloads the Gradle distribution before Gradle exists, so this
+# failure carries none of the paired "could not get ... <cause>" lines above.
+readonly wrapper_download_pattern='exception in thread "main" java\.(io\.ioexception: server returned http response code[^0-9]*(408|425|429|5[0-9][0-9]) for url|net\.(sockettimeout|unknownhost|connect|nohttpresponse)exception)'
+
+has_wrapper_download_failure() {
+  grep -qiE "$wrapper_download_pattern" "$1"
+}
 
 has_retryable_dependency_failure() {
   awk \
@@ -83,7 +90,8 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
     exit "$command_status"
   fi
 
-  if ! has_retryable_dependency_failure "$retry_log"; then
+  if ! has_retryable_dependency_failure "$retry_log" &&
+    ! has_wrapper_download_failure "$retry_log"; then
     echo "Gradle failed without a recognized transient network error; not retrying." >&2
     exit "$command_status"
   fi
