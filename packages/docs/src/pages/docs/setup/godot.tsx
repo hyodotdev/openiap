@@ -736,11 +736,15 @@ func _on_purchase_error(error):
         </h3>
         <p>
           The <code>.gdap</code> file declares remote dependencies, so the
-          Gradle build resolves them from Maven Central. A failure here is a
-          toolchain mismatch rather than a plugin defect: check that the Godot
-          version's bundled Android Gradle Plugin supports the resolved{' '}
-          <code>androidx</code> versions, and pin the conflicting dependency in
-          your own Gradle configuration if it does not.
+          Gradle build resolves them over the network. Read the coordinate the
+          build failed on before assuming the plugin is at fault. The OpenIAP
+          Android library pulls <code>androidx</code> artifacts, which are
+          served by Google's Maven repository rather than Maven Central, so a
+          generated Gradle configuration that lists only Maven Central cannot
+          resolve them. If the repositories are right and resolution still
+          fails, check that the Godot version's bundled Android Gradle Plugin
+          supports the resolved <code>androidx</code> versions, and pin the
+          conflicting dependency in your own Gradle configuration.
         </p>
 
         <h3 id="ios-launch-crash" className="anchor-heading">
