@@ -15,15 +15,10 @@ import {
 } from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 import {
-  CONTENT_TYPE,
-  DELIVERY_ID_HEADER,
-  EVENT_ID_HEADER,
-  SIGNATURE_HEADER,
   SIGNATURE_TOLERANCE_SECONDS,
-  TIMESTAMP_HEADER,
-  isRetryableStatus,
+  classifyDeliveryResponse,
+  composeDeliveryHeaders,
   signPayload,
-  signPayloadWithRotation,
 } from "../../../convex/commerce/signing";
 import {
   commerceEventTypesToEmit,
@@ -34,16 +29,13 @@ import { isEntitledAt } from "../../../convex/subscriptions/query";
 // IAPKit's descriptor declares the events profile, so dual-binding conformance
 // drives the EventsAdapter surface (SPEC.md §11.2/§11.3 scope its coverage;
 // §9.2/§9.3/§9.4.4/§9.4.5 are certified by IAPKit's own convex tests, not
-// here). What delegates to SHIPPED code: sign/rotation (signPayload,
-// signPayloadWithRotation), response classification (isRetryableStatus), the
-// emission rules (commerceEventTypesToEmit), the entitlement gate
-// (isEntitledAt), and the envelope constants (CONTENT_TYPE, the four header
-// names, the tolerance). The production envelope SENDER lives in
-// convex/commerce/delivery.ts and is covered by its own tests; this adapter
-// re-composes the same envelope from those shipped constants because the
-// worker's composition is not factored as a callable unit. Only `verify` has
-// no production counterpart at all — IAPKit emits webhooks, consumers verify
-// them — so it is written here from the same constants.
+// here). Every method but one delegates to SHIPPED code: signing (signPayload),
+// the delivery envelope (composeDeliveryHeaders, which the worker in
+// convex/commerce/delivery.ts sends), response classification
+// (classifyDeliveryResponse, which the worker records), the emission rules
+// (commerceEventTypesToEmit), and the entitlement gate (isEntitledAt). Only
+// `verify` has no production counterpart — IAPKit emits webhooks, consumers
+// verify them — so it is written here from the shipped tolerance.
 const iapkitEventsAdapter = {
   sign: ({
     secret,
@@ -88,29 +80,21 @@ const iapkitEventsAdapter = {
     timestamp: number;
     secrets: string[];
     deliveryId: string;
-  }) => ({
-    // POST is how delivery.ts sends (postJsonToAddress) — there is no method
-    // constant to import; the content type IS the shipped constant.
-    method: "POST",
-    contentType: CONTENT_TYPE,
-    headers: {
-      [SIGNATURE_HEADER]: await signPayloadWithRotation(
-        { current: secrets[0], previous: secrets[1] },
-        timestamp,
-        body,
-      ),
-      [TIMESTAMP_HEADER]: String(timestamp),
-      [EVENT_ID_HEADER]: event.eventId,
-      [DELIVERY_ID_HEADER]: deliveryId,
-    },
-  }),
-  classifyResponse: (status: number | "connection-error" | "timeout") => {
-    // The real worker's fetch catch path retries on timeout/connection error.
-    if (status === "connection-error" || status === "timeout") return "retry";
-    if (status >= 200 && status < 300) return "delivered";
-    if (isRetryableStatus(status)) return "retry";
-    return "permanent-failure";
+  }) => {
+    const headers = await composeDeliveryHeaders({
+      secrets: { current: secrets[0], previous: secrets[1] },
+      timestampSeconds: timestamp,
+      body,
+      eventId: event.eventId,
+      deliveryId,
+    });
+    // POST is how delivery.ts sends (buildPinnedRequestOptions); there is no
+    // method constant to import.
+    return { method: "POST", contentType: headers["content-type"], headers };
   },
+  // The worker passes `undefined` when no status arrived (its catch path).
+  classifyResponse: (status: number | "connection-error" | "timeout") =>
+    classifyDeliveryResponse(typeof status === "number" ? status : undefined),
   entitled: ({
     state,
     expiresAt,

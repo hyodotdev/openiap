@@ -51,7 +51,8 @@ export default function WebhooksPage() {
       </p>
       <CodeBlock language="text">{`openiap-signature: v1=<hmac-sha256>
 openiap-timestamp: <unix-seconds>
-openiap-event-id: <must equal body.eventId>`}</CodeBlock>
+openiap-event-id: <must equal body.eventId>
+openiap-delivery-id: <stable across retries of one attempt chain>`}</CodeBlock>
       <p>
         Compute lowercase hex with{" "}
         <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,

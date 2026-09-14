@@ -137,6 +137,20 @@ version. Do not "fix" it in place.
 IAPKit actually builds against the schemas published here, and compares the two
 vocabularies directly. It fails when either side drifts.
 
+IAPKit's runtime imports the generated schemas, the HTTP manifest, and
+`vectors/signatures.json` directly rather than `src/index.mjs`, because the
+Convex isolate cannot load files with `node:fs`. A change to one of those
+artifacts therefore reaches IAPKit at build time rather than through a version
+bump.
+
+That is the right behaviour for a value IAPKit only consumes, and the wrong one
+for a value it puts on the wire, where silently following a rename would break
+receivers that already decode the old name. So IAPKit pins those in its own
+tests. Renaming one here fails a kit test on purpose —
+`convex/commerce/contract.test.ts` for the header names, the content type, and
+the signature prefix, and `convex/commerce/spec.conformance.test.ts` for the
+emitted `eventVersion`. The fix is a migration decision in kit, not a test edit.
+
 That test belongs to kit, not to this package: the specification does not depend
 on its implementation. When a spec change makes it fail, the correct fix is
 usually in kit — unless the spec change was wrong.

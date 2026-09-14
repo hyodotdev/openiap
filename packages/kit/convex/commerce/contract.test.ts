@@ -13,7 +13,15 @@ import {
   PROVIDER_CAPABILITIES,
   storesWithLifecycleEvents,
 } from "./capabilities";
-import { SIGNATURE_TOLERANCE_SECONDS } from "./signing";
+import {
+  CONTENT_TYPE,
+  DELIVERY_ID_HEADER,
+  EVENT_ID_HEADER,
+  SIGNATURE_HEADER,
+  SIGNATURE_PREFIX,
+  SIGNATURE_TOLERANCE_SECONDS,
+  TIMESTAMP_HEADER,
+} from "./signing";
 
 describe("the public receiver contract stays in sync", () => {
   it("keeps every public receiver vocabulary in sync", () => {
@@ -51,24 +59,72 @@ describe("the public receiver contract stays in sync", () => {
     expect(COMMERCE_EVENT_SCHEMA_VERSION).toBe("1.0");
   });
 
+  it("pins the wire identities deployed receivers already decode", () => {
+    // These names are derived from the protocol's transport record, so nothing
+    // here restates them in shipped code. This golden is the record of what
+    // receivers were told, and a protocol rename must fail it on purpose:
+    // decide the migration — dual-emit, new destinations only, cutover — and
+    // then move the pin. spec.conformance.test.ts covers the other direction.
+    expect({
+      signature: SIGNATURE_HEADER,
+      timestamp: TIMESTAMP_HEADER,
+      eventId: EVENT_ID_HEADER,
+      deliveryId: DELIVERY_ID_HEADER,
+      contentType: CONTENT_TYPE,
+    }).toEqual({
+      signature: "openiap-signature",
+      timestamp: "openiap-timestamp",
+      eventId: "openiap-event-id",
+      deliveryId: "openiap-delivery-id",
+      contentType: "application/json",
+    });
+  });
+
+  it("pins the signature prefix, the protocol's algorithm marker", () => {
+    // SPEC.md 9.4.2 makes the prefix the algorithm-agility marker and receivers
+    // compare whole `v1=` values, so moving to `v2=` is a migration.
+    expect(SIGNATURE_PREFIX).toBe("v1=");
+  });
+
   it("keeps the receiver timestamp window aligned with signing policy", () => {
-    const publicContracts = [
-      new URL("../../COMMERCE-EVENTS.md", import.meta.url),
-      new URL("../../src/pages/docs/sections/webhooks.tsx", import.meta.url),
-      new URL(
-        "../../../docs/src/pages/commerce-protocol/webhooks.tsx",
-        import.meta.url,
-      ),
-    ].map((url) => readFileSync(url, "utf8"));
     const tolerance = new RegExp(
       `(?:<=|&lt;=|>)\\s*${SIGNATURE_TOLERANCE_SECONDS}\\b`,
     );
 
-    for (const contract of publicContracts) {
+    for (const contract of publicReceiverContracts()) {
       expect(contract).toMatch(tolerance);
     }
   });
+
+  it("teaches receivers the header names and prefix kit actually sends", () => {
+    // These documents tell an integrator what to verify. Without this they
+    // keep teaching the old spelling after a rename, and the reader's
+    // signature check fails against a kit that already moved.
+    for (const contract of publicReceiverContracts()) {
+      for (const name of [
+        SIGNATURE_HEADER,
+        TIMESTAMP_HEADER,
+        EVENT_ID_HEADER,
+        DELIVERY_ID_HEADER,
+      ]) {
+        expect(contract, `${name} is undocumented`).toContain(name);
+      }
+      expect(contract).toContain(SIGNATURE_PREFIX);
+    }
+  });
 });
+
+/** The documents that tell an integrator how to verify a delivery. */
+function publicReceiverContracts(): string[] {
+  return [
+    new URL("../../COMMERCE-EVENTS.md", import.meta.url),
+    new URL("../../src/pages/docs/sections/webhooks.tsx", import.meta.url),
+    new URL(
+      "../../../docs/src/pages/commerce-protocol/webhooks.tsx",
+      import.meta.url,
+    ),
+  ].map((url) => readFileSync(url, "utf8"));
+}
 
 function sectionBetween(source: string, start: string, end: string): string {
   const startIndex = source.indexOf(start);

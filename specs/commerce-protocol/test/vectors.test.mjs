@@ -51,6 +51,13 @@ describe("signature vectors", () => {
       new Set(Object.values(vectors.headers)).size,
     );
     expect(WEBHOOK.toleranceSeconds).toBeGreaterThan(0);
+    // The prefix and content type live beside the headers for the same reason:
+    // a bundled implementation reads this file, not src/index.mjs.
+    expect(vectors.signaturePrefix).toMatch(/^v[1-9][0-9]*=$/);
+    expect(vectors.contentType).toBe("application/json");
+    // `algorithm` is prose in the same file; a second spelling of the prefix
+    // that nothing compares is the drift this file exists to prevent.
+    expect(vectors.algorithm).toContain(vectors.signaturePrefix);
   });
 
   it.each(vectors.cases.map((c) => [c.name, c]))(

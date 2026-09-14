@@ -99,7 +99,8 @@ export const EXTENSION_LIMITS = Object.freeze({
 /**
  * Transport constants a receiver needs, read from the published vectors so the
  * package cannot disagree with the file an implementation actually tests
- * against. Behaviour is specified in SPEC.md §9.4.
+ * against — and so a bundled implementation that cannot load this module reads
+ * the same file directly. Behaviour is specified in SPEC.md §9.4.
  */
 const signatureVectors = JSON.parse(
   readFileSync(
@@ -113,9 +114,7 @@ export const WEBHOOK = Object.freeze({
   timestampHeader: signatureVectors.headers.timestamp,
   eventIdHeader: signatureVectors.headers.eventId,
   deliveryIdHeader: signatureVectors.headers.deliveryId,
-  // Literals, not derived values: SPEC.md §9.4.2 and §9.4.1 name them, and
-  // test/vectors.test.mjs asserts every vector carries the prefix.
-  signaturePrefix: "v1=",
-  contentType: "application/json",
+  signaturePrefix: signatureVectors.signaturePrefix,
+  contentType: signatureVectors.contentType,
   toleranceSeconds: signatureVectors.toleranceSeconds,
 });

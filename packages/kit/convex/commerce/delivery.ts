@@ -16,17 +16,12 @@ import { internal } from "../_generated/api";
 import { internalAction, type ActionCtx } from "../_generated/server";
 import type { ClaimedDelivery } from "./deliveryState";
 import {
-  CONTENT_TYPE,
-  DELIVERY_ID_HEADER,
-  EVENT_ID_HEADER,
   REQUEST_TIMEOUT_MS,
-  SIGNATURE_HEADER,
-  TIMESTAMP_HEADER,
   checkDestinationUrl,
   CLAIM_BATCH_LIMIT,
-  isRetryableStatus,
+  classifyDeliveryResponse,
+  composeDeliveryHeaders,
   isPublicIpAddress,
-  signPayloadWithRotation,
 } from "./signing";
 
 export type ResolvedAddress = { address: string; family: number };
@@ -201,41 +196,31 @@ export async function deliverPendingEventsHandler(
       continue;
     }
 
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signature = await signPayloadWithRotation(
-      {
-        current: item.secret,
-        ...(item.previousSecret ? { previous: item.previousSecret } : {}),
-      },
-      timestamp,
-      item.body,
-    );
+    const headers = await composeDeliveryHeaders({
+      secrets: { current: item.secret, previous: item.previousSecret },
+      timestampSeconds: Math.floor(Date.now() / 1000),
+      body: item.body,
+      eventId: item.eventId,
+      deliveryId: item.deliveryId,
+    });
 
     try {
-      const status = await post({
-        url: check.url,
-        headers: {
-          "content-type": CONTENT_TYPE,
-          [SIGNATURE_HEADER]: signature,
-          [TIMESTAMP_HEADER]: String(timestamp),
-          [EVENT_ID_HEADER]: item.eventId,
-          [DELIVERY_ID_HEADER]: item.deliveryId,
-        },
-        body: item.body,
-      });
-      const ok = status >= 200 && status < 300;
-      if (ok) delivered += 1;
+      const status = await post({ url: check.url, headers, body: item.body });
+      const outcome = classifyDeliveryResponse(status);
+      if (outcome === "delivered") delivered += 1;
       await ctx.runMutation(
         internal.commerce.deliveryState.recordDeliveryResult,
         {
           deliveryId: item.deliveryId,
           leaseToken: item.leaseToken,
-          ok,
+          ok: outcome === "delivered",
           statusCode: status,
-          retryable: isRetryableStatus(status),
+          retryable: outcome === "retry",
         },
       );
     } catch (error) {
+      // No status arrived (timeout, connection error): the protocol retries.
+      const outcome = classifyDeliveryResponse(undefined);
       await ctx.runMutation(
         internal.commerce.deliveryState.recordDeliveryResult,
         {
@@ -243,7 +228,7 @@ export async function deliverPendingEventsHandler(
           leaseToken: item.leaseToken,
           ok: false,
           error: error instanceof Error ? error.message : "request failed",
-          retryable: true,
+          retryable: outcome === "retry",
         },
       );
     }

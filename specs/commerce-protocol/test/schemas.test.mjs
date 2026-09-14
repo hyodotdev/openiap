@@ -499,6 +499,8 @@ describe("prose cannot drift from the schemas", () => {
       expect(spec, `${header} is undocumented`).toContain(header);
     }
     expect(spec).toContain(String(WEBHOOK.toleranceSeconds));
+    expect(spec).toContain(`\`${WEBHOOK.signaturePrefix}\``);
+    expect(spec).toContain(`Content-Type: ${WEBHOOK.contentType}`);
   });
 });
 

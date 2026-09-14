@@ -1,6 +1,8 @@
 {
-  "$comment": "Test vectors for the OpenIAP Commerce Protocol outbound webhook signature. Any implementation, in any language, must reproduce every `expected` value and must reject every case in `rejections`. Signing input is the ASCII timestamp, one 0x2e byte, and the exact body bytes transmitted.",
+  "$comment": "Test vectors and transport constants for the OpenIAP Commerce Protocol outbound webhook. Any implementation, in any language, must reproduce every `expected` value and must reject every case in `rejections`. Signing input is the ASCII timestamp, one 0x2e byte, and the exact body bytes transmitted. `signaturePrefix`, `contentType`, `toleranceSeconds`, and `headers` are the SPEC.md 9.4 wire constants, published here so an implementation reads them from one machine-readable file instead of restating them.",
   "algorithm": "HMAC-SHA256, lowercase hex, prefixed `v1=`",
+  "signaturePrefix": "v1=",
+  "contentType": "application/json",
   "toleranceSeconds": 300,
   "headers": {
     "signature": "openiap-signature",
