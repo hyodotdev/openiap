@@ -1352,7 +1352,8 @@ A MINOR that leaves the event body untouched does not oblige an emitter to
 change `eventVersion`: that member names the version the body conforms to, not
 the newest version published. Until the first stable package release, 1.0 stays
 open for additive documents, so a new document does not move the protocol
-version at all.
+version at all. The npm package version is separate again, and moves only when
+the release workflow publishes.
 
 | Change                                                                                                    | Version impact |
 | --------------------------------------------------------------------------------------------------------- | -------------- |
