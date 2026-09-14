@@ -31,8 +31,8 @@ This monorepo contains all OpenIAP packages:
 - **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.apple&label=version&logo=swift&color=orange&prefix=v)](https://github.com/hyodotdev/openiap/releases?q=Apple&expanded=true) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
 - **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
 - **[mcp-server](packages/mcp-server)** - IAPKit MCP server, hosted at [kit.openiap.dev/mcp](https://kit.openiap.dev/mcp) for AI coding agents
-- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
 - **[cli](packages/cli)** - `@hyodotdev/openiap` prints an optional AI implementation brief with `openiap init` and runs repeatable local configuration checks with `openiap doctor --json`. Run `npx @hyodotdev/openiap` in an existing project. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
+- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
 
 ## Libraries
 
@@ -78,13 +78,13 @@ Have a question or need help? Ask in the relevant [GitHub Discussions](https://g
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | openiap-apple          | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-apple)          |
 | openiap-google         | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-google)         |
-| IAPKit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
 | expo-iap               | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap)               |
 | react-native-iap       | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap)       |
 | flutter_inapp_purchase | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/flutter_inapp_purchase) |
 | kmp-iap                | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap)                |
 | maui-iap               | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/maui-iap)               |
 | godot-iap              | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/godot-iap)              |
+| IAPKit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
 
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 
