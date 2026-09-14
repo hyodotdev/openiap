@@ -105,7 +105,9 @@ describe("the store axis has one source", () => {
 
   it("matches every provider value in the capability descriptor", () => {
     // `provider` answers the same question as `available`. A descriptor is free
-    // to say what it implements; it is not free to invent what a store offers.
+    // to say what it implements; it is not free to contradict this table about
+    // a store the table covers. This example integrates only examined stores,
+    // so every one of its stores must appear here.
     for (const [store, entry] of Object.entries(capabilities.stores)) {
       expect(facts.stores, `${store} has no store-facts entry`).toHaveProperty(
         store,
@@ -117,6 +119,21 @@ describe("the store axis has one source", () => {
         ).toBe(facts.stores[store][axis].available);
       }
     }
+  });
+
+  it("still lets a descriptor declare a store this table has never examined", () => {
+    // The store space is open, so an implementation may integrate a store the
+    // specification has not examined. There the descriptor's `provider` is the
+    // only place the fact exists, which is why the member is not redundant.
+    const doc = structuredClone(capabilities);
+    doc.stores.samsung = structuredClone(doc.stores.apple);
+    doc.stores.samsung.serverNotifications = {
+      provider: false,
+      implementation: false,
+      notes: "Checked the Galaxy Store server API; it publishes no channel.",
+    };
+    expect(validator("ProviderCapabilities")(doc)).toBe(true);
+    expect(facts.stores).not.toHaveProperty("samsung");
   });
 
   it("matches the notification channel the mapping table names", () => {

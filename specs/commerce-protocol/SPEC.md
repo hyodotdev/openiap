@@ -1188,13 +1188,19 @@ limitation, and collapsing the two into one boolean hides which one it is. A
 descriptor. Read its `implementation` axis as one backend's answer, not as the
 specification's.
 
-The `provider` axis asks what a store offers, which is not one backend's
-question to answer. `examples/store-facts.json` answers it once, for every
-implementation. A descriptor's `provider` MUST equal the matching `available`
-there, and the mapping table's `notificationChannel` MUST equal that store's
-`serverNotifications.surface`, or `null` where it is unavailable. `provider`
-carries no information `available` does not; it is retained because removing a
-required member is MAJOR, and a future major removes it.
+The `provider` axis asks what a store offers. `examples/store-facts.json`
+answers that once for the stores this version has examined, so where it covers a
+store a descriptor's `provider` MUST equal the matching `available`, and the
+mapping table's `notificationChannel` MUST equal that store's
+`serverNotifications.surface`, or `null` where it is unavailable.
+
+The store space is open, so a descriptor may name a store this version has never
+examined. There `provider` is the implementation's own claim and the only place
+the fact exists, which is why the member stays. It is deliberately the weaker
+form: a bare boolean, where an examined store carries `delivery` and `surface`
+as well. An implementation declaring an unexamined store SHOULD name the surface
+in `notes`, and a consumer that needs more than yes-or-no has to ask that
+implementation.
 
 `delivery` says how the store makes the fact reachable: `push` when it sends it
 unasked, `pull` when it returns it from a read, `batch` when it publishes it only

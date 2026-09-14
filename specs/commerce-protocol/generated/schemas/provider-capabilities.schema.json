@@ -144,7 +144,7 @@
       "additionalProperties": false,
       "properties": {
         "provider": {
-          "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend, so it is not this descriptor's to decide: it MUST equal the matching `available` value in the store facts document, which states the store axis once for every implementation. That document also carries the `delivery` and `surface` detail this boolean cannot.",
+          "description": "Whether the store's own API offers this at all. A fact about the store, independent of any backend. Where the store facts document covers the store it MUST equal the matching `available` value there, and that document carries the `delivery` and `surface` detail this boolean cannot. The store space is open, so for a store that document has never examined this is the implementation's own claim and the only place the fact exists.",
           "type": "boolean"
         },
         "implementation": {
