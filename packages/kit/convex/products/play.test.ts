@@ -1,4 +1,4 @@
-import { google, type Common } from "googleapis";
+import { google, type androidpublisher_v3, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +6,7 @@ import {
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   collectPlaySubscriptionOffers,
+  hydratePlaySubscriptionOffers,
   mapModernPlayOneTimeState,
   mergedSubscriptionListings,
   pickPlayRegionalPrice,
@@ -1275,6 +1276,115 @@ describe("pickSubBasePlanPrice", () => {
       priceAmountMicros: 9_990_000,
       basePlanId: "monthly",
     });
+  });
+});
+
+describe("hydratePlaySubscriptionOffers", () => {
+  it("fetches every separately-addressed Play offer page before catalog flattening", async () => {
+    const calls: Array<{ basePlanId?: string; pageToken?: string }> = [];
+    const androidpublisher = {
+      monetization: {
+        subscriptions: {
+          basePlans: {
+            offers: {
+              list: async (args: {
+                basePlanId?: string;
+                pageToken?: string;
+              }) => {
+                calls.push(args);
+                return args.pageToken
+                  ? {
+                      data: {
+                        subscriptionOffers: [
+                          {
+                            offerId: "discount",
+                            phases: [
+                              {
+                                duration: "P1M",
+                                recurrenceCount: 1,
+                                regionalConfigs: [
+                                  {
+                                    regionCode: "US",
+                                    price: {
+                                      currencyCode: "USD",
+                                      units: "4",
+                                      nanos: 990_000_000,
+                                    },
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    }
+                  : {
+                      data: {
+                        subscriptionOffers: [
+                          {
+                            offerId: "trial",
+                            phases: [{ duration: "P1W", recurrenceCount: 1 }],
+                          },
+                        ],
+                        nextPageToken: "next",
+                      },
+                    };
+              },
+            },
+          },
+        },
+      },
+    } as unknown as androidpublisher_v3.Androidpublisher;
+    const hydrated = await hydratePlaySubscriptionOffers(
+      androidpublisher,
+      "com.example.app",
+      {
+        productId: "pro.monthly",
+        basePlans: [
+          {
+            basePlanId: "monthly",
+            autoRenewingBasePlanType: { billingPeriodDuration: "P1M" },
+            regionalConfigs: [
+              {
+                regionCode: "US",
+                price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+              },
+            ],
+          },
+        ],
+      },
+    );
+    expect(
+      calls.map(({ basePlanId, pageToken }) => ({ basePlanId, pageToken })),
+    ).toEqual([
+      { basePlanId: "monthly", pageToken: undefined },
+      { basePlanId: "monthly", pageToken: "next" },
+    ]);
+    expect(collectPlaySubscriptionOffers(hydrated)).toEqual([
+      {
+        id: "monthly",
+        kind: "BasePlan",
+        duration: "P1M",
+        priceAmountMicros: 9_990_000,
+        currency: "USD",
+      },
+      {
+        id: "monthly/trial#0",
+        kind: "FreeTrial",
+        duration: "P1W",
+        numberOfPeriods: 1,
+        priceAmountMicros: undefined,
+        currency: undefined,
+      },
+      {
+        id: "monthly/discount#0",
+        kind: "IntroPayUpFront",
+        duration: "P1M",
+        numberOfPeriods: 1,
+        priceAmountMicros: 4_990_000,
+        currency: "USD",
+      },
+    ]);
   });
 });
 
