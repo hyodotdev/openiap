@@ -1,5 +1,5 @@
 {
-  "$comment": "The reference implementation's own descriptor, published as the worked example. Its `implementation` axis is one backend's answer, not a specification requirement; the `provider` axis is a fact about each store.",
+  "$comment": "The reference implementation's own descriptor, published as the worked example. Its `implementation` axis is one backend's answer, not a specification requirement; its `provider` axis is copied from examples/store-facts.json, where the store side is stated once.",
   "specVersion": "1.0",
   "implementation": {
     "name": "IAPKit"
@@ -62,7 +62,7 @@
       "reconciliation": {
         "provider": true,
         "implementation": false,
-        "notes": "The App Store Server API can be polled for authoritative subscription status, but this implementation runs no scheduled pass. A notification lost past Apple's retry window is therefore not self-healing."
+        "notes": "This implementation runs no scheduled pass, so a notification lost past Apple's retry window is not self-healing."
       },
       "entitlements": {
         "provider": true,
@@ -101,7 +101,7 @@
       "reconciliation": {
         "provider": true,
         "implementation": false,
-        "notes": "purchases.subscriptionsv2.get is authoritative and is called to enrich notifications, but no scheduled pass re-reads state, so a dropped RTDN message is not repaired."
+        "notes": "subscriptionsv2 is called to enrich notifications, but no scheduled pass re-reads state, so a dropped notification is not repaired."
       },
       "entitlements": {
         "provider": true,
@@ -110,54 +110,54 @@
       "revenueAmount": {
         "provider": true,
         "implementation": true,
-        "notes": "The notification carries no amount. This implementation reads recurringPrice from purchases.subscriptionsv2.get — the plan's current recurring price before discounts and tax, store-asserted but not the settled charge, which only the Orders API reports; prepaid plans carry no price there and fall back to catalog provenance. A refund arrives as a voided-purchase notification with no amount; the Orders API reports the refunded total, but this implementation does not read it, so a reversal has no amount to attribute."
+        "notes": "This implementation reads recurringPrice from purchases.subscriptionsv2.get, the plan price rather than the settled charge, and reads no Orders API, so a reversal has no amount to attribute."
       }
     },
     "horizon": {
       "initialValidation": {
         "provider": true,
         "implementation": true,
-        "notes": "verify_entitlement returns success and grant_time only — no amount, currency, expiry, state or purchase identity. The companion viewer_purchases endpoint returns each purchase's id, grant_time and expiration_time; this implementation does not call it."
+        "notes": "Only verify_entitlement is called, so this implementation sees ownership and grant_time and never the purchase identity viewer_purchases carries."
       },
       "serverNotifications": {
         "provider": true,
         "implementation": false,
-        "notes": "Meta Horizon publishes webhook fields for commerce: order_status, plus subscription_started, subscription_renewal_success, subscription_canceled, subscription_uncanceled and subscription_expired. This implementation subscribes to none of them, so it observes no Horizon lifecycle change as it happens. That is an implementation gap, not a store limitation."
+        "notes": "This implementation subscribes to no Meta webhook field, so it observes no Horizon lifecycle change as it happens."
       },
       "subscriptions": {
         "provider": true,
         "implementation": false,
-        "notes": "The subscriptions server-to-server resource returns is_active, is_trial, period_start_time, period_end_time, next_renewal_time and cancellation_time for a subscription. This implementation reads none of it and maintains no canonical subscription record for this store."
+        "notes": "This implementation reads no Meta subscription resource and maintains no canonical subscription record for this store."
       },
       "renewalEvents": {
         "provider": true,
         "implementation": false,
-        "notes": "subscription_renewal_success reports each successful renewal, and the subscription resource advances next_renewal_time. This implementation consumes neither, so it observes no renewal."
+        "notes": "This implementation consumes no Meta webhook and reads no subscription resource, so it observes no renewal."
       },
       "refundEvents": {
         "provider": false,
         "implementation": false,
-        "notes": "Meta reports refunds and chargebacks only for add-on orders, through order_status notification_type REFUNDED and CHARGEBACKED. No subscription webhook field and no field of the subscriptions resource reports a subscription refund or revocation, which is what this capability means: subscription_canceled carries a user-facing cancel_reason and subscription_expired carries none, so both end access without reporting a reversal. refund_iap_entitlement performs a refund rather than reporting one."
+        "notes": "Meta reports no subscription refund or revocation, so there is nothing to consume."
       },
       "expiration": {
         "provider": true,
         "implementation": false,
-        "notes": "subscription_expired reports a period ending, and period_end_time and next_renewal_time on the subscription resource, like expiration_time on viewer_purchases, give the deadline ahead of time. This implementation reads none of them, so for it the loss of entitlement is observable only by asking again."
+        "notes": "This implementation reads no Meta expiry surface, so for it the loss of entitlement is observable only by asking again."
       },
       "reconciliation": {
         "provider": true,
         "implementation": false,
-        "notes": "Both the subscription resource and verify_entitlement could be re-read on a schedule, but this implementation runs no such pass."
+        "notes": "This implementation runs no scheduled pass for this store."
       },
       "entitlements": {
         "provider": true,
         "implementation": true,
-        "notes": "This implementation answers from verify_entitlement alone, so its answer is point-in-time: valid at the moment it is asked and carrying no validity window."
+        "notes": "This implementation answers from verify_entitlement alone, so its answer is valid at the moment it is asked and carries no validity window."
       },
       "revenueAmount": {
         "provider": true,
         "implementation": false,
-        "notes": "For subscriptions the price terms carry term, currency and price, both on the subscription resource and on each subscription webhook payload. For add-ons no surface carries an amount: order_status has none, and the catalog endpoint prices catalog items rather than a user's orders. This implementation reads none of them, so it attributes no Horizon revenue with store provenance."
+        "notes": "This implementation reads no Meta price term, so it attributes no Horizon revenue with store provenance."
       }
     },
     "amazon": {
@@ -168,27 +168,27 @@
       "serverNotifications": {
         "provider": true,
         "implementation": false,
-        "notes": "Amazon Real-Time Notifications exist, but this implementation integrates no receiver for them. This is an implementation gap, not a store limitation."
+        "notes": "This implementation integrates no receiver for Amazon Real-Time Notifications."
       },
       "subscriptions": {
         "provider": true,
         "implementation": false,
-        "notes": "Real-Time Notifications carry the lifecycle transitions a canonical record needs. This implementation polls Receipt Verification Service instead, which reports the current receipt state — autoRenewing, renewalDate, cancelDate, cancelReason, gracePeriodEndDate, freeTrialEndDate — but not the transitions that produced it."
+        "notes": "This implementation polls Receipt Verification Service rather than consuming the notification channel, so it sees receipt state and not the transitions that produced it."
       },
       "renewalEvents": {
         "provider": true,
         "implementation": false,
-        "notes": "SUBSCRIPTION_RENEWED is the store's renewal signal. This implementation polls Receipt Verification Service, where a renewal is visible only as renewalDate advancing between two reads."
+        "notes": "This implementation polls Receipt Verification Service, where a renewal is visible only as renewalDate advancing between two reads."
       },
       "refundEvents": {
         "provider": true,
         "implementation": false,
-        "notes": "SUBSCRIPTION_CANCELLED, ENTITLEMENT_CANCELLED and CONSUMABLE_CANCELLED are the store's revocation signals; the channel does not separate a refund from a cancellation. This implementation polls Receipt Verification Service, which reports cancelDate and cancelReason, but only at its next poll."
+        "notes": "This implementation polls Receipt Verification Service, which reports cancelDate and cancelReason, but only at its next poll."
       },
       "expiration": {
         "provider": true,
         "implementation": false,
-        "notes": "SUBSCRIPTION_EXPIRED is the store's expiry signal, and Receipt Verification Service reports renewalDate ahead of time and sets cancelDate once a subscription expires. This implementation sees the change only at its next poll."
+        "notes": "This implementation sees the change only at its next poll."
       },
       "reconciliation": {
         "provider": true,
@@ -202,7 +202,7 @@
       "revenueAmount": {
         "provider": true,
         "implementation": false,
-        "notes": "Neither Receipt Verification Service nor a Real-Time Notification payload carries an amount. The Appstore Reporting API's per-transaction sales report does: Sales Price, Estimated Earnings and Marketplace Currency, keyed by Receipt ID where one is present, with a transaction type of charge, refund, chargeback or chargeback reversal. It is a batch export on a reporting cadence, not a value available at verification time. This implementation reads no report, so it attributes no Amazon revenue with store provenance."
+        "notes": "This implementation reads no sales report, so it attributes no Amazon revenue with store provenance."
       }
     }
   }

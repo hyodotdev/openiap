@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-14T15:01:11.078Z
+> Last updated: 2026-09-14T15:42:31.390Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3294,10 +3294,10 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
 
 ## Version Compatibility
 
-| Component | Version | Notes |
-| --- | --- | --- |
-| Amazon Appstore SDK | **3.0.9** | Current official release (May 20, 2026) |
-| OpenIAP Android flavor | `amazon` | Uses the native Appstore SDK, not Google Billing Compatibility |
+| Component              | Version   | Notes                                                          |
+| ---------------------- | --------- | -------------------------------------------------------------- |
+| Amazon Appstore SDK    | **3.0.9** | Current official release (May 20, 2026)                        |
+| OpenIAP Android flavor | `amazon`  | Uses the native Appstore SDK, not Google Billing Compatibility |
 
 Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE`
 fulfillment results and add-on subscription support. Add-on subscriptions are
@@ -3306,13 +3306,13 @@ Console.
 
 ## OpenIAP Mapping
 
-| OpenIAP API | Amazon Appstore SDK |
-| --- | --- |
-| `initConnection()` | Register `PurchasingListener`, then request user data |
-| `fetchProducts()` | `PurchasingService.getProductData()` |
-| `requestPurchase()` | `PurchasingService.purchase()` |
-| `getAvailablePurchases()` / restore | `PurchasingService.getPurchaseUpdates()` |
-| `finishTransaction()` | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
+| OpenIAP API                         | Amazon Appstore SDK                                   |
+| ----------------------------------- | ----------------------------------------------------- |
+| `initConnection()`                  | Register `PurchasingListener`, then request user data |
+| `fetchProducts()`                   | `PurchasingService.getProductData()`                  |
+| `requestPurchase()`                 | `PurchasingService.purchase()`                        |
+| `getAvailablePurchases()` / restore | `PurchasingService.getPurchaseUpdates()`              |
+| `finishTransaction()`               | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
 
 The Amazon flavor is isolated under
 `packages/google/openiap/src/amazon/`. Google Play Billing APIs such as Billing
@@ -3336,12 +3336,12 @@ Reference: [Implement Pending Purchases](https://developer.amazon.com/docs/in-ap
 Always report the result after deciding whether the customer can access the
 content:
 
-| Result | Use |
-| --- | --- |
-| `FULFILLED` | The purchase was granted successfully |
+| Result              | Use                                                        |
+| ------------------- | ---------------------------------------------------------- |
+| `FULFILLED`         | The purchase was granted successfully                      |
 | `EXISTING_PURCHASE` | The customer already has the relevant account/subscription |
-| `NOT_ELIGIBLE` | The customer can't use the purchased service |
-| `UNAVAILABLE` | The content couldn't be delivered |
+| `NOT_ELIGIBLE`      | The customer can't use the purchased service               |
+| `UNAVAILABLE`       | The content couldn't be delivered                          |
 
 Amazon immediately cancels and refunds the purchase when fulfillment is
 reported as `EXISTING_PURCHASE`, `NOT_ELIGIBLE`, or `UNAVAILABLE`; callers must
@@ -3369,6 +3369,52 @@ is not met; OpenIAP surfaces it as `item-unavailable` and does not grant the
 add-on.
 
 Reference: [Set Up Add-On Subscriptions](https://developer.amazon.com/docs/in-app-purchasing/set-up-add-on-subscriptions.html)
+
+## Server-to-Server Surfaces
+
+Amazon's server side is three separate things. IAPKit uses only the first.
+
+**Receipt Verification Service** validates a receipt and returns its current
+state: `receiptId`, `productId`, `productType`, `purchaseDate`, `quantity`,
+`countryCode`, and for subscriptions `autoRenewing`, `renewalDate`, `cancelDate`,
+`cancelReason`, `term`, `termSku`, `freeTrialEndDate`, `gracePeriodEndDate`,
+`deferredDate`/`deferredSku`, `baseReceipts`, `promotions`, `fulfillmentDate`,
+`fulfillmentResult`, `betaProduct`, `testTransaction`. It carries no price or
+currency, and it reports state rather than the transition that produced it.
+
+**Real-Time Notifications** push purchase state changes to an HTTPS endpoint
+registered in the developer console. Sixteen types: `CONSUMABLE_PURCHASED`,
+`CONSUMABLE_CANCELLED`, `ENTITLEMENT_PURCHASED`, `ENTITLEMENT_CANCELLED`,
+`SUBSCRIPTION_PURCHASED`, `SUBSCRIPTION_RENEWED`, `SUBSCRIPTION_CANCELLED`,
+`SUBSCRIPTION_EXPIRED`, `SUBSCRIPTION_IN_GRACE_PERIOD`,
+`SUBSCRIPTION_OUT_OF_GRACE_PERIOD`, `SUBSCRIPTION_AUTO_RENEWAL_ON`,
+`SUBSCRIPTION_AUTO_RENEWAL_OFF`, `SUBSCRIPTION_SCHEDULED_TO_END`,
+`SUBSCRIPTION_MODIFIED_IMMEDIATE`, `SUBSCRIPTION_MODIFIED_DEFERRED`,
+`SUBSCRIPTION_CONVERTED_FREE_TRIAL_TO_PAID`. The payload is `receiptId`,
+`relatedReceipts`, `appUserId`, `notificationType`, `appPackageName`,
+`timestamp`, `betaProductTransaction` — no amount, and no field separating a
+refund from a cancellation.
+
+**Reporting API** downloads sales, earnings and subscription reports through a
+pre-signed S3 URL, authenticated with Login with Amazon. Sales reports are
+per-transaction from 2018 onward, with `Receipt ID`, `Transaction Id`,
+`Transaction Type` (Charge, Refund, Chargeback, Chargeback reversal),
+`Sales Price`, `Estimated Earnings` and `Marketplace Currency`. This is the only
+Amazon surface that reports an amount, and it is a batch export.
+
+Vega OS shares this server side. One app listing covers Fire OS and Vega, using
+the same Receipt Verification Service host and the same notification channel, so
+Vega is not a separate store.
+
+> **OpenIAP Note**: which of these the specification treats as available, and
+> how each is delivered, is stated in
+> `specs/commerce-protocol/examples/store-facts.json`.
+
+References:
+[Understanding Real-Time Notifications](https://developer.amazon.com/docs/in-app-purchasing/real-time-notifications.html),
+[RVS for Android apps](https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html),
+[Reporting API](https://developer.amazon.com/docs/reports-promo/reporting-API.html),
+[Sales reports](https://developer.amazon.com/docs/reports-promo/sales-reports.html)
 
 
 ---
@@ -4104,17 +4150,18 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 ## Version Compatibility Matrix
 
-| Library | Version | Compatible With |
-|---------|---------|-----------------|
-| horizon-billing-compatibility | **2.0.0** (latest) | Google Play Billing **7.0** API |
-| Google Play Billing (upstream latest) | **9.1.0** | N/A |
-| Google Play Billing (OpenIAP Play flavor) | **9.1.0** | N/A |
-| react-native-iap | v14+ | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
-| expo-iap | latest | Billing 7.0+, Kotlin 2.0+ |
+| Library                                   | Version            | Compatible With                     |
+| ----------------------------------------- | ------------------ | ----------------------------------- |
+| horizon-billing-compatibility             | **2.0.0** (latest) | Google Play Billing **7.0** API     |
+| Google Play Billing (upstream latest)     | **9.1.0**          | N/A                                 |
+| Google Play Billing (OpenIAP Play flavor) | **9.1.0**          | N/A                                 |
+| react-native-iap                          | v14+               | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
+| expo-iap                                  | latest             | Billing 7.0+, Kotlin 2.0+           |
 
 **CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x or 9.x.
 
 When writing shared code for both Play and Horizon flavors:
+
 - Use only APIs that exist in **both** Billing 7.0 and the Play-flavor Billing version
 - Horizon SDK does NOT support Billing 8.x/9.x features like auto-reconnect, product status codes, `includeSuspended`, or Billing Choice
 - OpenIAP handles this automatically with flavor-specific implementations
@@ -4172,23 +4219,25 @@ For apps already using Google Play Billing Library, the Horizon Billing Compatib
 ### Migration Steps
 
 Replace imports from:
+
 ```kotlin
 import com.android.billingclient.api.*
 ```
 
 To:
+
 ```kotlin
 import com.meta.horizon.billingclient.api.*
 ```
 
 ### Key Differences from Google Play Billing
 
-| Feature | Google Play | Horizon |
-|---------|-------------|---------|
-| `acknowledgePurchase()` | Required within 3 days | No-op (not required) |
-| Non-acknowledgement | Auto-refund after 3 days | No auto-refund |
-| `enablePendingPurchases()` | Enables pending purchases | No-op (for compatibility) |
-| `onBillingServiceDisconnected()` | Called on disconnect | Never invoked |
+| Feature                          | Google Play               | Horizon                   |
+| -------------------------------- | ------------------------- | ------------------------- |
+| `acknowledgePurchase()`          | Required within 3 days    | No-op (not required)      |
+| Non-acknowledgement              | Auto-refund after 3 days  | No auto-refund            |
+| `enablePendingPurchases()`       | Enables pending purchases | No-op (for compatibility) |
+| `onBillingServiceDisconnected()` | Called on disconnect      | Never invoked             |
 
 ### Important Notes
 
@@ -4222,13 +4271,14 @@ POST https://graph.oculus.com/$APP_ID/verify_entitlement
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `access_token` | string | `OC\|App_ID\|App_Secret` format |
-| `user_id` | string | The user ID to verify |
-| `sku` | string | (Optional) SKU for add-on verification |
+| Parameter      | Type   | Description                            |
+| -------------- | ------ | -------------------------------------- |
+| `access_token` | string | `OC\|App_ID\|App_Secret` format        |
+| `user_id`      | string | The user ID to verify                  |
+| `sku`          | string | (Optional) SKU for add-on verification |
 
 **Example - Verify App Ownership:**
+
 ```bash
 curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
      -d "user_id=$USER_ID" \
@@ -4236,6 +4286,7 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 ```
 
 **Example - Verify Add-on/IAP:**
+
 ```bash
 curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
      -d "user_id=$USER_ID" \
@@ -4244,6 +4295,7 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -4264,11 +4316,11 @@ GET https://graph.oculus.com/$APP_ID/viewer_purchases
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter      | Type   | Description                     |
+| -------------- | ------ | ------------------------------- |
 | `access_token` | string | `OC\|App_ID\|App_Secret` format |
-| `user_id` | string | The user ID |
-| `fields` | string | (Optional) Fields to return |
+| `user_id`      | string | The user ID                     |
+| `fields`       | string | (Optional) Fields to return     |
 
 Each purchase carries `id`, `grant_time`, `expiration_time` (`0` means
 indefinite) and `item{sku}`.
@@ -4285,11 +4337,11 @@ POST https://graph.oculus.com/$APP_ID/refund_iap_entitlement
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter      | Type   | Description                     |
+| -------------- | ------ | ------------------------------- |
 | `access_token` | string | `OC\|App_ID\|App_Secret` format |
-| `user_id` | string | The user ID |
-| `sku` | string | SKU of item to refund |
+| `user_id`      | string | The user ID                     |
+| `sku`          | string | SKU of item to refund           |
 
 **Note:** Can only refund items not yet consumed via `consumeAsync()`.
 
@@ -4305,31 +4357,31 @@ GET https://graph.oculus.com/application/subscriptions
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `access_token` | string | `OC\|App_ID\|App_Secret` format, or a user access token |
-| `owner_id` | string | (Optional) App-secret access token only |
-| `skus` | string | (Optional) Restrict to these subscription SKUs |
-| `is_active` | boolean | (Optional) Filter by active state |
-| `is_trial` | boolean | (Optional) Filter by trial state |
-| `fields` | string | (Optional) Fields to return |
+| Parameter      | Type    | Description                                             |
+| -------------- | ------- | ------------------------------------------------------- |
+| `access_token` | string  | `OC\|App_ID\|App_Secret` format, or a user access token |
+| `owner_id`     | string  | (Optional) App-secret access token only                 |
+| `skus`         | string  | (Optional) Restrict to these subscription SKUs          |
+| `is_active`    | boolean | (Optional) Filter by active state                       |
+| `is_trial`     | boolean | (Optional) Filter by trial state                        |
+| `fields`       | string  | (Optional) Fields to return                             |
 
 **Response fields:**
 
-| Field | Description |
-|-------|-------------|
-| `id` | Subscription identifier |
-| `sku` | Subscription SKU |
-| `owner{id}` | User identifier |
-| `is_active` | Whether the subscription is active |
-| `is_trial` | Whether the current period is a free trial |
-| `trial_type` | `FREE_TRIAL` or `INTRO_OFFER` |
-| `period_start_time` | Most recent period start |
-| `period_end_time` | Most recent period end |
-| `cancellation_time` | When the user cancelled |
-| `next_renewal_time` | Next billing date, including extensions |
-| `current_price_term` | `{ term, currency, price }` |
-| `next_price_term` | `{ term, currency, price }` |
+| Field                | Description                                |
+| -------------------- | ------------------------------------------ |
+| `id`                 | Subscription identifier                    |
+| `sku`                | Subscription SKU                           |
+| `owner{id}`          | User identifier                            |
+| `is_active`          | Whether the subscription is active         |
+| `is_trial`           | Whether the current period is a free trial |
+| `trial_type`         | `FREE_TRIAL` or `INTRO_OFFER`              |
+| `period_start_time`  | Most recent period start                   |
+| `period_end_time`    | Most recent period end                     |
+| `cancellation_time`  | When the user cancelled                    |
+| `next_renewal_time`  | Next billing date, including extensions    |
+| `current_price_term` | `{ term, currency, price }`                |
+| `next_price_term`    | `{ term, currency, price }`                |
 
 Two endpoints modify a subscription, both POST and both answering `success`:
 `https://graph.oculus.com/application/cancel_subscription` and
@@ -4345,14 +4397,14 @@ User ID.
 
 Commerce fields:
 
-| Field | Fires when |
-|-------|-----------|
-| `order_status` | An add-on purchase completes or an existing purchase is updated |
-| `subscription_started` | A user starts or restarts a subscription |
-| `subscription_renewal_success` | A renewal succeeds |
-| `subscription_canceled` | A user cancels |
-| `subscription_uncanceled` | A user restores a cancelled subscription before it expires |
-| `subscription_expired` | A subscription period ends |
+| Field                          | Fires when                                                      |
+| ------------------------------ | --------------------------------------------------------------- |
+| `order_status`                 | An add-on purchase completes or an existing purchase is updated |
+| `subscription_started`         | A user starts or restarts a subscription                        |
+| `subscription_renewal_success` | A renewal succeeds                                              |
+| `subscription_canceled`        | A user cancels                                                  |
+| `subscription_uncanceled`      | A user restores a cancelled subscription before it expires      |
+| `subscription_expired`         | A subscription period ends                                      |
 
 `order_status` carries `event_time`, `user_id`, and `product_info` with
 `notification_type` (`PURCHASED`, `REFUNDED`, `CHARGEBACKED`), `sku`,
@@ -4368,20 +4420,20 @@ Renewal and expiry volume scale with the subscriber base, so a receiver has to
 tolerate concurrent `subscription_renewal_success` and `subscription_expired`
 deliveries.
 
-> **OpenIAP Note**: IAPKit reads none of these surfaces today. The capability
-> descriptor in `specs/commerce-protocol/examples/` is the SSOT for that.
-
-
+> **OpenIAP Note**: IAPKit reads none of these surfaces today. Which of them the
+> specification treats as available, and how each is delivered, is stated in
+> `specs/commerce-protocol/examples/store-facts.json`; what IAPKit consumes is
+> the `implementation` axis of the capability descriptor beside it.
 
 ## Platform SDK IAP (Native)
 
 ### Product Types
 
-| Type | Description |
-|------|-------------|
-| `CONSUMABLE` | Can be purchased multiple times (e.g., coins) |
-| `DURABLE` | One-time purchase, permanent ownership |
-| `SUBSCRIPTION` | Recurring billing |
+| Type           | Description                                   |
+| -------------- | --------------------------------------------- |
+| `CONSUMABLE`   | Can be purchased multiple times (e.g., coins) |
+| `DURABLE`      | One-time purchase, permanent ownership        |
+| `SUBSCRIPTION` | Recurring billing                             |
 
 ### Key APIs
 
@@ -4403,18 +4455,18 @@ Mark consumable item as used (required for re-purchase).
 
 ## OpenIAP Type Mapping
 
-| OpenIAP Type | Description |
-|--------------|-------------|
-| `IapStore.Horizon` | Store identifier for Horizon |
+| OpenIAP Type                   | Description                     |
+| ------------------------------ | ------------------------------- |
+| `IapStore.Horizon`             | Store identifier for Horizon    |
 | `VerifyPurchaseHorizonOptions` | Horizon verification parameters |
-| `VerifyPurchaseResultHorizon` | Horizon verification result |
+| `VerifyPurchaseResultHorizon`  | Horizon verification result     |
 
 ### VerifyPurchaseHorizonOptions
 
 ```typescript
 interface VerifyPurchaseHorizonOptions {
-  userId: string;      // Horizon user ID
-  sku: string;         // Product SKU
+  userId: string; // Horizon user ID
+  sku: string; // Product SKU
   accessToken: string; // Format: "OC|APP_ID|APP_SECRET"
 }
 ```
@@ -4425,7 +4477,7 @@ interface VerifyPurchaseHorizonOptions {
 
 ```typescript
 interface VerifyPurchaseResultHorizon {
-  success: boolean;    // Verification result
+  success: boolean; // Verification result
 }
 ```
 
@@ -4439,12 +4491,12 @@ Meta Quest supports React Native and Expo applications.
 
 ### Requirements
 
-| Library | Minimum Version | Notes |
-|---------|-----------------|-------|
-| react-native-iap | v14+ | Billing 7.0+, Kotlin 2.0+, RN 0.79+ |
-| expo-iap | latest | Uses expo-horizon-core plugin |
-| React Native | 0.79+ | Required for Nitro modules |
-| Kotlin | 2.0+ | Required for both billing SDKs |
+| Library          | Minimum Version | Notes                               |
+| ---------------- | --------------- | ----------------------------------- |
+| react-native-iap | v14+            | Billing 7.0+, Kotlin 2.0+, RN 0.79+ |
+| expo-iap         | latest          | Uses expo-horizon-core plugin       |
+| React Native     | 0.79+           | Required for Nitro modules          |
+| Kotlin           | 2.0+            | Required for both billing SDKs      |
 
 ### Expo Integration
 
@@ -4455,6 +4507,7 @@ npx expo install expo-horizon-core
 ```
 
 The plugin:
+
 - Removes unsupported dependencies/permissions
 - Configures Android product flavors
 - Specifies Meta Horizon App ID
@@ -5288,23 +5341,24 @@ This document is authoritative for domain behavior, cross-field rules,
 transport, and compatibility. The generated JSON Schema bundle is the
 executable projection validators consume.
 
-| Artifact                                                 | Purpose                                                                                      |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `schema/`                                                | The authored GraphQL contract layers — edit these                                            |
-| `generated/commerce-protocol.graphql`                    | Generated single-file assembly of `schema/`; exported at `./commerce-protocol.graphql`       |
-| `generated/`                                             | Compiler output. Ignore this directory when reviewing the authored contract                  |
-| `generated/schemas/commerce-protocol.bundle.schema.json` | Self-contained validator; prefer it in validator integrations                                |
-| `generated/schemas/*.schema.json`                        | Generated modular JSON Schema artifacts                                                      |
-| `examples/`                                              | Canonical documents that MUST validate                                                       |
-| `examples/store-event-mapping.json`                      | How each store's own notification vocabulary maps onto these event types                     |
-| `vectors/signatures.json`                                | Signature vectors every implementation MUST reproduce                                        |
-| `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce   |
-| `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation |
-| `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                           |
-| `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                         |
-| `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                          |
-| `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                      |
-| `conformance/`                                           | The portable conformance runner and its independent mock provider                            |
+| Artifact                                                 | Purpose                                                                                         |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `schema/`                                                | The authored GraphQL contract layers — edit these                                               |
+| `generated/commerce-protocol.graphql`                    | Generated single-file assembly of `schema/`; exported at `./commerce-protocol.graphql`          |
+| `generated/`                                             | Compiler output. Ignore this directory when reviewing the authored contract                     |
+| `generated/schemas/commerce-protocol.bundle.schema.json` | Self-contained validator; prefer it in validator integrations                                   |
+| `generated/schemas/*.schema.json`                        | Generated modular JSON Schema artifacts                                                         |
+| `examples/`                                              | Canonical documents that MUST validate                                                          |
+| `examples/store-event-mapping.json`                      | How each store's own notification vocabulary maps onto these event types                        |
+| `examples/store-facts.json`                              | What each store's own API offers per capability; the source of every descriptor's provider axis |
+| `vectors/signatures.json`                                | Signature vectors every implementation MUST reproduce                                           |
+| `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce      |
+| `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation    |
+| `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                              |
+| `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                            |
+| `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                             |
+| `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                         |
+| `conformance/`                                           | The portable conformance runner and its independent mock provider                               |
 
 ---
 
@@ -5522,10 +5576,12 @@ cases, including a grant that expired before binding.
 `transactionId` and `originalTransactionId` carry store-side transaction
 identity **where the store exposes it**. Neither is universally available:
 Google Play does not put one in a subscription notification — an emitter that
-wants it must read the store's subscription API — and Meta Horizon's
-entitlement check returns none, so an emitter that wants identity takes it from
-the store's purchase list, order webhook or subscription resource. A consumer
-MUST NOT require them.
+wants it must read the store's subscription API — and Meta Horizon's entitlement
+check returns none. On Meta an add-on order carries a `transactionId` on the
+order webhook and in the purchase list; a subscription renewal carries none at
+all. Meta's subscription id is stable across renewals, so it can serve as
+`originalTransactionId` and never as `transactionId`. A consumer MUST NOT
+require them.
 
 ## 3. Profiles
 
@@ -6379,8 +6435,27 @@ limitation, and collapsing the two into one boolean hides which one it is. A
 
 `examples/provider-capabilities.json` is the reference implementation's own
 descriptor. Read its `implementation` axis as one backend's answer, not as the
-specification's; its `notes` say what each store's surface does and does not
-report.
+specification's.
+
+The `provider` axis asks what a store offers, which is not one backend's
+question to answer. `examples/store-facts.json` answers it once, for every
+implementation. A descriptor's `provider` MUST equal the matching `available`
+there, and the mapping table's `notificationChannel` MUST equal that store's
+`serverNotifications.surface`, or `null` where it is unavailable. `provider`
+carries no information `available` does not; it is retained because removing a
+required member is MAJOR, and a future major removes it.
+
+`delivery` says how the store makes the fact reachable: `push` when it sends it
+unasked, `pull` when it returns it from a read, `batch` when it publishes it only
+in a periodic export. Where several surfaces offer the fact, the most immediate
+wins. `surface` names the vendor's own endpoint, channel, report or field, and a
+surface means a server-reachable API — a report a human downloads from a console
+is not one. `available: false` MUST carry `notes` saying which surfaces were
+examined, and MUST NOT carry a `surface`.
+
+These are observations of vendor documentation at a point in time, not
+obligations on a vendor, so a consumer MUST treat an absent store or capability
+as unknown rather than as absent-from-the-store.
 
 A store whose descriptor declares `serverNotifications.implementation: false`
 produces **no** notification-derived lifecycle events from that emitter. The
@@ -6513,22 +6588,29 @@ The protocol version is `MAJOR.MINOR`, with each component written as a
 non-negative decimal integer without a leading zero unless the component is
 exactly `0`. It is independent of the npm package version used to distribute
 these files. An emitter MUST set `eventVersion` to the protocol version that
-defines the emitted body; a capability descriptor and mapping table use the same
-value as `specVersion`. **Consumers pin on the major.**
+defines the emitted body; a capability descriptor, a mapping table and a store
+facts table use the same value as `specVersion`. **Consumers pin on the major.**
 
-| Change                                                                                            | Version impact |
-| ------------------------------------------------------------------------------------------------- | -------------- |
-| New optional member on an open object                                                             | MINOR          |
-| New event type                                                                                    | MINOR          |
-| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)      | MINOR          |
-| New operation, new profile, or new optional operation input member                                | MINOR          |
-| New protocol error code, or a new evidence member for a new store                                 | MINOR          |
-| Member removed, renamed, or given new meaning                                                     | MAJOR          |
-| Member type, nullability, or requiredness changed                                                 | MAJOR          |
-| Member added to or removed from a closed enumeration                                              | MAJOR          |
-| Member added to a closed object (`Support`, `Mapping`, a tokenless result, or the error envelope) | MAJOR          |
-| Operation removed, or its path, method, auth role, or success status changed                      | MAJOR          |
-| New required operation input member                                                               | MAJOR          |
+A MINOR that leaves the event body untouched does not oblige an emitter to
+change `eventVersion`: that member names the version the body conforms to, not
+the newest version published. Until the first stable package release, 1.0 stays
+open for additive documents, so a new document does not move the protocol
+version at all.
+
+| Change                                                                                                    | Version impact |
+| --------------------------------------------------------------------------------------------------------- | -------------- |
+| New optional member on an open object                                                                     | MINOR          |
+| New event type                                                                                            | MINOR          |
+| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR          |
+| New operation, new profile, or new optional operation input member                                        | MINOR          |
+| New protocol error code, or a new evidence member for a new store                                         | MINOR          |
+| New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR          |
+| Member removed, renamed, or given new meaning                                                             | MAJOR          |
+| Member type, nullability, or requiredness changed                                                         | MAJOR          |
+| Member added to or removed from a closed enumeration                                                      | MAJOR          |
+| Member added to a closed object (`Support`, `Fact`, `Mapping`, a tokenless result, or the error envelope) | MAJOR          |
+| Operation removed, or its path, method, auth role, or success status changed                              | MAJOR          |
+| New required operation input member                                                                       | MAJOR          |
 
 A consumer MUST ignore members it does not recognise on an open object, and MUST
 ignore event types it does not recognise rather than failing. This is what makes
@@ -6538,7 +6620,12 @@ this reason.
 Some object types are deliberately closed instead, and reject members they do
 not declare. A **capability value** (`Support`) is closed because a fourth key
 beside `provider`, `implementation`, and `notes` would change what that
-capability means while validating silently. A **mapping row** is closed because
+capability means while validating silently. A **store fact** (`Fact`) is closed
+for the same reason: `notes` already qualifies an `available` in prose, and what
+the closure prevents is a fifth key doing it in a form a validator accepts and a
+consumer ignores. The cost is real — a citation URL or an observed-on date, the
+most plausible next members for a document whose point is verifiability, are now
+MAJOR. A **mapping row** is closed because
 an unrecognised qualifier would leave a reader selecting the row on fewer
 conditions than its author intended. The **tokenless server-read results**
 (`SubscriptionStatusSnapshot`, `SubscriptionStatusResult`, `EntitlementsResult`)

@@ -75,6 +75,11 @@ Requires notes unless both support axes are true, and forbids implementation sup
 directive @supportInvariant on OBJECT
 
 """
+Ties a store fact's three members together: `available` false exactly when `delivery` is `none`, a `surface` whenever it is true, and `notes` whenever it is false.
+"""
+directive @factInvariant on OBJECT
+
+"""
 Requires an explanation for an empty mapping lane and keeps mappings empty when no notification channel exists.
 """
 directive @storeMappingInvariant on OBJECT

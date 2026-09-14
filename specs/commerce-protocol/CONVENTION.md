@@ -92,6 +92,23 @@ A MINOR change requires:
 A MAJOR change additionally requires a migration note in `SPEC.md` stating what
 breaks and what a consumer pinned to the previous major should do.
 
+## The store axis has one source
+
+`examples/store-facts.json` states what each store's own API offers. Nothing in
+this repository can verify it, because it is a claim about someone else's
+product. A capability descriptor's `provider` value is a copy of `available`
+there, and the
+mapping table's `notificationChannel` is a copy of that store's
+`serverNotifications.surface`; `test/store-facts.test.mjs` fails when a copy
+drifts.
+
+Changing a value there means reading the vendor's current documentation and
+naming the endpoint, channel, report or field in `surface`. Writing
+`available: false` is the strongest claim the package makes and the one no test
+can check, so it owes `notes` saying which surfaces were examined. Phrase an
+absence as ours — "this implementation consumes none of them" — unless you have
+a citation for theirs.
+
 ## Do not specify what is not implemented
 
 A capability may enter the specification only when a real implementation emits
