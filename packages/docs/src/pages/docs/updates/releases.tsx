@@ -63,6 +63,16 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.5.2', tag: 'google-3.5.2' },
+  {
+    name: 'react-native-iap',
+    version: '16.6.1',
+    tag: 'react-native-iap-16.6.1',
+  },
+  { name: 'expo-iap', version: '5.6.2', tag: 'expo-iap-5.6.2' },
+];
+
 const OPENIAP_TOOLING_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.5.1', tag: 'google-3.5.1' },
   {
@@ -360,6 +370,70 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'amazon-purchase-dialog-2026-09-15',
+      date: new Date('2026-09-15'),
+      element: (
+        <div key="amazon-purchase-dialog-2026-09-15" style={noteCardStyle}>
+          <AnchorLink id="amazon-purchase-dialog-2026-09-15" level="h4">
+            September 15, 2026 - Amazon purchase dialog, and iOS rejection
+            messages
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            On Fire OS, <code>requestPurchase</code> was accepted by the
+            Appstore but no dialog appeared, and the call failed 300s later. App
+            Tester never showed it, because the sandbox answers over its own
+            service intents and never reaches the pipeline that launches the
+            Appstore&apos;s purchase Activity.
+          </p>
+
+          <p style={{ marginBottom: '1rem' }}>
+            The Appstore SDK installs its lifecycle callbacks inside the{' '}
+            <strong>first</strong> <code>registerListener</code> call, and
+            launches the purchase Activity only from an Activity it has seen
+            resume. Registering in <code>initConnection</code> happens after the
+            host Activity resumed, so the SDK parked the purchase until the next{' '}
+            <code>onResume</code>. A <code>ContentProvider</code> now registers
+            before any Activity exists.
+          </p>
+
+          <Callout kind="note" title="If you were told to pass an Activity">
+            Passing an Activity to <code>registerListener</code> changes
+            nothing: the SDK calls <code>getApplicationContext()</code> on
+            whatever it is given. The fix is when registration happens, not what
+            it is handed.
+          </Callout>
+
+          <p style={{ marginBottom: '1rem' }}>
+            On iOS, every rejection reached JavaScript with the caller&apos;s
+            fallback message, so a plain cancel arrived as{' '}
+            <code>user-cancelled</code> with{' '}
+            <code>&quot;Failed to request purchase&quot;</code> and read like an
+            outage. Expo appends a source location to a rejected function&apos;s
+            message, which made the error envelope fail to parse.{' '}
+            <code>expo-iap</code> 5.6.2 restores the real <code>message</code>{' '}
+            and <code>debugMessage</code>. <code>react-native-iap</code> was
+            never affected.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul>
+            {AMAZON_DIALOG_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'openiap-cli-and-protocols-2026-09-11',
       date: new Date('2026-09-11'),
