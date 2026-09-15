@@ -141,7 +141,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
   const expoConfig: ExpoConfig = {
     ...config,
     name: 'Expo IAP Example',
-    slug: 'expo-iap-example',
+    slug: 'martie',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/images/icon.png',
@@ -167,6 +167,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
     },
     extra: {
       ...config.extra,
+      // app.json is gitignored, so the EAS link has to live here to survive a clean checkout.
+      eas: {projectId: '89e8816c-1b59-4336-b3ea-110469262de7'},
       amazonRvsSandbox: process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX,
       iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
       iapkitBaseUrl: process.env.EXPO_PUBLIC_IAPKIT_BASE_URL,
