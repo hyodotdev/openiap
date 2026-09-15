@@ -15,15 +15,20 @@ SERIAL="${1:?usage: $0 <adb-serial> [package]}"
 PACKAGE="${2:-dev.hyo.martie}"
 adb() { command adb -s "$SERIAL" "$@"; }
 
-adb shell pm list packages | grep -q "^package:${PACKAGE}$" ||
-  { echo "FAIL: ${PACKAGE} is not installed on ${SERIAL}"; exit 1; }
+case "$(adb shell pm list packages "$PACKAGE" | tr -d '\r')" in
+  *"package:${PACKAGE}"*) ;;
+  *) echo "FAIL: ${PACKAGE} is not installed on ${SERIAL}"; exit 1 ;;
+esac
 
 activity="$(adb shell cmd package resolve-activity --brief "$PACKAGE" | tail -1 | tr -d '\r')"
 adb shell am force-stop "$PACKAGE"
 adb logcat -c
 adb shell am start -W -S "$activity" >/dev/null
 sleep 8
-log="$(adb logcat -d -v time 2>/dev/null)"
+pid="$(adb shell pidof "$PACKAGE" | tr -d '\r' | awk '{print $1}')"
+[ -n "$pid" ] || { echo "FAIL: ${PACKAGE} did not stay running after launch."; exit 1; }
+# Scoping to the pid keeps another app's Activity from being read as this one's.
+log="$(adb logcat -d --pid="$pid" -v time 2>/dev/null)"
 
 # grep exits non-zero when it finds nothing, which is a legitimate outcome here.
 registered="$(grep -n 'Amazon listener registered at process start' <<<"$log" | head -1 | cut -d: -f1 || true)"
