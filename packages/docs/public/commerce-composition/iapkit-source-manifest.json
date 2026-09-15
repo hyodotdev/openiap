@@ -13,7 +13,7 @@
   "example/erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
   "example/contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
   "kit/server/api/commerce/handlers.ts": "aff3bb2148229a2ee023513f3c2810362c4a4275ca7dfd31ba700710f6bd4fd9",
-  "kit/server/api/commerce/routes.test.ts": "860dd65edb4045d962dbdef62bc0b824642b118236d61d70cb8886df1f23a565",
+  "kit/server/api/commerce/routes.test.ts": "38719c2d851626871d9a6562ad9e267f416bb8cd163efef0973814c5c7fadb6e",
   "kit/convex/purchases/mutation.ts": "2a81b08d228c1e334146cf532dd7f97b6b025c7b13a920725259b014e5a47519",
   "kit/convex/purchases/ownership.test.ts": "70001215d39218a2bae2b80044564c4d37f9b322dacbd55314b8bfb3778f516a",
   "kit/convex/purchases/action.ts": "480600898eb66a3b01057eb0217851f43c88e04d40d3151b0c74f320be93b33b",
