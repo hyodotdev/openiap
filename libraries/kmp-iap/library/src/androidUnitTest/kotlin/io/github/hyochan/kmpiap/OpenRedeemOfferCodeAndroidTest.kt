@@ -1,4 +1,4 @@
-// Deprecated suffixed redeem APIs stay covered until their OpenIAP 4.0 removal.
+// Deprecated suffixed redeem APIs stay covered until their client protocol 1.0 removal.
 @file:Suppress("DEPRECATION")
 
 package io.github.hyochan.kmpiap

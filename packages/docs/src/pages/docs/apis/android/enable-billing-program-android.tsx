@@ -22,8 +22,8 @@ function EnableBillingProgramAndroid() {
       </h1>
       <p>
         Enables a billing program for Android. Billing Choice support starts in
-        OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0 and requires
-        Play Billing 9.1.0+. Pass it as the{' '}
+        OpenIAP 2.1.0 and <code>openiap-google</code> 2.3.0 and requires Play
+        Billing 9.1.0+. Pass it as the{' '}
         <Link to="/docs/types/billing-programs#billing-program-android">
           <code>enableBillingProgramAndroid</code>
         </Link>{' '}

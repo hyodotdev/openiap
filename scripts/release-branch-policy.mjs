@@ -380,7 +380,7 @@ function runGuard(args) {
   }
 
   const versionManifest = readVersionManifest();
-  const specFloor = assertNativeFloor(versionManifest);
+  const floor = assertNativeFloor(versionManifest);
   const currentVersion = validateVersion(source.read(repoRoot), source.label);
   if (Object.hasOwn(openiapNpmPackages, packageId)) {
     if (
@@ -409,9 +409,9 @@ function runGuard(args) {
       );
     }
     const requestedVersion = validatedTargetVersion || currentVersion;
-    if (requestedVersion !== specFloor) {
+    if (requestedVersion !== floor) {
       throw new Error(
-        `Docs target ${requestedVersion} must equal the native version floor ${specFloor}`,
+        `Docs target ${requestedVersion} must equal the native version floor ${floor}`,
       );
     }
     if (isPrereleaseVersion(requestedVersion)) {

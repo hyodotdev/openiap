@@ -52,7 +52,7 @@ extend type Mutation {
   Returns external transaction token needed for reporting external transactions.
   developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
   native Android defaults it to IN_APP.
-  The Billing Choice extension is available in OpenIAP Spec 2.1.0 /
+  The Billing Choice extension is available in OpenIAP 2.1.0 /
   openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Throws OpenIapError.NotPrepared if billing client not ready.
   See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
@@ -67,7 +67,7 @@ extend type Mutation {
   Launch an external content/offer link from inside the Billing Programs flow (introduced in
   Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),
   including developer-rendered Billing Choice external-link flows.
-  Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0
   (requires Play Billing 9.1.0+).
   Replaces the deprecated showExternalOfferInformationDialog API.
   Shows Play Store dialog and optionally launches external URL.

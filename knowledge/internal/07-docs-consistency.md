@@ -215,7 +215,7 @@ as `../../../../libraries/expo-iap/package.json?raw` pass locally but fail in
 Vercel builds.
 
 The root `openiap-versions.json` is also a version contract, not three
-independent counters. `spec` must equal the semantic-version minimum of
+independent counters. `nativeFloor` must equal the semantic-version minimum of
 `google` and `apple`. Native version writers derive that floor atomically;
 `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
 silently normalizing it.

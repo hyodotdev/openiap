@@ -21,6 +21,7 @@ import {
   findPrereleaseVersions,
   isPrereleaseVersion,
   nativeFloor,
+  versionSources,
   normalizeBranch,
   resolveReleaseChannel,
   updateNativeVersion,
@@ -454,6 +455,26 @@ test("rejects specs both above and below the native version floor", () => {
       }),
     /native floor .* must equal min\(.*\) = 2\.4\.2/,
   );
+});
+
+test("docs version reads a tag cut before the nativeFloor rename", () => {
+  // docs-3.4.0 and every earlier tag carry the old `spec` key.
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-legacy-"));
+  try {
+    writeFileSync(
+      resolve(root, "openiap-versions.json"),
+      `${JSON.stringify({ spec: "3.0.0", google: "3.0.0", apple: "3.0.0" })}\n`,
+    );
+    assert.equal(versionSources.docs.read(root), "3.0.0");
+
+    writeFileSync(
+      resolve(root, "openiap-versions.json"),
+      `${JSON.stringify({ nativeFloor: "3.4.0", google: "3.5.2", apple: "3.4.0" })}\n`,
+    );
+    assert.equal(versionSources.docs.read(root), "3.4.0");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("native updates atomically rederive the spec and preserve other fields", () => {

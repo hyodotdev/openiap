@@ -61,7 +61,7 @@ every subsequent PR.
 1. Read `AGENTS.md` and `knowledge/internal/06-git-deployment.md`.
 2. Confirm the target package metadata from its SSOT; do not infer versions
    from `openiap-versions.json` for framework libraries.
-3. Confirm `spec = min(google, apple)` on stable `main`; stop if the floor
+3. Confirm `nativeFloor = min(google, apple)` on stable `main`; stop if the floor
    invariant or any derived floor/package metadata is out of sync.
 4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
@@ -127,15 +127,15 @@ For a multi-package release train, use this order when affected:
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
    - `client-protocol`: `@hyodotdev/openiap-client-protocol`; independent npm
-     package version. Native SDK compatibility still uses the derived `spec` floor.
+     package version. Native SDK compatibility still uses the derived `nativeFloor` floor.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.
      The standalone `openiap-conformance` package is retired. Its suite remains
      internal; its historical release tags stay immutable.
 10. `npm run deploy`; run `release.yml` with `version=current` only when the
-    native-derived `spec` advanced. If a Docs GitHub Release is requested while
-    `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
+    native-derived `nativeFloor` advanced. If a Docs GitHub Release is requested while
+    `spec` is unchanged, stop and explain that the immutable `docs-{nativeFloor}` tag
     cannot represent a new release.
 
 All three scoped packages use the npm GitHub Trusted Publisher for owner
@@ -175,8 +175,8 @@ Train rules (mistake guards):
   commit it directly to `main` together with any release-process doc updates,
   and do not open a PR for that post-release docs-only commit; then run the docs
   deployment. Run the Docs release workflow with
-  `version=current` only when the native-derived `spec` advanced; otherwise skip
-  it so an immutable existing `docs-{spec}` tag is never reused. If a Docs
+  `version=current` only when the native-derived `nativeFloor` advanced; otherwise skip
+  it so an immutable existing `docs-{nativeFloor}` tag is never reused. If a Docs
   GitHub Release is requested while `spec` is unchanged, stop and explain that
   the immutable tag scheme cannot represent a new release.
 
@@ -242,8 +242,8 @@ independent version edits:
 9. After every affected artifact is publicly available, use `generate-doc` to
    add one consolidated release entry with the actual published versions and
    GitHub Release links, then deploy docs last. Create a Docs GitHub Release
-   only when the native-derived `spec` version advanced; routine docs
-   deployments must not reuse an immutable existing `docs-{spec}` tag. If one
+   only when the native-derived `nativeFloor` version advanced; routine docs
+   deployments must not reuse an immutable existing `docs-{nativeFloor}` tag. If one
    is requested while `spec` is unchanged, stop and explain that the immutable
    tag scheme cannot represent a new release.
 
@@ -271,7 +271,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | Godot        | GitHub Release and `godot-iap-{version}.zip` contents                    |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
 | MAUI         | NuGet flat-container package and GitHub Release                          |
-| Docs         | Production `openiap.dev`; `docs-{spec}` only when `spec` advanced        |
+| Docs         | Production `openiap.dev`; `docs-{nativeFloor}` only when `spec` advanced        |
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.

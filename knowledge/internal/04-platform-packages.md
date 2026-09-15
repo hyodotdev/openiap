@@ -26,7 +26,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "spec": "2.4.2",
+  "nativeFloor": "2.4.2",
   "google": "2.5.0",
   "apple": "2.4.2"
 }

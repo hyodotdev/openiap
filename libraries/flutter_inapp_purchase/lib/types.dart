@@ -94,7 +94,7 @@ enum BillingChoiceScreenTypeAndroid {
 /// Billing program types for Google Play Billing Programs (Android)
 /// Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link
 /// integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,
-/// BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
   /// Unspecified billing program. Do not use.
@@ -622,7 +622,7 @@ enum IapEvent {
   UserChoiceBillingAndroid('user-choice-billing-android'),
   /// Fired for External Payments (8.3.0+) and Google-rendered Billing Choice
   /// developer billing selections on Android. Billing Choice is available in
-  /// OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  /// OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   DeveloperProvidedBillingAndroid('developer-provided-billing-android'),
   /// Fired when a subscription enters a billing-issue state that requires user attention.
   /// A StoreKit billing-retry subscription may no longer be a current entitlement.
@@ -4138,7 +4138,7 @@ class UserChoiceBillingDetails {
   final String externalTransactionToken;
   /// External transaction ID of the originating subscription when the user is
   /// upgrading or downgrading a developer-billed subscription. Available in
-  /// OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+  /// OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
   final String? originalExternalTransactionId;
   /// Structured product details selected in the user-choice flow, including the
   /// product type and offer token. Legacy payloads may omit this field; use
@@ -4510,7 +4510,7 @@ class DeepLinkOptions {
 
 /// Parameters for a developer billing option in a purchase flow (Android).
 /// Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice
-/// (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
+/// (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
 /// Only billingProgram is required; link fields are used when the selected program
 /// links outside the app.
 class DeveloperBillingOptionParamsAndroid {
@@ -4658,7 +4658,7 @@ class InitConnectionConfig {
   });
 
   /// Billing Choice renderer configured in Play Console. Available in OpenIAP
-  /// Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  /// 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   /// GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
   /// can emit the selection event. DEVELOPER_RENDERED omits that listener so the
   /// app can render its own choice screen and use the reporting/dialog/link APIs.
@@ -4672,7 +4672,7 @@ class InitConnectionConfig {
   /// - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)
   /// - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   /// - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
-  ///   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+  ///   (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
   final BillingProgramAndroid? enableBillingProgramAndroid;
 
   factory InitConnectionConfig.fromJson(Map<String, dynamic> json) {
@@ -4863,7 +4863,7 @@ class RequestPurchaseAndroidProps {
   });
 
   /// Developer billing option parameters for external payments and Billing Choice.
-  /// Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  /// Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0
   /// (requires Play Billing 9.1.0+).
   final DeveloperBillingOptionParamsAndroid? developerBillingOption;
   /// Personalized offer flag.
@@ -5056,7 +5056,7 @@ class RequestSubscriptionAndroidProps {
   });
 
   /// Developer billing option parameters for external payments and Billing Choice.
-  /// Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  /// Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0
   /// (requires Play Billing 9.1.0+).
   final DeveloperBillingOptionParamsAndroid? developerBillingOption;
   /// Personalized offer flag.
@@ -5818,7 +5818,7 @@ abstract class MutationResolver {
   /// Returns external transaction token needed for reporting external transactions.
   /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
   /// native Android defaults it to IN_APP.
-  /// The Billing Choice extension is available in OpenIAP Spec 2.1.0 /
+  /// The Billing Choice extension is available in OpenIAP 2.1.0 /
   /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
@@ -5858,7 +5858,7 @@ abstract class MutationResolver {
   /// Launch an external content/offer link from inside the Billing Programs flow (introduced in
   /// Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),
   /// including developer-rendered Billing Choice external-link flows.
-  /// Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  /// Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0
   /// (requires Play Billing 9.1.0+).
   /// Replaces the deprecated showExternalOfferInformationDialog API.
   /// Shows Play Store dialog and optionally launches external URL.
@@ -6070,7 +6070,7 @@ abstract class SubscriptionResolver {
   /// Fires when a user selects developer billing in an External Payments or
   /// Billing Choice flow (Android only). The payload can contain an external
   /// transaction token, link URI, original transaction ID, and selected products.
-  /// Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
+  /// Billing Choice payload fields are available in OpenIAP 2.1.0 /
   /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   Future<DeveloperProvidedBillingDetailsAndroid> developerProvidedBillingAndroid();
   /// Fires when the App Store surfaces a promoted product (iOS only).

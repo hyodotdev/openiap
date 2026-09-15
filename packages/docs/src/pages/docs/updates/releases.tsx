@@ -560,8 +560,8 @@ function Releases() {
               Schema deprecations now name a Client Protocol removal train. The
               three fields scheduled for removal read &quot;Scheduled for
               removal in client protocol 1.0&quot; instead of &quot;OpenIAP
-              4.0&quot;; the fields, the replacements, and the timing are
-              unchanged.
+              4.0&quot;; the fields and their replacements are unchanged;
+              removal now lands with client protocol 1.0.
             </p>
           </Callout>
 

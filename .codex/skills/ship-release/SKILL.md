@@ -115,7 +115,7 @@ From a clean local `main` equal to `origin/main`:
    buster. Confirm the new release title, API name, versions, and generated
    timestamp are present.
 4. If the native floor advanced, dispatch the docs release workflow with the
-   current version and verify the resulting `docs-{spec}` GitHub Release points
+   current version and verify the resulting `docs-{nativeFloor}` GitHub Release points
    to the deployed commit.
 5. Recheck required CI for the final `main` head and report any still-pending
    external listing or registry state separately.

@@ -31,7 +31,7 @@ enum BillingChoiceScreenTypeAndroid {
 	GOOGLE_RENDERED = 2,
 }
 
-## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
 	## Unspecified billing program. Do not use.
 	UNSPECIFIED = 0,
@@ -163,7 +163,7 @@ enum IapEvent {
 	PURCHASE_ERROR = 1,
 	PROMOTED_PRODUCT_IOS = 2,
 	USER_CHOICE_BILLING_ANDROID = 3,
-	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	DEVELOPER_PROVIDED_BILLING_ANDROID = 4,
 	## Fired when a subscription enters a billing-issue state that requires user attention. A StoreKit billing-retry subscription may no longer be a current entitlement. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+, Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
 	SUBSCRIPTION_BILLING_ISSUE = 5,
@@ -3450,7 +3450,7 @@ class TransactionCommitmentInfoIOS:
 class UserChoiceBillingDetails:
 	## Token that must be reported to Google Play within 24 hours
 	var external_transaction_token: String = ""
-	## External transaction ID of the originating subscription when the user is upgrading or downgrading a developer-billed subscription. Available in OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+	## External transaction ID of the originating subscription when the user is upgrading or downgrading a developer-billed subscription. Available in OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 	var original_external_transaction_id: Variant = null
 	## List of product IDs selected by the user
 	var products: Array[String] = []
@@ -3870,7 +3870,7 @@ class DeepLinkOptions:
 			dict["packageNameAndroid"] = package_name_android
 		return dict
 
-## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
+## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
 class DeveloperBillingOptionParamsAndroid:
 	## The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
 	var billing_program: BillingProgramAndroid
@@ -4088,9 +4088,9 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
-	## Billing Choice renderer configured in Play Console. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
+	## Billing Choice renderer configured in Play Console. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
 	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
 	static func from_dict(data: Dictionary) -> InitConnectionConfig:
@@ -4438,7 +4438,7 @@ class RequestPurchaseAndroidProps:
 	var is_offer_personalized: Variant = null
 	## Offer token for one-time purchase discounts (8.0+). Pass the offerToken from discountOffers to apply a discount offer to the purchase.
 	var offer_token: Variant = null
-	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
@@ -4715,7 +4715,7 @@ class RequestSubscriptionAndroidProps:
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+) Use this instead of replacementMode for item-level replacement This singular form requires skus to contain exactly one target product. Multi-item subscription changes need a per-target replacement mapping and are rejected rather than applying one oldProductId to multiple products.
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
-	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
@@ -6726,7 +6726,7 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
@@ -6771,7 +6771,7 @@ class Mutation:
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
+	## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -7108,7 +7108,7 @@ static func is_billing_program_available_android_args(program: BillingProgramAnd
 		args["program"] = program
 	return args
 
-## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7122,7 +7122,7 @@ static func create_billing_program_reporting_details_android_args(program: Billi
 			args["developerBillingType"] = developer_billing_type
 	return args
 
-## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
+## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:

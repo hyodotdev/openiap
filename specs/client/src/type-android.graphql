@@ -333,7 +333,7 @@ input RequestPurchaseAndroidProps {
   offerToken: String
   """
   Developer billing option parameters for external payments and Billing Choice.
-  Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0
   (requires Play Billing 9.1.0+).
   """
   developerBillingOption: DeveloperBillingOptionParamsAndroid
@@ -381,7 +381,7 @@ input RequestSubscriptionAndroidProps {
   subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid
   """
   Developer billing option parameters for external payments and Billing Choice.
-  Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0
   (requires Play Billing 9.1.0+).
   """
   developerBillingOption: DeveloperBillingOptionParamsAndroid
@@ -567,7 +567,7 @@ type UserChoiceBillingDetails {
   """
   External transaction ID of the originating subscription when the user is
   upgrading or downgrading a developer-billed subscription. Available in
-  OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+  OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
   """
   originalExternalTransactionId: String
   """
@@ -588,7 +588,7 @@ type UserChoiceBillingDetails {
 Billing program types for Google Play Billing Programs (Android)
 Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link
 integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,
-BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0
 (requires Play Billing 9.1.0+).
 """
 enum BillingProgramAndroid {
@@ -939,7 +939,7 @@ enum DeveloperBillingLaunchModeAndroid {
 """
 Parameters for a developer billing option in a purchase flow (Android).
 Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice
-(OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
+(OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
 Only billingProgram is required; link fields are used when the selected program
 links outside the app.
 """

@@ -164,14 +164,14 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
 
 ### Version Management
 
-- `openiap-versions.json` tracks only `spec`, `google`, and `apple` versions.
+- `openiap-versions.json` tracks only `nativeFloor`, `google`, and `apple` versions.
 - `spec` is derived as the semantic-version minimum of `google` and `apple`;
   never bump it independently.
 - The Commerce Protocol has an independent version in
   `specs/commerce-protocol/package.json`. Release it through
   `release-openiap.yml` with `package=commerce-protocol`; it is not the client/native `spec` floor.
 - Framework library versions live in each library's package metadata and release workflow.
-- Native version writers update their native key and the derived `spec`
+- Native version writers update their native key and the derived `nativeFloor`
   atomically. `./scripts/sync-versions.sh` then verifies that invariant and
   propagates the canonical manifest; it does not derive the floor or regenerate
   schema types.
@@ -204,7 +204,7 @@ These files are generated and synchronized by `bun run generate` in
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `openiap-versions.json` -- Tracks only `spec`, `google`, and `apple`;
+- `openiap-versions.json` -- Tracks only `nativeFloor`, `google`, and `apple`;
   Google/Apple are native-workflow-managed, while `spec` is their derived
   semantic-version minimum and is never bumped independently
 

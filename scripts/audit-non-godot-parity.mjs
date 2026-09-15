@@ -74,7 +74,7 @@ const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
 
-function checkNativeSpecVersionFloor() {
+function checkNativeFloor() {
   try {
     assertNativeFloor(readJson("openiap-versions.json"));
   } catch (error) {
@@ -3272,6 +3272,33 @@ function checkBillingChoiceFieldBindings() {
     ["if (connectionReady.get()) {"],
     "expo-iap must not short-circuit initConnection on a cached flag (#408)",
   );
+  expectIncludes(
+    "packages/apple/Tests/OpenIapTests/VerifyPurchaseWithProviderTests.swift",
+    ["OpenIapGeneratedVersion.nativeFloor"],
+    "Apple test tracks the generated version constant",
+  );
+  expectNotIncludes(
+    "packages/apple/Tests/OpenIapTests/VerifyPurchaseWithProviderTests.swift",
+    ["OpenIapGeneratedVersion.spec"],
+    "Apple test must not reference the removed spec constant",
+  );
+  for (const schema of [
+    "api.graphql",
+    "api-android.graphql",
+    "api-ios.graphql",
+    "error.graphql",
+    "event.graphql",
+    "schema.graphql",
+    "type.graphql",
+    "type-android.graphql",
+    "type-ios.graphql",
+  ]) {
+    expectNotIncludes(
+      `specs/client/src/${schema}`,
+      ["OpenIAP Spec"],
+      "published annotations name the OpenIAP level, not a spec",
+    );
+  }
   for (const flavor of ["play", "horizon"]) {
     expectIncludes(
       `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
@@ -6217,8 +6244,8 @@ function checkFrameworkDependencyHygiene() {
       "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
       "deployment. Run the Docs release workflow with",
-      "only when the native-derived `spec` advanced",
-      "immutable existing `docs-{spec}` tag is never reused",
+      "only when the native-derived `nativeFloor` advanced",
+      "immutable existing `docs-{nativeFloor}` tag is never reused",
       "If a Docs GitHub Release is requested while",
       "stop and explain that the immutable",
     ],
@@ -9355,7 +9382,7 @@ function checkXcode27StoreKitCoverage() {
 }
 
 checkLibraryCoverageRegistry();
-checkNativeSpecVersionFloor();
+checkNativeFloor();
 checkDeprecationSchedule();
 checkNoOutboundWebhookStream();
 checkExpoSsotRegistry();

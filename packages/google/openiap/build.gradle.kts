@@ -80,7 +80,7 @@ val openIapVersion: String =
 // verify. Never a gradle property: it describes the contract, not the artifact.
 val openIapSpecVersion: String =
     versionsJson["nativeFloor"]?.toString()?.takeIf { it.isNotBlank() }
-        ?: throw GradleException("packages/google: 'spec' version missing in openiap-versions.json")
+        ?: throw GradleException("packages/google: 'nativeFloor' version missing in openiap-versions.json")
 val isCentralPublishTaskRequested =
     gradle.startParameter.taskNames.any { taskName ->
         taskName.contains("mavenCentral", ignoreCase = true)

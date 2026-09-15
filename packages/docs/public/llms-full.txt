@@ -1,9 +1,9 @@
 # OpenIAP Complete Reference
 
-> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned independently; a version labelled "OpenIAP Spec" in older material is the native SDK compatibility floor, not a protocol version.
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned independently; a version labelled "OpenIAP" in older material is the native SDK compatibility floor, not a protocol version.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-15T10:15:25.009Z
+> Generated: 2026-09-15T14:35:59.214Z
 
 ## Reading instructions for coding assistants
 
@@ -1070,7 +1070,7 @@ blocked.
 > **OpenIAP Note**: Purchase failures delivered by
 > `purchaseErrorListener` preserve this value as
 > `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
-> OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 8.0+).
+> OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -1121,7 +1121,7 @@ OpenIAP keeps the compatibility `products` ID list and also exposes
 `productDetailsAndroid` with each product's ID, type, and optional offer token.
 For a developer-billed subscription replacement, forward
 `originalExternalTransactionId` together with the external transaction token
-to the backend reporting flow. These two fields are available in OpenIAP Spec
+to the backend reporting flow. These two fields are available in OpenIAP
 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
@@ -1854,7 +1854,7 @@ sheet but does not return the redeemed transaction.
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 (Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
 return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-OpenIAP 4.0. Xcode 27 builds call the new API, require a verified result, and
+client protocol 1.0. Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws

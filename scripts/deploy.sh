@@ -37,7 +37,7 @@ if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then
     echo -e "${YELLOW}Expected the native version floor $VERSION, received $1${NC}"
     exit 1
 fi
-echo -e "${BLUE}📦 Using derived OpenIAP Spec version: $VERSION${NC}"
+echo -e "${BLUE}📦 Using derived OpenIAP version: $VERSION${NC}"
 
 # Validate version format
 if [[ "$VERSION" == v* ]] || [[ "$VERSION" == gql-* ]]; then

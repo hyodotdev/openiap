@@ -378,7 +378,7 @@ This will:
 2. Typecheck and build the docs site
 3. Deploy production documentation to Vercel
 
-`npm run deploy` uses the current native-derived `spec` value from
+`npm run deploy` uses the current native-derived `nativeFloor` value from
 `openiap-versions.json`. It rejects any explicit argument that differs from the
 native floor; docs deployment is not a version-bump path.
 
@@ -496,7 +496,7 @@ Version ownership is split:
   sync then verifies the invariant and refreshes `packages/docs/package.json`
   and other derived copies
 - The three scoped npm packages own their versions in their package manifests;
-  Client Protocol npm releases do not change the native-derived `spec`
+  Client Protocol npm releases do not change the native-derived `nativeFloor`
 - Production docs deployment consumes the derived current `spec`; it must not
   accept an independently selected floor version
 
@@ -505,7 +505,7 @@ Release workflows write stable values on `main` and prerelease values on
 branch.
 
 The manifest is only for the shared spec and native platform packages:
-`spec`, `google`, and `apple`. Framework library package versions
+`nativeFloor`, `google`, and `apple`. Framework library package versions
 (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
@@ -515,11 +515,11 @@ issues. Use the native GitHub Actions workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `spec`, `google`, or `apple`. Stable
+**Rule:** Feature PRs must never touch `nativeFloor`, `google`, or `apple`. Stable
 version changes happen via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Native version automation that derives `spec = min(google, apple)`, followed
+2. Native version automation that derives `nativeFloor = min(google, apple)`, followed
    by sync propagation
 3. Deploy script (`npm run deploy`) using the already-derived floor
 4. CI auto-bump after merge where configured

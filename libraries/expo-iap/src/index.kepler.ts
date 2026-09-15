@@ -272,7 +272,7 @@ export const openRedeemOfferCode: MutationField<
 > = async () => null;
 /**
  * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
- * OpenIAP 4.0.
+ * client protocol 1.0.
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'

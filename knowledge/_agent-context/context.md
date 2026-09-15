@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T14:11:44.031Z
+> Last updated: 2026-09-15T14:36:16.618Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1056,7 +1056,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "spec": "2.4.2",
+  "nativeFloor": "2.4.2",
   "google": "2.5.0",
   "apple": "2.4.2"
 }
@@ -2547,7 +2547,7 @@ This will:
 2. Typecheck and build the docs site
 3. Deploy production documentation to Vercel
 
-`npm run deploy` uses the current native-derived `spec` value from
+`npm run deploy` uses the current native-derived `nativeFloor` value from
 `openiap-versions.json`. It rejects any explicit argument that differs from the
 native floor; docs deployment is not a version-bump path.
 
@@ -2665,7 +2665,7 @@ Version ownership is split:
   sync then verifies the invariant and refreshes `packages/docs/package.json`
   and other derived copies
 - The three scoped npm packages own their versions in their package manifests;
-  Client Protocol npm releases do not change the native-derived `spec`
+  Client Protocol npm releases do not change the native-derived `nativeFloor`
 - Production docs deployment consumes the derived current `spec`; it must not
   accept an independently selected floor version
 
@@ -2674,7 +2674,7 @@ Release workflows write stable values on `main` and prerelease values on
 branch.
 
 The manifest is only for the shared spec and native platform packages:
-`spec`, `google`, and `apple`. Framework library package versions
+`nativeFloor`, `google`, and `apple`. Framework library package versions
 (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
@@ -2684,11 +2684,11 @@ issues. Use the native GitHub Actions workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `spec`, `google`, or `apple`. Stable
+**Rule:** Feature PRs must never touch `nativeFloor`, `google`, or `apple`. Stable
 version changes happen via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Native version automation that derives `spec = min(google, apple)`, followed
+2. Native version automation that derives `nativeFloor = min(google, apple)`, followed
    by sync propagation
 3. Deploy script (`npm run deploy`) using the already-derived floor
 4. CI auto-bump after merge where configured
@@ -2915,7 +2915,7 @@ as `../../../../libraries/expo-iap/package.json?raw` pass locally but fail in
 Vercel builds.
 
 The root `openiap-versions.json` is also a version contract, not three
-independent counters. `spec` must equal the semantic-version minimum of
+independent counters. `nativeFloor` must equal the semantic-version minimum of
 `google` and `apple`. Native version writers derive that floor atomically;
 `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
 silently normalizing it.
@@ -3897,7 +3897,7 @@ blocked.
 > **OpenIAP Note**: Purchase failures delivered by
 > `purchaseErrorListener` preserve this value as
 > `PurchaseError.subResponseCodeAndroid` when Play supplies it. Available in
-> OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 8.0+).
+> OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 8.0+).
 
 ## Subscription Product Replacement (8.1+)
 
@@ -3948,7 +3948,7 @@ OpenIAP keeps the compatibility `products` ID list and also exposes
 `productDetailsAndroid` with each product's ID, type, and optional offer token.
 For a developer-billed subscription replacement, forward
 `originalExternalTransactionId` together with the external transaction token
-to the backend reporting flow. These two fields are available in OpenIAP Spec
+to the backend reporting flow. These two fields are available in OpenIAP
 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 
 ## External Payments Program (8.3+)
@@ -4685,7 +4685,7 @@ sheet but does not return the redeemed transaction.
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 (Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
 return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-OpenIAP 4.0. Xcode 27 builds call the new API, require a verified result, and
+client protocol 1.0. Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws

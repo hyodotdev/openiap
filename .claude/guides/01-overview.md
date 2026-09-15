@@ -41,7 +41,7 @@ All versions are tracked in `openiap-versions.json`:
 {
   "apple": "1.2.x",
   "google": "1.2.x",
-  "spec": "1.2.x"
+  "nativeFloor": "1.2.x"
 }
 ```
 

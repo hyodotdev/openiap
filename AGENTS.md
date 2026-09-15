@@ -180,8 +180,8 @@ investigation narrative, no thanking-and-summarising. Canonical rules in
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
-  and Apple are CI-managed. `spec` must equal the lower semantic version of
+- `openiap-versions.json` - Tracks only `nativeFloor`, `google`, and `apple`. Google
+  and Apple are CI-managed. `nativeFloor` must equal the lower semantic version of
   `google` and `apple`; it is never bumped directly in a feature PR or docs
   deployment. Native version writers update their native key and the derived
   `spec` atomically, then the sync workflow propagates package metadata.
