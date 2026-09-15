@@ -95,9 +95,17 @@ for (const id of [
 assert(provider.freshConnection.ok);
 assert.equal(provider.freshConnection.source.revision, connection.sourceCommit);
 assert.equal(provider.reproduction.freshExampleCommit, connection.sourceCommit);
-assert.equal(
-  provider.freshConnection.checks.length,
-  connection.providerVerification.checks
+// export-paywall.mjs derives this block from the same report in one
+// invocation, so every field must come from this run, not just the count.
+assert.deepEqual(
+  connection.providerVerification,
+  {
+    checks: provider.freshConnection.checks.length,
+    regressionChecks: provider.checkCount,
+    recordedAt: provider.recordedAt,
+    state: provider.freshConnection.state,
+  },
+  'paywall-build.json providerVerification was not derived from this run'
 );
 // The runner refuses to write a report whose sources were dirty, but a report
 // can also arrive hand-assembled or reused from an older run. Enforce the same
@@ -136,15 +144,13 @@ console.log(
 );
 
 const interop = JSON.parse(read('iapkit-run.json'));
+// Both files are the same report.json published at two paths. Comparing them
+// whole puts every provenance rule above on both copies; comparing a few
+// fields left the copy the React pages import unchecked.
 assert.deepEqual(
-  provider.freshConnection,
-  interop.freshConnection,
-  'Provider reports contain different connection results'
-);
-assert.deepEqual(
-  provider.reproduction,
-  interop.reproduction,
-  'Provider reports reference different reproduction inputs'
+  provider,
+  interop,
+  'paywall-provider-run.json and iapkit-run.json are not the same exported report'
 );
 // The page tells a reader which commits to check out. It is hand-maintained,
 // so without this it silently keeps describing the previous recording.
@@ -172,11 +178,6 @@ for (const expected of [
     `paywall-provider-reproduction.md must state "${expected}"`
   );
 }
-assert.equal(
-  provider.harnessHashes['run-commerce-interop.mjs'],
-  interop.harnessHashes['run-commerce-interop.mjs'],
-  'Provider reports reference different executed harnesses'
-);
 const interopSources = JSON.parse(read('iapkit-source.json'));
 const interopManifest = JSON.parse(read('iapkit-source-manifest.json'));
 assert.equal(interop.checkCount, interop.checks.length);
