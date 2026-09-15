@@ -62,7 +62,7 @@ every subsequent PR.
 2. Confirm the target package metadata from its SSOT; do not infer versions
    from `openiap-versions.json` for framework libraries.
 3. Confirm `spec = min(google, apple)` on stable `main`; stop if the floor
-   invariant or any derived spec/package metadata is out of sync.
+   invariant or any derived floor/package metadata is out of sync.
 4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
 5. Run the focused package checks and the relevant monorepo audits.
@@ -166,7 +166,7 @@ Train rules (mistake guards):
   libraries the merged PRs actually touched and skips Apple/Google entirely.
 - **Native gate.** Do not dispatch any library workflow until every affected
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
-  Maven Central POMs publicly fetchable) and the spec floor has been derived
+  Maven Central POMs publicly fetchable) and the native floor has been derived
   and synchronized on `main`. Workflow success is not deployment; poll the
   registry.
 - **Release notes last.** After every package in the train is
@@ -182,7 +182,7 @@ Train rules (mistake guards):
 
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
-native workflow has derived and synchronized the spec floor before dispatching
+native workflow has derived and synchronized the native floor before dispatching
 the next package or docs release. Do not dispatch the full list in parallel.
 
 ## Dependency Modernization Release Gate

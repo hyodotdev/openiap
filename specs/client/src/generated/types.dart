@@ -10,7 +10,7 @@ import 'dart:async';
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceImageLayoutAndroid {
   /// Rectangular image with a 4:1 aspect ratio.
   RectangularFourByOne('rectangular-four-by-one'),
@@ -51,7 +51,7 @@ enum BillingChoiceImageLayoutAndroid {
 }
 
 /// Choice screen renderer for Billing Choice availability (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceScreenTypeAndroid {
   /// Unspecified choice screen type.
   Unspecified('unspecified'),
@@ -118,7 +118,7 @@ enum BillingProgramAndroid {
   ExternalPayments('external-payments'),
   /// Billing Choice program.
   /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
-  /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   BillingChoice('billing-choice');
 
   const BillingProgramAndroid(this.value);
@@ -203,7 +203,7 @@ enum DeveloperBillingLaunchModeAndroid {
 }
 
 /// Developer-provided billing destination type for Billing Program reporting details (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum DeveloperBillingTypeAndroid {
   /// Unspecified developer billing type. Do not use.
   DeveloperBillingTypeUnspecified('developer-billing-type-unspecified'),
@@ -846,7 +846,7 @@ enum IapStore {
 }
 
 /// High-level in-app message category (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 enum InAppMessageCategoryAndroid {
   /// Unknown in-app message category.
@@ -884,7 +884,7 @@ enum InAppMessageCategoryAndroid {
 }
 
 /// Response code from Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 enum InAppMessageResponseCodeAndroid {
   /// Flow finished and no developer action is needed.
@@ -1641,7 +1641,7 @@ class AdvancedCommerceInfoIOS {
   /// The items purchased as part of this transaction
   final List<AdvancedCommerceItemIOS> items;
   /// Subscription period for this transaction.
-  /// Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+  /// Available in OpenIAP 3.1.0 / openiap-apple 3.1.0
   /// (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
   /// or visionOS 2.4+).
   final SubscriptionPeriodValueIOS? period;
@@ -1848,7 +1848,7 @@ class AppTransaction {
 }
 
 /// Display information for developer-rendered Billing Choice screens (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingChoiceInfoAndroid {
   const BillingChoiceInfoAndroid({
     required this.playBillingChoiceImageUrl,
@@ -1889,13 +1889,13 @@ class BillingProgramAvailabilityResultAndroid {
   /// The billing program that was checked
   final BillingProgramAndroid billingProgram;
   /// Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
-  /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+  /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
   final BillingChoiceScreenTypeAndroid? choiceScreenType;
   /// Whether the billing program is available for the user
   final bool isAvailable;
   /// Whether external-link payment is available for Billing Choice.
   /// Populated only for available BILLING_CHOICE results.
-  /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+  /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
   final bool? isExternalLinkAvailable;
 
   factory BillingProgramAvailabilityResultAndroid.fromJson(Map<String, dynamic> json) {
@@ -2510,7 +2510,7 @@ class IapkitProductClientPayload {
 }
 
 /// Result from showing Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 class InAppMessageResultAndroid {
   const InAppMessageResultAndroid({
@@ -3752,11 +3752,11 @@ class RequestVerifyPurchaseWithIapkitResult {
     required this.store,
   });
 
-  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   /// Public product payload when includeClientPayload was requested, the
   /// Apple or Google receipt is valid, and a payload exists for that product.
   final IapkitProductClientPayload? clientPayload;
-  /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
   /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
   /// `Production` on handled Amazon verification results.
   ///
@@ -3771,7 +3771,7 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// Callers must still match productId and use the platform plus app-owned product
   /// type to choose the fulfillment path.
   final bool isValid;
-  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   /// Store-verified product identifier when the provider returns one.
   final String? productId;
   /// The current state of the purchase.
@@ -4142,7 +4142,7 @@ class UserChoiceBillingDetails {
   final String? originalExternalTransactionId;
   /// Structured product details selected in the user-choice flow, including the
   /// product type and offer token. Legacy payloads may omit this field; use
-  /// products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+  /// products as the product-ID fallback. Available in OpenIAP 2.3.0 /
   /// openiap-google 2.3.1 (requires Play Billing 9.1+).
   final List<DeveloperProvidedBillingProductAndroid>? productDetailsAndroid;
   /// List of product IDs selected by the user
@@ -4455,7 +4455,7 @@ class AndroidSubscriptionOfferInput {
 }
 
 /// Parameters for showing a billing program information dialog (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingProgramInformationDialogParamsAndroid {
   const BillingProgramInformationDialogParamsAndroid({
     this.billingProgram = BillingProgramAndroid.BillingChoice,
@@ -4594,7 +4594,7 @@ class DiscountOfferInputIOS {
 }
 
 /// Parameters for fetching Billing Choice display information (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid {
   const GetBillingChoiceInfoParamsAndroid({
     this.billingProgram = BillingProgramAndroid.BillingChoice,
@@ -4627,7 +4627,7 @@ class GetBillingChoiceInfoParamsAndroid {
 }
 
 /// Parameters for showing Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 class InAppMessageParamsAndroid {
   const InAppMessageParamsAndroid({
@@ -4706,7 +4706,7 @@ class LaunchExternalLinkParamsAndroid {
   /// The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)
   final BillingProgramAndroid billingProgram;
   /// External transaction token for a developer-rendered Billing Choice external-link
-  /// flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+  /// flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0
   /// (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
   final String? externalTransactionToken;
   /// The external link launch mode
@@ -5067,7 +5067,7 @@ class RequestSubscriptionAndroidProps {
   /// Obfuscated profile ID
   final String? obfuscatedProfileId;
   /// Original external transaction ID for replacing a subscription that was
-  /// purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+  /// purchased through developer billing. Available in OpenIAP 2.1.0 /
   /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   final String? originalExternalTransactionId;
   /// Purchase token for upgrades/downgrades
@@ -5228,7 +5228,7 @@ class RequestVerifyPurchaseWithIapkitAmazonProps {
     this.userId,
   });
 
-  /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
   /// Optional Amazon product id that must match the product id verified by RVS.
   final String? expectedProductId;
   /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
@@ -5348,7 +5348,7 @@ class RequestVerifyPurchaseWithIapkitProps {
   final String? apiKey;
   /// Apple App Store verification parameters.
   final RequestVerifyPurchaseWithIapkitAppleProps? apple;
-  /// Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+  /// Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
   /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
   /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
   /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
@@ -5357,7 +5357,7 @@ class RequestVerifyPurchaseWithIapkitProps {
   final RequestVerifyPurchaseWithIapkitGoogleProps? google;
   /// Meta Horizon verification parameters.
   final RequestVerifyPurchaseWithIapkitHorizonProps? horizon;
-  /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   /// Include the product's public IAPKit client payload in a valid Apple or
   /// Google verification response. Horizon and Amazon accept this option for
   /// cross-platform request compatibility but omit the payload. Defaults to
@@ -5875,7 +5875,7 @@ abstract class MutationResolver {
   /// Resolves the redeemed purchase only when the store reports it synchronously;
   /// every other path resolves null, so reconcile through the purchase listeners.
   /// Throws when a redemption flow exists but cannot be opened.
-  /// Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+  /// Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
   /// Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
   /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
   Future<Purchase?> openRedeemOfferCode();
@@ -5886,7 +5886,7 @@ abstract class MutationResolver {
   /// purchase while the app is running with an active billing connection; always
   /// reconcile with getAvailablePurchases when the app resumes.
   /// Does not require the billing client to be initialized (no Play Billing version requirement).
-  /// Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+  /// Available in OpenIAP 2.4.2 / openiap-google 2.5.0.
   /// Android counterpart of presentCodeRedemptionSheetIOS.
   /// Returns true when the redemption flow was launched, or false when the current
   /// store flavor does not provide an equivalent redemption flow.

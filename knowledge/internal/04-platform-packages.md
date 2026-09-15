@@ -122,7 +122,7 @@ swift build  # Verifies ObjC bridge compiles
 
 For newly exposed platform features, public schema and API documentation must
 name the OpenIAP versions first and the upstream SDK requirement second. Use the
-format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
+format `OpenIAP <version> / openiap-google <version> (requires Play Billing
 <version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
 consumers which library release contains the API.
 

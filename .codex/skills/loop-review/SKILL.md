@@ -39,7 +39,7 @@ An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
 thread resolution, merge, affected stable package releases, release-note and
 workflow-documentation commits directly to `main`, production docs deployment,
-and a Docs release when the spec version advances. It does not authorize
+and a Docs release when the native floor advances. It does not authorize
 prereleases, unrelated cleanup, destructive recovery, or product-code commits
 directly to `main`.
 
@@ -206,7 +206,7 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    this post-release docs-only commit.
 6. From a clean local `main` equal to `origin/main`, run `npm run deploy`, then
    verify the production release page and generated documentation assets.
-7. If the native spec floor advanced, dispatch `.github/workflows/release.yml`
+7. If the native floor advanced, dispatch `.github/workflows/release.yml`
    with `version=current` only after production docs verification, and verify
    the resulting `docs-<spec-version>` GitHub Release.
 8. Finish on `main`, fast-forward once more if a release workflow changed it,

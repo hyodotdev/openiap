@@ -8,7 +8,7 @@ import Foundation
 // MARK: - Enums
 
 /// Play Billing choice image layout (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public enum BillingChoiceImageLayoutAndroid: String, Codable, CaseIterable {
     /// Rectangular image with a 4:1 aspect ratio.
     case rectangularFourByOne = "rectangular-four-by-one"
@@ -19,7 +19,7 @@ public enum BillingChoiceImageLayoutAndroid: String, Codable, CaseIterable {
 }
 
 /// Choice screen renderer for Billing Choice availability (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public enum BillingChoiceScreenTypeAndroid: String, Codable, CaseIterable {
     /// Unspecified choice screen type.
     case unspecified = "unspecified"
@@ -56,7 +56,7 @@ public enum BillingProgramAndroid: String, Codable, CaseIterable {
     case externalPayments = "external-payments"
     /// Billing Choice program.
     /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
-    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     case billingChoice = "billing-choice"
 }
 
@@ -75,7 +75,7 @@ public enum DeveloperBillingLaunchModeAndroid: String, Codable, CaseIterable {
 }
 
 /// Developer-provided billing destination type for Billing Program reporting details (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public enum DeveloperBillingTypeAndroid: String, Codable, CaseIterable {
     /// Unspecified developer billing type. Do not use.
     case developerBillingTypeUnspecified = "developer-billing-type-unspecified"
@@ -332,7 +332,7 @@ public enum IapStore: String, Codable, CaseIterable {
 }
 
 /// High-level in-app message category (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 public enum InAppMessageCategoryAndroid: String, Codable, CaseIterable {
     /// Unknown in-app message category.
@@ -342,7 +342,7 @@ public enum InAppMessageCategoryAndroid: String, Codable, CaseIterable {
 }
 
 /// Response code from Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 public enum InAppMessageResponseCodeAndroid: String, Codable, CaseIterable {
     /// Flow finished and no developer action is needed.
@@ -564,7 +564,7 @@ public struct AdvancedCommerceInfoIOS: Codable {
     /// The items purchased as part of this transaction
     public var items: [AdvancedCommerceItemIOS]
     /// Subscription period for this transaction.
-    /// Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+    /// Available in OpenIAP 3.1.0 / openiap-apple 3.1.0
     /// (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
     /// or visionOS 2.4+).
     public var period: SubscriptionPeriodValueIOS? = nil
@@ -626,7 +626,7 @@ public struct AppTransaction: Codable {
 }
 
 /// Display information for developer-rendered Billing Choice screens (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public struct BillingChoiceInfoAndroid: Codable {
     /// URL for the Play Billing choice image matching the requested layout.
     public var playBillingChoiceImageUrl: String
@@ -640,13 +640,13 @@ public struct BillingProgramAvailabilityResultAndroid: Codable {
     /// The billing program that was checked
     public var billingProgram: BillingProgramAndroid
     /// Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
-    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+    /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
     public var choiceScreenType: BillingChoiceScreenTypeAndroid? = nil
     /// Whether the billing program is available for the user
     public var isAvailable: Bool
     /// Whether external-link payment is available for Billing Choice.
     /// Populated only for available BILLING_CHOICE results.
-    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+    /// Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
     public var isExternalLinkAvailable: Bool? = nil
 }
 
@@ -852,7 +852,7 @@ public struct IapkitProductClientPayload: Codable {
 }
 
 /// Result from showing Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 public struct InAppMessageResultAndroid: Codable {
     /// Purchase token returned when a subscription status changed.
@@ -1232,11 +1232,11 @@ public enum RequestPurchaseResult {
 }
 
 public struct RequestVerifyPurchaseWithIapkitResult: Codable {
-    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
     /// Public product payload when includeClientPayload was requested, the
     /// Apple or Google receipt is valid, and a payload exists for that product.
     public var clientPayload: IapkitProductClientPayload? = nil
-    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
     /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
     /// `Production` on handled Amazon verification results.
     ///
@@ -1251,7 +1251,7 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// Callers must still match productId and use the platform plus app-owned product
     /// type to choose the fulfillment path.
     public var isValid: Bool
-    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
     /// Store-verified product identifier when the provider returns one.
     public var productId: String? = nil
     /// The current state of the purchase.
@@ -1370,7 +1370,7 @@ public struct UserChoiceBillingDetails: Codable {
     public var originalExternalTransactionId: String? = nil
     /// Structured product details selected in the user-choice flow, including the
     /// product type and offer token. Legacy payloads may omit this field; use
-    /// products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+    /// products as the product-ID fallback. Available in OpenIAP 2.3.0 /
     /// openiap-google 2.3.1 (requires Play Billing 9.1+).
     public var productDetailsAndroid: [DeveloperProvidedBillingProductAndroid]? = nil
     /// List of product IDs selected by the user
@@ -1468,7 +1468,7 @@ public struct AndroidSubscriptionOfferInput: Codable {
 }
 
 /// Parameters for showing a billing program information dialog (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public struct BillingProgramInformationDialogParamsAndroid: Codable {
     /// Billing program. Currently only BILLING_CHOICE is supported.
     public var billingProgram: BillingProgramAndroid
@@ -1587,7 +1587,7 @@ public struct DiscountOfferInputIOS: Codable {
 }
 
 /// Parameters for fetching Billing Choice display information (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public struct GetBillingChoiceInfoParamsAndroid: Codable {
     /// Billing program. Currently only BILLING_CHOICE is supported.
     public var billingProgram: BillingProgramAndroid
@@ -1608,7 +1608,7 @@ public struct GetBillingChoiceInfoParamsAndroid: Codable {
 }
 
 /// Parameters for showing Play billing in-app messages (Android)
-/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 /// (upstream API available since Play Billing 4.1.0).
 public struct InAppMessageParamsAndroid: Codable {
     /// In-app message categories to show. Defaults to transactional messages.
@@ -1658,7 +1658,7 @@ public struct LaunchExternalLinkParamsAndroid: Codable {
     /// The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)
     public var billingProgram: BillingProgramAndroid
     /// External transaction token for a developer-rendered Billing Choice external-link
-    /// flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+    /// flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0
     /// (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
     public var externalTransactionToken: String?
     /// The external link launch mode
@@ -1933,7 +1933,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// Obfuscated profile ID
     public var obfuscatedProfileId: String?
     /// Original external transaction ID for replacing a subscription that was
-    /// purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+    /// purchased through developer billing. Available in OpenIAP 2.1.0 /
     /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     public var originalExternalTransactionId: String?
     /// Purchase token for upgrades/downgrades
@@ -2051,7 +2051,7 @@ public struct RequestSubscriptionPropsByPlatforms: Codable {
 }
 
 public struct RequestVerifyPurchaseWithIapkitAmazonProps: Codable {
-    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
     /// Optional Amazon product id that must match the product id verified by RVS.
     public var expectedProductId: String?
     /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
@@ -2124,7 +2124,7 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var apiKey: String?
     /// Apple App Store verification parameters.
     public var apple: RequestVerifyPurchaseWithIapkitAppleProps?
-    /// Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+    /// Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
     /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
     /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
     /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
@@ -2133,7 +2133,7 @@ public struct RequestVerifyPurchaseWithIapkitProps: Codable {
     public var google: RequestVerifyPurchaseWithIapkitGoogleProps?
     /// Meta Horizon verification parameters.
     public var horizon: RequestVerifyPurchaseWithIapkitHorizonProps?
-    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
     /// Include the product's public IAPKit client payload in a valid Apple or
     /// Google verification response. Horizon and Amazon accept this option for
     /// cross-platform request compatibility but omit the payload. Defaults to
@@ -2681,7 +2681,7 @@ public protocol MutationResolver {
     /// Resolves the redeemed purchase only when the store reports it synchronously;
     /// every other path resolves null, so reconcile through the purchase listeners.
     /// Throws when a redemption flow exists but cannot be opened.
-    /// Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+    /// Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
     /// Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
     /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
     func openRedeemOfferCode() async throws -> Purchase?
@@ -2692,7 +2692,7 @@ public protocol MutationResolver {
     /// purchase while the app is running with an active billing connection; always
     /// reconcile with getAvailablePurchases when the app resumes.
     /// Does not require the billing client to be initialized (no Play Billing version requirement).
-    /// Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+    /// Available in OpenIAP 2.4.2 / openiap-google 2.5.0.
     /// Android counterpart of presentCodeRedemptionSheetIOS.
     /// Returns true when the redemption flow was launched, or false when the current
     /// store flavor does not provide an equivalent redemption flow.

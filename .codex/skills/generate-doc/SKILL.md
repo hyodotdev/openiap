@@ -113,7 +113,7 @@ versions in this order:
    impact is ambiguous or conflicts with an existing release plan, ask instead
    of guessing.
 4. Do not bump unaffected packages merely to make a release list symmetrical.
-5. Reuse the explicit maintainer-selected OpenIAP Spec/docs target from the
+5. Reuse the explicit maintainer-selected native floor / docs target from the
    coordinated release plan or unreleased card. If no explicit coordinated spec
    target exists, ask; never infer or auto-align it from Apple and Google
    versions. The note reports the `spec` value that is actually committed in
@@ -167,7 +167,7 @@ Card section layout (mandatory for multi-package cards):
   most one `<li>` inside the shared group list, written as
   `<strong>package version</strong> - prose description`
   (for example `<strong>react-native-iap 16.0.2</strong> - exposes ...`).
-- `Shared spec and native packages` holds `OpenIAP Spec`, `openiap-apple`, and
+- `Shared spec and native packages` holds `native floor`, `openiap-apple`, and
   `openiap-google` bullets; `Framework libraries` holds the framework SDK
   bullets. Omit the section when it would be empty.
 - A package whose only change is selecting a shared native dependency,

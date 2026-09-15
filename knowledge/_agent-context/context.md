@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T12:46:40.538Z
+> Last updated: 2026-09-15T14:07:54.196Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -943,7 +943,7 @@ Open the platform's offer/promo code redemption flow.
 Resolves the redeemed purchase only when the store reports it synchronously;
 every other path resolves null, so reconcile through the purchase listeners.
 Throws when a redemption flow exists but cannot be opened.
-Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
 See: https://openiap.dev/docs/apis/open-redeem-offer-code
 """
 
@@ -1130,7 +1130,7 @@ swift build  # Verifies ObjC bridge compiles
 
 For newly exposed platform features, public schema and API documentation must
 name the OpenIAP versions first and the upstream SDK requirement second. Use the
-format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
+format `OpenIAP <version> / openiap-google <version> (requires Play Billing
 <version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
 consumers which library release contains the API.
 
@@ -2073,7 +2073,7 @@ const allNotes: Note[] = [
     element: (
       <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
         <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
-          📅 OpenIAP Spec v3.4.0 / openiap-apple v3.4.0 - Feature
+          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature
           Description
         </AnchorLink>
         {/* Content here */}
@@ -2530,7 +2530,7 @@ This will:
 native floor; docs deployment is not a version-bump path.
 
 **Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the spec version has not moved, so the immutable `docs-{spec}` tag
+Release: the native floor has not moved, so the immutable `docs-{floor}` tag
 cannot represent a new release. Run the stable Docs workflow only when the spec
 version itself advanced:
 
@@ -2645,7 +2645,7 @@ Version ownership is split:
 - The three scoped npm packages own their versions in their package manifests;
   Client Protocol npm releases do not change the native-derived `spec`
 - Production docs deployment consumes the derived current `spec`; it must not
-  accept an independently selected spec version
+  accept an independently selected floor version
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
@@ -2668,7 +2668,7 @@ version changes happen via:
 1. Release workflows (Apple Release, Google Release)
 2. Native version automation that derives `spec = min(google, apple)`, followed
    by sync propagation
-3. Deploy script (`npm run deploy`) using the already-derived spec
+3. Deploy script (`npm run deploy`) using the already-derived floor
 4. CI auto-bump after merge where configured
 
 
@@ -3120,7 +3120,7 @@ unless the stray file is the intended new value.
 | Domain                              | Owner                                         |
 | ----------------------------------- | --------------------------------------------- |
 | Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
-| Package/spec version floor          | `openiap-versions.json` + release-state audit |
+| Package/native version floor        | `openiap-versions.json` + release-state audit |
 | API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
 | Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
 

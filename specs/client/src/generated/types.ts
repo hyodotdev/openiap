@@ -48,7 +48,7 @@ export interface AdvancedCommerceInfoIOS {
   items: AdvancedCommerceItemIOS[];
   /**
    * Subscription period for this transaction.
-   * Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+   * Available in OpenIAP 3.1.0 / openiap-apple 3.1.0
    * (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
    * or visionOS 2.4+).
    */
@@ -127,13 +127,13 @@ export interface AppTransaction {
 
 /**
  * Play Billing choice image layout (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export type BillingChoiceImageLayoutAndroid = 'rectangular-four-by-one' | 'rectangular-three-by-one' | 'rectangular-two-by-two';
 
 /**
  * Display information for developer-rendered Billing Choice screens (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export interface BillingChoiceInfoAndroid {
   /** URL for the Play Billing choice image matching the requested layout. */
@@ -144,7 +144,7 @@ export interface BillingChoiceInfoAndroid {
 
 /**
  * Choice screen renderer for Billing Choice availability (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export type BillingChoiceScreenTypeAndroid = 'unspecified' | 'developer-rendered' | 'google-rendered';
 
@@ -166,7 +166,7 @@ export interface BillingProgramAvailabilityResultAndroid {
   billingProgram: BillingProgramAndroid;
   /**
    * Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
-   * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+   * Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
    */
   choiceScreenType?: (BillingChoiceScreenTypeAndroid | null);
   /** Whether the billing program is available for the user */
@@ -174,14 +174,14 @@ export interface BillingProgramAvailabilityResultAndroid {
   /**
    * Whether external-link payment is available for Billing Choice.
    * Populated only for available BILLING_CHOICE results.
-   * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+   * Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
    */
   isExternalLinkAvailable?: (boolean | null);
 }
 
 /**
  * Parameters for showing a billing program information dialog (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export interface BillingProgramInformationDialogParamsAndroid {
   /** Billing program. Currently only BILLING_CHOICE is supported. */
@@ -281,7 +281,7 @@ export interface DeveloperBillingOptionParamsAndroid {
 
 /**
  * Developer-provided billing destination type for Billing Program reporting details (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export type DeveloperBillingTypeAndroid = 'developer-billing-type-unspecified' | 'in-app' | 'external-link';
 
@@ -571,7 +571,7 @@ export type FetchProductsResult = ProductOrSubscription[] | Product[] | ProductS
 
 /**
  * Parameters for fetching Billing Choice display information (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 export interface GetBillingChoiceInfoParamsAndroid {
   /** Billing program. Currently only BILLING_CHOICE is supported. */
@@ -607,14 +607,14 @@ export type IapkitPurchaseState = 'entitled' | 'pending-acknowledgment' | 'pendi
 
 /**
  * High-level in-app message category (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 export type InAppMessageCategoryAndroid = 'unknown-in-app-message-category-id' | 'transactional';
 
 /**
  * Parameters for showing Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 export interface InAppMessageParamsAndroid {
@@ -624,14 +624,14 @@ export interface InAppMessageParamsAndroid {
 
 /**
  * Response code from Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 export type InAppMessageResponseCodeAndroid = 'no-action-needed' | 'subscription-status-updated';
 
 /**
  * Result from showing Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 export interface InAppMessageResultAndroid {
@@ -698,7 +698,7 @@ export interface LaunchExternalLinkParamsAndroid {
   billingProgram: BillingProgramAndroid;
   /**
    * External transaction token for a developer-rendered Billing Choice external-link
-   * flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+   * flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0
    * (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
    */
   externalTransactionToken?: (string | null);
@@ -805,7 +805,7 @@ export interface Mutation {
    * Resolves the redeemed purchase only when the store reports it synchronously;
    * every other path resolves null, so reconcile through the purchase listeners.
    * Throws when a redemption flow exists but cannot be opened.
-   * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+   * Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
    * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
    * See: https://openiap.dev/docs/apis/open-redeem-offer-code
    */
@@ -818,7 +818,7 @@ export interface Mutation {
    * purchase while the app is running with an active billing connection; always
    * reconcile with getAvailablePurchases when the app resumes.
    * Does not require the billing client to be initialized (no Play Billing version requirement).
-   * Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+   * Available in OpenIAP 2.4.2 / openiap-google 2.5.0.
    * Android counterpart of presentCodeRedemptionSheetIOS.
    * Returns true when the redemption flow was launched, or false when the current
    * store flavor does not provide an equivalent redemption flow.
@@ -1724,7 +1724,7 @@ export interface RequestSubscriptionAndroidProps {
   obfuscatedProfileId?: (string | null);
   /**
    * Original external transaction ID for replacing a subscription that was
-   * purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+   * purchased through developer billing. Available in OpenIAP 2.1.0 /
    * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
    */
   originalExternalTransactionId?: (string | null);
@@ -1806,7 +1806,7 @@ export interface RequestSubscriptionPropsByPlatforms {
 
 export interface RequestVerifyPurchaseWithIapkitAmazonProps {
   /**
-   * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+   * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
    * Optional Amazon product id that must match the product id verified by RVS.
    */
   expectedProductId?: (string | null);
@@ -1851,7 +1851,7 @@ export interface RequestVerifyPurchaseWithIapkitProps {
   /** Apple App Store verification parameters. */
   apple?: (RequestVerifyPurchaseWithIapkitAppleProps | null);
   /**
-   * Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+   * Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
    * Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
    * Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
    * The apiKey must be issued by the same IAPKit/Convex deployment as this server.
@@ -1862,7 +1862,7 @@ export interface RequestVerifyPurchaseWithIapkitProps {
   /** Meta Horizon verification parameters. */
   horizon?: (RequestVerifyPurchaseWithIapkitHorizonProps | null);
   /**
-   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
    * Include the product's public IAPKit client payload in a valid Apple or
    * Google verification response. Horizon and Amazon accept this option for
    * cross-platform request compatibility but omit the payload. Defaults to
@@ -1873,13 +1873,13 @@ export interface RequestVerifyPurchaseWithIapkitProps {
 
 export interface RequestVerifyPurchaseWithIapkitResult {
   /**
-   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
    * Public product payload when includeClientPayload was requested, the
    * Apple or Google receipt is valid, and a payload exists for that product.
    */
   clientPayload?: (IapkitProductClientPayload | null);
   /**
-   * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+   * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
    * Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
    * `Production` on handled Amazon verification results.
    *
@@ -1898,7 +1898,7 @@ export interface RequestVerifyPurchaseWithIapkitResult {
    */
   isValid: boolean;
   /**
-   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
    * Store-verified product identifier when the provider returns one.
    */
   productId?: (string | null);
@@ -2128,7 +2128,7 @@ export interface UserChoiceBillingDetails {
   /**
    * Structured product details selected in the user-choice flow, including the
    * product type and offer token. Legacy payloads may omit this field; use
-   * products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+   * products as the product-ID fallback. Available in OpenIAP 2.3.0 /
    * openiap-google 2.3.1 (requires Play Billing 9.1+).
    */
   productDetailsAndroid?: (DeveloperProvidedBillingProductAndroid[] | null);

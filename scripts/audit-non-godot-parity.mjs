@@ -3200,7 +3200,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "specs/client/src/type-android.graphql",
     [
-      "OpenIAP Spec 2.1.0 / openiap-google 2.3.0",
+      "OpenIAP 2.1.0 / openiap-google 2.3.0",
       "upstream API available since Play Billing 4.1.0",
     ],
     "Billing Choice OpenIAP-first type availability",

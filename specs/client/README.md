@@ -34,7 +34,7 @@ available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
 This package has its own npm version. The native SDK compatibility version
-remains the OpenIAP Spec version recorded in `openiap-versions.json`.
+remains the native floor recorded in `openiap-versions.json`.
 
 ## Develop the specification
 

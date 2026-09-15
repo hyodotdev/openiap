@@ -12,7 +12,7 @@ package io.github.hyochan.kmpiap.openiap
 
 /**
  * Play Billing choice image layout (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
     /**
@@ -50,7 +50,7 @@ public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
 
 /**
  * Choice screen renderer for Billing Choice availability (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
     /**
@@ -126,7 +126,7 @@ public enum class BillingProgramAndroid(val rawValue: String) {
     /**
      * Billing Choice program.
      * Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
-     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
     BillingChoice("billing-choice");
 
@@ -199,7 +199,7 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
 
 /**
  * Developer-provided billing destination type for Billing Program reporting details (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public enum class DeveloperBillingTypeAndroid(val rawValue: String) {
     /**
@@ -832,7 +832,7 @@ public enum class IapStore(val rawValue: String) {
 
 /**
  * High-level in-app message category (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 public enum class InAppMessageCategoryAndroid(val rawValue: String) {
@@ -865,7 +865,7 @@ public enum class InAppMessageCategoryAndroid(val rawValue: String) {
 
 /**
  * Response code from Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 public enum class InAppMessageResponseCodeAndroid(val rawValue: String) {
@@ -1563,7 +1563,7 @@ public data class AdvancedCommerceInfoIOS(
     val items: List<AdvancedCommerceItemIOS>,
     /**
      * Subscription period for this transaction.
-     * Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+     * Available in OpenIAP 3.1.0 / openiap-apple 3.1.0
      * (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
      * or visionOS 2.4+).
      */
@@ -1775,7 +1775,7 @@ public data class AppTransaction(
 
 /**
  * Display information for developer-rendered Billing Choice screens (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class BillingChoiceInfoAndroid(
     /**
@@ -1815,7 +1815,7 @@ public data class BillingProgramAvailabilityResultAndroid(
     val billingProgram: BillingProgramAndroid,
     /**
      * Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
-     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+     * Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
      */
     val choiceScreenType: BillingChoiceScreenTypeAndroid? = null,
     /**
@@ -1825,7 +1825,7 @@ public data class BillingProgramAvailabilityResultAndroid(
     /**
      * Whether external-link payment is available for Billing Choice.
      * Populated only for available BILLING_CHOICE results.
-     * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+     * Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
      */
     val isExternalLinkAvailable: Boolean? = null
 ) {
@@ -2445,7 +2445,7 @@ public data class IapkitProductClientPayload(
 
 /**
  * Result from showing Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 public data class InAppMessageResultAndroid(
@@ -3595,7 +3595,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
 ) {
 
     /**
-     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
      * Public product payload when includeClientPayload was requested, the
      * Apple or Google receipt is valid, and a payload exists for that product.
      */
@@ -3603,14 +3603,14 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         private set
 
     /**
-     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
      * Store-verified product identifier when the provider returns one.
      */
     var productId: String? = null
         private set
 
     /**
-     * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+     * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
      * Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
      * `Production` on handled Amazon verification results.
      *
@@ -4003,7 +4003,7 @@ public data class UserChoiceBillingDetails(
     /**
      * Structured product details selected in the user-choice flow, including the
      * product type and offer token. Legacy payloads may omit this field; use
-     * products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+     * products as the product-ID fallback. Available in OpenIAP 2.3.0 /
      * openiap-google 2.3.1 (requires Play Billing 9.1+).
      */
     var productDetailsAndroid: List<DeveloperProvidedBillingProductAndroid>? = null
@@ -4321,7 +4321,7 @@ public data class AndroidSubscriptionOfferInput(
 
 /**
  * Parameters for showing a billing program information dialog (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class BillingProgramInformationDialogParamsAndroid(
     /**
@@ -4478,7 +4478,7 @@ public data class DiscountOfferInputIOS(
 
 /**
  * Parameters for fetching Billing Choice display information (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
  */
 public data class GetBillingChoiceInfoParamsAndroid(
     /**
@@ -4513,7 +4513,7 @@ public data class GetBillingChoiceInfoParamsAndroid(
 
 /**
  * Parameters for showing Play billing in-app messages (Android)
- * Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+ * Available in OpenIAP 2.1.0 / openiap-google 2.3.0
  * (upstream API available since Play Billing 4.1.0).
  */
 public data class InAppMessageParamsAndroid(
@@ -4589,7 +4589,7 @@ public data class LaunchExternalLinkParamsAndroid(
     val billingProgram: BillingProgramAndroid,
     /**
      * External transaction token for a developer-rendered Billing Choice external-link
-     * flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+     * flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0
      * (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
      */
     val externalTransactionToken: String? = null,
@@ -4984,7 +4984,7 @@ public data class RequestSubscriptionAndroidProps(
     val obfuscatedProfileId: String? = null,
     /**
      * Original external transaction ID for replacing a subscription that was
-     * purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+     * purchased through developer billing. Available in OpenIAP 2.1.0 /
      * openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      */
     val originalExternalTransactionId: String? = null,
@@ -5182,7 +5182,7 @@ public data class RequestVerifyPurchaseWithIapkitAmazonProps(
 ) {
 
     /**
-     * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+     * Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
      * Optional Amazon product id that must match the product id verified by RVS.
      */
     var expectedProductId: String? = null
@@ -5317,7 +5317,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
      */
     val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null,
     /**
-     * Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+     * Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
      * Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
      * Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
      * The apiKey must be issued by the same IAPKit/Convex deployment as this server.
@@ -5330,7 +5330,7 @@ public data class RequestVerifyPurchaseWithIapkitProps(
 ) {
 
     /**
-     * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+     * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
      * Include the product's public IAPKit client payload in a valid Apple or
      * Google verification response. Horizon and Amazon accept this option for
      * cross-platform request compatibility but omit the payload. Defaults to
@@ -5822,7 +5822,7 @@ public interface MutationResolver {
      * Resolves the redeemed purchase only when the store reports it synchronously;
      * every other path resolves null, so reconcile through the purchase listeners.
      * Throws when a redemption flow exists but cannot be opened.
-     * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+     * Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
      * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
      * See: https://openiap.dev/docs/apis/open-redeem-offer-code
      */
@@ -5835,7 +5835,7 @@ public interface MutationResolver {
      * purchase while the app is running with an active billing connection; always
      * reconcile with getAvailablePurchases when the app resumes.
      * Does not require the billing client to be initialized (no Play Billing version requirement).
-     * Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+     * Available in OpenIAP 2.4.2 / openiap-google 2.5.0.
      * Android counterpart of presentCodeRedemptionSheetIOS.
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.
@@ -6228,7 +6228,7 @@ public data class MutationHandlers(
      * Resolves the redeemed purchase only when the store reports it synchronously;
      * every other path resolves null, so reconcile through the purchase listeners.
      * Throws when a redemption flow exists but cannot be opened.
-     * Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+     * Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
      * Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
      * See: https://openiap.dev/docs/apis/open-redeem-offer-code
      */
@@ -6241,7 +6241,7 @@ public data class MutationHandlers(
      * purchase while the app is running with an active billing connection; always
      * reconcile with getAvailablePurchases when the app resumes.
      * Does not require the billing client to be initialized (no Play Billing version requirement).
-     * Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+     * Available in OpenIAP 2.4.2 / openiap-google 2.5.0.
      * Android counterpart of presentCodeRedemptionSheetIOS.
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.

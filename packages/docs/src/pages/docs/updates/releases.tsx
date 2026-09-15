@@ -372,7 +372,6 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
-    {
       id: 'amazon-purchase-dialog-2026-09-15',
       date: new Date('2026-09-15'),
       element: (
@@ -503,6 +502,9 @@ function Releases() {
               </li>
             ))}
           </ul>
+        </div>
+      ),
+    },
     {
       id: 'spec-splits-into-two-protocols-2026-09-15',
       date: new Date('2026-09-15'),

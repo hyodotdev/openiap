@@ -383,7 +383,7 @@ This will:
 native floor; docs deployment is not a version-bump path.
 
 **Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the spec version has not moved, so the immutable `docs-{spec}` tag
+Release: the native floor has not moved, so the immutable `docs-{floor}` tag
 cannot represent a new release. Run the stable Docs workflow only when the spec
 version itself advanced:
 
@@ -498,7 +498,7 @@ Version ownership is split:
 - The three scoped npm packages own their versions in their package manifests;
   Client Protocol npm releases do not change the native-derived `spec`
 - Production docs deployment consumes the derived current `spec`; it must not
-  accept an independently selected spec version
+  accept an independently selected floor version
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
@@ -521,5 +521,5 @@ version changes happen via:
 1. Release workflows (Apple Release, Google Release)
 2. Native version automation that derives `spec = min(google, apple)`, followed
    by sync propagation
-3. Deploy script (`npm run deploy`) using the already-derived spec
+3. Deploy script (`npm run deploy`) using the already-derived floor
 4. CI auto-bump after merge where configured

@@ -327,7 +327,7 @@ Open the platform's offer/promo code redemption flow.
 Resolves the redeemed purchase only when the store reports it synchronously;
 every other path resolves null, so reconcile through the purchase listeners.
 Throws when a redemption flow exists but cannot be opened.
-Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
 See: https://openiap.dev/docs/apis/open-redeem-offer-code
 """
 

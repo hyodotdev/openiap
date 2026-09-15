@@ -37,8 +37,8 @@ function OpenRedeemOfferCodeAndroid() {
         annotation, so builds surface the migration.
       </Callout>
       <p>
-        Available in OpenIAP Spec 2.4.2 / <code>openiap-google</code> 2.5.0.
-        Launches the Play Store redeem page (
+        Available in OpenIAP 2.4.2 / <code>openiap-google</code> 2.5.0. Launches
+        the Play Store redeem page (
         <a
           href="https://play.google.com/redeem"
           target="_blank"
