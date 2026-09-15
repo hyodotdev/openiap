@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 3.8.1",
-    "appVersionSource": "remote"
+    "version": ">= 3.8.1"
   },
   "build": {
     "development": {
@@ -29,19 +28,6 @@
       "channel": "production",
       "cache": {
         "disabled": true
-      }
-    },
-    "production-amazon": {
-      "channel": "production",
-      "cache": {
-        "disabled": true
-      },
-      "env": {
-        "EXPO_IAP_FIREOS": "1"
-      },
-      "autoIncrement": true,
-      "android": {
-        "buildType": "app-bundle"
       }
     }
   },

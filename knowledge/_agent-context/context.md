@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T01:08:26.523Z
+> Last updated: 2026-09-15T11:26:28.331Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1448,6 +1448,19 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
    ```
 
 ---
+
+## Example App Identity
+
+Every example builds as `dev.hyo.martie` and requests that app's real SKUs on
+purpose: they are the store-test harness for a published app, and sandbox,
+receipt, and Live App Testing work depends on it. The one exception is the
+Flutter example's macOS runner, `dev.hyo.flutterInappPurchaseExample`.
+
+What belongs to `hyodotdev/Martie` alone is the release side: its EAS project,
+the remote version counter, its production environment variables, and anything
+uploaded to a store listing. Never point an example at that EAS project. With a
+remote app version source, one `eas build` there consumes the product's next
+version code and loads its production environment — both have happened.
 
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
