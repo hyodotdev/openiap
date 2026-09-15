@@ -195,6 +195,12 @@ platforms.
 
 ## Commerce Protocol surface
 
+IAPKit implements the OpenIAP Commerce Protocol and conforms to it; the spec
+never follows IAPKit. It serves every profile and both bindings, and declares
+which capabilities it supports per store in `convex/commerce/capabilities.ts`,
+which `convex/commerce/spec.conformance.test.ts` pins to the published
+descriptor — so the gaps are published rather than implied.
+
 `server/api/commerce/` serves the OpenIAP Commerce Protocol operation surface
 under `/commerce/v1`: the REST binding registered from the generated HTTP
 manifest, and the GraphQL endpoint executing the generated schema projection.

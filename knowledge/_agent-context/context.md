@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T14:07:54.196Z
+> Last updated: 2026-09-15T14:11:44.031Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -317,6 +317,28 @@ openiap/
 ```
 
 Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
+
+## Ownership Model
+
+OpenIAP governs two protocols and nothing else: the **Client Protocol**
+(`specs/client`) and the **Commerce Protocol** (`specs/commerce-protocol`).
+Each is published as its own npm package with its own version.
+
+`packages/apple`, `packages/google`, and every library under `libraries/`
+**implement** the Client Protocol; none of them defines it, and none may extend
+the contract locally — a new API starts as a schema change in `specs/client`.
+
+IAPKit (`packages/kit`) implements the Commerce Protocol. It conforms to the
+spec and never the reverse, it serves every profile and both bindings, and it
+declares its per-store gaps in its capability descriptor rather than leaving
+them implied.
+
+`packages/conformance` is the Client Protocol's behavioral conformance suite,
+not a third specification.
+
+A version like `3.4.0` in `openiap-versions.json` is the native compatibility
+floor — the lowest release both `openiap-apple` and `openiap-google` have
+reached. It is not a protocol version.
 
 ## Directory Ownership Guardrail
 
