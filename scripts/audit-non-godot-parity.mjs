@@ -4085,6 +4085,9 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
+      clientSpecVersion: readJson("specs/client/package.json").version,
+      commerceSpecVersion: readJson("specs/commerce-protocol/package.json")
+        .version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
         "libraries/react-native-iap/package.json",

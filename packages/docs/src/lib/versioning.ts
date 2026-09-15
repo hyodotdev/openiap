@@ -54,6 +54,14 @@ function readRequiredMetadataString(
 }
 
 const parsedVersions = parseVersions(versionsFile);
+const CLIENT_SPEC_VERSION = readRequiredMetadataString(
+  'clientSpecVersion',
+  'clientSpecVersion'
+);
+const COMMERCE_SPEC_VERSION = readRequiredMetadataString(
+  'commerceSpecVersion',
+  'commerceSpecVersion'
+);
 const EXPO_PACKAGE_VERSION = readRequiredMetadataString(
   'expoPackageVersion',
   'expoPackageVersion'
@@ -117,6 +125,24 @@ if (!KMP_PACKAGE_VERSION) {
 }
 
 export const OPENIAP_VERSIONS = Object.freeze(ensureVersions(parsedVersions));
+
+/** The two protocols OpenIAP governs. Versions come from each spec's own package manifest. */
+export const OPENIAP_PROTOCOLS = Object.freeze({
+  client: Object.freeze({
+    name: 'Client Protocol',
+    package: '@hyodotdev/openiap-client-protocol',
+    version: CLIENT_SPEC_VERSION,
+    to: '/docs/updates/versions#client-protocol',
+    blurb: 'The purchase API every SDK implements.',
+  }),
+  commerce: Object.freeze({
+    name: 'Commerce Protocol',
+    package: '@hyodotdev/openiap-commerce-protocol',
+    version: COMMERCE_SPEC_VERSION,
+    to: '/commerce-protocol',
+    blurb: 'The server-side contract backends implement.',
+  }),
+});
 
 export const ANDROID_SDK = Object.freeze({
   minSdk: GOOGLE_MIN_SDK,

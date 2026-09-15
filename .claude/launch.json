@@ -4,8 +4,14 @@
     {
       "name": "docs",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "--cwd", "packages/docs", "dev"],
-      "port": 5173
+      "runtimeArgs": [
+        "run",
+        "--cwd",
+        "packages/docs",
+        "dev"
+      ],
+      "port": 5173,
+      "autoPort": true
     },
     {
       "name": "kit-dashboard",

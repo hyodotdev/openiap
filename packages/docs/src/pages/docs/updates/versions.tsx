@@ -1,7 +1,9 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { OPENIAP_VERSIONS } from '../../../lib/versioning';
+import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
@@ -49,6 +51,50 @@ function Versions() {
         release links below. This page updates in lockstep with each library
         release train.
       </p>
+
+      <section>
+        <AnchorLink id="client-protocol" level="h2">
+          Client Protocol
+        </AnchorLink>
+        <p>
+          The Client Protocol is the purchase API an app calls. It is defined
+          once as a GraphQL contract and published as{' '}
+          <code>{OPENIAP_PROTOCOLS.client.package}</code>, currently{' '}
+          <strong>v{OPENIAP_PROTOCOLS.client.version}</strong>. Every type an
+          SDK exposes is generated from it.
+        </p>
+        <p>
+          <code>openiap-apple</code>, <code>openiap-google</code>, and the six
+          framework libraries <strong>implement</strong> this protocol. None of
+          them defines it, and none may extend the contract locally &mdash; a
+          new API starts as a schema change in the protocol.
+        </p>
+
+        <AnchorLink id="commerce-protocol" level="h2">
+          Commerce Protocol
+        </AnchorLink>
+        <p>
+          The Commerce Protocol is the server-side contract: purchase
+          verification, entitlements, and lifecycle events exchanged between
+          backends. It ships as{' '}
+          <code>{OPENIAP_PROTOCOLS.commerce.package}</code>, currently{' '}
+          <strong>v{OPENIAP_PROTOCOLS.commerce.version}</strong>. See the{' '}
+          <Link to="/commerce-protocol">Commerce Protocol</Link> section for the
+          specification itself.
+        </p>
+        <p>
+          Any backend may implement it. IAPKit is one such implementation: it
+          serves every profile and both bindings, and declares which
+          capabilities it supports per store in its capability descriptor, so
+          the gaps are published rather than implied.
+        </p>
+        <Callout kind="note" title="Two versions, two meanings">
+          These are the versions of the protocol packages themselves. The
+          version an SDK reports separately &mdash; <code>openiap-apple</code>{' '}
+          and <code>openiap-google</code> below &mdash; is that native library's
+          own release, not a protocol version.
+        </Callout>
+      </section>
 
       <section>
         <AnchorLink id="openiap-google" level="h2">

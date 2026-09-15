@@ -8,7 +8,7 @@ import {
   Webhook,
   type LucideIcon,
 } from 'lucide-react';
-import { OPENIAP_VERSIONS } from '../lib/versioning';
+import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../lib/versioning';
 import {
   IAPKIT_LOGO_PATH,
   IAPKIT_URL,
@@ -126,6 +126,32 @@ function Home() {
                 <span>
                   <strong>{LIBRARIES.length}</strong> framework libraries
                 </span>
+              </div>
+              <div className="hero-protocols">
+                <p className="hero-protocols-label">
+                  OpenIAP governs two protocols
+                </p>
+                <div className="hero-protocols-grid">
+                  {Object.values(OPENIAP_PROTOCOLS).map((protocol) => (
+                    <Link
+                      key={protocol.package}
+                      to={protocol.to}
+                      className="hero-protocol"
+                    >
+                      <span className="hero-protocol-head">
+                        <span className="hero-protocol-name">
+                          {protocol.name}
+                        </span>
+                        <span className="hero-protocol-version">
+                          v{protocol.version}
+                        </span>
+                      </span>
+                      <span className="hero-protocol-blurb">
+                        {protocol.blurb}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 
