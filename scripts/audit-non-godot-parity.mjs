@@ -2034,7 +2034,7 @@ function expectNoExampleStorefrontIOS() {
 
 function expectNoApi24ConcurrentKeySets() {
   const listenerSetForEach =
-    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners)\.forEach\s*\{/;
+    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners|connectionStateListeners)\.forEach\s*\{/;
   const androidSourceRoots = [
     "packages/google/Example/src",
     "packages/google/openiap/src",
@@ -3257,6 +3257,31 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Horizon unsupported Google Billing APIs must not report success",
   );
+  expectIncludes(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    ["openIap.addConnectionStateListener("],
+    "react-native-iap subscribes to billing disconnect (#408)",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
+    ["openIap.addConnectionStateListener(", "openIap.removeConnectionStateListener("],
+    "expo-iap subscribes to billing disconnect (#408)",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapModule.kt",
+    ["if (connectionReady.get()) {"],
+    "expo-iap must not short-circuit initConnection on a cached flag (#408)",
+  );
+  for (const flavor of ["play", "horizon"]) {
+    expectIncludes(
+      `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
+      [
+        "if (droppedLiveClient) notifyBillingServiceDisconnected()",
+        "onSetupPending = { finishConnectionAttempt(attempt, client, false) },",
+      ],
+      `${flavor} billing disconnect notification (#408)`,
+    );
+  }
   expectIncludes(
     "packages/google/openiap/src/play/java/dev/hyo/openiap/utils/BillingResultConverters.kt",
     [

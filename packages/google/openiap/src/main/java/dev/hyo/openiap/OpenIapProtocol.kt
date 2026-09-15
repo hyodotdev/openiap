@@ -1,6 +1,7 @@
 package dev.hyo.openiap
 
 import android.app.Activity
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -62,6 +63,9 @@ interface OpenIapProtocol {
      */
     fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
     fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener)
+
+    fun addConnectionStateListener(listener: OpenIapConnectionStateListener)
+    fun removeConnectionStateListener(listener: OpenIapConnectionStateListener)
 
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**

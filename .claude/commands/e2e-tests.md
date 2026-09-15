@@ -46,6 +46,17 @@ exact missing command, tool, device, or store prerequisite.
 
 Notes:
 
+- **An Amazon device flow under App Tester does not prove the live Appstore.**
+  App Tester answers over its own service intents and never goes through the
+  SDK's in-process foreground task pipeline, which is what launches the
+  Appstore's purchase Activity on the live store (issue #460). When an Amazon
+  change touches connection, listener registration, or the purchase request,
+  run one purchase through Live App Testing and confirm the `START u0 ...
+  com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
+  `ActivityManager` on Fire OS 7, `ActivityTaskManager` on Fire OS 8).
+  `adb logcat -s Kiwi` shows the SDK's own log (verified on a debug build):
+  `No UI visible to execute task` means the SDK inside the app is holding the
+  Appstore's purchase Intent until it sees the host Activity resume.
 - VegaOS is required only for `react-native-iap` and `expo-iap`.
 - Godot is required only on Android and iOS.
 - Horizon is build-only unless the user explicitly provides a Horizon device and

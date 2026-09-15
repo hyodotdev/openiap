@@ -340,6 +340,29 @@ android {
         </p>
         <CodeBlock language="bash">{`./gradlew :library:assembleAmazonRelease
 dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
+
+        <Callout
+          kind="warning"
+          title="App Tester does not prove the live store"
+        >
+          App Tester answers over its own service intents, so a purchase can
+          succeed in the sandbox and show no dialog at all once the app is
+          installed from the Appstore. Confirm every Fire OS release through
+          Live App Testing or an Appstore install before you ship. If the dialog
+          never appears and the request times out, check{' '}
+          <code>adb logcat -s Kiwi</code>: {'"'}No UI visible to execute task
+          {'"'}
+          means the Appstore already answered and the SDK is holding the
+          purchase Intent (
+          <a
+            href="https://github.com/hyodotdev/openiap/issues/460"
+            target="_blank"
+            rel="noreferrer"
+          >
+            #460
+          </a>
+          ).
+        </Callout>
       </section>
 
       <section>
