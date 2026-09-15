@@ -461,6 +461,46 @@ class OpenIapModule(
         return if (basePlanId == null) purchase else purchase.copy(currentPlanId = basePlanId)
     }
 
+    /** Extracted from the BillingClientStateListener so tests can drive a drop directly. */
+    internal fun handleBillingServiceDisconnected(
+        client: BillingClient,
+        ownsAttempt: () -> Boolean = { false },
+        onSetupPending: () -> Unit = {},
+    ) {
+        OpenIapLog.info("Horizon service disconnected", TAG)
+        val (setupPending, droppedLiveClient, operationFailures) =
+            synchronized(connectionLifecycleLock) {
+                val isCurrent = billingClient === client
+                val pending = isCurrent && ownsAttempt()
+                if (isCurrent && !pending) {
+                    connectionGeneration += 1
+                    replaceBillingClientLocked(null)
+                }
+                val failures = activeOperations.invalidate(client) {
+                    OpenIapError.ServiceDisconnected("Billing service disconnected")
+                }
+                Triple(pending, isCurrent && !pending, failures)
+            }
+        operationFailures.forEach { it() }
+        if (setupPending) onSetupPending()
+        failPurchaseCallbackForClient(
+            client,
+            OpenIapError.ServiceDisconnected("Billing service disconnected during purchase"),
+        )
+        // Notify last, once module state has settled, and never for a superseded client.
+        if (droppedLiveClient) notifyBillingServiceDisconnected()
+    }
+
+    private fun notifyBillingServiceDisconnected() {
+        for (listener in connectionStateListeners) {
+            try {
+                listener.onBillingServiceDisconnected()
+            } catch (t: Throwable) {
+                OpenIapLog.error("connectionState listener threw", t, TAG)
+            }
+        }
+    }
+
     private fun failPurchaseCallbackForClient(
         expectedClient: BillingClient,
         error: OpenIapError,
@@ -486,6 +526,8 @@ class OpenIapModule(
     private val purchaseErrorListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapPurchaseErrorListener>()
     private val userChoiceBillingListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapUserChoiceBillingListener>()
     private val developerProvidedBillingListeners = java.util.concurrent.CopyOnWriteArraySet<OpenIapDeveloperProvidedBillingListener>()
+    private val connectionStateListeners =
+        java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapConnectionStateListener>()
 
     init {
         // DO NOT build BillingClient here - React Native context doesn't have Activity yet
@@ -610,28 +652,12 @@ class OpenIapModule(
                         finishConnectionAttempt(attempt, client, ok)
                     }
 
-                    override fun onBillingServiceDisconnected() {
-                        OpenIapLog.info("Horizon service disconnected", TAG)
-                        val (setupPending, operationFailures) = synchronized(connectionLifecycleLock) {
-                            val pending = connectionAttempt === attempt && billingClient === client
-                            if (!pending && billingClient === client) {
-                                connectionGeneration += 1
-                                replaceBillingClientLocked(null)
-                            }
-                            val failures = activeOperations.invalidate(client) {
-                                OpenIapError.ServiceDisconnected("Billing service disconnected")
-                            }
-                            pending to failures
-                        }
-                        operationFailures.forEach { it() }
-                        if (setupPending) finishConnectionAttempt(attempt, client, false)
-                        failPurchaseCallbackForClient(
-                            client,
-                            OpenIapError.ServiceDisconnected(
-                                "Billing service disconnected during purchase"
-                            ),
+                    override fun onBillingServiceDisconnected() =
+                        handleBillingServiceDisconnected(
+                            client = client,
+                            ownsAttempt = { connectionAttempt === attempt },
+                            onSetupPending = { finishConnectionAttempt(attempt, client, false) },
                         )
-                    }
                         })
                     }
                 }
@@ -1860,6 +1886,14 @@ class OpenIapModule(
     override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         // No-op: see addSubscriptionBillingIssueListener
         OpenIapLog.warn("removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)", TAG)
+    }
+
+    override fun addConnectionStateListener(listener: dev.hyo.openiap.listener.OpenIapConnectionStateListener) {
+        connectionStateListeners.add(listener)
+    }
+
+    override fun removeConnectionStateListener(listener: dev.hyo.openiap.listener.OpenIapConnectionStateListener) {
+        connectionStateListeners.remove(listener)
     }
 
     // Google Play billing programs are not supported on Horizon.

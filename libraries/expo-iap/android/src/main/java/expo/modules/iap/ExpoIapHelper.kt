@@ -7,6 +7,7 @@ import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -30,6 +31,7 @@ object ExpoIapHelper {
         val userChoiceBilling: OpenIapUserChoiceBillingListener,
         val developerProvidedBilling: OpenIapDeveloperProvidedBillingListener,
         val subscriptionBillingIssue: OpenIapSubscriptionBillingIssueListener,
+        val connectionState: OpenIapConnectionStateListener,
     )
 
     internal fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
@@ -440,12 +442,22 @@ object ExpoIapHelper {
             }
         openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
+        // Without this initConnection short-circuits on a stale flag after the
+        // service drops and never rebuilds the client (#408).
+        val connectionStateListener =
+            OpenIapConnectionStateListener {
+                connectionReady.set(false)
+                ExpoIapLog.warning("billing service disconnected; connection must be re-initialized")
+            }
+        openIap.addConnectionStateListener(connectionStateListener)
+
         return ListenerHandles(
             purchaseUpdate = purchaseUpdateListener,
             purchaseError = purchaseErrorListener,
             userChoiceBilling = userChoiceBillingListener,
             developerProvidedBilling = developerProvidedBillingListener,
             subscriptionBillingIssue = subscriptionBillingIssueListener,
+            connectionState = connectionStateListener,
         )
     }
 
@@ -459,5 +471,6 @@ object ExpoIapHelper {
         openIap.removeUserChoiceBillingListener(handles.userChoiceBilling)
         openIap.removeDeveloperProvidedBillingListener(handles.developerProvidedBilling)
         openIap.removeSubscriptionBillingIssueListener(handles.subscriptionBillingIssue)
+        openIap.removeConnectionStateListener(handles.connectionState)
     }
 }

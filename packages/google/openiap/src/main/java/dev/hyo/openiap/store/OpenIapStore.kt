@@ -53,6 +53,7 @@ import dev.hyo.openiap.OpenIapLog
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderResult
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
@@ -176,6 +177,10 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             }
         }
     }
+
+    // Without this isConnected keeps reporting true after the service drops (#408).
+    private val connectionStateListener = OpenIapConnectionStateListener { _isConnected.value = false }
+
     private val purchaseErrorListener = OpenIapPurchaseErrorListener { error ->
         if (error is OpenIapError.UserCancelled || error is OpenIapError.PurchaseCancelled) {
             val code = OpenIapError.toCode(error)
@@ -228,6 +233,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         if (purchaseListenersAttached) return
         module.addPurchaseUpdateListener(purchaseUpdateListener)
         module.addPurchaseErrorListener(purchaseErrorListener)
+        module.addConnectionStateListener(connectionStateListener)
         purchaseListenersAttached = true
     }
 
@@ -235,6 +241,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         if (!purchaseListenersAttached) return
         module.removePurchaseUpdateListener(purchaseUpdateListener)
         module.removePurchaseErrorListener(purchaseErrorListener)
+        module.removeConnectionStateListener(connectionStateListener)
         purchaseListenersAttached = false
     }
 

@@ -2034,7 +2034,7 @@ function expectNoExampleStorefrontIOS() {
 
 function expectNoApi24ConcurrentKeySets() {
   const listenerSetForEach =
-    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners)\.forEach\s*\{/;
+    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners|connectionStateListeners)\.forEach\s*\{/;
   const androidSourceRoots = [
     "packages/google/Example/src",
     "packages/google/openiap/src",
@@ -3257,6 +3257,13 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Horizon unsupported Google Billing APIs must not report success",
   );
+  for (const flavor of ["play", "horizon"]) {
+    expectIncludes(
+      `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
+      ["if (droppedLiveClient) notifyBillingServiceDisconnected()"],
+      `${flavor} billing disconnect notification (#408)`,
+    );
+  }
   expectIncludes(
     "packages/google/openiap/src/play/java/dev/hyo/openiap/utils/BillingResultConverters.kt",
     [
