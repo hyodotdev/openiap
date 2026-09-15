@@ -15,6 +15,9 @@ The older regression example lives on its review branch, not the repository's
 ```sh
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
+# The run is recorded on the feature branch. A squash merge leaves that commit
+# out of `main`'s history, so fetch it by SHA before checking it out.
+git fetch origin 0eb73f93bbed37b31767232d1c20057421802d15
 git checkout 0eb73f93bbed37b31767232d1c20057421802d15
 bun install --frozen-lockfile
 cd ..
