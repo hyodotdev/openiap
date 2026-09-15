@@ -180,12 +180,12 @@ investigation narrative, no thanking-and-summarising. Canonical rules in
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
-  and Apple are CI-managed. `spec` must equal the lower semantic version of
-  `google` and `apple`; it is never bumped directly in a feature PR or docs
-  deployment. Native version writers update their native key and the derived
-  `spec` atomically, then the sync workflow propagates package metadata.
-  Release-state, docs, parity, and sync audits reject floor drift.
+- `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
+  `clientProtocol` mirrors `specs/client/package.json`, the single source for the
+  Client Protocol version; bump it there and let the sync propagate. `google` and
+  `apple` are CI-managed native package versions and constrain nothing about the
+  protocol. Release-state, docs, parity, and sync audits reject drift between the
+  mirror and the publishing manifest.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add

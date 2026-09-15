@@ -11,7 +11,7 @@
 # Enums
 # ============================================================================
 
-## Play Billing choice image layout (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Play Billing choice image layout (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceImageLayoutAndroid {
 	## Rectangular image with a 4:1 aspect ratio.
 	RECTANGULAR_FOUR_BY_ONE = 0,
@@ -21,7 +21,7 @@ enum BillingChoiceImageLayoutAndroid {
 	RECTANGULAR_TWO_BY_TWO = 2,
 }
 
-## Choice screen renderer for Billing Choice availability (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Choice screen renderer for Billing Choice availability (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingChoiceScreenTypeAndroid {
 	## Unspecified choice screen type.
 	UNSPECIFIED = 0,
@@ -31,7 +31,7 @@ enum BillingChoiceScreenTypeAndroid {
 	GOOGLE_RENDERED = 2,
 }
 
-## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Billing program types for Google Play Billing Programs (Android) Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0, BILLING_CHOICE added in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum BillingProgramAndroid {
 	## Unspecified billing program. Do not use.
 	UNSPECIFIED = 0,
@@ -43,7 +43,7 @@ enum BillingProgramAndroid {
 	EXTERNAL_OFFER = 3,
 	## External Payments program (Japan only). Allows presenting a side-by-side choice between Google Play Billing and developer's external payment option. Users can choose to complete the purchase on the developer's website. Available in Google Play Billing Library 8.3.0+
 	EXTERNAL_PAYMENTS = 4,
-	## Billing Choice program. Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Billing Choice program. Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	BILLING_CHOICE = 5,
 }
 
@@ -57,7 +57,7 @@ enum DeveloperBillingLaunchModeAndroid {
 	CALLER_WILL_LAUNCH_LINK = 2,
 }
 
-## Developer-provided billing destination type for Billing Program reporting details (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Developer-provided billing destination type for Billing Program reporting details (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 enum DeveloperBillingTypeAndroid {
 	## Unspecified developer billing type. Do not use.
 	DEVELOPER_BILLING_TYPE_UNSPECIFIED = 0,
@@ -163,7 +163,7 @@ enum IapEvent {
 	PURCHASE_ERROR = 1,
 	PROMOTED_PRODUCT_IOS = 2,
 	USER_CHOICE_BILLING_ANDROID = 3,
-	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Fired for External Payments (8.3.0+) and Google-rendered Billing Choice developer billing selections on Android. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	DEVELOPER_PROVIDED_BILLING_ANDROID = 4,
 	## Fired when a subscription enters a billing-issue state that requires user attention. A StoreKit billing-retry subscription may no longer be a current entitlement. Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+, Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
 	SUBSCRIPTION_BILLING_ISSUE = 5,
@@ -211,7 +211,7 @@ enum IapStore {
 	AMAZON = 4,
 }
 
-## High-level in-app message category (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
+## High-level in-app message category (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 enum InAppMessageCategoryAndroid {
 	## Unknown in-app message category.
 	UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID = 0,
@@ -219,7 +219,7 @@ enum InAppMessageCategoryAndroid {
 	TRANSACTIONAL = 1,
 }
 
-## Response code from Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
+## Response code from Play billing in-app messages (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 enum InAppMessageResponseCodeAndroid {
 	## Flow finished and no developer action is needed.
 	NO_ACTION_NEEDED = 0,
@@ -439,7 +439,7 @@ class ActiveSubscription:
 class AdvancedCommerceInfoIOS:
 	## The items purchased as part of this transaction
 	var items: Array[AdvancedCommerceItemIOS] = []
-	## Subscription period for this transaction. Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0 (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+, or visionOS 2.4+).
+	## Subscription period for this transaction. Available in OpenIAP 3.1.0 / openiap-apple 3.1.0 (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+, or visionOS 2.4+).
 	var period: SubscriptionPeriodValueIOS
 	## Request reference identifier for tracking
 	var request_reference_id: Variant = null
@@ -685,7 +685,7 @@ class AppTransaction:
 			dict["storeType"] = store_type
 		return dict
 
-## Display information for developer-rendered Billing Choice screens (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Display information for developer-rendered Billing Choice screens (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingChoiceInfoAndroid:
 	## URL for the Play Billing choice image matching the requested layout.
 	var play_billing_choice_image_url: String = ""
@@ -713,9 +713,9 @@ class BillingProgramAvailabilityResultAndroid:
 	var is_available: bool = false
 	## The billing program that was checked
 	var billing_program: BillingProgramAndroid
-	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results. Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
 	var choice_screen_type: Variant = null
-	## Whether external-link payment is available for Billing Choice. Populated only for available BILLING_CHOICE results. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+	## Whether external-link payment is available for Billing Choice. Populated only for available BILLING_CHOICE results. Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
 	var is_external_link_available: Variant = null
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> BillingProgramAvailabilityResultAndroid:
@@ -1339,7 +1339,7 @@ class IapkitProductClientPayload:
 		dict["updatedAt"] = updated_at
 		return dict
 
-## Result from showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
+## Result from showing Play billing in-app messages (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageResultAndroid:
 	## Response code for the in-app messaging flow.
 	var response_code: InAppMessageResponseCodeAndroid
@@ -2968,15 +2968,15 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore = IapStore.UNKNOWN
-	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
+	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
 	## The current state of the purchase.
 	var state: IapkitPurchaseState = IapkitPurchaseState.UNKNOWN
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Store-verified product identifier when the provider returns one.
+	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Store-verified product identifier when the provider returns one.
 	var product_id: Variant = null
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Public product payload when includeClientPayload was requested, the Apple or Google receipt is valid, and a payload exists for that product.
+	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Public product payload when includeClientPayload was requested, the Apple or Google receipt is valid, and a payload exists for that product.
 	var client_payload: IapkitProductClientPayload
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
@@ -3450,11 +3450,11 @@ class TransactionCommitmentInfoIOS:
 class UserChoiceBillingDetails:
 	## Token that must be reported to Google Play within 24 hours
 	var external_transaction_token: String = ""
-	## External transaction ID of the originating subscription when the user is upgrading or downgrading a developer-billed subscription. Available in OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+	## External transaction ID of the originating subscription when the user is upgrading or downgrading a developer-billed subscription. Available in OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 	var original_external_transaction_id: Variant = null
 	## List of product IDs selected by the user
 	var products: Array[String] = []
-	## Structured product details selected in the user-choice flow, including the product type and offer token. Legacy payloads may omit this field; use products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+	## Structured product details selected in the user-choice flow, including the product type and offer token. Legacy payloads may omit this field; use products as the product-ID fallback. Available in OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
 	var product_details_android: Array[DeveloperProvidedBillingProductAndroid] = []
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> UserChoiceBillingDetails:
@@ -3622,7 +3622,7 @@ class VerifyPurchaseResultAndroid:
 class VerifyPurchaseResultHorizon:
 	## Whether the purchase is valid. Uniform across every VerifyPurchaseResult variant so callers can gate entitlement without inspecting the concrete type.
 	var is_valid: bool = false
-	## Whether the entitlement verification succeeded. @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+	## Whether the entitlement verification succeeded. @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
 	var success: bool = false
 	## Unix timestamp (seconds) when the entitlement was granted.
 	var grant_time: Variant = null
@@ -3802,7 +3802,7 @@ class AndroidSubscriptionOfferInput:
 			dict["offerToken"] = offer_token
 		return dict
 
-## Parameters for showing a billing program information dialog (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Parameters for showing a billing program information dialog (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingProgramInformationDialogParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
 	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
@@ -3870,7 +3870,7 @@ class DeepLinkOptions:
 			dict["packageNameAndroid"] = package_name_android
 		return dict
 
-## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
+## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
 class DeveloperBillingOptionParamsAndroid:
 	## The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
 	var billing_program: BillingProgramAndroid
@@ -3990,7 +3990,7 @@ class DiscountOfferInputIOS:
 			dict["timestamp"] = timestamp
 		return dict
 
-## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
 	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
@@ -4050,7 +4050,7 @@ class GetBillingChoiceInfoParamsAndroid:
 			dict["userLocale"] = user_locale
 		return dict
 
-## Parameters for showing Play billing in-app messages (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
+## Parameters for showing Play billing in-app messages (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageParamsAndroid:
 	## In-app message categories to show. Defaults to transactional messages.
 	var categories: Array[InAppMessageCategoryAndroid] = [InAppMessageCategoryAndroid.TRANSACTIONAL]
@@ -4088,9 +4088,9 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
-	## Billing Choice renderer configured in Play Console. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
+	## Billing Choice renderer configured in Play Console. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
 	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
 	static func from_dict(data: Dictionary) -> InitConnectionConfig:
@@ -4139,7 +4139,7 @@ class LaunchExternalLinkParamsAndroid:
 	var link_type: ExternalLinkTypeAndroid
 	## The URI where the content will be accessed from
 	var link_uri: String = ""
-	## External transaction token for a developer-rendered Billing Choice external-link flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
+	## External transaction token for a developer-rendered Billing Choice external-link flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> LaunchExternalLinkParamsAndroid:
@@ -4438,7 +4438,7 @@ class RequestPurchaseAndroidProps:
 	var is_offer_personalized: Variant = null
 	## Offer token for one-time purchase discounts (8.0+). Pass the offerToken from discountOffers to apply a discount offer to the purchase.
 	var offer_token: Variant = null
-	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
@@ -4709,13 +4709,13 @@ class RequestSubscriptionAndroidProps:
 	var is_offer_personalized: Variant = null
 	## Purchase token for upgrades/downgrades
 	var purchase_token: Variant = null
-	## Original external transaction ID for replacing a subscription that was purchased through developer billing. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Original external transaction ID for replacing a subscription that was purchased through developer billing. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var original_external_transaction_id: Variant = null
 	## Subscription offers
 	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+) Use this instead of replacementMode for item-level replacement This singular form requires skus to contain exactly one target product. Multi-item subscription changes need a per-target replacement mapping and are rejected rather than applying one oldProductId to multiple products.
 	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
-	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
@@ -5008,7 +5008,7 @@ class RequestSubscriptionPropsByPlatforms:
 		return dict
 
 class RequestVerifyPurchaseWithIapkitAmazonProps:
-	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS.
+	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS.
 	var expected_product_id: Variant = null
 	## Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
 	var user_id: Variant = null
@@ -5123,9 +5123,9 @@ class RequestVerifyPurchaseWithIapkitHorizonProps:
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
-	## Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0. Base URL for the IAPKit server. Defaults to https://kit.openiap.dev. Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server. The apiKey must be issued by the same IAPKit/Convex deployment as this server.
+	## Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0. Base URL for the IAPKit server. Defaults to https://kit.openiap.dev. Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server. The apiKey must be issued by the same IAPKit/Convex deployment as this server.
 	var base_url: Variant = null
-	## Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid Apple or Google verification response. Horizon and Amazon accept this option for cross-platform request compatibility but omit the payload. Defaults to false so existing response shapes and bandwidth remain unchanged.
+	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid Apple or Google verification response. Horizon and Amazon accept this option for cross-platform request compatibility but omit the payload. Defaults to false so existing response shapes and bandwidth remain unchanged.
 	var include_client_payload: Variant = null
 	## Apple App Store verification parameters.
 	var apple: RequestVerifyPurchaseWithIapkitAppleProps
@@ -6352,7 +6352,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 	class getBillingChoiceInfoAndroidField:
 		const name = "getBillingChoiceInfoAndroid"
 		const snake_name = "get_billing_choice_info_android"
@@ -6491,7 +6491,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Open the platform's offer/promo code redemption flow. Resolves the redeemed purchase only when the store reports it synchronously; every other path resolves null, so reconcile through the purchase listeners. Throws when a redemption flow exists but cannot be opened. Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
+	## Open the platform's offer/promo code redemption flow. Resolves the redeemed purchase only when the store reports it synchronously; every other path resolves null, so reconcile through the purchase listeners. Throws when a redemption flow exists but cannot be opened. Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
 	class openRedeemOfferCodeField:
 		const name = "openRedeemOfferCode"
 		const snake_name = "open_redeem_offer_code"
@@ -6587,7 +6587,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+	## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
@@ -6726,7 +6726,7 @@ class Mutation:
 		const return_type = "BillingProgramAvailabilityResultAndroid"
 		const is_array = false
 
-	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+	## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 	class createBillingProgramReportingDetailsAndroidField:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
@@ -6771,7 +6771,7 @@ class Mutation:
 		const return_type = "BillingProgramReportingDetailsAndroid"
 		const is_array = false
 
-	## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
+	## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 	class launchExternalLinkAndroidField:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
@@ -6791,7 +6791,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+	## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
 	class openRedeemOfferCodeAndroidField:
 		const name = "openRedeemOfferCodeAndroid"
 		const snake_name = "open_redeem_offer_code_android"
@@ -6800,7 +6800,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+	## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 	class showBillingProgramInformationDialogAndroidField:
 		const name = "showBillingProgramInformationDialogAndroid"
 		const snake_name = "show_billing_program_information_dialog_android"
@@ -6820,7 +6820,7 @@ class Mutation:
 		const return_type = "BillingResultAndroid"
 		const is_array = false
 
-	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 	class showInAppMessagesAndroidField:
 		const name = "showInAppMessagesAndroid"
 		const snake_name = "show_in_app_messages_android"
@@ -6960,7 +6960,7 @@ static func get_app_transaction_ios_args() -> Dictionary:
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7022,7 +7022,7 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 			args["options"] = options
 	return args
 
-## Open the platform's offer/promo code redemption flow. Resolves the redeemed purchase only when the store reports it synchronously; every other path resolves null, so reconcile through the purchase listeners. Throws when a redemption flow exists but cannot be opened. Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
+## Open the platform's offer/promo code redemption flow. Resolves the redeemed purchase only when the store reports it synchronously; every other path resolves null, so reconcile through the purchase listeners. Throws when a redemption flow exists but cannot be opened. Available in OpenIAP 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
 static func open_redeem_offer_code_args() -> Dictionary:
 	return {}
 
@@ -7064,7 +7064,7 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
@@ -7108,7 +7108,7 @@ static func is_billing_program_available_android_args(program: BillingProgramAnd
 		args["program"] = program
 	return args
 
-## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
 static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
@@ -7122,7 +7122,7 @@ static func create_billing_program_reporting_details_android_args(program: Billi
 			args["developerBillingType"] = developer_billing_type
 	return args
 
-## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
+## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
 static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7132,11 +7132,11 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 			args["params"] = params
 	return args
 
-## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
 static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 
-## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7146,7 +7146,7 @@ static func show_billing_program_information_dialog_android_args(params: Billing
 			args["params"] = params
 	return args
 
-## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 static func show_in_app_messages_android_args(params: Variant = null) -> Dictionary:
 	var args = {}
 	if params != null:

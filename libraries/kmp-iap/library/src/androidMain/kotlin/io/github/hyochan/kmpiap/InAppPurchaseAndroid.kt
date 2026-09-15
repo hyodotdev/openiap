@@ -1,5 +1,5 @@
 // This implementation overrides spec methods deprecated for openRedeemOfferCode.
-// Consumer call sites retain warnings; remove the overrides in OpenIAP 4.0.
+// Consumer call sites retain warnings; remove the overrides in client protocol 1.0.
 @file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 
 package io.github.hyochan.kmpiap

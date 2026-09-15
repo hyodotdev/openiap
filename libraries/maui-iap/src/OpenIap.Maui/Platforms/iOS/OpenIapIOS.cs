@@ -381,7 +381,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
     public Task<bool> ClearTransactionIOSAsync() => InvokeBool(cb => _module.ClearTransactionIOS(cb));
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.")]
     public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() =>
         InvokeDict<PurchaseIOS>(cb => _module.PresentCodeRedemptionSheetIOS(cb));
 
@@ -420,7 +420,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params) => NotSupportedAndroid<BillingResultAndroid>("showBillingProgramInformationDialogAndroid");
     public Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null) => NotSupportedAndroid<InAppMessageResultAndroid>("showInAppMessagesAndroid");
     public Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params) => Task.FromResult(false);
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.")]
     public Task<bool> OpenRedeemOfferCodeAndroidAsync() => Task.FromResult(false);
 
     // ====================================================================

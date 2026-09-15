@@ -28,7 +28,7 @@ enum IapEvent {
   """
   Fired for External Payments (8.3.0+) and Google-rendered Billing Choice
   developer billing selections on Android. Billing Choice is available in
-  OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   DeveloperProvidedBillingAndroid
   """
@@ -319,7 +319,7 @@ input RequestVerifyPurchaseWithIapkitHorizonProps {
 
 input RequestVerifyPurchaseWithIapkitAmazonProps {
   """
-  Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
   Optional Amazon product id that must match the product id verified by RVS.
   """
   expectedProductId: String
@@ -351,14 +351,14 @@ input RequestVerifyPurchaseWithIapkitProps {
   """
   apiKey: String
   """
-  Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+  Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
   Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
   Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
   The apiKey must be issued by the same IAPKit/Convex deployment as this server.
   """
   baseUrl: String
   """
-  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   Include the product's public IAPKit client payload in a valid Apple or
   Google verification response. Horizon and Amazon accept this option for
   cross-platform request compatibility but omit the payload. Defaults to
@@ -448,7 +448,7 @@ type IapkitProductClientPayload {
 type RequestVerifyPurchaseWithIapkitResult {
   store: IapStore!
   """
-  Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
   Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
   `Production` on handled Amazon verification results.
 
@@ -471,12 +471,12 @@ type RequestVerifyPurchaseWithIapkitResult {
   """
   state: IapkitPurchaseState!
   """
-  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   Store-verified product identifier when the provider returns one.
   """
   productId: String
   """
-  Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+  Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
   Public product payload when includeClientPayload was requested, the
   Apple or Google receipt is valid, and a payload exists for that product.
   """
@@ -861,12 +861,12 @@ input InitConnectionConfig {
   - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)
   - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
   - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
-    (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+    (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
   """
   enableBillingProgramAndroid: BillingProgramAndroid
   """
   Billing Choice renderer configured in Play Console. Available in OpenIAP
-  Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
   can emit the selection event. DEVELOPER_RENDERED omits that listener so the
   app can render its own choice screen and use the reporting/dialog/link APIs.
@@ -875,5 +875,5 @@ input InitConnectionConfig {
   """
   billingChoiceScreenTypeAndroid: BillingChoiceScreenTypeAndroid = GOOGLE_RENDERED
   # Note: enableAutoServiceReconnection is always enabled internally (Billing 8.0+)
-  # OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+)
+  # OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+)
 }

@@ -463,7 +463,7 @@ export const collectRepositorySchemaDeprecations = () => {
 
 export const collectSchemaDeprecationFailures = (
   schemaDeprecations,
-  specVersion,
+  clientProtocolVersion,
 ) => {
   const failures = [];
   for (const issue of schemaDeprecations.issues) {
@@ -472,16 +472,16 @@ export const collectSchemaDeprecationFailures = (
     );
   }
 
-  let currentSpecMajor;
+  let clientProtocolMajor;
   try {
     const normalizedVersion = validateVersion(
-      specVersion,
-      "OpenIAP Spec version",
+      clientProtocolVersion,
+      "client protocol version",
     );
-    currentSpecMajor = BigInt(normalizedVersion.split(".")[0]);
+    clientProtocolMajor = BigInt(normalizedVersion.split(".")[0]);
   } catch (error) {
     failures.push(
-      `openiap-versions.json: ${error instanceof Error ? error.message : String(error)}`,
+      `specs/client/package.json: ${error instanceof Error ? error.message : String(error)}`,
     );
     return failures;
   }
@@ -490,7 +490,7 @@ export const collectSchemaDeprecationFailures = (
   // scheduled for has already shipped. Scheduling one for a future major is how
   // the spec is supposed to evolve, so those pass.
   for (const entry of schemaDeprecations.entries) {
-    const removalMatch = /OpenIAP (\d+)\.\d+\.$/.exec(entry.reason);
+    const removalMatch = /client protocol (\d+)\.\d+\.$/.exec(entry.reason);
     if (!removalMatch) {
       failures.push(
         `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} must name its removal train`,
@@ -498,9 +498,9 @@ export const collectSchemaDeprecationFailures = (
       continue;
     }
     const removalMajor = BigInt(removalMatch[1]);
-    if (removalMajor <= currentSpecMajor) {
+    if (removalMajor <= clientProtocolMajor) {
       failures.push(
-        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} is due for removal in OpenIAP ${removalMajor} (spec is ${currentSpecMajor})`,
+        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} is due for removal in client protocol ${removalMajor} (client protocol is ${clientProtocolMajor})`,
       );
     }
   }
@@ -511,11 +511,13 @@ export const collectSchemaDeprecationFailures = (
 export const collectCompletedRemovalFailures = () => {
   const failures = [];
   const schemaDeprecations = collectRepositorySchemaDeprecations();
-  const specVersion = JSON.parse(
-    fs.readFileSync(path.join(root, "openiap-versions.json"), "utf8"),
-  ).spec;
+  // A schema deprecation is removed on a client protocol train, so the client
+  // protocol's own version decides when it is due — not a native package version.
+  const clientProtocolVersion = JSON.parse(
+    fs.readFileSync(path.join(root, "specs/client/package.json"), "utf8"),
+  ).version;
   failures.push(
-    ...collectSchemaDeprecationFailures(schemaDeprecations, specVersion),
+    ...collectSchemaDeprecationFailures(schemaDeprecations, clientProtocolVersion),
   );
 
   for (const rule of completedRemovalRules) {

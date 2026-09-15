@@ -14,7 +14,7 @@ type StoreEventMapping @jsonObject(additionalProperties: true) {
   """
   OpenIAP Commerce Protocol version this table was written against, as MAJOR.MINOR.
   """
-  specVersion: MajorMinor!
+  commerceProtocolVersion: MajorMinor!
 
   """
   Keyed by store, using the same open value space as the event envelope. A table lists only the stores it has mappings for.

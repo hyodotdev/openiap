@@ -84,7 +84,7 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
 
 - Lead with the OpenIAP release that exposes the API, then state the upstream
   platform requirement as compatibility context.
-- Android example: `Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+- Android example: `Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 (requires Play Billing 9.1.0+).`
 - Do not document a new OpenIAP field only as `Play Billing 9.1.0+`; consumers
   need the spec and platform-package versions to know which SDK release contains

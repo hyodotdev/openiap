@@ -185,8 +185,8 @@ Fix purchase validation error
 ### Stable And Prerelease Branches
 
 `main` is the stable release branch. Its package metadata must never contain a
-SemVer prerelease suffix. Stable package releases, production docs deployment,
-and the Docs GitHub Release run from `main` only.
+SemVer prerelease suffix. Stable package releases and production docs
+deployment run from `main` only.
 
 `next` is an on-demand prerelease integration branch for compatibility work
 that needs external validation, such as a new store runtime. It is not a
@@ -378,22 +378,12 @@ This will:
 2. Typecheck and build the docs site
 3. Deploy production documentation to Vercel
 
-`npm run deploy` uses the current native-derived `spec` value from
-`openiap-versions.json`. It rejects any explicit argument that differs from the
-native floor; docs deployment is not a version-bump path.
-
-**Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the spec version has not moved, so the immutable `docs-{spec}` tag
-cannot represent a new release. Run the stable Docs workflow only when the spec
-version itself advanced:
-
-```bash
-gh workflow run release.yml --ref main -f version=current
-```
-
-If a Docs GitHub Release is requested while `spec` is unchanged, stop and
-explain that the immutable tag scheme cannot represent it. Deploying the docs
-site is still valid and does not require a new GitHub Release.
+**The docs site has no version.** Only the Client Protocol and the Commerce
+Protocol are versioned, each in its own package manifest. `npm run deploy`
+takes no version argument, cuts no tag, and creates no GitHub Release — it
+verifies the metadata, builds, and deploys. There is no Docs release workflow;
+if someone asks for a Docs GitHub Release, explain that the docs site is not a
+versioned artifact.
 
 Verifying a docs deployment: `llms-full.txt` carries a `Generated:` timestamp
 that must match the committed file, and the deployed entry bundle should contain
@@ -416,7 +406,6 @@ Each package uses a different tag format for GitHub Releases:
 | KMP          | `kmp-iap-{version}`          | `kmp-iap-2.2.0`           |
 | Godot        | `godot-iap-{version}`        | `godot-iap-2.2.0`         |
 | MAUI         | `maui-iap-{version}`         | `maui-iap-1.2.1`          |
-| Docs         | `docs-{version}`             | `docs-1.2.0`              |
 
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
@@ -490,36 +479,32 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- The shared `spec` is always the lower semantic version of `google` and
-  `apple`
-- Native version writers update their native key and derive `spec` atomically;
-  sync then verifies the invariant and refreshes `packages/docs/package.json`
-  and other derived copies
-- The three scoped npm packages own their versions in their package manifests;
-  Client Protocol npm releases do not change the native-derived `spec`
-- Production docs deployment consumes the derived current `spec`; it must not
-  accept an independently selected spec version
+- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
+  release bumps that manifest and `scripts/sync-versions.sh` writes the new
+  value into `openiap-versions.json` and its copies
+- Native releases never move `clientProtocol`, and a Client Protocol release
+  never moves `google` or `apple`
+- The docs site has no version: it deploys whatever `main` holds
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
 branch.
 
-The manifest is only for the shared spec and native platform packages:
-`spec`, `google`, and `apple`. Framework library package versions
+The manifest is only for the Client Protocol and the native platform packages:
+`clientProtocol`, `google`, and `apple`. Framework library package versions
 (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
 
-Manual Google, Apple, or spec edits will cause version conflicts and deployment
-issues. Use the native GitHub Actions workflows and repository sync automation.
+Manual edits to any of the three keys cause version conflicts and deployment
+issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `spec`, `google`, or `apple`. Stable
+**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
 version changes happen via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Native version automation that derives `spec = min(google, apple)`, followed
-   by sync propagation
-3. Deploy script (`npm run deploy`) using the already-derived spec
-4. CI auto-bump after merge where configured
+2. A Client Protocol release bumping `specs/client/package.json`, followed by
+   sync propagation
+3. CI auto-bump after merge where configured

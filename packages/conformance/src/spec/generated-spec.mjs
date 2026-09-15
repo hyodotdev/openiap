@@ -2,7 +2,7 @@
 // Do not edit. Copied from specs/client so the published package is
 // self-contained; specs/client remains the source of truth.
 
-export const SPEC_VERSION = "3.4.0";
+export const CLIENT_PROTOCOL_VERSION = "0.1.0";
 
 export const CAPABILITY_STORES = Object.freeze(["Apple","Google","Amazon","Horizon"]);
 

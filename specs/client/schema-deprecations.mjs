@@ -3,7 +3,9 @@ import { collectGraphQLComments, normalizeSchemaSources } from './schema-source-
 
 const TYPE_DEPRECATION_DIRECTIVE = 'openiapDeprecated';
 
-export const OPENIAP_REMOVAL_NOTICE_PATTERN = /Scheduled for removal in OpenIAP \d+\.\d+\.$/;
+// The removal train is a client protocol version, not a native SDK version (#462 follow-up).
+export const OPENIAP_REMOVAL_NOTICE_PATTERN =
+  /Scheduled for removal in client protocol \d+\.\d+\.$/;
 
 const TYPE_DEFINITION_KINDS = new Set([
   Kind.ENUM_TYPE_DEFINITION,
@@ -43,7 +45,7 @@ const canonicalReason = ({ directive, issues, label, line, sourceId }) => {
     issues.push({
       file: sourceId,
       line: directive.loc?.startToken.line ?? line,
-      message: `${label} deprecation reason must end with "Scheduled for removal in OpenIAP <major>.<minor>."`,
+      message: `${label} deprecation reason must end with "Scheduled for removal in client protocol <major>.<minor>."`,
       rule: 'deprecated-removal-schedule-missing',
     });
     return null;

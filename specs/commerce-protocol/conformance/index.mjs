@@ -1327,11 +1327,11 @@ function checkVersionAgreement(capabilities, adapter) {
   const failures = [];
   if (!capabilities) return failures;
   if (
-    majorOf(capabilities.specVersion) !==
+    majorOf(capabilities.commerceProtocolVersion) !==
     majorOf(httpBindingManifest.protocolVersion)
   ) {
     failures.push(
-      `specVersion ${capabilities.specVersion} disagrees with protocol major of ${httpBindingManifest.protocolVersion}`,
+      `commerceProtocolVersion ${capabilities.commerceProtocolVersion} disagrees with protocol major of ${httpBindingManifest.protocolVersion}`,
     );
   }
   for (const [name, version] of Object.entries(capabilities.profiles ?? {})) {

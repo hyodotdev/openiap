@@ -279,7 +279,7 @@ export const apiData: ApiItem[] = [
     title: 'presentCodeRedemptionSheetIOS',
     category: 'iOS Specific',
     description:
-      'Deprecated — use openRedeemOfferCode (removal in OpenIAP 4.0). Presents the App Store code redemption sheet',
+      'Deprecated — use openRedeemOfferCode (removal in client protocol 1.0). Presents the App Store code redemption sheet',
     parameters: '',
     returns: 'PurchaseIOS | null',
     path: '/docs/apis/ios/present-code-redemption-sheet-ios',
@@ -465,7 +465,7 @@ export const apiData: ApiItem[] = [
     title: 'openRedeemOfferCodeAndroid',
     category: 'Android Specific',
     description:
-      'Deprecated — use openRedeemOfferCode (removal in OpenIAP 4.0). Opens the Google Play offer-code redemption page',
+      'Deprecated — use openRedeemOfferCode (removal in client protocol 1.0). Opens the Google Play offer-code redemption page',
     parameters: '',
     returns: 'Boolean!',
     path: '/docs/apis/android/open-redeem-offer-code-android',

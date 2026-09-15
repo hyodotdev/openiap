@@ -5,7 +5,7 @@
 
 [![Version](http://img.shields.io/npm/v/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap) [![Download](http://img.shields.io/npm/dm/react-native-iap.svg?style=flat-square)](https://npmjs.org/package/react-native-iap) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![CI - Test](https://github.com/hyodotdev/openiap/actions/workflows/ci-react-native-iap.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci-react-native-iap.yml?query=branch%3Amain) [![codecov](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=react-native-iap)](https://app.codecov.io/gh/hyodotdev/openiap/tree/main/libraries/react-native-iap) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhyochan%2Freact-native-iap?ref=badge_shield&issueType=license)
 
-**React Native IAP** is a high-performance in-app purchase library using Nitro Modules that **conforms to the [OpenIAP specification](https://openiap.dev)**. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
+**React Native IAP** is a high-performance in-app purchase library using Nitro Modules that **conforms to the [OpenIAP Client Protocol](https://openiap.dev)**. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="40" /></a>
 </div>
@@ -139,7 +139,7 @@ Quick links:
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
 
-React Native IAP conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
+React Native IAP conforms to the **[OpenIAP Client Protocol](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
 - **Generated type-safe bindings** — Swift, Kotlin, TypeScript, Dart, C#, and GDScript from a single GraphQL schema

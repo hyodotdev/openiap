@@ -4,12 +4,10 @@ import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
 
+// The 2.x/3.x majors below are the retired shared-contract lineage the docs
+// once called the "OpenIAP Spec". The Client Protocol is versioned on its own
+// from 0.1.0 and its numbers do not continue this train.
 const nativePackages = [
-  {
-    name: 'OpenIAP Spec',
-    lastCompatibleMajor: '2.x',
-    removalVersion: '3.0.0',
-  },
   {
     name: 'openiap-apple',
     lastCompatibleMajor: '2.x',
@@ -246,7 +244,7 @@ const packageCompatibilityMigrations = [
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
         'OpenIapVersion.gqlVersion / OpenIapVersionInfo.gqlVersion',
-        'OpenIapVersion.specVersion',
+        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.4.0 ships it as specVersion; renamed in the next release)',
       ],
     ],
   },
@@ -526,7 +524,7 @@ function Migration() {
           Removal boundaries
         </AnchorLink>
 
-        <h4>OpenIAP specification and native packages</h4>
+        <h4>Native packages</h4>
         <table className="doc-table deprecation-schedule-table">
           <thead>
             <tr>

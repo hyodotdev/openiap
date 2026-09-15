@@ -15,7 +15,10 @@ The older regression example lives on its review branch, not the repository's
 ```sh
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
-git checkout 44b329ea7921042d225d9c7824d898c716c0ed92
+# The run is recorded on the feature branch. A squash merge leaves that commit
+# out of `main`'s history, so fetch it by SHA before checking it out.
+git fetch origin 0eb73f93bbed37b31767232d1c20057421802d15
+git checkout 0eb73f93bbed37b31767232d1c20057421802d15
 bun install --frozen-lockfile
 cd ..
 
@@ -27,7 +30,7 @@ cd ..
 
 git clone --branch codex/commerce-protocol-from-scratch --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git fresh-example
 cd fresh-example
-git checkout 6d5e5e9a3d3aaae449679780bf014e469c38d900
+git checkout b41facb1bf648d6c0aeea80745371dcc25482f8c
 npm ci
 npm run verify
 cd ../openiap-provider-check
@@ -37,10 +40,11 @@ bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.m
 ```
 
 Use a new `provider-check-output` directory on each run. The harness provisions
-an anonymous local Convex instance and stops its servers afterward. Both example
-checkouts above were freshly downloaded and installed for the recorded run.
-IAPKit used an existing dependency installation; its executed source hashes and
-runtime versions are included in the report.
+an anonymous local Convex instance and stops its servers afterward. Each example
+ran from a clean checkout of the commit named above, with its own dependencies
+installed from its committed lockfile. IAPKit used an existing dependency
+installation; its executed source hashes and runtime versions are included in
+the report.
 
 ## Inspect the result
 

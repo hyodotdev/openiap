@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  assertSpecMatchesNativeFloor,
+  assertClientProtocol,
   openiapNpmPackages,
   validateVersion,
 } from "./release-branch-policy.mjs";
@@ -19,11 +19,13 @@ export function releasePackage(packageId, root = process.cwd()) {
     throw new Error(`${config.path} must publish ${config.name}`);
   }
   const version = validateVersion(manifest.version, config.name);
+  // Publishing the Client Protocol moves the version every consumer reads, so
+  // the mirror must already match the manifest this release publishes.
   if (packageId === "client-protocol") {
     const versions = JSON.parse(
       readFileSync(resolve(root, "openiap-versions.json"), "utf8"),
     );
-    assertSpecMatchesNativeFloor(versions);
+    assertClientProtocol(versions, root);
   }
   return { ...config, directory: dirname(config.path), version };
 }

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { LIBRARIES, type FrameworkLibraryName } from '../lib/images';
 import { IAPKIT_LOGO_PATH, IAPKIT_URL } from '../lib/config';
-import { OPENIAP_VERSIONS } from '../lib/versioning';
+import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../lib/versioning';
 import '../styles/ecosystem-diagram.css';
 
 // =============================================================================
@@ -85,14 +85,14 @@ const SPEC_NODES: DiagramNode[] = [
   {
     id: 'openiap',
     name: 'openiap',
-    note: `The specification · ${OPENIAP_VERSIONS.spec}`,
+    note: 'Two protocols · client and commerce',
     icon: '/logos/openiap.webp',
     href: GITHUB,
   },
   {
     id: 'openiap-gql',
     name: 'Client Protocol',
-    note: 'Client contract · type SSOT',
+    note: `App-facing contract · type SSOT · v${OPENIAP_PROTOCOLS.client.version}`,
     icon: '/logos/openiap-gql.webp',
     href: `${GITHUB_TREE}/specs/client`,
   },

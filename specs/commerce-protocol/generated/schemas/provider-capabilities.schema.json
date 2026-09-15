@@ -2,16 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/provider-capabilities.schema.json",
   "title": "OpenIAP Commerce Protocol implementation descriptor",
-  "description": "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
+  "description": "What an implementation supports: the protocol version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
   "type": "object",
   "required": [
-    "specVersion",
+    "commerceProtocolVersion",
     "eventTypes",
     "stores"
   ],
   "additionalProperties": true,
   "properties": {
-    "specVersion": {
+    "commerceProtocolVersion": {
       "description": "OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.",
       "type": "string",
       "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
@@ -27,7 +27,7 @@
           "minLength": 1
         },
         "version": {
-          "description": "Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.",
+          "description": "Version of that backend, when it publishes one. Not the protocol version — that is `commerceProtocolVersion`.",
           "type": "string",
           "minLength": 1
         }

@@ -1,6 +1,6 @@
 {
   "$comment": "The reference implementation's own descriptor, published as the worked example. Its `implementation` axis is one backend's answer, not a specification requirement; its `provider` axis is copied from examples/store-facts.json, where the store side is stated once.",
-  "specVersion": "1.0",
+  "commerceProtocolVersion": "1.0",
   "implementation": {
     "name": "IAPKit"
   },

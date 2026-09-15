@@ -13,7 +13,7 @@
   "example/erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
   "example/contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
   "kit/server/api/commerce/handlers.ts": "aff3bb2148229a2ee023513f3c2810362c4a4275ca7dfd31ba700710f6bd4fd9",
-  "kit/server/api/commerce/routes.test.ts": "70f1474354e417a66287b5b32e9eb1d6025692d525d40923cb81e2b65954ac42",
+  "kit/server/api/commerce/routes.test.ts": "38719c2d851626871d9a6562ad9e267f416bb8cd163efef0973814c5c7fadb6e",
   "kit/convex/purchases/mutation.ts": "2a81b08d228c1e334146cf532dd7f97b6b025c7b13a920725259b014e5a47519",
   "kit/convex/purchases/ownership.test.ts": "70001215d39218a2bae2b80044564c4d37f9b322dacbd55314b8bfb3778f516a",
   "kit/convex/purchases/action.ts": "480600898eb66a3b01057eb0217851f43c88e04d40d3151b0c74f320be93b33b",
@@ -38,6 +38,6 @@
   "kit/scripts/docs/compare-commerce-example.ts": "e6b03062b3e5f6dfa0c95cfc5fa06efba3af58505739cf06e7e775d51bf228ef",
   "kit/scripts/docs/export-commerce-interop.mjs": "3ee337858c8f95f63cfe3b7881bfec9efa98649badd6d6da8942d09832509bcf",
   "kit/scripts/docs/render-mockups.ts": "c191503733e1e12a1c52a35efba0b6939255d7b3c1c4d1a716526a7ead4ec3e0",
-  "kit/scripts/docs/run-commerce-interop.mjs": "2acbcaaef2ca6325197c540f3db8c18493e09514985b9430c6a572096682f789",
+  "kit/scripts/docs/run-commerce-interop.mjs": "bd0b58e34ac05b4e0b5284f6c7935ade13c55dcdc2b8fb0f7a17ae520a9496ef",
   "kit/scripts/docs/seed-testapp.ts": "b1364e3d9c77edbc72a6996069d50bfdba6b59b385c05c54c9e793d020ebc617"
 }

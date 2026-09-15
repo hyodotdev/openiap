@@ -44,8 +44,9 @@ function fixture(t) {
     mkdirSync(dirname(join(directory, path)), { recursive: true });
     writeFileSync(join(directory, path), JSON.stringify(value));
   };
+  // The mirror matches the Client Protocol manifest below; natives are free.
   write("openiap-versions.json", {
-    spec: "3.4.0",
+    clientProtocol: "0.1.0",
     google: "3.4.1",
     apple: "3.4.0",
   });
@@ -92,18 +93,33 @@ test("release identity rejects unknown selectors, private packages, and old name
   }
 });
 
-test("Client npm versions are independent while native-floor drift is rejected", (t) => {
+test("a Client Protocol release requires the manifest mirror to already match", (t) => {
   const { directory, write } = fixture(t);
   for (const version of ["0.1.0", "0.1.0-alpha.0", "0.1.0-beta.0"]) {
     write("specs/client/package.json", { name: entries[0][1], version });
+    write("openiap-versions.json", {
+      clientProtocol: version,
+      google: "3.4.1",
+      apple: "3.4.0",
+    });
     assert.equal(releasePackage("client-protocol", directory).version, version);
   }
+  // A bump that never reached the mirror must not publish.
+  write("specs/client/package.json", { name: entries[0][1], version: "0.2.0" });
+  assert.throws(
+    () => releasePackage("client-protocol", directory),
+    /clientProtocol 0\.1\.0-beta\.0 must equal specs\/client\/package\.json 0\.2\.0/,
+  );
+  // Natives cannot drag the mirror anywhere.
   write("openiap-versions.json", {
-    spec: "3.4.1",
+    clientProtocol: "3.4.0",
     google: "3.4.1",
     apple: "3.4.0",
   });
-  assert.throws(() => releasePackage("client-protocol", directory), /floor/);
+  assert.throws(
+    () => releasePackage("client-protocol", directory),
+    /clientProtocol 3\.4\.0 must equal specs\/client\/package\.json 0\.2\.0/,
+  );
 });
 
 test("GitHub environment output contains only allowlisted package metadata", (t) => {
@@ -192,7 +208,7 @@ test("exact scoped releases route alpha and beta to next and stable to main", (t
   }
 });
 
-test("native version sync preserves independent stable and prerelease npm versions", (t) => {
+test("version sync preserves the npm versions that are independent", (t) => {
   const { directory, write } = fixture(t);
   const paths = [
     "scripts/sync-versions.sh",
@@ -232,11 +248,14 @@ test("native version sync preserves independent stable and prerelease npm versio
     join(directory, "openiap-versions.json"),
     "utf8",
   );
-  for (const version of ["0.1.0", "0.1.0-alpha.0", "0.1.0-beta.0"]) {
-    for (const [, name, path] of entries)
+  // The Commerce Protocol and the CLI version on their own cadence; the Client
+  // Protocol does not, so it is exercised by the drift test below.
+  const independent = entries.filter(([id]) => id !== "client-protocol");
+  for (const version of ["0.2.0", "0.2.0-alpha.0", "0.2.0-beta.0"]) {
+    for (const [, name, path] of independent)
       write(`${path}/package.json`, { name, version });
     execFileSync("bash", ["scripts/sync-versions.sh"], { cwd: directory });
-    for (const [, , path] of entries) {
+    for (const [, , path] of independent) {
       assert.equal(
         JSON.parse(readFileSync(join(directory, path, "package.json"), "utf8"))
           .version,
@@ -247,13 +266,65 @@ test("native version sync preserves independent stable and prerelease npm versio
       readFileSync(join(directory, "openiap-versions.json"), "utf8"),
       nativeBefore,
     );
+    // The docs site is not versioned; sync must leave its pin alone.
     assert.equal(
       JSON.parse(
         readFileSync(join(directory, "packages/docs/package.json"), "utf8"),
       ).version,
-      "3.4.0",
+      "0.0.0",
     );
   }
+
+  // The release lane: a Client Protocol bump reaches the mirror through sync,
+  // so `npm version` in the Bump step and the manifest the whole repo reads
+  // cannot drift apart. Before this, sync asserted equality instead of
+  // propagating and every bump mode was dead on arrival.
+  write("specs/client/package.json", {
+    name: entries[0][1],
+    version: "0.2.0",
+  });
+  execFileSync("bash", ["scripts/sync-versions.sh"], { cwd: directory });
+  const synced = JSON.parse(
+    readFileSync(join(directory, "openiap-versions.json"), "utf8"),
+  );
+  assert.equal(synced.clientProtocol, "0.2.0");
+  // Natives are untouched by a protocol bump.
+  assert.equal(synced.google, JSON.parse(nativeBefore).google);
+  assert.equal(synced.apple, JSON.parse(nativeBefore).apple);
+  assert.equal(releasePackage("client-protocol", directory).version, "0.2.0");
+});
+
+test("the release commit stages the mirror the bump moves", () => {
+  // sync-release-generated.sh runs inside the release workflow's commit step.
+  // Anything it regenerates but does not stage is silently dropped from the
+  // release commit, leaving the published tag disagreeing with the manifest.
+  const script = readFileSync(
+    join(root, "scripts/sync-release-generated.sh"),
+    "utf8",
+  );
+  for (const generated of [
+    "openiap-versions.json",
+    "packages/docs/openiap-versions.json",
+    "packages/apple/Sources/OpenIapGeneratedVersion.swift",
+    "packages/docs/src/generated/version-metadata.json",
+    "packages/conformance/src/spec/generated-spec.mjs",
+  ]) {
+    assert.ok(
+      new RegExp(`^\\s+${generated.replaceAll("/", "\\/").replaceAll(".", "\\.")} \\\\$`, "m").test(
+        script,
+      ),
+      `sync-release-generated.sh must stage ${generated}`,
+    );
+  }
+  const workflow = readFileSync(
+    join(root, ".github/workflows/release-openiap.yml"),
+    "utf8",
+  );
+  assert.ok(
+    workflow.indexOf("./scripts/sync-release-generated.sh") <
+      workflow.indexOf('git add "$PACKAGE_MANIFEST" bun.lock'),
+    "the workflow must regenerate before staging the bumped manifest",
+  );
 });
 
 test("Commerce release commits have browser smoke prerequisites", () => {

@@ -99,10 +99,10 @@ describe("generated LLM references", () => {
       "const purchase = await openRedeemOfferCode();",
     );
     expect(quickReference).toContain(
-      "openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)",
+      "openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0)",
     );
     expect(quickReference).toContain(
-      "presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)",
+      "presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0)",
     );
     expect(quickReference).not.toContain(
       "openRedeemOfferCodeAndroid() - Open Play offer-code redemption page",

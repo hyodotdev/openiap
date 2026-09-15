@@ -8,13 +8,13 @@ scalar StoreCapabilitiesMap
   )
 
 """
-What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.
+What an implementation supports: the protocol version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.
 """
 type ProviderCapabilities @jsonObject(additionalProperties: true) {
   """
   OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.
   """
-  specVersion: MajorMinor!
+  commerceProtocolVersion: MajorMinor!
 
   """
   Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.
@@ -66,7 +66,7 @@ type Implementation @inline @jsonObject(additionalProperties: true) {
   name: NonEmptyString! @optional
 
   """
-  Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.
+  Version of that backend, when it publishes one. Not the protocol version — that is `commerceProtocolVersion`.
   """
   version: NonEmptyString! @optional
 }

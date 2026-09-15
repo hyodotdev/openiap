@@ -90,7 +90,7 @@ export const LIBRARIES: LibraryInfo[] = [
     language: 'TypeScript',
     description: 'React Native & Expo (Expo Modules)',
     languagesDescription:
-      'React Native & Expo implementation of OpenIAP specification (Expo Modules)',
+      'React Native & Expo implementation of the OpenIAP Client Protocol (Expo Modules)',
     setupDescription:
       'Expo SDK projects via Expo Modules. Same API surface as react-native-iap, including the `useIAP` hook, with managed-workflow-friendly install. Recommended for any Expo app.',
     installCommand: EXPO_PACKAGE.installCommand,
@@ -117,7 +117,7 @@ export const LIBRARIES: LibraryInfo[] = [
     language: 'TypeScript',
     description: 'Bare React Native (Nitro Modules)',
     languagesDescription:
-      'Bare React Native implementation of OpenIAP specification (Nitro Modules)',
+      'Bare React Native implementation of the OpenIAP Client Protocol (Nitro Modules)',
     setupDescription:
       'Bare React Native CLI projects (RN 0.79+). Built on Nitro Modules with the `useIAP` hook, error normalization, and full StoreKit 2 / Play Billing 9.1 coverage.',
     installCommand: REACT_NATIVE_PACKAGE.installCommand,
@@ -136,7 +136,8 @@ export const LIBRARIES: LibraryInfo[] = [
     setupPath: '/docs/setup/flutter',
     language: 'Dart',
     description: 'Flutter',
-    languagesDescription: 'Flutter implementation of OpenIAP specification',
+    languagesDescription:
+      'Flutter implementation of the OpenIAP Client Protocol',
     setupDescription:
       'Flutter apps via the `flutter_inapp_purchase` package. Generated `types.dart`, sealed-class results, and a Stream-based event API that mirrors the OpenIAP schema.',
     installCommand: FLUTTER_PACKAGE.installCommand,
@@ -156,7 +157,7 @@ export const LIBRARIES: LibraryInfo[] = [
     language: 'Kotlin',
     description: 'Kotlin Multiplatform',
     languagesDescription:
-      'Kotlin Multiplatform implementation of OpenIAP specification',
+      'Kotlin Multiplatform implementation of the OpenIAP Client Protocol',
     setupDescription:
       'KMP / Compose Multiplatform via the `kmp-iap` library. Flow-based API on top of OpenIAP, with CocoaPods integration for iOS targets and shared business logic across platforms.',
     installCommand: KMP_PACKAGE.installCommand,
@@ -176,7 +177,7 @@ export const LIBRARIES: LibraryInfo[] = [
     language: 'C#',
     description: '.NET MAUI / C#',
     languagesDescription:
-      '.NET MAUI / C# implementation of OpenIAP specification',
+      '.NET MAUI / C# implementation of the OpenIAP Client Protocol',
     setupDescription:
       '.NET MAUI / C# 12 via the `maui-iap` library (OpenIap.Maui on NuGet). Ships as one NuGet package with generated `Types.cs`, flattened Android AAR bindings, and StoreKit xcframework resources for iOS / macCatalyst.',
     installCommand: MAUI_PACKAGE.installCommand,
@@ -196,7 +197,7 @@ export const LIBRARIES: LibraryInfo[] = [
     language: 'GDScript',
     description: 'Godot (GDScript)',
     languagesDescription:
-      'Godot implementation of OpenIAP specification (GDScript)',
+      'Godot implementation of the OpenIAP Client Protocol (GDScript)',
     setupDescription:
       'Godot 4.x via the `godot-iap` plugin (iOS GDExtension + Android AAR). Exposes the same OpenIAP function set so the same purchase flow can ship across mobile + console targets.',
     releaseUrl: GODOT_PACKAGE.releaseUrl,

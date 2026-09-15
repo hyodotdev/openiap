@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 
 import { Callout } from "../components/Callout";
-import { CodeBlock } from "../components/CodeBlock";
 import { DocsPage } from "../components/DocsPage";
 
 export default function CompatibilityPage() {
@@ -88,24 +87,6 @@ export default function CompatibilityPage() {
           recognize new optional metadata.
         </p>
       </Callout>
-
-      <h2 id="spec-header" className="mt-10 text-2xl font-semibold">
-        Reported SDK version
-      </h2>
-      <p>
-        SDK builds that support it send the OpenIAP spec version they were
-        compiled against:
-      </p>
-      <CodeBlock language="http">
-        {`POST /v1/purchase/verify
-Authorization: Bearer openiap-kit_pk_<publishable-key>
-X-OpenIAP-Spec: 3.2.0`}
-      </CodeBlock>
-      <p>
-        IAPKit records this header for rollout measurement. It never negotiates
-        behavior or changes how the receipt is verified, and malformed values
-        are ignored.
-      </p>
 
       <h2 id="enforcement" className="mt-10 text-2xl font-semibold">
         Contract enforcement

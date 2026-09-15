@@ -275,7 +275,7 @@ type UseIap = {
   showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>;
   /**
    * Open the Play Store offer code redemption page; purchases arrive via the standard purchase listeners.
-   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
    */
   openRedeemOfferCodeAndroid?: MutationField<'openRedeemOfferCodeAndroid'>;
 };

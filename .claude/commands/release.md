@@ -17,12 +17,12 @@ Inspect the complete public payload before publishing it.
 
 ## Branch Contract
 
-- `main` contains stable package metadata only. Run stable package releases,
-  production docs deployment, and the Docs release workflow from `main`.
-- `spec` is derived as the lower semantic version of `google` and `apple`.
-  Never bump `spec` directly in a feature PR, release command, or docs
-  deployment. Native version writers derive it atomically; sync verifies and
-  propagates it.
+- `main` contains stable package metadata only. Run stable package releases and
+  production docs deployment from `main`.
+- `clientProtocol` mirrors `specs/client/package.json`. Never edit it directly
+  in a feature PR, release command, or docs deployment. A Client Protocol
+  release bumps the publishing manifest; `scripts/sync-versions.sh` writes the
+  mirror, and the audits reject a committed mismatch.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -61,8 +61,8 @@ every subsequent PR.
 1. Read `AGENTS.md` and `knowledge/internal/06-git-deployment.md`.
 2. Confirm the target package metadata from its SSOT; do not infer versions
    from `openiap-versions.json` for framework libraries.
-3. Confirm `spec = min(google, apple)` on stable `main`; stop if the floor
-   invariant or any derived spec/package metadata is out of sync.
+3. Confirm `clientProtocol` matches `specs/client/package.json` on stable
+   `main`; stop if the mirror or any synced package metadata is out of sync.
 4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
 5. Run the focused package checks and the relevant monorepo audits.
@@ -126,17 +126,16 @@ For a multi-package release train, use this order when affected:
 7. `release-kmp.yml`
 8. `release-maui.yml`
 9. `release-openiap.yml` — select one affected package per run:
-   - `client-protocol`: `@hyodotdev/openiap-client-protocol`; independent npm
-     package version. Native SDK compatibility still uses the derived `spec` floor.
+   - `client-protocol`: `@hyodotdev/openiap-client-protocol`. Its package
+     version *is* the Client Protocol version; a release moves `clientProtocol`
+     in `openiap-versions.json` through sync.
    - `commerce-protocol`: `@hyodotdev/openiap-commerce-protocol`; independent
      package version, released when its contract, runner, or artifacts change.
    - `cli`: `@hyodotdev/openiap`; independent package version.
      The standalone `openiap-conformance` package is retired. Its suite remains
      internal; its historical release tags stay immutable.
-10. `npm run deploy`; run `release.yml` with `version=current` only when the
-    native-derived `spec` advanced. If a Docs GitHub Release is requested while
-    `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
-    cannot represent a new release.
+10. `npm run deploy`. The docs site is not versioned: no tag, no GitHub
+    Release, no version argument.
 
 All three scoped packages use the npm GitHub Trusted Publisher for owner
 `hyodotdev`, repository `openiap`, workflow `release-openiap.yml`, with no
@@ -148,8 +147,8 @@ The initial `0.0.0-bootstrap.0` versions reserve names only. All three scoped
 packages start at `0.1.0`. Use `version=current` for the initial stable release.
 Commerce uses `hyodotdev-openiap-commerce-protocol-<version>` tags; historical
 unscoped tags stay immutable. Client and CLI use
-`openiap-client-protocol-<version>` and `openiap-<version>` tags; Docs keeps
-`docs-<spec>`.
+`openiap-client-protocol-<version>` and `openiap-<version>` tags. The docs site
+is not versioned and cuts no tag.
 
 For an explicitly authorized alpha or beta on `next`, select `version=exact`
 and `target_version=0.1.0-alpha.0` (or the requested prerelease). Leave
@@ -166,24 +165,22 @@ Train rules (mistake guards):
   libraries the merged PRs actually touched and skips Apple/Google entirely.
 - **Native gate.** Do not dispatch any library workflow until every affected
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
-  Maven Central POMs publicly fetchable) and the spec floor has been derived
-  and synchronized on `main`. Workflow success is not deployment; poll the
+  Maven Central POMs publicly fetchable) and its package metadata is
+  synchronized on `main`. Workflow success is not deployment; poll the
   registry.
 - **Release notes last.** After every package in the train is
   registry-verified, add the consolidated entry to
   `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
   commit it directly to `main` together with any release-process doc updates,
   and do not open a PR for that post-release docs-only commit; then run the docs
-  deployment. Run the Docs release workflow with
-  `version=current` only when the native-derived `spec` advanced; otherwise skip
-  it so an immutable existing `docs-{spec}` tag is never reused. If a Docs
-  GitHub Release is requested while `spec` is unchanged, stop and explain that
-  the immutable tag scheme cannot represent a new release.
+  deployment. There is no Docs release workflow and no docs tag; if a Docs
+  GitHub Release is requested, explain that the docs site is not a versioned
+  artifact.
 
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
-native workflow has derived and synchronized the spec floor before dispatching
-the next package or docs release. Do not dispatch the full list in parallel.
+native workflow has synchronized its package metadata before dispatching the
+next package or docs release. Do not dispatch the full list in parallel.
 
 ## Dependency Modernization Release Gate
 
@@ -241,11 +238,8 @@ independent version edits:
    release a new reviewed version.
 9. After every affected artifact is publicly available, use `generate-doc` to
    add one consolidated release entry with the actual published versions and
-   GitHub Release links, then deploy docs last. Create a Docs GitHub Release
-   only when the native-derived `spec` version advanced; routine docs
-   deployments must not reuse an immutable existing `docs-{spec}` tag. If one
-   is requested while `spec` is unchanged, stop and explain that the immutable
-   tag scheme cannot represent a new release.
+   GitHub Release links, then deploy docs last. A docs deployment creates no
+   tag and no GitHub Release.
 
 Every `current` retry that finds an existing tag must run
 `scripts/assert-release-tag.mjs` before checking it out. The guard binds the
@@ -271,7 +265,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | Godot        | GitHub Release and `godot-iap-{version}.zip` contents                    |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
 | MAUI         | NuGet flat-container package and GitHub Release                          |
-| Docs         | Production `openiap.dev`; `docs-{spec}` only when `spec` advanced        |
+| Docs         | Production `openiap.dev` responds with the new content (no tag)          |
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.

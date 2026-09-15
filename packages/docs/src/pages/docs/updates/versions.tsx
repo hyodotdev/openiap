@@ -1,7 +1,9 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { OPENIAP_VERSIONS } from '../../../lib/versioning';
+import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
   'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
@@ -51,6 +53,70 @@ function Versions() {
       </p>
 
       <section>
+        <AnchorLink id="client-protocol" level="h2">
+          Client Protocol
+        </AnchorLink>
+        <p>
+          The Client Protocol is the purchase API an app calls. It is defined
+          once as a GraphQL contract and published as{' '}
+          <code>{OPENIAP_PROTOCOLS.client.package}</code>, currently{' '}
+          <strong>v{OPENIAP_PROTOCOLS.client.version}</strong>. Every type an
+          SDK exposes is generated from it.
+        </p>
+        <p>
+          <code>openiap-apple</code>, <code>openiap-google</code>, and the six
+          framework libraries <strong>implement</strong> this protocol. None of
+          them defines it, and none may extend the contract locally &mdash; a
+          new API starts as a schema change in the protocol.
+        </p>
+
+        <AnchorLink id="commerce-protocol" level="h2">
+          Commerce Protocol
+        </AnchorLink>
+        <p>
+          The Commerce Protocol is the server-side contract: purchase
+          verification, entitlements, and lifecycle events exchanged between
+          backends. It ships as{' '}
+          <code>{OPENIAP_PROTOCOLS.commerce.package}</code>, currently{' '}
+          <strong>v{OPENIAP_PROTOCOLS.commerce.version}</strong>. See the{' '}
+          <Link to="/commerce-protocol">Commerce Protocol</Link> section for the
+          specification itself.
+        </p>
+        <p>
+          Any backend may implement it. IAPKit is one such implementation: it
+          serves every profile and both bindings, and declares which
+          capabilities it supports per store in its capability descriptor, so
+          the gaps are published rather than implied.
+        </p>
+        <p>
+          The wire contract carries a second number, and it is not the package
+          version. A descriptor declares{' '}
+          <code>commerceProtocolVersion: &quot;1.0&quot;</code> and every event
+          body carries <code>eventVersion</code>, both as{' '}
+          <code>MAJOR.MINOR</code>; the REST binding lives at{' '}
+          <code>/commerce/v1</code> because the major is 1. Those describe the
+          contract on the wire. The npm version above describes the files that
+          distribute it, and moves on its own release cadence. Consumers pin on
+          the wire major, never on the package version.
+        </p>
+        <Callout kind="note" title="Two versions, two meanings">
+          <p>
+            These are the versions of the protocol packages themselves. The
+            version an SDK reports separately &mdash; <code>openiap-apple</code>{' '}
+            and <code>openiap-google</code> below &mdash; is that native
+            library&apos;s own release, not a protocol version.
+          </p>
+          <p>
+            Earlier documentation called the client contract the &ldquo;OpenIAP
+            Spec&rdquo; and numbered it 2.x and 3.x in step with the native
+            libraries. That lineage is retired. The Client Protocol is now
+            versioned on its own from <code>0.1.0</code>, so a Client Protocol
+            version and a native library version are never comparable numbers.
+          </p>
+        </Callout>
+      </section>
+
+      <section>
         <AnchorLink id="openiap-google" level="h2">
           OpenIAP Google Library
         </AnchorLink>
@@ -89,8 +155,8 @@ function Versions() {
             Latest stable release badge reflects Maven Central publication.
           </li>
           <li>
-            Releases follow the core OpenIAP spec cadence; check the tag notes
-            on GitHub for API surface changes.
+            The library versions independently of the Client Protocol; check the
+            tag notes on GitHub for API surface changes.
           </li>
         </ul>
       </section>

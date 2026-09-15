@@ -8,7 +8,7 @@ const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
 
 const DESCRIPTOR_EXCERPT = JSON.stringify(
   {
-    specVersion: capabilitiesExample.specVersion,
+    commerceProtocolVersion: capabilitiesExample.commerceProtocolVersion,
     profiles: capabilitiesExample.profiles,
     bindings: capabilitiesExample.bindings,
     stores: {

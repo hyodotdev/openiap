@@ -19,7 +19,7 @@ import { afterEach, test } from "node:test";
 import { GENERATED_SYNC_MANIFEST } from "../generated-sync-manifest.mjs";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
-const FIXTURE_SPEC_VERSION = "9.8.7";
+const FIXTURE_CLIENT_PROTOCOL_VERSION = "9.8.7";
 const generatedHeaderSource = readFileSync(
   resolve(repositoryRoot, "specs/client/codegen/core/generated-header.ts"),
   "utf8",
@@ -189,7 +189,7 @@ function createIsolatedCheckout(definition, { withVersions = true } = {}) {
   if (withVersions) {
     writeFileSync(
       join(packageRoot, "openiap-versions.json"),
-      `${JSON.stringify({ spec: FIXTURE_SPEC_VERSION }, null, 2)}\n`,
+      `${JSON.stringify({ clientProtocol: FIXTURE_CLIENT_PROTOCOL_VERSION }, null, 2)}\n`,
     );
   }
 
@@ -240,7 +240,8 @@ test("standalone generated refreshers stay linked to manifest targets", () => {
       "utf8",
     );
     assert.match(source, /raw\.githubusercontent\.com\/hyodotdev\/openiap\//);
-    assert.match(source, /docs-/);
+    assert.match(source, /openiap-client-protocol-/);
+    assert.doesNotMatch(source, /docs-\$/);
     assert.ok(source.includes(manifestTargetFor(definition)));
     assert.ok(source.includes(headerGuidance));
     assert.doesNotMatch(source, /github\.com\/hyodotdev\/openiap\/releases/);
@@ -250,7 +251,7 @@ test("standalone generated refreshers stay linked to manifest targets", () => {
     if (definition.runtime === "node") {
       assert.ok(source.includes("dirname(TARGET_FILE)"));
       assert.ok(source.includes("renameSync(tempFile, TARGET_FILE)"));
-      assert.ok(source.includes("versionOverride ?? readPinnedSpecVersion()"));
+      assert.ok(source.includes("versionOverride ?? readPinnedClientProtocolVersion()"));
       assert.ok(source.includes("--tag requires a version"));
       assert.ok(source.includes("Unknown argument"));
       assert.doesNotMatch(source, /process\.cwd\(\)/);
@@ -300,7 +301,7 @@ test("standalone refreshers replace the target and leave it 0644", () => {
     assert.equal(readFileSync(checkout.isolatedTarget, "utf8"), expected);
     assert.equal(
       readFileSync(checkout.curlLog, "utf8"),
-      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
+      `https://raw.githubusercontent.com/hyodotdev/openiap/openiap-client-protocol-${FIXTURE_CLIENT_PROTOCOL_VERSION}/${checkout.manifestTarget}`,
     );
     assertNoRefreshTemps(checkout);
     replaced.push([definition.scriptPath, checkout.isolatedTarget]);
@@ -371,7 +372,7 @@ test("Node refreshers keep explicit tag overrides independent of metadata", () =
     writeFileSync(checkout.isolatedTarget, "preserve-me\n", { mode: 0o644 });
 
     const override = runRefresher(definition, checkout, {
-      args: ["--tag", `gql-v${FIXTURE_SPEC_VERSION}`],
+      args: ["--tag", `gql-v${FIXTURE_CLIENT_PROTOCOL_VERSION}`],
     });
     assert.equal(
       override.status,
@@ -380,7 +381,7 @@ test("Node refreshers keep explicit tag overrides independent of metadata", () =
     );
     assert.equal(
       readFileSync(checkout.curlLog, "utf8"),
-      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
+      `https://raw.githubusercontent.com/hyodotdev/openiap/openiap-client-protocol-${FIXTURE_CLIENT_PROTOCOL_VERSION}/${checkout.manifestTarget}`,
     );
 
     const expected = readFileSync(checkout.isolatedTarget, "utf8");
