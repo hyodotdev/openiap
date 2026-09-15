@@ -1,9 +1,9 @@
 # OpenIAP Complete Reference
 
-> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned independently; a version labelled "OpenIAP Spec" in older material is the native SDK compatibility floor, not a protocol version.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-15T09:47:03.419Z
+> Generated: 2026-09-15T10:15:25.009Z
 
 ## Reading instructions for coding assistants
 

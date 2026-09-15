@@ -823,7 +823,7 @@ export interface Mutation {
    * Returns true when the redemption flow was launched, or false when the current
    * store flavor does not provide an equivalent redemption flow.
    * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
    */
   openRedeemOfferCodeAndroid: Promise<boolean>;
   /**
@@ -839,7 +839,7 @@ export interface Mutation {
    * sheet through the normal transaction listener or an explicit
    * available-purchases refresh.
    * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-   * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+   * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
    */
   presentCodeRedemptionSheetIOS?: Promise<(PurchaseIOS | null)>;
   /**
@@ -2264,7 +2264,7 @@ export interface VerifyPurchaseResultHorizon extends VerifyPurchaseResultCommon 
   isValid: boolean;
   /**
    * Whether the entitlement verification succeeded.
-   * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+   * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
    */
   success: boolean;
 }

@@ -4146,9 +4146,9 @@ public sealed record VerifyPurchaseResultHorizon : VerifyPurchaseResult
     public override required bool IsValid { get; init; }
     /// <summary>
     /// Whether the entitlement verification succeeded.
-    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
     /// </summary>
-    [Obsolete("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.")]
     [JsonPropertyName("success")]
     public bool Success { get; init; }
 }
@@ -5004,9 +5004,9 @@ public interface MutationResolver
     /// Returns true when the redemption flow was launched, or false when the current
     /// store flavor does not provide an equivalent redemption flow.
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
     /// </summary>
-    [Obsolete("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")]
     Task<bool> OpenRedeemOfferCodeAndroidAsync();
 
     /// <summary>
@@ -5022,9 +5022,9 @@ public interface MutationResolver
     /// sheet through the normal transaction listener or an explicit
     /// available-purchases refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
     /// </summary>
-    [Obsolete("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")]
     Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync();
 
     /// <summary>

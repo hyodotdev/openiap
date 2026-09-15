@@ -4173,9 +4173,9 @@ public data class VerifyPurchaseResultHorizon(
     override val isValid: Boolean,
     /**
      * Whether the entitlement verification succeeded.
-     * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+     * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
      */
-    @Deprecated("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
+    @Deprecated("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.")
     val success: Boolean
 ) : VerifyPurchaseResultCommon, VerifyPurchaseResult {
 
@@ -5840,9 +5840,9 @@ public interface MutationResolver {
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.
      * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
      */
-    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")
     suspend fun openRedeemOfferCodeAndroid(): Boolean
     /**
      * Deprecated. Show the App Store offer code redemption sheet — use
@@ -5857,9 +5857,9 @@ public interface MutationResolver {
      * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
      */
-    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")
     suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS?
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
@@ -6246,9 +6246,9 @@ public data class MutationHandlers(
      * Returns true when the redemption flow was launched, or false when the current
      * store flavor does not provide an equivalent redemption flow.
      * See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
      */
-    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")
     val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     /**
      * Deprecated. Show the App Store offer code redemption sheet — use
@@ -6263,9 +6263,9 @@ public data class MutationHandlers(
      * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-     * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+     * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
      */
-    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @Deprecated("Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).

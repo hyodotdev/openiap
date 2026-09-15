@@ -1419,8 +1419,8 @@ public struct VerifyPurchaseResultHorizon: Codable, VerifyPurchaseResultCommon {
     /// variant so callers can gate entitlement without inspecting the concrete type.
     public var isValid: Bool
     /// Whether the entitlement verification succeeded.
-    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
-    @available(*, deprecated, message: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
+    @available(*, deprecated, message: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.")
     public var success: Bool
 }
 
@@ -2697,7 +2697,7 @@ public protocol MutationResolver {
     /// Returns true when the redemption flow was launched, or false when the current
     /// store flavor does not provide an equivalent redemption flow.
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
     func openRedeemOfferCodeAndroid() async throws -> Bool
     /// Deprecated. Show the App Store offer code redemption sheet — use
     /// openRedeemOfferCode instead.
@@ -2711,7 +2711,7 @@ public protocol MutationResolver {
     /// sheet through the normal transaction listener or an explicit
     /// available-purchases refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios

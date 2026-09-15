@@ -1126,7 +1126,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
   @Deprecated(
-      'Use openRedeemOfferCode instead. Scheduled for removal in OpenIAP 4.0.')
+      'Use openRedeemOfferCode instead. Scheduled for removal in client protocol 1.0.')
   gentype.MutationPresentCodeRedemptionSheetIOSHandler
       get presentCodeRedemptionSheetIOS => () async {
             if (!_platform.isIOS || _platform.isMacOS) {
@@ -2741,7 +2741,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   ///
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
   @Deprecated(
-      'Use openRedeemOfferCode instead. Scheduled for removal in OpenIAP 4.0.')
+      'Use openRedeemOfferCode instead. Scheduled for removal in client protocol 1.0.')
   Future<bool> openRedeemOfferCodeAndroid() async {
     if (!_platform.isAndroid) {
       throw PurchaseError(

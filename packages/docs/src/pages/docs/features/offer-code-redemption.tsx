@@ -47,7 +47,7 @@ function OfferCodeRedemption() {
         <Link to="/docs/apis/android/open-redeem-offer-code-android">
           <code>openRedeemOfferCodeAndroid</code>
         </Link>{' '}
-        are deprecated and scheduled for removal in OpenIAP 4.0.
+        are deprecated and scheduled for removal in client protocol 1.0.
       </p>
 
       <section>

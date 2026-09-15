@@ -182,22 +182,22 @@ test("repository schema deprecations all target a future removal train", () => {
   const deprecations = collectRepositorySchemaDeprecations();
   assert.deepEqual(deprecations.issues, []);
 
-  const specMajor = Number(
+  const clientProtocolMajor = Number(
     JSON.parse(
-      fs.readFileSync(path.join(repoRoot, "openiap-versions.json"), "utf8"),
-    ).spec.split(".")[0],
+      fs.readFileSync(path.join(repoRoot, "specs/client/package.json"), "utf8"),
+    ).version.split(".")[0],
   );
   for (const entry of deprecations.entries) {
     const removalMajor = Number(
-      /OpenIAP (\d+)\.\d+\.$/.exec(entry.reason)?.[1],
+      /client protocol (\d+)\.\d+\.$/.exec(entry.reason)?.[1],
     );
     assert.ok(
       Number.isFinite(removalMajor),
       `${entry.ownerPath} must name its removal train`,
     );
     assert.ok(
-      removalMajor > specMajor,
-      `${entry.ownerPath} is overdue: scheduled for OpenIAP ${removalMajor}, spec is ${specMajor}`,
+      removalMajor > clientProtocolMajor,
+      `${entry.ownerPath} is overdue: scheduled for client protocol ${removalMajor}, client protocol is ${clientProtocolMajor}`,
     );
   }
 });
@@ -207,22 +207,22 @@ test("overdue schema deprecations are reported as failures", () => {
     {
       sourceId: "overdue.graphql",
       sdl: `type Query {
-  old: String @deprecated(reason: "Use current. Scheduled for removal in OpenIAP 1.0.")
+  old: String @deprecated(reason: "Use current. Scheduled for removal in client protocol 1.0.")
 }`,
     },
   ]);
   assert.equal(overdue.entries.length, 1);
-  assert.match(overdue.entries[0].reason, /OpenIAP 1\.0\.$/);
+  assert.match(overdue.entries[0].reason, /client protocol 1\.0\.$/);
   assert.match(
     collectSchemaDeprecationFailures(overdue, "2.0.0")[0],
-    /is due for removal in OpenIAP 1 \(spec is 2\)/,
+    /is due for removal in client protocol 1 \(client protocol is 2\)/,
   );
 });
 
 test("schema deprecation audit rejects malformed spec versions", () => {
   assert.deepEqual(
     collectSchemaDeprecationFailures({ entries: [], issues: [] }, "not-semver"),
-    ["openiap-versions.json: Invalid OpenIAP Spec version: 'not-semver'"],
+    ["specs/client/package.json: Invalid client protocol version: 'not-semver'"],
   );
 });
 

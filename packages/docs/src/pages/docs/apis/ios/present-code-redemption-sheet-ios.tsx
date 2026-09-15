@@ -29,9 +29,9 @@ function PresentCodeRedemptionSheetIOS() {
           <code>openRedeemOfferCode</code>
         </Link>{' '}
         instead — identical sheet behavior and result semantics on Apple
-        platforms. Scheduled for removal in OpenIAP 4.0. Generated TypeScript,
-        Kotlin, and C# declarations carry a deprecation annotation, and{' '}
-        <code>openiap-apple</code> marks the Swift method{' '}
+        platforms. Scheduled for removal in client protocol 1.0. Generated
+        TypeScript, Kotlin, and C# declarations carry a deprecation annotation,
+        and <code>openiap-apple</code> marks the Swift method{' '}
         <code>@available(*, deprecated)</code>, so builds surface the migration.
       </Callout>
       <p>

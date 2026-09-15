@@ -372,6 +372,7 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+    {
       id: 'amazon-purchase-dialog-2026-09-15',
       date: new Date('2026-09-15'),
       element: (
@@ -502,6 +503,72 @@ function Releases() {
               </li>
             ))}
           </ul>
+    {
+      id: 'spec-splits-into-two-protocols-2026-09-15',
+      date: new Date('2026-09-15'),
+      element: (
+        <div
+          key="spec-splits-into-two-protocols-2026-09-15"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="spec-splits-into-two-protocols-2026-09-15" level="h4">
+            September 15, 2026 - &quot;Spec&quot; splits into the Client
+            Protocol and the Commerce Protocol
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            OpenIAP governs two protocols and nothing else. Each is published as
+            its own npm package with its own version. The word &quot;spec&quot;
+            is being retired as a name for anything else.
+          </p>
+
+          <dl style={{ marginBottom: '1rem' }}>
+            <dt>
+              <strong>Client Protocol</strong> &mdash;{' '}
+              <code>@hyodotdev/openiap-client-protocol</code>
+            </dt>
+            <dd style={{ marginBottom: '0.75rem' }}>
+              The purchase API an app calls. <code>openiap-apple</code>,{' '}
+              <code>openiap-google</code>, and the six framework libraries
+              (expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap,
+              godot-iap, maui-iap) <strong>implement</strong> it. None of them
+              defines it.
+            </dd>
+            <dt>
+              <strong>Commerce Protocol</strong> &mdash;{' '}
+              <code>@hyodotdev/openiap-commerce-protocol</code>
+            </dt>
+            <dd>
+              The server-side contract for purchase verification, entitlements,
+              and lifecycle events. Any backend may implement it. IAPKit is one
+              such implementation: it serves every profile and both bindings,
+              and publishes its per-store gaps in its capability descriptor.
+            </dd>
+          </dl>
+
+          <Callout kind="important" title="What changes for you">
+            <p style={{ marginBottom: '0.5rem' }}>
+              A version like <code>3.4.0</code> that used to be labelled
+              &quot;OpenIAP Spec&quot; is the native compatibility floor &mdash;
+              the lowest release both <code>openiap-apple</code> and{' '}
+              <code>openiap-google</code> have reached. It was never a protocol
+              version, and it is no longer called a spec.
+            </p>
+            <p style={{ margin: 0 }}>
+              Schema deprecations now name a Client Protocol removal train. The
+              three fields scheduled for removal read &quot;Scheduled for
+              removal in client protocol 1.0&quot; instead of &quot;OpenIAP
+              4.0&quot;; the fields, the replacements, and the timing are
+              unchanged.
+            </p>
+          </Callout>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Current versions are listed on{' '}
+            <Link to="/docs/updates/versions#client-protocol">Versions</Link>,
+            and the server-side contract has its own{' '}
+            <Link to="/commerce-protocol">Commerce Protocol</Link> section.
+          </p>
         </div>
       ),
     },

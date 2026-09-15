@@ -254,7 +254,7 @@ export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
 /**
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in OpenIAP 4.0.
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in client protocol 1.0.
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
