@@ -88,11 +88,14 @@ describe('errorMapping utils', () => {
     expect(error.debugMessage).toBe('StoreKit said {"reason":"declined"}');
   });
 
-  it('falls back when the envelope is not parseable', () => {
+  it.each([
+    ['a closed but invalid object', '{not json} (at A.swift:1)'],
+    ['an object that is never closed', '{"code":"x" (at A.swift:1)'],
+  ])('falls back on %s', (_label, payload) => {
     const error = createPurchaseErrorFromNativeException(
       {
         code: ErrorCode.PurchaseError,
-        message: `${OPENIAP_ERROR_ENVELOPE_PREFIX}{not json} (at A.swift:1)`,
+        message: `${OPENIAP_ERROR_ENVELOPE_PREFIX}${payload}`,
       },
       'ios',
       FALLBACK,
