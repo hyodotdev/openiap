@@ -63,6 +63,14 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.0',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.0',
+  },
+];
+
 const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.5.2', tag: 'google-3.5.2' },
   {
@@ -491,6 +499,72 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul>
             {AMAZON_DIALOG_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'commerce-protocol-0-3-0-2026-09-16',
+      date: new Date('2026-09-16'),
+      element: (
+        <div key="commerce-protocol-0-3-0-2026-09-16" style={noteCardStyle}>
+          <AnchorLink id="commerce-protocol-0-3-0-2026-09-16" level="h4">
+            September 16, 2026 - Commerce Protocol 0.3.0 renames the descriptor
+            version member
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            A capability descriptor, a store-event mapping table and a store
+            facts table declare <code>commerceProtocolVersion</code> where they
+            declared <code>specVersion</code>. OpenIAP governs two protocols, so
+            a member named for &quot;the spec&quot; said nothing about which
+            one. The value, its <code>MAJOR.MINOR</code> type, and every
+            operation path are unchanged, and the wire protocol version stays{' '}
+            <code>1.0</code>.
+          </p>
+
+          <Callout kind="important" title="Upgrade to read the new member">
+            <p style={{ marginBottom: '0.5rem' }}>
+              This is a breaking change to a required member, which is why it
+              moves the package minor rather than the patch: a caret range on a
+              0.x version would otherwise pull it in silently. Validators
+              generated from <code>0.1.0</code> or <code>0.2.0</code> reject a
+              descriptor carrying the new name, and their bundled conformance
+              runner reads the old one.
+            </p>
+            <p style={{ margin: 0 }}>
+              Upgrade and read <code>commerceProtocolVersion</code>. Do not keep
+              a fallback to the old member: the specification is pre-1.0.0 and
+              the rename is the whole migration.{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                SPEC.md
+              </a>{' '}
+              &sect;12 carries the migration note.
+            </p>
+          </Callout>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            The runnable examples moved with it. Version 0.2.0 shipped to npm
+            without a release note; it is superseded by this release.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {COMMERCE_RENAME_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
                   href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
