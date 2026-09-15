@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T01:08:26.523Z
+> Last updated: 2026-09-15T11:10:30.588Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1327,7 +1327,16 @@ The Google package supports **three build flavors**:
    locally publishes and compiles the Play, Horizon, and Amazon artifacts from
    independent Kotlin 2.1.20 Android consumers. CI and the Google release workflow
    run the same guard before Maven Central publication.
-7. **A flavor that adds a listener set must also fire it.** Accepting
+7. **Examples share the product's store identity, never its release
+   identity.** Every example builds as `dev.hyo.martie` and requests that app's
+   real SKUs on purpose: they are the store-test harness for a published app,
+   and sandbox, receipt, and Live App Testing work depends on it. What belongs
+   to `hyodotdev/Martie` alone is the release side — its EAS project, the remote
+   version counter, its production environment variables, and anything uploaded
+   to a store listing. Never point an example at that EAS project; a single
+   `eas build` there consumes the product's next version code and loads its
+   production environment.
+8. **A flavor that adds a listener set must also fire it.** Accepting
    `addConnectionStateListener` and never notifying is the "declared but not
    implemented" pattern above, and the bridge that subscribes goes blind. Play
    and Horizon both notify from `handleBillingServiceDisconnected`; Amazon has
