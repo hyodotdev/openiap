@@ -1,13 +1,5 @@
-vulnerabilities:
-  - id: CVE-2026-14456
-    purls:
-      - pkg:deb/debian/libssl3@3.0.20-1~deb12u2
-    expired_at: 2026-12-14
-    statement: >-
-      OpenSSL documents this QUIC listener denial of service as present only
-      since 3.5, when the QUIC server implementation was added; the fixed
-      releases are 3.5.8, 3.6.4 and 4.0.2. The Debian 12 runtime contains
-      libssl3 3.0.x, which has no QUIC server to exhaust. Rechecked against the
-      OpenSSL advisory on 2026-09-15 and the classification still holds.
-      Recheck the vendor classification or remove this exception by the expiry
-      date.
+# Debian marks libssl3 in bookworm not-affected by CVE-2026-14456 (the QUIC
+# listener flaw was introduced in OpenSSL 3.5), so Trivy no longer reports it
+# and the exception it needed is gone. Keep the list empty rather than carrying
+# a dead entry.
+vulnerabilities: []
