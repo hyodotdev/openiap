@@ -40,7 +40,7 @@ jobs:
       - name: Read derived spec version
         id: version
         run: |
-          CURRENT_VERSION=$(jq -r '.spec' openiap-versions.json)
+          CURRENT_VERSION=$(jq -r '.nativeFloor' openiap-versions.json)
           echo "Native-derived spec version: $CURRENT_VERSION"
           echo "VERSION=$CURRENT_VERSION" >> "$GITHUB_ENV"
           echo "version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"

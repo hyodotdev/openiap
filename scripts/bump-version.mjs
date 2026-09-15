@@ -71,7 +71,7 @@ const versions = JSON.parse(readFileSync(versionsPath, 'utf-8'));
 
 console.log('📦 Bumping version...\n');
 console.log('Current versions:');
-console.log(`  spec:   ${versions.spec}`);
+console.log(`  floor:  ${versions.nativeFloor}`);
 console.log(`  google: ${versions.google}`);
 console.log(`  apple:  ${versions.apple}`);
 console.log('');
@@ -80,7 +80,7 @@ const currentVersion = versions[target];
 const newVersion = bumpVersion(currentVersion, bumpType);
 const bumpedVersions = updateNativeVersion(target, newVersion, rootDir);
 console.log(`✅ ${target.padEnd(10)} ${currentVersion} → ${newVersion}`);
-console.log(`✅ ${'spec'.padEnd(10)} derived → ${bumpedVersions.spec}`);
+console.log(`✅ ${'floor'.padEnd(10)} derived → ${bumpedVersions.nativeFloor}`);
 
 console.log('\n📝 Updated openiap-versions.json');
 console.log('');

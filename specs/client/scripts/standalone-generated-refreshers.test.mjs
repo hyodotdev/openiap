@@ -189,7 +189,7 @@ function createIsolatedCheckout(definition, { withVersions = true } = {}) {
   if (withVersions) {
     writeFileSync(
       join(packageRoot, "openiap-versions.json"),
-      `${JSON.stringify({ spec: FIXTURE_SPEC_VERSION }, null, 2)}\n`,
+      `${JSON.stringify({ nativeFloor: FIXTURE_SPEC_VERSION }, null, 2)}\n`,
     );
   }
 

@@ -18,6 +18,6 @@ execFileSync('./scripts/sync-versions.sh', { cwd: rootDir, stdio: 'inherit' });
 
 console.log('\n🎉 Version sync complete!\n');
 console.log('Current versions:');
-console.log(`  GQL & Docs: ${versions.spec} (spec versions)`);
+console.log(`  Docs: ${versions.nativeFloor} (native floor)`);
 console.log(`  Google:     ${versions.google} (Android implementation)`);
 console.log(`  Apple:      ${versions.apple} (iOS implementation)`);

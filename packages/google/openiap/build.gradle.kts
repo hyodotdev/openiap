@@ -79,7 +79,7 @@ val openIapVersion: String =
 // Spec version this artifact was compiled against, reported to IAPKit on
 // verify. Never a gradle property: it describes the contract, not the artifact.
 val openIapSpecVersion: String =
-    versionsJson["spec"]?.toString()?.takeIf { it.isNotBlank() }
+    versionsJson["nativeFloor"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'spec' version missing in openiap-versions.json")
 val isCentralPublishTaskRequested =
     gradle.startParameter.taskNames.any { taskName ->

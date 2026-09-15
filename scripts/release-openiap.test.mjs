@@ -45,7 +45,7 @@ function fixture(t) {
     writeFileSync(join(directory, path), JSON.stringify(value));
   };
   write("openiap-versions.json", {
-    spec: "3.4.0",
+    nativeFloor: "3.4.0",
     google: "3.4.1",
     apple: "3.4.0",
   });
@@ -99,7 +99,7 @@ test("Client npm versions are independent while native-floor drift is rejected",
     assert.equal(releasePackage("client-protocol", directory).version, version);
   }
   write("openiap-versions.json", {
-    spec: "3.4.1",
+    nativeFloor: "3.4.1",
     google: "3.4.1",
     apple: "3.4.0",
   });

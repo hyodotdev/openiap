@@ -25,15 +25,15 @@ if ! node scripts/release-branch-policy.mjs assert-floor; then
     exit 1
 fi
 
-CURRENT_VERSION=$(jq -r '.spec // empty' openiap-versions.json)
+CURRENT_VERSION=$(jq -r '.nativeFloor // empty' openiap-versions.json)
 if [ -z "$CURRENT_VERSION" ]; then
-    echo -e "${RED}❌ Error: Could not read .spec from openiap-versions.json${NC}"
+    echo -e "${RED}❌ Error: Could not read .nativeFloor from openiap-versions.json${NC}"
     exit 1
 fi
 
 VERSION=$CURRENT_VERSION
 if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then
-    echo -e "${RED}❌ Error: OpenIAP Spec cannot be bumped independently${NC}"
+    echo -e "${RED}❌ Error: native floor cannot be bumped independently${NC}"
     echo -e "${YELLOW}Expected the native version floor $VERSION, received $1${NC}"
     exit 1
 fi

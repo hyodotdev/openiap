@@ -30,7 +30,7 @@ function normalizeDocsTag(value) {
     !/^[0-9A-Za-z][0-9A-Za-z.+_-]*$/.test(normalizedVersion)
   ) {
     throw new Error(
-      `react-native-iap: Invalid OpenIAP spec version ${JSON.stringify(value)}.`,
+      `react-native-iap: Invalid native floor version ${JSON.stringify(value)}.`,
     );
   }
   return `docs-${normalizedVersion}`;
@@ -69,10 +69,10 @@ function readPinnedSpecVersion() {
     );
   }
 
-  const version = versions?.spec;
+  const version = versions?.nativeFloor;
   if (typeof version !== 'string' || version.trim().length === 0) {
     throw new Error(
-      'react-native-iap: "spec" version missing in openiap-versions.json. Provide --tag <version> manually or update the file.',
+      'react-native-iap: "nativeFloor" version missing in openiap-versions.json. Provide --tag <version> manually or update the file.',
     );
   }
   return version;

@@ -15,12 +15,12 @@ import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
   allowsPrereleaseMetadata,
-  assertSpecMatchesNativeFloor,
+  assertNativeFloor,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
   isPrereleaseVersion,
-  nativeSpecFloor,
+  nativeFloor,
   normalizeBranch,
   resolveReleaseChannel,
   updateNativeVersion,
@@ -411,15 +411,15 @@ test("compares stable, prerelease, and build metadata with SemVer precedence", (
 });
 
 test("derives the spec from the lower native version", () => {
-  assert.equal(nativeSpecFloor({ apple: "2.4.2", google: "2.5.0" }), "2.4.2");
-  assert.equal(nativeSpecFloor({ apple: "2.6.0", google: "2.5.3" }), "2.5.3");
-  assert.equal(nativeSpecFloor({ apple: "2.5.0", google: "2.5.0" }), "2.5.0");
+  assert.equal(nativeFloor({ apple: "2.4.2", google: "2.5.0" }), "2.4.2");
+  assert.equal(nativeFloor({ apple: "2.6.0", google: "2.5.3" }), "2.5.3");
+  assert.equal(nativeFloor({ apple: "2.5.0", google: "2.5.0" }), "2.5.0");
   assert.equal(
-    nativeSpecFloor({ apple: "2.5.0-rc.2", google: "2.5.0" }),
+    nativeFloor({ apple: "2.5.0-rc.2", google: "2.5.0" }),
     "2.5.0-rc.2",
   );
   assert.equal(
-    nativeSpecFloor({
+    nativeFloor({
       apple: "2.5.0+apple.2",
       google: "2.5.0+google.1",
     }),
@@ -429,30 +429,30 @@ test("derives the spec from the lower native version", () => {
 
 test("rejects specs both above and below the native version floor", () => {
   assert.equal(
-    assertSpecMatchesNativeFloor({
+    assertNativeFloor({
       apple: "2.4.2",
       google: "2.5.0",
-      spec: "2.4.2",
+      nativeFloor: "2.4.2",
     }),
     "2.4.2",
   );
   assert.throws(
     () =>
-      assertSpecMatchesNativeFloor({
+      assertNativeFloor({
         apple: "2.4.2",
         google: "2.5.0",
-        spec: "2.5.1",
+        nativeFloor: "2.5.1",
       }),
-    /must equal the native version floor.*= 2\.4\.2/,
+    /native floor .* must equal min\(.*\) = 2\.4\.2/,
   );
   assert.throws(
     () =>
-      assertSpecMatchesNativeFloor({
+      assertNativeFloor({
         apple: "2.4.2",
         google: "2.5.0",
-        spec: "2.4.1",
+        nativeFloor: "2.4.1",
       }),
-    /must equal the native version floor.*= 2\.4\.2/,
+    /native floor .* must equal min\(.*\) = 2\.4\.2/,
   );
 });
 
@@ -463,7 +463,7 @@ test("native updates atomically rederive the spec and preserve other fields", ()
         apple: "2.4.2",
         google: "2.5.0",
         internal: "preserved",
-        spec: "9.9.9",
+        nativeFloor: "9.9.9",
       },
       "apple",
       "2.4.3",
@@ -472,29 +472,29 @@ test("native updates atomically rederive the spec and preserve other fields", ()
       apple: "2.4.3",
       google: "2.5.0",
       internal: "preserved",
-      spec: "2.4.3",
+      nativeFloor: "2.4.3",
     },
   );
   assert.deepEqual(
     withUpdatedNativeVersion(
-      { apple: "2.4.3", google: "2.5.0", spec: "2.4.3" },
+      { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
       "google",
       "2.5.1",
     ),
-    { apple: "2.4.3", google: "2.5.1", spec: "2.4.3" },
+    { apple: "2.4.3", google: "2.5.1", nativeFloor: "2.4.3" },
   );
   assert.deepEqual(
     withUpdatedNativeVersion(
-      { apple: "2.4.3", google: "2.5.0", spec: "2.4.3" },
+      { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
       "apple",
       "2.4.3",
     ),
-    { apple: "2.4.3", google: "2.5.0", spec: "2.4.3" },
+    { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
   );
   assert.throws(
     () =>
       withUpdatedNativeVersion(
-        { apple: "2.4.3", google: "2.5.0", spec: "2.4.3" },
+        { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
         "apple",
         "2.4.2",
       ),
@@ -503,11 +503,11 @@ test("native updates atomically rederive the spec and preserve other fields", ()
   assert.throws(
     () =>
       withUpdatedNativeVersion(
-        { apple: "2.4.3", google: "2.5.0", spec: "2.4.3" },
+        { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
         "docs",
         "2.4.4",
       ),
-    /Only native versions can derive the spec/,
+    /Only native versions derive the floor/,
   );
 });
 
@@ -521,7 +521,7 @@ test("native version file updates write one consistent manifest", () => {
       apple: "2.4.2",
       google: "2.5.0",
       retained: true,
-      spec: "2.5.1",
+      nativeFloor: "2.5.1",
     })}\n`;
     writeFileSync(manifestPath, originalManifest);
     assert.throws(
@@ -534,7 +534,7 @@ test("native version file updates write one consistent manifest", () => {
       apple: "2.4.3",
       google: "2.5.0",
       retained: true,
-      spec: "2.4.3",
+      nativeFloor: "2.4.3",
     });
   } finally {
     rmSync(temporaryRoot, { force: true, recursive: true });
@@ -545,18 +545,18 @@ test("equal native updates repair a stale floor after clean rebase convergence",
   const independentlyCombined = {
     apple: "2.4.3",
     google: "2.4.3",
-    spec: "2.4.2",
+    nativeFloor: "2.4.2",
   };
   assert.throws(
-    () => assertSpecMatchesNativeFloor(independentlyCombined),
-    /must equal the native version floor/,
+    () => assertNativeFloor(independentlyCombined),
+    /native floor .* must equal min\(/,
   );
   assert.deepEqual(
     withUpdatedNativeVersion(independentlyCombined, "apple", "2.4.3"),
     {
       apple: "2.4.3",
       google: "2.4.3",
-      spec: "2.4.3",
+      nativeFloor: "2.4.3",
     },
   );
 });
@@ -688,7 +688,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
       "hyodotdev-openiap-commerce-protocol-3.1.0",
       '{"name":"@hyodotdev/openiap-commerce-protocol","version":"3.1.0"}',
     ],
-    ["docs", "docs-3.1.0", '{"spec":"3.1.0"}'],
+    ["docs", "docs-3.1.0", '{"nativeFloor":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
     ["flutter", "flutter-iap-3.1.0", "version: 3.1.0\n"],
@@ -1356,13 +1356,13 @@ test("production docs are guarded as stable-only", () => {
   assert.doesNotMatch(docsRelease, /^\s+- (?:patch|minor|major)$/m);
   assert.doesNotMatch(
     docsRelease,
-    /(?:\.spec\s*=\s*\$version|git commit|git pull --rebase|git push origin main)/,
+    /(?:\.nativeFloor\s*=\s*\$version|git commit|git pull --rebase|git push origin main)/,
   );
   assert.match(deployScript, /release-branch-policy\.mjs guard docs/);
   assert.match(deployScript, /release-branch-policy\.mjs assert-floor/);
   assert.match(deployScript, /Production docs accept stable versions only/);
   assert.match(deployScript, /requires a clean worktree/);
-  assert.match(deployScript, /OpenIAP Spec cannot be bumped independently/);
+  assert.match(deployScript, /native floor cannot be bumped independently/);
   assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
   assert.match(
     deployScript,
@@ -1402,7 +1402,7 @@ test("production docs are guarded as stable-only", () => {
   );
   assert.doesNotMatch(
     deployScript,
-    /(?:\.spec\s*=\s*\$version|git commit|git push origin HEAD:main)/,
+    /(?:\.nativeFloor\s*=\s*\$version|git commit|git push origin HEAD:main)/,
   );
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
@@ -1446,7 +1446,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     writeFileSync(
       resolve(temporaryRoot, "openiap-versions.json"),
-      '{"spec":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
+      '{"nativeFloor":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
     );
     writeFileSync(
       resolve(temporaryRoot, ".gitignore"),

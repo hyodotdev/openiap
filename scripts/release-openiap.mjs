@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  assertSpecMatchesNativeFloor,
+  assertNativeFloor,
   openiapNpmPackages,
   validateVersion,
 } from "./release-branch-policy.mjs";
@@ -23,7 +23,7 @@ export function releasePackage(packageId, root = process.cwd()) {
     const versions = JSON.parse(
       readFileSync(resolve(root, "openiap-versions.json"), "utf8"),
     );
-    assertSpecMatchesNativeFloor(versions);
+    assertNativeFloor(versions);
   }
   return { ...config, directory: dirname(config.path), version };
 }

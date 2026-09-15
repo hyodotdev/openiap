@@ -84,7 +84,8 @@ function Home() {
               <div className="hero-kicker">
                 <span>The open IAP standard</span>
                 <Link to="/docs/updates/versions" title="View versions">
-                  Spec v{OPENIAP_VERSIONS.spec}
+                  openiap-apple {OPENIAP_VERSIONS.apple} &middot; openiap-google{' '}
+                  {OPENIAP_VERSIONS.google}
                 </Link>
               </div>
               <h1 className="hero-brand-heading">

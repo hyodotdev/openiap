@@ -35,7 +35,7 @@ import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 import { GENERATED_SYNC_MANIFEST } from "../specs/client/generated-sync-manifest.mjs";
-import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
+import { assertNativeFloor } from "./release-branch-policy.mjs";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const DOC_ROOTS = [
@@ -1602,7 +1602,7 @@ function auditVersionMetadata(): Drift[] {
   );
   if (rootVersions) {
     try {
-      assertSpecMatchesNativeFloor(rootVersions);
+      assertNativeFloor(rootVersions);
     } catch (error) {
       drifts.push({
         file: ROOT_VERSIONS_FILE,
@@ -1611,7 +1611,7 @@ function auditVersionMetadata(): Drift[] {
         message:
           error instanceof Error
             ? error.message
-            : "OpenIAP Spec must match the native version floor.",
+            : "The native floor must equal min(openiap-google, openiap-apple).",
       });
     }
   }

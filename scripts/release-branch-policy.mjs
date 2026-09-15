@@ -75,8 +75,12 @@ export const versionSources = {
     read: readCommerceProtocolVersion,
   },
   docs: {
-    label: "OpenIAP Spec",
-    read: (root) => readJson(root, "openiap-versions.json").spec,
+    label: "OpenIAP Docs",
+    // Tags cut before the rename carry the old key.
+    read: (root) => {
+      const versions = readJson(root, "openiap-versions.json");
+      return versions.nativeFloor ?? versions.spec;
+    },
   },
   expo: {
     label: "expo-iap",
@@ -213,7 +217,7 @@ export function compareSemVer(leftVersion, rightVersion) {
   return 0;
 }
 
-export function nativeSpecFloor(versions) {
+export function nativeFloor(versions) {
   const google = validateVersion(versions?.google, "openiap-google version");
   const apple = validateVersion(versions?.apple, "openiap-apple version");
   const comparison = compareSemVer(google, apple);
@@ -221,16 +225,16 @@ export function nativeSpecFloor(versions) {
   if (comparison > 0) return apple;
 
   // Build metadata does not affect SemVer precedence. Pick one native version
-  // deterministically so the derived spec remains an exact native value.
+  // deterministically so the derived floor remains an exact native value.
   return google <= apple ? google : apple;
 }
 
-export function assertSpecMatchesNativeFloor(versions) {
-  const spec = validateVersion(versions?.spec, "OpenIAP Spec version");
-  const floor = nativeSpecFloor(versions);
-  if (spec !== floor) {
+export function assertNativeFloor(versions) {
+  const declared = validateVersion(versions?.nativeFloor, "native floor version");
+  const floor = nativeFloor(versions);
+  if (declared !== floor) {
     throw new Error(
-      `OpenIAP Spec ${spec} must equal the native version floor ` +
+      `native floor ${declared} must equal ` +
         `min(openiap-google ${versions.google}, openiap-apple ${versions.apple}) = ${floor}`,
     );
   }
@@ -240,7 +244,7 @@ export function assertSpecMatchesNativeFloor(versions) {
 export function withUpdatedNativeVersion(versions, packageId, targetVersion) {
   if (packageId !== "apple" && packageId !== "google") {
     throw new Error(
-      `Only native versions can derive the spec; expected 'apple' or 'google', got '${packageId}'`,
+      `Only native versions derive the floor; expected 'apple' or 'google', got '${packageId}'`,
     );
   }
   const currentVersion = validateVersion(
@@ -261,8 +265,8 @@ export function withUpdatedNativeVersion(versions, packageId, targetVersion) {
     ...versions,
     [packageId]: validatedTargetVersion,
   };
-  updatedVersions.spec = nativeSpecFloor(updatedVersions);
-  assertSpecMatchesNativeFloor(updatedVersions);
+  updatedVersions.nativeFloor = nativeFloor(updatedVersions);
+  assertNativeFloor(updatedVersions);
   return updatedVersions;
 }
 
@@ -376,7 +380,7 @@ function runGuard(args) {
   }
 
   const versionManifest = readVersionManifest();
-  const specFloor = assertSpecMatchesNativeFloor(versionManifest);
+  const specFloor = assertNativeFloor(versionManifest);
   const currentVersion = validateVersion(source.read(repoRoot), source.label);
   if (Object.hasOwn(openiapNpmPackages, packageId)) {
     if (
@@ -401,7 +405,7 @@ function runGuard(args) {
   if (packageId === "docs") {
     if (versionMode !== "current") {
       throw new Error(
-        "OpenIAP Spec is derived from native package versions and cannot be bumped independently; use version mode 'current'",
+        "The native floor is derived from native package versions and cannot be bumped independently; use version mode 'current'",
       );
     }
     const requestedVersion = validatedTargetVersion || currentVersion;
@@ -412,7 +416,7 @@ function runGuard(args) {
     }
     if (isPrereleaseVersion(requestedVersion)) {
       throw new Error(
-        "Production docs accept stable native-derived spec versions only",
+        "Production docs accept stable native-derived floor versions only",
       );
     }
   }
@@ -435,9 +439,9 @@ function runGuard(args) {
 }
 
 function runAssertFloor() {
-  const floor = assertSpecMatchesNativeFloor(readVersionManifest());
+  const floor = assertNativeFloor(readVersionManifest());
   console.log(
-    `Release version policy: OpenIAP Spec matches native floor ${floor}.`,
+    `Release version policy: native floor is ${floor}.`,
   );
 }
 
@@ -451,7 +455,7 @@ function runUpdateNative(args) {
   const updatedVersions = updateNativeVersion(packageId, targetVersion);
   console.log(
     `Updated ${versionSources[packageId].label} to ${updatedVersions[packageId]}; ` +
-      `derived OpenIAP Spec ${updatedVersions.spec}.`,
+      `derived native floor ${updatedVersions.nativeFloor}.`,
   );
 }
 
@@ -463,7 +467,7 @@ function runAudit(args) {
       readCurrentBranch(),
   );
   const versionManifest = readVersionManifest();
-  assertSpecMatchesNativeFloor(versionManifest);
+  assertNativeFloor(versionManifest);
   const versions = readAllVersions();
 
   if (allowsPrereleaseMetadata(targetBranch)) {

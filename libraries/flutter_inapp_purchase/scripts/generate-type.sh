@@ -28,13 +28,13 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get("spec")
+value = data.get("nativeFloor")
 if not isinstance(value, str) or not value.strip():
-    print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    print("Error: 'nativeFloor' version missing in openiap-versions.json", file=sys.stderr)
     sys.exit(1)
 value = value.strip()
 if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
-    print(f"Error: invalid 'spec' version {value!r}", file=sys.stderr)
+    print(f"Error: invalid 'nativeFloor' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)

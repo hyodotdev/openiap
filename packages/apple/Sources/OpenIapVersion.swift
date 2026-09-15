@@ -7,7 +7,7 @@ public struct OpenIapVersion {
 
     /// Current OpenIAP specification version
     public static var specVersion: String {
-        OpenIapGeneratedVersion.spec
+        OpenIapGeneratedVersion.nativeFloor
     }
 }
 

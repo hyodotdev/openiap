@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "$REPO_ROOT"
 
 # Version propagation must never normalize an invalid manifest implicitly.
-# Native version writers update their native key and the derived spec together;
+# Native version writers update their native key and the derived floor together;
 # every other caller must fix the canonical manifest before syncing copies.
 node scripts/release-branch-policy.mjs assert-floor
 
@@ -47,7 +47,7 @@ PY
 
 echo ""
 echo "📦 Syncing package metadata..."
-sync_package_json_version "packages/docs/package.json" "spec"
+sync_package_json_version "packages/docs/package.json" "nativeFloor"
 sync_package_json_version "packages/google/package.json" "google"
 sync_package_json_version "packages/apple/package.json" "apple"
 
@@ -208,7 +208,7 @@ lines = [
     "",
     "enum OpenIapGeneratedVersion {",
 ]
-for key in ("spec", "apple", "google"):
+for key in ("nativeFloor", "apple", "google"):
     value = versions[key]
     lines.append(f'    static let {key} = "{value}"')
 lines.append("}")
