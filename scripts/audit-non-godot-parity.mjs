@@ -3257,6 +3257,21 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Horizon unsupported Google Billing APIs must not report success",
   );
+  expectIncludes(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    ["openIap.addConnectionStateListener("],
+    "react-native-iap subscribes to billing disconnect (#408)",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
+    ["openIap.addConnectionStateListener(", "openIap.removeConnectionStateListener("],
+    "expo-iap subscribes to billing disconnect (#408)",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapModule.kt",
+    ["if (connectionReady.get()) {"],
+    "expo-iap must not short-circuit initConnection on a cached flag (#408)",
+  );
   for (const flavor of ["play", "horizon"]) {
     expectIncludes(
       `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
