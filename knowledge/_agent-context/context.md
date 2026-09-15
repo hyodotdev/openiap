@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T19:32:50.122Z
+> Last updated: 2026-09-15T19:37:15.980Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -6673,9 +6673,10 @@ reads the old member, so its version-agreement check fails against an
 implementation that has moved.
 
 **What to do.** Upgrade to the first package release that ships this rename and
-read `commerceProtocolVersion`. A consumer that must straddle both can read
-`commerceProtocolVersion ?? specVersion`; the value is identical. Nothing else
-in the descriptor changed, so no other code moves.
+read `commerceProtocolVersion`. Nothing else in the descriptor changed, so no
+other code moves. Do not keep a fallback to the old member: this specification
+is pre-`1.0.0`, the rename is the whole migration, and a fallback would carry
+the retired name for as long as the code lives.
 
 | Change                                                                                                    | Version impact    |
 | --------------------------------------------------------------------------------------------------------- | ----------------- |

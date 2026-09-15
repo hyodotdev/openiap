@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-15T19:32:50.132Z
+> Generated: 2026-09-15T19:37:15.990Z
 
 ## Reading instructions for coding assistants
 
@@ -3728,9 +3728,10 @@ reads the old member, so its version-agreement check fails against an
 implementation that has moved.
 
 **What to do.** Upgrade to the first package release that ships this rename and
-read `commerceProtocolVersion`. A consumer that must straddle both can read
-`commerceProtocolVersion ?? specVersion`; the value is identical. Nothing else
-in the descriptor changed, so no other code moves.
+read `commerceProtocolVersion`. Nothing else in the descriptor changed, so no
+other code moves. Do not keep a fallback to the old member: this specification
+is pre-`1.0.0`, the rename is the whole migration, and a fallback would carry
+the retired name for as long as the code lives.
 
 | Change                                                                                                    | Version impact    |
 | --------------------------------------------------------------------------------------------------------- | ----------------- |

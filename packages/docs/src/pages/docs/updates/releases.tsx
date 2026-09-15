@@ -570,9 +570,9 @@ function Releases() {
               mapping table and store facts table rename{' '}
               <code>specVersion</code> to <code>commerceProtocolVersion</code>.
               The value, the type and every operation path are unchanged, and
-              SPEC.md &sect;12 carries the migration note; a consumer that must
-              straddle both package versions reads{' '}
-              <code>commerceProtocolVersion ?? specVersion</code>.
+              SPEC.md &sect;12 carries the migration note. Upgrade and read the
+              new member; the specification is pre-1.0.0, so there is no
+              fallback to keep.
             </p>
             <p style={{ margin: 0 }}>
               The <code>X-OpenIAP-Spec</code> request header is removed. It was
