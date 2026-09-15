@@ -319,6 +319,13 @@ The Google package supports **three build flavors**:
    locally publishes and compiles the Play, Horizon, and Amazon artifacts from
    independent Kotlin 2.1.20 Android consumers. CI and the Google release workflow
    run the same guard before Maven Central publication.
+7. **A flavor that adds a listener set must also fire it.** Accepting
+   `addConnectionStateListener` and never notifying is the "declared but not
+   implemented" pattern above, and the bridge that subscribes goes blind. Play
+   and Horizon both notify from `handleBillingServiceDisconnected`; Amazon has
+   no connection to drop, so its implementation is a documented no-op
+   ([#408](https://github.com/hyodotdev/openiap/issues/408)). `bun audit:parity`
+   pins the notification in both flavors.
 
 ### Build Commands
 
@@ -399,6 +406,24 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 - Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE` fulfillment
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
+- `AmazonEarlyRegistrationProvider` registers a placeholder listener at
+  process start so the SDK's lifecycle callbacks see the first Activity
+  resume; without it the live Appstore purchase Intent is parked until the
+  next onResume ([#460](https://github.com/hyodotdev/openiap/issues/460)).
+  Keep the provider; `ensureRegistered()` in `initConnection` only swaps the
+  placeholder for the module listener.
+- A sideloaded build cannot verify that fix end to end. With the sandbox
+  property cleared, the live Appstore rejects an unrecognised binary
+  (`IAP_CMD_3P_COMP_FAILED`) before any purchase starts, so the dialog itself
+  is only observable from a Live App Testing or Appstore install. What a
+  sideloaded build does show, under `adb logcat -s Kiwi`, is the registration
+  order: the provider's listener, then `Activity resumed`, then
+  `scheduling tasks on UI thread`, and no `No UI visible to execute task`.
+- Signing is not a blocker for that upload. Amazon strips the developer
+  signature on ingestion and re-signs with a certificate tied to the developer
+  account, so a test build may use any keystore
+  ([Understanding Amazon Appstore Submission](https://developer.amazon.com/docs/app-submission/understanding-submission.html)).
+  Version code still has to exceed the live one.
 
 ### Updating Client Protocol Types and Native Compatibility
 
