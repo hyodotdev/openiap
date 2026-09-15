@@ -1,7 +1,7 @@
 {
-  "recordedAt": "2026-09-12T22:48:31.887588+00:00",
-  "sourceCommit": "30130a91e292d1aa06a5bf7954c72f3231459c1b",
-  "scope": "Public checkout after a README-only wording correction; implementation and original milestone records are unchanged.",
+  "recordedAt": "2026-09-15T23:25:29.044Z",
+  "sourceCommit": "6231319fedc29b8e6052e1558b0626abecc2e05a",
+  "scope": "Public checkout on Commerce Protocol 0.3.0, which renames the capability descriptor's specVersion to commerceProtocolVersion; implementation and original milestone records are unchanged.",
   "steps": [
     {
       "command": [
@@ -11,32 +11,32 @@
         "docs/example-backend-reference",
         "--single-branch",
         "https://github.com/hyodotdev/openiap-commerce-protocol-example.git",
-        "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source"
+        "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source"
       ],
-      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw",
+      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz",
       "exitCode": 0,
       "stdout": "",
-      "stderr": "Cloning into '/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source'...\n"
+      "stderr": "Cloning into '/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source'...\n"
     },
     {
       "command": [
         "git",
         "checkout",
-        "30130a91e292d1aa06a5bf7954c72f3231459c1b"
+        "6231319fedc29b8e6052e1558b0626abecc2e05a"
       ],
-      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source",
+      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source",
       "exitCode": 0,
       "stdout": "",
-      "stderr": "Note: switching to '30130a91e292d1aa06a5bf7954c72f3231459c1b'.\n\nYou are in 'detached HEAD' state. You can look around, make experimental\nchanges and commit them, and you can discard any commits you make in this\nstate without impacting any branches by switching back to a branch.\n\nIf you want to create a new branch to retain commits you create, you may\ndo so (now or later) by using -c with the switch command. Example:\n\n  git switch -c <new-branch-name>\n\nOr undo this operation with:\n\n  git switch -\n\nTurn off this advice by setting config variable advice.detachedHead to false\n\nHEAD is now at 30130a9 docs(example): use generic integration scope\n"
+      "stderr": "Note: switching to '6231319fedc29b8e6052e1558b0626abecc2e05a'.\n\nYou are in 'detached HEAD' state. You can look around, make experimental\nchanges and commit them, and you can discard any commits you make in this\nstate without impacting any branches by switching back to a branch.\n\nIf you want to create a new branch to retain commits you create, you may\ndo so (now or later) by using -c with the switch command. Example:\n\n  git switch -c <new-branch-name>\n\nOr undo this operation with:\n\n  git switch -\n\nTurn off this advice by setting config variable advice.detachedHead to false\n\nHEAD is now at 6231319 chore(docs): pin the published page to the branch and commit it records\n"
     },
     {
       "command": [
         "npm",
         "ci"
       ],
-      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source",
+      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source",
       "exitCode": 0,
-      "stdout": "\nadded 6 packages, and audited 7 packages in 537ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+      "stdout": "\nadded 6 packages, and audited 7 packages in 430ms\n\n2 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
       "stderr": ""
     },
     {
@@ -44,10 +44,10 @@
         "npm",
         "test"
       ],
-      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source",
+      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source",
       "exitCode": 0,
       "stdout": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun test\n\nbun test v1.3.13 (bf2e2cec)\n{\n  \"suite\": \"portable-conformance\",\n  \"ok\": true,\n  \"results\": [\n    {\n      \"id\": \"capabilities.version-agreement\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.success.contract.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.unknown-member-ignored.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.idempotent.repeat.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.store.unsupported\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.mismatched-evidence\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.honesty.binding-declared\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.unknown-evidence.not-bound\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.unknown-user.empty\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    }\n  ],\n  \"parityFailures\": []\n}\n",
-      "stderr": "\nconformance.test.mjs:\n(pass) published portable runner verifies the declared REST operation profiles [62.65ms]\n\nrecovery.test.mjs:\n(pass) access closes at the exact expiry boundary before the lifecycle observation [8.76ms]\n(pass) separate process survives abrupt termination with pending events, ownership, inbox, and expiry [3332.36ms]\n\ndelivery.test.mjs:\n(pass) published signature and response vectors pass against the new transport [1.04ms]\n(pass) real HTTP retry and lost acknowledgement retain bytes and IDs, deduplicate, reject tampering, and dead-letter [11.99ms]\n\nownership.test.mjs:\n(pass) only server role can bind; concurrent claims select one owner and reads contain no evidence [7.50ms]\n\nerasure.test.mjs:\n(pass) provider and recipient erase independently; late events, stale sessions, and repeated erasure cannot restore Alice [22.52ms]\n(pass) erasure during an in-flight delivery removes both copies and queued follow-ups [4.31ms]\n\nverification.test.mjs:\n(pass) verification accepts evidence without creating ownership, rejects bad evidence, and distinguishes outage [3.10ms]\n(pass) Google-shaped fixtures verify, bind, and preserve the store in tokenless results [2.43ms]\n\nbackend.test.mjs:\n(pass) HTTP server starts with an empty SQLite database and schema-valid discovery [2.44ms]\n\nlifecycle.test.mjs:\n(pass) cancellation keeps paid access and atomically saves one observation and immutable event [2.88ms]\n\n 12 pass\n 0 fail\n 142 expect() calls\nRan 12 tests across 8 files. [3.56s]\n"
+      "stderr": "\nconformance.test.mjs:\n\n 12 pass\n 0 fail\n 142 expect() calls\nRan 12 tests across 8 files. [3.50s]\n"
     },
     {
       "command": [
@@ -55,7 +55,7 @@
         "status",
         "--porcelain"
       ],
-      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-1d1t5vyw/source",
+      "cwd": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-backend-public-gNBbIz/source",
       "exitCode": 0,
       "stdout": "",
       "stderr": ""

@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
-  "branch": "docs/example-backend-reference",
+  "branch": "codex/commerce-protocol-from-scratch",
   "milestones": [
     {
       "step": 0,
@@ -67,11 +67,11 @@
       "commit": "e7bd417e80723e9cad3991f5648f2cb6803f3796"
     }
   ],
-  "sourceCommit": "30130a91e292d1aa06a5bf7954c72f3231459c1b",
+  "sourceCommit": "6231319fedc29b8e6052e1558b0626abecc2e05a",
   "verification": {
     "tests": 12,
     "assertions": 142,
     "portableCases": 45
   },
-  "archiveSha256": "502df4e2534a136122797160d6d5e0bd5baa4db94e306f2931df50f7fe17281e"
+  "archiveSha256": "723fdcad782fda025d4a0f0ecc05a56fe587514039f9de8f61717a31ebd34f5b"
 }
