@@ -442,11 +442,10 @@ object ExpoIapHelper {
             }
         openIap.addSubscriptionBillingIssueListener(subscriptionBillingIssueListener)
 
-        // Without this initConnection short-circuits on a stale flag after the
-        // service drops and never rebuilds the client (#408).
+        // Diagnostic only. connectionReady gates event emission, so clearing it
+        // here would buffer the purchase error instead of sending it (#408).
         val connectionStateListener =
             OpenIapConnectionStateListener {
-                connectionReady.set(false)
                 ExpoIapLog.warning("billing service disconnected; connection must be re-initialized")
             }
         openIap.addConnectionStateListener(connectionStateListener)

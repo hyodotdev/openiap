@@ -1,39 +1,9 @@
-@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-
 package dev.hyo.openiap
 
-import android.app.Activity
 import androidx.test.core.app.ApplicationProvider
-import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
-import com.meta.horizon.billingclient.api.AcknowledgePurchaseResponseListener
-import com.meta.horizon.billingclient.api.AgeCategoryResponseListener
-import com.meta.horizon.billingclient.api.AlternativeBillingOnlyAvailabilityListener
-import com.meta.horizon.billingclient.api.AlternativeBillingOnlyInformationDialogListener
-import com.meta.horizon.billingclient.api.AlternativeBillingOnlyReportingDetailsListener
 import com.meta.horizon.billingclient.api.BillingClient
-import com.meta.horizon.billingclient.api.BillingClientStateListener
-import com.meta.horizon.billingclient.api.BillingConfigResponseListener
-import com.meta.horizon.billingclient.api.BillingFlowParams
 import com.meta.horizon.billingclient.api.BillingResult
-import com.meta.horizon.billingclient.api.ConsumeParams
-import com.meta.horizon.billingclient.api.ConsumeResponseListener
-import com.meta.horizon.billingclient.api.ExternalOfferAvailabilityListener
-import com.meta.horizon.billingclient.api.ExternalOfferInformationDialogListener
-import com.meta.horizon.billingclient.api.ExternalOfferReportingDetailsListener
-import com.meta.horizon.billingclient.api.GetBillingConfigParams
-import com.meta.horizon.billingclient.api.InAppMessageParams
-import com.meta.horizon.billingclient.api.InAppMessageResponseListener
-import com.meta.horizon.billingclient.api.PriceChangeConfirmationListener
-import com.meta.horizon.billingclient.api.PriceChangeFlowParams
-import com.meta.horizon.billingclient.api.ProductDetailsResponseListener
 import com.meta.horizon.billingclient.api.Purchase as HorizonPurchase
-import com.meta.horizon.billingclient.api.PurchaseHistoryResponseListener
-import com.meta.horizon.billingclient.api.PurchasesResponseListener
-import com.meta.horizon.billingclient.api.QueryProductDetailsParams
-import com.meta.horizon.billingclient.api.QueryPurchaseHistoryParams
-import com.meta.horizon.billingclient.api.QueryPurchasesParams
-import com.meta.horizon.billingclient.api.SkuDetailsParams
-import com.meta.horizon.billingclient.api.SkuDetailsResponseListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Field
 import java.util.concurrent.atomic.AtomicBoolean

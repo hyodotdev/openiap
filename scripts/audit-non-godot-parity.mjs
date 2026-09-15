@@ -3260,7 +3260,10 @@ function checkBillingChoiceFieldBindings() {
   for (const flavor of ["play", "horizon"]) {
     expectIncludes(
       `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
-      ["if (droppedLiveClient) notifyBillingServiceDisconnected()"],
+      [
+        "if (droppedLiveClient) notifyBillingServiceDisconnected()",
+        "onSetupPending = { finishConnectionAttempt(attempt, client, false) },",
+      ],
       `${flavor} billing disconnect notification (#408)`,
     );
   }
