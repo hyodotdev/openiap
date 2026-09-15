@@ -556,7 +556,21 @@ async function performAndroidSync(
           packageName,
           ...(token ? { pageToken: token } : {}),
         });
-        for (const sub of subs.data.subscriptions ?? []) {
+        for (const listedSub of subs.data.subscriptions ?? []) {
+          let sub: androidpublisher_v3.Schema$Subscription;
+          try {
+            sub = await hydratePlaySubscriptionOffers(
+              androidpublisher,
+              packageName,
+              listedSub,
+            );
+          } catch (error) {
+            failures.push({
+              productId: listedSub.productId ?? "(play subscription)",
+              reason: `offer import: ${error instanceof Error ? error.message : String(error)}`,
+            });
+            continue;
+          }
           if (!sub.productId) continue;
           const { priceAmountMicros, currency, basePlanId } =
             pickSubBasePlanPrice(
@@ -2450,6 +2464,50 @@ export function collectPlaySubscriptionOffers(
     }
   }
   return out;
+}
+
+/** Fetches separately-addressed Play offers before catalog flattening. */
+export async function hydratePlaySubscriptionOffers(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  packageName: string,
+  sub: androidpublisher_v3.Schema$Subscription,
+): Promise<androidpublisher_v3.Schema$Subscription> {
+  if (!sub.productId) return sub;
+  const basePlans: Array<
+    androidpublisher_v3.Schema$BasePlan & {
+      offers?: androidpublisher_v3.Schema$SubscriptionOffer[];
+    }
+  > = [];
+  for (const basePlan of sub.basePlans ?? []) {
+    if (!basePlan.basePlanId) {
+      basePlans.push(basePlan);
+      continue;
+    }
+    const offers: androidpublisher_v3.Schema$SubscriptionOffer[] = [];
+    let pageToken: string | undefined;
+    let pageCount = 0;
+    do {
+      const response =
+        await androidpublisher.monetization.subscriptions.basePlans.offers.list(
+          {
+            packageName,
+            productId: sub.productId,
+            basePlanId: basePlan.basePlanId,
+            ...(pageToken ? { pageToken } : {}),
+          },
+        );
+      offers.push(...(response.data.subscriptionOffers ?? []));
+      pageToken = response.data.nextPageToken ?? undefined;
+      pageCount += 1;
+      if (pageCount > 50) {
+        throw new Error(
+          `Play offer pagination exceeded 50 pages for ${sub.productId}/${basePlan.basePlanId}`,
+        );
+      }
+    } while (pageToken);
+    basePlans.push({ ...basePlan, offers });
+  }
+  return { ...sub, basePlans };
 }
 
 /**
