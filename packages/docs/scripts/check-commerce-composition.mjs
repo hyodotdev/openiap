@@ -1,11 +1,25 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { COMMERCE_IMPLEMENTATION_TOPICS } from '../src/lib/commerceImplementations.ts';
 
 const assets = new URL('../public/commerce-composition/', import.meta.url);
 const read = (name) => readFileSync(new URL(name, assets));
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+// `git archive` names its commit in the pax global header, so the archive
+// itself says which commit it was cut from; nothing else in the gate can.
+const archiveCommit = (gz) => {
+  const tar = gunzipSync(gz);
+  assert.equal(String.fromCharCode(tar[156]), 'g', 'archive has no pax header');
+  const size = parseInt(tar.subarray(124, 136).toString(), 8);
+  const commit = tar
+    .subarray(512, 512 + size)
+    .toString()
+    .match(/comment=([0-9a-f]{40})/u)?.[1];
+  assert(commit, 'archive pax header names no commit');
+  return commit;
+};
 const report = JSON.parse(read('run.json'));
 const sources = JSON.parse(read('source.json'));
 assert(report.checks.length > 0 && report.results.length === 2);
@@ -46,9 +60,39 @@ console.log('AI reproduction: recorded prompt and source archive match.');
 const paywallRead = (name) => readFileSync(new URL(name, reproductionAssets));
 const fresh = JSON.parse(paywallRead('fresh-build.json'));
 const freshReplay = JSON.parse(paywallRead('fresh-public-replay.json'));
-assert.equal(hash(paywallRead('fresh-source.tar.gz')), fresh.archiveSha256);
+const freshArchive = paywallRead('fresh-source.tar.gz');
+assert.equal(hash(freshArchive), fresh.archiveSha256);
+assert.equal(
+  archiveCommit(freshArchive),
+  fresh.sourceCommit,
+  'fresh-source.tar.gz was cut from a different commit'
+);
 assert.equal(freshReplay.sourceCommit, fresh.sourceCommit);
 assert(freshReplay.steps.every((step) => step.exitCode === 0));
+// from-scratch.md is hand-maintained too; it must check out the recorded
+// fresh commit and walk the recorded milestones, in order.
+const freshPage = String(paywallRead('from-scratch.md'));
+assert.deepEqual(
+  [...freshPage.matchAll(/^git checkout ([0-9a-f]{40})$/gmu)].map((m) => m[1]),
+  [fresh.sourceCommit],
+  'from-scratch.md must check out the recorded fresh commit'
+);
+assert.deepEqual(
+  [...freshPage.matchAll(/\/tree\/([0-9a-f]{40})\)/gu)].map((m) => m[1]),
+  fresh.milestones.map((m) => m.commit),
+  'from-scratch.md must link the recorded milestones, in order'
+);
+assert.deepEqual(
+  new Set(
+    [
+      ...freshPage.matchAll(
+        /(?:\/(?:blob|tree|commit)\/|raw\.githubusercontent\.com\/[^/]+\/[^/]+\/)([0-9a-f]{40})/gu
+      ),
+    ].map((m) => m[1])
+  ),
+  new Set([fresh.sourceCommit, ...fresh.milestones.map((m) => m.commit)]),
+  'from-scratch.md links a commit the recording does not'
+);
 const experience = JSON.parse(paywallRead('experience-verification.json'));
 assert.equal(
   hash(paywallRead('experience-source.tar.gz')),
@@ -73,9 +117,12 @@ const provider = JSON.parse(paywallRead('paywall-provider-run.json'));
 assert(harness.ok && harness.source.status === '');
 assert.equal(harness.source.commit, connection.sourceCommit);
 assert.deepEqual(harness.suite, connection.verification);
+const paywallArchive = paywallRead('paywall-source.tar.gz');
+assert.equal(hash(paywallArchive), connection.archiveSha256);
 assert.equal(
-  hash(paywallRead('paywall-source.tar.gz')),
-  connection.archiveSha256
+  archiveCommit(paywallArchive),
+  connection.sourceCommit,
+  'paywall-source.tar.gz was cut from a different commit'
 );
 // export-paywall.mjs derives these from paywall-harness.json in the same
 // invocation as providerVerification; pin every field, not just the count.
