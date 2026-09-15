@@ -448,8 +448,11 @@ describe("the portable conformance runner", () => {
     expect(invalidField.errors[0].extensions.code).toBe("INVALID_REQUEST");
 
     // A valid document with a full selection resolves.
-    const ok = await call("query { providerCapabilities { specVersion } }", {});
-    expect(ok.data.providerCapabilities.specVersion).toBeTruthy();
+    const ok = await call(
+      "query { providerCapabilities { commerceProtocolVersion } }",
+      {},
+    );
+    expect(ok.data.providerCapabilities.commerceProtocolVersion).toBeTruthy();
   });
 
   it("normalizes GraphQL nulls to omission before judging", () => {
@@ -3498,7 +3501,7 @@ describe("the portable conformance runner", () => {
       if (String(url).includes("/commerce/v1/capabilities")) {
         const body = await response.json();
         // A 1.0 runner must accept a 1.1 provider: same major, added minor.
-        body.specVersion = "1.1";
+        body.commerceProtocolVersion = "1.1";
         body.profiles = { ...body.profiles, verification: "1.1" };
         body.bindings = { ...body.bindings, rest: "1.1" };
         return new Response(JSON.stringify(body), {

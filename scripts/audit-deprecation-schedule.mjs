@@ -463,7 +463,7 @@ export const collectRepositorySchemaDeprecations = () => {
 
 export const collectSchemaDeprecationFailures = (
   schemaDeprecations,
-  specVersion,
+  clientProtocolVersion,
 ) => {
   const failures = [];
   for (const issue of schemaDeprecations.issues) {
@@ -475,7 +475,7 @@ export const collectSchemaDeprecationFailures = (
   let clientProtocolMajor;
   try {
     const normalizedVersion = validateVersion(
-      specVersion,
+      clientProtocolVersion,
       "client protocol version",
     );
     clientProtocolMajor = BigInt(normalizedVersion.split(".")[0]);

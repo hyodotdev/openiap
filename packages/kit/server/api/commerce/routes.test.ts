@@ -635,7 +635,7 @@ describe("commerce GraphQL adapter", () => {
   it("blocks alias amplification hidden in an inline fragment", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query Amplify { ... on Query { a: providerCapabilities { specVersion } b: providerCapabilities { specVersion } c: providerCapabilities { specVersion } } }",
+        "query Amplify { ... on Query { a: providerCapabilities { commerceProtocolVersion } b: providerCapabilities { commerceProtocolVersion } c: providerCapabilities { commerceProtocolVersion } } }",
       operationName: "Amplify",
     });
     expect(response.status).toBe(200);
@@ -648,7 +648,7 @@ describe("commerce GraphQL adapter", () => {
   it("blocks alias amplification hidden in a named fragment spread", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query Amplify { ...F } fragment F on Query { a: providerCapabilities { specVersion } b: providerCapabilities { specVersion } }",
+        "query Amplify { ...F } fragment F on Query { a: providerCapabilities { commerceProtocolVersion } b: providerCapabilities { commerceProtocolVersion } }",
       operationName: "Amplify",
     });
     const body = await response.json();
@@ -659,7 +659,7 @@ describe("commerce GraphQL adapter", () => {
   it("rejects a request with more than one operation", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query A { providerCapabilities { specVersion } } query B { providerCapabilities { specVersion } }",
+        "query A { providerCapabilities { commerceProtocolVersion } } query B { providerCapabilities { commerceProtocolVersion } }",
       operationName: "A",
     });
     expect(response.status).toBe(200);
@@ -786,7 +786,7 @@ describe("commerce GraphQL adapter", () => {
     // HTTP 200 with the code in extensions — an oversized body included, so the
     // endpoint never splits its own status contract (429 vs 200).
     const oversized = await post(buildApp(), "/commerce/v1/graphql", {
-      query: `query { providerCapabilities { specVersion } } # ${"x".repeat(40_000)}`,
+      query: `query { providerCapabilities { commerceProtocolVersion } } # ${"x".repeat(40_000)}`,
     });
     expect(oversized.status).toBe(200);
     const body = await oversized.json();
@@ -797,9 +797,11 @@ describe("commerce GraphQL adapter", () => {
     // f0 spreads f1 twice, f1 spreads f2 twice … — naive full expansion is
     // 2^N. A ~1.3 KB request must be rejected in milliseconds, not seconds.
     const depth = 24;
-    let query = "query Dos { providerCapabilities { specVersion ...f0 } }\n";
+    let query =
+      "query Dos { providerCapabilities { commerceProtocolVersion ...f0 } }\n";
     for (let i = 0; i < depth; i += 1) {
-      const next = i + 1 < depth ? `...f${i + 1} ...f${i + 1}` : "specVersion";
+      const next =
+        i + 1 < depth ? `...f${i + 1} ...f${i + 1}` : "commerceProtocolVersion";
       query += `fragment f${i} on ProviderCapabilities { ${next} }\n`;
     }
     const start = performance.now();

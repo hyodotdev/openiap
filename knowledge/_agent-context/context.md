@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T18:32:10.663Z
+> Last updated: 2026-09-15T18:57:04.323Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -6461,7 +6461,7 @@ An implementation SHOULD publish its descriptor somewhere a consumer can fetch
 it, and SHOULD document where. This version deliberately fixes no location: a
 backend may serve it, ship it beside its API documentation, or hand it over out
 of band. Nothing in the contract depends on retrieving it; a consumer that
-cannot fetch it asks its emitter. The document states `specVersion` — the
+cannot fetch it asks its emitter. The document states `commerceProtocolVersion` — the
 version of _this specification_ it was
 written against, which is a different quantity from an event body's
 `eventVersion` even though both read `1.0` today — the event types it can emit,
@@ -6641,7 +6641,7 @@ non-negative decimal integer without a leading zero unless the component is
 exactly `0`. It is independent of the npm package version used to distribute
 these files. An emitter MUST set `eventVersion` to the protocol version that
 defines the emitted body; a capability descriptor, a mapping table and a store
-facts table use the same value as `specVersion`. **Consumers pin on the major.**
+facts table use the same value as `commerceProtocolVersion`. **Consumers pin on the major.**
 
 A MINOR that leaves the event body untouched does not oblige an emitter to
 change `eventVersion`: that member names the version the body conforms to, not

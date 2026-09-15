@@ -90,8 +90,8 @@ published releases rather than chosen:
 | `conformance`       | `openiap-conformance-1.0.0`             |
 | `commerce-protocol` | `openiap-commerce-protocol-0.1.0`       |
 
-Client Protocol and CLI have only metadata bootstrap packages so far. They
-remain in `UNRELEASED_COMPONENTS` until their first functional release.
+The CLI has only a metadata bootstrap package so far, so it stays in
+`UNRELEASED_COMPONENTS` until its first functional release.
 
 Every released component is anchored here. "Covered from its first release"
 cannot be proved from a release list that might be missing that release, so a

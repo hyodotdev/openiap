@@ -1,6 +1,6 @@
 {
   "$comment": "The store axis, stated once. A capability descriptor's `provider` value copies `available` from here; `delivery` and `surface` carry the shape a boolean cannot. Observations of vendor documentation, not obligations on the vendor.",
-  "specVersion": "1.0",
+  "commerceProtocolVersion": "1.0",
   "stores": {
     "apple": {
       "initialValidation": {

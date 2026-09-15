@@ -1,5 +1,5 @@
 {
-  "specVersion": "1.0",
+  "commerceProtocolVersion": "1.0",
   "stores": {
     "apple": {
       "notificationChannel": "App Store Server Notifications V2",

@@ -48,7 +48,7 @@ type ProviderCapabilities {
   """
   OpenIAP Commerce Protocol version this declaration was written against, as MAJOR.MINOR.
   """
-  specVersion: MajorMinor!
+  commerceProtocolVersion: MajorMinor!
   """
   Free-form name and version of the backend making this declaration. Present so an operator can tell two backends apart; it carries no normative meaning.
   """
@@ -84,7 +84,7 @@ type Implementation {
   """
   name: NonEmptyString
   """
-  Version of that backend, when it publishes one. Not a specification version — that is `specVersion`.
+  Version of that backend, when it publishes one. Not the protocol version — that is `commerceProtocolVersion`.
   """
   version: NonEmptyString
 }

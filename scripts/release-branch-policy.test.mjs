@@ -1384,7 +1384,7 @@ test("the docs site deploys without a version of its own", () => {
   // manifest. indexOf returns -1 for a missing needle, so assert presence
   // first: an ordering check alone passes vacuously once the needle is gone.
   const propagation = 'versions["clientProtocol"] = published';
-  assert.ok(syncScript.includes(propagation));
+  assert.equal(syncScript.split(propagation).length - 1, 1);
   assert.ok(
     syncScript.indexOf(propagation) <
       syncScript.indexOf('echo "📦 Syncing version files..."'),
@@ -1597,9 +1597,10 @@ test("native releases refuse branch drift after the verified head", () => {
     assert.ok(headGuardIndex < commitIndex, filename);
     assert.ok(commitIndex < pushIndex, filename);
     assert.equal(
-      workflow.lastIndexOf("release-branch-policy.mjs assert-client-protocol"),
-      assertVersionIndex,
-      `${filename} must not re-assert after sync, where it cannot fail`,
+      workflow.split("release-branch-policy.mjs assert-client-protocol")
+        .length - 1,
+      1,
+      `${filename} must gate the mirror exactly once, before sync writes it`,
     );
     assert.match(workflow, /Release branch moved after verification/u);
     assert.doesNotMatch(workflow, /git pull --rebase|git rebase --continue/u);
