@@ -37,10 +37,11 @@ bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.m
 ```
 
 Use a new `provider-check-output` directory on each run. The harness provisions
-an anonymous local Convex instance and stops its servers afterward. Both example
-checkouts above were freshly downloaded and installed for the recorded run.
-IAPKit used an existing dependency installation; its executed source hashes and
-runtime versions are included in the report.
+an anonymous local Convex instance and stops its servers afterward. Each example
+ran from a clean checkout of the commit named above, with its own dependencies
+installed from its committed lockfile. IAPKit used an existing dependency
+installation; its executed source hashes and runtime versions are included in
+the report.
 
 ## Inspect the result
 

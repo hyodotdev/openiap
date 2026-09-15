@@ -99,10 +99,30 @@ assert.equal(
   provider.freshConnection.checks.length,
   connection.providerVerification.checks
 );
-assert.match(
-  provider.reproduction.openiapBaseCommit,
-  /^[0-9a-f]{40}$/u,
-  'Reproduction must name the exact openiap commit it was recorded against'
+// The runner refuses to write a report whose sources were dirty, but a report
+// can also arrive hand-assembled or reused from an older run. Enforce the same
+// rule here, against the revisions the run itself recorded, so the publish gate
+// does not depend on the generator having been the one that produced it.
+for (const [key, recorded] of [
+  ['openiapBaseCommit', provider.sources.openiap.baseRevision],
+  ['originalExampleCommit', provider.sources.example.baseRevision],
+  ['freshExampleCommit', provider.freshConnection.source.revision],
+]) {
+  assert.match(
+    recorded,
+    /^[0-9a-f]{40}$/u,
+    `${key}: recorded from a dirty checkout`
+  );
+  assert.equal(
+    provider.reproduction[key],
+    recorded,
+    `${key}: reproduction disagrees with the revision that ran`
+  );
+}
+assert.equal(
+  provider.sources.workspace.baseRevision,
+  provider.sources.openiap.baseRevision,
+  'Workspace and openiap sources must come from one revision'
 );
 // The harness ships in the repository now, so instructions that still told a
 // reader to apply a patch would send them after a file they do not need.
@@ -128,15 +148,28 @@ assert.deepEqual(
 );
 // The page tells a reader which commits to check out. It is hand-maintained,
 // so without this it silently keeps describing the previous recording.
-const reproductionPage = paywallRead('paywall-provider-reproduction.md');
-for (const key of [
-  'openiapBaseCommit',
-  'originalExampleCommit',
-  'freshExampleCommit',
+const reproductionPage = String(paywallRead('paywall-provider-reproduction.md'));
+// Order matters: the three clone blocks are openiap, original, fresh. A
+// substring check alone passes when two of them are swapped.
+assert.deepEqual(
+  [...reproductionPage.matchAll(/^git checkout ([0-9a-f]{40})$/gmu)].map(
+    (match) => match[1]
+  ),
+  [
+    provider.reproduction.openiapBaseCommit,
+    provider.reproduction.originalExampleCommit,
+    provider.reproduction.freshExampleCommit,
+  ],
+  'paywall-provider-reproduction.md must check out the recorded commits, in order'
+);
+for (const expected of [
+  `passed ${provider.freshConnection.checks.length} current-paywall`,
+  `${provider.checkCount} existing interoperability`,
+  `Bun ${provider.runtime.bun}`,
 ]) {
   assert(
-    reproductionPage.includes(provider.reproduction[key]),
-    `paywall-provider-reproduction.md must check out the recorded ${key}`
+    reproductionPage.includes(expected),
+    `paywall-provider-reproduction.md must state "${expected}"`
   );
 }
 assert.equal(

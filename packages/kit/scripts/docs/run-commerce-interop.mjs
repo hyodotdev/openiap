@@ -872,8 +872,15 @@ try {
         readFileSync(join(kit, "node_modules/convex/package.json"), "utf8"),
       ).version,
     },
-    command:
-      "bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs ../openiap-commerce-protocol-example <new-output-directory>",
+    // Reconstructed from what actually ran, not a fixed string: the fresh
+    // example is a third argument and the report must not omit it.
+    command: [
+      "bun --conditions=openiap-source",
+      "packages/kit/scripts/docs/run-commerce-interop.mjs",
+      "<original-example-checkout>",
+      "<new-output-directory>",
+      ...(freshExample ? ["<fresh-example-checkout>"] : []),
+    ].join(" "),
     configurationChanges: [
       "Commerce base URL and server credential",
       "Separate webhook signing keys, each bound to its provider and project",
