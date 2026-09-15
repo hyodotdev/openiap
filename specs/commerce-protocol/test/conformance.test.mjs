@@ -747,6 +747,42 @@ describe("the portable conformance runner", () => {
     expect(versionResult.failures.join(" ")).toContain("verification");
   });
 
+  it("fails a provider whose commerceProtocolVersion major disagrees", async () => {
+    // The profile skew above never exercises the descriptor's own version, so
+    // a runner that compared the manifest major to itself would still pass it.
+    const provider = createMockProvider();
+    const skewedFetch = async (url, options) => {
+      const response = await provider.fetch(url, options);
+      if (String(url).includes("/commerce/v1/capabilities")) {
+        const body = await response.json();
+        body.commerceProtocolVersion = "2.0";
+        return new Response(JSON.stringify(body), {
+          status: response.status,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return response;
+    };
+    const report = await runConformance({
+      adapters: [
+        createRestAdapter({
+          baseUrl: BASE_URL,
+          fetch: skewedFetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    const versionResult = report.results.find(
+      (r) => r.id === "capabilities.version-agreement",
+    );
+    expect(versionResult.ok).toBe(false);
+    expect(versionResult.failures.join(" ")).toContain(
+      "commerceProtocolVersion",
+    );
+  });
+
   // The additive-minor introspection case is covered by "certifies
   // introspection carrying additive minor surface" below, against the
   // structural comparison the probe actually runs.

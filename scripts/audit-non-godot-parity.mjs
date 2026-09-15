@@ -4123,8 +4123,8 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
-      clientProtocolVersion: readJson("specs/client/package.json").version,
-      commerceProtocolVersion: readJson("specs/commerce-protocol/package.json")
+      clientProtocolPackageVersion: readJson("specs/client/package.json").version,
+      commerceProtocolPackageVersion: readJson("specs/commerce-protocol/package.json")
         .version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
@@ -4212,8 +4212,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "type VersionKey = 'clientProtocol' | 'google' | 'apple';",
       "'clientProtocol'",
-      "clientProtocolVersion",
-      "commerceProtocolVersion",
+      "clientProtocolPackageVersion",
+      "commerceProtocolPackageVersion",
       "'google'",
       "'apple'",
       "../generated/version-metadata.json",

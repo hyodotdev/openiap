@@ -55,12 +55,12 @@ function readRequiredMetadataString(
 
 const parsedVersions = parseVersions(versionsFile);
 const CLIENT_PROTOCOL_VERSION = readRequiredMetadataString(
-  'clientProtocolVersion',
-  'clientProtocolVersion'
+  'clientProtocolPackageVersion',
+  'clientProtocolPackageVersion'
 );
 const COMMERCE_PROTOCOL_VERSION = readRequiredMetadataString(
-  'commerceProtocolVersion',
-  'commerceProtocolVersion'
+  'commerceProtocolPackageVersion',
+  'commerceProtocolPackageVersion'
 );
 const EXPO_PACKAGE_VERSION = readRequiredMetadataString(
   'expoPackageVersion',

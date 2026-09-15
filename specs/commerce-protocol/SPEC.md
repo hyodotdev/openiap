@@ -1166,10 +1166,10 @@ An implementation SHOULD publish its descriptor somewhere a consumer can fetch
 it, and SHOULD document where. This version deliberately fixes no location: a
 backend may serve it, ship it beside its API documentation, or hand it over out
 of band. Nothing in the contract depends on retrieving it; a consumer that
-cannot fetch it asks its emitter. The document states `commerceProtocolVersion` — the
-version of _this specification_ it was
-written against, which is a different quantity from an event body's
-`eventVersion` even though both read `1.0` today — the event types it can emit,
+cannot fetch it asks its emitter. The document states `commerceProtocolVersion`
+— the protocol version it was written against, which is a different quantity
+from an event body's `eventVersion` even though both read `1.0` today — the
+event types it can emit,
 and its per-store capabilities — enough for a consumer, an operator, or a
 tool to determine compatibility without reading prose or guessing. It carries no
 commerce data, so it is safe to expose.
@@ -1354,6 +1354,33 @@ the newest version published. Until the first stable package release, 1.0 stays
 open for additive documents, so a new document does not move the protocol
 version at all. The npm package version is separate again, and moves only when
 the release workflow publishes.
+
+While the package major is `0`, that latitude extends to renaming a wire
+member: the protocol major does not move, because moving it would relocate
+every REST path and every `eventVersion` for a change that alters no shape.
+Each such rename is listed below, and none may happen once the package reaches
+`1.0.0`.
+
+### Renamed members before 1.0.0
+
+`ProviderCapabilities.specVersion` → `commerceProtocolVersion`, and the same
+member on the store-event mapping table and the store facts table. OpenIAP
+governs two protocols, so a member named for "the spec" said nothing about
+which one; `protocolVersion` would have been no better. The value, the
+`MajorMinor` type, the requiredness, and every operation path are unchanged.
+
+**What breaks.** A consumer reading `specVersion` from a descriptor, mapping
+table, or facts table gets `undefined`. Validators generated from
+`@hyodotdev/openiap-commerce-protocol` `0.1.0` or `0.2.0` reject the new
+descriptor outright: those schemas list `specVersion` in `required` and declare
+no `commerceProtocolVersion`. The bundled conformance runner in those versions
+reads the old member, so its version-agreement check fails against an
+implementation that has moved.
+
+**What to do.** Upgrade to the first package release that ships this rename and
+read `commerceProtocolVersion`. A consumer that must straddle both can read
+`commerceProtocolVersion ?? specVersion`; the value is identical. Nothing else
+in the descriptor changed, so no other code moves.
 
 | Change                                                                                                    | Version impact    |
 | --------------------------------------------------------------------------------------------------------- | ----------------- |

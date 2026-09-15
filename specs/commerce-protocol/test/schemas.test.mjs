@@ -412,7 +412,7 @@ describe("provider capabilities", () => {
     }
   });
 
-  it("rejects a descriptor with no specification version", () => {
+  it("rejects a descriptor with no protocol version", () => {
     const doc = readExample("provider-capabilities.json");
     delete doc.commerceProtocolVersion;
     expect(validateCapabilities()(doc)).toBe(false);
@@ -440,7 +440,7 @@ describe("the descriptor cannot drift from the contract", () => {
     );
   });
 
-  it("declares a specification version", () => {
+  it("declares a protocol version", () => {
     // commerceProtocolVersion and eventVersion are different quantities that happen to
     // coincide at 1.0; asserting equality would weld them.
     const doc = readExample("provider-capabilities.json");

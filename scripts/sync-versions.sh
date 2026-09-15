@@ -129,8 +129,8 @@ def required_xml_text(path: str, tag: str, label: str) -> str:
 
 metadata = {
     "_generatedBy": "scripts/sync-versions.sh",
-    "clientProtocolVersion": read_json("specs/client/package.json")["version"],
-    "commerceProtocolVersion": read_json("specs/commerce-protocol/package.json")["version"],
+    "clientProtocolPackageVersion": read_json("specs/client/package.json")["version"],
+    "commerceProtocolPackageVersion": read_json("specs/commerce-protocol/package.json")["version"],
     "expoPackageVersion": read_json("libraries/expo-iap/package.json")["version"],
     "reactNativePackageVersion": read_json("libraries/react-native-iap/package.json")["version"],
     "flutterPackageVersion": required_match(

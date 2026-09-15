@@ -566,6 +566,15 @@ function Releases() {
               removal now lands with client protocol 1.0.
             </p>
             <p style={{ margin: 0 }}>
+              The Commerce Protocol&apos;s capability descriptor, store-event
+              mapping table and store facts table rename{' '}
+              <code>specVersion</code> to <code>commerceProtocolVersion</code>.
+              The value, the type and every operation path are unchanged, and
+              SPEC.md &sect;12 carries the migration note; a consumer that must
+              straddle both package versions reads{' '}
+              <code>commerceProtocolVersion ?? specVersion</code>.
+            </p>
+            <p style={{ margin: 0 }}>
               The <code>X-OpenIAP-Spec</code> request header is removed. It was
               optional telemetry that IAPKit only wrote to a log line, and
               nothing ever branched on it, so verification is unaffected. With
