@@ -79,8 +79,8 @@ const asStringArray = (value: unknown): string[] | undefined =>
       )
     : undefined;
 
-// Expo appends " (at <file>:<line>)" to a rejected function's message, so the
-// envelope is rarely the end of the string. Take the object and stop there.
+// On iOS, Expo appends " (at <file>:<line>)" to a rejected function's message,
+// so the envelope is rarely the end of the string. Take the object and stop there.
 const sliceEnvelopeObject = (payload: string): string | undefined => {
   const start = payload.indexOf('{');
   if (start < 0) return undefined;

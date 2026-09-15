@@ -13,7 +13,8 @@ import {ErrorCode} from '../../types';
 const rejectionWithSourceLocation = (envelope: Record<string, unknown>) => ({
   code: envelope.code as string,
   message:
-    "Call to function 'ExpoIap.requestPurchase' has been rejected.\n" +
+    "FunctionCallException: Calling the 'requestPurchase' function has failed " +
+    '(at ExpoModulesCore/AsyncFunctionDefinition.swift:123)\n' +
     '→ Caused by: IapException: ' +
     OPENIAP_ERROR_ENVELOPE_PREFIX +
     JSON.stringify(envelope) +
@@ -91,7 +92,7 @@ describe('errorMapping utils', () => {
     const error = createPurchaseErrorFromNativeException(
       {
         code: ErrorCode.PurchaseError,
-        message: `${OPENIAP_ERROR_ENVELOPE_PREFIX}{not json (at A.swift:1)`,
+        message: `${OPENIAP_ERROR_ENVELOPE_PREFIX}{not json} (at A.swift:1)`,
       },
       'ios',
       FALLBACK,
