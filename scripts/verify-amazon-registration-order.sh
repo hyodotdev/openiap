@@ -10,6 +10,8 @@
 #
 #   scripts/verify-amazon-registration-order.sh <serial> [package]
 #
+# It force-stops the app, clears logcat and relaunches, leaving it in the
+# foreground. Pass [package] for an example other than dev.hyo.martie.
 # Exit 0 on pass, 1 on failure. Needs Android 7+ (Fire OS 6 and later). Targets a
 # debug build: consumer R8 can strip android.util.Log from release builds, which
 # would remove the line this asserts on.
@@ -23,10 +25,8 @@ state="$(adb get-state 2>&1 || true)"
 [ "$state" = "device" ] ||
   { echo "FAIL: ${SERIAL} is not an available device (adb get-state: ${state})"; exit 1; }
 
-case "$(adb shell pm list packages "$PACKAGE" | tr -d '\r')" in
-  *"package:${PACKAGE}"*) ;;
-  *) echo "FAIL: ${PACKAGE} is not installed on ${SERIAL}"; exit 1 ;;
-esac
+grep -qx "package:${PACKAGE}" <<<"$(adb shell pm list packages "$PACKAGE" | tr -d '\r')" ||
+  { echo "FAIL: ${PACKAGE} is not installed on ${SERIAL}"; exit 1; }
 
 activity="$(adb shell cmd package resolve-activity --brief "$PACKAGE" | tail -1 | tr -d '\r')"
 adb shell am force-stop "$PACKAGE"
@@ -61,6 +61,7 @@ else
   echo "PASS: registered before the first Activity resume."
   echo "      $(sed -n "${registered}p" <<<"$log" | sed 's/^[[:space:]]*//')"
   echo "      $(sed -n "${resumed}p" <<<"$log" | sed 's/^[[:space:]]*//')"
+  echo "      $(adb shell dumpsys package "$PACKAGE" | grep -m1 lastUpdateTime | tr -d '\r' | sed 's/^[[:space:]]*//' || true)"
 fi
 
 if [ "$parked" -ne 0 ]; then
