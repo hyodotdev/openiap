@@ -271,7 +271,7 @@ test("version sync preserves the npm versions that are independent", (t) => {
       JSON.parse(
         readFileSync(join(directory, "packages/docs/package.json"), "utf8"),
       ).version,
-      "1.0.0",
+      "0.0.0",
     );
   }
 

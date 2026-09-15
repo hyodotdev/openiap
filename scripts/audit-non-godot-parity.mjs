@@ -3999,11 +3999,12 @@ function checkFrameworkDependencyHygiene() {
   }
   const googleCoroutinesVersion = googleCoroutineVersions[0];
 
-  // packages/docs is not versioned; it stays pinned at 1.0.0.
+  // packages/docs is not versioned. 0.0.0 says that; 1.0.0 would read as a
+  // stable release the site never makes.
   const docsVersion = readJson("packages/docs/package.json").version;
-  if (docsVersion !== "1.0.0") {
+  if (docsVersion !== "0.0.0") {
     fail(
-      `packages/docs/package.json version ${docsVersion} must stay pinned at 1.0.0; the docs site is not versioned`,
+      `packages/docs/package.json version ${docsVersion} must stay pinned at 0.0.0; the docs site is not versioned`,
     );
   }
   for (const [packagePath, versionKey] of [
