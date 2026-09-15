@@ -61,7 +61,7 @@ PY
 
 echo ""
 echo "📦 Syncing package metadata..."
-# packages/docs is not versioned; its version stays pinned at 1.0.0.
+# packages/docs is not versioned; its version stays pinned at 0.0.0.
 sync_package_json_version "packages/google/package.json" "google"
 sync_package_json_version "packages/apple/package.json" "apple"
 

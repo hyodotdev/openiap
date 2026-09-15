@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/provider-capabilities.schema.json",
   "title": "OpenIAP Commerce Protocol implementation descriptor",
-  "description": "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
+  "description": "What an implementation supports: the protocol version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data.",
   "type": "object",
   "required": [
     "commerceProtocolVersion",
