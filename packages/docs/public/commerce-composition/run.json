@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-08T22:55:45.959Z",
+  "recordedAt": "2026-09-15T23:30:45.077Z",
   "scope": "Two separately implemented fixture providers and two scoped receivers over loopback HTTP in one Bun process. One backend client and receiver implementation, unchanged across both configurations. Host purchase callbacks are simulated.",
   "limits": [
     "Same project authorship; no independent organization validation.",
@@ -10,15 +10,15 @@
   "protocolVersion": "1.0",
   "sourceHashes": {
     "composition/commerce-client.mjs": "f1f1a056bc76801df25111cb12fdcde501d507a5461ef8b15bfe2f57979cd03c",
-    "composition/memory-provider.mjs": "edf6a7567ead756dc4a5c15d5b5b14f4d4314db31e3aa3c01c8ec543754fcc31",
+    "composition/memory-provider.mjs": "e07417405374d7caad01de5c527445176097385750b3f7b9b74bbc49a0e4147f",
     "composition/purchase-flow.mjs": "ce6f98426c36eab346e900ac06ed31f2d387e542c518a48c92a67f7bae147ec8",
-    "composition/run.mjs": "0e7aa1c8c5cab79f06d9853fa5b91f0e15f0322b4574b5f1a97f1ea119fc9b14",
+    "composition/run.mjs": "6974e2ae16bd84fbb1bbb583beef7e2e0774b6b41322ebe72b8ae059445a546e",
     "composition/README.md": "99e302c7365cf3969f61be2c466f31f5cf0928b2f3f0351e45907666f0459a44",
-    "contract.mjs": "c97b51ed48875303c382059af5dc321005d677ab2ea834a6e00c060308bc2ab2",
-    "provider.mjs": "682b2c24797d5007373c1951641b2f6f156c933e654b2ad1865219be64b15d51",
-    "webhooks.mjs": "4838bac7a9083440998409aa1ab543999495ea6a907036bc78ba2002feb588b2",
-    "package.json": "396fc93b7d50240739af2b817c172ffab8692245bd919de3b26ee713b56d455b",
-    "package-lock.json": "6f5333cc45203d6a27fec82c9370a8c25fef7faab591467dd2ff3c79acd6ae1c"
+    "contract.mjs": "474dfee661cf00617872f6f50c3f4f5e88706e80d2fd6fcdda9304f489268c73",
+    "provider.mjs": "c130e486f7b52c28caab70ce469b50e5169e6bb673217cd5af0de5ce16b67ef8",
+    "webhooks.mjs": "e6da4eb939244f1b05ad61307f717a2214bf830da9d27993beb969676cc936a6",
+    "package.json": "9be61e89a0de195d9fc3ccc7199c073bee0610c475c0cf3ee71387bbd1df6b24",
+    "package-lock.json": "fbcf20a1a02f208ccc5f5648207b42cf87c5550fc0df62a8870dedfeb5e0d23e"
   },
   "configurationChanges": [
     "Provider URL",
@@ -450,6 +450,6 @@
   "archiveVerification": {
     "command": "npm ci --ignore-scripts && bun composition/run.mjs",
     "sameSourceAndResults": true,
-    "sha256": "d39690500d8e34b3ffb2868f0b7b8358453b689818a1e69fb403f40756924609"
+    "sha256": "287dec133cd0e6102314904253abd2d60acebc4e576326e9bcab0b1213c7a01e"
   }
 }

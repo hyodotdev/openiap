@@ -1,12 +1,12 @@
 {
-  "startedAt": "2026-09-13T05:45:16.152Z",
+  "startedAt": "2026-09-15T23:28:48.484Z",
   "source": {
-    "commit": "b41facb1bf648d6c0aeea80745371dcc25482f8c",
+    "commit": "e93c68f3f7b62753f42d22002a927f5163a0c613",
     "status": "",
     "files": {
       ".gitignore": "01eac943c846940d6a989697e4eb0bdb332a1c7d6f82843182401368954e03b6",
       "attribution.mjs": "178d2966cbef3bfb3d0a1c2e4b183ac1f83ddc4743d73f2732c4afca91478806",
-      "backend.mjs": "3c7e00b8802717a7eedde6248569d0acd40f42d5f046062623dc2a40b2f988fc",
+      "backend.mjs": "da1587ad96219345f44db9c64708eb632591def735759658c703603030a463d8",
       "backend.test.mjs": "4d8d9aac1666f12f306e3d9f91bba36d892233cd1b01f5881e13dda2b471b6c7",
       "BUILD-NOTES.md": "050bc9094a324ce982bc956fb9ff0e017e5b4717c6eb80b03340e85b448f7778",
       "conformance.test.mjs": "b422157818bb4746971c7d5ed83377177a9163abf91639b8f83e4d3f06126360",
@@ -80,8 +80,8 @@
       "lifecycle.test.mjs": "8aaeb8179df656b79b327210003805d51d75a8eb7af5796f32636622ca51321f",
       "milestones.json": "6a70ed7edd564e63716156d87929eacfb6177e413364e44ead6c99e5fad1c81d",
       "ownership.test.mjs": "49c61d9bc9ed11c1300b3075e843271267c9c44d3eba44f9b33efb106658aad3",
-      "package-lock.json": "925b29895a5bb006dbf66f33712eb3d4439f5cd667e59df5f91fed56c1320cc5",
-      "package.json": "49bab58da3d5e5f9b873a3ede58e478a31eeef6a4bec9f24ad41bf4a89a67173",
+      "package-lock.json": "481a0d25a74e1a63d1e0c6c649c552ebff931c0a0d711e344a080b6b01c3b782",
+      "package.json": "5dcb12964516e2ed4055788293af06aa294ee5582321b31c1ec62a7f2b535d15",
       "paywall-fixtures.mjs": "e7606d49d24712af346b67b3d1da4d1a411b95238fa3edf29981959e12e4e50a",
       "paywall.html": "e1e1112cf31ef8214437b0233dd0d08b9733386ec4bf2900ed2a3d633d60d05e",
       "PAYWALL.md": "ece4e5b071a68d0cc37d26d8164bce0231fc5e5aba5d0e9575aa4384da750dbe",
@@ -147,7 +147,7 @@
         "test"
       ],
       "stdout": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun test\n\nbun test v1.3.13 (bf2e2cec)\n{\n  \"suite\": \"portable-conformance\",\n  \"ok\": true,\n  \"results\": [\n    {\n      \"id\": \"capabilities.version-agreement\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"subscriptionStatus.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.success.contract.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.unknown-member-ignored.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.idempotent.repeat.google\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.success.contract.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.input.unknown-member-ignored.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.idempotent.repeat.apple\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.missing-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.unknown-credential\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.verification-role-refused\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.auth.precedes-structural-validation\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.missing-required-member\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.success.contract\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.input.unknown-member-ignored\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"eraseUser.idempotent.repeat\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.store.unsupported\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"verifyPurchase.input.mismatched-evidence\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"providerCapabilities.honesty.binding-declared\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"bindPurchase.unknown-evidence.not-bound\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    },\n    {\n      \"id\": \"entitlements.unknown-user.empty\",\n      \"binding\": \"rest\",\n      \"ok\": true,\n      \"failures\": []\n    }\n  ],\n  \"parityFailures\": []\n}\n",
-      "stderr": "\nconformance.test.mjs:\n(pass) published portable runner verifies the declared REST operation profiles [59.30ms]\n\npaywall.test.mjs:\n(pass) paywall purchase, renewal and cancellation join two store fixtures to the same experiment receiver [16.31ms]\n(pass) provider credentials require HTTPS outside literal loopback and never follow redirects [0.87ms]\n(pass) malformed provider success responses cannot fulfill or assign a purchase [8.11ms]\n(pass) a configured provider uses explicit account attribution only for missing chains [5.52ms]\n(pass) unsuccessful store results and denied ownership never finish a purchase [2.55ms]\n(pass) a renewal arriving at expiry emits a grant when it reopens access [4.08ms]\n(pass) reporting uses event IDs, preserves currencies and unknowns, and leaves refunds for reconciliation [3.93ms]\n(pass) event-to-experiment joins survive reopening, reject reassignment, and erase with the customer [26.89ms]\n\nrecovery.test.mjs:\n(pass) access closes at the exact expiry boundary before the lifecycle observation [2.39ms]\n(pass) separate process survives abrupt termination with pending events, ownership, inbox, and expiry [3368.28ms]\n\ndelivery.test.mjs:\n(pass) published signature and response vectors pass against the new transport [0.62ms]\n(pass) real HTTP retry and lost acknowledgement retain bytes and IDs, deduplicate, reject tampering, and dead-letter [9.22ms]\n\nownership.test.mjs:\n(pass) only server role can bind; concurrent claims select one owner and reads contain no evidence [5.32ms]\n\nerasure.test.mjs:\n(pass) provider and recipient erase independently; late events, stale sessions, and repeated erasure cannot restore Alice [19.14ms]\n(pass) erasure during an in-flight delivery removes both copies and queued follow-ups [4.64ms]\n\nverification.test.mjs:\n(pass) verification accepts evidence without creating ownership, rejects bad evidence, and distinguishes outage [2.85ms]\n(pass) Google-shaped fixtures verify, bind, and preserve the store in tokenless results [2.01ms]\n\nbackend.test.mjs:\n(pass) HTTP server starts with an empty SQLite database and schema-valid discovery [2.40ms]\n\nlifecycle.test.mjs:\n(pass) cancellation keeps paid access and atomically saves one observation and immutable event [3.39ms]\n\n 20 pass\n 0 fail\n 264 expect() calls\nRan 20 tests across 9 files. [3.63s]\n",
+      "stderr": "\nconformance.test.mjs:\n\n 20 pass\n 0 fail\n 264 expect() calls\nRan 20 tests across 9 files. [3.78s]\n",
       "exitCode": 0,
       "signal": null
     },
@@ -158,16 +158,16 @@
       ],
       "environment": {
         "PORT": "0",
-        "DATA_DIR": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-verify-m8fHAo"
+        "DATA_DIR": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-verify-a97OTZ"
       },
-      "stdout": "Commerce Protocol from scratch: http://127.0.0.1:63248\n",
+      "stdout": "Commerce Protocol from scratch: http://127.0.0.1:50918\n",
       "stderr": "",
       "exitCode": 0,
       "signal": null
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/buy",
+      "destination": "http://127.0.0.1:50918/paywall/buy",
       "request": {
         "store": "apple",
         "outcome": "pending"
@@ -181,7 +181,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/buy",
+      "destination": "http://127.0.0.1:50918/paywall/buy",
       "request": {
         "store": "apple",
         "outcome": "canceled"
@@ -195,7 +195,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/buy",
+      "destination": "http://127.0.0.1:50918/paywall/buy",
       "request": {
         "store": "apple",
         "outcome": "failed"
@@ -209,7 +209,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/buy",
+      "destination": "http://127.0.0.1:50918/paywall/buy",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -221,7 +221,7 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/commerce/v1/purchases/verify",
+            "destination": "http://127.0.0.1:50918/commerce/v1/purchases/verify",
             "input": {
               "store": "apple",
               "apple": {
@@ -239,7 +239,7 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/commerce/v1/purchases/bind",
+            "destination": "http://127.0.0.1:50918/commerce/v1/purchases/bind",
             "input": {
               "store": "apple",
               "apple": {
@@ -254,7 +254,7 @@
           },
           {
             "method": "GET",
-            "destination": "http://127.0.0.1:63248/commerce/v1/entitlements?userId=alice-apple",
+            "destination": "http://127.0.0.1:50918/commerce/v1/entitlements?userId=alice-apple",
             "status": 200,
             "response": {
               "userId": "alice-apple",
@@ -278,7 +278,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/deliver",
+      "destination": "http://127.0.0.1:50918/paywall/deliver",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -290,16 +290,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=8153de87c804eb32c51145cd0554d463d82313a1b6193114fb13818714bc4124",
-              "openiap-event-id": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
-              "openiap-delivery-id": "7c5247f1-12b8-4884-a7d6-4228ee55db49"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=7b24b364cb34233805683bd922e37c2ead227ee3b35f98d936619a8d310099b7",
+              "openiap-event-id": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
+              "openiap-delivery-id": "b7716a0d-0c73-4381-aff8-3872bbed2ad6"
             },
             "body": {
-              "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+              "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -331,16 +331,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f0ddbebf1e6ddf4667ec88c2da5200ee4ec80e17edcc8ee301ef5bb5a9b8998f",
-              "openiap-event-id": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
-              "openiap-delivery-id": "acc06a89-f37e-4783-acc4-998fe5a1f2d4"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=6d2ab7e04376bf576c5f9f8f8f422ef5f5df8ef0797d263b09854206b7d84e2a",
+              "openiap-event-id": "5469665c-9613-4daf-ade7-4acb8419913d",
+              "openiap-delivery-id": "29ce7217-9d09-49a8-a625-9be7147ae49e"
             },
             "body": {
-              "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+              "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -370,7 +370,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/renew",
+      "destination": "http://127.0.0.1:50918/paywall/renew",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -382,7 +382,7 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/fixture/renew",
+            "destination": "http://127.0.0.1:50918/fixture/renew",
             "input": {
               "userId": "alice-apple"
             },
@@ -393,7 +393,7 @@
           },
           {
             "method": "GET",
-            "destination": "http://127.0.0.1:63248/commerce/v1/entitlements?userId=alice-apple",
+            "destination": "http://127.0.0.1:50918/commerce/v1/entitlements?userId=alice-apple",
             "status": 200,
             "response": {
               "userId": "alice-apple",
@@ -417,7 +417,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/deliver",
+      "destination": "http://127.0.0.1:50918/paywall/deliver",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -429,16 +429,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f749a5dba3f08a158c2604c2f4dfde6627d576c6cfb9e6d9b78d10f0ad05d863",
-              "openiap-event-id": "c18910f8-7608-425c-be03-04da10fbca9b",
-              "openiap-delivery-id": "2a1eb100-c9b0-485a-bf4d-e86e218510d0"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=118df9b5bded1a72d227b51883610e8a2ecc16a8df850869fe5d621348156c5a",
+              "openiap-event-id": "fa917442-e83b-4c10-987d-a67012424955",
+              "openiap-delivery-id": "a84a5bc7-2629-42e1-97d0-6e129cae1971"
             },
             "body": {
-              "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+              "eventId": "fa917442-e83b-4c10-987d-a67012424955",
               "eventType": "subscription.renewed",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -473,7 +473,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/cancel",
+      "destination": "http://127.0.0.1:50918/paywall/cancel",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -485,19 +485,19 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/fixture/cancel",
+            "destination": "http://127.0.0.1:50918/fixture/cancel",
             "input": {
               "userId": "alice-apple"
             },
             "status": 200,
             "response": {
               "changed": true,
-              "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976"
+              "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035"
             }
           },
           {
             "method": "GET",
-            "destination": "http://127.0.0.1:63248/commerce/v1/entitlements?userId=alice-apple",
+            "destination": "http://127.0.0.1:50918/commerce/v1/entitlements?userId=alice-apple",
             "status": 200,
             "response": {
               "userId": "alice-apple",
@@ -522,7 +522,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/deliver",
+      "destination": "http://127.0.0.1:50918/paywall/deliver",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -534,16 +534,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=d39fe8418902c3f74aa3ce83a7a2017852084a7e9d6bc3017ad2330d419906a1",
-              "openiap-event-id": "6bc8c566-3d15-4813-b78d-87dce7663976",
-              "openiap-delivery-id": "743a371d-e4e5-411b-8bf6-2f0919196e1c"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=a7eea75a8aa89371689cdbc048b71acb0e39b4f1df6255a42ce9609589045382",
+              "openiap-event-id": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
+              "openiap-delivery-id": "18087097-4444-4da8-a5ab-66faec1b3e53"
             },
             "body": {
-              "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+              "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
               "eventType": "subscription.canceled",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -579,7 +579,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/buy",
+      "destination": "http://127.0.0.1:50918/paywall/buy",
       "request": {
         "store": "google",
         "outcome": "success"
@@ -591,7 +591,7 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/commerce/v1/purchases/verify",
+            "destination": "http://127.0.0.1:50918/commerce/v1/purchases/verify",
             "input": {
               "store": "google",
               "google": {
@@ -609,7 +609,7 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63248/commerce/v1/purchases/bind",
+            "destination": "http://127.0.0.1:50918/commerce/v1/purchases/bind",
             "input": {
               "store": "google",
               "google": {
@@ -624,7 +624,7 @@
           },
           {
             "method": "GET",
-            "destination": "http://127.0.0.1:63248/commerce/v1/entitlements?userId=alice-google",
+            "destination": "http://127.0.0.1:50918/commerce/v1/entitlements?userId=alice-google",
             "status": 200,
             "response": {
               "userId": "alice-google",
@@ -648,7 +648,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/deliver",
+      "destination": "http://127.0.0.1:50918/paywall/deliver",
       "request": {
         "store": "google",
         "outcome": "success"
@@ -660,16 +660,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=2fbe93bace7272a459446ad8369676e02a16cec5a222b600cf977c3fa8f5adf9",
-              "openiap-event-id": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
-              "openiap-delivery-id": "ab6ba6d3-5c92-49fd-8426-cadeb5d140ae"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=812ba10bdc386a68646610dee3d8055b4e832bdd4b8d714e17d6b727fb88c408",
+              "openiap-event-id": "095275e3-c266-40e6-a8fd-cde1abe261fb",
+              "openiap-delivery-id": "6d7ec26d-3e53-430c-b17c-bce541dce8b1"
             },
             "body": {
-              "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+              "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -696,16 +696,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=c5b0d918ef6d03e9a79c92c20e0bafbe9a1985bb8980c6ee5755e09896e715b6",
-              "openiap-event-id": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
-              "openiap-delivery-id": "17738ffe-388f-4d25-8b24-7b889d475251"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=cc402d6cc74802f92a2b4cb8524cd9e41786eddd8cd880d9eed3ddc4a69a80c4",
+              "openiap-event-id": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
+              "openiap-delivery-id": "5a52a0a2-722d-465d-9ce1-160053d4d301"
             },
             "body": {
-              "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+              "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -735,7 +735,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/redeliver",
+      "destination": "http://127.0.0.1:50918/paywall/redeliver",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -747,16 +747,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=8153de87c804eb32c51145cd0554d463d82313a1b6193114fb13818714bc4124",
-              "openiap-event-id": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
-              "openiap-delivery-id": "7c5247f1-12b8-4884-a7d6-4228ee55db49"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=7b24b364cb34233805683bd922e37c2ead227ee3b35f98d936619a8d310099b7",
+              "openiap-event-id": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
+              "openiap-delivery-id": "b7716a0d-0c73-4381-aff8-3872bbed2ad6"
             },
             "body": {
-              "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+              "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -788,16 +788,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f0ddbebf1e6ddf4667ec88c2da5200ee4ec80e17edcc8ee301ef5bb5a9b8998f",
-              "openiap-event-id": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
-              "openiap-delivery-id": "acc06a89-f37e-4783-acc4-998fe5a1f2d4"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=6d2ab7e04376bf576c5f9f8f8f422ef5f5df8ef0797d263b09854206b7d84e2a",
+              "openiap-event-id": "5469665c-9613-4daf-ade7-4acb8419913d",
+              "openiap-delivery-id": "29ce7217-9d09-49a8-a625-9be7147ae49e"
             },
             "body": {
-              "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+              "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -824,16 +824,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f749a5dba3f08a158c2604c2f4dfde6627d576c6cfb9e6d9b78d10f0ad05d863",
-              "openiap-event-id": "c18910f8-7608-425c-be03-04da10fbca9b",
-              "openiap-delivery-id": "2a1eb100-c9b0-485a-bf4d-e86e218510d0"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=118df9b5bded1a72d227b51883610e8a2ecc16a8df850869fe5d621348156c5a",
+              "openiap-event-id": "fa917442-e83b-4c10-987d-a67012424955",
+              "openiap-delivery-id": "a84a5bc7-2629-42e1-97d0-6e129cae1971"
             },
             "body": {
-              "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+              "eventId": "fa917442-e83b-4c10-987d-a67012424955",
               "eventType": "subscription.renewed",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -865,16 +865,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=d39fe8418902c3f74aa3ce83a7a2017852084a7e9d6bc3017ad2330d419906a1",
-              "openiap-event-id": "6bc8c566-3d15-4813-b78d-87dce7663976",
-              "openiap-delivery-id": "743a371d-e4e5-411b-8bf6-2f0919196e1c"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=a7eea75a8aa89371689cdbc048b71acb0e39b4f1df6255a42ce9609589045382",
+              "openiap-event-id": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
+              "openiap-delivery-id": "18087097-4444-4da8-a5ab-66faec1b3e53"
             },
             "body": {
-              "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+              "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
               "eventType": "subscription.canceled",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -910,7 +910,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63248/paywall/redeliver",
+      "destination": "http://127.0.0.1:50918/paywall/redeliver",
       "request": {
         "store": "google",
         "outcome": "success"
@@ -922,16 +922,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=2fbe93bace7272a459446ad8369676e02a16cec5a222b600cf977c3fa8f5adf9",
-              "openiap-event-id": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
-              "openiap-delivery-id": "ab6ba6d3-5c92-49fd-8426-cadeb5d140ae"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=812ba10bdc386a68646610dee3d8055b4e832bdd4b8d714e17d6b727fb88c408",
+              "openiap-event-id": "095275e3-c266-40e6-a8fd-cde1abe261fb",
+              "openiap-delivery-id": "6d7ec26d-3e53-430c-b17c-bce541dce8b1"
             },
             "body": {
-              "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+              "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -958,16 +958,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63247/webhooks/commerce",
+            "destination": "http://127.0.0.1:50917/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=c5b0d918ef6d03e9a79c92c20e0bafbe9a1985bb8980c6ee5755e09896e715b6",
-              "openiap-event-id": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
-              "openiap-delivery-id": "17738ffe-388f-4d25-8b24-7b889d475251"
+              "openiap-timestamp": "1789514934",
+              "openiap-signature": "v1=cc402d6cc74802f92a2b4cb8524cd9e41786eddd8cd880d9eed3ddc4a69a80c4",
+              "openiap-event-id": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
+              "openiap-delivery-id": "5a52a0a2-722d-465d-9ce1-160053d4d301"
             },
             "body": {
-              "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+              "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1002,16 +1002,16 @@
       ],
       "environment": {
         "PORT": "0",
-        "DATA_DIR": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-verify-m8fHAo"
+        "DATA_DIR": "/var/folders/2r/04zpv09x6ns4kzm7bjkbslqr0000gn/T/commerce-verify-a97OTZ"
       },
-      "stdout": "Commerce Protocol from scratch: http://127.0.0.1:63255\n",
+      "stdout": "Commerce Protocol from scratch: http://127.0.0.1:50925\n",
       "stderr": "",
       "exitCode": 0,
       "signal": null
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63255/paywall/redeliver",
+      "destination": "http://127.0.0.1:50925/paywall/redeliver",
       "request": {
         "store": "apple",
         "outcome": "success"
@@ -1023,16 +1023,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=8153de87c804eb32c51145cd0554d463d82313a1b6193114fb13818714bc4124",
-              "openiap-event-id": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
-              "openiap-delivery-id": "7c5247f1-12b8-4884-a7d6-4228ee55db49"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=5d5fe249b2138929a42d90783431ef8fe8e32cdb8eca1fec2fbec7805e77f081",
+              "openiap-event-id": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
+              "openiap-delivery-id": "b7716a0d-0c73-4381-aff8-3872bbed2ad6"
             },
             "body": {
-              "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+              "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1064,16 +1064,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f0ddbebf1e6ddf4667ec88c2da5200ee4ec80e17edcc8ee301ef5bb5a9b8998f",
-              "openiap-event-id": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
-              "openiap-delivery-id": "acc06a89-f37e-4783-acc4-998fe5a1f2d4"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=788b96899898bed9bf8cc38f82f8a702986d4faebf6d47327c46b047d6bb12aa",
+              "openiap-event-id": "5469665c-9613-4daf-ade7-4acb8419913d",
+              "openiap-delivery-id": "29ce7217-9d09-49a8-a625-9be7147ae49e"
             },
             "body": {
-              "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+              "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1100,16 +1100,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=f749a5dba3f08a158c2604c2f4dfde6627d576c6cfb9e6d9b78d10f0ad05d863",
-              "openiap-event-id": "c18910f8-7608-425c-be03-04da10fbca9b",
-              "openiap-delivery-id": "2a1eb100-c9b0-485a-bf4d-e86e218510d0"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=8f32f49e7090ae7e7a894d5c68019d45155740730923f8a30ba72f1c919775b2",
+              "openiap-event-id": "fa917442-e83b-4c10-987d-a67012424955",
+              "openiap-delivery-id": "a84a5bc7-2629-42e1-97d0-6e129cae1971"
             },
             "body": {
-              "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+              "eventId": "fa917442-e83b-4c10-987d-a67012424955",
               "eventType": "subscription.renewed",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1141,16 +1141,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=d39fe8418902c3f74aa3ce83a7a2017852084a7e9d6bc3017ad2330d419906a1",
-              "openiap-event-id": "6bc8c566-3d15-4813-b78d-87dce7663976",
-              "openiap-delivery-id": "743a371d-e4e5-411b-8bf6-2f0919196e1c"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=62f3559ce47d7f8efe9ddd405a190d344c4b01ba67fdfa6d5c9a75be350d504f",
+              "openiap-event-id": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
+              "openiap-delivery-id": "18087097-4444-4da8-a5ab-66faec1b3e53"
             },
             "body": {
-              "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+              "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
               "eventType": "subscription.canceled",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1186,7 +1186,7 @@
     },
     {
       "method": "POST",
-      "destination": "http://127.0.0.1:63255/paywall/redeliver",
+      "destination": "http://127.0.0.1:50925/paywall/redeliver",
       "request": {
         "store": "google",
         "outcome": "success"
@@ -1198,16 +1198,16 @@
         "trace": [
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=2fbe93bace7272a459446ad8369676e02a16cec5a222b600cf977c3fa8f5adf9",
-              "openiap-event-id": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
-              "openiap-delivery-id": "ab6ba6d3-5c92-49fd-8426-cadeb5d140ae"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=14f7fd60dcf4dc8fb617714b8acdc5bbee204859b6fee22b8a001c8e3407b276",
+              "openiap-event-id": "095275e3-c266-40e6-a8fd-cde1abe261fb",
+              "openiap-delivery-id": "6d7ec26d-3e53-430c-b17c-bce541dce8b1"
             },
             "body": {
-              "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+              "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
               "eventType": "subscription.started",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1234,16 +1234,16 @@
           },
           {
             "method": "POST",
-            "destination": "http://127.0.0.1:63254/webhooks/commerce",
+            "destination": "http://127.0.0.1:50924/webhooks/commerce",
             "headers": {
               "Content-Type": "application/json",
-              "openiap-timestamp": "1789278322",
-              "openiap-signature": "v1=c5b0d918ef6d03e9a79c92c20e0bafbe9a1985bb8980c6ee5755e09896e715b6",
-              "openiap-event-id": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
-              "openiap-delivery-id": "17738ffe-388f-4d25-8b24-7b889d475251"
+              "openiap-timestamp": "1789514935",
+              "openiap-signature": "v1=8ecfb6f9f73c677c6fd62bc657b9ef29f66a9746563bd20cb6915053f1c6b931",
+              "openiap-event-id": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
+              "openiap-delivery-id": "5a52a0a2-722d-465d-9ce1-160053d4d301"
             },
             "body": {
-              "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+              "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
               "eventType": "entitlement.granted",
               "eventVersion": "1.0",
               "occurredAt": 1789257600000,
@@ -1298,7 +1298,7 @@
       "evidence": {
         "events": [
           {
-            "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+            "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
             "eventType": "subscription.started",
             "store": "apple",
             "customer": "alice-apple",
@@ -1313,7 +1313,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+            "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
             "eventType": "entitlement.granted",
             "store": "apple",
             "customer": "alice-apple",
@@ -1324,7 +1324,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+            "eventId": "fa917442-e83b-4c10-987d-a67012424955",
             "eventType": "subscription.renewed",
             "store": "apple",
             "customer": "alice-apple",
@@ -1339,7 +1339,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+            "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
             "eventType": "subscription.canceled",
             "store": "apple",
             "customer": "alice-apple",
@@ -1368,7 +1368,7 @@
       "evidence": {
         "events": [
           {
-            "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+            "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
             "eventType": "subscription.started",
             "store": "apple",
             "customer": "alice-apple",
@@ -1383,7 +1383,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+            "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
             "eventType": "entitlement.granted",
             "store": "apple",
             "customer": "alice-apple",
@@ -1394,7 +1394,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+            "eventId": "fa917442-e83b-4c10-987d-a67012424955",
             "eventType": "subscription.renewed",
             "store": "apple",
             "customer": "alice-apple",
@@ -1409,7 +1409,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+            "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
             "eventType": "subscription.canceled",
             "store": "apple",
             "customer": "alice-apple",
@@ -1420,7 +1420,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+            "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "alice-google",
@@ -1431,7 +1431,7 @@
             "treatment": "amount unknown"
           },
           {
-            "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+            "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "alice-google",
@@ -1458,12 +1458,12 @@
       "id": "redelivery",
       "result": "Repeated deliveries change neither counts nor amounts",
       "evidence": [
-        "8b55803d-a3ef-4e21-b95c-5c797223b52f",
-        "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
-        "c18910f8-7608-425c-be03-04da10fbca9b",
-        "6bc8c566-3d15-4813-b78d-87dce7663976",
-        "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
-        "42f4baf5-aa48-41de-9387-e7ec097aaf87"
+        "df5ff1eb-da81-4209-b625-fd1ff36933d0",
+        "5469665c-9613-4daf-ade7-4acb8419913d",
+        "fa917442-e83b-4c10-987d-a67012424955",
+        "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
+        "095275e3-c266-40e6-a8fd-cde1abe261fb",
+        "234bce38-18f5-4b8c-905e-b31c6d7680a4"
       ]
     },
     {
@@ -1472,7 +1472,7 @@
       "evidence": {
         "events": [
           {
-            "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+            "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
             "eventType": "subscription.started",
             "store": "apple",
             "customer": "alice-apple",
@@ -1487,7 +1487,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+            "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
             "eventType": "entitlement.granted",
             "store": "apple",
             "customer": "alice-apple",
@@ -1498,7 +1498,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+            "eventId": "fa917442-e83b-4c10-987d-a67012424955",
             "eventType": "subscription.renewed",
             "store": "apple",
             "customer": "alice-apple",
@@ -1513,7 +1513,7 @@
             "treatment": "known purchase amount"
           },
           {
-            "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+            "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
             "eventType": "subscription.canceled",
             "store": "apple",
             "customer": "alice-apple",
@@ -1524,7 +1524,7 @@
             "treatment": "lifecycle only"
           },
           {
-            "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+            "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
             "eventType": "subscription.started",
             "store": "google",
             "customer": "alice-google",
@@ -1535,7 +1535,7 @@
             "treatment": "amount unknown"
           },
           {
-            "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+            "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
             "eventType": "entitlement.granted",
             "store": "google",
             "customer": "alice-google",
@@ -1561,7 +1561,7 @@
     {
       "id": "source-stability",
       "result": "Source files and revision stayed unchanged throughout execution",
-      "evidence": "b41facb1bf648d6c0aeea80745371dcc25482f8c"
+      "evidence": "e93c68f3f7b62753f42d22002a927f5163a0c613"
     }
   ],
   "untested": [
@@ -1594,7 +1594,7 @@
     "report": {
       "events": [
         {
-          "eventId": "8b55803d-a3ef-4e21-b95c-5c797223b52f",
+          "eventId": "df5ff1eb-da81-4209-b625-fd1ff36933d0",
           "eventType": "subscription.started",
           "store": "apple",
           "customer": "alice-apple",
@@ -1609,7 +1609,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "9ad3f8e2-c46a-4e45-bc5d-845d3f35d1cf",
+          "eventId": "5469665c-9613-4daf-ade7-4acb8419913d",
           "eventType": "entitlement.granted",
           "store": "apple",
           "customer": "alice-apple",
@@ -1620,7 +1620,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "c18910f8-7608-425c-be03-04da10fbca9b",
+          "eventId": "fa917442-e83b-4c10-987d-a67012424955",
           "eventType": "subscription.renewed",
           "store": "apple",
           "customer": "alice-apple",
@@ -1635,7 +1635,7 @@
           "treatment": "known purchase amount"
         },
         {
-          "eventId": "6bc8c566-3d15-4813-b78d-87dce7663976",
+          "eventId": "0fec884e-75e3-4ccc-b6e3-50ef3ee3b035",
           "eventType": "subscription.canceled",
           "store": "apple",
           "customer": "alice-apple",
@@ -1646,7 +1646,7 @@
           "treatment": "lifecycle only"
         },
         {
-          "eventId": "030b6c4a-b93d-40fc-bf78-8ad5d08296c8",
+          "eventId": "095275e3-c266-40e6-a8fd-cde1abe261fb",
           "eventType": "subscription.started",
           "store": "google",
           "customer": "alice-google",
@@ -1657,7 +1657,7 @@
           "treatment": "amount unknown"
         },
         {
-          "eventId": "42f4baf5-aa48-41de-9387-e7ec097aaf87",
+          "eventId": "234bce38-18f5-4b8c-905e-b31c6d7680a4",
           "eventType": "entitlement.granted",
           "store": "google",
           "customer": "alice-google",
@@ -1679,7 +1679,7 @@
       "unknownAmounts": 1,
       "reconciliation": 0
     },
-    "receiver": "http://127.0.0.1:63254/webhooks/commerce"
+    "receiver": "http://127.0.0.1:50924/webhooks/commerce"
   },
-  "finishedAt": "2026-09-13T05:45:22.309Z"
+  "finishedAt": "2026-09-15T23:28:55.061Z"
 }

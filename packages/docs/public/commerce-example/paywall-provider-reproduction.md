@@ -17,20 +17,20 @@ git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
 # The run is recorded on the feature branch. A squash merge leaves that commit
 # out of `main`'s history, so fetch it by SHA before checking it out.
-git fetch origin 0eb73f93bbed37b31767232d1c20057421802d15
-git checkout 0eb73f93bbed37b31767232d1c20057421802d15
+git fetch origin 9b7b59ad7e422b348106aac98774bc0193aa03dd
+git checkout 9b7b59ad7e422b348106aac98774bc0193aa03dd
 bun install --frozen-lockfile
 cd ..
 
 git clone --branch codex/commerce-protocol-review --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git original-example
 cd original-example
-git checkout f23f663e4220abdd709ab4cb340798d5c468cd4c
+git checkout 94b5fc07c39a4b85ede3fee12121beeb71e6c2d5
 npm ci
 cd ..
 
 git clone --branch codex/commerce-protocol-from-scratch --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git fresh-example
 cd fresh-example
-git checkout b41facb1bf648d6c0aeea80745371dcc25482f8c
+git checkout e93c68f3f7b62753f42d22002a927f5163a0c613
 npm ci
 npm run verify
 cd ../openiap-provider-check
