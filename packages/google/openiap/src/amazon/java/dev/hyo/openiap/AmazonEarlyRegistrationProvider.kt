@@ -27,6 +27,8 @@ class AmazonEarlyRegistrationProvider : ContentProvider() {
     override fun onCreate(): Boolean {
         val application = context?.applicationContext ?: return false
         runCatching { PurchasingService.registerListener(application, PlaceholderListener) }
+            // scripts/verify-amazon-registration-order.sh greps this exact message.
+            .onSuccess { Log.i(TAG, "Amazon listener registered at process start") }
             .onFailure {
                 Log.w(TAG, "Amazon early registration failed; purchase dialogs may not appear", it)
             }

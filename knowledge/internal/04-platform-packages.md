@@ -415,10 +415,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 - A sideloaded build cannot verify that fix end to end. With the sandbox
   property cleared, the live Appstore rejects an unrecognised binary
   (`IAP_CMD_3P_COMP_FAILED`) before any purchase starts, so the dialog itself
-  is only observable from a Live App Testing or Appstore install. What a
-  sideloaded build does show, under `adb logcat -s Kiwi`, is the registration
-  order: the provider's listener, then `Activity resumed`, then
-  `scheduling tasks on UI thread`, and no `No UI visible to execute task`.
+  is only observable from a Live App Testing or Appstore install. The
+  registration order a sideloaded build does show is asserted by
+  `scripts/verify-amazon-registration-order.sh`; run that rather than reading
+  `adb logcat -s Kiwi` by hand.
 - Signing is not a blocker for that upload. Amazon strips the developer
   signature on ingestion and re-signs with a certificate tied to the developer
   account, so a test build may use any keystore
