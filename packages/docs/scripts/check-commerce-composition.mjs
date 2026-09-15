@@ -126,6 +126,19 @@ assert.deepEqual(
   interop.reproduction,
   'Provider reports reference different reproduction inputs'
 );
+// The page tells a reader which commits to check out. It is hand-maintained,
+// so without this it silently keeps describing the previous recording.
+const reproductionPage = paywallRead('paywall-provider-reproduction.md');
+for (const key of [
+  'openiapBaseCommit',
+  'originalExampleCommit',
+  'freshExampleCommit',
+]) {
+  assert(
+    reproductionPage.includes(provider.reproduction[key]),
+    `paywall-provider-reproduction.md must check out the recorded ${key}`
+  );
+}
 assert.equal(
   provider.harnessHashes['run-commerce-interop.mjs'],
   interop.harnessHashes['run-commerce-interop.mjs'],

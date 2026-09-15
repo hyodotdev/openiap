@@ -15,7 +15,7 @@ The older regression example lives on its review branch, not the repository's
 ```sh
 git clone https://github.com/hyodotdev/openiap.git openiap-provider-check
 cd openiap-provider-check
-git checkout 44b329ea7921042d225d9c7824d898c716c0ed92
+git checkout 4233231abdba7c032cb334598f70eec3f9b71afa
 bun install --frozen-lockfile
 cd ..
 
@@ -27,7 +27,7 @@ cd ..
 
 git clone --branch codex/commerce-protocol-from-scratch --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git fresh-example
 cd fresh-example
-git checkout 6d5e5e9a3d3aaae449679780bf014e469c38d900
+git checkout b41facb1bf648d6c0aeea80745371dcc25482f8c
 npm ci
 npm run verify
 cd ../openiap-provider-check
