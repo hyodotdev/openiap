@@ -70,6 +70,7 @@ const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
     version: '16.6.1',
     tag: 'react-native-iap-16.6.1',
   },
+  { name: 'expo-iap', version: '5.6.1', tag: 'expo-iap-5.6.1' },
   { name: 'expo-iap', version: '5.6.2', tag: 'expo-iap-5.6.2' },
 ];
 
@@ -381,41 +382,111 @@ function Releases() {
           </AnchorLink>
 
           <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-            On Fire OS, <code>requestPurchase</code> was accepted by the
-            Appstore but no dialog appeared, and the call failed 300s later. App
-            Tester never showed it, because the sandbox answers over its own
-            service intents and never reaches the pipeline that launches the
-            Appstore&apos;s purchase Activity.
+            Fixes the Fire OS purchase dialog never appearing (
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/460"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #460
+            </a>
+            {', '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/462"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #462
+            </a>
+            ) and iOS rejections losing their message (
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/463"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #463
+            </a>
+            {', '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/464"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #464
+            </a>
+            ).
           </p>
 
-          <p style={{ marginBottom: '1rem' }}>
-            The Appstore SDK installs its lifecycle callbacks inside the{' '}
-            <strong>first</strong> <code>registerListener</code> call, and
-            launches the purchase Activity only from an Activity it has seen
-            resume. Registering in <code>initConnection</code> happens after the
-            host Activity resumed, so the SDK parked the purchase until the next{' '}
-            <code>onResume</code>. A <code>ContentProvider</code> now registers
-            before any Activity exists.
-          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.5.2</strong> - registers with the Amazon
+              Appstore SDK at process start. The SDK installs its lifecycle
+              callbacks inside the first <code>registerListener</code> call and
+              launches the purchase Activity only from an Activity it has seen
+              resume, so registering in <code>initConnection</code> parked the
+              purchase until the next <code>onResume</code>: no dialog, then a
+              300s timeout. Also notifies listeners when a live billing
+              connection drops.
+            </li>
+          </ul>
 
-          <Callout kind="note" title="If you were told to pass an Activity">
-            Passing an Activity to <code>registerListener</code> changes
-            nothing: the SDK calls <code>getApplicationContext()</code> on
-            whatever it is given. The fix is when registration happens, not what
-            it is handed.
-          </Callout>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.6.1</strong> - picks up the Amazon fix
+              and clears its cached connection flag when the billing service
+              drops.
+            </li>
+            <li>
+              <strong>expo-iap 5.6.2</strong> - restores <code>message</code>{' '}
+              and <code>debugMessage</code> on iOS rejections. Expo appends a
+              source location to a rejected function&apos;s message, which made
+              the error envelope fail to parse, so a plain cancel arrived as{' '}
+              <code>user-cancelled</code> with{' '}
+              <code>&quot;Failed to request purchase&quot;</code> and read like
+              an outage.
+            </li>
+          </ul>
 
-          <p style={{ marginBottom: '1rem' }}>
-            On iOS, every rejection reached JavaScript with the caller&apos;s
-            fallback message, so a plain cancel arrived as{' '}
-            <code>user-cancelled</code> with{' '}
-            <code>&quot;Failed to request purchase&quot;</code> and read like an
-            outage. Expo appends a source location to a rejected function&apos;s
-            message, which made the error envelope fail to parse.{' '}
-            <code>expo-iap</code> 5.6.2 restores the real <code>message</code>{' '}
-            and <code>debugMessage</code>. <code>react-native-iap</code> was
-            never affected.
-          </p>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Passing an Activity to <code>registerListener</code> changes
+              nothing: the SDK calls <code>getApplicationContext()</code> on
+              whatever it is given. The fix is when registration happens, not
+              what it is handed.
+            </li>
+            <li>
+              Amazon App Tester cannot show this. It answers over its own
+              service intents and never reaches the pipeline that launches the
+              Appstore&apos;s purchase Activity, so a purchase can pass in the
+              sandbox and present no dialog on the live store.
+            </li>
+            <li>
+              <code>react-native-iap</code> was never affected by the iOS
+              message loss; its bridge is Nitro and it extracts the payload with
+              a balanced-brace scan.
+            </li>
+          </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul>
