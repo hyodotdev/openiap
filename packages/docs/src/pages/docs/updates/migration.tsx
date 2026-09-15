@@ -244,7 +244,7 @@ const packageCompatibilityMigrations = [
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
         'OpenIapVersion.gqlVersion / OpenIapVersionInfo.gqlVersion',
-        'OpenIapVersion.specVersion',
+        'OpenIapVersion.clientProtocolVersion',
       ],
     ],
   },

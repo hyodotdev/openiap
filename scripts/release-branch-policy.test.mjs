@@ -1380,9 +1380,19 @@ test("the docs site deploys without a version of its own", () => {
     deployScript.indexOf("Checking Git status") <
       deployScript.indexOf("command -v vercel"),
   );
+  // sync propagates the Client Protocol version before anything reads the
+  // manifest. indexOf returns -1 for a missing needle, so assert presence
+  // first: an ordering check alone passes vacuously once the needle is gone.
+  const propagation = 'versions["clientProtocol"] = published';
+  assert.ok(syncScript.includes(propagation));
   assert.ok(
-    syncScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
+    syncScript.indexOf(propagation) <
       syncScript.indexOf('echo "📦 Syncing version files..."'),
+  );
+  assert.doesNotMatch(
+    syncScript,
+    /assert-client-protocol/,
+    "sync generates the mirror; the audits gate committed state",
   );
 });
 
@@ -1569,15 +1579,28 @@ test("native releases refuse branch drift after the verified head", () => {
       'assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"',
     );
     const commitIndex = workflow.indexOf(`openiap-${packageId}@$VERSION`);
-    const assertVersionIndex = workflow.lastIndexOf(
+    // The mirror gate has to run before the generator that writes the mirror,
+    // or it can never fail. indexOf returns -1 for a missing needle, so assert
+    // both are present before comparing their positions.
+    const assertVersionIndex = workflow.indexOf(
       "release-branch-policy.mjs assert-client-protocol",
     );
+    const syncIndex = workflow.indexOf("./scripts/sync-release-generated.sh");
     const pushIndex = workflow.indexOf(
       'git push origin "HEAD:$RELEASE_BRANCH"',
     );
+    assert.ok(assertVersionIndex >= 0, `${filename} must gate the mirror`);
+    assert.ok(syncIndex >= 0, `${filename} must regenerate release metadata`);
+    assert.ok(pushIndex >= 0, filename);
+    assert.ok(assertVersionIndex < syncIndex, filename);
+    assert.ok(syncIndex < commitIndex, filename);
     assert.ok(headGuardIndex < commitIndex, filename);
-    assert.ok(commitIndex < assertVersionIndex, filename);
-    assert.ok(assertVersionIndex < pushIndex, filename);
+    assert.ok(commitIndex < pushIndex, filename);
+    assert.equal(
+      workflow.lastIndexOf("release-branch-policy.mjs assert-client-protocol"),
+      assertVersionIndex,
+      `${filename} must not re-assert after sync, where it cannot fail`,
+    );
     assert.match(workflow, /Release branch moved after verification/u);
     assert.doesNotMatch(workflow, /git pull --rebase|git rebase --continue/u);
     assert.doesNotMatch(

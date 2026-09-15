@@ -308,7 +308,11 @@ jobs:
 
       - name: Sync version files
         if: steps.version.outputs.skip_version_commit != 'true'
-        run: ./scripts/sync-release-generated.sh
+        run: |
+          # Gate the branch state before regenerating over it; sync writes the
+          # Client Protocol mirror, so a check after it could never fail.
+          node scripts/release-branch-policy.mjs assert-client-protocol
+          ./scripts/sync-release-generated.sh
 
       - name: Assert verified release head is unchanged
         if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
@@ -334,7 +338,6 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(release): openiap-google@$VERSION"
-            node scripts/release-branch-policy.mjs assert-client-protocol
             if ! git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "::error::Release branch moved after verification; rerun the release workflow"
               exit 1

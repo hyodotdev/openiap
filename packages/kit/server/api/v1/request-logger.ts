@@ -84,7 +84,6 @@ export interface VerifyDebugLogLine {
   store?: VerifyStore;
   isValid?: boolean;
   state?: string;
-  specVersion?: string;
   sandbox?: boolean;
   identifiers?: VerifyDebugIdentifiers;
 }

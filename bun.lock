@@ -44,7 +44,7 @@
     },
     "packages/docs": {
       "name": "@hyodotdev/openiap-docs",
-      "version": "3.4.0",
+      "version": "1.0.0",
       "dependencies": {
         "@hyodotdev/openiap-commerce-protocol": "workspace:*",
         "@preact/signals-react": "^3.2.1",
@@ -82,7 +82,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "3.5.1",
+      "version": "3.5.2",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },

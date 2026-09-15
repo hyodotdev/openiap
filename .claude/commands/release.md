@@ -21,7 +21,8 @@ Inspect the complete public payload before publishing it.
   production docs deployment from `main`.
 - `clientProtocol` mirrors `specs/client/package.json`. Never edit it directly
   in a feature PR, release command, or docs deployment. A Client Protocol
-  release bumps the publishing manifest; sync verifies and propagates it.
+  release bumps the publishing manifest; `scripts/sync-versions.sh` writes the
+  mirror, and the audits reject a committed mismatch.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -146,8 +147,8 @@ The initial `0.0.0-bootstrap.0` versions reserve names only. All three scoped
 packages start at `0.1.0`. Use `version=current` for the initial stable release.
 Commerce uses `hyodotdev-openiap-commerce-protocol-<version>` tags; historical
 unscoped tags stay immutable. Client and CLI use
-`openiap-client-protocol-<version>` and `openiap-<version>` tags; Docs keeps
-`docs-<spec>`.
+`openiap-client-protocol-<version>` and `openiap-<version>` tags. The docs site
+is not versioned and cuts no tag.
 
 For an explicitly authorized alpha or beta on `next`, select `version=exact`
 and `target_version=0.1.0-alpha.0` (or the requested prerelease). Leave

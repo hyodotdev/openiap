@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T18:04:14.943Z
+> Last updated: 2026-09-15T18:32:10.663Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1057,7 +1057,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "clientProtocol": "0.2.0",
+  "clientProtocol": "0.1.0",
   "google": "3.5.2",
   "apple": "3.4.0"
 }

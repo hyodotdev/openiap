@@ -26,7 +26,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "clientProtocol": "0.2.0",
+  "clientProtocol": "0.1.0",
   "google": "3.5.2",
   "apple": "3.4.0"
 }

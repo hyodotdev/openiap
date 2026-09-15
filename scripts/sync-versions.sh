@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Sync version files from root to packages
-# Uses symlinks for native packages, copies for docs (Vercel requirement)
+# Write the Client Protocol version into openiap-versions.json, then sync that
+# manifest out to packages. Symlinks for native packages, copies for docs
+# (Vercel requirement).
 
 set -euo pipefail
 

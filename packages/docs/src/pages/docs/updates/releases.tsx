@@ -558,12 +558,23 @@ function Releases() {
               <code>0.1.0</code>, and <code>openiap-apple</code> and{' '}
               <code>openiap-google</code> are now just package versions.
             </p>
-            <p style={{ margin: 0 }}>
+            <p style={{ marginBottom: '0.5rem' }}>
               Schema deprecations now name a Client Protocol removal train. The
               three fields scheduled for removal read &quot;Scheduled for
               removal in client protocol 1.0&quot; instead of &quot;OpenIAP
               4.0&quot;; the fields and their replacements are unchanged;
               removal now lands with client protocol 1.0.
+            </p>
+            <p style={{ margin: 0 }}>
+              The <code>X-OpenIAP-Spec</code> request header is removed. It was
+              optional telemetry that IAPKit only wrote to a log line, and
+              nothing ever branched on it, so verification is unaffected. With
+              it go the symbols that fed it:{' '}
+              <code>OpenIapVersion.specVersion</code> is now{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code> in{' '}
+              <code>openiap-apple</code>, and{' '}
+              <code>BuildConfig.OPENIAP_SPEC_VERSION</code> is gone from{' '}
+              <code>openiap-google</code>. Both ship in the next native release.
             </p>
           </Callout>
 

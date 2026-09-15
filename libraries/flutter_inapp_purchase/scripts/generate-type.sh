@@ -13,7 +13,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-SPEC_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
+CLIENT_PROTOCOL_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
 import json
 import re
 import sys
@@ -41,7 +41,7 @@ print(value)
 PY
 )
 
-TAG="openiap-client-protocol-${SPEC_VERSION}"
+TAG="openiap-client-protocol-${CLIENT_PROTOCOL_VERSION}"
 DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"
 
 cleanup() {

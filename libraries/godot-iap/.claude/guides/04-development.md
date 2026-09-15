@@ -28,7 +28,7 @@
 `openiap-versions.json` - OpenIAP dependency versions:
 ```json
 {
-  "clientProtocol": "0.2.0",
+  "clientProtocol": "0.1.0",
   "apple": "3.4.0",
   "google": "3.5.2"
 }
