@@ -77,7 +77,14 @@ assert.equal(
   hash(paywallRead('paywall-source.tar.gz')),
   connection.archiveSha256
 );
-assert.equal(harness.checks.length, connection.harness.checks);
+// export-paywall.mjs derives these from paywall-harness.json in the same
+// invocation as providerVerification; pin every field, not just the count.
+assert.deepEqual(connection.harness, {
+  checks: harness.checks.length,
+  recordedAt: harness.finishedAt,
+});
+assert.deepEqual(connection.state, harness.state);
+assert.equal(connection.implementationCommit, connection.sourceCommit);
 for (const id of [
   'cli-handoff',
   'regressions',
@@ -93,6 +100,16 @@ for (const id of [
     `Missing connection check: ${id}`
   );
 assert(provider.freshConnection.ok);
+// The example's own verification pinned every file at this commit; the
+// provider run must have executed the same bytes.
+for (const [file, expected] of Object.entries(
+  provider.freshConnection.source.hashes
+))
+  assert.equal(
+    harness.source.files[file],
+    expected,
+    `${file}: provider run and paywall harness pin different sources`
+  );
 assert.equal(provider.freshConnection.source.revision, connection.sourceCommit);
 assert.equal(provider.reproduction.freshExampleCommit, connection.sourceCommit);
 // export-paywall.mjs derives this block from the same report in one
@@ -154,7 +171,9 @@ assert.deepEqual(
 );
 // The page tells a reader which commits to check out. It is hand-maintained,
 // so without this it silently keeps describing the previous recording.
-const reproductionPage = String(paywallRead('paywall-provider-reproduction.md'));
+const reproductionPage = String(
+  paywallRead('paywall-provider-reproduction.md')
+);
 // Order matters: the three clone blocks are openiap, original, fresh. A
 // substring check alone passes when two of them are swapped.
 assert.deepEqual(
