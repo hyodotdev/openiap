@@ -27,8 +27,6 @@ export interface VerifyLogLine {
   store?: VerifyStore;
   isValid?: boolean;
   state?: string;
-  /** `X-OpenIAP-Spec`, when the client sent a plausible version. */
-  specVersion?: string;
 }
 
 /**
@@ -59,19 +57,6 @@ export function redactApiKeysInPath(path: string, knownKey?: string): string {
     }
   }
   return scrubbed;
-}
-
-// Caller-controlled, so it is shape-checked and bounded before reaching a log
-// line. Nothing branches on it: a client must not be able to change how its
-// receipt is verified by claiming a version.
-const SPEC_VERSION_PATTERN =
-  /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,32})?$/;
-
-export function readSpecVersion(
-  header: string | undefined,
-): string | undefined {
-  if (!header) return undefined;
-  return SPEC_VERSION_PATTERN.test(header) ? header : undefined;
 }
 
 export interface RedactedDebugValue {
@@ -292,7 +277,6 @@ export function requestLoggerMiddleware(
       const apiKeyHash =
         c.var.apiKeyHash ?? (apiKey ? hashApiKey(apiKey) : undefined);
       const statusCode = nextError && c.res.status < 400 ? 500 : c.res.status;
-      const specVersion = readSpecVersion(c.req.header("X-OpenIAP-Spec"));
 
       // Swallow logger-side throws — a broken sink should never take
       // down a request whose real work already succeeded (or already
@@ -310,7 +294,6 @@ export function requestLoggerMiddleware(
           store,
           isValid: outcome?.isValid,
           state: outcome?.state,
-          specVersion,
         });
       } catch (loggerError) {
         console.error(
@@ -332,7 +315,6 @@ export function requestLoggerMiddleware(
             store,
             isValid: outcome?.isValid,
             state: outcome?.state,
-            specVersion,
             sandbox: body?.sandbox,
             identifiers: collectDebugIdentifiers(body),
           });

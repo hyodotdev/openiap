@@ -551,10 +551,12 @@ function Releases() {
           <Callout kind="important" title="What changes for you">
             <p style={{ marginBottom: '0.5rem' }}>
               A version like <code>3.4.0</code> that used to be labelled
-              &quot;OpenIAP Spec&quot; is the native compatibility floor &mdash;
-              the lowest release both <code>openiap-apple</code> and{' '}
-              <code>openiap-google</code> have reached. It was never a protocol
-              version, and it is no longer called a spec.
+              &quot;OpenIAP Spec&quot; was the lowest release both{' '}
+              <code>openiap-apple</code> and <code>openiap-google</code> had
+              reached. It was never a protocol version. That number is retired:
+              the Client Protocol is versioned on its own from{' '}
+              <code>0.1.0</code>, and <code>openiap-apple</code> and{' '}
+              <code>openiap-google</code> are now just package versions.
             </p>
             <p style={{ margin: 0 }}>
               Schema deprecations now name a Client Protocol removal train. The

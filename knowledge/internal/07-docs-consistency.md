@@ -231,7 +231,7 @@ by `scripts/sync-versions.sh` from the real SSOT files:
 - MAUI: `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`
 - Google Android SDK / Play Billing: `packages/google/openiap/build.gradle.kts`
 
-`bun run audit:docs` fails if the spec/client protocol version invariant is broken, this
+`bun run audit:docs` fails if the Client Protocol mirror is broken, this
 generated metadata drifts from the SSOT files, or `versioning.ts` reintroduces
 raw imports outside `packages/docs`.
 

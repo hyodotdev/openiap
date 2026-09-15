@@ -1569,15 +1569,15 @@ test("native releases refuse branch drift after the verified head", () => {
       'assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"',
     );
     const commitIndex = workflow.indexOf(`openiap-${packageId}@$VERSION`);
-    const assertFloorIndex = workflow.lastIndexOf(
+    const assertVersionIndex = workflow.lastIndexOf(
       "release-branch-policy.mjs assert-client-protocol",
     );
     const pushIndex = workflow.indexOf(
       'git push origin "HEAD:$RELEASE_BRANCH"',
     );
     assert.ok(headGuardIndex < commitIndex, filename);
-    assert.ok(commitIndex < assertFloorIndex, filename);
-    assert.ok(assertFloorIndex < pushIndex, filename);
+    assert.ok(commitIndex < assertVersionIndex, filename);
+    assert.ok(assertVersionIndex < pushIndex, filename);
     assert.match(workflow, /Release branch moved after verification/u);
     assert.doesNotMatch(workflow, /git pull --rebase|git rebase --continue/u);
     assert.doesNotMatch(

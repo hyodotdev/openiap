@@ -164,8 +164,8 @@ Train rules (mistake guards):
   libraries the merged PRs actually touched and skips Apple/Google entirely.
 - **Native gate.** Do not dispatch any library workflow until every affected
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
-  Maven Central POMs publicly fetchable) and the client protocol version has been derived
-  and synchronized on `main`. Workflow success is not deployment; poll the
+  Maven Central POMs publicly fetchable) and its package metadata is
+  synchronized on `main`. Workflow success is not deployment; poll the
   registry.
 - **Release notes last.** After every package in the train is
   registry-verified, add the consolidated entry to

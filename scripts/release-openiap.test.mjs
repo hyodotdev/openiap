@@ -275,24 +275,55 @@ test("version sync preserves the npm versions that are independent", (t) => {
     );
   }
 
-  // A Client Protocol bump that has not reached the manifest must stop sync
-  // rather than let the two numbers drift apart.
+  // The release lane: a Client Protocol bump reaches the mirror through sync,
+  // so `npm version` in the Bump step and the manifest the whole repo reads
+  // cannot drift apart. Before this, sync asserted equality instead of
+  // propagating and every bump mode was dead on arrival.
   write("specs/client/package.json", {
     name: entries[0][1],
     version: "0.2.0",
   });
-  const drifted = spawnSync("bash", ["scripts/sync-versions.sh"], {
-    cwd: directory,
-    encoding: "utf8",
-  });
-  assert.notEqual(drifted.status, 0);
-  assert.match(
-    `${drifted.stdout}${drifted.stderr}`,
-    /clientProtocol 0\.1\.0 must equal specs\/client\/package\.json 0\.2\.0/,
-  );
-  assert.equal(
+  execFileSync("bash", ["scripts/sync-versions.sh"], { cwd: directory });
+  const synced = JSON.parse(
     readFileSync(join(directory, "openiap-versions.json"), "utf8"),
-    nativeBefore,
+  );
+  assert.equal(synced.clientProtocol, "0.2.0");
+  // Natives are untouched by a protocol bump.
+  assert.equal(synced.google, JSON.parse(nativeBefore).google);
+  assert.equal(synced.apple, JSON.parse(nativeBefore).apple);
+  assert.equal(releasePackage("client-protocol", directory).version, "0.2.0");
+});
+
+test("the release commit stages the mirror the bump moves", () => {
+  // sync-release-generated.sh runs inside the release workflow's commit step.
+  // Anything it regenerates but does not stage is silently dropped from the
+  // release commit, leaving the published tag disagreeing with the manifest.
+  const script = readFileSync(
+    join(root, "scripts/sync-release-generated.sh"),
+    "utf8",
+  );
+  for (const generated of [
+    "openiap-versions.json",
+    "packages/docs/openiap-versions.json",
+    "packages/apple/Sources/OpenIapGeneratedVersion.swift",
+    "packages/docs/src/generated/version-metadata.json",
+    "packages/conformance/src/spec/generated-spec.mjs",
+  ]) {
+    assert.ok(
+      new RegExp(`^\\s+${generated.replaceAll("/", "\\/").replaceAll(".", "\\.")} \\\\$`, "m").test(
+        script,
+      ),
+      `sync-release-generated.sh must stage ${generated}`,
+    );
+  }
+  const workflow = readFileSync(
+    join(root, ".github/workflows/release-openiap.yml"),
+    "utf8",
+  );
+  assert.ok(
+    workflow.indexOf("./scripts/sync-release-generated.sh") <
+      workflow.indexOf('git add "$PACKAGE_MANIFEST" bun.lock'),
+    "the workflow must regenerate before staging the bumped manifest",
   );
 });
 

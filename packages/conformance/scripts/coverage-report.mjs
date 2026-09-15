@@ -16,7 +16,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
-import { SUITE_VERSION, specVersion } from '../src/spec/version.mjs';
+import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
 
 const ROOT = new URL('../../../', import.meta.url);
 
@@ -139,7 +139,7 @@ const uncoveredByReal = rows.filter(
 
 const artifact = {
   suiteVersion: SUITE_VERSION,
-  specVersion: specVersion(),
+  clientProtocolVersion: clientProtocolVersion(),
   implementations: IMPLEMENTATIONS.map(({ name, store, covered }) => ({
     name,
     store,
@@ -158,7 +158,7 @@ if (process.argv.includes('--json')) {
   console.log(JSON.stringify(artifact, null, 2));
 } else {
   console.log('OpenIAP Conformance Coverage');
-  console.log(`  suite ${SUITE_VERSION} / spec ${specVersion()}`);
+  console.log(`  suite ${SUITE_VERSION} / client protocol ${clientProtocolVersion()}`);
   console.log('');
   let category = '';
   for (const row of rows) {

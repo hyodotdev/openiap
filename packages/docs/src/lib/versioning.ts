@@ -54,13 +54,13 @@ function readRequiredMetadataString(
 }
 
 const parsedVersions = parseVersions(versionsFile);
-const CLIENT_SPEC_VERSION = readRequiredMetadataString(
-  'clientSpecVersion',
-  'clientSpecVersion'
+const CLIENT_PROTOCOL_VERSION = readRequiredMetadataString(
+  'clientProtocolVersion',
+  'clientProtocolVersion'
 );
-const COMMERCE_SPEC_VERSION = readRequiredMetadataString(
-  'commerceSpecVersion',
-  'commerceSpecVersion'
+const COMMERCE_PROTOCOL_VERSION = readRequiredMetadataString(
+  'commerceProtocolVersion',
+  'commerceProtocolVersion'
 );
 const EXPO_PACKAGE_VERSION = readRequiredMetadataString(
   'expoPackageVersion',
@@ -131,14 +131,14 @@ export const OPENIAP_PROTOCOLS = Object.freeze({
   client: Object.freeze({
     name: 'Client Protocol',
     package: '@hyodotdev/openiap-client-protocol',
-    version: CLIENT_SPEC_VERSION,
+    version: CLIENT_PROTOCOL_VERSION,
     to: '/docs/updates/versions#client-protocol',
     blurb: 'The purchase API every SDK implements.',
   }),
   commerce: Object.freeze({
     name: 'Commerce Protocol',
     package: '@hyodotdev/openiap-commerce-protocol',
-    version: COMMERCE_SPEC_VERSION,
+    version: COMMERCE_PROTOCOL_VERSION,
     to: '/commerce-protocol',
     blurb: 'The server-side contract backends implement.',
   }),

@@ -68,7 +68,7 @@ esac
 
 echo "New version: $NEW_VERSION"
 
-# Update the native key and derived spec floor atomically.
+# Update the native package version; it constrains no protocol version.
 node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
     update-native apple "$NEW_VERSION"
 

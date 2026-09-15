@@ -38,8 +38,8 @@ the same way.
 An explicit `$loop-review` invocation or explicit natural-language request for
 this complete loop authorizes the in-scope commit, push, PR, review replies,
 thread resolution, merge, affected stable package releases, release-note and
-workflow-documentation commits directly to `main`, production docs deployment,
-and production docs deployment. It does not authorize
+workflow-documentation commits directly to `main`, and production docs
+deployment. It does not authorize
 prereleases, unrelated cleanup, destructive recovery, or product-code commits
 directly to `main`.
 

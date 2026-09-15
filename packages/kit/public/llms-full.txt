@@ -50,11 +50,8 @@ breaking contract would ship at `/v2` while `/v1` keeps serving. Required
 verdict fields are validated before every response leaves IAPKit; unknown
 optional metadata degrades instead of invalidating a store-confirmed purchase.
 
-SDKs that support it send their compile-time OpenIAP spec version in
-`X-OpenIAP-Spec`. IAPKit records the header for rollout measurement only and
-never changes verification behavior based on it. Apps gate on `isValid`,
-require the store-verified `productId`, and allow optional fields to be absent
-or unknown. The cross-SDK policy is canonical at
+Apps gate on `isValid`, require the store-verified `productId`, and allow
+optional fields to be absent or unknown. The cross-SDK policy is canonical at
 https://kit.openiap.dev/docs/compatibility.
 
 ## Endpoints

@@ -4122,8 +4122,8 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
-      clientSpecVersion: readJson("specs/client/package.json").version,
-      commerceSpecVersion: readJson("specs/commerce-protocol/package.json")
+      clientProtocolVersion: readJson("specs/client/package.json").version,
+      commerceProtocolVersion: readJson("specs/commerce-protocol/package.json")
         .version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
@@ -4211,8 +4211,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "type VersionKey = 'clientProtocol' | 'google' | 'apple';",
       "'clientProtocol'",
-      "clientSpecVersion",
-      "commerceSpecVersion",
+      "clientProtocolVersion",
+      "commerceProtocolVersion",
       "'google'",
       "'apple'",
       "../generated/version-metadata.json",
@@ -5024,7 +5024,7 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes(
     "scripts/sync-versions.sh",
     ['sync_package_json_version "specs/client/package.json"'],
-    "Client npm versions are independent of the native spec floor",
+    "the Client Protocol version flows manifest -> mirror, never the reverse",
   );
   expectIncludes(
     ".gitignore",

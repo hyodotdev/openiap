@@ -355,19 +355,19 @@ from issue #206 without duplicating release history across package-local files:
 
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `spec-3-4-0-apple-3-4-0`
+3. Use semantic IDs like `google-3-5-2-apple-3-4-0`
 4. Verify every package version against its source of truth before writing it
    (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
-  // Client spec 3.4.0 / Apple 3.4.0 - Jan 26, 2026
+  // Google 3.5.2 / Apple 3.4.0 - Jan 26, 2026
   {
-    id: "spec-3-4-0-apple-3-4-0",
+    id: "google-3-5-2-apple-3-4-0",
     date: new Date("2026-01-26"),
     element: (
-      <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
-        <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
+      <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
+        <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
           📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature
           Description
         </AnchorLink>

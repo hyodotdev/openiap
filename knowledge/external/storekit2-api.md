@@ -82,7 +82,7 @@ scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
-(Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
+(openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
 return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
 client protocol 1.0. Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2

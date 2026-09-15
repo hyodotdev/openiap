@@ -37,7 +37,7 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "docs",
-        text: "Replace presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid with openRedeemOfferCode before the platform-specific methods are removed in client protocol 1.0.",
+        text: "Replace presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid with openRedeemOfferCode before the platform-specific methods are removed in OpenIAP 4.0.",
       },
     ],
   },

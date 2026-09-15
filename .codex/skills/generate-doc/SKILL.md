@@ -113,8 +113,8 @@ versions in this order:
    impact is ambiguous or conflicts with an existing release plan, ask instead
    of guessing.
 4. Do not bump unaffected packages merely to make a release list symmetrical.
-5. Reuse the explicit maintainer-selected Client Protocol / docs target from
-   the coordinated release plan or unreleased card. If no explicit target
+5. Reuse the explicit maintainer-selected Client Protocol target from the
+   coordinated release plan or unreleased card. If no explicit target
    exists, ask; never infer one. The note reports the `clientProtocol` value
    actually committed in `openiap-versions.json`, which mirrors
    `specs/client/package.json` — so a plan naming a target the manifest does not

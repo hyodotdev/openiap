@@ -480,12 +480,11 @@ Version ownership is split:
 - Apple releases update `apple` version
 - Google releases update `google` version
 - `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and sync carries the new value into
-  `openiap-versions.json`, `packages/docs/package.json`, and the other copies
+  release bumps that manifest and `scripts/sync-versions.sh` writes the new
+  value into `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
-- Production docs deploy at the current `clientProtocol`; they must not select a
-  version independently
+- The docs site has no version: it deploys whatever `main` holds
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
@@ -508,5 +507,4 @@ version changes happen via:
 1. Release workflows (Apple Release, Google Release)
 2. A Client Protocol release bumping `specs/client/package.json`, followed by
    sync propagation
-3. Deploy script (`npm run deploy`) using the already-recorded version
-4. CI auto-bump after merge where configured
+3. CI auto-bump after merge where configured

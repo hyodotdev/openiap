@@ -217,18 +217,18 @@ For detailed code conventions, naming standards, and implementation guidelines, 
 The generated TypeScript definitions in `src/types.ts` come from the platform-ready file committed in the [OpenIAP](https://github.com/hyodotdev/openiap) raw `openiap-client-protocol-${clientProtocol}` tag. Never edit this file by hand. When the schema changes or you need to pull newer published types:
 
 - Run `bun run generate:types` to download the version pinned by `openiap-versions.json`, validate it, and atomically replace `src/types.ts`.
-- To target a specific published spec, pass its version: `bun run generate:types --tag <version>` (the script resolves it to `docs-<version>`).
+- To target a specific published Client Protocol version, pass it: `bun run generate:types --tag <version>` (the script resolves it to `openiap-client-protocol-<version>`).
 - Commit the updated file alongside any related schema or documentation changes.
 
 Always ensure the repository builds and tests succeed after regenerating the types.
 
 ## 🔢 OpenIAP Version Management
 
-The native dependency and OpenIAP specification versions are sourced from `openiap-versions.json` at the repository root:
+The native dependency and Client Protocol versions are sourced from `openiap-versions.json` at the repository root:
 
 - `apple` → iOS Pod dependency (`ios/ExpoIap.podspec`).
 - `google` → Android artifact (`android/build.gradle`, Expo config plugin).
-- `spec` → published OpenIAP specification/types release (`scripts/update-types.mjs`).
+- `clientProtocol` → published Client Protocol types release (`scripts/update-types.mjs`).
 
 When bumping dependencies:
 

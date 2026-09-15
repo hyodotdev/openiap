@@ -155,8 +155,8 @@ Native modules must be released before framework libraries:
 ### Prerelease
 
 Native and framework package workflows support their documented version bump
-modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
-`current`-only because the Spec version is derived from the client protocol version.
+modes (`patch` / `minor` / `major` / `rc` / `promote`). The docs site has no
+version and no release workflow; `npm run deploy` just deploys.
 
 - `major` + prerelease checkbox -- X.0.0-rc.1
 - `rc` -- X.0.0-rc.2 (increment prerelease)
@@ -205,9 +205,9 @@ These files are generated and synchronized by `bun run generate` in
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `openiap-versions.json` -- Tracks only `clientProtocol`, `google`, and `apple`;
-  Google/Apple are native-workflow-managed, while `spec` is their derived
-  semantic-version minimum and is never bumped independently
+- `openiap-versions.json` -- Tracks only `clientProtocol`, `google`, and `apple`.
+  `clientProtocol` is a generated mirror of `specs/client/package.json`;
+  Google/Apple are native-workflow-managed. Never edit any of the three by hand
 
 To regenerate:
 

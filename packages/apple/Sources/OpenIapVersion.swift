@@ -5,9 +5,8 @@ public struct OpenIapVersion {
         OpenIapGeneratedVersion.apple
     }
 
-    /// Client protocol version this build implements.
-    /// Named `specVersion` for the `X-OpenIAP-Spec` header shipped SDKs send.
-    public static var specVersion: String {
+    /// Client Protocol version this build implements.
+    public static var clientProtocolVersion: String {
         OpenIapGeneratedVersion.clientProtocol
     }
 }

@@ -7,7 +7,7 @@
  */
 
 import { runConformance } from './runner.mjs';
-import { SUITE_VERSION, specVersion } from '../spec/version.mjs';
+import { SUITE_VERSION, clientProtocolVersion } from '../spec/version.mjs';
 
 /**
  * Outcomes that legitimately differ across stores are not divergences:
@@ -66,7 +66,7 @@ export async function runDifferential(adapters, options = {}) {
 
   return {
     suiteVersion: SUITE_VERSION,
-    specVersion: specVersion(),
+    clientProtocolVersion: clientProtocolVersion(),
     adapters: names,
     evaluatedBehaviorCount: behaviorIds.length,
     divergences,
@@ -78,7 +78,7 @@ export async function runDifferential(adapters, options = {}) {
 /** @param {Awaited<ReturnType<typeof runDifferential>>} result */
 export function formatDifferentialReport(result) {
   const lines = [
-    `OpenIAP differential conformance — suite ${result.suiteVersion} / spec ${result.specVersion}`,
+    `OpenIAP differential conformance — suite ${result.suiteVersion} / client protocol ${result.clientProtocolVersion}`,
     `  adapters: ${result.adapters.join(', ')}`,
     `  behaviors: ${result.evaluatedBehaviorCount} · divergences: ${result.divergences.length}`,
   ];

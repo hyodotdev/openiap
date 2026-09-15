@@ -113,17 +113,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
-    /// Reports the compile-time response contract; never used for negotiation.
     static func makeIapkitRequest(
         url: URL,
         apiKey: String?,
-        body: Data,
-        specVersion: String = OpenIapVersion.specVersion
+        body: Data
     ) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
         let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmedApiKey, trimmedApiKey.isEmpty == false {
             request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")

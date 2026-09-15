@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T17:45:17.201Z
+> Last updated: 2026-09-15T18:04:14.943Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1057,9 +1057,9 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "clientProtocol": "2.4.2",
-  "google": "2.5.0",
-  "apple": "2.4.2"
+  "clientProtocol": "0.2.0",
+  "google": "3.5.2",
+  "apple": "3.4.0"
 }
 ```
 
@@ -2083,19 +2083,19 @@ from issue #206 without duplicating release history across package-local files:
 
 1. Add new entry at the **top** of the `allNotes` array
 2. Follow the existing pattern with `id`, `date`, and `element`
-3. Use semantic IDs like `spec-3-4-0-apple-3-4-0`
+3. Use semantic IDs like `google-3-5-2-apple-3-4-0`
 4. Verify every package version against its source of truth before writing it
    (see "Release package version verification" below)
 
 ```tsx
 const allNotes: Note[] = [
-  // Client spec 3.4.0 / Apple 3.4.0 - Jan 26, 2026
+  // Google 3.5.2 / Apple 3.4.0 - Jan 26, 2026
   {
-    id: "spec-3-4-0-apple-3-4-0",
+    id: "google-3-5-2-apple-3-4-0",
     date: new Date("2026-01-26"),
     element: (
-      <div key="spec-3-4-0-apple-3-4-0" style={noteCardStyle}>
-        <AnchorLink id="spec-3-4-0-apple-3-4-0" level="h4">
+      <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
+        <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
           📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature
           Description
         </AnchorLink>
@@ -2650,12 +2650,11 @@ Version ownership is split:
 - Apple releases update `apple` version
 - Google releases update `google` version
 - `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
-  release bumps that manifest and sync carries the new value into
-  `openiap-versions.json`, `packages/docs/package.json`, and the other copies
+  release bumps that manifest and `scripts/sync-versions.sh` writes the new
+  value into `openiap-versions.json` and its copies
 - Native releases never move `clientProtocol`, and a Client Protocol release
   never moves `google` or `apple`
-- Production docs deploy at the current `clientProtocol`; they must not select a
-  version independently
+- The docs site has no version: it deploys whatever `main` holds
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
@@ -2678,8 +2677,7 @@ version changes happen via:
 1. Release workflows (Apple Release, Google Release)
 2. A Client Protocol release bumping `specs/client/package.json`, followed by
    sync propagation
-3. Deploy script (`npm run deploy`) using the already-recorded version
-4. CI auto-bump after merge where configured
+3. CI auto-bump after merge where configured
 
 
 ---
@@ -2919,7 +2917,7 @@ by `scripts/sync-versions.sh` from the real SSOT files:
 - MAUI: `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`
 - Google Android SDK / Play Billing: `packages/google/openiap/build.gradle.kts`
 
-`bun run audit:docs` fails if the spec/client protocol version invariant is broken, this
+`bun run audit:docs` fails if the Client Protocol mirror is broken, this
 generated metadata drifts from the SSOT files, or `versioning.ts` reintroduces
 raw imports outside `packages/docs`.
 
@@ -4671,7 +4669,7 @@ scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
 sheet but does not return the redeemed transaction.
 
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
-(Spec 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
+(openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
 return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
 client protocol 1.0. Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
