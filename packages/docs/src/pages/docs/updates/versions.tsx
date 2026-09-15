@@ -88,6 +88,17 @@ function Versions() {
           capabilities it supports per store in its capability descriptor, so
           the gaps are published rather than implied.
         </p>
+        <p>
+          The wire contract carries a second number, and it is not the package
+          version. A descriptor declares{' '}
+          <code>commerceProtocolVersion: &quot;1.0&quot;</code> and every event
+          body carries <code>eventVersion</code>, both as{' '}
+          <code>MAJOR.MINOR</code>; the REST binding lives at{' '}
+          <code>/commerce/v1</code> because the major is 1. Those describe the
+          contract on the wire. The npm version above describes the files that
+          distribute it, and moves on its own release cadence. Consumers pin on
+          the wire major, never on the package version.
+        </p>
         <Callout kind="note" title="Two versions, two meanings">
           <p>
             These are the versions of the protocol packages themselves. The
