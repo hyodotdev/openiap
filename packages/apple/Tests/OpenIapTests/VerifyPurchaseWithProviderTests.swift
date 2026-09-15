@@ -172,7 +172,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
     func testSpecVersionIsACompileTimeConstant() throws {
         // Generated from openiap-versions.json, so it cannot fail to resolve in
         // any distribution channel.
-        XCTAssertEqual(OpenIapVersion.specVersion, OpenIapGeneratedVersion.nativeFloor)
+        XCTAssertEqual(OpenIapVersion.specVersion, OpenIapGeneratedVersion.clientProtocol)
         XCTAssertNotNil(
             OpenIapVersion.specVersion.range(
                 of: #"^\d+\.\d+\.\d+"#,

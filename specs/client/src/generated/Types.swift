@@ -2729,7 +2729,7 @@ public protocol MutationResolver {
     func restorePurchases() async throws -> Void
     /// Show Google's mandatory information dialog before a developer-rendered,
     /// in-app Billing Choice screen.
-    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
     func showBillingProgramInformationDialogAndroid(_ params: BillingProgramInformationDialogParamsAndroid) async throws -> BillingResultAndroid
@@ -2740,7 +2740,7 @@ public protocol MutationResolver {
     /// Parameter noticeType: Notice type determining the style of disclosure
     func showExternalPurchaseCustomLinkNoticeIOS(_ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
     /// Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+    /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0
     /// (upstream API available since Play Billing 4.1.0).
     /// Returns a response code and, when the subscription status changes, the related purchase token.
     /// Throws OpenIapError.NotPrepared if billing client not ready.
@@ -2794,7 +2794,7 @@ public protocol QueryResolver {
     /// See: https://openiap.dev/docs/apis/get-available-purchases
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]
     /// Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     /// Throws OpenIapError.NotPrepared if billing client is not ready.
     /// See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
     func getBillingChoiceInfoAndroid(_ params: GetBillingChoiceInfoParamsAndroid) async throws -> BillingChoiceInfoAndroid

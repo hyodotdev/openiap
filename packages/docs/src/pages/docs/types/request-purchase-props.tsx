@@ -463,8 +463,8 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       <td>
                         Developer billing option params for External Payments or
                         Billing Choice. Billing Choice is available in OpenIAP
-                        Spec 2.1.0 / openiap-google 2.3.0 and requires Play
-                        Billing 9.1.0+. In-app flows require only{' '}
+                        2.1.0 / openiap-google 2.3.0 and requires Play Billing
+                        9.1.0+. In-app flows require only{' '}
                         <code>billingProgram</code>. See{' '}
                         <Link to="/docs/types/billing-programs#developer-billing-option-params">
                           DeveloperBillingOptionParamsAndroid

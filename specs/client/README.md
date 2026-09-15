@@ -33,8 +33,9 @@ export provides the portable IAPKit client helper. Generated native types are
 available at `/swift`, `/kotlin`, `/dart`, `/gdscript`, and `/csharp`.
 For a working purchase integration, choose a [framework SDK](https://openiap.dev/languages).
 
-This package has its own npm version. The native SDK compatibility version
-remains the native floor recorded in `openiap-versions.json`.
+This package's npm version *is* the Client Protocol version. It is mirrored
+into `openiap-versions.json` as `clientProtocol`, alongside the independent
+`openiap-apple` and `openiap-google` native package versions.
 
 ## Develop the specification
 

@@ -14,7 +14,7 @@ function GodotSetup() {
       <h1>Godot Setup</h1>
       <p>
         <code>godot-iap</code> is a Godot 4.x plugin for in-app purchases
-        following the OpenIAP specification. It uses Swift GDExtension for iOS
+        following the OpenIAP Client Protocol. It uses Swift GDExtension for iOS
         and Kotlin AAR for Android.
       </p>
 

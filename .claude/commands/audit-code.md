@@ -155,7 +155,7 @@ packages/apple (Swift):
 - [ ] iOS-specific functions end with `IOS` suffix
 - [ ] Cross-platform functions have NO suffix
 - [ ] Acronyms follow Swift conventions (IapManager, not IAPManager)
-- [ ] Types match OpenIAP specification
+- [ ] Types match OpenIAP Client Protocol
 
 packages/google (Kotlin):
 

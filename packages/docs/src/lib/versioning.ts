@@ -1,12 +1,12 @@
 import versionsFile from '../../openiap-versions.json?raw';
 import * as versionMetadata from '../generated/version-metadata.json';
 
-type VersionKey = 'nativeFloor' | 'google' | 'apple';
+type VersionKey = 'clientProtocol' | 'google' | 'apple';
 
 type VersionRecord = Record<VersionKey, string>;
 
 const REQUIRED_KEYS: readonly VersionKey[] = [
-  'nativeFloor',
+  'clientProtocol',
   'google',
   'apple',
 ] as const;

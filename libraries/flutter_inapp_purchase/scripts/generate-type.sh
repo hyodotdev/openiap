@@ -28,20 +28,20 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get("nativeFloor")
+value = data.get("clientProtocol")
 if not isinstance(value, str) or not value.strip():
-    print("Error: 'nativeFloor' version missing in openiap-versions.json", file=sys.stderr)
+    print("Error: 'clientProtocol' version missing in openiap-versions.json", file=sys.stderr)
     sys.exit(1)
 value = value.strip()
 if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
-    print(f"Error: invalid 'nativeFloor' version {value!r}", file=sys.stderr)
+    print(f"Error: invalid 'clientProtocol' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)
 PY
 )
 
-TAG="docs-${SPEC_VERSION}"
+TAG="openiap-client-protocol-${SPEC_VERSION}"
 DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"
 
 cleanup() {

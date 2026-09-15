@@ -305,7 +305,7 @@ function validateInstalledPackage(installedRoot, options) {
       throw new Error('openiap-versions.json must be a file');
     }
     const versions = readJsonObject(versionFile, 'openiap-versions.json');
-    for (const key of ['nativeFloor', 'google', 'apple']) {
+    for (const key of ['clientProtocol', 'google', 'apple']) {
       if (typeof versions[key] !== 'string' || versions[key].trim().length === 0) {
         throw new Error(`openiap-versions.json is missing ${key}`);
       }

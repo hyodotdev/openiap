@@ -5923,7 +5923,7 @@ abstract class MutationResolver {
   Future<void> restorePurchases();
   /// Show Google's mandatory information dialog before a developer-rendered,
   /// in-app Billing Choice screen.
-  /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   /// Throws OpenIapError.NotPrepared if billing client not ready.
   /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
   Future<BillingResultAndroid> showBillingProgramInformationDialogAndroid({
@@ -5937,7 +5937,7 @@ abstract class MutationResolver {
   /// Parameter noticeType: Notice type determining the style of disclosure
   Future<ExternalPurchaseCustomLinkNoticeResultIOS> showExternalPurchaseCustomLinkNoticeIOS(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
   /// Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-  /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+  /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0
   /// (upstream API available since Play Billing 4.1.0).
   /// Returns a response code and, when the subscription status changes, the related purchase token.
   /// Throws OpenIapError.NotPrepared if billing client not ready.
@@ -6007,7 +6007,7 @@ abstract class QueryResolver {
     bool? onlyIncludeActiveItemsIOS,
   });
   /// Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-  /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+  /// OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   /// Throws OpenIapError.NotPrepared if billing client is not ready.
   /// See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
   Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid({

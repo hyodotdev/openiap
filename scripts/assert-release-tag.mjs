@@ -38,15 +38,6 @@ export const PACKAGE_CONFIG = {
     ],
     version: (content) => JSON.parse(content).version,
   },
-  docs: {
-    path: "openiap-versions.json",
-    tags: (version) => [`docs-${version}`],
-    version: (content) => {
-      const versions = JSON.parse(content);
-      // Tags cut before the rename carry the old key.
-      return versions.nativeFloor ?? versions.spec;
-    },
-  },
   expo: {
     path: "libraries/expo-iap/package.json",
     tags: (version) => [`expo-iap-${version}`],

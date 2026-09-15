@@ -11,7 +11,7 @@ import {
 import { collectGeneratedSyncDrift } from "../specs/client/scripts/verify-generated-sync.mjs";
 import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
-import { assertNativeFloor } from "./release-branch-policy.mjs";
+import { assertClientProtocol } from "./release-branch-policy.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
 import {
   collectPurchasePayloadParityFailures,
@@ -74,9 +74,9 @@ const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
 
-function checkNativeFloor() {
+function checkClientProtocol() {
   try {
-    assertNativeFloor(readJson("openiap-versions.json"));
+    assertClientProtocol(readJson("openiap-versions.json"));
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
   }
@@ -451,6 +451,10 @@ function listDirectories(relativePath) {
 
 function expectFile(relativePath) {
   if (!exists(relativePath)) fail(`missing file: ${relativePath}`);
+}
+
+function expectMissingFile(relativePath, label = relativePath) {
+  if (exists(relativePath)) fail(`${label}: ${relativePath} must not exist`);
 }
 
 function expectIncludes(relativePath, needles, label = relativePath) {
@@ -3192,7 +3196,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "specs/client/src/api-android.graphql",
     [
-      "OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0",
+      "OpenIAP availability: 2.1.0 / openiap-google 2.3.0",
       "requires Play Billing 9.1.0+",
     ],
     "Billing Choice OpenIAP-first API availability",
@@ -3274,7 +3278,7 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "packages/apple/Tests/OpenIapTests/VerifyPurchaseWithProviderTests.swift",
-    ["OpenIapGeneratedVersion.nativeFloor"],
+    ["OpenIapGeneratedVersion.clientProtocol"],
     "Apple test tracks the generated version constant",
   );
   expectNotIncludes(
@@ -3995,8 +3999,14 @@ function checkFrameworkDependencyHygiene() {
   }
   const googleCoroutinesVersion = googleCoroutineVersions[0];
 
+  // packages/docs is not versioned; it stays pinned at 1.0.0.
+  const docsVersion = readJson("packages/docs/package.json").version;
+  if (docsVersion !== "1.0.0") {
+    fail(
+      `packages/docs/package.json version ${docsVersion} must stay pinned at 1.0.0; the docs site is not versioned`,
+    );
+  }
   for (const [packagePath, versionKey] of [
-    ["packages/docs/package.json", "nativeFloor"],
     ["packages/google/package.json", "google"],
     ["packages/apple/package.json", "apple"],
   ]) {
@@ -4199,8 +4209,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/docs/src/lib/versioning.ts",
     [
-      "type VersionKey = 'nativeFloor' | 'google' | 'apple';",
-      "'nativeFloor'",
+      "type VersionKey = 'clientProtocol' | 'google' | 'apple';",
+      "'clientProtocol'",
       "clientSpecVersion",
       "commerceSpecVersion",
       "'google'",
@@ -4988,7 +4998,6 @@ function checkFrameworkDependencyHygiene() {
     "scripts/sync-versions.sh",
     [
       "set -euo pipefail",
-      'sync_package_json_version "packages/docs/package.json" "nativeFloor"',
       'sync_package_json_version "packages/google/package.json" "google"',
       'sync_package_json_version "packages/apple/package.json" "apple"',
     ],
@@ -5135,7 +5144,7 @@ function checkFrameworkDependencyHygiene() {
       'EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"',
       'EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"',
       'npm install -g "vercel@$VERCEL_CLI_VERSION"',
-      'if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then',
+      'if [ -n "${1:-}" ]; then',
       "if ! ./scripts/sync-versions.sh; then",
       "if ! bun run typecheck; then",
       "if ! bun run build; then",
@@ -5149,26 +5158,21 @@ function checkFrameworkDependencyHygiene() {
       "Vercel environment target conflicts with the OpenIAP project",
       'select(.readyState == "READY" and .target == "production")',
       "Vercel CLI returned no ready production deployment",
-      "release-branch-policy.mjs assert-floor",
-      "release-branch-policy.mjs guard docs current false",
+      "release-branch-policy.mjs assert-client-protocol",
       "git fetch --no-tags origin main",
       "LOCAL_HEAD=$(git rev-parse HEAD)",
       "REMOTE_HEAD=$(git rev-parse origin/main)",
-      "native floor cannot be bumped independently",
+      "the docs site has no version to select",
       "Version metadata was not synchronized on main",
-      'DOCS_TAG="docs-$VERSION"',
-      "git ls-remote --exit-code --tags origin",
-      "already exists, so no new Docs GitHub Release is needed",
-      "has no Docs GitHub Release yet",
     ],
-    "deploy script derived spec policy",
+    "deploy script policy",
   );
   expectNotIncludes(
     "scripts/deploy.sh",
     [
       "npm install -g vercel",
       "if [ $? -ne 0 ]; then",
-      "'.nativeFloor = $version'",
+      "'.clientProtocol = $version'",
       'git commit -m "chore(spec)',
       "git push origin HEAD:main",
     ],
@@ -5354,32 +5358,10 @@ function checkFrameworkDependencyHygiene() {
     ["never hand-edited", "regenerated alongside"],
     "Kit assistant docs must not claim nonexistent generation automation",
   );
-  expectIncludes(
+  // The docs site is not versioned, so it has no release workflow to guard.
+  expectMissingFile(
     ".github/workflows/release.yml",
-    [
-      "Release the native-derived current spec version",
-      "release-branch-policy.mjs guard docs",
-      "release-branch-policy.mjs assert-floor",
-      "Native-derived spec version",
-      'if git rev-parse --verify "refs/tags/$TAG_NAME" >/dev/null 2>&1; then',
-      'assert-release-tag.mjs docs main "$TAG_NAME" "$VERSION"',
-      'git checkout --detach "$TAG_NAME"',
-      "continuing the idempotent release rerun",
-      "persist-credentials: false",
-    ],
-    "docs release workflow derived spec policy",
-  );
-  expectNotIncludes(
-    ".github/workflows/release.yml",
-    [
-      "git pull --rebase origin main",
-      "git commit",
-      "'.nativeFloor = $version'",
-      "- patch",
-      "- minor",
-      "- major",
-    ],
-    "docs release workflow must not mutate the derived spec",
+    "the docs site has no version and no release train",
   );
   for (const [releaseWorkflow, nativePackage] of [
     [".github/workflows/release-apple.yml", "apple"],
@@ -5392,7 +5374,7 @@ function checkFrameworkDependencyHygiene() {
         "packages/docs/src/generated/version-metadata.json",
         "packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
-        "release-branch-policy.mjs assert-floor",
+        "release-branch-policy.mjs assert-client-protocol",
         "Release branch moved after verification; rerun the release workflow",
       ],
       `${releaseWorkflow} must commit package metadata synced from openiap-versions.json`,
@@ -6239,17 +6221,15 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "`npm run deploy`; run `release.yml` with `version=current` only when",
+      "`npm run deploy`. The docs site is not versioned",
       "add the consolidated entry to",
       "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
-      "deployment. Run the Docs release workflow with",
-      "only when the native-derived `nativeFloor` advanced",
-      "immutable existing `docs-{nativeFloor}` tag is never reused",
-      "If a Docs GitHub Release is requested while",
-      "stop and explain that the immutable",
+      "There is no Docs release workflow and no docs tag",
+      "if a Docs\n  GitHub Release is requested",
+      "the docs site is not a versioned\n  artifact",
     ],
-    "dependency release gate must preserve review cadence and conditional Docs releases",
+    "dependency release gate must preserve review cadence and the unversioned docs deploy",
   );
   expectIncludes(
     ".codex/skills/loop-review/SKILL.md",
@@ -6533,15 +6513,13 @@ function checkFrameworkDependencyHygiene() {
     [
       "Creates Git tag `<apple-version>` (bare semver)",
       "Creates Git tag `google-<google-version>`",
-      "gh workflow run release.yml --ref main -f version=current",
-      "`docs-{version}`",
-      "Run the stable Docs workflow only when the spec",
+      "The docs site has no version",
       "first run `cd packages/docs && vercel link`",
       "immutable project and organization IDs",
       "conflicting `VERCEL_PROJECT_ID` or `VERCEL_ORG_ID`",
       "reports success only after Vercel returns a ready",
-      "If a Docs GitHub Release is requested while `spec` is unchanged",
-      "immutable tag scheme cannot represent it",
+      "There is no Docs release workflow",
+      "the docs site is not a\nversioned artifact",
       "still equal the workflow dispatch SHA after validation",
       "stop instead of rebasing unverified commits into the release",
       "immutable provenance tag must be pushed atomically before",
@@ -6558,18 +6536,13 @@ function checkFrameworkDependencyHygiene() {
   );
   expectIncludes(
     "scripts/deploy.sh",
-    [
-      "DOCS_TAG_STATUS=$?",
-      '[ "$DOCS_TAG_STATUS" -eq 2 ]',
-      "Unable to determine whether $DOCS_TAG exists",
-      "Check the remote tag state before creating a Docs GitHub Release",
-    ],
-    "docs deployment must distinguish a missing tag from remote lookup failures",
+    ["the docs site has no version to select"],
+    "docs deployment must reject a version argument",
   );
   expectNotIncludes(
-    ".github/workflows/release.yml",
-    ['git commit -m "chore: bump docs'],
-    "docs release workflow commit message must be conventional",
+    "scripts/deploy.sh",
+    ["DOCS_TAG", "Docs GitHub Release", "guard docs"],
+    "docs deployment must not resurrect the docs release tag",
   );
   expectNotIncludes(
     "scripts/bump-version.mjs",
@@ -6577,7 +6550,7 @@ function checkFrameworkDependencyHygiene() {
       "chore: bump version",
       "${versions[t]} → ${newVersion}",
       "git tag vX.X.X",
-      "`docs-${bumpedVersions.nativeFloor}`",
+      "`docs-${bumpedVersions.clientProtocol}`",
       "Bump spec (gql/docs) version",
     ],
     "root bump-version output must be accurate and conventional",
@@ -6632,7 +6605,7 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes(
     "knowledge/internal/04-platform-packages.md",
     ['change `"gql"` version', "update the `gql` field"],
-    "platform package docs must use the openiap-versions.json native floor key",
+    "platform package docs must use the openiap-versions.json client protocol version key",
   );
 
   for (const dependencyFile of [
@@ -8936,7 +8909,7 @@ function checkFrameworkDependencyHygiene() {
   // resource symlink verbatim and it dangles inside the built bundle.
   expectIncludes(
     "packages/apple/Sources/OpenIapVersion.swift",
-    ["OpenIapGeneratedVersion.apple", "OpenIapGeneratedVersion.nativeFloor"],
+    ["OpenIapGeneratedVersion.apple", "OpenIapGeneratedVersion.clientProtocol"],
     "Apple OpenIAP runtime version",
   );
   expectNotIncludes(
@@ -8948,7 +8921,7 @@ function checkFrameworkDependencyHygiene() {
     "packages/apple/Sources/OpenIapGeneratedVersion.swift",
     [
       "// Generated by scripts/sync-versions.sh",
-      `static let nativeFloor = "${versions.nativeFloor}"`,
+      `static let clientProtocol = "${versions.clientProtocol}"`,
       `static let apple = "${versions.apple}"`,
       `static let google = "${versions.google}"`,
     ],
@@ -9009,7 +8982,7 @@ function checkReleaseNoteGroupingGuidance() {
       "project decision recorded from issue #206",
       "Group notable changes under the affected platform package or framework",
       "the next major for breaking public API or type removals",
-      "never infer or auto-align it from Apple and Google",
+      "If no explicit target\n   exists, ask; never infer one.",
       "Before naming any package's next major",
       "migration schedule. The release train must include every public removal",
     ],
@@ -9382,7 +9355,7 @@ function checkXcode27StoreKitCoverage() {
 }
 
 checkLibraryCoverageRegistry();
-checkNativeFloor();
+checkClientProtocol();
 checkDeprecationSchedule();
 checkNoOutboundWebhookStream();
 checkExpoSsotRegistry();

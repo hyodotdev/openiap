@@ -39,7 +39,6 @@ The distribution and release-tag columns are prose and are not machine-checked:
 | `kmp`               | `kmp-iap`                   | Maven Central                              | `kmp-iap-<version>`                   |
 | `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
 | `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
-| `docs`              | `openiap-spec`              | GitHub Release                             | `docs-<version>`                      |
 | `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
 | `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
 | `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
@@ -80,7 +79,7 @@ published releases rather than chosen:
 | Component           | First release required to carry an SBOM |
 | ------------------- | --------------------------------------- |
 | `apple`             | `3.2.0`                                 |
-| `docs`              | `docs-3.2.0`                            |
+| `client-protocol`   | `openiap-client-protocol-0.1.0`         |
 | `expo`              | `expo-iap-5.3.0`                        |
 | `flutter`           | `flutter-iap-10.3.0`                    |
 | `godot`             | `godot-iap-3.3.0`                       |
@@ -113,7 +112,7 @@ way. They are not backfilled: an SBOM generated today resolves today's registry
 metadata, so it would describe something other than what shipped, and a
 plausible-looking artifact that misdescribes a release is worse than its
 absence. Advisory questions about a pre-floor release are answered from the
-tag's committed manifests. For Apple, the docs site and Godot those are the
+tag's committed manifests. For Apple and Godot those are the
 inputs the generator reads. Google, KMP and MAUI resolve their published POM or
 nuspec instead, so a manifest answer for those three describes what the tag
 declared rather than what publishing produced.

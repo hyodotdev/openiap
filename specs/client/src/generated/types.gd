@@ -6352,7 +6352,7 @@ class Query:
 		const return_type = "PurchaseIOS"
 		const is_array = true
 
-	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+	## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 	class getBillingChoiceInfoAndroidField:
 		const name = "getBillingChoiceInfoAndroid"
 		const snake_name = "get_billing_choice_info_android"
@@ -6800,7 +6800,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+	## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 	class showBillingProgramInformationDialogAndroidField:
 		const name = "showBillingProgramInformationDialogAndroid"
 		const snake_name = "show_billing_program_information_dialog_android"
@@ -6820,7 +6820,7 @@ class Mutation:
 		const return_type = "BillingResultAndroid"
 		const is_array = false
 
-	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+	## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 	class showInAppMessagesAndroidField:
 		const name = "showInAppMessagesAndroid"
 		const snake_name = "show_in_app_messages_android"
@@ -6960,7 +6960,7 @@ static func get_app_transaction_ios_args() -> Dictionary:
 static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
-## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
 static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7136,7 +7136,7 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 
-## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
 static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
@@ -7146,7 +7146,7 @@ static func show_billing_program_information_dialog_android_args(params: Billing
 			args["params"] = params
 	return args
 
-## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+## Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0). Returns a response code and, when the subscription status changes, the related purchase token. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
 static func show_in_app_messages_android_args(params: Variant = null) -> Dictionary:
 	var args = {}
 	if params != null:

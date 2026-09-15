@@ -512,7 +512,7 @@ export const collectCompletedRemovalFailures = () => {
   const failures = [];
   const schemaDeprecations = collectRepositorySchemaDeprecations();
   // A schema deprecation is removed on a client protocol train, so the client
-  // protocol's own version decides when it is due — not the native floor.
+  // protocol's own version decides when it is due — not a native package version.
   const clientProtocolVersion = JSON.parse(
     fs.readFileSync(path.join(root, "specs/client/package.json"), "utf8"),
   ).version;

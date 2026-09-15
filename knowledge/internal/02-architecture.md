@@ -57,9 +57,10 @@ them implied.
 `packages/conformance` is the Client Protocol's behavioral conformance suite,
 not a third specification.
 
-A version like `3.4.0` in `openiap-versions.json` is the native compatibility
-floor — the lowest release both `openiap-apple` and `openiap-google` have
-reached. It is not a protocol version.
+`openiap-versions.json` carries `clientProtocol` — the Client Protocol version,
+mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
+native package versions. A version like `3.4.0` there is a native package
+version, not a protocol version.
 
 ## Directory Ownership Guardrail
 
@@ -152,8 +153,8 @@ directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
 stream. The client SDK API and server-side commerce contract are siblings under
-the OpenIAP specification owner, but they keep independent schema inventories
-and generation targets. Never edit files under `generated/` directly.
+OpenIAP — the Client Protocol and the Commerce Protocol — but they keep
+independent schema inventories and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 

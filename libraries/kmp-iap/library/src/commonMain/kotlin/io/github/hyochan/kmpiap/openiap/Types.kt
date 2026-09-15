@@ -5886,7 +5886,7 @@ public interface MutationResolver {
     /**
      * Show Google's mandatory information dialog before a developer-rendered,
      * in-app Billing Choice screen.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
      */
@@ -5901,7 +5901,7 @@ public interface MutationResolver {
     suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
     /**
      * Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0
      * (upstream API available since Play Billing 4.1.0).
      * Returns a response code and, when the subscription status changes, the related purchase token.
      * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -5981,7 +5981,7 @@ public interface QueryResolver {
     suspend fun getAvailablePurchases(options: PurchaseOptions? = null): List<Purchase>
     /**
      * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client is not ready.
      * See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
      */
@@ -6292,7 +6292,7 @@ public data class MutationHandlers(
     /**
      * Show Google's mandatory information dialog before a developer-rendered,
      * in-app Billing Choice screen.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client not ready.
      * See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
      */
@@ -6307,7 +6307,7 @@ public data class MutationHandlers(
     val showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = null,
     /**
      * Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0
      * (upstream API available since Play Billing 4.1.0).
      * Returns a response code and, when the subscription status changes, the related purchase token.
      * Throws OpenIapError.NotPrepared if billing client not ready.
@@ -6407,7 +6407,7 @@ public data class QueryHandlers(
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler? = null,
     /**
      * Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
-     * OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+     * OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * Throws OpenIapError.NotPrepared if billing client is not ready.
      * See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
      */

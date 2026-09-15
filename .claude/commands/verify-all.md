@@ -297,7 +297,6 @@ All release workflows exist and have valid YAML:
 set -euo pipefail
 
 ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp,maui}.yml
-test -f .github/workflows/release.yml
 ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.safe_load(File.read(f), [], [], true) }'
 ```
 

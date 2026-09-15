@@ -89,10 +89,19 @@ function Versions() {
           the gaps are published rather than implied.
         </p>
         <Callout kind="note" title="Two versions, two meanings">
-          These are the versions of the protocol packages themselves. The
-          version an SDK reports separately &mdash; <code>openiap-apple</code>{' '}
-          and <code>openiap-google</code> below &mdash; is that native library's
-          own release, not a protocol version.
+          <p>
+            These are the versions of the protocol packages themselves. The
+            version an SDK reports separately &mdash; <code>openiap-apple</code>{' '}
+            and <code>openiap-google</code> below &mdash; is that native
+            library&apos;s own release, not a protocol version.
+          </p>
+          <p>
+            Earlier documentation called the client contract the &ldquo;OpenIAP
+            Spec&rdquo; and numbered it 2.x and 3.x in step with the native
+            libraries. That lineage is retired. The Client Protocol is now
+            versioned on its own from <code>0.1.0</code>, so a Client Protocol
+            version and a native library version are never comparable numbers.
+          </p>
         </Callout>
       </section>
 
@@ -135,8 +144,8 @@ function Versions() {
             Latest stable release badge reflects Maven Central publication.
           </li>
           <li>
-            Releases follow the core OpenIAP spec cadence; check the tag notes
-            on GitHub for API surface changes.
+            The library versions independently of the Client Protocol; check the
+            tag notes on GitHub for API surface changes.
           </li>
         </ul>
       </section>

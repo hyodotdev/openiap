@@ -18,48 +18,24 @@ EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"
 echo -e "${BLUE}🚀 OpenIAP Deployment Script${NC}"
 echo ""
 
-# The shared spec is derived from the lower Apple/Google native version.
-# Production deployment may only publish that already-recorded floor.
-if ! node scripts/release-branch-policy.mjs assert-floor; then
+# The docs site is not versioned. Only the Client Protocol and the Commerce
+# Protocol carry versions, each in its own package manifest.
+if [ -n "${1:-}" ]; then
+    echo -e "${RED}❌ Error: the docs site has no version to select${NC}"
+    echo -e "${YELLOW}Received '$1'. Run the script with no arguments.${NC}"
+    exit 1
+fi
+
+# Version metadata still has to be internally consistent before it ships.
+if ! node scripts/release-branch-policy.mjs assert-client-protocol; then
     echo -e "${RED}❌ Refusing to deploy inconsistent version metadata${NC}"
     exit 1
 fi
 
-CURRENT_VERSION=$(jq -r '.nativeFloor // empty' openiap-versions.json)
-if [ -z "$CURRENT_VERSION" ]; then
-    echo -e "${RED}❌ Error: Could not read .nativeFloor from openiap-versions.json${NC}"
-    exit 1
-fi
-
-VERSION=$CURRENT_VERSION
-if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then
-    echo -e "${RED}❌ Error: native floor cannot be bumped independently${NC}"
-    echo -e "${YELLOW}Expected the native version floor $VERSION, received $1${NC}"
-    exit 1
-fi
-echo -e "${BLUE}📦 Using derived OpenIAP version: $VERSION${NC}"
-
-# Validate version format
-if [[ "$VERSION" == v* ]] || [[ "$VERSION" == gql-* ]]; then
-    echo -e "${RED}❌ Error: Version must not start with 'v' or 'gql-'${NC}"
-    echo -e "${YELLOW}Please use format: 1.2.0 (not v1.2.0 or gql-1.2.0)${NC}"
-    exit 1
-fi
-
-if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){2}$ ]]; then
-    echo -e "${RED}❌ Error: Version must follow semantic versioning${NC}"
-    echo -e "${YELLOW}Production docs accept stable versions only (example: 2.1.0)${NC}"
-    exit 1
-fi
-
-echo -e "${BLUE}📍 Current spec version: $CURRENT_VERSION${NC}"
-echo -e "${GREEN}✅ Target version: $VERSION${NC}"
-echo ""
-
-# Production docs are stable-only and release from main.
+# Production docs are stable-only and deploy from main.
 CURRENT_BRANCH=$(git branch --show-current)
 echo -e "${BLUE}📍 Current branch: $CURRENT_BRANCH${NC}"
-if ! node scripts/release-branch-policy.mjs guard docs current false "$CURRENT_BRANCH" "$VERSION"; then
+if [ "$CURRENT_BRANCH" != "main" ]; then
     echo -e "${RED}❌ Production docs must deploy from the stable main branch${NC}"
     exit 1
 fi
@@ -126,7 +102,7 @@ fi
 # Confirm deployment
 echo ""
 echo -e "${YELLOW}═══════════════════════════════════════════════${NC}"
-echo -e "${YELLOW}  About to deploy version: ${GREEN}$VERSION${NC}"
+echo -e "${YELLOW}  About to deploy the production docs site${NC}"
 echo -e "${YELLOW}  From branch: ${GREEN}$CURRENT_BRANCH${NC}"
 echo -e "${YELLOW}═══════════════════════════════════════════════${NC}"
 echo ""
@@ -149,7 +125,7 @@ fi
 
 if [[ -n $(git status -s) ]]; then
     echo -e "${RED}❌ Version metadata was not synchronized on main${NC}"
-    echo -e "${YELLOW}Commit the canonical native-derived metadata before deploying.${NC}"
+    echo -e "${YELLOW}Commit the canonical version metadata before deploying.${NC}"
     git status -s
     exit 1
 fi
@@ -208,19 +184,5 @@ echo ""
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📋 Summary:${NC}"
-echo -e "   ✅ Version files verified (derived spec: $VERSION)"
+echo -e "   ✅ Version metadata verified"
 echo -e "   ✅ Documentation deployed to Vercel"
-echo ""
-DOCS_TAG="docs-$VERSION"
-if git ls-remote --exit-code --tags origin "refs/tags/$DOCS_TAG" "refs/tags/$DOCS_TAG^{}" >/dev/null 2>&1; then
-    echo -e "${BLUE}ℹ️  $DOCS_TAG already exists, so no new Docs GitHub Release is needed.${NC}"
-else
-    DOCS_TAG_STATUS=$?
-    if [ "$DOCS_TAG_STATUS" -eq 2 ]; then
-        echo -e "${BLUE}ℹ️  The derived spec has no Docs GitHub Release yet. Run the Release workflow:${NC}"
-        echo -e "   ${GREEN}https://github.com/hyodotdev/openiap/actions/workflows/release.yml${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Unable to determine whether $DOCS_TAG exists (git ls-remote exit $DOCS_TAG_STATUS).${NC}"
-        echo -e "${YELLOW}   Check the remote tag state before creating a Docs GitHub Release.${NC}"
-    fi
-fi

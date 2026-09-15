@@ -26,7 +26,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "nativeFloor": "2.4.2",
+  "clientProtocol": "2.4.2",
   "google": "2.5.0",
   "apple": "2.4.2"
 }
@@ -38,11 +38,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"spec"` must always equal the lower semantic version of `"google"` and
-`"apple"`. Do not bump or edit it directly in feature work or for type
-regeneration. Native version writers derive the floor atomically when Google or
-Apple changes; sync only verifies and propagates that value. Release-state,
-docs, and parity audits reject drift.
+`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
+Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
+mirror by hand. `"google"` and `"apple"` are native package versions and do not
+constrain it. Release-state, docs, and parity audits reject drift between the
+mirror and the publishing manifest.
 
 **To bump Apple package version:**
 
@@ -427,10 +427,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema without directly changing the `spec` version.
-   Native version writers keep `spec` equal to the lower semantic version of
-   `google` and `apple`; sync fails instead of silently repairing drift.
-   The Client Protocol npm package has an independent version in its own manifest.
+1. Update the canonical schema. A schema change that alters the contract is a
+   Client Protocol version bump in `specs/client/package.json`; sync then
+   mirrors it into `openiap-versions.json` and fails instead of silently
+   repairing drift.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash

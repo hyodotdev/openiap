@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T14:36:16.618Z
+> Last updated: 2026-09-15T17:45:17.201Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -336,9 +336,10 @@ them implied.
 `packages/conformance` is the Client Protocol's behavioral conformance suite,
 not a third specification.
 
-A version like `3.4.0` in `openiap-versions.json` is the native compatibility
-floor — the lowest release both `openiap-apple` and `openiap-google` have
-reached. It is not a protocol version.
+`openiap-versions.json` carries `clientProtocol` — the Client Protocol version,
+mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
+native package versions. A version like `3.4.0` there is a native package
+version, not a protocol version.
 
 ## Directory Ownership Guardrail
 
@@ -431,8 +432,8 @@ directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
 stream. The client SDK API and server-side commerce contract are siblings under
-the OpenIAP specification owner, but they keep independent schema inventories
-and generation targets. Never edit files under `generated/` directly.
+OpenIAP — the Client Protocol and the Commerce Protocol — but they keep
+independent schema inventories and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 
@@ -1056,7 +1057,7 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "nativeFloor": "2.4.2",
+  "clientProtocol": "2.4.2",
   "google": "2.5.0",
   "apple": "2.4.2"
 }
@@ -1068,11 +1069,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"spec"` must always equal the lower semantic version of `"google"` and
-`"apple"`. Do not bump or edit it directly in feature work or for type
-regeneration. Native version writers derive the floor atomically when Google or
-Apple changes; sync only verifies and propagates that value. Release-state,
-docs, and parity audits reject drift.
+`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
+Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
+mirror by hand. `"google"` and `"apple"` are native package versions and do not
+constrain it. Release-state, docs, and parity audits reject drift between the
+mirror and the publishing manifest.
 
 **To bump Apple package version:**
 
@@ -1457,10 +1458,10 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema without directly changing the `spec` version.
-   Native version writers keep `spec` equal to the lower semantic version of
-   `google` and `apple`; sync fails instead of silently repairing drift.
-   The Client Protocol npm package has an independent version in its own manifest.
+1. Update the canonical schema. A schema change that alters the contract is a
+   Client Protocol version bump in `specs/client/package.json`; sync then
+   mirrors it into `openiap-versions.json` and fails instead of silently
+   repairing drift.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -2354,8 +2355,8 @@ Fix purchase validation error
 ### Stable And Prerelease Branches
 
 `main` is the stable release branch. Its package metadata must never contain a
-SemVer prerelease suffix. Stable package releases, production docs deployment,
-and the Docs GitHub Release run from `main` only.
+SemVer prerelease suffix. Stable package releases and production docs
+deployment run from `main` only.
 
 `next` is an on-demand prerelease integration branch for compatibility work
 that needs external validation, such as a new store runtime. It is not a
@@ -2547,22 +2548,12 @@ This will:
 2. Typecheck and build the docs site
 3. Deploy production documentation to Vercel
 
-`npm run deploy` uses the current native-derived `nativeFloor` value from
-`openiap-versions.json`. It rejects any explicit argument that differs from the
-native floor; docs deployment is not a version-bump path.
-
-**Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the native floor has not moved, so the immutable `docs-{floor}` tag
-cannot represent a new release. Run the stable Docs workflow only when the spec
-version itself advanced:
-
-```bash
-gh workflow run release.yml --ref main -f version=current
-```
-
-If a Docs GitHub Release is requested while `spec` is unchanged, stop and
-explain that the immutable tag scheme cannot represent it. Deploying the docs
-site is still valid and does not require a new GitHub Release.
+**The docs site has no version.** Only the Client Protocol and the Commerce
+Protocol are versioned, each in its own package manifest. `npm run deploy`
+takes no version argument, cuts no tag, and creates no GitHub Release — it
+verifies the metadata, builds, and deploys. There is no Docs release workflow;
+if someone asks for a Docs GitHub Release, explain that the docs site is not a
+versioned artifact.
 
 Verifying a docs deployment: `llms-full.txt` carries a `Generated:` timestamp
 that must match the committed file, and the deployed entry bundle should contain
@@ -2585,7 +2576,6 @@ Each package uses a different tag format for GitHub Releases:
 | KMP          | `kmp-iap-{version}`          | `kmp-iap-2.2.0`           |
 | Godot        | `godot-iap-{version}`        | `godot-iap-2.2.0`         |
 | MAUI         | `maui-iap-{version}`         | `maui-iap-1.2.1`          |
-| Docs         | `docs-{version}`             | `docs-1.2.0`              |
 
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
@@ -2659,38 +2649,36 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- The shared `spec` is always the lower semantic version of `google` and
-  `apple`
-- Native version writers update their native key and derive `spec` atomically;
-  sync then verifies the invariant and refreshes `packages/docs/package.json`
-  and other derived copies
-- The three scoped npm packages own their versions in their package manifests;
-  Client Protocol npm releases do not change the native-derived `nativeFloor`
-- Production docs deployment consumes the derived current `spec`; it must not
-  accept an independently selected floor version
+- `clientProtocol` mirrors `specs/client/package.json`; a Client Protocol npm
+  release bumps that manifest and sync carries the new value into
+  `openiap-versions.json`, `packages/docs/package.json`, and the other copies
+- Native releases never move `clientProtocol`, and a Client Protocol release
+  never moves `google` or `apple`
+- Production docs deploy at the current `clientProtocol`; they must not select a
+  version independently
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
 branch.
 
-The manifest is only for the shared spec and native platform packages:
-`nativeFloor`, `google`, and `apple`. Framework library package versions
+The manifest is only for the Client Protocol and the native platform packages:
+`clientProtocol`, `google`, and `apple`. Framework library package versions
 (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `godot-iap`,
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
 
-Manual Google, Apple, or spec edits will cause version conflicts and deployment
-issues. Use the native GitHub Actions workflows and repository sync automation.
+Manual edits to any of the three keys cause version conflicts and deployment
+issues. Use the GitHub Actions release workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `nativeFloor`, `google`, or `apple`. Stable
+**Rule:** Feature PRs must never touch `clientProtocol`, `google`, or `apple`. Stable
 version changes happen via:
 
 1. Release workflows (Apple Release, Google Release)
-2. Native version automation that derives `nativeFloor = min(google, apple)`, followed
-   by sync propagation
-3. Deploy script (`npm run deploy`) using the already-derived floor
+2. A Client Protocol release bumping `specs/client/package.json`, followed by
+   sync propagation
+3. Deploy script (`npm run deploy`) using the already-recorded version
 4. CI auto-bump after merge where configured
 
 
@@ -2914,10 +2902,10 @@ outside `packages/docs`. Vercel uploads the docs package root, so imports such
 as `../../../../libraries/expo-iap/package.json?raw` pass locally but fail in
 Vercel builds.
 
-The root `openiap-versions.json` is also a version contract, not three
-independent counters. `nativeFloor` must equal the semantic-version minimum of
-`google` and `apple`. Native version writers derive that floor atomically;
-`scripts/sync-versions.sh` refuses an inconsistent manifest instead of
+The root `openiap-versions.json` is also a version contract. `clientProtocol`
+must equal the version in `specs/client/package.json`, the manifest that
+publishes the protocol; `google` and `apple` are independent native package
+versions. `scripts/sync-versions.sh` refuses an inconsistent manifest instead of
 silently normalizing it.
 
 Framework package versions and Android SDK constants used by docs must flow
@@ -2931,7 +2919,7 @@ by `scripts/sync-versions.sh` from the real SSOT files:
 - MAUI: `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`
 - Google Android SDK / Play Billing: `packages/google/openiap/build.gradle.kts`
 
-`bun run audit:docs` fails if the spec/native floor invariant is broken, this
+`bun run audit:docs` fails if the spec/client protocol version invariant is broken, this
 generated metadata drifts from the SSOT files, or `versioning.ts` reintroduces
 raw imports outside `packages/docs`.
 
@@ -3142,7 +3130,7 @@ unless the stray file is the intended new value.
 | Domain                              | Owner                                         |
 | ----------------------------------- | --------------------------------------------- |
 | Generated type files source→targets | `specs/client/generated-sync-manifest.mjs`    |
-| Package/native version floor        | `openiap-versions.json` + release-state audit |
+| Protocol and native package versions | `openiap-versions.json` + release-state audit |
 | API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
 | Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
 

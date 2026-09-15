@@ -23,17 +23,19 @@ const HEADER_SEPARATOR =
   '// ============================================================================';
 const HEADER_LINE = `// ${GENERATED_HEADER}`;
 
-function normalizeDocsTag(value) {
-  const normalizedVersion = value.trim().replace(/^(?:docs-|gql-v?|v)/, '');
+function normalizeClientProtocolTag(value) {
+  const normalizedVersion = value
+    .trim()
+    .replace(/^(?:openiap-client-protocol-|docs-|gql-v?|v)/, '');
   if (
     normalizedVersion.length === 0 ||
     !/^[0-9A-Za-z][0-9A-Za-z.+_-]*$/.test(normalizedVersion)
   ) {
     throw new Error(
-      `expo-iap: Invalid native floor version ${JSON.stringify(value)}.`,
+      `expo-iap: Invalid client protocol version ${JSON.stringify(value)}.`,
     );
   }
-  return `docs-${normalizedVersion}`;
+  return `openiap-client-protocol-${normalizedVersion}`;
 }
 
 function parseArgs() {
@@ -57,7 +59,7 @@ function parseArgs() {
   return {version};
 }
 
-function readPinnedSpecVersion() {
+function readPinnedClientProtocolVersion() {
   let versions;
   try {
     versions = JSON.parse(
@@ -69,10 +71,10 @@ function readPinnedSpecVersion() {
     );
   }
 
-  const version = versions?.nativeFloor;
+  const version = versions?.clientProtocol;
   if (typeof version !== 'string' || version.trim().length === 0) {
     throw new Error(
-      'expo-iap: "nativeFloor" version missing in openiap-versions.json. Provide --tag <version> manually or update the file.',
+      'expo-iap: "clientProtocol" version missing in openiap-versions.json. Provide --tag <version> manually or update the file.',
     );
   }
   return version;
@@ -124,7 +126,9 @@ function normalizeGeneratedHeader(path) {
 
 function main() {
   const {version: versionOverride} = parseArgs();
-  const tag = normalizeDocsTag(versionOverride ?? readPinnedSpecVersion());
+  const tag = normalizeClientProtocolTag(
+    versionOverride ?? readPinnedClientProtocolVersion(),
+  );
   const downloadUrl = getDownloadUrl(tag);
   const tempDir = mkdtempSync(join(dirname(TARGET_FILE), '.openiap-types-'));
   const tempFile = join(tempDir, 'types.ts');

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -15,12 +16,12 @@ import { isolateGitEnvironment } from "./git-test-environment.mjs";
 
 import {
   allowsPrereleaseMetadata,
-  assertNativeFloor,
+  assertClientProtocol,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
   isPrereleaseVersion,
-  nativeFloor,
+  clientProtocolVersion,
   versionSources,
   normalizeBranch,
   resolveReleaseChannel,
@@ -411,80 +412,75 @@ test("compares stable, prerelease, and build metadata with SemVer precedence", (
   assert.equal(compareSemVer("2.4.2+build.1", "2.4.2+build.99"), 0);
 });
 
-test("derives the spec from the lower native version", () => {
-  assert.equal(nativeFloor({ apple: "2.4.2", google: "2.5.0" }), "2.4.2");
-  assert.equal(nativeFloor({ apple: "2.6.0", google: "2.5.3" }), "2.5.3");
-  assert.equal(nativeFloor({ apple: "2.5.0", google: "2.5.0" }), "2.5.0");
-  assert.equal(
-    nativeFloor({ apple: "2.5.0-rc.2", google: "2.5.0" }),
-    "2.5.0-rc.2",
-  );
-  assert.equal(
-    nativeFloor({
-      apple: "2.5.0+apple.2",
-      google: "2.5.0+google.1",
-    }),
-    "2.5.0+apple.2",
-  );
-});
-
-test("rejects specs both above and below the native version floor", () => {
-  assert.equal(
-    assertNativeFloor({
-      apple: "2.4.2",
-      google: "2.5.0",
-      nativeFloor: "2.4.2",
-    }),
-    "2.4.2",
-  );
-  assert.throws(
-    () =>
-      assertNativeFloor({
-        apple: "2.4.2",
-        google: "2.5.0",
-        nativeFloor: "2.5.1",
-      }),
-    /native floor .* must equal min\(.*\) = 2\.4\.2/,
-  );
-  assert.throws(
-    () =>
-      assertNativeFloor({
-        apple: "2.4.2",
-        google: "2.5.0",
-        nativeFloor: "2.4.1",
-      }),
-    /native floor .* must equal min\(.*\) = 2\.4\.2/,
-  );
-});
-
-test("docs version reads a tag cut before the nativeFloor rename", () => {
-  // docs-3.4.0 and every earlier tag carry the old `spec` key.
-  const root = mkdtempSync(resolve(tmpdir(), "openiap-legacy-"));
+test("reads the client protocol version from the package that publishes it", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-client-protocol-"));
   try {
-    writeFileSync(
-      resolve(root, "openiap-versions.json"),
-      `${JSON.stringify({ spec: "3.0.0", google: "3.0.0", apple: "3.0.0" })}\n`,
-    );
-    assert.equal(versionSources.docs.read(root), "3.0.0");
+    mkdirSync(resolve(root, "specs/client"), { recursive: true });
+    const manifest = resolve(root, "specs/client/package.json");
+    writeFileSync(manifest, `${JSON.stringify({ version: "0.2.0" })}\n`);
+    assert.equal(clientProtocolVersion(root), "0.2.0");
 
-    writeFileSync(
-      resolve(root, "openiap-versions.json"),
-      `${JSON.stringify({ nativeFloor: "3.4.0", google: "3.5.2", apple: "3.4.0" })}\n`,
+    writeFileSync(manifest, `${JSON.stringify({ version: "0.3.0" })}\n`);
+    assert.equal(clientProtocolVersion(root), "0.3.0");
+
+    writeFileSync(manifest, `${JSON.stringify({ version: "0.3" })}\n`);
+    assert.throws(
+      () => clientProtocolVersion(root),
+      /Invalid client protocol version/,
     );
-    assert.equal(versionSources.docs.read(root), "3.4.0");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("native updates atomically rederive the spec and preserve other fields", () => {
+test("rejects a manifest that drifts from the published client protocol", () => {
+  const root = mkdtempSync(resolve(tmpdir(), "openiap-client-protocol-"));
+  try {
+    mkdirSync(resolve(root, "specs/client"), { recursive: true });
+    writeFileSync(
+      resolve(root, "specs/client/package.json"),
+      `${JSON.stringify({ version: "0.2.0" })}\n`,
+    );
+    assert.equal(
+      assertClientProtocol(
+        { clientProtocol: "0.2.0", google: "3.5.2", apple: "3.4.0" },
+        root,
+      ),
+      "0.2.0",
+    );
+    // Natives no longer constrain it: they may sit anywhere.
+    assert.equal(
+      assertClientProtocol(
+        { clientProtocol: "0.2.0", google: "1.0.0", apple: "9.9.9" },
+        root,
+      ),
+      "0.2.0",
+    );
+    assert.throws(
+      () => assertClientProtocol({ clientProtocol: "0.1.0" }, root),
+      /clientProtocol 0\.1\.0 must equal specs\/client\/package\.json 0\.2\.0/,
+    );
+    assert.throws(
+      () => assertClientProtocol({ clientProtocol: "3.4.0" }, root),
+      /clientProtocol 3\.4\.0 must equal specs\/client\/package\.json 0\.2\.0/,
+    );
+    assert.throws(
+      () => assertClientProtocol({ google: "3.5.2" }, root),
+      /Invalid client protocol version: '\(missing\)'/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("native updates preserve every other field, the client protocol included", () => {
   assert.deepEqual(
     withUpdatedNativeVersion(
       {
         apple: "2.4.2",
         google: "2.5.0",
         internal: "preserved",
-        nativeFloor: "9.9.9",
+        clientProtocol: "0.2.0",
       },
       "apple",
       "2.4.3",
@@ -493,29 +489,21 @@ test("native updates atomically rederive the spec and preserve other fields", ()
       apple: "2.4.3",
       google: "2.5.0",
       internal: "preserved",
-      nativeFloor: "2.4.3",
+      clientProtocol: "0.2.0",
     },
   );
   assert.deepEqual(
     withUpdatedNativeVersion(
-      { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
+      { apple: "2.4.3", google: "2.5.0", clientProtocol: "0.2.0" },
       "google",
       "2.5.1",
     ),
-    { apple: "2.4.3", google: "2.5.1", nativeFloor: "2.4.3" },
-  );
-  assert.deepEqual(
-    withUpdatedNativeVersion(
-      { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
-      "apple",
-      "2.4.3",
-    ),
-    { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
+    { apple: "2.4.3", google: "2.5.1", clientProtocol: "0.2.0" },
   );
   assert.throws(
     () =>
       withUpdatedNativeVersion(
-        { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
+        { apple: "2.4.3", google: "2.5.0", clientProtocol: "0.2.0" },
         "apple",
         "2.4.2",
       ),
@@ -524,11 +512,11 @@ test("native updates atomically rederive the spec and preserve other fields", ()
   assert.throws(
     () =>
       withUpdatedNativeVersion(
-        { apple: "2.4.3", google: "2.5.0", nativeFloor: "2.4.3" },
+        { apple: "2.4.3", google: "2.5.0", clientProtocol: "0.2.0" },
         "docs",
         "2.4.4",
       ),
-    /Only native versions derive the floor/,
+    /Only native package versions live in this manifest/,
   );
 });
 
@@ -542,7 +530,7 @@ test("native version file updates write one consistent manifest", () => {
       apple: "2.4.2",
       google: "2.5.0",
       retained: true,
-      nativeFloor: "2.5.1",
+      clientProtocol: "0.2.0",
     })}\n`;
     writeFileSync(manifestPath, originalManifest);
     assert.throws(
@@ -555,31 +543,11 @@ test("native version file updates write one consistent manifest", () => {
       apple: "2.4.3",
       google: "2.5.0",
       retained: true,
-      nativeFloor: "2.4.3",
+      clientProtocol: "0.2.0",
     });
   } finally {
     rmSync(temporaryRoot, { force: true, recursive: true });
   }
-});
-
-test("equal native updates repair a stale floor after clean rebase convergence", () => {
-  const independentlyCombined = {
-    apple: "2.4.3",
-    google: "2.4.3",
-    nativeFloor: "2.4.2",
-  };
-  assert.throws(
-    () => assertNativeFloor(independentlyCombined),
-    /native floor .* must equal min\(/,
-  );
-  assert.deepEqual(
-    withUpdatedNativeVersion(independentlyCombined, "apple", "2.4.3"),
-    {
-      apple: "2.4.3",
-      google: "2.4.3",
-      nativeFloor: "2.4.3",
-    },
-  );
 });
 
 test("allows prerelease metadata only for next", () => {
@@ -709,7 +677,6 @@ test("existing release tags must match metadata, origin, and release-branch ance
       "hyodotdev-openiap-commerce-protocol-3.1.0",
       '{"name":"@hyodotdev/openiap-commerce-protocol","version":"3.1.0"}',
     ],
-    ["docs", "docs-3.1.0", '{"nativeFloor":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
     ["flutter", "flutter-iap-3.1.0", "version: 3.1.0\n"],
@@ -1352,8 +1319,7 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   assert.doesNotMatch(wait, /DEPENDENCY_UPDATE_PAT/);
 });
 
-test("production docs are guarded as stable-only", () => {
-  const docsRelease = readWorkflow("release.yml");
+test("the docs site deploys without a version of its own", () => {
   const deployScript = readFileSync(
     resolve(repoRoot, "scripts/deploy.sh"),
     "utf8",
@@ -1362,28 +1328,22 @@ test("production docs are guarded as stable-only", () => {
     resolve(repoRoot, "scripts/sync-versions.sh"),
     "utf8",
   );
-  assert.match(docsRelease, /release-branch-policy\.mjs guard docs/);
-  assert.match(docsRelease, /release-branch-policy\.mjs assert-floor/);
-  assert.match(docsRelease, /Release the native-derived current spec version/);
-  assert.match(
-    docsRelease,
-    /assert-release-tag\.mjs docs main "\$TAG_NAME" "\$VERSION"/,
+  // Only the two protocols carry versions, so there is no docs release train:
+  // no version argument, no docs-<version> tag, no Docs GitHub Release.
+  assert.match(deployScript, /the docs site has no version to select/);
+  assert.doesNotMatch(deployScript, /DOCS_TAG/);
+  assert.doesNotMatch(deployScript, /Docs GitHub Release/);
+  assert.doesNotMatch(deployScript, /guard docs/);
+  assert.doesNotMatch(deployScript, /jq -r '\.clientProtocol/);
+  assert.equal(
+    existsSync(resolve(repoRoot, ".github/workflows/release.yml")),
+    false,
+    "the docs release workflow must not come back",
   );
-  assert.match(docsRelease, /git checkout --detach "\$TAG_NAME"/);
-  assert.match(docsRelease, /continuing the idempotent release rerun/);
-  assert.match(docsRelease, /persist-credentials: false/);
-  assert.match(docsRelease, /GH_TOKEN: \$\{\{ github\.token \}\}/);
-  assert.match(docsRelease, /gh auth setup-git/);
-  assert.doesNotMatch(docsRelease, /^\s+- (?:patch|minor|major)$/m);
-  assert.doesNotMatch(
-    docsRelease,
-    /(?:\.nativeFloor\s*=\s*\$version|git commit|git pull --rebase|git push origin main)/,
-  );
-  assert.match(deployScript, /release-branch-policy\.mjs guard docs/);
-  assert.match(deployScript, /release-branch-policy\.mjs assert-floor/);
-  assert.match(deployScript, /Production docs accept stable versions only/);
+
+  assert.match(deployScript, /release-branch-policy\.mjs assert-client-protocol/);
+  assert.match(deployScript, /must deploy from the stable main branch/);
   assert.match(deployScript, /requires a clean worktree/);
-  assert.match(deployScript, /native floor cannot be bumped independently/);
   assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
   assert.match(
     deployScript,
@@ -1407,31 +1367,13 @@ test("production docs are guarded as stable-only", () => {
     deployScript,
     /Vercel CLI returned no ready production deployment/,
   );
-  assert.match(deployScript, /DOCS_TAG="docs-\$VERSION"/);
-  assert.match(deployScript, /git ls-remote --exit-code --tags origin/);
-  assert.match(deployScript, /DOCS_TAG_STATUS=\$\?/);
-  assert.match(deployScript, /\[ "\$DOCS_TAG_STATUS" -eq 2 \]/);
-  assert.match(
-    deployScript,
-    /already exists, so no new Docs GitHub Release is needed/,
-  );
-  assert.match(deployScript, /has no Docs GitHub Release yet/);
-  assert.match(deployScript, /Unable to determine whether \$DOCS_TAG exists/);
-  assert.match(
-    deployScript,
-    /Check the remote tag state before creating a Docs GitHub Release/,
-  );
   assert.doesNotMatch(
     deployScript,
-    /(?:\.nativeFloor\s*=\s*\$version|git commit|git push origin HEAD:main)/,
+    /(?:git commit|git push origin HEAD:main)/,
   );
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
-    docsRelease.indexOf("release-branch-policy.mjs guard docs") <
-      docsRelease.indexOf("Read derived spec version"),
-  );
-  assert.ok(
-    deployScript.indexOf("release-branch-policy.mjs assert-floor") <
+    deployScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
       deployScript.indexOf("Checking Git status"),
   );
   assert.ok(
@@ -1439,7 +1381,7 @@ test("production docs are guarded as stable-only", () => {
       deployScript.indexOf("command -v vercel"),
   );
   assert.ok(
-    syncScript.indexOf("release-branch-policy.mjs assert-floor") <
+    syncScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
       syncScript.indexOf('echo "📦 Syncing version files..."'),
   );
 });
@@ -1467,7 +1409,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     writeFileSync(
       resolve(temporaryRoot, "openiap-versions.json"),
-      '{"nativeFloor":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
+      '{"clientProtocol":"3.4.0","apple":"3.4.0","google":"3.5.0"}\n',
     );
     writeFileSync(
       resolve(temporaryRoot, ".gitignore"),
@@ -1628,7 +1570,7 @@ test("native releases refuse branch drift after the verified head", () => {
     );
     const commitIndex = workflow.indexOf(`openiap-${packageId}@$VERSION`);
     const assertFloorIndex = workflow.lastIndexOf(
-      "release-branch-policy.mjs assert-floor",
+      "release-branch-policy.mjs assert-client-protocol",
     );
     const pushIndex = workflow.indexOf(
       'git push origin "HEAD:$RELEASE_BRANCH"',
@@ -1756,7 +1698,6 @@ test("npm trusted publishers use a supported Node runtime", () => {
 
 test("release pushes expose credentials only in their owning step", () => {
   for (const filename of [
-    "release.yml",
     "release-apple.yml",
     "release-openiap.yml",
     "release-expo.yml",

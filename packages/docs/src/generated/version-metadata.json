@@ -1,6 +1,6 @@
 {
   "_generatedBy": "scripts/sync-versions.sh",
-  "clientSpecVersion": "0.1.0",
+  "clientSpecVersion": "0.2.0",
   "commerceSpecVersion": "0.2.0",
   "expoPackageVersion": "5.6.2",
   "reactNativePackageVersion": "16.6.1",
