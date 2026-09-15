@@ -77,7 +77,7 @@ describe('errorMapping utils', () => {
       rejectionWithSourceLocation({
         code: ErrorCode.PurchaseError,
         message: 'Purchase failed',
-        debugMessage: 'StoreKit said {"reason":"declined"}',
+        debugMessage: 'StoreKit said "declined}"',
         platform: 'ios',
       }),
       'ios',
@@ -85,12 +85,13 @@ describe('errorMapping utils', () => {
     );
 
     expect(error.message).toBe('Purchase failed');
-    expect(error.debugMessage).toBe('StoreKit said {"reason":"declined"}');
+    expect(error.debugMessage).toBe('StoreKit said "declined}"');
   });
 
   it.each([
     ['a closed but invalid object', '{not json} (at A.swift:1)'],
     ['an object that is never closed', '{"code":"x" (at A.swift:1)'],
+    ['no object at all', 'not json (at A.swift:1)'],
   ])('falls back on %s', (_label, payload) => {
     const error = createPurchaseErrorFromNativeException(
       {
