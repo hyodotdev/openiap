@@ -9,11 +9,19 @@
 # store install and no Amazon account. Run it on any Fire OS device.
 #
 #   scripts/verify-amazon-registration-order.sh <serial> [package]
+#
+# Exit 0 on pass, 1 on failure. Needs Android 7+ (Fire OS 6 and later). Targets a
+# debug build: consumer R8 can strip android.util.Log from release builds, which
+# would remove the line this asserts on.
 set -euo pipefail
 
 SERIAL="${1:?usage: $0 <adb-serial> [package]}"
 PACKAGE="${2:-dev.hyo.martie}"
 adb() { command adb -s "$SERIAL" "$@"; }
+
+state="$(adb get-state 2>&1 || true)"
+[ "$state" = "device" ] ||
+  { echo "FAIL: ${SERIAL} is not an available device (adb get-state: ${state})"; exit 1; }
 
 case "$(adb shell pm list packages "$PACKAGE" | tr -d '\r')" in
   *"package:${PACKAGE}"*) ;;
@@ -25,7 +33,7 @@ adb shell am force-stop "$PACKAGE"
 adb logcat -c
 adb shell am start -W -S "$activity" >/dev/null
 sleep 8
-pid="$(adb shell pidof "$PACKAGE" | tr -d '\r' | awk '{print $1}')"
+pid="$(adb shell pidof "$PACKAGE" | tr -d '\r' | awk '{print $1}' || true)"
 [ -n "$pid" ] || { echo "FAIL: ${PACKAGE} did not stay running after launch."; exit 1; }
 # Scoping to the pid keeps another app's Activity from being read as this one's.
 log="$(adb logcat -d --pid="$pid" -v time 2>/dev/null)"
@@ -40,17 +48,19 @@ if [ -z "$registered" ]; then
   echo "FAIL: the early registration provider never ran."
   echo "      AmazonEarlyRegistrationProvider is missing from the merged manifest,"
   echo "      or registration moved back into initConnection (#460)."
+  echo "      A Play-flavor build or an unrelated app also lands here."
   fail=1
 elif [ -z "$resumed" ]; then
-  echo "SKIP: the SDK logged no Activity resume; cannot order the two events."
-  echo "      Check that this is an Amazon-flavor build on Fire OS."
-  exit 2
-elif [ "$registered" -ge "$resumed" ]; then
-  echo "FAIL: registration happened at or after the first Activity resume."
-  echo "      The SDK will park the purchase until the next onResume (#460)."
+  echo "FAIL: the SDK never saw the first Activity resume, so it registered after it."
+  echo "      Registration is being deferred — to a Handler, a coroutine, or a"
+  echo "      later lifecycle point — and the purchase will be parked (#460)."
+  echo "      After an Appstore SDK upgrade, first confirm it still logs"
+  echo "      'Activity resumed' under tag Kiwi."
   fail=1
 else
   echo "PASS: registered before the first Activity resume."
+  echo "      $(sed -n "${registered}p" <<<"$log" | sed 's/^[[:space:]]*//')"
+  echo "      $(sed -n "${resumed}p" <<<"$log" | sed 's/^[[:space:]]*//')"
 fi
 
 if [ "$parked" -ne 0 ]; then

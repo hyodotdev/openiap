@@ -58,12 +58,13 @@ Notes:
   `No UI visible to execute task` means the SDK inside the app is holding the
   Appstore's purchase Intent until it sees the host Activity resume.
 - **Gate the registration order on every Amazon change.** The symptom needs a
-  store install, but its cause does not: `scripts/verify-amazon-registration-order.sh
-  <serial>` cold-starts the app and asserts the provider registered before the
-  first Activity resume, with no purchase, store install or Amazon account.
-  Verified on a Fire tablet both ways — it passes on a correct build and fails
-  with `the early registration provider never ran` once the provider is removed
-  from the manifest. Run it before the Live App Testing pass, not instead of it.
+  store install; its cause does not.
+  `scripts/verify-amazon-registration-order.sh <serial> [package]` cold-starts
+  the app and fails unless the provider registered before the first Activity
+  resume — no purchase, store install or Amazon account. Exit 0 pass, 1 fail;
+  pass the package for an example other than `dev.hyo.martie`. Use a debug
+  build: R8 can strip the log line it asserts on. Run it before the Live App
+  Testing pass, not instead of it.
 - VegaOS is required only for `react-native-iap` and `expo-iap`.
 - Godot is required only on Android and iOS.
 - Horizon is build-only unless the user explicitly provides a Horizon device and
