@@ -290,7 +290,7 @@ describe('generated compatibility', () => {
     );
 
     expect(duplicateBlocks).toEqual([]);
-    expect(typescript).not.toContain('Scheduled for removal in client protocol 3.0.0.');
+    expect(typescript).not.toContain('Scheduled for removal in client protocol 3.0.');
   });
 
   it('keeps generated TypeScript aliases separated by one blank line', () => {
@@ -311,7 +311,7 @@ describe('generated compatibility', () => {
     const generatedFiles = ['types.ts', 'Types.swift', 'Types.kt', 'types.dart', 'types.gd', 'Types.cs'];
     for (const file of generatedFiles) {
       const source = generated(file);
-      expect(source).not.toContain('Scheduled for removal in client protocol 3.0.0.');
+      expect(source).not.toContain('Scheduled for removal in client protocol 3.0.');
     }
   });
 

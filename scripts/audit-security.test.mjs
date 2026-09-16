@@ -361,9 +361,10 @@ reason = "Invalid date."
 
 test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   const yarnLock = "libraries/react-native-iap/yarn.lock";
-  // Both the advisory ids and the expiry come from the real exception file, so
-  // renewing a window or retiring an exception cannot silently turn the
-  // assertions below into no-ops.
+  // Ids and expiry both come from the real exception file, so adding or
+  // retiring one needs no edit here. This covers the expiry lifecycle, not
+  // which advisories are excepted: a stale or bogus entry surfaces in the
+  // auditor itself, asserted below as unused and unaccepted findings.
   const exceptions = parseOsvIgnoredVulnerabilities(
     readFileSync(
       resolve(
@@ -375,12 +376,10 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
     ),
   );
   assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
-  const dayAfterLastExpiry = new Date(
-    [...exceptions.values()]
-      .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
-      .reduce((a, b) => Math.max(a, b)) +
-      24 * 60 * 60 * 1000,
-  );
+  const lastExpiry = [...exceptions.values()]
+    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
+    .reduce((a, b) => Math.max(a, b));
+  const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
   const activeReport = JSON.stringify({
     results: [
       {
@@ -420,6 +419,13 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   );
   assert.throws(
     () => auditDependencies(scanner, [], dayAfterLastExpiry, [yarnLock]),
+    /expired dependency exception/u,
+  );
+  // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
+  // audit once called that same day live, so a lapsed exception failed CI while
+  // this stayed silent; the boundary is pinned rather than left to a comparison.
+  assert.throws(
+    () => auditDependencies(scanner, [], new Date(lastExpiry), [yarnLock]),
     /expired dependency exception/u,
   );
   const unaccepted = JSON.parse(activeReport);
