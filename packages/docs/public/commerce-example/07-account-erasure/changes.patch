@@ -27,7 +27,7 @@ index 0000000..d5632c9
 +
 +Do not manufacture successful output or weaken acceptance to hide a failure.
 diff --git a/BUILD.md b/BUILD.md
-index b5884a0..94a7142 100644
+index b5884a0..f9c0629 100644
 --- a/BUILD.md
 +++ b/BUILD.md
 @@ -32,6 +32,14 @@ Implement the backend in my project. Do not require an OpenIAP or IAPKit checkou
@@ -45,7 +45,7 @@ index b5884a0..94a7142 100644
  ## Start with a reviewable local result
  
  Use the stack already in my repository. If this is an empty project, choose a
-@@ -66,26 +74,46 @@ Build these milestones in order:
+@@ -66,26 +74,55 @@ Build these milestones in order:
     events profile requires the public HTTPS destination protections in the spec.
  6. **Recovery:** reopen the databases with pending deliveries, resume processing,
     and prove that neither ownership nor receiver deduplication disappears.
@@ -86,6 +86,15 @@ index b5884a0..94a7142 100644
 +  operations. Include the passing local conformance report and its fixture scope. Keep the main explanation short;
    link the specification for details.
  
++## Match the selected store
++
++Read the store table in `INTEGRATE.md` before replacing the fixture. Exercise
++all evidence shapes the provider advertises. Keep the app account distinct
++from the Amazon/Meta store user, and reject a claim for someone else's store
++account. Recheck ownership for Amazon/Horizon access; never invent subscription
++or notification support to make their flow look like Apple/Google. Prove
++negative rechecks, outages, conflicting bindings, erasure, and restart.
++
  ## Then extend toward a production provider
  
  Ask me which real store, backend identity system, and deployment environment to
@@ -97,9 +106,18 @@ index b5884a0..94a7142 100644
  also run real store sandbox, recovery, isolation, and load tests. Treat IAPKit as
  an implementation example, never as a replacement for the protocol's contract.
 diff --git a/INTEGRATE.md b/INTEGRATE.md
-index c497c13..ba56c4a 100644
+index c497c13..122ee9f 100644
 --- a/INTEGRATE.md
 +++ b/INTEGRATE.md
+@@ -23,7 +23,7 @@ Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`
+ or `bun install`. This example's runtime is Bun. The contract is
+ `openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
+ 
+-- `npm run demo:bridge`: maps Apple/Google OpenIAP purchase fields into the
++- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
+   installed verification schema; rejects missing or unsupported evidence.
+ - `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
+   HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
 @@ -36,6 +36,13 @@ gives the endpoint, configuration, and limits.
  
  ## Task for the AI
@@ -114,8 +132,70 @@ index c497c13..ba56c4a 100644
  Inspect this repository's purchase flow and choose the role from the table.
  Install `openiap-commerce-protocol` with this repository's package manager.
  Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
+@@ -55,7 +62,7 @@ for the app team. Follow these boundaries:
+    UI, targeting, or product catalog API; document this host adapter explicitly.
+ 2. **App connection:** the app uses its OpenIAP library to fetch products and
+    request a store purchase. Its purchase callback sends evidence to its
+-   authenticated backend. Use `client-bridge.mjs` there to map Apple/Google
++   authenticated backend. Use `client-bridge.mjs` there to map Apple, Google, Amazon, and Horizon
+    purchase fields into a verification input; this does not authenticate the
+    evidence. Keep server keys and user selection on that backend. Verify, bind
+    under the ownership policy, read current access, fulfill durably, then finish
+@@ -76,9 +83,49 @@ for the app team. Follow these boundaries:
+ 
+ The current client `verifyPurchaseWithProvider` helper supports IAPKit's own
+ API. A different provider name or base URL does not turn it into this protocol.
+-Other providers connect through the app backend's REST or GraphQL calls. The
+-Apple/Google helper does not support Amazon or Horizon, whose protocol evidence
+-requires store-specific user identifiers distinct from the app's user ID.
++Other providers connect through the app backend's REST or GraphQL calls. Amazon and Horizon require a store-specific user identifier distinct from the
++app user ID. Pass it as `context.storeUserId` to the bridge after authenticating
++the store account link. `startAppBackend` requires `resolveStoreUser` for these
++stores and rejects evidence belonging to a different store account. Never
++implement that callback by copying a user ID from the request body.
++
++## Select the store before implementing
++
++Follow the six-step purchase flow with your chosen store. Verification and
++binding use these evidence shapes:
++
++| Store | Purchase evidence | IAPKit access path |
++| --- | --- | --- |
++| Apple | `apple.jws` from the store purchase | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Google | `google.purchaseToken` | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Amazon | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS |
++| Meta Horizon | `horizon.userId`, `horizon.sku` | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta |
++
++For Amazon and Horizon, use `entitlements.productIds` for access. IAPKit does
++not invent a subscription record, expiry date, or lifecycle event for these
++ownership checks. An empty `subscriptions` list can accompany owned products.
++A negative store answer removes the product; a failed store call fails the
++read. Decide caching and outage policy in the app backend. Reads currently
++fail if an account has more than 20 linked Amazon/Horizon purchase rows.
++
++For Quest, verify Meta's user proof on your authenticated backend before linking
++that Meta user to the app account. Follow the official
++[Meta user verification guide](https://developers.meta.com/horizon/documentation/android-apps/ps-ownership/).
++For Amazon, establish the store account association through your application's
++trusted sign-in and ownership policy. Receipt possession alone does not prove
++which app account may claim it. The runnable comparison uses explicit fictional
++session links; it does not implement your authentication provider.
++
++Keep consumable fulfillment separate: record each granted unit durably and
++idempotently before finishing/consuming. A verified SKU is not a new quantity
++to credit on every read. The protocol walkthrough demonstrates Premium access;
++it does not implement a wallet or sell a Nami paywall.
++
++For IAPKit setup, configure Apple bundle/App ID and Server API signing key,
++Google package and service account, Meta App ID/secret, or Amazon RVS shared
++secret in the project. Keep secrets on the server. Enable Amazon sandbox only
++for App Tester evidence. The local comparison requires none of these real
++credentials; its external store responses are fixtures.
+ 
+ ## Deliver and prove the connection
+ 
 diff --git a/README.md b/README.md
-index ec1ec9a..a11d8e0 100644
+index ec1ec9a..c806211 100644
 --- a/README.md
 +++ b/README.md
 @@ -1,8 +1,8 @@
@@ -146,7 +226,19 @@ index ec1ec9a..a11d8e0 100644
  
  Restarting `npm start` creates a fresh temporary database, so you can replay the
  walkthrough. Step 6 reopens the existing databases **inside the running process**;
-@@ -109,9 +110,32 @@ and Google Chrome. The [recording guide](https://github.com/hyodotdev/openiap-co
+@@ -59,8 +60,10 @@ If port 5181 is occupied, run `COMMERCE_LAB_PORT=5183 npm start`.
+ | Data / automation    | [Event receiver guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md) | A ready signed-event receiver with a durable inbox                   |
+ | Integrated platform  | [Integration brief](INTEGRATE.md)                                                                                 | How the roles compose without splitting account authority            |
+ 
+-`client-bridge.mjs` maps Apple/Google OpenIAP purchase fields into the installed
++`client-bridge.mjs` maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the installed
+ verification schema **on the app backend**. Run `npm run demo:bridge` to check it.
++`npm test` also exercises all four fixture shapes through verification, binding,
++access and erasure. Amazon/Horizon cases include negative rechecks and outages.
+ It does not perform a mobile purchase or authenticate store evidence. The
+ current client `verifyPurchaseWithProvider` helper uses IAPKit's own API; other
+ providers connect through the app's authenticated backend.
+@@ -109,9 +112,32 @@ and Google Chrome. The [recording guide](https://github.com/hyodotdev/openiap-co
  explains how to preserve a checkpoint and export evidence. GitHub CI runs the
  runtime, tooling, archive, and documentation-export checks.
  
@@ -180,8 +272,89 @@ index ec1ec9a..a11d8e0 100644
  isolation, GraphQL, public HTTPS delivery protections, and operational recovery
  are not implemented here. The backend advertises **no complete profiles**.
  Schema checks and the local walkthrough do not establish profile conformance.
+diff --git a/ai-task.md b/ai-task.md
+index 7a2e80f..e6aa254 100644
+--- a/ai-task.md
++++ b/ai-task.md
+@@ -1,63 +1,13 @@
+-# Review the completed backend
+-
+-Apply the Fable 5.1 max CLI review to the final checkpoint. Add the missing
+-first-binding grant event in the same transaction as ownership, reject a
+-premature expiry without consuming its observation, and verify both rollback
+-and expiry boundaries. Correct test labels to describe what they exercise.
+-
+-Repair patch generation without rewriting historical source or screenshots.
+-Build patches from the preceding archived source and verify their hashes.
+-Install and test each archive outside the monorepo with npm. Capture the revised
+-final screen on desktop and mobile, then export only matching source evidence.
+-
+-Keep the original six checkpoints as history. Explain their incomplete discovery
+-and missing grant behavior; do not describe them as conformant providers. Keep
+-all changes uncommitted for maintainer review.
+-
+-Apply the second review: retain gate delivery state for delayed expiry,
+-retain store occurrence on delayed binding, preserve consecutive failure logs,
+-and state actual package contents and runtime requirements. Add a ready-to-run
+-generic event receiver for an existing backend, reusing the same receiver
+-handler. Demonstrate signed lifecycle ingestion, duplicate delivery, tampering,
+-and persisted inbox recovery over real local HTTP. Keep all samples fictional.
+-
+-Add composable integration roles: experience, commerce, and data. Ship a short
+-AI integration brief and a backend helper that maps Apple/Google OpenIAP
+-purchase fields into the installed verification schema. Test invalid inputs
+-and exclude client-supplied identity. Keep paywall UI APIs product-specific,
+-current IAPKit-only client helpers explicit, and store/device proof separate
+-from local fixtures. Reuse the existing consumer and contract validators.
+-
+-The first bridge test failed because store evidence was nested under an extra
+-`evidence` key. Keep the failure output, use the installed input schema's
+-top-level `apple`/`google` members, and rerun that boundary check.
+-
+-Apply the third CLI review. Make the integration brief reachable from the docs
+-site with absolute setup, source, and build-brief links. Accept signed webhook
+-delivery behind a reverse proxy that preserves the public Host header. Keep
+-unfinished captures from blocking completed history, retain equal-time fixture
+-transitions, record the observed duplicate response, and configure Yarn's
+-node-modules linker. Preserve the proxy failure and rerun the checks.
+-
+-Prepare the standalone example for its first public commit. Rewrite the README
+-around clone, run, inspect, choose a role, and verify. Put receiver and capture
+-setup in repository documentation so the example works before the docs site is
+-deployed. Preserve every earlier archive. Record this documentation revision,
+-verify all source archives again, and export a stable current-source download.
+-Add CI that tests runtime, tooling, archives and the documentation export. This
+-revision is a local publication review, not another completed external review.
+-
+-Fix the first Linux CI failure without rewriting historical recordings. macOS
+-AppleDouble metadata must not count as source. Exclude it on extraction, omit it
+-from new archives, and add a portable extraction regression test. Capture the
+-corrected tooling, verify every source revision, and rerun GitHub CI.
+-
+-Correct the final CLI review finding: exercise cancellation at the expiry
+-observation timestamp so the check reaches the expired-state guard. Preserve
+-the earlier capture, record this revision, and verify its archive and patch.
+-
+-Apply the Codex review: authenticate webhook body bytes before UTF-8 decoding.
+-Reject altered UTF-8 and inserted BOM bytes with an unchanged signature. Reject
+-authentically signed malformed UTF-8 before storage, and accept correctly signed
+-Unicode and BOM bodies. Keep the reproduced failure, preserve old checkpoints,
+-then capture and verify the corrected revision.
++# Cover the four IAPKit store boundaries
++
++Map Apple, Google, Amazon and Meta Horizon evidence into the installed protocol.
++Keep store identity distinct from the app session; Amazon and Horizon claims
++must pass the host's authenticated store-account link. Add matching fixture
++provider paths and execute ownership, rejection, outage and erasure cases.
++Compare the same application backend with IAPKit's actual handlers and local
++Convex storage. Mark external store calls as fixtures and do not invent a
++subscription lifecycle or a consumable wallet from a SKU ownership result.
++
++Run npm test and the provider comparison, capture the current source, and verify
++it from an empty directory. Preserve the previous checkpoint. Keep all changes
++uncommitted for maintainer review.
 diff --git a/capture.mjs b/capture.mjs
-index 53904d7..9ff8993 100644
+index d8f85e1..9b5ed75 100644
 --- a/capture.mjs
 +++ b/capture.mjs
 @@ -9,7 +9,7 @@ import {
@@ -206,7 +379,7 @@ index 53904d7..9ff8993 100644
    if (checkpoint.previous) {
      assert(/^\d\d-[\w-]+$/.test(checkpoint.previous));
 diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
-index 06b5f3b..6e6cfd4 100644
+index 06b5f3b..8ef96bc 100644
 --- a/checkpoint-tools.mjs
 +++ b/checkpoint-tools.mjs
 @@ -8,6 +8,7 @@ import {
@@ -225,22 +398,24 @@ index 06b5f3b..6e6cfd4 100644
    "README.md",
    "BUILD.md",
    "INTEGRATE.md",
-@@ -27,6 +29,8 @@ export const SOURCE_FILES = [
+@@ -27,6 +29,9 @@ export const SOURCE_FILES = [
    "package-lock.json",
    "contract.mjs",
    "provider.mjs",
 +  "erasure.mjs",
 +  "verify-erasure.mjs",
++  "verify-stores.mjs",
    "webhooks.mjs",
    "consumer.mjs",
    "client-bridge.mjs",
-@@ -34,6 +38,15 @@ export const SOURCE_FILES = [
+@@ -34,6 +39,16 @@ export const SOURCE_FILES = [
    "server.mjs",
    "verify.mjs",
    "dashboard.html",
 +  "composition/README.md",
 +  "composition/app-backend.mjs",
 +  "composition/app-backend.test.mjs",
++  "composition/receiver.test.mjs",
 +  "composition/commerce-client.mjs",
 +  "composition/export.mjs",
 +  "composition/memory-provider.mjs",
@@ -250,7 +425,7 @@ index 06b5f3b..6e6cfd4 100644
    "capture.mjs",
    "export-docs.mjs",
    "checkpoint-tools.mjs",
-@@ -42,12 +55,18 @@ export const SOURCE_FILES = [
+@@ -42,12 +57,18 @@ export const SOURCE_FILES = [
  ];
  export const sha256 = (file) =>
    createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -275,31 +450,211 @@ index 06b5f3b..6e6cfd4 100644
  export function sanitize(text) {
    const roots = [process.cwd(), import.meta.dir, homedir()]
      .filter(Boolean)
+@@ -133,7 +154,7 @@ export function createPatch(before, after) {
+   }
+ }
+ export function readRecords(directory) {
+-  return readdirSync(directory)
++  const records = readdirSync(directory)
+     .filter(
+       (name) =>
+         /^\d\d-[\w-]+$/.test(name) &&
+@@ -143,4 +164,25 @@ export function readRecords(directory) {
+     .map((name) =>
+       JSON.parse(readFileSync(join(directory, name, "run.json"), "utf8")),
+     );
++  const byId = new Map(records.map((record) => [record.id, record]));
++  const ordered = [],
++    visiting = new Set(),
++    visited = new Set();
++  function visit(record) {
++    if (visited.has(record.id)) return;
++    assert(!visiting.has(record.id), `Checkpoint cycle: ${record.id}`);
++    visiting.add(record.id);
++    if (record.previous) {
++      assert(
++        byId.has(record.previous),
++        `Missing predecessor: ${record.previous}`,
++      );
++      visit(byId.get(record.previous));
++    }
++    visiting.delete(record.id);
++    visited.add(record.id);
++    ordered.push(record);
++  }
++  records.forEach(visit);
++  return ordered;
+ }
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+index e807fae..a45e857 100644
+--- a/checkpoint-tools.test.mjs
++++ b/checkpoint-tools.test.mjs
+@@ -108,3 +108,29 @@ test("unfinished captures do not hide completed records", () => {
+     rmSync(temp, { recursive: true, force: true });
+   }
+ });
++
++test("checkpoint replay follows predecessors instead of directory name order", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  const records = [
++    { id: "07-reviewed", previous: "01-start" },
++    { id: "07-interoperable", previous: "07-reviewed" },
++    { id: "01-start" },
++  ];
++  try {
++    for (const record of records) {
++      mkdirSync(join(temp, record.id));
++      writeFileSync(join(temp, record.id, "run.json"), JSON.stringify(record));
++    }
++    assert.deepEqual(
++      readRecords(temp).map((record) => record.id),
++      ["01-start", "07-reviewed", "07-interoperable"],
++    );
++    writeFileSync(
++      join(temp, "01-start/run.json"),
++      JSON.stringify({ id: "01-start", previous: "07-interoperable" }),
++    );
++    assert.throws(() => readRecords(temp), /Checkpoint cycle/);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
 diff --git a/checkpoint.json b/checkpoint.json
-index 5ee086d..2b4698d 100644
+index 9697fda..e0574ba 100644
 --- a/checkpoint.json
 +++ b/checkpoint.json
 @@ -1,8 +1,8 @@
  {
 -  "step": 6,
--  "id": "06-recover-reviewed-8",
+-  "id": "06-recover",
 -  "title": "Expire access and restart",
 -  "built": "Exact-byte webhook authentication with Unicode regression checks",
 -  "result": "Access closes at the deadline. Restarting preserves purchases and deliveries.",
--  "previous": "06-recover-reviewed-7"
+-  "previous": "05-deliver"
 +  "step": 7,
 +  "id": "07-account-erasure",
 +  "title": "Delete the account",
-+  "built": "Atomic provider erasure, recipient cleanup and late-delivery guards",
-+  "result": "The account identity is removed; retries and restart cannot restore it.",
-+  "previous": "06-recover-reviewed-8"
++  "built": "Apple, Google, Amazon and Horizon evidence, ownership checks and account erasure",
++  "result": "The same account flow covers four store evidence shapes; Amazon and Horizon access is rechecked.",
++  "previous": "06-recover"
  }
+diff --git a/client-bridge.mjs b/client-bridge.mjs
+index 1d5d64a..248d314 100644
+--- a/client-bridge.mjs
++++ b/client-bridge.mjs
+@@ -2,18 +2,43 @@ import assert from "node:assert/strict";
+ import { operation, validate } from "./contract.mjs";
+ 
+ // Run on the app backend; the provider still authenticates the store evidence.
+-export function toVerifyPurchaseInput(purchase) {
++export function toVerifyPurchaseInput(purchase, context = {}) {
+   const { store, purchaseToken } = purchase ?? {};
+-  if (!["apple", "google"].includes(store))
+-    throw new Error("This adapter supports Apple and Google purchases only");
+-  if (typeof purchaseToken !== "string" || !purchaseToken.trim())
+-    throw new Error("Purchase evidence is required");
+-  const input = {
+-    store,
+-    ...(store === "apple"
+-      ? { apple: { jws: purchaseToken } }
+-      : { google: { purchaseToken } }),
++  let input;
++  const required = (value) => {
++    if (typeof value !== "string" || !value.trim())
++      throw new Error("Purchase evidence is required");
++    return value;
+   };
++  switch (store) {
++    case "apple":
++      input = { store, apple: { jws: required(purchaseToken) } };
++      break;
++    case "google":
++      input = { store, google: { purchaseToken: required(purchaseToken) } };
++      break;
++    case "amazon":
++      input = {
++        store,
++        amazon: {
++          userId: required(context.storeUserId),
++          receiptId: required(purchaseToken),
++          ...(context.amazonSandbox === true ? { sandbox: true } : {}),
++        },
++      };
++      break;
++    case "horizon":
++      input = {
++        store,
++        horizon: {
++          userId: required(context.storeUserId),
++          sku: required(purchase.productId),
++        },
++      };
++      break;
++    default:
++      throw new Error("Unsupported purchase store");
++  }
+   if (!validate(operation("verifyPurchase").input, input))
+     throw new Error("Purchase evidence does not match the protocol input");
+   return input;
+@@ -39,15 +64,50 @@ export function runBridgeDemo() {
+     assert(validate(operation("verifyPurchase").input, input));
+     checks.push(`${store}: matches the installed verification input schema`);
+   }
++  for (const store of ["amazon", "horizon"]) {
++    const input = toVerifyPurchaseInput(
++      {
++        store,
++        purchaseToken: "receipt-1",
++        productId: "premium.monthly",
++        userId: "untrusted-app-user",
++      },
++      { storeUserId: "authenticated-store-user", amazonSandbox: true },
++    );
++    assert.deepEqual(
++      input,
++      store === "amazon"
++        ? {
++            store,
++            amazon: {
++              userId: "authenticated-store-user",
++              receiptId: "receipt-1",
++              sandbox: true,
++            },
++          }
++        : {
++            store,
++            horizon: {
++              userId: "authenticated-store-user",
++              sku: "premium.monthly",
++            },
++          },
++    );
++    checks.push(
++      `${store}: uses server-selected store identity, distinct from the app user`,
++    );
++    assert(validate(operation("verifyPurchase").input, input));
++    checks.push(`${store}: matches the installed verification input schema`);
++  }
+   for (const [label, purchase] of [
+     ["missing purchase", null],
+     ["unknown store", { store: "unknown", purchaseToken: "fictional" }],
+     [
+-      "Amazon needs its own adapter",
++      "Amazon requires its authenticated store user",
+       { store: "amazon", purchaseToken: "fictional" },
+     ],
+     [
+-      "Horizon needs its own adapter",
++      "Horizon requires its authenticated store user",
+       { store: "horizon", purchaseToken: "fictional" },
+     ],
+     ["missing evidence", { store: "apple" }],
 diff --git a/composition/README.md b/composition/README.md
 new file mode 100644
-index 0000000..00ffd08
+index 0000000..f0da5f6
 --- /dev/null
 +++ b/composition/README.md
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,95 @@
 +# Compose services and inspect the boundary
 +
 +Run the same app-backend client against two separately implemented fixture
@@ -321,7 +676,7 @@ index 0000000..00ffd08
 +databases, and local HTTP ports, then cleans up after itself. Installing
 +dependencies needs registry access; the composition run uses loopback HTTP only.
 +
-+The existing six-step dashboard remains available through `npm start` at
++The seven-step dashboard, including account deletion, remains available through `npm start` at
 +`http://127.0.0.1:5181`. Set `COMMERCE_LAB_PORT` only to change that port.
 +
 +## Follow the code
@@ -351,7 +706,10 @@ index 0000000..00ffd08
 +consumer. The consumer also rejects a malformed successful API response.
 +
 +Each emitter/project has its own configured endpoint, secret, and inbox
-+database. Equal event IDs from different emitters therefore do not collide.
++database in this baseline run. For the IAPKit replacement run, `startAppBackend`
++keeps one application endpoint and one receiver alive. Configure that receiver
++with named emitters and separate signing keys bound to each project ID; equal
++event IDs from different providers then remain distinct in the same inbox.
 +This does not identify duplicate real-world facts across a provider cutover.
 +
 +## Make and verify one change
@@ -394,16 +752,22 @@ index 0000000..00ffd08
 +or grant access from webhook arrival.
 diff --git a/composition/app-backend.mjs b/composition/app-backend.mjs
 new file mode 100644
-index 0000000..04475a7
+index 0000000..5803dbb
 --- /dev/null
 +++ b/composition/app-backend.mjs
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,130 @@
 +import { Database } from "bun:sqlite";
 +import { createCommerceClient } from "./commerce-client.mjs";
 +import { createErasureLedger } from "../erasure.mjs";
 +
 +// resolveSession is the host app's authentication boundary, supplied by the caller.
-+export function startAppBackend({ path, providers, receiver, resolveSession }) {
++export function startAppBackend({
++  path,
++  providers,
++  receiver,
++  resolveSession,
++  resolveStoreUser,
++}) {
 +  const db = new Database(path, { create: true });
 +  db.exec(
 +    "CREATE TABLE IF NOT EXISTS erasure_requests (user_id TEXT, provider TEXT, PRIMARY KEY(user_id, provider))",
@@ -421,6 +785,7 @@ index 0000000..04475a7
 +    for (const row of db.query("SELECT * FROM erasure_requests").all()) {
 +      try {
 +        receiver.eraseUser(row.user_id);
++        await Promise.allSettled([...(inFlight.get(row.user_id) ?? [])]);
 +        const result = await clients[row.provider].call("eraseUser", {
 +          userId: row.user_id,
 +        });
@@ -447,6 +812,16 @@ index 0000000..04475a7
 +      try {
 +        if (url.pathname === "/purchase" && request.method === "POST") {
 +          const input = await request.json();
++          if (erased.has(userId))
++            return new Response("Unauthenticated", { status: 401 });
++          if (input.store === "amazon" || input.store === "horizon") {
++            const storeUser = await resolveStoreUser?.(request, input.store);
++            if (!storeUser || input[input.store]?.userId !== storeUser)
++              return new Response(
++                "Store account is not linked to this session",
++                { status: 403 },
++              );
++          }
 +          if (erased.has(userId))
 +            return new Response("Unauthenticated", { status: 401 });
 +          const work = clients[selected].fulfill(input, {
@@ -483,7 +858,6 @@ index 0000000..04475a7
 +              ).run(userId, name);
 +          })();
 +          receiver.eraseUser(userId);
-+          await Promise.allSettled([...(inFlight.get(userId) ?? [])]);
 +          const pending = await drainErasure();
 +          return Response.json({
 +            accepted: true,
@@ -514,10 +888,10 @@ index 0000000..04475a7
 +}
 diff --git a/composition/app-backend.test.mjs b/composition/app-backend.test.mjs
 new file mode 100644
-index 0000000..7f2da7c
+index 0000000..dc43f6c
 --- /dev/null
 +++ b/composition/app-backend.test.mjs
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,103 @@
 +import { test, expect } from "bun:test";
 +import { mkdtempSync, rmSync } from "node:fs";
 +import { tmpdir } from "node:os";
@@ -539,7 +913,8 @@ index 0000000..7f2da7c
 +  const gate = new Promise((resolve) => {
 +    releaseBind = resolve;
 +  });
-+  let rejectErase = true;
++  let rejectErase = true,
++    eraseCalls = 0;
 +  const server = Bun.serve({
 +    hostname: "127.0.0.1",
 +    port: 0,
@@ -548,8 +923,10 @@ index 0000000..7f2da7c
 +        signalBind();
 +        await gate;
 +      }
-+      if (new URL(request.url).pathname.endsWith("/erase") && rejectErase)
-+        return new Response(null, { status: 503 });
++      if (new URL(request.url).pathname.endsWith("/erase")) {
++        eraseCalls++;
++        if (rejectErase) return new Response(null, { status: 503 });
++      }
 +      return provider.fetch(request);
 +    },
 +  });
@@ -585,12 +962,21 @@ index 0000000..7f2da7c
 +      await Bun.sleep(10);
 +    }
 +    expect((await fetch(app.url + "/access")).status).toBe(401);
++    let workerFinished = false;
++    const background = app.drainErasure().then((pending) => {
++      workerFinished = true;
++      return pending;
++    });
++    await Bun.sleep(20);
++    expect(workerFinished).toBe(false);
++    expect(eraseCalls).toBe(0);
 +    releaseBind();
 +    expect(await (await purchase).json()).toEqual({ access: false });
 +    expect(await (await deletion).json()).toEqual({
 +      accepted: true,
 +      status: "queued",
 +    });
++    expect(await background).toBe(1);
 +    await app.close();
 +    app = startAppBackend(options);
 +    expect(
@@ -794,7 +1180,7 @@ index 0000000..cfb9c06
 +}
 diff --git a/composition/memory-provider.mjs b/composition/memory-provider.mjs
 new file mode 100644
-index 0000000..dff6b8a
+index 0000000..b548ab2
 --- /dev/null
 +++ b/composition/memory-provider.mjs
 @@ -0,0 +1,266 @@
@@ -804,7 +1190,7 @@ index 0000000..dff6b8a
 +  HTTP_BINDING,
 +  WEBHOOK,
 +  providerCapabilitiesSchema,
-+} from "openiap-commerce-protocol";
++} from "@hyodotdev/openiap-commerce-protocol";
 +import { operation, protocolError, validate } from "../contract.mjs";
 +
 +// A second fixture implementation; it shares contract metadata, not SQLite logic.
@@ -819,7 +1205,7 @@ index 0000000..dff6b8a
 +    "expiration",
 +  ]);
 +  const capabilities = {
-+    specVersion: HTTP_BINDING.protocolVersion,
++    commerceProtocolVersion: HTTP_BINDING.protocolVersion,
 +    implementation: {
 +      name: "Memory provider — separately implemented fixture",
 +    },
@@ -1095,19 +1481,127 @@ index 0000000..2bf375d
 +    }
 +  };
 +}
+diff --git a/composition/receiver.test.mjs b/composition/receiver.test.mjs
+new file mode 100644
+index 0000000..2e2ee9d
+--- /dev/null
++++ b/composition/receiver.test.mjs
+@@ -0,0 +1,103 @@
++import { test, expect } from "bun:test";
++import { Database } from "bun:sqlite";
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { WEBHOOK, COMMERCE_EVENT_VERSION } from "@hyodotdev/openiap-commerce-protocol";
++import { createReceiver, sign } from "../webhooks.mjs";
++import { runComposition } from "./run.mjs";
++
++test("the original SQLite and memory composition remains compatible with the receiver", async () => {
++  const report = await runComposition();
++  expect(report.checks.length).toBeGreaterThan(0);
++});
++
++test("one inbox scopes event IDs to authenticated emitters, survives upgrade, and discards erased users", async () => {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-receiver-"));
++  const path = join(directory, "inbox.sqlite");
++  const now = Date.now();
++  const emitters = [
++    { name: "example", projectId: "example_project", secret: "example-key" },
++    { name: "iapkit", projectId: "kit_project", secret: "kit-key" },
++  ];
++  const event = {
++    eventId: "same-event-id",
++    eventType: "subscription.canceled",
++    eventVersion: COMMERCE_EVENT_VERSION,
++    occurredAt: now,
++    processedAt: now,
++    store: "fixture",
++    environment: "local-fixture",
++    projectId: emitters[0].projectId,
++    userId: "alice",
++    productId: "premium.monthly",
++    subscription: {
++      productId: "premium.monthly",
++      state: "Active",
++      active: true,
++      expiresAt: now + 60000,
++      willRenew: false,
++    },
++  };
++  const old = new Database(path, { create: true });
++  old.exec(
++    "CREATE TABLE inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
++  );
++  old
++    .query("INSERT INTO inbox VALUES (?, ?)")
++    .run(event.eventId, JSON.stringify(event));
++  old.close();
++  let receiver = createReceiver(path, emitters, () => now);
++  const post = (emitter, value) => {
++    const body = JSON.stringify(value),
++      timestamp = String(Math.floor(now / 1000));
++    return receiver.fetch(
++      new Request("http://localhost/webhooks/commerce", {
++        method: "POST",
++        body,
++        headers: {
++          [WEBHOOK.timestampHeader]: timestamp,
++          [WEBHOOK.signatureHeader]: sign(emitter.secret, timestamp, body),
++          [WEBHOOK.eventIdHeader]: value.eventId,
++        },
++      }),
++    );
++  };
++  try {
++    expect(await (await post(emitters[0], event)).json()).toEqual({
++      accepted: true,
++      duplicate: true,
++    });
++    const kitEvent = { ...event, projectId: emitters[1].projectId };
++    expect((await post(emitters[0], kitEvent)).status).toBe(401);
++    expect(receiver.count()).toBe(1);
++    expect(await (await post(emitters[1], kitEvent)).json()).toEqual({
++      accepted: true,
++      duplicate: false,
++    });
++    expect(receiver.count()).toBe(2);
++    receiver.close();
++    receiver = createReceiver(path, emitters, () => now);
++    expect(await (await post(emitters[1], kitEvent)).json()).toEqual({
++      accepted: true,
++      duplicate: true,
++    });
++    expect(receiver.eraseUser("alice")).toBe(2);
++    receiver.close();
++    receiver = createReceiver(path, emitters, () => now);
++    for (const emitter of emitters)
++      expect(
++        await (
++          await post(emitter, {
++            ...event,
++            projectId: emitter.projectId,
++            eventId: "late-event",
++          })
++        ).json(),
++      ).toEqual({ accepted: true, discarded: "erased-user" });
++    expect(receiver.count()).toBe(0);
++  } finally {
++    receiver.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++});
 diff --git a/composition/run.mjs b/composition/run.mjs
 new file mode 100644
-index 0000000..7fceee5
+index 0000000..cbb160f
 --- /dev/null
 +++ b/composition/run.mjs
-@@ -0,0 +1,587 @@
+@@ -0,0 +1,583 @@
 +import assert from "node:assert/strict";
 +import { createHash, randomBytes, randomUUID } from "node:crypto";
 +import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 +import { tmpdir } from "node:os";
 +import { join, resolve } from "node:path";
-+import { Database } from "bun:sqlite";
-+import { WEBHOOK, HTTP_BINDING } from "openiap-commerce-protocol";
++import { WEBHOOK, HTTP_BINDING } from "@hyodotdev/openiap-commerce-protocol";
 +import { createProvider, FIXTURE, CREDENTIALS } from "../provider.mjs";
 +import { createReceiver, deliver, sign } from "../webhooks.mjs";
 +import { createCommerceClient } from "./commerce-client.mjs";
@@ -1247,7 +1741,7 @@ index 0000000..7fceee5
 +      const descriptor = await provider.client.call("providerCapabilities");
 +      check(
 +        `${provider.id}: contract major matches`,
-+        descriptor.specVersion.split(".")[0],
++        descriptor.commerceProtocolVersion.split(".")[0],
 +        HTTP_BINDING.protocolVersion.split(".")[0],
 +      );
 +      check(
@@ -1484,21 +1978,18 @@ index 0000000..7fceee5
 +        ).status,
 +        400,
 +      );
-+      const inspector = new Database(provider.inboxPath, { readonly: true });
-+      try {
-+        const stored = JSON.parse(
-+          inspector
-+            .query("SELECT body FROM inbox WHERE event_id = ?")
-+            .get(extension.eventId).body,
++      const stored = provider.receiver
++        .inspect()
++        .find(
++          (event) =>
++            event.eventId === extension.eventId &&
++            event.projectId === extension.projectId,
 +        );
-+        check(
-+          `${provider.id}: extension bytes survive storage`,
-+          stored.extensions,
-+          extension.extensions,
-+        );
-+      } finally {
-+        inspector.close();
-+      }
++      check(
++        `${provider.id}: extension bytes survive storage`,
++        stored?.extensions,
++        extension.extensions,
++      );
 +    }
 +
 +    time = FIXTURE.expiresAt;
@@ -1689,9 +2180,18 @@ index 0000000..7fceee5
 +  );
 +}
 diff --git a/consumer.mjs b/consumer.mjs
-index 972ef32..cb052b8 100644
+index 37a5bec..72eb7cb 100644
 --- a/consumer.mjs
 +++ b/consumer.mjs
+@@ -7,7 +7,7 @@ import { WEBHOOK, COMMERCE_EVENT_VERSION } from "@hyodotdev/openiap-commerce-pro
+ import { createReceiver, sign } from "./webhooks.mjs";
+ import { validate } from "./contract.mjs";
+ 
+-// One configured emitter/project and signing key per receiver database.
++// One app inbox; named emitters can bind separate signing keys to project IDs.
+ export function startConsumer({ secret, path, port = 0, now = Date.now }) {
+   assert(secret, "Set COMMERCE_WEBHOOK_SECRET to the provider signing secret.");
+   let receiver = createReceiver(path, secret, now);
 @@ -27,6 +27,8 @@ export function startConsumer({ secret, path, port = 0, now = Date.now }) {
    return {
      url: `http://127.0.0.1:${server.port}/webhooks/commerce`,
@@ -1702,7 +2202,7 @@ index 972ef32..cb052b8 100644
        receiver.close();
        receiver = createReceiver(path, secret, now);
 diff --git a/dashboard.html b/dashboard.html
-index b283719..68bb6ee 100644
+index b283719..4504686 100644
 --- a/dashboard.html
 +++ b/dashboard.html
 @@ -91,7 +91,7 @@
@@ -1723,15 +2223,24 @@ index b283719..68bb6ee 100644
            </p>
            <div class="built" id="built"></div>
          </div>
+@@ -302,7 +302,7 @@
+         for (const row of rows) {
+           const tr = body.insertRow();
+           for (const [, key] of columns)
+-            tr.insertCell().textContent = String(row[key] ?? "Unbound");
++            tr.insertCell().textContent = String(row[key] ?? (key === "userId" ? "No user identity" : "—"));
+         }
+         $(target).append(table);
+       }
 diff --git a/erasure.mjs b/erasure.mjs
 new file mode 100644
-index 0000000..90164eb
+index 0000000..fb977b1
 --- /dev/null
 +++ b/erasure.mjs
 @@ -0,0 +1,36 @@
 +import { createHmac, randomBytes, randomUUID } from "node:crypto";
 +
-+// The random key prevents a database-only reader from guessing short user IDs.
++// Retain a stable retry marker without storing the user ID verbatim.
 +export function createErasureLedger(db) {
 +  db.exec(`
 +    PRAGMA secure_delete = ON;
@@ -1766,7 +2275,7 @@ index 0000000..90164eb
 +  };
 +}
 diff --git a/export-docs.mjs b/export-docs.mjs
-index f7da37e..4dbddd0 100644
+index f7da37e..875265f 100644
 --- a/export-docs.mjs
 +++ b/export-docs.mjs
 @@ -29,8 +29,15 @@ const selected = guide.map((step) => {
@@ -1787,8 +2296,33 @@ index f7da37e..4dbddd0 100644
  assert.deepEqual(
    Object.fromEntries(
      SOURCE_FILES.sort().map((name) => [
+@@ -77,7 +84,6 @@ for (const name of [
+   "REVIEW.md",
+   "verification.json",
+   "consumer-run.json",
+-  "01-contract-first-attempt.txt",
+ ])
+   cpSync(join(source, name), join(output, name));
+ const report = {
+diff --git a/package-lock.json b/package-lock.json
+index 78fad4d..6ac385f 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -61,9 +61,9 @@
+       "license": "MIT"
+     },
+     "node_modules/fast-uri": {
+-      "version": "3.1.8",
+-      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
+-      "integrity": "sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==",
++      "version": "3.1.7",
++      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.7.tgz",
++      "integrity": "sha512-dOvZVzjdZdz7phd9v6jCbwxrBW3fK6n8Rc0CtdmM4bumzMnxywBYhuph6J819RRw/ku+rLbelwfMunktuzVVHg==",
+       "funding": [
+         {
+           "type": "github",
 diff --git a/package.json b/package.json
-index 36f1f41..d920e9e 100644
+index e52dc85..268ccac 100644
 --- a/package.json
 +++ b/package.json
 @@ -5,7 +5,7 @@
@@ -1796,23 +2330,23 @@ index 36f1f41..d920e9e 100644
    "scripts": {
      "start": "bun server.mjs",
 -    "test": "bun verify.mjs",
-+    "test": "bun verify.mjs && bun test composition/app-backend.test.mjs",
++    "test": "bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs",
      "capture": "bun capture.mjs",
      "verify:checkpoints": "bun verify-checkpoints.mjs",
      "test:tooling": "bun test checkpoint-tools.test.mjs",
 diff --git a/provider.mjs b/provider.mjs
-index 643c03c..37c5b19 100644
+index cf3c935..4b0c2e5 100644
 --- a/provider.mjs
 +++ b/provider.mjs
 @@ -6,6 +6,7 @@ import {
    HTTP_BINDING,
- } from "openiap-commerce-protocol";
+ } from "@hyodotdev/openiap-commerce-protocol";
  import { protocolError, validate } from "./contract.mjs";
 +import { createErasureLedger } from "./erasure.mjs";
  
  export const FIXTURE = Object.freeze({
    store: "fixture",
-@@ -29,16 +30,23 @@ export function isEntitled(state, expiresAt, now) {
+@@ -29,16 +30,44 @@ export function isEntitled(state, expiresAt, now) {
  }
  
  // This adapter recognizes one fictional purchase; it never contacts a store.
@@ -1821,9 +2355,28 @@ index 643c03c..37c5b19 100644
 -  if (typeof input.evidence !== "string") return { error: "INVALID_REQUEST" };
 -  if (input.evidence === "local-upstream-outage") {
 +function fixtureEvidence(input) {
-+  return input.store === "google"
-+    ? input.google?.purchaseToken
-+    : input.evidence;
++  switch (input.store) {
++    case "apple":
++      return input.apple?.jws;
++    case "google":
++      return input.google?.purchaseToken;
++    case "amazon":
++      return (
++        input.amazon &&
++        JSON.stringify([
++          input.amazon.userId,
++          input.amazon.receiptId,
++          input.amazon.sandbox === true,
++        ])
++      );
++    case "horizon":
++      return (
++        input.horizon &&
++        JSON.stringify([input.horizon.userId, input.horizon.sku])
++      );
++    default:
++      return input.evidence;
++  }
 +}
 +
 +function verifyFixture(input, fixture) {
@@ -1834,7 +2387,9 @@ index 643c03c..37c5b19 100644
      return { error: "VERIFICATION_FAILED" };
    }
 -  return { accepted: input.evidence === FIXTURE.evidence };
-+  return { accepted: evidence === fixture.evidence };
++  const current = fixture.currentVerdict?.();
++  if (current === "outage") return { error: "VERIFICATION_FAILED" };
++  return { accepted: evidence === fixture.evidence && current !== false };
  }
  
 -export function createProvider(path, now) {
@@ -1842,7 +2397,7 @@ index 643c03c..37c5b19 100644
    const db = new Database(path, { create: true });
    db.exec(`
      PRAGMA journal_mode = WAL;
-@@ -54,13 +62,23 @@ export function createProvider(path, now) {
+@@ -54,13 +83,23 @@ export function createProvider(path, now) {
        next_at INTEGER NOT NULL DEFAULT 0
      );
    `);
@@ -1867,7 +2422,26 @@ index 643c03c..37c5b19 100644
        expiresAt: row.expires_at,
        willRenew: Boolean(row.will_renew),
      };
-@@ -104,7 +122,7 @@ export function createProvider(path, now) {
+@@ -71,6 +110,18 @@ export function createProvider(path, now) {
+   }
+ 
+   function entitlements(userId) {
++    if (fixture.pointInTime) {
++      const current = fixture.currentVerdict?.();
++      if (current === "outage") return { error: "VERIFICATION_FAILED" };
++      return {
++        userId,
++        productIds:
++          current === false
++            ? []
++            : [...new Set(rowsFor(userId).map((row) => row.product_id))],
++        subscriptions: [],
++      };
++    }
+     const subscriptions = rowsFor(userId)
+       .map(snapshot)
+       .filter((row) => row.active);
+@@ -104,12 +155,18 @@ export function createProvider(path, now) {
      },
      eventTypes,
      stores: {
@@ -1876,7 +2450,20 @@ index 643c03c..37c5b19 100644
          capabilityNames.map((key) => [
            key,
            {
-@@ -125,7 +143,7 @@ export function createProvider(path, now) {
+-            provider: supported.has(key),
+-            implementation: supported.has(key),
++            provider:
++              supported.has(key) &&
++              (!fixture.pointInTime ||
++                ["initialValidation", "entitlements"].includes(key)),
++            implementation:
++              supported.has(key) &&
++              (!fixture.pointInTime ||
++                ["initialValidation", "entitlements"].includes(key)),
+             notes:
+               "Local fixture demonstration only; no real store integration or profile conformance claim.",
+           },
+@@ -125,7 +182,7 @@ export function createProvider(path, now) {
        eventVersion: COMMERCE_EVENT_VERSION,
        occurredAt,
        processedAt: now(),
@@ -1885,7 +2472,7 @@ index 643c03c..37c5b19 100644
        environment: "local-fixture",
        projectId: "commerce_example",
        productId: row.product_id,
-@@ -143,39 +161,40 @@ export function createProvider(path, now) {
+@@ -143,45 +200,51 @@ export function createProvider(path, now) {
    const handlers = {
      providerCapabilities: () => capabilities,
      verifyPurchase(input) {
@@ -1906,15 +2493,16 @@ index 643c03c..37c5b19 100644
 +          fixture.startsAt,
          );
        }
++      const expired = !fixture.pointInTime && now() >= fixture.expiresAt;
        return {
 -        store: FIXTURE.store,
 -        isValid: verdict.accepted && now() < FIXTURE.expiresAt,
 +        store: fixture.store,
-+        isValid: verdict.accepted && now() < fixture.expiresAt,
++        isValid: verdict.accepted && !expired,
          state: !verdict.accepted
            ? "INAUTHENTIC"
 -          : now() >= FIXTURE.expiresAt
-+          : now() >= fixture.expiresAt
++          : expired
              ? "EXPIRED"
              : "ENTITLED",
 -        ...(verdict.accepted ? { productId: FIXTURE.productId } : {}),
@@ -1939,7 +2527,18 @@ index 643c03c..37c5b19 100644
            )
            .run(input.userId, key);
          const row = db
-@@ -191,6 +210,19 @@ export function createProvider(path, now) {
+           .query("SELECT * FROM purchases WHERE fingerprint = ?")
+           .get(key);
+-        if (updated.changes && isEntitled(row.state, row.expires_at, now())) {
++        if (
++          updated.changes &&
++          !fixture.pointInTime &&
++          isEntitled(row.state, row.expires_at, now())
++        ) {
+           enqueue("entitlement.granted", row, row.observed_at);
+           db.query(
+             "UPDATE purchases SET entitlement_granted = 1 WHERE fingerprint = ?",
+@@ -191,7 +254,21 @@ export function createProvider(path, now) {
        })();
      },
      entitlements: (input) => entitlements(input.userId),
@@ -1957,9 +2556,11 @@ index 643c03c..37c5b19 100644
 +      })();
 +    },
      subscriptionStatus(input) {
++      if (fixture.pointInTime) return { active: false };
        const snapshots = rowsFor(input.userId).map(snapshot);
        const subscription = snapshots.find((row) => row.active) ?? snapshots[0];
-@@ -251,7 +283,7 @@ export function createProvider(path, now) {
+       return {
+@@ -251,7 +328,7 @@ export function createProvider(path, now) {
          return false;
        const row = db
          .query("SELECT * FROM purchases WHERE fingerprint = ?")
@@ -1968,7 +2569,7 @@ index 643c03c..37c5b19 100644
        if (!row) throw new Error("Verify the fixture purchase first");
        if (kind === "expire" && occurredAt < row.expires_at) {
          throw new Error("Premature expiry requires store reconciliation");
-@@ -295,7 +327,7 @@ export function createProvider(path, now) {
+@@ -295,7 +372,7 @@ export function createProvider(path, now) {
            "SELECT user_id AS userId, product_id AS productId, state, will_renew AS willRenew FROM purchases",
          )
          .all(),
@@ -2041,7 +2642,7 @@ index 525327c..492dc3c 100644
        step: stage + 1,
 diff --git a/verify-erasure.mjs b/verify-erasure.mjs
 new file mode 100644
-index 0000000..e3e9d7e
+index 0000000..d8ef01e
 --- /dev/null
 +++ b/verify-erasure.mjs
 @@ -0,0 +1,153 @@
@@ -2051,7 +2652,7 @@ index 0000000..e3e9d7e
 +import { FIXTURE } from "./provider.mjs";
 +import { requestOperation, STAGES } from "./scenario.mjs";
 +import { deliver, sign } from "./webhooks.mjs";
-+import { WEBHOOK } from "openiap-commerce-protocol";
++import { WEBHOOK } from "@hyodotdev/openiap-commerce-protocol";
 +
 +export async function verifyErasure() {
 +  const checks = [];
@@ -2198,19 +2799,199 @@ index 0000000..e3e9d7e
 +
 +if (import.meta.main)
 +  console.log(`${(await verifyErasure()).length} erasure checks passed.`);
+diff --git a/verify-stores.mjs b/verify-stores.mjs
+new file mode 100644
+index 0000000..01bc808
+--- /dev/null
++++ b/verify-stores.mjs
+@@ -0,0 +1,173 @@
++import assert from "node:assert/strict";
++import { createProvider, CREDENTIALS } from "./provider.mjs";
++import { operation } from "./contract.mjs";
++import { toVerifyPurchaseInput } from "./client-bridge.mjs";
++
++export async function verifyStores() {
++  const checks = [];
++  for (const store of ["apple", "google", "amazon", "horizon"]) {
++    let current = true;
++    let time = Date.now();
++    const input = toVerifyPurchaseInput(
++      { store, purchaseToken: "fictional-proof", productId: "premium.monthly" },
++      { storeUserId: "fixture-store-user", amazonSandbox: true },
++    );
++    const evidence =
++      store === "amazon"
++        ? JSON.stringify(["fixture-store-user", "fictional-proof", true])
++        : store === "horizon"
++          ? JSON.stringify(["fixture-store-user", "premium.monthly"])
++          : "fictional-proof";
++    const fixture = {
++      store,
++      evidence,
++      userId: "alice",
++      productId: "premium.monthly",
++      startsAt: time,
++      expiresAt: time + 60000,
++      pointInTime: ["amazon", "horizon"].includes(store),
++      currentVerdict: () => current,
++    };
++    const provider = createProvider(":memory:", () => time, fixture);
++    const check = (label, actual, expected) => {
++      assert.deepEqual(actual, expected, `${store}: ${label}`);
++      checks.push(`${store}: ${label}`);
++    };
++    async function call(name, body, credential = CREDENTIALS.server) {
++      const spec = operation(name),
++        url = new URL(spec.path, "http://fixture.invalid");
++      if (spec.method === "GET")
++        for (const [key, value] of Object.entries(body ?? {}))
++          url.searchParams.set(key, value);
++      const response = await provider.fetch(
++        new Request(url, {
++          method: spec.method,
++          headers: {
++            authorization: credential,
++            "content-type": "application/json",
++          },
++          ...(spec.method === "POST" ? { body: JSON.stringify(body) } : {}),
++        }),
++      );
++      return { status: response.status, result: await response.json() };
++    }
++    try {
++      check(
++        "unverified evidence cannot bind",
++        (await call("bindPurchase", { ...input, userId: "alice" })).result
++          .bound,
++        false,
++      );
++      check(
++        "matching evidence verifies",
++        (await call("verifyPurchase", input)).result.isValid,
++        true,
++      );
++      check(
++        "verification alone gives no access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "verification credentials cannot bind",
++        (
++          await call(
++            "bindPurchase",
++            { ...input, userId: "alice" },
++            CREDENTIALS.verification,
++          )
++        ).status,
++        403,
++      );
++      for (let i = 0; i < 2; i++)
++        check(
++          "binding and retry keep one owner",
++          (await call("bindPurchase", { ...input, userId: "alice" })).result
++            .bound,
++          true,
++        );
++      check(
++        "another account cannot claim the purchase",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++      check(
++        "owned product is accessible",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        ["premium.monthly"],
++      );
++      if (fixture.pointInTime) {
++        current = "outage";
++        check(
++          "an outage is an error, not cached access",
++          (await call("entitlements", { userId: "alice" })).status,
++          502,
++        );
++        current = false;
++        check(
++          "a negative recheck removes access",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          [],
++        );
++        current = true;
++        check(
++          "a confirmed recheck restores ownership",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          ["premium.monthly"],
++        );
++      }
++      check(
++        "erasure completes",
++        (await call("eraseUser", { userId: "alice" })).result.status,
++        "completed",
++      );
++      check(
++        "erasure removes access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "erased evidence cannot be claimed",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++      for (const [label, offset] of [
++        ["before", -1],
++        ["at", 0],
++        ["after", 1],
++      ]) {
++        time = fixture.expiresAt + offset;
++        const verdict = (await call("verifyPurchase", input)).result;
++        check(
++          `verification ${label} the fixture deadline respects the store's access model`,
++          [verdict.isValid, verdict.state],
++          fixture.pointInTime || offset < 0
++            ? [true, "ENTITLED"]
++            : [false, "EXPIRED"],
++        );
++      }
++      if (fixture.pointInTime) {
++        current = false;
++        const rejected = (await call("verifyPurchase", input)).result;
++        check(
++          "a negative ownership verdict remains rejected after the fixture deadline",
++          [rejected.isValid, rejected.state],
++          [false, "INAUTHENTIC"],
++        );
++        current = "outage";
++        check(
++          "an ownership verification outage remains an error after the fixture deadline",
++          (await call("verifyPurchase", input)).status,
++          502,
++        );
++      }
++    } finally {
++      provider.close();
++    }
++  }
++  return checks;
++}
++if (import.meta.main)
++  console.log(
++    `Store fixtures: ${(await verifyStores()).length} checks passed. No store contacted.`,
++  );
 diff --git a/verify.mjs b/verify.mjs
-index 0c0f246..060c6f2 100644
+index ac3f22c..92fc76b 100644
 --- a/verify.mjs
 +++ b/verify.mjs
-@@ -8,6 +8,7 @@ import { runConsumerDemo } from "./consumer.mjs";
+@@ -8,6 +8,8 @@ import { runConsumerDemo } from "./consumer.mjs";
  import { runBridgeDemo } from "./client-bridge.mjs";
  import { startLab } from "./server.mjs";
  import { authentic, createReceiver, deliver, sign } from "./webhooks.mjs";
++import { verifyStores } from "./verify-stores.mjs";
 +import { verifyErasure } from "./verify-erasure.mjs";
  
  export async function verifyLab({ compareSigner } = {}) {
    const lab = startLab();
-@@ -96,9 +97,10 @@ export async function verifyLab({ compareSigner } = {}) {
+@@ -96,9 +98,10 @@ export async function verifyLab({ compareSigner } = {}) {
        "UNSUPPORTED_STORE",
      );
      check(
@@ -2224,44 +3005,112 @@ index 0c0f246..060c6f2 100644
      );
      check(
        "Cancellation after expiry is ignored",
-@@ -425,6 +427,7 @@ export async function verifyLab({ compareSigner } = {}) {
+@@ -425,6 +428,8 @@ export async function verifyLab({ compareSigner } = {}) {
    }
    checks.push(...(await runConsumerDemo()).checks);
    checks.push(...runBridgeDemo());
++  checks.push(...(await verifyStores()));
 +  checks.push(...(await verifyErasure()));
    return checks;
  }
  
 diff --git a/webhooks.mjs b/webhooks.mjs
-index d7035a2..d8e18c4 100644
+index 50c9027..df8523d 100644
 --- a/webhooks.mjs
 +++ b/webhooks.mjs
 @@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
  import { createHmac, timingSafeEqual } from "node:crypto";
- import { WEBHOOK } from "openiap-commerce-protocol";
+ import { WEBHOOK } from "@hyodotdev/openiap-commerce-protocol";
  import { validate } from "./contract.mjs";
 +import { createErasureLedger } from "./erasure.mjs";
  
  export function sign(secret, timestamp, body) {
    return (
-@@ -37,6 +38,7 @@ export function createReceiver(path, secret, now) {
+@@ -33,22 +34,58 @@ export function authentic(secrets, timestamp, body, signatures, nowSeconds) {
+ }
+ 
+ export function createReceiver(path, secret, now) {
++  const emitters =
++    typeof secret === "string" ? [{ name: "default", secret }] : secret;
++  if (
++    !Array.isArray(emitters) ||
++    !emitters.length ||
++    emitters.some(
++      (entry) =>
++        !entry.name ||
++        !entry.secret ||
++        (typeof secret !== "string" && !entry.projectId),
++    )
++  )
++    throw new Error(
++      "Configure each emitter with a name, project ID, and signing secret",
++    );
++  if (new Set(emitters.map((entry) => entry.name)).size !== emitters.length)
++    throw new Error("Emitter names must be unique");
+   const db = new Database(path, { create: true });
    db.exec(
      "CREATE TABLE IF NOT EXISTS inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
    );
 +  const erasures = createErasureLedger(db);
++  // Upgrade old single-emitter event IDs without losing durable deduplication.
++  db.transaction(() => {
++    for (const row of db.query("SELECT event_id, body FROM inbox").all()) {
++      const event = JSON.parse(row.body);
++      if (row.event_id !== event.eventId) continue;
++      const matching = emitters.filter(
++        (entry) => entry.projectId === event.projectId,
++      );
++      const name = matching.length === 1 ? matching[0].name : "default";
++      const identity = JSON.stringify([name, event.projectId, event.eventId]);
++      db.query("INSERT OR IGNORE INTO inbox VALUES (?, ?)").run(
++        identity,
++        row.body,
++      );
++      db.query("DELETE FROM inbox WHERE event_id = ?").run(row.event_id);
++    }
++  })();
  
    async function fetch(request) {
      const bytes = new Uint8Array(await request.arrayBuffer());
-@@ -62,6 +64,8 @@ export function createReceiver(path, secret, now) {
+-    if (
+-      !authentic(
+-        [secret],
++    const authenticated = emitters.filter((emitter) =>
++      authentic(
++        [emitter.secret],
+         request.headers.get(WEBHOOK.timestampHeader),
+         bytes,
+         request.headers.get(WEBHOOK.signatureHeader),
+         Math.floor(now() / 1000),
+-      )
+-    ) {
++      ),
++    );
++    if (!authenticated.length) {
+       return new Response("Invalid signature", { status: 401 });
+     }
+     let body, event;
+@@ -62,15 +99,38 @@ export function createReceiver(path, secret, now) {
        return new Response("Invalid event", { status: 400 });
      if (request.headers.get(WEBHOOK.eventIdHeader) !== event.eventId)
        return new Response("Event ID mismatch", { status: 400 });
++    const emitter = authenticated.find(
++      (entry) => !entry.projectId || entry.projectId === event.projectId,
++    );
++    if (!emitter)
++      return new Response("Unexpected emitter project", { status: 401 });
 +    if (event.userId && erasures.has(event.userId))
 +      return Response.json({ accepted: true, discarded: "erased-user" });
      // Inbox insertion is the durable effect; downstream jobs can consume it later.
      const result = db
        .query("INSERT OR IGNORE INTO inbox VALUES (?, ?)")
-@@ -71,6 +75,19 @@ export function createReceiver(path, secret, now) {
+-      .run(event.eventId, body);
++      .run(
++        JSON.stringify([emitter.name, event.projectId, event.eventId]),
++        body,
++      );
+     return Response.json({ accepted: true, duplicate: result.changes === 0 });
+   }
  
    return {
      fetch,
@@ -2281,7 +3130,7 @@ index d7035a2..d8e18c4 100644
      count: () => db.query("SELECT count(*) AS count FROM inbox").get().count,
      close: () => db.close(),
    };
-@@ -84,7 +101,11 @@ export async function deliver(provider, secret, now, post) {
+@@ -84,7 +144,11 @@ export async function deliver(provider, secret, now, post) {
        "SELECT * FROM outbox WHERE status = 'pending' AND next_at <= ? ORDER BY rowid",
      )
      .all(now());

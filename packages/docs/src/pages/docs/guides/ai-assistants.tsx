@@ -582,19 +582,6 @@ npm run demo:experience`}</CodeBlock>
           </p>
         </details>
         <details>
-          <summary>Earlier AI build: Field Notes</summary>
-          <p className="commerce-ai-build-record">
-            <strong>A recorded AI build:</strong> Field Notes was built in an
-            empty project using the public example and protocol, then reviewed
-            and corrected.{' '}
-            <a href="/commerce-example/ai-reproduction.json">
-              Original prompt and results
-            </a>{' '}
-            · <a href="/commerce-example/ai-reproduction.md">Run its source</a>.
-            This is a local fixture exercise, with fictional purchases.
-          </p>
-        </details>
-        <details>
           <summary>Role boundaries and using AI without the CLI</summary>
           <p>
             You can give AI the integration instructions and your request

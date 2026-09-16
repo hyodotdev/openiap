@@ -25,7 +25,6 @@ test('serves source archives as unchanged downloads, including AI reproduction',
   const bytes = gzipSync('Recorded source bytes');
   const archives = [
     'commerce-example/source.tar.gz',
-    'commerce-example/ai-reproduction-source.tar.gz',
     'commerce-example/07-account-erasure/source.tar.gz',
     'commerce-composition/source.tar.gz',
   ];

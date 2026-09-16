@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { COMMERCE_IMPLEMENTATION_TOPICS } from '../src/lib/commerceImplementations.ts';
 
@@ -44,18 +44,21 @@ const reproductionAssets = new URL(
   '../public/commerce-example/',
   import.meta.url
 );
-const reproduction = JSON.parse(
-  readFileSync(new URL('ai-reproduction.json', reproductionAssets))
-);
-assert.equal(
-  hash(
-    readFileSync(new URL(reproduction.sourceArchive.file, reproductionAssets))
-  ),
-  reproduction.sourceArchive.sha256,
-  'AI reproduction: source archive does not match the recorded result'
-);
-assert.equal(hash(reproduction.prompt), reproduction.promptSha256);
-console.log('AI reproduction: recorded prompt and source archive match.');
+// The Field Notes reproduction was retired: it recorded a 2026-09-08 session
+// against the deprecated unscoped package, and nothing here could regenerate
+// it — its prompt, screenshots and checkpoints were assembled by hand. A
+// record that cannot be re-recorded cannot be kept true, so it is gone rather
+// than edited.
+for (const retired of [
+  'ai-reproduction.json',
+  'ai-reproduction.md',
+  'ai-reproduction-source.tar.gz',
+]) {
+  assert(
+    !existsSync(new URL(retired, reproductionAssets)),
+    `${retired} was retired; re-record it with a producer before publishing it again`
+  );
+}
 
 const paywallRead = (name) => readFileSync(new URL(name, reproductionAssets));
 const fresh = JSON.parse(paywallRead('fresh-build.json'));

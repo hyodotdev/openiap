@@ -11,16 +11,28 @@ several roles. These are product roles, not additional protocol profiles.
 | Analytics, attribution, CRM | Durable event ingestion and your own reporting or automation                           | A configured commerce emitter                                         |
 | Integrated platform         | The roles above that your product supplies                                             | One app integration with an explicit owner for each state transition  |
 
-## Start with the matching verification source
+## Start with working code
 
-For a paywall or event receiver, follow the [connection example](./paywall-verification.md)
-and its [verified source](./paywall-source.tar.gz).
-It connects a host purchase callback to the backend, sends signed events, and
-joins two store fixtures to app-owned experiment assignments. Amounts stay
-unknown when absent; cancellation and redelivery add no charge. Run its tests,
-then apply equivalent acceptance cases to the user's implementation.
-For a purchase backend, use the [seven-step backend build](./from-scratch.md).
-Use the revision linked by the selected guide; these are separate evidence records.
+[Download the complete example](https://github.com/hyodotdev/openiap-commerce-protocol-example/archive/refs/heads/main.zip)
+and extract it into an empty directory. It contains `client-bridge.mjs`,
+`consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
+The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
+contains the same project and its build history.
+
+Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`,
+or `bun install`. This example's runtime is Bun. The contract is
+`openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
+
+- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
+  installed verification schema; rejects missing or unsupported evidence.
+- `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
+  HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
+- `npm test` and `npm start`: verify and inspect the fixture commerce backend.
+
+The bridge and consumer can be used separately. These checks prove local
+boundaries with fictional inputs, not a mobile checkout or a store adapter.
+The [receiver setup guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md)
+gives the endpoint, configuration, and limits.
 
 ## Task for the AI
 
@@ -32,9 +44,10 @@ linked handlers and checks for the responsibility you own. The installed
 specification defines the required behavior; neither implementation changes it.
 
 Inspect this repository's purchase flow and choose the role from the table.
-Install `@hyodotdev/openiap-commerce-protocol` with this repository's package manager.
+Install `openiap-commerce-protocol` with this repository's package manager.
 Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
-vectors for the role being implemented. The installed `DESIGN.md`
+vectors for the role being implemented. Package 0.1.0 does not ship `DESIGN.md`;
+the [role guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md)
 and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf) give context.
 
 Implement the selected role using the product's existing framework and design
@@ -49,21 +62,18 @@ for the app team. Follow these boundaries:
    UI, targeting, or product catalog API; document this host adapter explicitly.
 2. **App connection:** the app uses its OpenIAP library to fetch products and
    request a store purchase. Its purchase callback sends evidence to its
-   authenticated backend. Follow `paywall.mjs` for the local verify → bind → access sequence. Map the
-   chosen store’s purchase fields into the installed verification schema; mapping
-   alone does not authenticate evidence. Keep server keys and user selection on that backend. Verify, bind
+   authenticated backend. Use `client-bridge.mjs` there to map Apple, Google, Amazon, and Horizon
+   purchase fields into a verification input; this does not authenticate the
+   evidence. Keep server keys and user selection on that backend. Verify, bind
    under the ownership policy, read current access, fulfill durably, then finish
    the transaction through the client library. Keep store acknowledgement and
    consumption responsibilities explicit for the chosen store and product type.
 3. **Commerce:** provide core discovery and implement every operation/obligation
    of each advertised profile and binding. Account lifecycle includes erasure.
    Keep one authoritative ownership and entitlement service for each app/project,
-   even when it delegates verification. Use [backend build brief](https://openiap.dev/commerce-example/build-brief.md) for the backend
-   implementation sequence. The seven-step fixture declares verification,
-   entitlements, and accountLifecycle over REST. Its tests do not establish
-   real store support, GraphQL, or the production events profile.
-4. **Data:** use `delivery.mjs` for the receiver and `attribution.mjs` for the
-   product-owned experiment join in the connection source. Authenticate exact
+   even when it delegates verification. Use [backend build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md) for the backend
+   implementation sequence. The fixture backend advertises no complete profiles.
+4. **Data:** reuse or port `webhooks.mjs` and `consumer.mjs`. Authenticate exact
    body bytes before parsing, validate, durably deduplicate in the configured
    emitter/project scope, then acknowledge. Keep optional unknown values unknown.
    Receiving events does not qualify a product for the `events` emitter profile.
@@ -74,10 +84,10 @@ for the app team. Follow these boundaries:
 The current client `verifyPurchaseWithProvider` helper supports IAPKit's own
 API. A different provider name or base URL does not turn it into this protocol.
 Other providers connect through the app backend's REST or GraphQL calls. Amazon and Horizon require a store-specific user identifier distinct from the
-app user ID. Resolve it from your authenticated store-account association. The optional
-earlier bridge below accepts it as `context.storeUserId`; its `startAppBackend`
-uses a `resolveStoreUser` callback. These helpers are in the earlier source only.
-Never resolve a trusted account by copying a user ID from the request body.
+app user ID. Pass it as `context.storeUserId` to the bridge after authenticating
+the store account link. `startAppBackend` requires `resolveStoreUser` for these
+stores and rejects evidence belonging to a different store account. Never
+implement that callback by copying a user ID from the request body.
 
 ## Select the store before implementing
 
@@ -109,7 +119,7 @@ session links; it does not implement your authentication provider.
 Keep consumable fulfillment separate: record each granted unit durably and
 idempotently before finishing/consuming. A verified SKU is not a new quantity
 to credit on every read. The protocol walkthrough demonstrates Premium access;
-it does not implement a wallet or a paywall product.
+it does not implement a wallet or sell a Nami paywall.
 
 For IAPKit setup, configure Apple bundle/App ID and Server API signing key,
 Google package and service account, Meta App ID/secret, or Amazon RVS shared
@@ -134,26 +144,3 @@ role it claims; a paywall specialist need not implement a purchase verifier.
 
 Label fixture checks separately from real device/store sandbox checks and full
 profile conformance. Never claim the latter from a schema match alone.
-
-## Earlier bridge and consumer examples
-
-[Download the earlier example](https://github.com/hyodotdev/openiap-commerce-protocol-example/archive/f23f663e4220abdd709ab4cb340798d5c468cd4c.zip)
-and extract it into a separate directory when you need its four-store field mapping. It contains `client-bridge.mjs`,
-`consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
-The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
-has separate histories for this earlier bridge and the current AI build.
-
-Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`,
-or `bun install`. This example's runtime is Bun. It implements protocol 1.0;
-the contract itself does not require Bun.
-
-- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
-  installed verification schema; rejects missing or unsupported evidence.
-- `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
-  HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
-- `npm test` and `npm start`: verify and inspect the fixture commerce backend.
-
-The bridge and consumer can be used separately. These checks prove local
-boundaries with fictional inputs, not a mobile checkout or a store adapter.
-The [receiver setup guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/f23f663e4220abdd709ab4cb340798d5c468cd4c/docs/receiver.md)
-gives the endpoint, configuration, and limits.

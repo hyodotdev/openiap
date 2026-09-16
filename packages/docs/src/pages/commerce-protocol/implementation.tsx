@@ -194,21 +194,6 @@ Keep changes uncommitted for review.`}</CodeBlock>
           <summary>Run the checks in both reference projects</summary>
           <CommerceImplementationComparison topic="checks" />
         </details>
-        <details className="commerce-run-details">
-          <summary>Additional exercise: AI built a new fixture app</summary>
-          <p>
-            Field Notes is a subscription app built from the brief alone, in
-            Node.js and SQLite, then reinstalled and rechecked in a clean copy.
-          </p>
-          <p>
-            <a href="/commerce-example/ai-reproduction.md">
-              Read the reproduction record
-            </a>{' '}
-            for the prompt, runnable source, checks, and corrections. This
-            exercise covers a local fixture app; real stores and production
-            integration were not tested.
-          </p>
-        </details>
       </section>
       <section>
         <AnchorLink id="architecture" level="h2">

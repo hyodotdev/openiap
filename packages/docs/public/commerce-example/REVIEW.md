@@ -1,5 +1,10 @@
 # Implementation review log
 
+> This log describes the original 2026-09 recording. Its checkpoints were
+> superseded when the walkthrough was rebuilt on Commerce Protocol 0.3.0, so
+> the observations below name records that are no longer published. The
+> behaviour each one corrected is still covered by the current chain's tests.
+
 Each checkpoint was run before the next feature was added. The source archives
 and patches record those actual code versions, without creating Git commits.
 

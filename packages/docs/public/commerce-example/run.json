@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-08T22:46:50.749Z",
+  "recordedAt": "2026-09-16T00:55:18.939Z",
   "scope": "Incremental implementation of the installed Commerce Protocol contract. HTTP, SQLite and signatures execute locally; store and clock are fixtures. No full profile claim.",
   "checks": [
     "Fixture request matches the installed schema",
@@ -233,7 +233,7 @@
     "A stale binding retry cannot restore identity"
   ],
   "standalone": {
-    "version": "0.1.0",
+    "version": "0.3.0",
     "passed": 229
   },
   "milestones": [
@@ -364,6 +364,7 @@
         "source": "02-verify/source.tar.gz",
         "changes": "02-verify/changes.patch",
         "report": "02-verify/run.json",
+        "previousSource": "01-contract/source.tar.gz",
         "passed": 10
       }
     },
@@ -470,6 +471,7 @@
         "source": "03-bind/source.tar.gz",
         "changes": "03-bind/changes.patch",
         "report": "03-bind/run.json",
+        "previousSource": "02-verify/source.tar.gz",
         "passed": 15
       }
     },
@@ -505,8 +507,8 @@
       },
       "deliveries": [
         {
-          "eventId": "0a0c5a72-1ff1-4ecc-9968-e6f2dad5848f",
-          "deliveryId": "a5848b4c-bc76-4953-b8af-82d7d937cb48",
+          "eventId": "7724af02-869c-44c4-8d6e-bab6b82052f4",
+          "deliveryId": "3d36cfcf-0faf-42db-9f03-15c792cbb0f4",
           "attempts": 0,
           "status": "pending",
           "eventType": "subscription.canceled"
@@ -546,6 +548,7 @@
         "source": "04-cancel/source.tar.gz",
         "changes": "04-cancel/changes.patch",
         "report": "04-cancel/run.json",
+        "previousSource": "03-bind/source.tar.gz",
         "passed": 18
       }
     },
@@ -581,8 +584,8 @@
       },
       "deliveries": [
         {
-          "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-          "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+          "eventId": "4ee7cc1c-5469-411b-817c-954fac3203e3",
+          "deliveryId": "7757ae34-dd0d-49d8-a320-75dee7dae657",
           "attempts": 3,
           "status": "delivered",
           "eventType": "subscription.canceled"
@@ -594,8 +597,8 @@
           "operation": "webhook: receiver unavailable",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "4ee7cc1c-5469-411b-817c-954fac3203e3",
+              "deliveryId": "7757ae34-dd0d-49d8-a320-75dee7dae657",
               "httpStatus": 503,
               "attempt": 1,
               "status": "pending"
@@ -606,8 +609,8 @@
           "operation": "webhook: retry after restart",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "4ee7cc1c-5469-411b-817c-954fac3203e3",
+              "deliveryId": "7757ae34-dd0d-49d8-a320-75dee7dae657",
               "httpStatus": 200,
               "attempt": 2,
               "status": "delivered"
@@ -618,8 +621,8 @@
           "operation": "webhook: lost-ack redelivery",
           "body": [
             {
-              "eventId": "2b85fc8f-5d6d-4d20-977e-9f76560a4f53",
-              "deliveryId": "bbba62cf-605e-438e-8dc2-041209da1185",
+              "eventId": "4ee7cc1c-5469-411b-817c-954fac3203e3",
+              "deliveryId": "7757ae34-dd0d-49d8-a320-75dee7dae657",
               "httpStatus": 200,
               "attempt": 3,
               "status": "delivered"
@@ -644,6 +647,7 @@
         "source": "05-deliver/source.tar.gz",
         "changes": "05-deliver/changes.patch",
         "report": "05-deliver/run.json",
+        "previousSource": "04-cancel/source.tar.gz",
         "passed": 22
       }
     },
@@ -668,29 +672,29 @@
       },
       "deliveries": [
         {
-          "eventId": "316f329e-6fd0-469d-886b-7c7ed89ae402",
-          "deliveryId": "35fb2452-d9c2-407b-baa0-729eab3d89be",
+          "eventId": "bdd2f9b3-c251-4f5c-a541-af54930d123a",
+          "deliveryId": "44b4c906-ea79-433d-ba0a-e5370139cf17",
           "attempts": 3,
           "status": "delivered",
           "eventType": "entitlement.granted"
         },
         {
-          "eventId": "79aaa97c-c341-465d-98ae-a05a15a1ac7d",
-          "deliveryId": "41cb1bd1-a65b-493a-a609-5dc639643143",
+          "eventId": "9179a445-b6d0-4cb3-898d-0919da9b19c1",
+          "deliveryId": "0e60d0e5-0aae-4482-85e8-e56bf3b2c900",
           "attempts": 3,
           "status": "delivered",
           "eventType": "subscription.canceled"
         },
         {
-          "eventId": "59fb04a6-cc0c-483a-b8ce-6b19e1730473",
-          "deliveryId": "e19fbfe7-93a1-4705-9ff5-fe325d113674",
+          "eventId": "51b13f70-6288-4a41-8375-7f79ba6eb0c6",
+          "deliveryId": "b40ccd25-d42b-400b-ab9f-71769a2854c4",
           "attempts": 1,
           "status": "delivered",
           "eventType": "subscription.expired"
         },
         {
-          "eventId": "f51af7b5-ee42-4c47-a91b-80c6bd94a39d",
-          "deliveryId": "d2304ba1-d8bf-4bbb-bfa8-f59d99e92bdd",
+          "eventId": "c8343754-6fd0-4138-a399-99503707d888",
+          "deliveryId": "73cda4d4-122f-42a8-9a8f-7c103f76c388",
           "attempts": 1,
           "status": "delivered",
           "eventType": "entitlement.revoked"
@@ -711,15 +715,15 @@
           "operation": "webhook: expiry + revocation",
           "body": [
             {
-              "eventId": "59fb04a6-cc0c-483a-b8ce-6b19e1730473",
-              "deliveryId": "e19fbfe7-93a1-4705-9ff5-fe325d113674",
+              "eventId": "51b13f70-6288-4a41-8375-7f79ba6eb0c6",
+              "deliveryId": "b40ccd25-d42b-400b-ab9f-71769a2854c4",
               "httpStatus": 200,
               "attempt": 1,
               "status": "delivered"
             },
             {
-              "eventId": "f51af7b5-ee42-4c47-a91b-80c6bd94a39d",
-              "deliveryId": "d2304ba1-d8bf-4bbb-bfa8-f59d99e92bdd",
+              "eventId": "c8343754-6fd0-4138-a399-99503707d888",
+              "deliveryId": "73cda4d4-122f-42a8-9a8f-7c103f76c388",
               "httpStatus": 200,
               "attempt": 1,
               "status": "delivered"
@@ -751,17 +755,17 @@
         "The final status is inactive"
       ],
       "totalChecks": 27,
-      "screenshot": "06-recover-reviewed-8/screen.png",
+      "screenshot": "06-recover/screen.png",
       "build": {
         "request": "Close access at expiry and review recovery and failure handling across the complete backend.",
         "change": "Completed expiry and recovery, then applied the external CLI review: atomic first-binding grant events, conflicting-expiry rejection, and source/patch verification.",
         "review": "The reviewed final version adds the grant omitted by earlier checkpoints, so four events now reach the receiver. Tests cover binding/outbox rollback, expiry, ignored observations, delivery failures, and reopened SQLite storage. A second review added late-expiry and delayed-binding tests. This patch starts from the preceding reviewed revision. The final revision also checks the OpenIAP request boundary and a ready event receiver for businesses that supply only those roles. A third review verified proxy delivery and equal-time transitions. A publication review added standalone setup and recording guides, then repeated source and browser verification. The first Linux CI run exposed macOS metadata in historical archives; extraction now excludes it, new captures omit it, and a regression test verifies source hashes. The final review corrects the cancellation-at-expiry test timestamp so it reaches the expired-state guard, rather than only the stale-observation guard. A final byte-level review found that decoding before authentication accepted altered UTF-8 and an inserted BOM with the original signature. The receiver now authenticates raw bytes first; the same requests return 401 without storing an event.",
-        "id": "06-recover-reviewed-8",
+        "id": "06-recover",
         "label": "Recover",
-        "source": "06-recover-reviewed-8/source.tar.gz",
-        "changes": "06-recover-reviewed-8/changes.patch",
-        "report": "06-recover-reviewed-8/run.json",
-        "previousSource": "06-recover-reviewed-7/source.tar.gz",
+        "source": "06-recover/source.tar.gz",
+        "changes": "06-recover/changes.patch",
+        "report": "06-recover/run.json",
+        "previousSource": "05-deliver/source.tar.gz",
         "passed": 138
       }
     },
@@ -802,7 +806,7 @@
           "httpStatus": 202,
           "body": {
             "accepted": true,
-            "jobId": "f350d8b6-da5f-4374-9af4-31cbd392efbb",
+            "jobId": "44fae90a-35a5-4266-a4f9-781dd9da7014",
             "status": "completed"
           }
         },
@@ -811,7 +815,7 @@
           "httpStatus": 202,
           "body": {
             "accepted": true,
-            "jobId": "f350d8b6-da5f-4374-9af4-31cbd392efbb",
+            "jobId": "44fae90a-35a5-4266-a4f9-781dd9da7014",
             "status": "completed"
           }
         },
@@ -842,17 +846,17 @@
         "A stale binding retry cannot restore identity"
       ],
       "totalChecks": 34,
-      "screenshot": "07-account-erasure-interoperable-6/screen.png",
+      "screenshot": "07-account-erasure/screen.png",
       "build": {
         "request": "Delete the account from provider records and delivered event copies, including concurrent delivery and restart.",
         "change": "Added idempotent erasure, a persistent deletion ledger, receiver cleanup and the seventh dashboard step.",
         "review": "The running example checks erasure during delivery, repeated jobs, storage reopening, late signed events and stale purchase requests. The shared app waits for in-flight fulfillment before provider erasure; one receiver accepts separately authenticated providers without event-ID collisions.",
-        "id": "07-account-erasure-interoperable-6",
+        "id": "07-account-erasure",
         "label": "Erase",
-        "source": "07-account-erasure-interoperable-6/source.tar.gz",
-        "changes": "07-account-erasure-interoperable-6/changes.patch",
-        "report": "07-account-erasure-interoperable-6/run.json",
-        "previousSource": "07-account-erasure-interoperable-5/source.tar.gz",
+        "source": "07-account-erasure/source.tar.gz",
+        "changes": "07-account-erasure/changes.patch",
+        "report": "07-account-erasure/run.json",
+        "previousSource": "06-recover/source.tar.gz",
         "passed": 229
       }
     }
