@@ -604,7 +604,9 @@ jobs:
           RELEASE_TAG: godot-iap-${{ steps.version.outputs.VERSION }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          LOCAL_ZIP="libraries/godot-iap/godot-iap-$VERSION.zip"
+          # This job's steps run from libraries/godot-iap (see defaults above),
+          # so the built zip sits beside us, not under a repo-root path.
+          LOCAL_ZIP="godot-iap-$VERSION.zip"
           EXPECTED="$(shasum -a 256 "$LOCAL_ZIP" | cut -d' ' -f1)"
           PUBLISHED_DIR="$(mktemp -d)"
           gh release download "$RELEASE_TAG" \
