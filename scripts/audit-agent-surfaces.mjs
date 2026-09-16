@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-// Keeps Codex, Claude, and Grok pointed at the same workflows. Every surface is
-// discovered from disk, so adding a command or skill without registering it
-// everywhere fails here instead of silently working for one agent only.
+// Keeps Codex, Claude, Grok, and Muse pointed at the same workflows. Every
+// surface is discovered from disk, so adding a command or skill without
+// registering it everywhere fails here instead of silently working for one
+// agent only. Muse consumes AGENTS.md and .codex/skills directly, so the
+// checks below already cover it without a Muse-specific surface.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -18,7 +20,7 @@ const CODEX_ROUTER = ".codex/skills/openiap-workflows/SKILL.md";
 const CLAUDE_ROUTER = ".claude/skills/openiap-workflows/SKILL.md";
 const INSTRUCTIONS = "AGENTS.md";
 
-// Grok and Codex read AGENTS.md directly; these must resolve to it.
+// Grok, Codex, and Muse read AGENTS.md directly; these must resolve to it.
 export const instructionSymlinks = Object.freeze(["CLAUDE.md", "GEMINI.md"]);
 
 function read(root, relative) {

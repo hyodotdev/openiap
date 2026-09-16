@@ -1,6 +1,6 @@
 ---
 name: review-self
-description: Independently review and simplify Codex's current implementation, working-tree changes, or pull request; enforce KISS and repository SSOT rules, fix actionable in-scope gaps, rerun relevant verification, and recheck at the user-requested interval (five minutes by default) until stable or genuinely blocked. Use when the user says "review-self", asks Codex to review its own changes, requests a self-review loop, or wants current work monitored for new issues after implementation.
+description: Independently review and simplify the agent's current implementation, working-tree changes, or pull request; enforce KISS and repository SSOT rules, fix actionable in-scope gaps, rerun relevant verification, and recheck at the user-requested interval (five minutes by default) until stable or genuinely blocked. Use when the user says "review-self", asks the agent to review the current changes, requests a self-review loop, or wants current work monitored for new issues after implementation.
 ---
 
 # Review Self

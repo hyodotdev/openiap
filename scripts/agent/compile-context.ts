@@ -1361,7 +1361,7 @@ ${commerceProtocolSpec}
     chalk.gray(`  ${path.relative(CONFIG.projectRoot, outputPath)}\n`),
   );
   console.log(chalk.white("Project instruction discovery:"));
-  console.log(chalk.gray("  AGENTS.md (Codex and Grok)"));
+  console.log(chalk.gray("  AGENTS.md (Codex, Grok, and Muse)"));
   console.log(chalk.gray("  CLAUDE.md -> AGENTS.md"));
   console.log(chalk.gray("  GEMINI.md -> AGENTS.md\n"));
 }

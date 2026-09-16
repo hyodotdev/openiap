@@ -71,7 +71,7 @@ function Home() {
   return (
     <div className="home">
       <SEO
-        title="Unified In-App Purchase Specification"
+        title="Open protocols for in-app purchases"
         description="OpenIAP standardizes in-app purchases across iOS, Android, Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS, Fire OS, and Vega OS."
         path="/"
         keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, Expo IAP, React Native IAP, Flutter IAP, Kotlin Multiplatform, .NET MAUI, Amazon Fire OS, Vega OS, cross-platform payments, mobile monetization"

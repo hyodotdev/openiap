@@ -88,7 +88,7 @@ cd scripts/agent
 bun run compile:ai
 
 # Repository-aware assistants discover the root instruction files:
-# AGENTS.md (Codex and Grok), CLAUDE.md, and GEMINI.md.
+# AGENTS.md (Codex, Grok, and Muse), CLAUDE.md, and GEMINI.md.
 # CLAUDE.md and GEMINI.md are symlinks to the AGENTS.md SSOT.
 ```
 
@@ -118,8 +118,8 @@ bun run benchmark --prompt "Add iOS subscription validation"
 
 1. **Define Task**: Write the feature request
 2. **Run Both**:
-   - Any repository-aware assistant from the repository root. Codex and Grok
-     discover `AGENTS.md`; Claude Code and Gemini follow the compatibility
+   - Any repository-aware assistant from the repository root. Codex, Grok, and
+     Muse discover `AGENTS.md`; Claude Code and Gemini follow the compatibility
      symlinks to the same SSOT.
    - Local Agent: `bun run benchmark --prompt "..."`
 3. **Compare**: Check `_generated/` against the selected assistant's output
