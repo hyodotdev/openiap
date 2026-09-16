@@ -1,4 +1,4 @@
-name: "A. Release: Apple"
+name: "A3. Release: Apple"
 
 on:
   workflow_dispatch:
@@ -353,7 +353,7 @@ jobs:
             CHANGELOG="- Initial release"
           else
             echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/apple/")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/apple/" ":(top,exclude)packages/apple/.claude/" ":(top,exclude)packages/apple/AGENTS.md" ":(top,exclude)packages/apple/CLAUDE.md")
 
             if [ -z "$CHANGELOG" ]; then
               CHANGELOG="- No direct code changes in packages/apple/."
@@ -392,7 +392,7 @@ jobs:
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
-          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [Release notes](https://openiap.dev/docs/updates/releases#$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/$VERSION/packages/apple)
 
           ### Links

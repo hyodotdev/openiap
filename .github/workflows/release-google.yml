@@ -1,4 +1,4 @@
-name: "A. Release: Google"
+name: "A4. Release: Google"
 
 on:
   workflow_dispatch:
@@ -395,7 +395,7 @@ jobs:
             CHANGELOG="- Initial release"
           else
             echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/" ":(top,exclude)packages/google/.claude/" ":(top,exclude)packages/google/AGENTS.md" ":(top,exclude)packages/google/CLAUDE.md")
 
             if [ -z "$CHANGELOG" ]; then
               CHANGELOG="- No direct code changes in packages/google/."
@@ -474,7 +474,7 @@ jobs:
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
-          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [Release notes](https://openiap.dev/docs/updates/releases#google-$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
 
           ### Maven Central

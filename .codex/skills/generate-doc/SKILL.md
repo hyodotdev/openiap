@@ -151,6 +151,21 @@ Follow the existing card pattern:
 - Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
+- Register the card's package tags as aliases and render their hidden anchors:
+
+  ```tsx
+  aliases: MY_RELEASES.map((release) => release.tag),
+  // and, first thing inside the card's <div>:
+  {MY_RELEASES.map((release) => (
+    <span key={release.tag} id={release.tag} aria-hidden="true" />
+  ))}
+  ```
+
+  Release workflows link a version's own anchor
+  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and resolves a
+  hash only against a note's `id` or `aliases`, so a card without them leaves
+  those links on page one — a dead link that still looks alive. `bun run
+  audit:docs` fails when a card lists `Package Releases` without them.
 
 Card section layout (mandatory for multi-package cards):
 

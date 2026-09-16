@@ -1,4 +1,4 @@
-name: Kit — Verify + Deploy
+name: "A2. Deploy: Kit"
 
 # Verify on any push/PR or manual ref; deploy only from the main branch. The
 # paths filter keeps this workflow off the critical path for unrelated package

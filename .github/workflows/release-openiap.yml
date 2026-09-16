@@ -1,4 +1,4 @@
-name: "A. Release: OpenIAP npm packages"
+name: "A1. Release: Protocols and CLI"
 
 # Two-phase release, matching the other npm lanes: this workflow bumps and tags
 # on the release branch, then dispatches itself on the tag ref so npm provenance

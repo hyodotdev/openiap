@@ -385,9 +385,13 @@ function Releases() {
   const allNotes: Note[] = [
     {
       id: 'amazon-purchase-dialog-2026-09-15',
+      aliases: AMAZON_DIALOG_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
       element: (
         <div key="amazon-purchase-dialog-2026-09-15" style={noteCardStyle}>
+          {AMAZON_DIALOG_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
           <AnchorLink id="amazon-purchase-dialog-2026-09-15" level="h4">
             September 15, 2026 - Amazon purchase dialog, and iOS rejection
             messages
@@ -519,9 +523,13 @@ function Releases() {
     },
     {
       id: 'godot-runtime-embed-2026-09-17',
+      aliases: GODOT_RUNTIME_EMBED_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-17'),
       element: (
         <div key="godot-runtime-embed-2026-09-17" style={noteCardStyle}>
+          {GODOT_RUNTIME_EMBED_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
           <AnchorLink id="godot-runtime-embed-2026-09-17" level="h4">
             September 17, 2026 - godot-iap installs beside other SwiftGodot
             plugins
@@ -734,9 +742,13 @@ function Releases() {
     },
     {
       id: 'openiap-cli-and-protocols-2026-09-11',
+      aliases: OPENIAP_TOOLING_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-11'),
       element: (
         <div key="openiap-cli-and-protocols-2026-09-11" style={noteCardStyle}>
+          {OPENIAP_TOOLING_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
           <AnchorLink id="openiap-cli-and-protocols-2026-09-11" level="h4">
             September 11, 2026 - OpenIAP CLI and protocol packages
           </AnchorLink>
