@@ -63,6 +63,10 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const GODOT_RUNTIME_EMBED_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.5.1', tag: 'godot-iap-3.5.1' },
+];
+
 const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: '@hyodotdev/openiap-commerce-protocol',
@@ -499,6 +503,64 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
           <ul>
             {AMAZON_DIALOG_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'godot-runtime-embed-2026-09-17',
+      date: new Date('2026-09-17'),
+      element: (
+        <div key="godot-runtime-embed-2026-09-17" style={noteCardStyle}>
+          <AnchorLink id="godot-runtime-embed-2026-09-17" level="h4">
+            September 17, 2026 - godot-iap installs beside other SwiftGodot
+            plugins
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            An iOS export containing godot-iap and any other SwiftGodot-based
+            plugin failed to build. Both ask Godot to embed a runtime that
+            installs as <code>Frameworks/SwiftGodotRuntime.framework</code>.
+            godot-iap ships it as a <code>.framework</code>; a plugin shipping
+            it as an <code>.xcframework</code> installs that same bundle name
+            from its iOS slice. Godot embeds each GDExtension dependency without
+            checking where it lands, so Xcode stopped with{' '}
+            <code>Multiple commands produce</code>.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            <code>fix_ios_embed.sh</code> now drops its own runtime entry when
+            another add-on already embeds that bundle, and leaves the other
+            add-on&apos;s entry untouched. Installing godot-iap on its own is
+            unchanged.
+          </p>
+
+          <Callout kind="important" title="Match your SwiftGodot versions">
+            <p style={{ margin: 0 }}>
+              Every SwiftGodot runtime declares the install name{' '}
+              <code>@rpath/SwiftGodotRuntime.framework/SwiftGodotRuntime</code>,
+              so one is loaded and both plugins bind to it. That is fine while
+              they were built against the same SwiftGodot; if the surviving
+              runtime lacks a symbol the other plugin needs, that plugin aborts
+              at launch with <code>Symbol not found</code>. godot-iap 3.5.1
+              builds against SwiftGodot v0.79.0 - align your other plugin on the
+              same release if you see that.
+            </p>
+          </Callout>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {GODOT_RUNTIME_EMBED_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
                   href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
