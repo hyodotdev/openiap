@@ -635,9 +635,9 @@ function Releases() {
             <p style={{ marginBottom: '0.5rem' }}>
               Schema deprecations now name a Client Protocol removal train. The
               three fields scheduled for removal read &quot;Scheduled for
-              removal in client protocol 1.0&quot; instead of &quot;OpenIAP
+              removal in client protocol 1.0.0&quot; instead of &quot;OpenIAP
               4.0&quot;; the fields and their replacements are unchanged;
-              removal now lands with client protocol 1.0.
+              removal now lands with client protocol 1.0.0.
             </p>
             <p style={{ margin: 0 }}>
               The Commerce Protocol&apos;s capability descriptor, store-event

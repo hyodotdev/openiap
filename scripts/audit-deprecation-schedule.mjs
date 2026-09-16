@@ -490,7 +490,7 @@ export const collectSchemaDeprecationFailures = (
   // scheduled for has already shipped. Scheduling one for a future major is how
   // the spec is supposed to evolve, so those pass.
   for (const entry of schemaDeprecations.entries) {
-    const removalMatch = /client protocol (\d+)\.\d+\.$/.exec(entry.reason);
+    const removalMatch = /client protocol (\d+)\.\d+\.\d+\.$/.exec(entry.reason);
     if (!removalMatch) {
       failures.push(
         `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} must name its removal train`,

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-15T19:37:15.980Z
+> Last updated: 2026-09-16T02:02:40.598Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -4671,7 +4671,7 @@ sheet but does not return the redeemed transaction.
 OpenIAP exposes this flow through the cross-platform `openRedeemOfferCode`
 (openiap-apple 3.3.0+); `presentCodeRedemptionSheetIOS`, which OpenIAP 3 changed to
 return `PurchaseIOS?`, is a deprecated alias scheduled for removal in
-client protocol 1.0. Xcode 27 builds call the new API, require a verified result, and
+client protocol 1.0.0. Xcode 27 builds call the new API, require a verified result, and
 return the mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
 scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
 retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws

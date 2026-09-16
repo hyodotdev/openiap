@@ -147,7 +147,7 @@ extend type Mutation {
   # Future
   presentCodeRedemptionSheetIOS: PurchaseIOS
     @deprecated(
-      reason: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0."
+      reason: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0."
     )
   """
   Present the external purchase notice sheet (iOS 17.4+).

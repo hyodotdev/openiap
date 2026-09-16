@@ -330,7 +330,7 @@ function VerifyPurchase() {
                       </td>
                       <td>
                         Deprecated alias for <code>isValid</code>; scheduled for
-                        removal in client protocol 1.0
+                        removal in client protocol 1.0.0
                       </td>
                     </tr>
                     <tr>

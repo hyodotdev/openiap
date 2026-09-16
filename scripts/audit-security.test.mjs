@@ -361,34 +361,32 @@ reason = "Invalid date."
 
 test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   const yarnLock = "libraries/react-native-iap/yarn.lock";
-  // Derived from the real exception file rather than a literal, so renewing a
-  // window does not silently turn the expiry assertion below into a no-op.
-  const dayAfterLastExpiry = (() => {
-    const entries = parseOsvIgnoredVulnerabilities(
-      readFileSync(
-        resolve(
-          import.meta.dirname,
-          "..",
-          "libraries/react-native-iap/osv-scanner.toml",
-        ),
-        "utf8",
+  // Both the advisory ids and the expiry come from the real exception file, so
+  // renewing a window or retiring an exception cannot silently turn the
+  // assertions below into no-ops.
+  const exceptions = parseOsvIgnoredVulnerabilities(
+    readFileSync(
+      resolve(
+        import.meta.dirname,
+        "..",
+        "libraries/react-native-iap/osv-scanner.toml",
       ),
-    );
-    const latest = [...entries.values()]
+      "utf8",
+    ),
+  );
+  assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
+  const dayAfterLastExpiry = new Date(
+    [...exceptions.values()]
       .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
-      .reduce((a, b) => Math.max(a, b));
-    return new Date(latest + 24 * 60 * 60 * 1000);
-  })();
+      .reduce((a, b) => Math.max(a, b)) +
+      24 * 60 * 60 * 1000,
+  );
   const activeReport = JSON.stringify({
     results: [
       {
         packages: [
           {
-            vulnerabilities: [
-              { id: "GHSA-5p2g-fcmc-qvqq" },
-              { id: "GHSA-w3rx-r6r6-pgpr" },
-              { id: "GHSA-vcc3-ghjq-m6fr" },
-            ],
+            vulnerabilities: [...exceptions.keys()].map((id) => ({ id })),
           },
         ],
       },

@@ -189,7 +189,7 @@ test("repository schema deprecations all target a future removal train", () => {
   );
   for (const entry of deprecations.entries) {
     const removalMajor = Number(
-      /client protocol (\d+)\.\d+\.$/.exec(entry.reason)?.[1],
+      /client protocol (\d+)\.\d+\.\d+\.$/.exec(entry.reason)?.[1],
     );
     assert.ok(
       Number.isFinite(removalMajor),
@@ -207,12 +207,12 @@ test("overdue schema deprecations are reported as failures", () => {
     {
       sourceId: "overdue.graphql",
       sdl: `type Query {
-  old: String @deprecated(reason: "Use current. Scheduled for removal in client protocol 1.0.")
+  old: String @deprecated(reason: "Use current. Scheduled for removal in client protocol 1.0.0.")
 }`,
     },
   ]);
   assert.equal(overdue.entries.length, 1);
-  assert.match(overdue.entries[0].reason, /client protocol 1\.0\.$/);
+  assert.match(overdue.entries[0].reason, /client protocol 1\.0\.0\.$/);
   assert.match(
     collectSchemaDeprecationFailures(overdue, "2.0.0")[0],
     /is due for removal in client protocol 1 \(client protocol is 2\)/,

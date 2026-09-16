@@ -129,7 +129,7 @@ type UseIap = {
   openRedeemOfferCode: MutationField<'openRedeemOfferCode'>;
   /**
    * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
-   * client protocol 1.0.
+   * client protocol 1.0.0.
    */
   openRedeemOfferCodeAndroid: MutationField<'openRedeemOfferCodeAndroid'>;
 };

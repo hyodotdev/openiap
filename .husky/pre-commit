@@ -82,6 +82,14 @@ if git diff --cached --name-only --diff-filter=ACMRD \
   bun run audit:agents
 fi
 
+# An exception file and its guard test are coupled: retiring an exception or
+# renewing a window breaks the test, and CI is a slow place to learn that.
+if git diff --cached --name-only --diff-filter=ACMRD \
+  | grep -qE '(^|/)osv-scanner\.toml$|(^|/)(bun\.lock|yarn\.lock|Gemfile\.lock)$|^scripts/audit-security(\.test)?\.mjs$'; then
+  echo "🔐 dependency exception guards — running CI mirror…"
+  node --test scripts/audit-security.test.mjs scripts/bun-dependency-snapshot.test.mjs
+fi
+
 # Path filters gate native builds; a filter edit must not silently skip them.
 if git diff --cached --name-only --diff-filter=ACMR \
   | grep -qE '^(\.github/workflows/|scripts/audit-ci-path-filters(\.test)?\.mjs$)'; then

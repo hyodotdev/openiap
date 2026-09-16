@@ -82,7 +82,7 @@ public protocol OpenIapModuleProtocol {
     // Misc
     func syncIOS() async throws -> Bool
     func openRedeemOfferCode() async throws -> PurchaseIOS?
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.")
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void

@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-09-15T23:30:45.077Z",
+  "recordedAt": "2026-09-16T01:00:38.054Z",
   "scope": "Two separately implemented fixture providers and two scoped receivers over loopback HTTP in one Bun process. One backend client and receiver implementation, unchanged across both configurations. Host purchase callbacks are simulated.",
   "limits": [
     "Same project authorship; no independent organization validation.",
@@ -450,6 +450,6 @@
   "archiveVerification": {
     "command": "npm ci --ignore-scripts && bun composition/run.mjs",
     "sameSourceAndResults": true,
-    "sha256": "287dec133cd0e6102314904253abd2d60acebc4e576326e9bcab0b1213c7a01e"
+    "sha256": "81bceeb7356ff27a84735a39d837b782421fbe36e1819826b18a234f1102179e"
   }
 }

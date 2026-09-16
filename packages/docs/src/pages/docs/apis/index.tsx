@@ -508,7 +508,7 @@ function APIsIndex() {
                 <Link to="/docs/apis/open-redeem-offer-code">
                   <code>openRedeemOfferCode</code>
                 </Link>
-                ; scheduled for removal in client protocol 1.0. Shows the App
+                ; scheduled for removal in client protocol 1.0.0. Shows the App
                 Store offer code redemption sheet.
               </td>
             </tr>
@@ -710,8 +710,8 @@ function APIsIndex() {
                 <Link to="/docs/apis/open-redeem-offer-code">
                   <code>openRedeemOfferCode</code>
                 </Link>
-                ; scheduled for removal in client protocol 1.0. Opens the Google
-                Play offer-code redemption page.
+                ; scheduled for removal in client protocol 1.0.0. Opens the
+                Google Play offer-code redemption page.
               </td>
             </tr>
           </tbody>

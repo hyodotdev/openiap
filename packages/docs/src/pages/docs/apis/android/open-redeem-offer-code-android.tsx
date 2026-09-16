@@ -32,7 +32,7 @@ function OpenRedeemOfferCodeAndroid() {
           <code>openRedeemOfferCode</code>
         </Link>{' '}
         instead — it launches the same Play redeem page and works on both
-        platforms with one call. Scheduled for removal in client protocol 1.0.
+        platforms with one call. Scheduled for removal in client protocol 1.0.0.
         Generated TypeScript, Kotlin, and C# declarations carry a deprecation
         annotation, so builds surface the migration.
       </Callout>

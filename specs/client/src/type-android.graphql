@@ -520,7 +520,7 @@ type VerifyPurchaseResultHorizon implements VerifyPurchaseResultCommon {
   """
   success: Boolean!
     @deprecated(
-      reason: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0."
+      reason: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.0."
     )
   """
   Unix timestamp (seconds) when the entitlement was granted.

@@ -95,7 +95,7 @@ extend type Mutation {
   # Future
   openRedeemOfferCodeAndroid: Boolean!
     @deprecated(
-      reason: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0."
+      reason: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0."
     )
 
   """

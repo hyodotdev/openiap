@@ -254,7 +254,7 @@ export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
 /**
- * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in client protocol 1.0.
+ * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in client protocol 1.0.0.
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -272,7 +272,7 @@ export const openRedeemOfferCode: MutationField<
 > = async () => null;
 /**
  * @deprecated Use `openRedeemOfferCode` instead. Scheduled for removal in
- * client protocol 1.0.
+ * client protocol 1.0.0.
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'

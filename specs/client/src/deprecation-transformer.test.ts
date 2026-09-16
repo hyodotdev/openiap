@@ -126,15 +126,15 @@ describe('deprecation documentation transformation', () => {
   it('uses directive reasons once for object types and fields', () => {
     const schema = transform(`
       """Legacy offer metadata."""
-      type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.") {
+      type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.") {
         """Legacy identifier."""
-        legacyId: String! @deprecated(reason: "Use id instead. Scheduled for removal in client protocol 3.0.")
+        legacyId: String! @deprecated(reason: "Use id instead. Scheduled for removal in client protocol 3.0.0.")
       }
 
       """Legacy billing selector."""
-      enum LegacyBillingMode @openiapDeprecated(reason: "Use BillingProgram instead. Scheduled for removal in client protocol 3.0.") {
+      enum LegacyBillingMode @openiapDeprecated(reason: "Use BillingProgram instead. Scheduled for removal in client protocol 3.0.0.") {
         """Legacy choice."""
-        LEGACY @deprecated(reason: "Use MODERN instead. Scheduled for removal in client protocol 3.0.")
+        LEGACY @deprecated(reason: "Use MODERN instead. Scheduled for removal in client protocol 3.0.0.")
         MODERN
       }
     `);
@@ -142,90 +142,90 @@ describe('deprecation documentation transformation', () => {
     const legacyBillingMode = schema.enums.find((enumeration) => enumeration.name === 'LegacyBillingMode');
 
     expect(legacyOffer?.description).toBe(
-      'Legacy offer metadata.\n@deprecated Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.',
+      'Legacy offer metadata.\n@deprecated Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.',
     );
     expect(legacyOffer?.fields[0]?.description).toBe(
-      'Legacy identifier.\n@deprecated Use id instead. Scheduled for removal in client protocol 3.0.',
+      'Legacy identifier.\n@deprecated Use id instead. Scheduled for removal in client protocol 3.0.0.',
     );
     expect(legacyBillingMode?.description).toBe(
-      'Legacy billing selector.\n@deprecated Use BillingProgram instead. Scheduled for removal in client protocol 3.0.',
+      'Legacy billing selector.\n@deprecated Use BillingProgram instead. Scheduled for removal in client protocol 3.0.0.',
     );
     expect(legacyBillingMode?.values[0]?.description).toBe(
-      'Legacy choice.\n@deprecated Use MODERN instead. Scheduled for removal in client protocol 3.0.',
+      'Legacy choice.\n@deprecated Use MODERN instead. Scheduled for removal in client protocol 3.0.0.',
     );
 
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
     expect(kotlin).toContain(
-      '@Deprecated("Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("DiscountOffer"))\npublic data class LegacyOffer(',
+      '@Deprecated("Use DiscountOffer instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("DiscountOffer"))\npublic data class LegacyOffer(',
     );
     expect(kotlin).toContain(
-      '    @Deprecated("Use id instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("id"))\n    val legacyId:',
+      '    @Deprecated("Use id instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("id"))\n    val legacyId:',
     );
     expect(new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema)).toContain(
-      '    @available(*, deprecated, message: "Use id instead. Scheduled for removal in client protocol 3.0.")\n    public var legacyId:',
+      '    @available(*, deprecated, message: "Use id instead. Scheduled for removal in client protocol 3.0.0.")\n    public var legacyId:',
     );
     expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema)).toContain(
-      '    [Obsolete("Use id instead. Scheduled for removal in client protocol 3.0.")]\n    [JsonPropertyName("legacyId")]',
+      '    [Obsolete("Use id instead. Scheduled for removal in client protocol 3.0.0.")]\n    [JsonPropertyName("legacyId")]',
     );
     expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema)).toContain(
       '    public string LegacyId { get; init; }',
     );
     expect(kotlin).toContain(
-      '@Deprecated("Use BillingProgram instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("BillingProgram"))\npublic enum class LegacyBillingMode',
+      '@Deprecated("Use BillingProgram instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("BillingProgram"))\npublic enum class LegacyBillingMode',
     );
     expect(kotlin).toContain(
-      '    @Deprecated("Use MODERN instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("Modern"))\n    Legacy("legacy")',
+      '    @Deprecated("Use MODERN instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("Modern"))\n    Legacy("legacy")',
     );
   });
 
   it('preserves shared-interface deprecations on Swift union accessors', () => {
     const schema = transform(`
       interface ResultCommon {
-        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.")
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.0.")
       }
       type FirstResult implements ResultCommon {
-        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.")
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.0.")
       }
       type SecondResult implements ResultCommon {
-        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.")
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in client protocol 3.0.0.")
       }
       union Result = FirstResult | SecondResult
     `);
 
     const swift = new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema);
     expect(swift).toContain(
-      '    @available(*, deprecated, message: "Use current instead. Scheduled for removal in client protocol 3.0.")\n    public var legacy:',
+      '    @available(*, deprecated, message: "Use current instead. Scheduled for removal in client protocol 3.0.0.")\n    public var legacy:',
     );
   });
 
   it('preserves type-level reasons on operation roots', () => {
     const schema = transform(`
       """Legacy query root."""
-      type Query @openiapDeprecated(reason: "Use the replacement root. Scheduled for removal in client protocol 3.0.") {
+      type Query @openiapDeprecated(reason: "Use the replacement root. Scheduled for removal in client protocol 3.0.0.") {
         value: String
       }
     `);
 
     expect(schema.operations[0]?.description).toBe(
-      'Legacy query root.\n@deprecated Use the replacement root. Scheduled for removal in client protocol 3.0.',
+      'Legacy query root.\n@deprecated Use the replacement root. Scheduled for removal in client protocol 3.0.0.',
     );
     expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema)).toContain(
-      '## Legacy query root. @deprecated Use the replacement root. Scheduled for removal in client protocol 3.0.\nclass Query:',
+      '## Legacy query root. @deprecated Use the replacement root. Scheduled for removal in client protocol 3.0.0.\nclass Query:',
     );
     expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
-      '@Deprecated("Use the replacement root. Scheduled for removal in client protocol 3.0.")\npublic interface Query',
+      '@Deprecated("Use the replacement root. Scheduled for removal in client protocol 3.0.0.")\npublic interface Query',
     );
   });
 
   it('escapes Kotlin string templates in deprecation messages', () => {
     const schema = transform(`
-      type Legacy @openiapDeprecated(reason: "Use $modern instead. Scheduled for removal in client protocol 3.0.") {
+      type Legacy @openiapDeprecated(reason: "Use $modern instead. Scheduled for removal in client protocol 3.0.0.") {
         value: String
       }
     `);
 
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
-    expect(kotlin).toContain('@Deprecated("Use \\$modern instead. Scheduled for removal in client protocol 3.0.")');
+    expect(kotlin).toContain('@Deprecated("Use \\$modern instead. Scheduled for removal in client protocol 3.0.0.")');
     expect(kotlin).not.toContain('@Deprecated("Use $modern instead.');
   });
 
@@ -249,7 +249,7 @@ describe('deprecation documentation transformation', () => {
       type Query {
         value(
           """Legacy selector."""
-          legacy: String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.")
+          legacy: String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.0.")
         ): String
       }
     `);
@@ -273,22 +273,22 @@ describe('deprecation documentation transformation', () => {
   it('warns on Kotlin operation handlers without unsafe ReplaceWith code', () => {
     const schema = transform(`
       type Query {
-        legacy(value: String!): String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.")
+        legacy(value: String!): String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.0.")
         modern(options: String!): String
       }
     `);
 
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
-    const warning = '@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.")';
+    const warning = '@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.0.")';
     expect(kotlin).toContain(`${warning}\n    suspend fun legacy(`);
     expect(kotlin).toContain(`${warning}\n    val legacy: QueryLegacyHandler?`);
-    expect(kotlin).not.toContain('@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("modern"))');
+    expect(kotlin).not.toContain('@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("modern"))');
   });
 
   it('preserves reasons on custom VoidResult declarations', () => {
     const schema = transform(`
       """Generic completion result."""
-      type VoidResult @openiapDeprecated(reason: "Use the operation return value instead. Scheduled for removal in client protocol 3.0.") {
+      type VoidResult @openiapDeprecated(reason: "Use the operation return value instead. Scheduled for removal in client protocol 3.0.0.") {
         success: Boolean!
       }
     `);
@@ -303,7 +303,7 @@ describe('deprecation documentation transformation', () => {
       expect(plugin.generate(schema)).toContain('@deprecated Use the operation return value instead.');
     }
     expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
-      '@Deprecated("Use the operation return value instead. Scheduled for removal in client protocol 3.0.")\npublic typealias VoidResult = Unit',
+      '@Deprecated("Use the operation return value instead. Scheduled for removal in client protocol 3.0.0.")\npublic typealias VoidResult = Unit',
     );
   });
 
@@ -312,7 +312,7 @@ describe('deprecation documentation transformation', () => {
       `
         type LegacyResult {
           """Legacy result branch."""
-          legacy: String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.")
+          legacy: String @deprecated(reason: "Use modern instead. Scheduled for removal in client protocol 3.0.0.")
           modern: String
         }
       `,
@@ -329,7 +329,7 @@ describe('deprecation documentation transformation', () => {
       expect(plugin.generate(schema)).toContain('@deprecated Use modern instead.');
     }
     expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
-      '@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.", ReplaceWith("modern"))',
+      '@Deprecated("Use modern instead. Scheduled for removal in client protocol 3.0.0.", ReplaceWith("modern"))',
     );
   });
 
@@ -438,17 +438,17 @@ describe('deprecation documentation transformation', () => {
   it('requires exact concrete projections of interface field deprecations', () => {
     const schema = transform(`
       interface LegacyCommon {
-        platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.")
+        platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.0.")
       }
       type LegacyAndroid implements LegacyCommon {
-        platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.")
+        platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.0.")
       }
     `);
     const legacy = schema.objects.find((object) => object.name === 'LegacyAndroid');
 
-    expect(legacy?.fields[0]?.description).toBe('@deprecated Use store instead. Scheduled for removal in client protocol 3.0.');
+    expect(legacy?.fields[0]?.description).toBe('@deprecated Use store instead. Scheduled for removal in client protocol 3.0.0.');
     expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema)).toContain(
-      '## @deprecated Use store instead. Scheduled for removal in client protocol 3.0.\n\tvar platform: Variant = null',
+      '## @deprecated Use store instead. Scheduled for removal in client protocol 3.0.0.\n\tvar platform: Variant = null',
     );
   });
 
@@ -456,7 +456,7 @@ describe('deprecation documentation transformation', () => {
     expect(() =>
       transform(`
         interface LegacyCommon {
-          platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.")
+          platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.0.")
         }
         type LegacyAndroid implements LegacyCommon {
           platform: String
@@ -467,10 +467,10 @@ describe('deprecation documentation transformation', () => {
     expect(() =>
       transform(`
         interface LegacyCommon {
-          platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.")
+          platform: String @deprecated(reason: "Use store instead. Scheduled for removal in client protocol 3.0.0.")
         }
         type LegacyAndroid implements LegacyCommon {
-          platform: String @deprecated(reason: "Use purchaseStore instead. Scheduled for removal in client protocol 3.0.")
+          platform: String @deprecated(reason: "Use purchaseStore instead. Scheduled for removal in client protocol 3.0.0.")
         }
       `),
     ).toThrow('conflicts with the exact interface-owned deprecation guidance');
@@ -483,7 +483,7 @@ describe('deprecation documentation transformation', () => {
         Legacy offer metadata.
         @deprecated Manual duplicate.
         """
-        type LegacyOffer @openiapDeprecated(reason: "Canonical reason. Scheduled for removal in client protocol 3.0.") {
+        type LegacyOffer @openiapDeprecated(reason: "Canonical reason. Scheduled for removal in client protocol 3.0.0.") {
           id: String
         }
       `),

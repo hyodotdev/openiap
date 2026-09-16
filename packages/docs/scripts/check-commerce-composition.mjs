@@ -72,9 +72,25 @@ assert.equal(
 );
 assert.equal(freshReplay.sourceCommit, fresh.sourceCommit);
 assert(freshReplay.steps.every((step) => step.exitCode === 0));
+// The declared branch is hand-written metadata; a branch that does not carry
+// the recorded commit makes the published clone command fail outright.
+const replayClone = freshReplay.steps.find((step) =>
+  step.command.includes('clone')
+);
+assert(replayClone, 'fresh-public-replay.json records no clone step');
+assert.equal(
+  replayClone.command[replayClone.command.indexOf('--branch') + 1],
+  fresh.branch,
+  'fresh-build.json names a branch the public replay did not clone'
+);
 // from-scratch.md is hand-maintained too; it must check out the recorded
 // fresh commit and walk the recorded milestones, in order.
 const freshPage = String(paywallRead('from-scratch.md'));
+assert.deepEqual(
+  [...freshPage.matchAll(/^git clone --branch (\S+) /gmu)].map((m) => m[1]),
+  [fresh.branch],
+  'from-scratch.md must clone the recorded branch'
+);
 assert.deepEqual(
   [...freshPage.matchAll(/^git checkout ([0-9a-f]{40})$/gmu)].map((m) => m[1]),
   [fresh.sourceCommit],

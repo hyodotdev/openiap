@@ -1452,7 +1452,7 @@ func get_all_transactions_ios() -> Array:
 ## a sheet because StoreKit 1 has no effect there.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.0.
 func present_code_redemption_sheet_ios() -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -2007,7 +2007,7 @@ func launch_external_link_android(params) -> bool:
 ## @return bool - true if launched, false if unavailable
 ##
 ## See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in client protocol 1.0.0.
 func open_redeem_offer_code_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("openRedeemOfferCodeAndroid")

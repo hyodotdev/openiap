@@ -4308,7 +4308,7 @@ class VerifyPurchaseResultHorizon extends VerifyPurchaseResult implements Verify
   /// variant so callers can gate entitlement without inspecting the concrete type.
   final bool isValid;
   /// Whether the entitlement verification succeeded.
-  /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.
+  /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in client protocol 1.0.0.
   final bool success;
 
   factory VerifyPurchaseResultHorizon.fromJson(Map<String, dynamic> json) {
@@ -5891,7 +5891,7 @@ abstract class MutationResolver {
   /// Returns true when the redemption flow was launched, or false when the current
   /// store flavor does not provide an equivalent redemption flow.
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
-  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
+  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
   Future<bool> openRedeemOfferCodeAndroid();
   /// Deprecated. Show the App Store offer code redemption sheet — use
   /// openRedeemOfferCode instead.
@@ -5905,7 +5905,7 @@ abstract class MutationResolver {
   /// sheet through the normal transaction listener or an explicit
   /// available-purchases refresh.
   /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.
+  /// @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
   Future<PurchaseIOS?> presentCodeRedemptionSheetIOS();
   /// Present an external purchase link, StoreKit External (iOS 16+).
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
