@@ -77,14 +77,17 @@ copy_framework_plists
 # Backup original once per run.
 cp "$PBXPROJ" "$PBXPROJ.backup"
 
-export PBXPROJ
+export PBXPROJ IOS_EXPORT_DIR
 python3 <<'PY'
 import hashlib
 import os
+import plistlib
 import re
 import sys
 
 pbxproj = os.environ["PBXPROJ"]
+# Embedded paths in the project are relative to the exported project directory.
+IOS_EXPORT_DIR = os.environ.get("IOS_EXPORT_DIR", os.path.dirname(os.path.dirname(pbxproj)))
 frameworks = ["GodotIap", "SwiftGodotRuntime"]
 
 with open(pbxproj, "r", encoding="utf-8") as file:
@@ -316,7 +319,98 @@ def remove_duplicate_framework_links(text):
     return text
 
 
+def installed_bundle_name(path):
+    """What Xcode will actually call this in Frameworks/. A .framework installs
+    under its own name; an .xcframework installs the LibraryPath of the slice it
+    selects, which its manifest states rather than implying from the basename.
+    Returns None when no slice can serve an iOS device, so a simulator-only or
+    non-iOS entry is never mistaken for one that collides here."""
+    basename = path.rsplit("/", 1)[-1]
+    if not basename.endswith(".xcframework"):
+        return basename if basename.endswith(".framework") else None
+    manifest = os.path.join(IOS_EXPORT_DIR, path, "Info.plist")
+    if not os.path.isfile(manifest):
+        return None
+    try:
+        with open(manifest, "rb") as handle:
+            libraries = plistlib.load(handle).get("AvailableLibraries", [])
+    except Exception:
+        return None
+    for library in libraries:
+        if (
+            library.get("SupportedPlatform") == "ios"
+            and not library.get("SupportedPlatformVariant")
+            and library.get("LibraryPath", "").endswith(".framework")
+        ):
+            return library["LibraryPath"]
+    return None
+
+
+def drop_conflicting_runtime_embed(text):
+    """Godot embeds each GDExtension dependency on its own, so two plugins that
+    both ship SwiftGodot put two sources in one Embed Frameworks phase that copy
+    to the same Frameworks/<name>.framework. Xcode has no winner for that. Only
+    our own entry is dropped; another addon's stays exactly as it exported."""
+    phase_match = re.search(
+        r"([A-F0-9]{24}|\w+)\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{.*?isa\s*=\s*PBXCopyFilesBuildPhase;.*?\n\t\t\};",
+        text,
+        re.DOTALL,
+    )
+    if not phase_match:
+        return text
+    phase_block = phase_match.group(0)
+    files_match = re.search(r"files\s*=\s*\(\n(.*?)\n\s*\);", phase_block, re.DOTALL)
+    if not files_match:
+        return text
+
+    embedded = []
+    for build_id in re.findall(r"([A-F0-9]{24})\s*(?:/\*.*?\*/)?\s*,", files_match.group(1)):
+        build_file = re.search(
+            rf"{build_id}\s*(?:/\*[^*]*\*/\s*)?=\s*\{{isa\s*=\s*PBXBuildFile;\s*fileRef\s*=\s*([A-F0-9]{{24}}|\w+)",
+            text,
+        )
+        if not build_file:
+            continue
+        reference = re.search(
+            rf"{build_file.group(1)}\s*=\s*\{{isa\s*=\s*PBXFileReference;[^}}]*?path\s*=\s*\"([^\"]+)\"",
+            text,
+        )
+        if not reference:
+            continue
+        path = reference.group(1)
+        embedded.append((build_id, path, installed_bundle_name(path)))
+
+    ours = "/addons/godot-iap/"
+    removed = []
+    for build_id, path, stem in embedded:
+        if stem is None or ours not in path:
+            continue
+        rival = next(
+            (other for other_id, other, other_stem in embedded
+             if other_stem is not None and other_stem == stem
+             and other_id != build_id and ours not in other),
+            None,
+        )
+        if rival:
+            removed.append((build_id, path, rival))
+
+    if not removed:
+        return text
+
+    updated_phase_block = phase_block
+    for build_id, _, _ in removed:
+        updated_phase_block = remove_pbx_list_item(updated_phase_block, build_id)
+    text = text.replace(phase_block, updated_phase_block, 1)
+    for build_id, path, rival in removed:
+        print(
+            f"Another addon already embeds {path.rsplit('/', 1)[-1]}; "
+            f"using {rival} instead of our copy."
+        )
+    return text
+
+
 content = remove_duplicate_framework_links(content)
+content = drop_conflicting_runtime_embed(content)
 
 with open(pbxproj, "w", encoding="utf-8") as file:
     file.write(content)
