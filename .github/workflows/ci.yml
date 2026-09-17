@@ -117,6 +117,12 @@ jobs:
       - name: Audit SBOM documentation
         run: bun run audit:sbom-docs
 
+      # The godot-iap addon ships prebuilt iOS/macOS frameworks pinned in
+      # prebuilt-binaries.sha256. The release gates on the same audit; this
+      # re-runs it here so a tampered binary fails on the PR, not at release.
+      - name: Audit Godot binary digests
+        run: bun run audit:godot-binaries
+
       - name: Verify independent Bun locks
         run: |
           for directory in \
