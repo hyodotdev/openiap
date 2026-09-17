@@ -50,9 +50,13 @@ Lead with what changed and why it matters, keep sentences short and the words
 ordinary, and keep the body to a few short paragraphs — ten lines is normal,
 thirty is the ceiling. Drop the `## Summary` / `## Changes` / test-plan
 scaffolding unless the change genuinely spans packages. Group findings of the
-same shape into one paragraph instead of enumerating each. Reread the body
-before sending and cut anything that does not change what the reviewer does
-next.
+same shape into one paragraph instead of enumerating each. Link instead of
+narrating: cite issues (`#460`), commits (bare hash), files, and spec sections
+rather than re-telling their content. Reread the body before sending and cut
+anything that does not change what the reviewer does next — delete every
+sentence the reviewer can get from the diff, CI, or a linked reference. No
+generated-by or tool-attribution footer in the body; the commit trailer
+already records authorship.
 
 ### Internal Workflow Guard
 
@@ -230,8 +234,6 @@ gh pr create --base "$PR_BASE" --label "$PR_LABELS" \
 already cover it. Name the user-visible effect, not the implementation
 narrative. Add a one-line `Checks:` when a reviewer cannot see the result in
 CI. Headings only for a change that spans packages.>
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -405,8 +407,6 @@ source; Apple, Google and the docs follow from the regenerated output.
 distinguishable from an empty catalogue.
 
 Checks: swift build, the three Gradle flavor compiles, docs typecheck.
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---

@@ -146,8 +146,6 @@ gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 - [ ] `yarn typecheck` passes
 - [ ] `yarn lint` passes
 - [ ] `yarn test` passes
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -243,8 +241,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] `yarn typecheck` passes
 - [x] `yarn lint` passes
 - [x] `yarn test` passes
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---

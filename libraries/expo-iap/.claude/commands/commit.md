@@ -173,8 +173,6 @@ gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 - [ ] `bun run typecheck` passes
 - [ ] `bun run test` passes
 - [ ] `cd example && bun run test` passes
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -316,8 +314,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] `bun run typecheck` passes
 - [x] `bun run test` passes
 - [x] `cd example && bun run test` passes
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---

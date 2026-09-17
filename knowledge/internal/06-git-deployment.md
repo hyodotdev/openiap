@@ -52,9 +52,22 @@ code comment, not here.
 naming the shape, not nine table rows. Reach for a table only when the reader
 will compare columns.
 
+**Link, do not narrate.** An issue number, a bare commit hash, a file path, or
+a spec section points the reader at the full story; re-telling that story in
+the PR body duplicates it. Write `#460` plus one clause of why it matters, not
+three paragraphs of what it did.
+
 **Say what a reviewer needs.** What broke, what it cost, what changed, how it
 was verified. Skip the investigation narrative, the options considered, and the
 chronology of how you got there.
+
+**Reread and cut before sending.** Read the finished body once more and delete
+every sentence the reviewer can get from the diff, CI, or a linked reference.
+If the body still reads like a report rather than a note to a colleague, cut
+again.
+
+**No tool-attribution footer.** No generated-by footer in a PR body; the
+commit trailer already records authorship.
 
 **Reply to review comments like a person.** State the outcome first — fixed,
 already handled, or disagreed — then the reason in a sentence. No restating the
