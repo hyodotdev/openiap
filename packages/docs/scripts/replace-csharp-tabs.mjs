@@ -117,7 +117,10 @@ function splitTopLevel(s) {
 }
 
 function escapeBacktick(s) {
-  return s.replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\$\{/g, '\\${');
 }
 
 let touched = 0;

@@ -585,14 +585,20 @@ class AscClient {
     return { data: merged };
   }
 
-  // ASC `links.next` is fully qualified (`https://api.appstoreconnect…`).
-  // `call()` already prepends ASC_BASE, so strip the host before
-  // passing it back in.
+  // ASC `links.next` is fully qualified; `call()` prepends ASC_BASE, so
+  // strip the host before passing it back in. Validate the parsed origin
+  // (a prefix check admits `ASC_BASE + ".evil.com/…"`, leaking the token).
   private relativizePath(absoluteOrRelative: string): string {
-    if (absoluteOrRelative.startsWith(ASC_BASE)) {
-      return absoluteOrRelative.slice(ASC_BASE.length);
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(absoluteOrRelative)) {
+      return absoluteOrRelative;
     }
-    return absoluteOrRelative;
+    const parsed = new URL(absoluteOrRelative);
+    if (parsed.origin !== ASC_BASE) {
+      throw new Error(
+        `Refusing to follow ASC pagination off-origin: ${parsed.origin}`,
+      );
+    }
+    return `${parsed.pathname}${parsed.search}`;
   }
 
   // Introductory offer attached to a subscription. Apple allows at
