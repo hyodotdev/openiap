@@ -232,9 +232,12 @@ const withIos27SceneLifecycle = (config) => {
     );
     const projectName = path.basename(sourceRoot);
     const sceneDelegatePath = path.join(sourceRoot, 'SceneDelegate.swift');
-    const existingSceneDelegate = fs.existsSync(sceneDelegatePath)
-      ? fs.readFileSync(sceneDelegatePath, 'utf8')
-      : '';
+    let existingSceneDelegate = '';
+    try {
+      existingSceneDelegate = fs.readFileSync(sceneDelegatePath, 'utf8');
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+    }
     const resolvedSceneDelegate = resolveSceneDelegateContents(
       existingSceneDelegate,
     );

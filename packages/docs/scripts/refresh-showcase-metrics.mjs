@@ -188,7 +188,7 @@ async function playMetrics(androidUrl) {
   const packageName = /[?&]id=([^&]+)/.exec(androidUrl)?.[1];
   if (!packageName) return {};
   const html = await fetchText(
-    `https://play.google.com/store/apps/details?id=${packageName}&hl=en&gl=US`
+    `https://play.google.com/store/apps/details?id=${encodeURIComponent(packageName)}&hl=en&gl=US`
   );
   return parsePlayMetrics(html, packageName);
 }

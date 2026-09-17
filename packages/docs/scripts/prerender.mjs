@@ -67,7 +67,7 @@ export async function canonicalPaths(directory) {
 
 export function pageHtml(template, rendered, path) {
   assert(
-    /^\/(?:[a-z0-9-]+\/?)*$/.test(path),
+    /^\/(?:[a-z0-9-]+\/)*[a-z0-9-]*$/.test(path),
     `Invalid canonical path: ${path}`
   );
   const metadata = [];

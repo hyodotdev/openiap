@@ -154,6 +154,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
     },
     android: {
       ...config.android,
+      // Sample app; prebuild defaults this to true, which CodeQL flags.
+      allowBackup: false,
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#000000',

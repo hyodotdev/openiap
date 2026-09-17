@@ -8,7 +8,21 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
 const packageRoot = path.resolve(exampleRoot, '..');
 const vegaDependencyRoot = path.join(exampleRoot, 'vega');
-const tempRoot = path.join(os.tmpdir(), 'openiap-rn-iap-vega-example');
+const tempRoot = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'openiap-rn-iap-vega-example-'),
+);
+// Unpredictable name, so print and keep the workspace when the build fails.
+process.on('exit', (code) => {
+  if (code === 0) {
+    fs.rmSync(tempRoot, {force: true, recursive: true});
+    return;
+  }
+  console.log(`Vega build workspace kept at ${tempRoot}`);
+});
+// Default signal terminate skips exit listeners; route aborts through them.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, () => process.exit(1));
+}
 const tempPackageSourceRoot = path.join(
   tempRoot,
   'openiap-react-native-iap-src',
@@ -182,8 +196,6 @@ const run = (command, args, cwd = tempRoot) => {
   });
 };
 
-fs.rmSync(tempRoot, {force: true, recursive: true});
-fs.mkdirSync(tempRoot, {recursive: true});
 copyDirectoryWithTransform(
   path.join(packageRoot, 'src'),
   path.relative(tempRoot, tempPackageSourceRoot),

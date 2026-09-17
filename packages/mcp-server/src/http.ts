@@ -387,7 +387,7 @@ function attachAuthInfo(req: AuthenticatedRequest): void {
 
 function parseBearerToken(authorization: string | undefined): string | null {
   if (!authorization) return null;
-  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  const match = authorization.match(/^Bearer\s+(\S.*)$/i);
   const token = match?.[1]?.trim();
   return token || null;
 }

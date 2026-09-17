@@ -30,76 +30,7 @@ import chalk from "chalk";
 import * as lancedb from "vectordb";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-
-// ============================================================================
-// Custom Markdown Header Splitter
-// ============================================================================
-
-interface MarkdownChunk {
-  content: string;
-  metadata: Record<string, string>;
-}
-
-/**
- * Custom implementation of MarkdownHeaderTextSplitter
- */
-function splitMarkdownByHeaders(
-  text: string,
-  headersToSplitOn: [string, string][] = [
-    ["#", "h1"],
-    ["##", "h2"],
-    ["###", "h3"],
-    ["####", "h4"],
-  ]
-): MarkdownChunk[] {
-  const lines = text.split("\n");
-  const chunks: MarkdownChunk[] = [];
-  let currentChunk: string[] = [];
-  let currentMetadata: Record<string, string> = {};
-
-  for (const line of lines) {
-    let headerFound = false;
-
-    for (const [headerPrefix, metadataKey] of headersToSplitOn) {
-      const regex = new RegExp(`^${headerPrefix.replace(/#/g, "\\#")}\\s+(.+)$`);
-      const match = line.match(regex);
-      const isExactLevel =
-        line.startsWith(headerPrefix + " ") &&
-        !line.startsWith(headerPrefix + "#");
-
-      if (match && isExactLevel) {
-        if (currentChunk.length > 0) {
-          chunks.push({
-            content: currentChunk.join("\n").trim(),
-            metadata: { ...currentMetadata },
-          });
-        }
-        currentChunk = [];
-        currentMetadata[metadataKey] = match[1].trim();
-
-        const headerIndex = headersToSplitOn.findIndex(([p]) => p === headerPrefix);
-        for (let i = headerIndex + 1; i < headersToSplitOn.length; i++) {
-          delete currentMetadata[headersToSplitOn[i][1]];
-        }
-        headerFound = true;
-        break;
-      }
-    }
-
-    if (!headerFound) {
-      currentChunk.push(line);
-    }
-  }
-
-  if (currentChunk.length > 0) {
-    chunks.push({
-      content: currentChunk.join("\n").trim(),
-      metadata: { ...currentMetadata },
-    });
-  }
-
-  return chunks.filter((chunk) => chunk.content.length > 0);
-}
+import { splitMarkdownByHeaders } from "./indexer.js";
 
 // ============================================================================
 // Configuration
