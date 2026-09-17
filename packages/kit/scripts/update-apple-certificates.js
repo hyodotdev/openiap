@@ -153,8 +153,8 @@ async function updateCertificates() {
   console.log("🍎 Updating Apple Root Certificates...\n");
 
   // Ensure certificates directory exists
-  if (!fs.existsSync(CERTIFICATES_DIR)) {
-    fs.mkdirSync(CERTIFICATES_DIR, { recursive: true });
+  const createdDir = fs.mkdirSync(CERTIFICATES_DIR, { recursive: true });
+  if (createdDir) {
     console.log(`📁 Created directory: ${CERTIFICATES_DIR}`);
   }
 
@@ -170,12 +170,14 @@ async function updateCertificates() {
       const certPath = path.join(CERTIFICATES_DIR, cert.name);
 
       // Backup existing certificate if it exists
-      if (fs.existsSync(certPath)) {
+      try {
         const backupPath = `${certPath}.backup.${Date.now()}`;
         fs.copyFileSync(certPath, backupPath);
         console.log(
           `💾 Backed up existing certificate to: ${path.basename(backupPath)}`,
         );
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
       }
 
       // Write new certificate
