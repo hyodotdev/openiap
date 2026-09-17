@@ -168,7 +168,7 @@ function SecuritySbom() {
         direct runtime components and dependency contracts, including
         first-party OpenIAP native contracts, to each GitHub Release as a{' '}
         <strong>CycloneDX 1.6 JSON</strong> file. A daily repair job fills
-        missed latest-stable-release assets; prereleases rely on their
+        missed assets in the coverage era; prereleases rely on their
         release-time dispatch. Exact application exposure comes from the
         consumer&apos;s resolved dependency graph.
       </p>
