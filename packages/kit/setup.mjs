@@ -12,9 +12,12 @@ import { spawnSync } from "child_process";
 let envSource;
 try {
   envSource = fs.readFileSync(".env.local", "utf8");
-} catch {
-  // Something is off, skip the script.
-  process.exit(0);
+} catch (error) {
+  if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+    // Something is off, skip the script.
+    process.exit(0);
+  }
+  throw error;
 }
 
 const config = parseEnv(envSource);
