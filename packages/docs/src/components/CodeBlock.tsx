@@ -860,7 +860,7 @@ function highlightCode(element: HTMLElement, language: string) {
       if (typeMatch) {
         const [, leading, keyword, typeName, rest] = typeMatch;
         const escapedRest = rest ? escapeHtml(rest) : '';
-        return `${escapeHtml(leading)}<span class="token keyword">${keyword}</span> <span class="token type-name">${typeName}</span>${escapedRest}`;
+        return `${escapeHtml(leading)}<span class="token keyword">${escapeHtml(keyword)}</span> <span class="token type-name">${escapeHtml(typeName)}</span>${escapedRest}`;
       }
 
       // Enum values (all caps with underscores)
@@ -894,9 +894,9 @@ function highlightCode(element: HTMLElement, language: string) {
               'Void',
             ];
             if (builtInTypes.includes(type)) {
-              result += `<span class="token builtin-type">${type}</span>`;
+              result += `<span class="token builtin-type">${escapeHtml(type)}</span>`;
             } else {
-              result += `<span class="token custom-type">${type}</span>`;
+              result += `<span class="token custom-type">${escapeHtml(type)}</span>`;
             }
 
             if (bracket2) result += '<span class="token punctuation">]</span>';
