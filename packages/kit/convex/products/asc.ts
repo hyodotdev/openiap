@@ -395,6 +395,22 @@ export function ascPriceStartAttributes(
   return startDate === undefined ? {} : { startDate };
 }
 
+// ASC `links.next` is fully qualified; `call()` prepends ASC_BASE, so strip
+// the host before passing it back in. Fail closed on off-origin URLs: a
+// prefix check would admit `ASC_BASE + ".evil.com/…"`, leaking the token.
+export function relativizeAscPath(absoluteOrRelative: string): string {
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(absoluteOrRelative)) {
+    return absoluteOrRelative;
+  }
+  const parsed = new URL(absoluteOrRelative);
+  if (parsed.origin !== ASC_BASE) {
+    throw new Error(
+      `Refusing to follow ASC pagination off-origin: ${parsed.origin}`,
+    );
+  }
+  return `${parsed.pathname}${parsed.search}`;
+}
+
 class AscClient {
   private cached: AscToken | null = null;
 
@@ -579,26 +595,10 @@ class AscClient {
         await this.call(path);
       merged.push(...page.data);
       const nextUrl = page.links?.next ?? null;
-      path = nextUrl ? this.relativizePath(nextUrl) : null;
+      path = nextUrl ? relativizeAscPath(nextUrl) : null;
       pages += 1;
     }
     return { data: merged };
-  }
-
-  // ASC `links.next` is fully qualified; `call()` prepends ASC_BASE, so
-  // strip the host before passing it back in. Validate the parsed origin
-  // (a prefix check admits `ASC_BASE + ".evil.com/…"`, leaking the token).
-  private relativizePath(absoluteOrRelative: string): string {
-    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(absoluteOrRelative)) {
-      return absoluteOrRelative;
-    }
-    const parsed = new URL(absoluteOrRelative);
-    if (parsed.origin !== ASC_BASE) {
-      throw new Error(
-        `Refusing to follow ASC pagination off-origin: ${parsed.origin}`,
-      );
-    }
-    return `${parsed.pathname}${parsed.search}`;
   }
 
   // Introductory offer attached to a subscription. Apple allows at

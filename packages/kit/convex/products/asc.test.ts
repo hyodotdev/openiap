@@ -15,6 +15,7 @@ import {
   parseIntroOffers,
   pickActivePriceRow,
   pickPricePointIdMatching,
+  relativizeAscPath,
   shouldMarkAscReviewSubmissionOutcomePushed,
 } from "./asc";
 import type { AscReviewVersionItem } from "./ascReview";
@@ -804,5 +805,40 @@ describe("pushAscReviewLocalizations", () => {
 
     expect(seen).toEqual(["en-US", "ko-KR"]);
     expect(recordFailure).not.toHaveBeenCalled();
+  });
+});
+
+describe("relativizeAscPath", () => {
+  it("passes relative paths through", () => {
+    expect(relativizeAscPath("/v1/apps?limit=200")).toBe("/v1/apps?limit=200");
+  });
+
+  it("strips the ASC origin from absolute URLs", () => {
+    expect(
+      relativizeAscPath(
+        "https://api.appstoreconnect.apple.com/v1/apps?cursor=abc",
+      ),
+    ).toBe("/v1/apps?cursor=abc");
+  });
+
+  it("normalizes case and default ports", () => {
+    expect(
+      relativizeAscPath("HTTPS://API.APPSTORECONNECT.APPLE.COM/v1/x"),
+    ).toBe("/v1/x");
+    expect(
+      relativizeAscPath("https://api.appstoreconnect.apple.com:443/v1/x"),
+    ).toBe("/v1/x");
+  });
+
+  it("refuses off-origin URLs", () => {
+    for (const evil of [
+      "https://api.appstoreconnect.apple.com.evil.com/v1/x",
+      "https://api.appstoreconnect.apple.com@evil.com/v1/x",
+      "https://evil.com/v1/x",
+      "javascript:alert(1)",
+      "https://api.appstoreconnect.apple.com./v1/x",
+    ]) {
+      expect(() => relativizeAscPath(evil)).toThrow(/off-origin/);
+    }
   });
 });
