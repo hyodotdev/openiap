@@ -45,7 +45,7 @@ const AUTOMATION: Trigger[] = [
   },
   {
     when: 'Merge to main',
-    what: 'A change to the SBOM workflow or generator scans the newest stable release of every component and dispatches any missing inventory',
+    what: 'A change to the SBOM workflow or generator scans every stable release in the coverage era and dispatches any missing inventory',
   },
   {
     when: 'A release is published',

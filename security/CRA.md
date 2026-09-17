@@ -112,10 +112,11 @@ product contains.
 **How OpenIAP does this:** each current component release workflow creates the
 GitHub Release, then dispatches `sbom.yml` because a release created with
 `GITHUB_TOKEN` does not trigger another workflow. The SBOM workflow generates
-and uploads the CycloneDX 1.6 asset; a daily scan repairs missed latest stable
-release assets. Prereleases rely on their release-time dispatch and are not
-backfilled by the daily scan. Generation records the release and generator
-commits, and the core dependency inventory is reproducible from those inputs.
+and uploads the CycloneDX 1.6 asset; a daily scan repairs missed stable
+release assets in the coverage era. Prereleases rely on their release-time
+dispatch and are not backfilled by the daily scan. Generation records the
+release and generator commits, and the core dependency inventory is
+reproducible from those inputs.
 Registry-sourced license and supplier metadata is point-in-time enrichment.
 
 See [SBOM.md](SBOM.md). Practical constraint: transitive closure is complete

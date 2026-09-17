@@ -1,0 +1,4 @@
+# Shared CodeQL configuration: scan first-party sources, never vendored ones.
+# node_modules alerts name third-party code no pull request can change.
+paths-ignore:
+  - "**/node_modules/**"
