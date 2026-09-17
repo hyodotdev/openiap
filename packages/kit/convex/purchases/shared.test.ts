@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   AppStoreProductType,
   narrowAppleEnvironment,
@@ -221,7 +221,7 @@ describe("mapAppStorePurchaseState", () => {
   // release, so it must show up here as an explicit diff.
   const APP_STORE_GOLDEN: Array<{
     label: string;
-    reason?: AppStoreTransactionReason;
+    reason?: string;
     expiresDate?: number;
     type?: AppStoreProductType;
     revocationDate?: number;
@@ -280,6 +280,44 @@ describe("mapAppStorePurchaseState", () => {
       expiresDate: Date.now() + 86_400_000,
       expected: HarmonizedPurchaseState.ENTITLED,
     },
+    {
+      label: "unrecognized transaction reason fails closed",
+      reason: "SOME_NEW_REASON",
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.UNKNOWN,
+    },
+    {
+      label: "lowercase purchase reason fails closed",
+      reason: "purchase",
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.UNKNOWN,
+    },
+    {
+      label: "empty reason behaves as absent",
+      reason: "",
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "whitespace-only reason behaves as absent",
+      reason: "   ",
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "revocation outranks an unrecognized reason",
+      reason: "SOME_NEW_REASON",
+      revocationDate: 1_700_000_000_000,
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.CANCELED,
+    },
+    {
+      label: "expiry outranks an unrecognized reason",
+      reason: "SOME_NEW_REASON",
+      expiresDate: 1_700_000_000_000,
+      type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.EXPIRED,
+    },
   ];
 
   it.each(APP_STORE_GOLDEN)("maps $label", (row) => {
@@ -291,6 +329,24 @@ describe("mapAppStorePurchaseState", () => {
         row.revocationDate,
       ),
     ).toBe(row.expected);
+  });
+
+  it("logs the unrecognized reason value for production observability", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      mapAppStorePurchaseState(
+        "SOME_NEW_REASON",
+        undefined,
+        AppStoreProductType.NON_CONSUMABLE,
+        undefined,
+      );
+      expect(warn).toHaveBeenCalledWith(
+        "[app-store] unrecognized transactionReason",
+        { transactionReason: "SOME_NEW_REASON" },
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

@@ -2588,6 +2588,31 @@ describe("recordVerifiedSubscriptionHandler", () => {
     ]);
   });
 
+  it("marks a notification-less bootstrap row Unknown when an IOS verify turns UNKNOWN", async () => {
+    const db = new MemDb();
+    const input = {
+      projectId: PROJECT_ID as never,
+      platform: "IOS" as const,
+      purchaseToken: "ios-unknown-reason-token",
+      productId: "premium_monthly",
+      purchaseState: HarmonizedPurchaseState.ENTITLED,
+      expiresAt: 1_769_904_000_000,
+    };
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), input);
+    expect(db.rows("subscriptions")).toMatchObject([
+      { purchaseToken: "ios-unknown-reason-token", state: "Active" },
+    ]);
+
+    await recordVerifiedSubscriptionHandler(makeCtx(db), {
+      ...input,
+      purchaseState: HarmonizedPurchaseState.UNKNOWN,
+    });
+    expect(db.rows("subscriptions")).toMatchObject([
+      { purchaseToken: "ios-unknown-reason-token", state: "Unknown" },
+    ]);
+  });
+
   it("clears a prior renewal date when verification becomes non-renewing", async () => {
     const db = new MemDb();
     const input = {
