@@ -150,8 +150,6 @@ gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 
 - [ ] `./gradlew :library:build` passes
 - [ ] `./gradlew :library:test` passes
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -305,8 +303,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] `./gradlew :library:test` passes
 - [x] Example app builds and runs on iOS simulator
 - [x] Example app builds and runs on Android emulator
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---
