@@ -77,8 +77,38 @@ copy_framework_plists
 # Backup original once per run.
 cp "$PBXPROJ" "$PBXPROJ.backup"
 
+# Homebrew's framework Python can stall loading extension modules when this
+# script is spawned from a build tool, so prefer the Xcode-bundled interpreter
+# on macOS; this script only needs the standard library either way.
+PYTHON_REQUEST="${PYTHON_BIN:-}"
+PYTHON_BIN="$PYTHON_REQUEST"
+if [ -z "$PYTHON_BIN" ]; then
+    if [ "$(uname -s)" = "Darwin" ] && [ -x /usr/bin/python3 ]; then
+        PYTHON_BIN=/usr/bin/python3
+    else
+        PYTHON_BIN="$(command -v python3 || true)"
+    fi
+fi
+# -x does not search PATH, so resolve a bare name such as PYTHON_BIN=python3.13.
+case "$PYTHON_BIN" in
+    "" | */*) ;;
+    *) PYTHON_BIN="$(command -v "$PYTHON_BIN" || true)" ;;
+esac
+# Ask it what it is, rather than trusting that it is executable: any command
+# that swallows a heredoc would otherwise exit 0 having patched nothing, and
+# one that ignores the probe and succeeds anyway still prints no version.
+PYTHON_MAJOR="$("$PYTHON_BIN" -c 'import sys; print(sys.version_info[0])' 2>/dev/null || true)"
+if [ "$PYTHON_MAJOR" != "3" ]; then
+    if [ -n "$PYTHON_REQUEST" ]; then
+        echo "Error: PYTHON_BIN=$PYTHON_REQUEST is not a Python 3 interpreter." >&2
+    else
+        echo "Error: python3 is required to fix iOS framework embedding." >&2
+    fi
+    exit 1
+fi
+
 export PBXPROJ IOS_EXPORT_DIR
-python3 <<'PY'
+"$PYTHON_BIN" <<'PY'
 import hashlib
 import os
 import plistlib
@@ -146,14 +176,18 @@ for framework in frameworks:
 
 missing = [framework for framework in frameworks if framework not in framework_refs]
 if missing:
+    # Nothing can be embedded without these, so fail rather than hand a build
+    # script a success it would act on. The project file is left untouched.
     print(
-        "Warning: framework references not found in Xcode project: "
-        + ", ".join(f"{framework}.framework" for framework in missing)
+        "Error: framework references not found in Xcode project: "
+        + ", ".join(f"{framework}.framework" for framework in missing),
+        file=sys.stderr,
     )
-    print("Enable the GodotIap plugin in the iOS export preset and export again.")
-    with open(pbxproj, "w", encoding="utf-8") as file:
-        file.write(content)
-    sys.exit(0)
+    print(
+        "Enable the GodotIap plugin in the iOS export preset and export again.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 embed_phase_match = re.search(
     r"([A-F0-9]{24}|\w+)\s*/\*\s*Embed Frameworks\s*\*/\s*=\s*\{.*?isa\s*=\s*PBXCopyFilesBuildPhase;.*?\n\t\t\};",
@@ -394,7 +428,28 @@ def drop_conflicting_runtime_embed(text):
         if rival:
             removed.append((build_id, path, rival))
 
+    # An xcframework whose manifest we cannot read may be a rival we never saw,
+    # so it is reported on both paths rather than passing as a clean result.
+    # Full paths, not basenames: two addons can ship the same xcframework name,
+    # and the reader has to know which copy to open.
+    unreadable = sorted({
+        path
+        for _, path, stem in embedded
+        if stem is None and path.lower().endswith(".xcframework")
+    })
+    if unreadable:
+        print(
+            f"Runtime embed check: could not read {', '.join(unreadable)}, so it "
+            f"was not checked for a duplicate. If Xcode lists the same framework "
+            f"twice under Embed Frameworks, delete one copy."
+        )
+
     if not removed:
+        # Ours are always here and always resolve: the run exits earlier when the
+        # project has no GodotIap reference, so this list is never empty.
+        seen = sorted(stem for _, _, stem in embedded if stem is not None)
+        print("Runtime embed check: no conflict among the embeds we could read: "
+              + ", ".join(seen))
         return text
 
     updated_phase_block = phase_block
@@ -403,8 +458,8 @@ def drop_conflicting_runtime_embed(text):
     text = text.replace(phase_block, updated_phase_block, 1)
     for build_id, path, rival in removed:
         print(
-            f"Another addon already embeds {path.rsplit('/', 1)[-1]}; "
-            f"using {rival} instead of our copy."
+            f"Runtime embed check: Another addon already embeds "
+            f"{path.rsplit('/', 1)[-1]}; using {rival} instead of our copy."
         )
     return text
 
