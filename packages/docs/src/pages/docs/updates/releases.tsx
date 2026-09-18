@@ -384,6 +384,49 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'iapkit-unknown-reason-fail-closed-2026-09-18',
+      date: new Date('2026-09-18'),
+      element: (
+        <div
+          key="iapkit-unknown-reason-fail-closed-2026-09-18"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="iapkit-unknown-reason-fail-closed-2026-09-18"
+            level="h4"
+          >
+            September 18, 2026 - Unknown Apple transaction reasons now verify as
+            invalid
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now returns <code>UNKNOWN</code> (<code>isValid: false</code>
+            ) for a verified Apple transaction whose{' '}
+            <code>transactionReason</code> it does not recognize, instead of
+            inheriting the absent-reason grant. Revoked and expired transactions
+            still map to <code>CANCELED</code> and <code>EXPIRED</code> first,
+            and receipts with no reason at all behave exactly as before.
+          </p>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            No action required: Apple sends only <code>PURCHASE</code> and{' '}
+            <code>RENEWAL</code> today, so no live receipt changes state. If
+            Apple adds a value later, affected receipts report invalid until
+            IAPKit ships the mapping. No SDK update is needed — the change is
+            already live on hosted IAPKit. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/472"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #472
+            </a>
+            .
+          </p>
+        </div>
+      ),
+    },
+    {
       id: 'amazon-purchase-dialog-2026-09-15',
       aliases: AMAZON_DIALOG_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
