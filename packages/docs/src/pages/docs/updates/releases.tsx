@@ -63,6 +63,10 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const GODOT_EMBED_REPORT_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.5.2', tag: 'godot-iap-3.5.2' },
+];
+
 const GODOT_RUNTIME_EMBED_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '3.5.1', tag: 'godot-iap-3.5.1' },
 ];
@@ -383,6 +387,64 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'godot-embed-report-2026-09-18',
+      aliases: GODOT_EMBED_REPORT_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-18'),
+      element: (
+        <div key="godot-embed-report-2026-09-18" style={noteCardStyle}>
+          {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-embed-report-2026-09-18" level="h4">
+            September 18, 2026 - godot-iap reports what the iOS embed script did
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            <code>fix_ios_embed.sh</code> only spoke when it removed a duplicate
+            runtime, so a run that found nothing looked exactly like a run that
+            never checked. It now names what the Embed Frameworks phase holds,
+            so a clean run reads{' '}
+            <code>
+              Runtime embed check: no conflict among the embeds we could read:
+              ...
+            </code>{' '}
+            and a plugin that never got embedded is absent from that list. An{' '}
+            <code>.xcframework</code> whose iOS slice it cannot resolve is
+            called out separately, since that is where a second runtime could
+            hide.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Two runs that reported success while changing nothing now fail
+            instead. Framework references missing from the Xcode project exit
+            non-zero and leave the project file alone, rather than warning on
+            stdout and writing a half-patched file. A <code>PYTHON_BIN</code>{' '}
+            that is not a Python 3 interpreter is rejected, rather than
+            swallowing the script and exiting zero.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            A normal run patches the project exactly as 3.5.1 did.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'iapkit-unknown-reason-fail-closed-2026-09-18',
       date: new Date('2026-09-18'),
