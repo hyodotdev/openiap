@@ -94,9 +94,13 @@ case "$PYTHON_BIN" in
     "" | */*) ;;
     *) PYTHON_BIN="$(command -v "$PYTHON_BIN" || true)" ;;
 esac
-if [ ! -x "$PYTHON_BIN" ]; then
+# Ask it what it is, rather than trusting that it is executable: any command
+# that swallows a heredoc would otherwise exit 0 having patched nothing, and
+# one that ignores the probe and succeeds anyway still prints no version.
+PYTHON_MAJOR="$("$PYTHON_BIN" -c 'import sys; print(sys.version_info[0])' 2>/dev/null || true)"
+if [ "$PYTHON_MAJOR" != "3" ]; then
     if [ -n "$PYTHON_REQUEST" ]; then
-        echo "Error: PYTHON_BIN=$PYTHON_REQUEST is not an executable python3." >&2
+        echo "Error: PYTHON_BIN=$PYTHON_REQUEST is not a Python 3 interpreter." >&2
     else
         echo "Error: python3 is required to fix iOS framework embedding." >&2
     fi
