@@ -394,7 +394,28 @@ def drop_conflicting_runtime_embed(text):
         if rival:
             removed.append((build_id, path, rival))
 
+    # An xcframework whose manifest we cannot read may be a rival we never saw,
+    # so it is reported on both paths rather than passing as a clean result.
+    # Full paths, not basenames: two addons can ship the same xcframework name,
+    # and the reader has to know which copy to open.
+    unreadable = sorted({
+        path
+        for _, path, stem in embedded
+        if stem is None and path.lower().endswith(".xcframework")
+    })
+    if unreadable:
+        print(
+            f"Runtime embed check: could not read {', '.join(unreadable)}, so it "
+            f"was not checked for a duplicate. If Xcode lists the same framework "
+            f"twice under Embed Frameworks, delete one copy."
+        )
+
     if not removed:
+        # Ours are always here and always resolve: the run exits earlier when the
+        # project has no GodotIap reference, so this list is never empty.
+        seen = sorted(stem for _, _, stem in embedded if stem is not None)
+        print("Runtime embed check: no conflict among the embeds we could read: "
+              + ", ".join(seen))
         return text
 
     updated_phase_block = phase_block
@@ -403,8 +424,8 @@ def drop_conflicting_runtime_embed(text):
     text = text.replace(phase_block, updated_phase_block, 1)
     for build_id, path, rival in removed:
         print(
-            f"Another addon already embeds {path.rsplit('/', 1)[-1]}; "
-            f"using {rival} instead of our copy."
+            f"Runtime embed check: Another addon already embeds "
+            f"{path.rsplit('/', 1)[-1]}; using {rival} instead of our copy."
         )
     return text
 
