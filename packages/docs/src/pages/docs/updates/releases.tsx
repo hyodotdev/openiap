@@ -63,6 +63,15 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '16.6.2',
+    tag: 'react-native-iap-16.6.2',
+  },
+  { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
+];
+
 const GODOT_EMBED_REPORT_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '3.5.2', tag: 'godot-iap-3.5.2' },
 ];
@@ -387,6 +396,89 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'framework-build-play-offers-2026-09-20',
+      aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-20'),
+      element: (
+        <div key="framework-build-play-offers-2026-09-20" style={noteCardStyle}>
+          {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="framework-build-play-offers-2026-09-20" level="h4">
+            September 20, 2026 - Framework build fixes and Play offer imports
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now imports active Google Play subscription offers across
+            base plans and clears stale offers for inactive subscriptions. When
+            a discount amount cannot be calculated exactly, the phase stays paid
+            instead of becoming a free trial. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/461"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #461
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              <strong>react-native-iap 16.6.2 and expo-iap 5.6.3</strong> - fix
+              debug logger TypeScript errors in apps without Node.js global
+              types (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/474"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #474
+              </a>
+              ).
+            </li>
+            <li>
+              <strong>react-native-iap 16.6.2</strong> - accepts Nitro Modules{' '}
+              <code>&gt;=0.36.5</code>, including 0.37.x, without a peer
+              dependency conflict (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/475"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #475
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0 }}>
+              {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'godot-embed-report-2026-09-18',
       aliases: GODOT_EMBED_REPORT_RELEASES.map((release) => release.tag),
