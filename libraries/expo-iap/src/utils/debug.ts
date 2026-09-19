@@ -10,23 +10,16 @@ const isLibraryDevelopment = () => {
   // Only show logs if explicitly enabled via environment variable
   // Library developers can set: EXPO_IAP_DEV_MODE=true
 
-  // Handle both Node.js and React Native environments
-  if (
-    typeof process !== 'undefined' &&
-    process.env?.EXPO_IAP_DEV_MODE === 'true'
-  ) {
-    return true;
-  }
+  // Read both through a typed globalThis: a consumer type-checking this file
+  // has no Node types, so a bare `process` does not compile.
+  const g = globalThis as {
+    process?: {env?: Record<string, string | undefined>};
+    EXPO_IAP_DEV_MODE?: boolean;
+  };
 
-  // Check global object (works in both environments)
-  if (
-    typeof globalThis !== 'undefined' &&
-    (globalThis as any).EXPO_IAP_DEV_MODE === true
-  ) {
-    return true;
-  }
-
-  return false;
+  return (
+    g.process?.env?.EXPO_IAP_DEV_MODE === 'true' || g.EXPO_IAP_DEV_MODE === true
+  );
 };
 
 const createConsole = () => ({
