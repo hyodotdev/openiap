@@ -1,4 +1,4 @@
-import { google, type androidpublisher_v3, type Common } from "googleapis";
+import { google, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,7 +6,6 @@ import {
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   collectPlaySubscriptionOffers,
-  hydratePlaySubscriptionOffers,
   mapModernPlayOneTimeState,
   mergedSubscriptionListings,
   pickPlayRegionalPrice,
@@ -1219,14 +1218,22 @@ describe("pickSubBasePlanPrice", () => {
     basePlans: [
       {
         basePlanId: "monthly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "USD", units: "9", nanos: 990_000_000 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+          },
         ],
       },
       {
         basePlanId: "yearly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "KRW", units: "13000", nanos: 0 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "KRW", units: "13000", nanos: 0 },
+          },
         ],
       },
     ],
@@ -1249,9 +1256,11 @@ describe("pickSubBasePlanPrice", () => {
       basePlans: [
         {
           basePlanId: "monthly",
+          state: "ACTIVE",
           regionalConfigs: [
             {
               regionCode: "BH",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "10",
@@ -1260,6 +1269,7 @@ describe("pickSubBasePlanPrice", () => {
             },
             {
               regionCode: "US",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "9",
@@ -1279,125 +1289,19 @@ describe("pickSubBasePlanPrice", () => {
   });
 });
 
-describe("hydratePlaySubscriptionOffers", () => {
-  it("fetches every separately-addressed Play offer page before catalog flattening", async () => {
-    const calls: Array<{ basePlanId?: string; pageToken?: string }> = [];
-    const androidpublisher = {
-      monetization: {
-        subscriptions: {
-          basePlans: {
-            offers: {
-              list: async (args: {
-                basePlanId?: string;
-                pageToken?: string;
-              }) => {
-                calls.push(args);
-                return args.pageToken
-                  ? {
-                      data: {
-                        subscriptionOffers: [
-                          {
-                            offerId: "discount",
-                            phases: [
-                              {
-                                duration: "P1M",
-                                recurrenceCount: 1,
-                                regionalConfigs: [
-                                  {
-                                    regionCode: "US",
-                                    price: {
-                                      currencyCode: "USD",
-                                      units: "4",
-                                      nanos: 990_000_000,
-                                    },
-                                  },
-                                ],
-                              },
-                            ],
-                          },
-                        ],
-                      },
-                    }
-                  : {
-                      data: {
-                        subscriptionOffers: [
-                          {
-                            offerId: "trial",
-                            phases: [{ duration: "P1W", recurrenceCount: 1 }],
-                          },
-                        ],
-                        nextPageToken: "next",
-                      },
-                    };
-              },
-            },
-          },
-        },
-      },
-    } as unknown as androidpublisher_v3.Androidpublisher;
-    const hydrated = await hydratePlaySubscriptionOffers(
-      androidpublisher,
-      "com.example.app",
-      {
-        productId: "pro.monthly",
-        basePlans: [
-          {
-            basePlanId: "monthly",
-            autoRenewingBasePlanType: { billingPeriodDuration: "P1M" },
-            regionalConfigs: [
-              {
-                regionCode: "US",
-                price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
-              },
-            ],
-          },
-        ],
-      },
-    );
-    expect(
-      calls.map(({ basePlanId, pageToken }) => ({ basePlanId, pageToken })),
-    ).toEqual([
-      { basePlanId: "monthly", pageToken: undefined },
-      { basePlanId: "monthly", pageToken: "next" },
-    ]);
-    expect(collectPlaySubscriptionOffers(hydrated)).toEqual([
-      {
-        id: "monthly",
-        kind: "BasePlan",
-        duration: "P1M",
-        priceAmountMicros: 9_990_000,
-        currency: "USD",
-      },
-      {
-        id: "monthly/trial#0",
-        kind: "FreeTrial",
-        duration: "P1W",
-        numberOfPeriods: 1,
-        priceAmountMicros: undefined,
-        currency: undefined,
-      },
-      {
-        id: "monthly/discount#0",
-        kind: "IntroPayUpFront",
-        duration: "P1M",
-        numberOfPeriods: 1,
-        priceAmountMicros: 4_990_000,
-        currency: "USD",
-      },
-    ]);
-  });
-});
-
 describe("collectPlaySubscriptionOffers", () => {
   it("uses the US price for base plans and paid phases when another USD region is first", () => {
     const subscription = {
+      productId: "pro",
       basePlans: [
         {
           basePlanId: "monthly",
+          state: "ACTIVE",
           autoRenewingBasePlanType: { billingPeriodDuration: "P1M" },
           regionalConfigs: [
             {
               regionCode: "BH",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "10",
@@ -1406,6 +1310,7 @@ describe("collectPlaySubscriptionOffers", () => {
             },
             {
               regionCode: "US",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "9",
@@ -1413,40 +1318,49 @@ describe("collectPlaySubscriptionOffers", () => {
               },
             },
           ],
-          offers: [
-            {
-              offerId: "intro",
-              phases: [
-                {
-                  duration: "P1M",
-                  recurrenceCount: 1,
-                  regionalConfigs: [
-                    {
-                      regionCode: "BH",
-                      price: {
-                        currencyCode: "USD",
-                        units: "5",
-                        nanos: 490_000_000,
-                      },
-                    },
-                    {
-                      regionCode: "US",
-                      price: {
-                        currencyCode: "USD",
-                        units: "4",
-                        nanos: 990_000_000,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
         },
       ],
-    } as unknown as Parameters<typeof collectPlaySubscriptionOffers>[0];
+    };
+    const offers = [
+      {
+        offerId: "intro",
+        productId: "pro",
+        basePlanId: "monthly",
+        state: "ACTIVE",
+        regionalConfigs: [
+          { regionCode: "BH", newSubscriberAvailability: true },
+          { regionCode: "US", newSubscriberAvailability: true },
+        ],
+        phases: [
+          {
+            duration: "P1M",
+            recurrenceCount: 1,
+            regionalConfigs: [
+              {
+                regionCode: "BH",
+                price: {
+                  currencyCode: "USD",
+                  units: "5",
+                  nanos: 490_000_000,
+                },
+              },
+              {
+                regionCode: "US",
+                price: {
+                  currencyCode: "USD",
+                  units: "4",
+                  nanos: 990_000_000,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ];
 
-    expect(collectPlaySubscriptionOffers(subscription)).toEqual([
+    expect(
+      collectPlaySubscriptionOffers(subscription, undefined, offers),
+    ).toEqual([
       {
         id: "monthly",
         kind: "BasePlan",
