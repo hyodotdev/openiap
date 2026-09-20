@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-16T02:02:40.598Z
+> Last updated: 2026-09-18T18:47:47.947Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2222,9 +2222,22 @@ code comment, not here.
 naming the shape, not nine table rows. Reach for a table only when the reader
 will compare columns.
 
+**Link, do not narrate.** An issue number, a bare commit hash, a file path, or
+a spec section points the reader at the full story; re-telling that story in
+the PR body duplicates it. Write `#460` plus one clause of why it matters, not
+three paragraphs of what it did.
+
 **Say what a reviewer needs.** What broke, what it cost, what changed, how it
 was verified. Skip the investigation narrative, the options considered, and the
 chronology of how you got there.
+
+**Reread and cut before sending.** Read the finished body once more and delete
+every sentence the reviewer can get from the diff, CI, or a linked reference.
+If the body still reads like a report rather than a note to a colleague, cut
+again.
+
+**No tool-attribution footer.** No generated-by footer in a PR body; the
+commit trailer already records authorship.
 
 **Reply to review comments like a person.** State the outcome first — fixed,
 already handled, or disagreed — then the reason in a sentence. No restating the
@@ -5976,12 +5989,12 @@ flowchart LR
   end
   subgraph none ["names no state — the contract pairs no state with these, so a snapshot keeps the state that actually followed the store transition"]
     direction LR
-    e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
+    e8["canceled · uncanceled<br/>product_changed ·<br/>price_changed ·<br/>deferred"]
   end
   subgraph predicate ["entitled? (§2.3) — read subscription.active; a consumer MUST NOT recompute it from state and ignore active"]
     direction LR
-    p1["Active, InGracePeriod: yes while now is before expiresAt; with no expiresAt, yes.<br/>For InGracePeriod, expiresAt is the end of the grace window."]
-    p2["InBillingRetry, Paused, Expired, Revoked, Refunded, Unknown: no"]
+    p1["Active, InGracePeriod:<br/>yes while now is<br/>before expiresAt; with<br/>no expiresAt, yes.<br/>For InGracePeriod,<br/>expiresAt is the end<br/>of the grace window."]
+    p2["InBillingRetry,<br/>Paused, Expired,<br/>Revoked, Refunded,<br/>Unknown: no"]
   end
 ```
 
@@ -6751,22 +6764,22 @@ consumer's side:
 
 ```mermaid
 flowchart LR
-  consumer["A consumer written against this specification<br/>— unchanged by the swap"]
+  consumer["A consumer written<br/>against this<br/>specification<br/>— unchanged by the<br/>swap"]
   A["Backend A<br/>before"]
   B["Backend B<br/>after"]
   A -- "events (§9)" --> consumer
   B -- "events (§9)" --> consumer
 
   subgraph carries ["Carries across"]
-    c1["event types · envelope shape · entitlement predicate"]
-    c2["signature scheme · per-store semantics"]
-    c3["sourceStoreEventId — the store's own notification id"]
-    c4["userId, when the adopter assigns it"]
+    c1["event types · envelope<br/>shape · entitlement<br/>predicate"]
+    c2["signature scheme ·<br/>per-store semantics"]
+    c3["sourceStoreEventId —<br/>the store's own<br/>notification id"]
+    c4["userId, when the<br/>adopter assigns it"]
   end
   subgraph breaks ["Does not carry across"]
-    n1["eventId and projectId — emitter-assigned, a new id space"]
-    n2["a consumer deduplicating only on eventId processes a cutover overlap twice"]
-    n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
+    n1["eventId and projectId<br/>— emitter-assigned, a<br/>new id space"]
+    n2["a consumer<br/>deduplicating only on<br/>eventId processes a<br/>cutover overlap twice"]
+    n3["sourceStoreEventId is<br/>not a repair —<br/>siblings legitimately<br/>share one"]
   end
 ```
 

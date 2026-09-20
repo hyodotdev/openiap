@@ -592,9 +592,12 @@ async function checkInternalLinks(page, site) {
       .map((anchor) => anchor.getAttribute("href"))
       .filter(Boolean)
       .filter((href) => !href.startsWith("#"))
-      .filter((href) => !href.startsWith("mailto:"))
-      .filter((href) => !href.startsWith("tel:"))
-      .filter((href) => !href.startsWith("javascript:"))
+      .filter(
+        (href) =>
+          !/^(?:javascript|data|vbscript|mailto|tel):/i.test(
+            href.replace(/[\t\n\r]/g, "").trim(),
+          ),
+      )
       .slice(0, 120),
   );
 

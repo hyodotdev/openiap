@@ -52,9 +52,11 @@ function main() {
     }
 
     // 3. Remove standalone lockfile (rejoin workspace)
-    if (fs.existsSync(EXAMPLE_LOCKFILE)) {
+    try {
       fs.unlinkSync(EXAMPLE_LOCKFILE);
       changed = true;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
     }
   } else {
     // 1. Remove example from workspace
@@ -76,9 +78,11 @@ function main() {
     }
 
     // 3. Create standalone lockfile so Yarn treats example as independent project
-    if (!fs.existsSync(EXAMPLE_LOCKFILE)) {
-      fs.writeFileSync(EXAMPLE_LOCKFILE, '');
+    try {
+      fs.writeFileSync(EXAMPLE_LOCKFILE, '', {flag: 'wx'});
       changed = true;
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error;
     }
   }
 

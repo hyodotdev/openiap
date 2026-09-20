@@ -681,12 +681,12 @@ flowchart LR
   end
   subgraph none ["names no state — the contract pairs no state with these, so a snapshot keeps the state that actually followed the store transition"]
     direction LR
-    e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
+    e8["canceled · uncanceled<br/>product_changed ·<br/>price_changed ·<br/>deferred"]
   end
   subgraph predicate ["entitled? (§2.3) — read subscription.active; a consumer MUST NOT recompute it from state and ignore active"]
     direction LR
-    p1["Active, InGracePeriod: yes while now is before expiresAt; with no expiresAt, yes.<br/>For InGracePeriod, expiresAt is the end of the grace window."]
-    p2["InBillingRetry, Paused, Expired, Revoked, Refunded, Unknown: no"]
+    p1["Active, InGracePeriod:<br/>yes while now is<br/>before expiresAt; with<br/>no expiresAt, yes.<br/>For InGracePeriod,<br/>expiresAt is the end<br/>of the grace window."]
+    p2["InBillingRetry,<br/>Paused, Expired,<br/>Revoked, Refunded,<br/>Unknown: no"]
   end
 ```
 
@@ -1456,22 +1456,22 @@ consumer's side:
 
 ```mermaid
 flowchart LR
-  consumer["A consumer written against this specification<br/>— unchanged by the swap"]
+  consumer["A consumer written<br/>against this<br/>specification<br/>— unchanged by the<br/>swap"]
   A["Backend A<br/>before"]
   B["Backend B<br/>after"]
   A -- "events (§9)" --> consumer
   B -- "events (§9)" --> consumer
 
   subgraph carries ["Carries across"]
-    c1["event types · envelope shape · entitlement predicate"]
-    c2["signature scheme · per-store semantics"]
-    c3["sourceStoreEventId — the store's own notification id"]
-    c4["userId, when the adopter assigns it"]
+    c1["event types · envelope<br/>shape · entitlement<br/>predicate"]
+    c2["signature scheme ·<br/>per-store semantics"]
+    c3["sourceStoreEventId —<br/>the store's own<br/>notification id"]
+    c4["userId, when the<br/>adopter assigns it"]
   end
   subgraph breaks ["Does not carry across"]
-    n1["eventId and projectId — emitter-assigned, a new id space"]
-    n2["a consumer deduplicating only on eventId processes a cutover overlap twice"]
-    n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
+    n1["eventId and projectId<br/>— emitter-assigned, a<br/>new id space"]
+    n2["a consumer<br/>deduplicating only on<br/>eventId processes a<br/>cutover overlap twice"]
+    n3["sourceStoreEventId is<br/>not a repair —<br/>siblings legitimately<br/>share one"]
   end
 ```
 

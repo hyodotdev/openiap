@@ -1218,14 +1218,22 @@ describe("pickSubBasePlanPrice", () => {
     basePlans: [
       {
         basePlanId: "monthly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "USD", units: "9", nanos: 990_000_000 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+          },
         ],
       },
       {
         basePlanId: "yearly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "KRW", units: "13000", nanos: 0 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "KRW", units: "13000", nanos: 0 },
+          },
         ],
       },
     ],
@@ -1248,9 +1256,11 @@ describe("pickSubBasePlanPrice", () => {
       basePlans: [
         {
           basePlanId: "monthly",
+          state: "ACTIVE",
           regionalConfigs: [
             {
               regionCode: "BH",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "10",
@@ -1259,6 +1269,7 @@ describe("pickSubBasePlanPrice", () => {
             },
             {
               regionCode: "US",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "9",
@@ -1281,13 +1292,16 @@ describe("pickSubBasePlanPrice", () => {
 describe("collectPlaySubscriptionOffers", () => {
   it("uses the US price for base plans and paid phases when another USD region is first", () => {
     const subscription = {
+      productId: "pro",
       basePlans: [
         {
           basePlanId: "monthly",
+          state: "ACTIVE",
           autoRenewingBasePlanType: { billingPeriodDuration: "P1M" },
           regionalConfigs: [
             {
               regionCode: "BH",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "10",
@@ -1296,6 +1310,7 @@ describe("collectPlaySubscriptionOffers", () => {
             },
             {
               regionCode: "US",
+              newSubscriberAvailability: true,
               price: {
                 currencyCode: "USD",
                 units: "9",
@@ -1303,40 +1318,49 @@ describe("collectPlaySubscriptionOffers", () => {
               },
             },
           ],
-          offers: [
-            {
-              offerId: "intro",
-              phases: [
-                {
-                  duration: "P1M",
-                  recurrenceCount: 1,
-                  regionalConfigs: [
-                    {
-                      regionCode: "BH",
-                      price: {
-                        currencyCode: "USD",
-                        units: "5",
-                        nanos: 490_000_000,
-                      },
-                    },
-                    {
-                      regionCode: "US",
-                      price: {
-                        currencyCode: "USD",
-                        units: "4",
-                        nanos: 990_000_000,
-                      },
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
         },
       ],
-    } as unknown as Parameters<typeof collectPlaySubscriptionOffers>[0];
+    };
+    const offers = [
+      {
+        offerId: "intro",
+        productId: "pro",
+        basePlanId: "monthly",
+        state: "ACTIVE",
+        regionalConfigs: [
+          { regionCode: "BH", newSubscriberAvailability: true },
+          { regionCode: "US", newSubscriberAvailability: true },
+        ],
+        phases: [
+          {
+            duration: "P1M",
+            recurrenceCount: 1,
+            regionalConfigs: [
+              {
+                regionCode: "BH",
+                price: {
+                  currencyCode: "USD",
+                  units: "5",
+                  nanos: 490_000_000,
+                },
+              },
+              {
+                regionCode: "US",
+                price: {
+                  currencyCode: "USD",
+                  units: "4",
+                  nanos: 990_000_000,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ];
 
-    expect(collectPlaySubscriptionOffers(subscription)).toEqual([
+    expect(
+      collectPlaySubscriptionOffers(subscription, undefined, offers),
+    ).toEqual([
       {
         id: "monthly",
         kind: "BasePlan",

@@ -1,6 +1,6 @@
 {
   "name": "react-native-iap",
-  "version": "16.6.1",
+  "version": "16.6.2",
   "description": "React Native In-App Purchases module for iOS and Android using Nitro",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -120,7 +120,7 @@
     "@amazon-devices/package-manager-lib": "~1.0.1767254401",
     "react": "*",
     "react-native": "*",
-    "react-native-nitro-modules": "^0.36.5"
+    "react-native-nitro-modules": ">=0.36.5"
   },
   "peerDependenciesMeta": {
     "@amazon-devices/keplerscript-appstore-iap-lib": {

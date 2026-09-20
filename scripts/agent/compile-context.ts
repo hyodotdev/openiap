@@ -135,7 +135,7 @@ export function writeGeneratedFileIfChanged(
   ignoreTimestampOnlyChanges = true,
 ): boolean {
   const finalizedContent = withFinalNewline(content);
-  if (fs.existsSync(filePath)) {
+  try {
     const existingContent = fs.readFileSync(filePath, "utf-8");
     const comparableExisting = ignoreTimestampOnlyChanges
       ? normalizeGeneratedTimestamps(existingContent)
@@ -145,6 +145,10 @@ export function writeGeneratedFileIfChanged(
       : finalizedContent;
     if (comparableExisting === comparableGenerated) {
       return false;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
     }
   }
 

@@ -317,9 +317,18 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   return next;
 };
 
+const readFileIfPresent = (filePath: string): string | undefined => {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;
+    return undefined;
+  }
+};
+
 const syncGeneratedFile = (filePath: string, content: string): boolean => {
-  if (fs.existsSync(filePath)) {
-    const existing = fs.readFileSync(filePath, 'utf8');
+  const existing = readFileIfPresent(filePath);
+  if (existing !== undefined) {
     if (!existing.includes(GENERATED_MARKER)) {
       WarningAggregator.addWarningAndroid(
         'expo-iap',
@@ -339,8 +348,8 @@ const syncGeneratedJavaScriptFile = (
   filePath: string,
   content: string,
 ): boolean => {
-  if (fs.existsSync(filePath)) {
-    const existing = fs.readFileSync(filePath, 'utf8');
+  const existing = readFileIfPresent(filePath);
+  if (existing !== undefined) {
     if (!existing.includes(GENERATED_JS_MARKER)) {
       return false;
     }
@@ -358,8 +367,8 @@ const syncAppJson = (
   const appJsonPath = path.join(projectRoot, 'app.json');
   const content = `${JSON.stringify(createVegaAppJson(settings), null, 2)}\n`;
 
-  if (fs.existsSync(appJsonPath)) {
-    const existing = fs.readFileSync(appJsonPath, 'utf8');
+  const existing = readFileIfPresent(appJsonPath);
+  if (existing !== undefined) {
     try {
       const parsed = JSON.parse(existing);
       if (parsed?.expoIapGenerated !== true) {
@@ -380,9 +389,8 @@ const syncPackageJson = (
   settings: VegaProjectSettings,
 ): boolean => {
   const packageJsonPath = path.join(projectRoot, 'package.json');
-  if (!fs.existsSync(packageJsonPath)) return false;
-
-  const original = fs.readFileSync(packageJsonPath, 'utf8');
+  const original = readFileIfPresent(packageJsonPath);
+  if (original === undefined) return false;
   const parsed = JSON.parse(original);
   const next = mergeVegaPackageJson(parsed, settings);
   const serialized = `${JSON.stringify(next, null, 2)}\n`;

@@ -187,6 +187,11 @@ if (revocationDate !== undefined) {
 }`}
       </CodeBlock>
 
+      <p>
+        If Apple sends a <code>transactionReason</code> value IAPKit does not
+        recognize, the receipt maps to <code>UNKNOWN</code> (invalid).
+      </p>
+
       <h2 className="mt-10 text-2xl font-semibold">Error codes</h2>
       <div className="my-4 overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">

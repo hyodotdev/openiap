@@ -309,6 +309,13 @@ Claude adapters read the same text; where a skill names a Codex-only tool
 (Chrome extension, Codex fallback reviewer), Muse reads it as the
 host-surface equivalent, or stops and asks the maintainer when none exists.
 
+To give Muse the IAPKit MCP server, add the endpoint to
+`${XDG_CONFIG_HOME:-$HOME/.config}/muse/settings.json` under `mcpServers`, as
+`type: "streamable-http"` with the same `url` as the repo's `.mcp.json` and
+your literal key in `headers.Authorization`. That file then holds a secret
+admin key in plaintext, so `chmod 600` it and never commit the key or paste it
+anywhere else. Do not point Muse at `.mcp.json`.
+
 ## Claude Code Compatibility
 
 Claude Code gets the same workflow surface without any install step:

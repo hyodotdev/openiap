@@ -63,6 +63,19 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '16.6.2',
+    tag: 'react-native-iap-16.6.2',
+  },
+  { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
+];
+
+const GODOT_EMBED_REPORT_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.5.2', tag: 'godot-iap-3.5.2' },
+];
+
 const GODOT_RUNTIME_EMBED_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '3.5.1', tag: 'godot-iap-3.5.1' },
 ];
@@ -383,6 +396,190 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'framework-build-play-offers-2026-09-20',
+      aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-20'),
+      element: (
+        <div key="framework-build-play-offers-2026-09-20" style={noteCardStyle}>
+          {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="framework-build-play-offers-2026-09-20" level="h4">
+            September 20, 2026 - Framework build fixes and Play offer imports
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now imports active Google Play subscription offers across
+            base plans and clears stale offers for inactive subscriptions. When
+            a discount amount cannot be calculated exactly, the phase stays paid
+            instead of becoming a free trial. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/461"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #461
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              <strong>react-native-iap 16.6.2 and expo-iap 5.6.3</strong> - fix
+              debug logger TypeScript errors in apps without Node.js global
+              types (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/474"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #474
+              </a>
+              ).
+            </li>
+            <li>
+              <strong>react-native-iap 16.6.2</strong> - accepts Nitro Modules{' '}
+              <code>&gt;=0.36.5</code>, including 0.37.x, without a peer
+              dependency conflict (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/475"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #475
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0 }}>
+              {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'godot-embed-report-2026-09-18',
+      aliases: GODOT_EMBED_REPORT_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-18'),
+      element: (
+        <div key="godot-embed-report-2026-09-18" style={noteCardStyle}>
+          {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-embed-report-2026-09-18" level="h4">
+            September 18, 2026 - godot-iap reports what the iOS embed script did
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            <code>fix_ios_embed.sh</code> only spoke when it removed a duplicate
+            runtime, so a run that found nothing looked exactly like a run that
+            never checked. It now names what the Embed Frameworks phase holds,
+            so a clean run reads{' '}
+            <code>
+              Runtime embed check: no conflict among the embeds we could read:
+              ...
+            </code>{' '}
+            and a plugin that never got embedded is absent from that list. An{' '}
+            <code>.xcframework</code> whose iOS slice it cannot resolve is
+            called out separately, since that is where a second runtime could
+            hide.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Two runs that reported success while changing nothing now fail
+            instead. Framework references missing from the Xcode project exit
+            non-zero and leave the project file alone, rather than warning on
+            stdout and writing a half-patched file. A <code>PYTHON_BIN</code>{' '}
+            that is not a Python 3 interpreter is rejected, rather than
+            swallowing the script and exiting zero.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            A normal run patches the project exactly as 3.5.1 did.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'iapkit-unknown-reason-fail-closed-2026-09-18',
+      date: new Date('2026-09-18'),
+      element: (
+        <div
+          key="iapkit-unknown-reason-fail-closed-2026-09-18"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="iapkit-unknown-reason-fail-closed-2026-09-18"
+            level="h4"
+          >
+            September 18, 2026 - Unknown Apple transaction reasons now verify as
+            invalid
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now returns <code>UNKNOWN</code> (<code>isValid: false</code>
+            ) for a verified Apple transaction whose{' '}
+            <code>transactionReason</code> it does not recognize, instead of
+            inheriting the absent-reason grant. Revoked and expired transactions
+            still map to <code>CANCELED</code> and <code>EXPIRED</code> first,
+            and receipts with no reason at all behave exactly as before.
+          </p>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            No action required: Apple sends only <code>PURCHASE</code> and{' '}
+            <code>RENEWAL</code> today, so no live receipt changes state. If
+            Apple adds a value later, affected receipts report invalid until
+            IAPKit ships the mapping. No SDK update is needed — the change is
+            already live on hosted IAPKit. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/472"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #472
+            </a>
+            .
+          </p>
+        </div>
+      ),
+    },
     {
       id: 'amazon-purchase-dialog-2026-09-15',
       aliases: AMAZON_DIALOG_RELEASES.map((release) => release.tag),

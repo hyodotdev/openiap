@@ -9,9 +9,12 @@
 const isLibraryDevelopment = () => {
   // Only show logs if explicitly enabled via environment variable
   // Library developers can set: RN_IAP_DEV_MODE=true
+  const g = globalThis as {
+    process?: {env?: Record<string, string | undefined>};
+    RN_IAP_DEV_MODE?: boolean;
+  };
   return (
-    process.env.RN_IAP_DEV_MODE === 'true' ||
-    (global as any).RN_IAP_DEV_MODE === true
+    g.process?.env?.RN_IAP_DEV_MODE === 'true' || g.RN_IAP_DEV_MODE === true
   );
 };
 
