@@ -5,9 +5,10 @@ import {
   LEASE_MS,
   MAX_DELIVERY_ATTEMPTS,
   REQUEST_TIMEOUT_MS,
+  SIGNATURE_PREFIX,
   checkDestinationUrl,
+  classifyDeliveryResponse,
   isPublicIpAddress,
-  isRetryableStatus,
   nextAttemptDelayMs,
   signPayload,
   signPayloadWithRotation,
@@ -144,22 +145,22 @@ describe("nextAttemptDelayMs", () => {
   });
 });
 
-describe("isRetryableStatus", () => {
-  it("retries throttling, timeout and server errors", () => {
-    expect(isRetryableStatus(429)).toBe(true);
-    expect(isRetryableStatus(408)).toBe(true);
-    expect(isRetryableStatus(500)).toBe(true);
-    expect(isRetryableStatus(503)).toBe(true);
+describe("classifyDeliveryResponse", () => {
+  it("retries throttling, timeout, server errors, and no response", () => {
+    for (const status of [408, 429, 500, 503, undefined]) {
+      expect(classifyDeliveryResponse(status)).toBe("retry");
+    }
   });
 
-  it("does not retry a permanent client error", () => {
-    expect(isRetryableStatus(400)).toBe(false);
-    expect(isRetryableStatus(401)).toBe(false);
-    expect(isRetryableStatus(404)).toBe(false);
+  it("fails permanently on redirects and other client errors", () => {
+    for (const status of [301, 302, 400, 401, 404]) {
+      expect(classifyDeliveryResponse(status)).toBe("permanent-failure");
+    }
   });
 
-  it("treats 2xx as non-retryable", () => {
-    expect(isRetryableStatus(200)).toBe(false);
+  it("treats every 2xx as delivered", () => {
+    expect(classifyDeliveryResponse(200)).toBe("delivered");
+    expect(classifyDeliveryResponse(204)).toBe("delivered");
   });
 });
 
@@ -170,7 +171,9 @@ describe("signPayload", () => {
     const a = await signPayload("shh", 1_700_000_000, body);
     const b = await signPayload("shh", 1_700_000_000, body);
     expect(a).toBe(b);
-    expect(a.startsWith("v1=")).toBe(true);
+    // The prefix itself is pinned in contract.test.ts; this only asserts the
+    // signature carries it.
+    expect(a.startsWith(SIGNATURE_PREFIX)).toBe(true);
   });
 
   it("changes when the timestamp changes, so a body cannot be replayed", async () => {

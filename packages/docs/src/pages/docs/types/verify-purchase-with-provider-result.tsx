@@ -164,7 +164,7 @@ function VerifyPurchaseWithProviderResult() {
                 <code>string?</code>
               </td>
               <td>
-                Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 /
+                Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 /
                 openiap-google 3.3.0. Opaque, provider-defined store
                 environment. Handled Amazon responses currently report{' '}
                 <code>'Sandbox'</code> or <code>'Production'</code>, and other

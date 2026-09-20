@@ -96,7 +96,7 @@ describe("outer rate limit retry hint", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        query: "query { providerCapabilities { specVersion } }",
+        query: "query { providerCapabilities { commerceProtocolVersion } }",
       }),
     });
     // SPEC.md 7 single-status policy: the GraphQL surface answers 200, and the

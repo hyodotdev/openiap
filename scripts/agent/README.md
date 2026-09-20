@@ -1,8 +1,8 @@
 # OpenIAP Agent Knowledge: One Shared Brain
 
 OpenIAP keeps one knowledge base and one compiled context for Codex, Claude
-Code, Grok, Gemini, and the local RAG agent. Tool-specific files are thin
-discovery adapters, not copies of project policy.
+Code, Grok, Gemini, Muse, and the local RAG agent. Tool-specific files are
+thin discovery adapters, not copies of project policy.
 
 ## Architecture Overview
 
@@ -132,7 +132,7 @@ bun run benchmark --prompt "Add a function to validate iOS subscription status"
 **Step 2: Run an AI Assistant**
 
 ```bash
-# Start the assistant from the repository root. Codex and Grok discover
+# Start the assistant from the repository root. Codex, Grok, and Muse discover
 # AGENTS.md; Claude Code and Gemini use the CLAUDE.md and GEMINI.md symlinks.
 cd ../..
 

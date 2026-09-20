@@ -13,7 +13,7 @@ if ! command -v python3 >/dev/null 2>&1; then
   exit 1
 fi
 
-SPEC_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
+CLIENT_PROTOCOL_VERSION=$(python3 - "${VERSIONS_FILE}" <<'PY'
 import json
 import re
 import sys
@@ -28,20 +28,20 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get("spec")
+value = data.get("clientProtocol")
 if not isinstance(value, str) or not value.strip():
-    print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    print("Error: 'clientProtocol' version missing in openiap-versions.json", file=sys.stderr)
     sys.exit(1)
 value = value.strip()
 if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
-    print(f"Error: invalid 'spec' version {value!r}", file=sys.stderr)
+    print(f"Error: invalid 'clientProtocol' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)
 PY
 )
 
-TAG="docs-${SPEC_VERSION}"
+TAG="openiap-client-protocol-${CLIENT_PROTOCOL_VERSION}"
 DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"
 
 cleanup() {

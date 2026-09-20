@@ -151,8 +151,6 @@ gh pr create --title "<type>(<scope>): <description>" --body "$(cat <<'EOF'
 - [ ] Android: `./gradlew assembleRelease` succeeds
 - [ ] iOS: `swift build` succeeds
 - [ ] Example project runs in Godot editor
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -297,8 +295,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] Example project runs in Godot editor
 - [ ] Manual test on Android device
 - [ ] Manual test on iOS device
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---

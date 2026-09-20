@@ -261,7 +261,10 @@ test("release tags match the release-tag SSOT", () => {
     "react-native-iap-16.3.0",
   );
   assert.equal(releaseTagFor("google", "3.3.0"), "google-3.3.0");
-  assert.equal(releaseTagFor("docs", "3.2.0"), "docs-3.2.0");
+  assert.equal(
+    releaseTagFor("client-protocol", "0.2.0"),
+    "openiap-client-protocol-0.2.0",
+  );
 });
 
 test("every release tag pattern resolves back to its own component", () => {
@@ -1177,11 +1180,11 @@ test("published SBOM verification requires reproducible release evidence", () =>
 test("SBOM generator commit matches the verified workflow attestation", () => {
   const generatorCommit = "a".repeat(40);
   const document = buildSbom({
-    componentId: "docs",
+    componentId: "client-protocol",
     version: "9.9.9",
     commit: stubCommit,
     generatorCommit,
-    releaseTag: "docs-9.9.9",
+    releaseTag: "openiap-client-protocol-9.9.9",
     timestamp: "2026-01-01T00:00:00.000Z",
     dependencies: [],
   });

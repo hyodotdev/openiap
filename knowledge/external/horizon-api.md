@@ -12,17 +12,18 @@ Meta Horizon provides IAP functionality for Quest VR applications. There are two
 
 ## Version Compatibility Matrix
 
-| Library | Version | Compatible With |
-|---------|---------|-----------------|
-| horizon-billing-compatibility | **2.0.0** (latest) | Google Play Billing **7.0** API |
-| Google Play Billing (upstream latest) | **9.1.0** | N/A |
-| Google Play Billing (OpenIAP Play flavor) | **9.1.0** | N/A |
-| react-native-iap | v14+ | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
-| expo-iap | latest | Billing 7.0+, Kotlin 2.0+ |
+| Library                                   | Version            | Compatible With                     |
+| ----------------------------------------- | ------------------ | ----------------------------------- |
+| horizon-billing-compatibility             | **2.0.0** (latest) | Google Play Billing **7.0** API     |
+| Google Play Billing (upstream latest)     | **9.1.0**          | N/A                                 |
+| Google Play Billing (OpenIAP Play flavor) | **9.1.0**          | N/A                                 |
+| react-native-iap                          | v14+               | Billing 7.0+, RN 0.79+, Kotlin 2.0+ |
+| expo-iap                                  | latest             | Billing 7.0+, Kotlin 2.0+           |
 
 **CRITICAL**: Horizon Billing Compatibility SDK implements Google Play Billing **7.0** API surface, NOT 8.x or 9.x.
 
 When writing shared code for both Play and Horizon flavors:
+
 - Use only APIs that exist in **both** Billing 7.0 and the Play-flavor Billing version
 - Horizon SDK does NOT support Billing 8.x/9.x features like auto-reconnect, product status codes, `includeSuspended`, or Billing Choice
 - OpenIAP handles this automatically with flavor-specific implementations
@@ -80,23 +81,25 @@ For apps already using Google Play Billing Library, the Horizon Billing Compatib
 ### Migration Steps
 
 Replace imports from:
+
 ```kotlin
 import com.android.billingclient.api.*
 ```
 
 To:
+
 ```kotlin
 import com.meta.horizon.billingclient.api.*
 ```
 
 ### Key Differences from Google Play Billing
 
-| Feature | Google Play | Horizon |
-|---------|-------------|---------|
-| `acknowledgePurchase()` | Required within 3 days | No-op (not required) |
-| Non-acknowledgement | Auto-refund after 3 days | No auto-refund |
-| `enablePendingPurchases()` | Enables pending purchases | No-op (for compatibility) |
-| `onBillingServiceDisconnected()` | Called on disconnect | Never invoked |
+| Feature                          | Google Play               | Horizon                   |
+| -------------------------------- | ------------------------- | ------------------------- |
+| `acknowledgePurchase()`          | Required within 3 days    | No-op (not required)      |
+| Non-acknowledgement              | Auto-refund after 3 days  | No auto-refund            |
+| `enablePendingPurchases()`       | Enables pending purchases | No-op (for compatibility) |
+| `onBillingServiceDisconnected()` | Called on disconnect      | Never invoked             |
 
 ### Important Notes
 
@@ -130,13 +133,14 @@ POST https://graph.oculus.com/$APP_ID/verify_entitlement
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `access_token` | string | `OC\|App_ID\|App_Secret` format |
-| `user_id` | string | The user ID to verify |
-| `sku` | string | (Optional) SKU for add-on verification |
+| Parameter      | Type   | Description                            |
+| -------------- | ------ | -------------------------------------- |
+| `access_token` | string | `OC\|App_ID\|App_Secret` format        |
+| `user_id`      | string | The user ID to verify                  |
+| `sku`          | string | (Optional) SKU for add-on verification |
 
 **Example - Verify App Ownership:**
+
 ```bash
 curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
      -d "user_id=$USER_ID" \
@@ -144,6 +148,7 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 ```
 
 **Example - Verify Add-on/IAP:**
+
 ```bash
 curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
      -d "user_id=$USER_ID" \
@@ -152,11 +157,35 @@ curl -d "access_token=OC|$APP_ID|$APP_SECRET" \
 ```
 
 **Response:**
+
 ```json
 {
-  "success": true
+  "success": true,
+  "grant_time": 1744148687
 }
 ```
+
+### Viewer Purchases
+
+List the items a user owns, with the identity and expiry that
+`verify_entitlement` does not return.
+
+**Endpoint:**
+
+```http
+GET https://graph.oculus.com/$APP_ID/viewer_purchases
+```
+
+**Parameters:**
+
+| Parameter      | Type   | Description                     |
+| -------------- | ------ | ------------------------------- |
+| `access_token` | string | `OC\|App_ID\|App_Secret` format |
+| `user_id`      | string | The user ID                     |
+| `fields`       | string | (Optional) Fields to return     |
+
+Each purchase carries `id`, `grant_time`, `expiration_time` (`0` means
+indefinite) and `item{sku}`.
 
 ### Refund IAP Entitlement
 
@@ -170,23 +199,103 @@ POST https://graph.oculus.com/$APP_ID/refund_iap_entitlement
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter      | Type   | Description                     |
+| -------------- | ------ | ------------------------------- |
 | `access_token` | string | `OC\|App_ID\|App_Secret` format |
-| `user_id` | string | The user ID |
-| `sku` | string | SKU of item to refund |
+| `user_id`      | string | The user ID                     |
+| `sku`          | string | SKU of item to refund           |
 
 **Note:** Can only refund items not yet consumed via `consumeAsync()`.
+
+### Subscriptions (S2S)
+
+Meta exposes a server-side subscription resource.
+
+**Endpoint:**
+
+```http
+GET https://graph.oculus.com/application/subscriptions
+```
+
+**Parameters:**
+
+| Parameter      | Type    | Description                                             |
+| -------------- | ------- | ------------------------------------------------------- |
+| `access_token` | string  | `OC\|App_ID\|App_Secret` format, or a user access token |
+| `owner_id`     | string  | (Optional) App-secret access token only                 |
+| `skus`         | string  | (Optional) Restrict to these subscription SKUs          |
+| `is_active`    | boolean | (Optional) Filter by active state                       |
+| `is_trial`     | boolean | (Optional) Filter by trial state                        |
+| `fields`       | string  | (Optional) Fields to return                             |
+
+**Response fields:**
+
+| Field                | Description                                |
+| -------------------- | ------------------------------------------ |
+| `id`                 | Subscription identifier                    |
+| `sku`                | Subscription SKU                           |
+| `owner{id}`          | User identifier                            |
+| `is_active`          | Whether the subscription is active         |
+| `is_trial`           | Whether the current period is a free trial |
+| `trial_type`         | `FREE_TRIAL` or `INTRO_OFFER`              |
+| `period_start_time`  | Most recent period start                   |
+| `period_end_time`    | Most recent period end                     |
+| `cancellation_time`  | When the user cancelled                    |
+| `next_renewal_time`  | Next billing date, including extensions    |
+| `current_price_term` | `{ term, currency, price }`                |
+| `next_price_term`    | `{ term, currency, price }`                |
+
+Two endpoints modify a subscription, both POST and both answering `success`:
+`https://graph.oculus.com/application/cancel_subscription` and
+`.../extend_subscription`. There is no refund or billing-history endpoint.
+
+### Webhooks
+
+Meta publishes server-to-server webhooks. Subscribe under **Development >
+Webhooks** in the Developer Dashboard with a callback URL and verify token; the
+endpoint must serve HTTPS with a certificate from a trusted CA. Subscription
+fields additionally require a completed Data Use Checkup for Subscriptions and
+User ID.
+
+Commerce fields:
+
+| Field                          | Fires when                                                      |
+| ------------------------------ | --------------------------------------------------------------- |
+| `order_status`                 | An add-on purchase completes or an existing purchase is updated |
+| `subscription_started`         | A user starts or restarts a subscription                        |
+| `subscription_renewal_success` | A renewal succeeds                                              |
+| `subscription_canceled`        | A user cancels                                                  |
+| `subscription_uncanceled`      | A user restores a cancelled subscription before it expires      |
+| `subscription_expired`         | A subscription period ends                                      |
+
+`order_status` carries `event_time`, `user_id`, and `product_info` with
+`notification_type` (`PURCHASED`, `REFUNDED`, `CHARGEBACKED`), `sku`,
+`reporting_id` (a per-order UUID) and `developer_payload`. The subscription
+payloads carry the subscription id and SKU, `owner_id`, `period_start_time`,
+`period_end_time`, `next_renewal_time`, `is_active`, `is_trial`, and a price-term
+pair — `current_price_term` / `next_price_term`, spelled `current_offer` /
+`next_offer` in the renewal payload — with term, price and currency.
+`subscription_canceled` adds a user-facing `cancel_reason`; nothing reports a
+subscription refund, chargeback or revocation.
+
+Renewal and expiry volume scale with the subscriber base, so a receiver has to
+tolerate concurrent `subscription_renewal_success` and `subscription_expired`
+deliveries.
+
+> **OpenIAP Note**: IAPKit reads none of these surfaces today. Which of them the
+> specification treats as available, and how each is delivered, is stated in
+> `specs/commerce-protocol/examples/store-facts.json`; what IAPKit consumes is
+> the `implementation` axis of the capability descriptor beside it.
 
 ## Platform SDK IAP (Native)
 
 ### Product Types
 
-| Type | Description |
-|------|-------------|
-| `CONSUMABLE` | Can be purchased multiple times (e.g., coins) |
-| `DURABLE` | One-time purchase, permanent ownership |
-| `SUBSCRIPTION` | Recurring billing |
+| Type           | Description                                   |
+| -------------- | --------------------------------------------- |
+| `CONSUMABLE`   | Can be purchased multiple times (e.g., coins) |
+| `DURABLE`      | One-time purchase, permanent ownership        |
+| `SUBSCRIPTION` | Recurring billing                             |
 
 ### Key APIs
 
@@ -208,18 +317,18 @@ Mark consumable item as used (required for re-purchase).
 
 ## OpenIAP Type Mapping
 
-| OpenIAP Type | Description |
-|--------------|-------------|
-| `IapStore.Horizon` | Store identifier for Horizon |
+| OpenIAP Type                   | Description                     |
+| ------------------------------ | ------------------------------- |
+| `IapStore.Horizon`             | Store identifier for Horizon    |
 | `VerifyPurchaseHorizonOptions` | Horizon verification parameters |
-| `VerifyPurchaseResultHorizon` | Horizon verification result |
+| `VerifyPurchaseResultHorizon`  | Horizon verification result     |
 
 ### VerifyPurchaseHorizonOptions
 
 ```typescript
 interface VerifyPurchaseHorizonOptions {
-  userId: string;      // Horizon user ID
-  sku: string;         // Product SKU
+  userId: string; // Horizon user ID
+  sku: string; // Product SKU
   accessToken: string; // Format: "OC|APP_ID|APP_SECRET"
 }
 ```
@@ -230,7 +339,7 @@ interface VerifyPurchaseHorizonOptions {
 
 ```typescript
 interface VerifyPurchaseResultHorizon {
-  success: boolean;    // Verification result
+  success: boolean; // Verification result
 }
 ```
 
@@ -244,12 +353,12 @@ Meta Quest supports React Native and Expo applications.
 
 ### Requirements
 
-| Library | Minimum Version | Notes |
-|---------|-----------------|-------|
-| react-native-iap | v14+ | Billing 7.0+, Kotlin 2.0+, RN 0.79+ |
-| expo-iap | latest | Uses expo-horizon-core plugin |
-| React Native | 0.79+ | Required for Nitro modules |
-| Kotlin | 2.0+ | Required for both billing SDKs |
+| Library          | Minimum Version | Notes                               |
+| ---------------- | --------------- | ----------------------------------- |
+| react-native-iap | v14+            | Billing 7.0+, Kotlin 2.0+, RN 0.79+ |
+| expo-iap         | latest          | Uses expo-horizon-core plugin       |
+| React Native     | 0.79+           | Required for Nitro modules          |
+| Kotlin           | 2.0+            | Required for both billing SDKs      |
 
 ### Expo Integration
 
@@ -260,6 +369,7 @@ npx expo install expo-horizon-core
 ```
 
 The plugin:
+
 - Removes unsupported dependencies/permissions
 - Configures Android product flavors
 - Specifies Meta Horizon App ID
@@ -282,4 +392,6 @@ The plugin:
 - [React Native on Quest](https://developers.meta.com/horizon/documentation/android-apps/react-native-apps)
 - [Expo Quest Setup](https://blog.swmansion.com/how-to-add-meta-quest-support-to-your-expo-app-68c52778b1fe)
 - [Subscriptions](https://developers.meta.com/horizon/resources/subscriptions/)
+- [Server APIs for Subscriptions](https://developers.meta.com/horizon/documentation/unity/ps-subscriptions-s2s/)
+- [Getting Started with Webhooks](https://developers.meta.com/horizon/documentation/unreal/ps-webhooks-getting-started/)
 - [Setting up Add-ons](https://developers.meta.com/horizon/resources/add-ons-setup/)

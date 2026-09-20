@@ -10,7 +10,7 @@ import {
   behaviorById,
   behaviorIds,
 } from '../src/spec/behaviors.mjs';
-import { SUITE_VERSION, specVersion } from '../src/spec/version.mjs';
+import { SUITE_VERSION, clientProtocolVersion } from '../src/spec/version.mjs';
 import { runConformance } from '../src/runner/runner.mjs';
 
 describe('conformance behavior spec', () => {
@@ -65,9 +65,9 @@ describe('conformance behavior spec', () => {
     }
   });
 
-  it('binds the suite version to a released spec version', () => {
+  it('binds the suite version to a released client protocol version', () => {
     expect(SUITE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(specVersion()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(clientProtocolVersion()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('resolves behaviors by id and rejects unknown ids', () => {

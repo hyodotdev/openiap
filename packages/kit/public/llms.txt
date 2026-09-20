@@ -137,10 +137,9 @@ permission. This operator tool does not accept API keys and is not part of
 
 Hosted `/v1` responses evolve additively. Existing fields keep their meaning,
 new response data is optional or request-gated, and a breaking contract would
-use `/v2` while `/v1` keeps serving. SDKs report their compile-time spec in
-`X-OpenIAP-Spec` for rollout measurement only; the header never changes receipt
-verification. Gate on `isValid`, require the store-verified `productId`, and
-allow optional metadata to be absent or unknown.
+use `/v2` while `/v1` keeps serving. Gate on `isValid`, require the
+store-verified `productId`, and allow optional metadata to be absent or
+unknown.
 
 ## Status codes
 

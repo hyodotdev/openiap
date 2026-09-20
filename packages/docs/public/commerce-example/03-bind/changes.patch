@@ -12,24 +12,26 @@ index 239ce5c..fe0a957 100644
  Use the existing reviewed prototype where it satisfies the installed contract.
  Run the backend, inspect the result, correct problems, and rerun the affected check.
 diff --git a/checkpoint.json b/checkpoint.json
-index 9b6e1f2..2381a61 100644
+index 5053480..2339583 100644
 --- a/checkpoint.json
 +++ b/checkpoint.json
-@@ -1,7 +1,7 @@
+@@ -1,8 +1,8 @@
  {
 -  "step": 2,
 -  "id": "02-verify",
 -  "title": "Verify a purchase",
 -  "built": "Fixture store adapter + purchase persistence",
--  "result": "Valid evidence is saved. Alice still has no access."
+-  "result": "Valid evidence is saved. Alice still has no access.",
+-  "previous": "01-contract"
 +  "step": 3,
 +  "id": "03-bind",
 +  "title": "Connect it to a user",
 +  "built": "Server authorization + atomic binding + entitlement reads",
-+  "result": "Alice gets Premium. Another user cannot take the purchase."
++  "result": "Alice gets Premium. Another user cannot take the purchase.",
++  "previous": "02-verify"
  }
 diff --git a/provider.mjs b/provider.mjs
-index c90643a..be4eb4b 100644
+index 08c4ada..7019c85 100644
 --- a/provider.mjs
 +++ b/provider.mjs
 @@ -97,6 +97,30 @@ export function createProvider(path, now) {

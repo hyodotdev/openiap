@@ -159,13 +159,6 @@ class ExpoIapModule : Module() {
                                     ExpoIapLog.warning("Activity not available during initConnection")
                                 }
 
-                            // If already connected, short-circuit
-                            if (connectionReady.get()) {
-                                ExpoIapLog.result("initConnection", true)
-                                promise.resolve(true)
-                                return@withLock
-                            }
-
                             // Attach listeners early to avoid races during init
                             if (listenerHandles == null) {
                                 listenerHandles =

@@ -86,7 +86,7 @@ const mockedSupport = () => ({
 });
 
 const CAPABILITIES = Object.freeze({
-  specVersion: httpBindingManifest.protocolVersion,
+  commerceProtocolVersion: httpBindingManifest.protocolVersion,
   implementation: {
     name: "openiap-conformance-mock-provider",
     version: "0.1.0",

@@ -35,13 +35,20 @@ openiap/
 
 ## Version Management
 
-All versions are tracked in `openiap-versions.json`:
+OpenIAP versions exactly two things: the Client Protocol
+(`specs/client/package.json`) and the Commerce Protocol
+(`specs/commerce-protocol/package.json`). Everything else carries its own
+package version, and the docs site carries none.
+
+`openiap-versions.json` is the manifest every consumer reads. `clientProtocol`
+mirrors the Client Protocol manifest; `google` and `apple` are the native
+package versions:
 
 ```json
 {
-  "apple": "1.2.x",
-  "google": "1.2.x",
-  "spec": "1.2.x"
+  "clientProtocol": "0.1.0",
+  "google": "3.5.2",
+  "apple": "3.4.0"
 }
 ```
 

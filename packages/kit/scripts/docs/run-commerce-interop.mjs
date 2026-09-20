@@ -819,8 +819,34 @@ try {
     { openiap: revision(repo), example: revision(example) },
     revisions,
   );
+  // Provenance the published pages cite. Derived from the revisions recorded
+  // above, never authored by hand: a hand-written commit cannot see the
+  // working tree, and an evidence page that names a bare commit for a dirty
+  // run is a false claim about what executed.
+  const reproduction = {
+    openiapBaseCommit: revisions.openiap,
+    originalExampleCommit: revisions.example,
+    ...(freshConnection
+      ? { freshExampleCommit: freshConnection.source.revision }
+      : {}),
+    instructions:
+      "https://openiap.dev/commerce-example/paywall-provider-reproduction.md",
+    dependencyScope:
+      "Both standalone examples were installed from public GitHub checkouts. " +
+      "IAPKit used its existing dependency installation; executed source hashes " +
+      "and runtime versions are in this report.",
+  };
+  for (const [name, value] of Object.entries(reproduction)) {
+    assert(
+      !String(value).endsWith("-dirty"),
+      `Refusing to publish evidence: ${name} ran against uncommitted changes ` +
+        `(${value}). Commit or use a clean checkout, then re-record.`,
+    );
+  }
+
   const report = {
     ...(freshConnection ? { freshConnection } : {}),
+    reproduction,
     results,
     storeCoverage,
     harnessHashes: inputs.harness.hashes,
@@ -846,8 +872,15 @@ try {
         readFileSync(join(kit, "node_modules/convex/package.json"), "utf8"),
       ).version,
     },
-    command:
-      "bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs ../openiap-commerce-protocol-example <new-output-directory>",
+    // Reconstructed from what actually ran, not a fixed string: the fresh
+    // example is a third argument and the report must not omit it.
+    command: [
+      "bun --conditions=openiap-source",
+      "packages/kit/scripts/docs/run-commerce-interop.mjs",
+      "<original-example-checkout>",
+      "<new-output-directory>",
+      ...(freshExample ? ["<fresh-example-checkout>"] : []),
+    ].join(" "),
     configurationChanges: [
       "Commerce base URL and server credential",
       "Separate webhook signing keys, each bound to its provider and project",

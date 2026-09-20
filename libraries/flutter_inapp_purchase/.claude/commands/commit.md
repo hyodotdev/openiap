@@ -157,8 +157,6 @@ gh pr create --title "<type>: <description>" --body "$(cat <<'EOF'
 - [ ] `dart format --set-exit-if-changed .` passes
 - [ ] `flutter analyze` passes
 - [ ] `flutter test` passes
-
-Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```
@@ -260,8 +258,6 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 - [x] `dart format --set-exit-if-changed .` passes
 - [x] `flutter analyze` passes
 - [x] `flutter test` passes
-
-Generated with [Claude Code](https://claude.ai/code)
 ```
 
 ---

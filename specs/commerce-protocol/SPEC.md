@@ -92,23 +92,24 @@ This document is authoritative for domain behavior, cross-field rules,
 transport, and compatibility. The generated JSON Schema bundle is the
 executable projection validators consume.
 
-| Artifact                                                 | Purpose                                                                                      |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `schema/`                                                | The authored GraphQL contract layers — edit these                                            |
-| `generated/commerce-protocol.graphql`                    | Generated single-file assembly of `schema/`; exported at `./commerce-protocol.graphql`       |
-| `generated/`                                             | Compiler output. Ignore this directory when reviewing the authored contract                  |
-| `generated/schemas/commerce-protocol.bundle.schema.json` | Self-contained validator; prefer it in validator integrations                                |
-| `generated/schemas/*.schema.json`                        | Generated modular JSON Schema artifacts                                                      |
-| `examples/`                                              | Canonical documents that MUST validate                                                       |
-| `examples/store-event-mapping.json`                      | How each store's own notification vocabulary maps onto these event types                     |
-| `vectors/signatures.json`                                | Signature vectors every implementation MUST reproduce                                        |
-| `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce   |
-| `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation |
-| `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                           |
-| `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                         |
-| `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                          |
-| `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                      |
-| `conformance/`                                           | The portable conformance runner and its independent mock provider                            |
+| Artifact                                                 | Purpose                                                                                         |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `schema/`                                                | The authored GraphQL contract layers — edit these                                               |
+| `generated/commerce-protocol.graphql`                    | Generated single-file assembly of `schema/`; exported at `./commerce-protocol.graphql`          |
+| `generated/`                                             | Compiler output. Ignore this directory when reviewing the authored contract                     |
+| `generated/schemas/commerce-protocol.bundle.schema.json` | Self-contained validator; prefer it in validator integrations                                   |
+| `generated/schemas/*.schema.json`                        | Generated modular JSON Schema artifacts                                                         |
+| `examples/`                                              | Canonical documents that MUST validate                                                          |
+| `examples/store-event-mapping.json`                      | How each store's own notification vocabulary maps onto these event types                        |
+| `examples/store-facts.json`                              | What each store's own API offers per capability; the source of every descriptor's provider axis |
+| `vectors/signatures.json`                                | Signature vectors every implementation MUST reproduce                                           |
+| `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce      |
+| `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation    |
+| `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                              |
+| `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                            |
+| `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                             |
+| `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                         |
+| `conformance/`                                           | The portable conformance runner and its independent mock provider                               |
 
 ---
 
@@ -326,9 +327,12 @@ cases, including a grant that expired before binding.
 `transactionId` and `originalTransactionId` carry store-side transaction
 identity **where the store exposes it**. Neither is universally available:
 Google Play does not put one in a subscription notification — an emitter that
-wants it must read the store's subscription API — and Meta
-Horizon exposes no transaction identity at all. A consumer MUST NOT require
-them.
+wants it must read the store's subscription API — and Meta Horizon's entitlement
+check returns none. On Meta an add-on order carries a `transactionId` on the
+order webhook and in the purchase list; a subscription renewal carries none at
+all. Meta's subscription id is stable across renewals, so it can serve as
+`originalTransactionId` and never as `transactionId`. A consumer MUST NOT
+require them.
 
 ## 3. Profiles
 
@@ -677,12 +681,12 @@ flowchart LR
   end
   subgraph none ["names no state — the contract pairs no state with these, so a snapshot keeps the state that actually followed the store transition"]
     direction LR
-    e8["canceled · uncanceled<br/>product_changed · price_changed · deferred"]
+    e8["canceled · uncanceled<br/>product_changed ·<br/>price_changed ·<br/>deferred"]
   end
   subgraph predicate ["entitled? (§2.3) — read subscription.active; a consumer MUST NOT recompute it from state and ignore active"]
     direction LR
-    p1["Active, InGracePeriod: yes while now is before expiresAt; with no expiresAt, yes.<br/>For InGracePeriod, expiresAt is the end of the grace window."]
-    p2["InBillingRetry, Paused, Expired, Revoked, Refunded, Unknown: no"]
+    p1["Active, InGracePeriod:<br/>yes while now is<br/>before expiresAt; with<br/>no expiresAt, yes.<br/>For InGracePeriod,<br/>expiresAt is the end<br/>of the grace window."]
+    p2["InBillingRetry,<br/>Paused, Expired,<br/>Revoked, Refunded,<br/>Unknown: no"]
   end
 ```
 
@@ -1162,10 +1166,10 @@ An implementation SHOULD publish its descriptor somewhere a consumer can fetch
 it, and SHOULD document where. This version deliberately fixes no location: a
 backend may serve it, ship it beside its API documentation, or hand it over out
 of band. Nothing in the contract depends on retrieving it; a consumer that
-cannot fetch it asks its emitter. The document states `specVersion` — the
-version of _this specification_ it was
-written against, which is a different quantity from an event body's
-`eventVersion` even though both read `1.0` today — the event types it can emit,
+cannot fetch it asks its emitter. The document states `commerceProtocolVersion`
+— the protocol version it was written against, which is a different quantity
+from an event body's `eventVersion` even though both read `1.0` today — the
+event types it can emit,
 and its per-store capabilities — enough for a consumer, an operator, or a
 tool to determine compatibility without reading prose or guessing. It carries no
 commerce data, so it is safe to expose.
@@ -1182,8 +1186,33 @@ limitation, and collapsing the two into one boolean hides which one it is. A
 
 `examples/provider-capabilities.json` is the reference implementation's own
 descriptor. Read its `implementation` axis as one backend's answer, not as the
-specification's; its `notes` say what each store's surface does and does not
-report.
+specification's.
+
+The `provider` axis asks what a store offers. `examples/store-facts.json`
+answers that once for the stores this version has examined, so where it covers a
+store a descriptor's `provider` MUST equal the matching `available`, and the
+mapping table's `notificationChannel` MUST equal that store's
+`serverNotifications.surface`, or `null` where it is unavailable.
+
+The store space is open, so a descriptor may name a store this version has never
+examined. There `provider` is the implementation's own claim and the only place
+the fact exists, which is why the member stays. It is deliberately the weaker
+form: a bare boolean, where an examined store carries `delivery` and `surface`
+as well. An implementation declaring an unexamined store SHOULD name the surface
+in `notes`, and a consumer that needs more than yes-or-no has to ask that
+implementation.
+
+`delivery` says how the store makes the fact reachable: `push` when it sends it
+unasked, `pull` when it returns it from a read, `batch` when it publishes it only
+in a periodic export. Where several surfaces offer the fact, the most immediate
+wins. `surface` names the vendor's own endpoint, channel, report or field, and a
+surface means a server-reachable API — a report a human downloads from a console
+is not one. `available: false` MUST carry `notes` saying which surfaces were
+examined, and MUST NOT carry a `surface`.
+
+These are observations of vendor documentation at a point in time, not
+obligations on a vendor, so a consumer MUST treat an absent store or capability
+as unknown rather than as absent-from-the-store.
 
 A store whose descriptor declares `serverNotifications.implementation: false`
 produces **no** notification-derived lifecycle events from that emitter. The
@@ -1316,22 +1345,58 @@ The protocol version is `MAJOR.MINOR`, with each component written as a
 non-negative decimal integer without a leading zero unless the component is
 exactly `0`. It is independent of the npm package version used to distribute
 these files. An emitter MUST set `eventVersion` to the protocol version that
-defines the emitted body; a capability descriptor and mapping table use the same
-value as `specVersion`. **Consumers pin on the major.**
+defines the emitted body; a capability descriptor, a mapping table and a store
+facts table use the same value as `commerceProtocolVersion`. **Consumers pin on the major.**
 
-| Change                                                                                            | Version impact |
-| ------------------------------------------------------------------------------------------------- | -------------- |
-| New optional member on an open object                                                             | MINOR          |
-| New event type                                                                                    | MINOR          |
-| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)      | MINOR          |
-| New operation, new profile, or new optional operation input member                                | MINOR          |
-| New protocol error code, or a new evidence member for a new store                                 | MINOR          |
-| Member removed, renamed, or given new meaning                                                     | MAJOR          |
-| Member type, nullability, or requiredness changed                                                 | MAJOR          |
-| Member added to or removed from a closed enumeration                                              | MAJOR          |
-| Member added to a closed object (`Support`, `Mapping`, a tokenless result, or the error envelope) | MAJOR          |
-| Operation removed, or its path, method, auth role, or success status changed                      | MAJOR          |
-| New required operation input member                                                               | MAJOR          |
+A MINOR that leaves the event body untouched does not oblige an emitter to
+change `eventVersion`: that member names the version the body conforms to, not
+the newest version published. Until the first stable package release, 1.0 stays
+open for additive documents, so a new document does not move the protocol
+version at all. The npm package version is separate again, and moves only when
+the release workflow publishes.
+
+While the package major is `0`, that latitude extends to renaming a wire
+member: the protocol major does not move, because moving it would relocate
+every REST path and every `eventVersion` for a change that alters no shape.
+Each such rename is listed below, and none may happen once the package reaches
+`1.0.0`.
+
+### Renamed members before 1.0.0
+
+`ProviderCapabilities.specVersion` → `commerceProtocolVersion`, and the same
+member on the store-event mapping table and the store facts table. OpenIAP
+governs two protocols, so a member named for "the spec" said nothing about
+which one; `protocolVersion` would have been no better. The value, the
+`MajorMinor` type, the requiredness, and every operation path are unchanged.
+
+**What breaks.** A consumer reading `specVersion` from a descriptor, mapping
+table, or facts table gets `undefined`. Validators generated from
+`@hyodotdev/openiap-commerce-protocol` `0.1.0` or `0.2.0` reject the new
+descriptor outright: those schemas list `specVersion` in `required` and declare
+no `commerceProtocolVersion`. The bundled conformance runner in those versions
+reads the old member, so its version-agreement check fails against an
+implementation that has moved.
+
+**What to do.** Upgrade to the first package release that ships this rename and
+read `commerceProtocolVersion`. Nothing else in the descriptor changed, so no
+other code moves. Do not keep a fallback to the old member: this specification
+is pre-`1.0.0`, the rename is the whole migration, and a fallback would carry
+the retired name for as long as the code lives.
+
+| Change                                                                                                    | Version impact    |
+| --------------------------------------------------------------------------------------------------------- | ----------------- |
+| New optional member on an open object                                                                     | MINOR             |
+| New event type                                                                                            | MINOR             |
+| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR             |
+| New operation, new profile, or new optional operation input member                                        | MINOR             |
+| New protocol error code, or a new evidence member for a new store                                         | MINOR             |
+| New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR once stable |
+| Member removed, renamed, or given new meaning                                                             | MAJOR             |
+| Member type, nullability, or requiredness changed                                                         | MAJOR             |
+| Member added to or removed from a closed enumeration                                                      | MAJOR             |
+| Member added to a closed object (`Support`, `Fact`, `Mapping`, a tokenless result, or the error envelope) | MAJOR             |
+| Operation removed, or its path, method, auth role, or success status changed                              | MAJOR             |
+| New required operation input member                                                                       | MAJOR             |
 
 A consumer MUST ignore members it does not recognise on an open object, and MUST
 ignore event types it does not recognise rather than failing. This is what makes
@@ -1341,7 +1406,12 @@ this reason.
 Some object types are deliberately closed instead, and reject members they do
 not declare. A **capability value** (`Support`) is closed because a fourth key
 beside `provider`, `implementation`, and `notes` would change what that
-capability means while validating silently. A **mapping row** is closed because
+capability means while validating silently. A **store fact** (`Fact`) is closed
+for the same reason: `notes` already qualifies an `available` in prose, and what
+the closure prevents is a fifth key doing it in a form a validator accepts and a
+consumer ignores. The cost is real — a citation URL or an observed-on date, the
+most plausible next members for a document whose point is verifiability, are now
+MAJOR. A **mapping row** is closed because
 an unrecognised qualifier would leave a reader selecting the row on fewer
 conditions than its author intended. The **tokenless server-read results**
 (`SubscriptionStatusSnapshot`, `SubscriptionStatusResult`, `EntitlementsResult`)
@@ -1386,22 +1456,22 @@ consumer's side:
 
 ```mermaid
 flowchart LR
-  consumer["A consumer written against this specification<br/>— unchanged by the swap"]
+  consumer["A consumer written<br/>against this<br/>specification<br/>— unchanged by the<br/>swap"]
   A["Backend A<br/>before"]
   B["Backend B<br/>after"]
   A -- "events (§9)" --> consumer
   B -- "events (§9)" --> consumer
 
   subgraph carries ["Carries across"]
-    c1["event types · envelope shape · entitlement predicate"]
-    c2["signature scheme · per-store semantics"]
-    c3["sourceStoreEventId — the store's own notification id"]
-    c4["userId, when the adopter assigns it"]
+    c1["event types · envelope<br/>shape · entitlement<br/>predicate"]
+    c2["signature scheme ·<br/>per-store semantics"]
+    c3["sourceStoreEventId —<br/>the store's own<br/>notification id"]
+    c4["userId, when the<br/>adopter assigns it"]
   end
   subgraph breaks ["Does not carry across"]
-    n1["eventId and projectId — emitter-assigned, a new id space"]
-    n2["a consumer deduplicating only on eventId processes a cutover overlap twice"]
-    n3["sourceStoreEventId is not a repair — siblings legitimately share one"]
+    n1["eventId and projectId<br/>— emitter-assigned, a<br/>new id space"]
+    n2["a consumer<br/>deduplicating only on<br/>eventId processes a<br/>cutover overlap twice"]
+    n3["sourceStoreEventId is<br/>not a repair —<br/>siblings legitimately<br/>share one"]
   end
 ```
 

@@ -1,9 +1,11 @@
-# SHA-256 of the native binaries that ship inside the godot-iap addon ZIP.
-#
-# These frameworks are committed rather than compiled by CI, so without this
-# manifest nothing records or verifies the bytes users execute. `bun run
-# audit:godot-binaries` recomputes them, and the release refuses to publish a
-# ZIP whose binaries do not match.
+# SHA-256 of the prebuilt frameworks committed under addons/godot-iap/bin/.
+# They are built locally by the maintainer (`make ios` / `make macos`), not
+# compiled by CI. `bun run audit:godot-binaries` verifies the committed files
+# against this manifest — the release runs it as a deploy gate
+# (release-godot.yml validate-ios) and CI re-runs it on main/next pushes and
+# PRs to fail earlier. macOS digests pin pre-signing bytes: notarized
+# releases re-sign those frameworks before zipping, so shipped macOS bytes
+# differ by design.
 #
 # Regenerate after an intentional rebuild:
 #   bun run audit:godot-binaries --write

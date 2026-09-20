@@ -28,7 +28,7 @@ extend type Subscription {
   Fires when a user selects developer billing in an External Payments or
   Billing Choice flow (Android only). The payload can contain an external
   transaction token, link URI, original transaction ID, and selected products.
-  Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
+  Billing Choice payload fields are available in OpenIAP 2.1.0 /
   openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   developerProvidedBillingAndroid: DeveloperProvidedBillingDetailsAndroid!

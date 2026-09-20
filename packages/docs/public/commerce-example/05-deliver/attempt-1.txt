@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-09-07T12:09:13.991Z",
+  "startedAt": "2026-09-16T00:54:00.397Z",
   "command": "npm run capture",
   "verifier": "verifyLab() (also used by npm test)",
   "passed": 22,

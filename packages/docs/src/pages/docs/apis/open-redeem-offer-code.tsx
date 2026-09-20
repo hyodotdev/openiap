@@ -27,10 +27,10 @@ function OpenRedeemOfferCode() {
         <Link to="/docs/apis/android/open-redeem-offer-code-android">
           <code>openRedeemOfferCodeAndroid</code>
         </Link>
-        , both scheduled for removal in OpenIAP 4.0.
+        , both scheduled for removal in client protocol 1.0.0.
       </p>
       <p>
-        Available in OpenIAP Spec 3.3.0 / <code>openiap-apple</code> 3.3.0 /{' '}
+        Available in OpenIAP 3.3.0 / <code>openiap-apple</code> 3.3.0 /{' '}
         <code>openiap-google</code> 3.4.0.
       </p>
       <p>

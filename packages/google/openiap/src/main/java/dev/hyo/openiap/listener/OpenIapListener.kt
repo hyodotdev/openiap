@@ -69,6 +69,11 @@ fun interface OpenIapSubscriptionBillingIssueListener {
     fun onSubscriptionBillingIssue(purchase: Purchase)
 }
 
+/** Fires when a live billing connection drops. Bridge plumbing, not a spec event (#408). */
+fun interface OpenIapConnectionStateListener {
+    fun onBillingServiceDisconnected()
+}
+
 /**
  * Combined listener interface for convenience
  */

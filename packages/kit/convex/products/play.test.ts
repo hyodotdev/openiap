@@ -5,6 +5,7 @@ import {
   assertLegacyPathUsableFor,
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
+  collectPlaySubscriptionOffers,
   mapModernPlayOneTimeState,
   mergedSubscriptionListings,
   pickPlayRegionalPrice,
@@ -1217,14 +1218,22 @@ describe("pickSubBasePlanPrice", () => {
     basePlans: [
       {
         basePlanId: "monthly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "USD", units: "9", nanos: 990_000_000 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+          },
         ],
       },
       {
         basePlanId: "yearly",
+        state: "ACTIVE",
         regionalConfigs: [
-          { price: { currencyCode: "KRW", units: "13000", nanos: 0 } },
+          {
+            newSubscriberAvailability: true,
+            price: { currencyCode: "KRW", units: "13000", nanos: 0 },
+          },
         ],
       },
     ],
@@ -1240,6 +1249,134 @@ describe("pickSubBasePlanPrice", () => {
 
   it("keeps the basePlanId paired with the price it picked", () => {
     expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("yearly");
+  });
+
+  it("prefers the US price over an earlier non-US USD price", () => {
+    const multiRegion = {
+      basePlans: [
+        {
+          basePlanId: "monthly",
+          state: "ACTIVE",
+          regionalConfigs: [
+            {
+              regionCode: "BH",
+              newSubscriberAvailability: true,
+              price: {
+                currencyCode: "USD",
+                units: "10",
+                nanos: 990_000_000,
+              },
+            },
+            {
+              regionCode: "US",
+              newSubscriberAvailability: true,
+              price: {
+                currencyCode: "USD",
+                units: "9",
+                nanos: 990_000_000,
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(pickSubBasePlanPrice(multiRegion)).toMatchObject({
+      currency: "USD",
+      priceAmountMicros: 9_990_000,
+      basePlanId: "monthly",
+    });
+  });
+});
+
+describe("collectPlaySubscriptionOffers", () => {
+  it("uses the US price for base plans and paid phases when another USD region is first", () => {
+    const subscription = {
+      productId: "pro",
+      basePlans: [
+        {
+          basePlanId: "monthly",
+          state: "ACTIVE",
+          autoRenewingBasePlanType: { billingPeriodDuration: "P1M" },
+          regionalConfigs: [
+            {
+              regionCode: "BH",
+              newSubscriberAvailability: true,
+              price: {
+                currencyCode: "USD",
+                units: "10",
+                nanos: 990_000_000,
+              },
+            },
+            {
+              regionCode: "US",
+              newSubscriberAvailability: true,
+              price: {
+                currencyCode: "USD",
+                units: "9",
+                nanos: 990_000_000,
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const offers = [
+      {
+        offerId: "intro",
+        productId: "pro",
+        basePlanId: "monthly",
+        state: "ACTIVE",
+        regionalConfigs: [
+          { regionCode: "BH", newSubscriberAvailability: true },
+          { regionCode: "US", newSubscriberAvailability: true },
+        ],
+        phases: [
+          {
+            duration: "P1M",
+            recurrenceCount: 1,
+            regionalConfigs: [
+              {
+                regionCode: "BH",
+                price: {
+                  currencyCode: "USD",
+                  units: "5",
+                  nanos: 490_000_000,
+                },
+              },
+              {
+                regionCode: "US",
+                price: {
+                  currencyCode: "USD",
+                  units: "4",
+                  nanos: 990_000_000,
+                },
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    expect(
+      collectPlaySubscriptionOffers(subscription, undefined, offers),
+    ).toEqual([
+      {
+        id: "monthly",
+        kind: "BasePlan",
+        duration: "P1M",
+        priceAmountMicros: 9_990_000,
+        currency: "USD",
+      },
+      {
+        id: "monthly/intro#0",
+        kind: "IntroPayUpFront",
+        duration: "P1M",
+        numberOfPeriods: 1,
+        priceAmountMicros: 4_990_000,
+        currency: "USD",
+      },
+    ]);
   });
 });
 

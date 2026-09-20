@@ -38,8 +38,8 @@ function CreateBillingProgramReportingDetailsAndroid() {
         Developer-Provided Billing transaction. The Billing Programs surface
         starts in Play Billing 8.2.0, while External Offer integration requires
         Play Billing 8.2.1+. The optional developer billing type parameter is
-        available in OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0
-        for Billing Choice, which requires Play Billing 9.1.0+. See the{' '}
+        available in OpenIAP 2.1.0 and <code>openiap-google</code> 2.3.0 for
+        Billing Choice, which requires Play Billing 9.1.0+. See the{' '}
         <a
           href="https://developer.android.com/google/play/billing/billing-programs"
           target="_blank"

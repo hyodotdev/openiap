@@ -63,7 +63,7 @@ describe("conformance runner", () => {
     });
 
     expect(report.suiteVersion).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(report.specVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(report.clientProtocolVersion).toMatch(/^\d+\.\d+\.\d+$/);
     expect(report.implementation).toBe("openiap-reference");
     expect(report.store).toBe("Google");
   });
@@ -245,7 +245,7 @@ describe("conformance report", () => {
     expect(text).toContain("OpenIAP Conformance Report");
     expect(text).toContain("openiap-reference");
     expect(text).toContain(`suite version  : ${report.suiteVersion}`);
-    expect(text).toContain(`spec version   : ${report.specVersion}`);
+    expect(text).toContain(`client protocol: ${report.clientProtocolVersion}`);
     expect(text).toContain("scope          : partial");
     expect(text).toContain("PARTIAL evaluation");
   });

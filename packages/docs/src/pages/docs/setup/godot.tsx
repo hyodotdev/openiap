@@ -14,7 +14,7 @@ function GodotSetup() {
       <h1>Godot Setup</h1>
       <p>
         <code>godot-iap</code> is a Godot 4.x plugin for in-app purchases
-        following the OpenIAP specification. It uses Swift GDExtension for iOS
+        following the OpenIAP Client Protocol. It uses Swift GDExtension for iOS
         and Kotlin AAR for Android.
       </p>
 
@@ -89,6 +89,44 @@ function GodotSetup() {
           </li>
         </ol>
         <p>The zip includes pre-built binaries for both iOS and Android.</p>
+
+        <h3 id="folder-structure" className="anchor-heading">
+          Required Folder Structure
+          <a href="#folder-structure" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          Copy the whole <code>addons/godot-iap/</code> folder. Copying only the
+          GDScript files leaves Android without its plugin, and the editor then
+          reports <code>GodotIap singleton not found</code> at runtime.
+        </p>
+        <CodeBlock language="text">
+          {`your-project/
+└── addons/
+    └── godot-iap/
+        ├── android/                     <- Android plugin, required for Android
+        │   ├── GodotIap.gdap            <- registers the export checkbox
+        │   ├── GodotIap.release.aar
+        │   └── GodotIap.debug.aar
+        ├── bin/                         <- iOS plugin, required for iOS
+        │   ├── godot_iap.gdextension
+        │   └── ios/
+        │       ├── GodotIap.framework/
+        │       └── SwiftGodotRuntime.framework/
+        ├── scripts/
+        │   └── fix_ios_embed.sh
+        ├── godot_iap.gd
+        ├── godot_iap_plugin.gd
+        ├── types.gd
+        ├── plugin.cfg
+        ├── LICENSE
+        └── THIRD_PARTY_NOTICES.md`}
+        </CodeBlock>
+        <p>
+          A <code>bin/macos/</code> folder appears only in releases built with
+          notarized macOS binaries. Everything else above ships in every zip.
+        </p>
 
         <h3 id="build-from-source" className="anchor-heading">
           Build from Source
@@ -191,6 +229,19 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
             Enable <strong>GodotIap</strong> in the Plugins section
           </li>
         </ol>
+        <p>
+          On Android the checkbox comes from{' '}
+          <code>addons/godot-iap/android/GodotIap.gdap</code>. Godot scans that
+          folder when the project loads, so if the file is missing the Plugins
+          section stays empty and no amount of export configuration will add it.
+        </p>
+        <Callout kind="important" title="Android needs the Gradle build">
+          Turn on <strong>Use Gradle Build</strong> in the Android export
+          preset. The plugin ships as an AAR with remote dependencies, and a
+          build without Gradle cannot link them. One-click deploy does not use
+          the Gradle build by default, so either enable it there too or export
+          an APK and install that.
+        </Callout>
 
         <h3 id="ios-xcode" className="anchor-heading">
           iOS: Xcode Framework Embedding
@@ -647,6 +698,54 @@ func _on_purchase_error(error):
           </li>
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
+
+        <h3 id="singleton-not-found" className="anchor-heading">
+          GodotIap singleton not found (Android)
+          <a href="#singleton-not-found" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The GDScript loaded but the Android plugin did not. Check{' '}
+          <code>addons/godot-iap/android/</code> for the <code>.gdap</code> file
+          and both AARs, confirm <strong>GodotIap</strong> is checked in the
+          Android export preset, and confirm the build used Gradle. Re-extract
+          the release zip over <code>addons/godot-iap/</code> when a file is
+          missing — see{' '}
+          <a href="#folder-structure">Required Folder Structure</a>.
+        </p>
+
+        <h3 id="missing-export-checkbox" className="anchor-heading">
+          GodotIap is missing from the export Plugins list
+          <a href="#missing-export-checkbox" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The <code>GodotIap.gdap</code> file is absent or sits outside{' '}
+          <code>addons/godot-iap/android/</code>. Put it back and restart the
+          Godot editor; the plugin list is built when the project loads, not
+          when the export dialog opens.
+        </p>
+
+        <h3 id="android-gradle-failure" className="anchor-heading">
+          Android Gradle build fails resolving dependencies
+          <a href="#android-gradle-failure" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The <code>.gdap</code> file declares remote dependencies, so the
+          Gradle build resolves them over the network. Read the coordinate the
+          build failed on before assuming the plugin is at fault. The OpenIAP
+          Android library pulls <code>androidx</code> artifacts, which are
+          served by Google's Maven repository rather than Maven Central, so a
+          generated Gradle configuration that lists only Maven Central cannot
+          resolve them. If the repositories are right and resolution still
+          fails, check that the Godot version's bundled Android Gradle Plugin
+          supports the resolved <code>androidx</code> versions, and pin the
+          conflicting dependency in your own Gradle configuration.
+        </p>
 
         <h3 id="ios-launch-crash" className="anchor-heading">
           App crashes on launch (iOS)

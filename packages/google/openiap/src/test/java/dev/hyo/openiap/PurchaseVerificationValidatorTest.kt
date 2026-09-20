@@ -602,7 +602,7 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit reports the spec it was built against`() = runTest {
+    fun `verifyPurchaseWithIapkit sends no protocol version header`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             apiKey = "iapkit_pk_test",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = "token-123")
@@ -616,9 +616,11 @@ class PurchaseVerificationValidatorTest {
             ).also { connection = it }
         }
 
+        assertNull(connection.headers["X-OpenIAP-Spec"])
         assertEquals(
-            io.github.hyochan.openiap.BuildConfig.OPENIAP_SPEC_VERSION,
-            connection.headers["X-OpenIAP-Spec"]
+            "the verify request sends only the headers it needs",
+            listOf("Authorization", "Content-Type"),
+            connection.headers.keys.sorted()
         )
         assertEquals("Bearer iapkit_pk_test", connection.headers["Authorization"])
     }

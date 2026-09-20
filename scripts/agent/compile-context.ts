@@ -135,7 +135,7 @@ export function writeGeneratedFileIfChanged(
   ignoreTimestampOnlyChanges = true,
 ): boolean {
   const finalizedContent = withFinalNewline(content);
-  if (fs.existsSync(filePath)) {
+  try {
     const existingContent = fs.readFileSync(filePath, "utf-8");
     const comparableExisting = ignoreTimestampOnlyChanges
       ? normalizeGeneratedTimestamps(existingContent)
@@ -145,6 +145,10 @@ export function writeGeneratedFileIfChanged(
       : finalizedContent;
     if (comparableExisting === comparableGenerated) {
       return false;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
     }
   }
 
@@ -424,7 +428,7 @@ Check reference: https://github.com/hyodotdev/openiap/tree/main/packages/cli
   // Combine all external docs for llms-full.txt
   let fullContent = `# OpenIAP Complete Reference
 
-> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
 > Generated: ${generatedAt}
@@ -846,7 +850,7 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
   // Generate llms.txt (quick reference - condensed version)
   let quickContent = `# OpenIAP Quick Reference
 
-> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
 > Generated: ${generatedAt}
@@ -973,7 +977,7 @@ const purchases = await getAvailablePurchases();
 ### Redeem Offer Code
 \`\`\`typescript
 // Cross-platform; replaces the deprecated presentCodeRedemptionSheetIOS
-// and openRedeemOfferCodeAndroid (removal in OpenIAP 4.0)
+// and openRedeemOfferCodeAndroid (removal in client protocol 1.0.0)
 const purchase = await openRedeemOfferCode();
 // Verified purchase only on Apple 27+ from Xcode 27+ builds; every other
 // flow resolves null (pre-27 iOS sheet, Play redeem page, Horizon/Amazon
@@ -1081,14 +1085,14 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
+- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
-- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
+- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 
 ## Purchase Flow Summary
 
@@ -1361,7 +1365,7 @@ ${commerceProtocolSpec}
     chalk.gray(`  ${path.relative(CONFIG.projectRoot, outputPath)}\n`),
   );
   console.log(chalk.white("Project instruction discovery:"));
-  console.log(chalk.gray("  AGENTS.md (Codex and Grok)"));
+  console.log(chalk.gray("  AGENTS.md (Codex, Grok, and Muse)"));
   console.log(chalk.gray("  CLAUDE.md -> AGENTS.md"));
   console.log(chalk.gray("  GEMINI.md -> AGENTS.md\n"));
 }

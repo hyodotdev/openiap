@@ -21,6 +21,7 @@ import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -972,6 +973,11 @@ class OpenIapModule(
     override fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
 
     override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
+
+    // Amazon holds no long-lived billing connection, so nothing can drop.
+    override fun addConnectionStateListener(listener: OpenIapConnectionStateListener) = Unit
+
+    override fun removeConnectionStateListener(listener: OpenIapConnectionStateListener) = Unit
 
     override suspend fun isBillingProgramAvailable(
         program: BillingProgramAndroid

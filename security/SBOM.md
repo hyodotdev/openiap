@@ -4,13 +4,13 @@
 
 Current OpenIAP release workflows attach a machine-readable inventory of direct
 runtime components and dependency contracts, including first-party OpenIAP
-native contracts. A daily repair job fills missed assets for each latest stable
-release, and a weekly read-only job re-verifies and scans every published stable
-release carrying an SBOM. Prereleases rely on their release-time dispatch. That
-inventory lets a consumer — or a maintainer responding to a new advisory —
-identify the released dependency contract without reconstructing it from build
-scripts. Exact application exposure still comes from the consumer's resolved
-dependency graph.
+native contracts. A daily repair job fills missed assets for every stable
+release in the coverage era, and a weekly read-only job re-verifies and scans
+every published stable release carrying an SBOM. Prereleases rely on their
+release-time dispatch. That inventory lets a consumer — or a maintainer
+responding to a new advisory — identify the released dependency contract
+without reconstructing it from build scripts. Exact application exposure
+still comes from the consumer's resolved dependency graph.
 
 SBOMs are generated from released manifests and registry descriptors, shipped
 native declarations, and hash-pinned embedded binaries. No one edits an SBOM by
@@ -39,7 +39,6 @@ The distribution and release-tag columns are prose and are not machine-checked:
 | `kmp`               | `kmp-iap`                   | Maven Central                              | `kmp-iap-<version>`                   |
 | `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
 | `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
-| `docs`              | `openiap-spec`              | GitHub Release                             | `docs-<version>`                      |
 | `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
 | `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
 | `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
@@ -80,7 +79,7 @@ published releases rather than chosen:
 | Component           | First release required to carry an SBOM |
 | ------------------- | --------------------------------------- |
 | `apple`             | `3.2.0`                                 |
-| `docs`              | `docs-3.2.0`                            |
+| `client-protocol`   | `openiap-client-protocol-0.1.0`         |
 | `expo`              | `expo-iap-5.3.0`                        |
 | `flutter`           | `flutter-iap-10.3.0`                    |
 | `godot`             | `godot-iap-3.3.0`                       |
@@ -91,8 +90,8 @@ published releases rather than chosen:
 | `conformance`       | `openiap-conformance-1.0.0`             |
 | `commerce-protocol` | `openiap-commerce-protocol-0.1.0`       |
 
-Client Protocol and CLI have only metadata bootstrap packages so far. They
-remain in `UNRELEASED_COMPONENTS` until their first functional release.
+The CLI has only a metadata bootstrap package so far, so it stays in
+`UNRELEASED_COMPONENTS` until its first functional release.
 
 Every released component is anchored here. "Covered from its first release"
 cannot be proved from a release list that might be missing that release, so a
@@ -113,7 +112,7 @@ way. They are not backfilled: an SBOM generated today resolves today's registry
 metadata, so it would describe something other than what shipped, and a
 plausible-looking artifact that misdescribes a release is worse than its
 absence. Advisory questions about a pre-floor release are answered from the
-tag's committed manifests. For Apple, the docs site and Godot those are the
+tag's committed manifests. For Apple and Godot those are the
 inputs the generator reads. Google, KMP and MAUI resolve their published POM or
 nuspec instead, so a manifest answer for those three describes what the tag
 declared rather than what publishing produced.
@@ -356,11 +355,12 @@ accessors, and unsupported coordinate shapes instead of silently dropping them.
 Every component release workflow dispatches `.github/workflows/sbom.yml` after
 creating its GitHub Release. This explicit dispatch is required because a
 release created with `GITHUB_TOKEN` does not trigger another workflow. A scan on
-SBOM changes and a daily schedule dispatch any missing newest stable asset.
-Prereleases rely on their release-time dispatch and are not part of this repair
-scan. The separate read-only `.github/workflows/security-rescan.yml` requires
-that asset to exist for each newest stable component release, then verifies and
-scans every published stable release that carries one each week.
+SBOM changes and a daily schedule dispatch any missing asset in the coverage
+era. Prereleases rely on their release-time dispatch and are not part of this
+repair scan. The separate read-only `.github/workflows/security-rescan.yml`
+requires that asset to exist for every stable release in the coverage era,
+then verifies and scans every published stable release that carries one each
+week.
 
 ```text
 release workflow  →  GitHub Release published
@@ -508,8 +508,8 @@ git worktree remove --force "$SBOM_REPRO_DIR"
   verified at investigation time, and published descriptors. The workflow
   records the attested workflow commit as the generator revision and refuses to
   overwrite an existing asset.
-- The newest stable release of each component is checked after SBOM changes and
-  every day, so a missed stable release-time dispatch is repaired without manual
+- Stable releases in the coverage era are checked after SBOM changes and
+  every day, so a missed release-time dispatch is repaired without manual
   triage.
 - Every published stable release SBOM is re-verified and vulnerability-scanned
   weekly. Older releases without an SBOM remain outside that scan. Results are

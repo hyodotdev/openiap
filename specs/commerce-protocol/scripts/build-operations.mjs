@@ -841,6 +841,7 @@ export function buildOperationArtifacts(source) {
     event: schemas.get("commerce-event.schema.json"),
     capabilities: schemas.get("provider-capabilities.schema.json"),
     mapping: schemas.get("store-event-mapping.schema.json"),
+    facts: schemas.get("store-facts.schema.json"),
     operations: schemas.get("operations.schema.json"),
   });
   const manifest = buildHttpManifest(ir);

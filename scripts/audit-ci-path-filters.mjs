@@ -365,6 +365,13 @@ export const cases = Object.freeze([
     jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
   },
   {
+    // Config-only: guards the `.github/codeql/**` dorny patterns, which the
+    // workflow-edit case cannot catch (it matches on the workflow path alone).
+    name: "codeql-config-edit",
+    files: [".github/codeql/codeql-config.yml"],
+    jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
+  },
+  {
     name: "maui-binding-source",
     files: ["libraries/maui-iap/src/OpenIap.Maui/Types.cs"],
     jobs: ["ci-maui-iap.yml", "ci:test-gql"],

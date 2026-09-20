@@ -155,8 +155,8 @@ Native modules must be released before framework libraries:
 ### Prerelease
 
 Native and framework package workflows support their documented version bump
-modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
-`current`-only because the Spec version is derived from the native floor.
+modes (`patch` / `minor` / `major` / `rc` / `promote`). The docs site has no
+version and no release workflow; `npm run deploy` just deploys.
 
 - `major` + prerelease checkbox -- X.0.0-rc.1
 - `rc` -- X.0.0-rc.2 (increment prerelease)
@@ -164,17 +164,18 @@ modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
 
 ### Version Management
 
-- `openiap-versions.json` tracks only `spec`, `google`, and `apple` versions.
-- `spec` is derived as the semantic-version minimum of `google` and `apple`;
-  never bump it independently.
-- The Commerce Protocol has an independent version in
+- `openiap-versions.json` tracks only `clientProtocol`, `google`, and `apple` versions.
+- `clientProtocol` mirrors `specs/client/package.json`. That manifest is the
+  single source for the Client Protocol version; bump it there, never here.
+- `google` and `apple` are native package versions. They are CI-managed and say
+  nothing about the protocol version.
+- The Commerce Protocol has its own version in
   `specs/commerce-protocol/package.json`. Release it through
-  `release-openiap.yml` with `package=commerce-protocol`; it is not the client/native `spec` floor.
+  `release-openiap.yml` with `package=commerce-protocol`.
 - Framework library versions live in each library's package metadata and release workflow.
-- Native version writers update their native key and the derived `spec`
-  atomically. `./scripts/sync-versions.sh` then verifies that invariant and
-  propagates the canonical manifest; it does not derive the floor or regenerate
-  schema types.
+- `./scripts/sync-versions.sh` verifies the mirror matches the publishing
+  manifest and propagates the canonical values; it does not regenerate schema
+  types.
 
 ## 5. CI/CD
 
@@ -204,9 +205,9 @@ These files are generated and synchronized by `bun run generate` in
 - `libraries/godot-iap/addons/godot-iap/types.gd`
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
-- `openiap-versions.json` -- Tracks only `spec`, `google`, and `apple`;
-  Google/Apple are native-workflow-managed, while `spec` is their derived
-  semantic-version minimum and is never bumped independently
+- `openiap-versions.json` -- Tracks only `clientProtocol`, `google`, and `apple`.
+  `clientProtocol` is a generated mirror of `specs/client/package.json`;
+  Google/Apple are native-workflow-managed. Never edit any of the three by hand
 
 To regenerate:
 

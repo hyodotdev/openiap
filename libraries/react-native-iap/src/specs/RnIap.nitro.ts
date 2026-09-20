@@ -460,7 +460,7 @@ export interface NitroVerifyPurchaseWithIapkitHorizonProps {
 }
 
 export interface NitroVerifyPurchaseWithIapkitAmazonProps {
-  /** Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS. */
+  /** Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS. */
   expectedProductId?: string | null;
   /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
   receiptId: string;
@@ -475,7 +475,7 @@ export interface NitroVerifyPurchaseWithIapkitProps {
   amazon?: NitroVerifyPurchaseWithIapkitAmazonProps | null;
   apple?: NitroVerifyPurchaseWithIapkitAppleProps | null;
   /**
-   * Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+   * Available in OpenIAP 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
    * HTTP(S) origin for a self-hosted or local IAPKit server. The apiKey must
    * come from the same IAPKit/Convex deployment.
    */
@@ -483,7 +483,7 @@ export interface NitroVerifyPurchaseWithIapkitProps {
   google?: NitroVerifyPurchaseWithIapkitGoogleProps | null;
   horizon?: NitroVerifyPurchaseWithIapkitHorizonProps | null;
   /**
-   * Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+   * Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
    * Include the product's public IAPKit client payload when available.
    */
   includeClientPayload?: boolean | null;
@@ -495,12 +495,12 @@ export interface NitroVerifyPurchaseWithProviderProps {
 }
 
 export interface NitroVerifyPurchaseWithIapkitResult {
-  /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
+  /** Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
   clientPayload?: NitroIapkitProductClientPayload | null;
-  /** Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. */
+  /** Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. */
   environment?: string | null;
   isValid: boolean;
-  /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
+  /** Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
   productId?: string | null;
   state: IapkitPurchaseState;
   store: IapStore;

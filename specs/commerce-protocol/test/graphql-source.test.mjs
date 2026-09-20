@@ -41,6 +41,7 @@ describe("the canonical GraphQL contract", () => {
       "05-operations.graphql",
       "06-compiler-vocabulary.graphql",
       "07-protocol-metadata.graphql",
+      "08-store-facts.graphql",
     ]);
     expect(packageJson.exports["./commerce-protocol.graphql"]).toBe(
       "./generated/commerce-protocol.graphql",
@@ -92,6 +93,7 @@ describe("the canonical GraphQL contract", () => {
       "primitives.schema.json",
       "provider-capabilities.schema.json",
       "store-event-mapping.schema.json",
+      "store-facts.schema.json",
     ]);
   });
 
@@ -139,6 +141,7 @@ describe("the canonical GraphQL contract", () => {
       event: generated.get("commerce-event.schema.json"),
       capabilities: generated.get("provider-capabilities.schema.json"),
       mapping: generated.get("store-event-mapping.schema.json"),
+      facts: generated.get("store-facts.schema.json"),
       operations: generated.get("operations.schema.json"),
     });
     expect(bundle.$id).toBe(

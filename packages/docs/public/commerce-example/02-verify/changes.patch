@@ -12,10 +12,10 @@ index 8469ac8..239ce5c 100644
  Use the existing reviewed prototype where it satisfies the installed contract.
  Run the backend, inspect the result, correct problems, and rerun the affected check.
 diff --git a/checkpoint.json b/checkpoint.json
-index 04e22f5..9b6e1f2 100644
+index 04e22f5..5053480 100644
 --- a/checkpoint.json
 +++ b/checkpoint.json
-@@ -1,7 +1,7 @@
+@@ -1,7 +1,8 @@
  {
 -  "step": 1,
 -  "id": "01-contract",
@@ -26,10 +26,11 @@ index 04e22f5..9b6e1f2 100644
 +  "id": "02-verify",
 +  "title": "Verify a purchase",
 +  "built": "Fixture store adapter + purchase persistence",
-+  "result": "Valid evidence is saved. Alice still has no access."
++  "result": "Valid evidence is saved. Alice still has no access.",
++  "previous": "01-contract"
  }
 diff --git a/provider.mjs b/provider.mjs
-index 3d358af..c90643a 100644
+index 0bdbcd9..08c4ada 100644
 --- a/provider.mjs
 +++ b/provider.mjs
 @@ -28,6 +28,16 @@ export function isEntitled(state, expiresAt, now) {

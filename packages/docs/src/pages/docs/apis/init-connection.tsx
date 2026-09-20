@@ -107,7 +107,7 @@ function InitConnection() {
           connection time. <code>EXTERNAL_CONTENT_LINK</code> and{' '}
           <code>EXTERNAL_OFFER</code> require Billing 8.2.0+;{' '}
           <code>EXTERNAL_PAYMENTS</code> requires Billing 8.3.0+ (Japan only);
-          <code>BILLING_CHOICE</code> is available in OpenIAP Spec 2.1.0 /{' '}
+          <code>BILLING_CHOICE</code> is available in OpenIAP 2.1.0 /{' '}
           <code>openiap-google</code> 2.3.0 and requires Billing 9.1.0+.
         </li>
         <li>
@@ -119,11 +119,10 @@ function InitConnection() {
             </Link>
             )
           </em>{' '}
-          — <strong>OpenIAP Spec 2.1.0 / openiap-google 2.3.0.</strong> Requires
-          Play Billing 9.1.0+ and must match the Billing Choice renderer
-          configured in Play Console. Defaults to <code>GOOGLE_RENDERED</code>;
-          set <code>DEVELOPER_RENDERED</code> when your app owns the choice
-          screen.
+          — <strong>OpenIAP 2.1.0 / openiap-google 2.3.0.</strong> Requires Play
+          Billing 9.1.0+ and must match the Billing Choice renderer configured
+          in Play Console. Defaults to <code>GOOGLE_RENDERED</code>; set{' '}
+          <code>DEVELOPER_RENDERED</code> when your app owns the choice screen.
         </li>
       </ul>
 

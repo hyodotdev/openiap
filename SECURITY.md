@@ -110,8 +110,8 @@ integrators can plan a migration rather than discover it during an incident.
 ## Supply Chain
 
 Current component release workflows attach a CycloneDX SBOM as a GitHub Release
-asset, and a daily repair job fills any missed latest-stable-release asset. Use
-it to check whether a specific version declares a given dependency:
+asset, and a daily repair job fills any missed stable asset in the coverage
+era. Use it to check whether a specific version declares a given dependency:
 
 ```bash
 gh release download react-native-iap-16.3.0 \

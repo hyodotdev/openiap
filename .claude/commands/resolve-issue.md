@@ -37,7 +37,8 @@ maintainer requested the work in another language.
 Write issue comments the way a maintainer would, following
 `knowledge/internal/06-git-deployment.md#public-github-communication-style`.
 Lead with the verdict, give the reason in a sentence or two, and stop. No
-investigation narrative, no restating the report back to the reporter.
+investigation narrative, no restating the report back to the reporter. PR
+bodies opened from an issue follow the same anchor.
 
 ## Instructions
 
@@ -140,8 +141,6 @@ gh pr create --title "fix(<scope>): <description>" \
 <What was broken and what changed, in a sentence or two.>
 
 Closes #$ISSUE_NUMBER
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
 EOF
 )"
 ```

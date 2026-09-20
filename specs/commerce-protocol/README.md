@@ -67,16 +67,16 @@ The contract sits between the stores and everything downstream of a backend:
 
 ```mermaid
 flowchart TB
-  stores["Apple / Google / Meta / Amazon<br/>the stores"]
-  backend["A backend that implements this spec<br/>IAPKit, another provider, or the adopter's own — in any language<br/><br/>verify → normalize → lifecycle → entitle"]
+  stores["Apple / Google<br/>/ Meta / Amazon<br/>the stores"]
+  backend["A backend that<br/>implements this spec<br/>IAPKit, another<br/>provider, or the<br/>adopter's own<br/>— in any language<br/><br/>verify → normalize<br/>→ lifecycle → entitle"]
   app["shipped application<br/>verification role (§5)"]
   server["the adopter's backend<br/>server role (§5)"]
-  consumers["any consumer<br/>data pipeline / CRM / analytics"]
+  consumers["any consumer<br/>data pipeline<br/>/ CRM / analytics"]
 
-  stores -->|"store-native notifications and APIs"| backend
-  app -->|"verifyPurchase, providerCapabilities (§4.1, §4.6)<br/>over REST (§6) or GraphQL (§7)"| backend
-  server -->|"those, plus subscriptionStatus, entitlements, bindPurchase, eraseUser (§4.2–§4.5)<br/>server role only — never a shipped app"| backend
-  backend -->|"OpenIAP Commerce Protocol events (§9)"| consumers
+  stores -->|"&nbsp;store-native&nbsp;<br/>&nbsp;notifications and APIs&nbsp;"| backend
+  app -->|"&nbsp;verifyPurchase,&nbsp;<br/>&nbsp;providerCapabilities&nbsp;<br/>&nbsp;(§4.1, §4.6)&nbsp;<br/>&nbsp;over REST (§6) or&nbsp;<br/>&nbsp;GraphQL (§7)&nbsp;"| backend
+  server -->|"&nbsp;those, plus&nbsp;<br/>&nbsp;subscriptionStatus,&nbsp;<br/>&nbsp;entitlements,&nbsp;<br/>&nbsp;bindPurchase,&nbsp;<br/>&nbsp;eraseUser (§4.2–§4.5)&nbsp;<br/>&nbsp;server role only&nbsp;<br/>&nbsp;— never a shipped app&nbsp;"| backend
+  backend -->|"&nbsp;OpenIAP Commerce&nbsp;<br/>&nbsp;Protocol events (§9)&nbsp;"| consumers
 ```
 
 ## Reviewing a change

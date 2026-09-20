@@ -12,7 +12,7 @@ index fe0a957..251443c 100644
  Use the existing reviewed prototype where it satisfies the installed contract.
  Run the backend, inspect the result, correct problems, and rerun the affected check.
 diff --git a/capture.mjs b/capture.mjs
-index ed28b0c..7a4ffc3 100644
+index 5435689..dd54545 100644
 --- a/capture.mjs
 +++ b/capture.mjs
 @@ -18,7 +18,7 @@ const startedAt = new Date().toISOString();
@@ -56,21 +56,23 @@ index ed28b0c..7a4ffc3 100644
    await browser.close();
    await lab.close();
 diff --git a/checkpoint.json b/checkpoint.json
-index 2381a61..8fdd5c2 100644
+index 2339583..79798b7 100644
 --- a/checkpoint.json
 +++ b/checkpoint.json
-@@ -1,7 +1,7 @@
+@@ -1,8 +1,8 @@
  {
 -  "step": 3,
 -  "id": "03-bind",
 -  "title": "Connect it to a user",
 -  "built": "Server authorization + atomic binding + entitlement reads",
--  "result": "Alice gets Premium. Another user cannot take the purchase."
+-  "result": "Alice gets Premium. Another user cannot take the purchase.",
+-  "previous": "02-verify"
 +  "step": 4,
 +  "id": "04-cancel",
 +  "title": "Handle cancellation",
 +  "built": "Lifecycle processing + transactional event outbox",
-+  "result": "Renewal stops. Alice keeps the time she already paid for."
++  "result": "Renewal stops. Alice keeps the time she already paid for.",
++  "previous": "03-bind"
  }
 diff --git a/dashboard.html b/dashboard.html
 index 85b613b..b283719 100644
@@ -130,7 +132,7 @@ index 85b613b..b283719 100644
        $("next").onclick = async () => {
          $("next").disabled = true;
 diff --git a/provider.mjs b/provider.mjs
-index be4eb4b..1e43f78 100644
+index 7019c85..b8028f2 100644
 --- a/provider.mjs
 +++ b/provider.mjs
 @@ -47,6 +47,12 @@ export function createProvider(path, now) {
@@ -156,7 +158,7 @@ index be4eb4b..1e43f78 100644
 +  );
 +  const supported = new Set(["initialValidation", "subscriptions", "entitlements", "serverNotifications"]);
 +  const capabilities = {
-+    specVersion: HTTP_BINDING.protocolVersion,
++    commerceProtocolVersion: HTTP_BINDING.protocolVersion,
 +    implementation: { name: "Commerce Protocol Example — fictional fixture store" },
 +    eventTypes,
 +    stores: {

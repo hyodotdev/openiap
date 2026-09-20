@@ -8,6 +8,7 @@ import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
 import dev.hyo.openiap.QueryGetAvailablePurchasesHandler
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import java.lang.reflect.Proxy
@@ -69,6 +70,28 @@ class OpenIapStoreConnectionLifecycleTest {
     }
 
     @Test
+    fun `a service drop clears isConnected`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        val module = FakeOpenIapProtocol()
+        val store = OpenIapStore(module.protocol)
+
+        try {
+            assertTrue(store.initConnection())
+            assertTrue(store.isConnected.value)
+
+            module.emitBillingServiceDisconnected()
+            assertFalse(store.isConnected.value)
+
+            assertTrue(store.endConnection())
+            module.emitBillingServiceDisconnected()
+            assertEquals(0, module.connectionStateListeners.size)
+        } finally {
+            store.clear()
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
     fun `listeners return after a failed reconnect`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val module = FakeOpenIapProtocol()
@@ -118,6 +141,7 @@ class OpenIapStoreConnectionLifecycleTest {
 private class FakeOpenIapProtocol {
     val purchaseUpdateListeners = linkedSetOf<OpenIapPurchaseUpdateListener>()
     val purchaseErrorListeners = linkedSetOf<OpenIapPurchaseErrorListener>()
+    val connectionStateListeners = linkedSetOf<OpenIapConnectionStateListener>()
     var availablePurchases: List<Purchase> = emptyList()
     var availablePurchaseRequests = 0
     var connectionResult = true
@@ -157,6 +181,14 @@ private class FakeOpenIapProtocol {
                 purchaseErrorListeners -= args.single() as OpenIapPurchaseErrorListener
                 Unit
             }
+            "addConnectionStateListener" -> {
+                connectionStateListeners += args.single() as OpenIapConnectionStateListener
+                Unit
+            }
+            "removeConnectionStateListener" -> {
+                connectionStateListeners -= args.single() as OpenIapConnectionStateListener
+                Unit
+            }
             "setActivity" -> Unit
             "equals" -> proxy === args.single()
             "hashCode" -> System.identityHashCode(proxy)
@@ -168,6 +200,12 @@ private class FakeOpenIapProtocol {
     fun emitPurchase(purchase: Purchase) {
         for (listener in purchaseUpdateListeners) {
             listener.onPurchaseUpdated(purchase)
+        }
+    }
+
+    fun emitBillingServiceDisconnected() {
+        for (listener in connectionStateListeners) {
+            listener.onBillingServiceDisconnected()
         }
     }
 }

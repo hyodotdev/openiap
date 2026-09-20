@@ -151,34 +151,39 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
-    func testIapkitRequestReportsTheSpecItWasBuiltAgainst() throws {
+    func testIapkitRequestCarriesNoProtocolVersionHeader() throws {
         let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
         let request = OpenIapModule.makeIapkitRequest(
             url: url,
             apiKey: "  iapkit_pk_test  ",
-            body: Data("{}".utf8),
-            specVersion: "3.2.0"
+            body: Data("{}".utf8)
         )
 
         XCTAssertEqual("POST", request.httpMethod)
         XCTAssertEqual("application/json", request.value(forHTTPHeaderField: "Content-Type"))
         XCTAssertEqual("Bearer iapkit_pk_test", request.value(forHTTPHeaderField: "Authorization"))
-        // Injected so the assertion has an expected value independent of the
-        // accessor the builder reads.
-        XCTAssertEqual("3.2.0", request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
+        XCTAssertNil(request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
+        XCTAssertEqual(
+            ["Content-Type", "Authorization"].sorted(),
+            (request.allHTTPHeaderFields ?? [:]).keys.sorted(),
+            "the verify request sends only the headers it needs"
+        )
         XCTAssertEqual(Data("{}".utf8), request.httpBody)
     }
 
-    func testSpecVersionIsACompileTimeConstant() throws {
+    func testClientProtocolVersionIsACompileTimeConstant() throws {
         // Generated from openiap-versions.json, so it cannot fail to resolve in
         // any distribution channel.
-        XCTAssertEqual(OpenIapVersion.specVersion, OpenIapGeneratedVersion.spec)
+        XCTAssertEqual(
+            OpenIapVersion.clientProtocolVersion,
+            OpenIapGeneratedVersion.clientProtocol
+        )
         XCTAssertNotNil(
-            OpenIapVersion.specVersion.range(
+            OpenIapVersion.clientProtocolVersion.range(
                 of: #"^\d+\.\d+\.\d+"#,
                 options: .regularExpression
             ),
-            "expected a semver, got \(OpenIapVersion.specVersion)"
+            "expected a semver, got \(OpenIapVersion.clientProtocolVersion)"
         )
     }
 

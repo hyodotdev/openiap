@@ -12,7 +12,7 @@ Install Bun (tested with 1.3.13) and Node.js/npm, then run:
 ```sh
 git clone --branch docs/example-backend-reference --single-branch https://github.com/hyodotdev/openiap-commerce-protocol-example.git
 cd openiap-commerce-protocol-example
-git checkout 30130a91e292d1aa06a5bf7954c72f3231459c1b
+git checkout 6231319fedc29b8e6052e1558b0626abecc2e05a
 npm ci
 npm test
 npm start
@@ -27,11 +27,11 @@ Restarting keeps the SQLite databases in `.runtime/`. For a fresh demo, use a
 fresh checkout. `PORT=5197 npm start` selects another port. No payment, account,
 server key, or cloud service setup is needed: every credential is a local fixture.
 
-![Actual clean-source result: Premium remains open after cancellation and two events are saved](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/final-screen.jpg)
+![Actual clean-source result: Premium remains open after cancellation and two events are saved](https://raw.githubusercontent.com/hyodotdev/openiap-commerce-protocol-example/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/final-screen.jpg)
 
 ## Follow the build
 
-Start with [the exact AI input](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/ai-input.md): the CLI output, the
+Start with [the exact AI input](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/ai-input.md): the CLI output, the
 rendered documentation request, and the user's fresh-history constraints.
 `init` printed instructions and exited with no project changes. The AI wrote
 all application code afterward, with tests and corrections across these commits.
@@ -48,8 +48,8 @@ all application code afterward, with tests and corrections across these commits.
 | 7. Erase the account  | Identity is removed; late requests cannot restore access. | [Code](https://github.com/hyodotdev/openiap-commerce-protocol-example/tree/e7bd417e80723e9cad3991f5648f2cb6803f3796) · [Diff](https://github.com/hyodotdev/openiap-commerce-protocol-example/commit/e7bd417e80723e9cad3991f5648f2cb6803f3796) · [Run](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e7bd417e80723e9cad3991f5648f2cb6803f3796/evidence/07-final.json) · [Screen](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e7bd417e80723e9cad3991f5648f2cb6803f3796/evidence/07-screen.png)        |
 
 Each commit was then independently extracted, installed, and tested again:
-[clean-checkout replay](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/history-replay.json). Run `node verify-history.mjs`
-to repeat the replay. [Implementation notes](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/BUILD-NOTES.md) explain the API and
+[clean-checkout replay](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/history-replay.json). Run `node verify-history.mjs`
+to repeat the replay. [Implementation notes](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/BUILD-NOTES.md) explain the API and
 storage changes in each milestone.
 
 ## What the verification proves
@@ -58,13 +58,13 @@ storage changes in each milestone.
   abrupt process restart, and erasure run against the new implementation.
 - The published REST runner passes for the declared verification, entitlements,
   and accountLifecycle profiles using fictional store evidence. The initial
-  [failed run](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/07-first-conformance.json) and
-  [failing source patch](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/07-first-attempt.patch) are retained.
+  [failed run](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/07-first-conformance.json) and
+  [failing source patch](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/07-first-attempt.patch) are retained.
 - Two **intentional negative controls** break the ownership guard or expiry
   boundary in disposable copies. The tests fail in both cases:
-  [ownership](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/negative-ownership-guard.json),
-  [expiry](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/negative-expiry-boundary.json).
-- [Comparison with the earlier example and IAPKit](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/30130a91e292d1aa06a5bf7954c72f3231459c1b/evidence/comparison.md)
+  [ownership](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/negative-ownership-guard.json),
+  [expiry](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/negative-expiry-boundary.json).
+- [Comparison with the earlier example and IAPKit](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/6231319fedc29b8e6052e1558b0626abecc2e05a/evidence/comparison.md)
   records what was run and what was only read.
 
 Store receipts, Alice/Bob sessions, the clock, and Google-shaped tokens are

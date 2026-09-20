@@ -245,16 +245,6 @@ const COMPONENTS = {
       historicalManifests: commerceProtocolManifest.historicalPaths,
     },
   },
-  docs: {
-    sbomName: "openiap-spec",
-    type: "data",
-    purl: (version) => `pkg:generic/openiap-spec@${version}`,
-    distribution: (version) => `${REPOSITORY_URL}/releases/tag/docs-${version}`,
-    directory: "specs/client",
-    // The spec release publishes the GraphQL contract and generated types.
-    // It carries no third-party runtime code.
-    source: { kind: "none" },
-  },
   expo: {
     sbomName: "expo-iap",
     type: "library",
@@ -855,7 +845,7 @@ export function parseTrivyExceptions(contents) {
 // pass between merging it and publishing. Listing it here is the explicit,
 // reviewable way to say "not shipped yet"; the entry comes out when it ships
 // and the floor goes in.
-export const UNRELEASED_COMPONENTS = new Set(["client-protocol", "cli"]);
+export const UNRELEASED_COMPONENTS = new Set(["cli"]);
 
 export const SBOM_COVERAGE_FLOOR = {
   // Every released component is anchored to the first release required to
@@ -864,7 +854,7 @@ export const SBOM_COVERAGE_FLOOR = {
   // openiap-conformance-2.0.0 satisfied a floorless component while 1.0.0 and
   // 1.0.1 were absent.
   apple: "3.2.0",
-  docs: "docs-3.2.0",
+  "client-protocol": "openiap-client-protocol-0.1.0",
   expo: "expo-iap-5.3.0",
   flutter: "flutter-iap-10.3.0",
   godot: "godot-iap-3.3.0",

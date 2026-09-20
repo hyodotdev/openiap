@@ -5,10 +5,10 @@
 
 ## Version Compatibility
 
-| Component | Version | Notes |
-| --- | --- | --- |
-| Amazon Appstore SDK | **3.0.9** | Current official release (May 20, 2026) |
-| OpenIAP Android flavor | `amazon` | Uses the native Appstore SDK, not Google Billing Compatibility |
+| Component              | Version   | Notes                                                          |
+| ---------------------- | --------- | -------------------------------------------------------------- |
+| Amazon Appstore SDK    | **3.0.9** | Current official release (May 20, 2026)                        |
+| OpenIAP Android flavor | `amazon`  | Uses the native Appstore SDK, not Google Billing Compatibility |
 
 Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE`
 fulfillment results and add-on subscription support. Add-on subscriptions are
@@ -17,13 +17,13 @@ Console.
 
 ## OpenIAP Mapping
 
-| OpenIAP API | Amazon Appstore SDK |
-| --- | --- |
-| `initConnection()` | Register `PurchasingListener`, then request user data |
-| `fetchProducts()` | `PurchasingService.getProductData()` |
-| `requestPurchase()` | `PurchasingService.purchase()` |
-| `getAvailablePurchases()` / restore | `PurchasingService.getPurchaseUpdates()` |
-| `finishTransaction()` | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
+| OpenIAP API                         | Amazon Appstore SDK                                   |
+| ----------------------------------- | ----------------------------------------------------- |
+| `initConnection()`                  | Register `PurchasingListener`, then request user data |
+| `fetchProducts()`                   | `PurchasingService.getProductData()`                  |
+| `requestPurchase()`                 | `PurchasingService.purchase()`                        |
+| `getAvailablePurchases()` / restore | `PurchasingService.getPurchaseUpdates()`              |
+| `finishTransaction()`               | `PurchasingService.notifyFulfillment(..., FULFILLED)` |
 
 The Amazon flavor is isolated under
 `packages/google/openiap/src/amazon/`. Google Play Billing APIs such as Billing
@@ -47,12 +47,12 @@ Reference: [Implement Pending Purchases](https://developer.amazon.com/docs/in-ap
 Always report the result after deciding whether the customer can access the
 content:
 
-| Result | Use |
-| --- | --- |
-| `FULFILLED` | The purchase was granted successfully |
+| Result              | Use                                                        |
+| ------------------- | ---------------------------------------------------------- |
+| `FULFILLED`         | The purchase was granted successfully                      |
 | `EXISTING_PURCHASE` | The customer already has the relevant account/subscription |
-| `NOT_ELIGIBLE` | The customer can't use the purchased service |
-| `UNAVAILABLE` | The content couldn't be delivered |
+| `NOT_ELIGIBLE`      | The customer can't use the purchased service               |
+| `UNAVAILABLE`       | The content couldn't be delivered                          |
 
 Amazon immediately cancels and refunds the purchase when fulfillment is
 reported as `EXISTING_PURCHASE`, `NOT_ELIGIBLE`, or `UNAVAILABLE`; callers must
@@ -80,3 +80,49 @@ is not met; OpenIAP surfaces it as `item-unavailable` and does not grant the
 add-on.
 
 Reference: [Set Up Add-On Subscriptions](https://developer.amazon.com/docs/in-app-purchasing/set-up-add-on-subscriptions.html)
+
+## Server-to-Server Surfaces
+
+Amazon's server side is three separate things. IAPKit uses only the first.
+
+**Receipt Verification Service** validates a receipt and returns its current
+state: `receiptId`, `productId`, `productType`, `purchaseDate`, `quantity`,
+`countryCode`, and for subscriptions `autoRenewing`, `renewalDate`, `cancelDate`,
+`cancelReason`, `term`, `termSku`, `freeTrialEndDate`, `gracePeriodEndDate`,
+`deferredDate`/`deferredSku`, `baseReceipts`, `promotions`, `fulfillmentDate`,
+`fulfillmentResult`, `betaProduct`, `testTransaction`. It carries no price or
+currency, and it reports state rather than the transition that produced it.
+
+**Real-Time Notifications** push purchase state changes to an HTTPS endpoint
+registered in the developer console. Sixteen types: `CONSUMABLE_PURCHASED`,
+`CONSUMABLE_CANCELLED`, `ENTITLEMENT_PURCHASED`, `ENTITLEMENT_CANCELLED`,
+`SUBSCRIPTION_PURCHASED`, `SUBSCRIPTION_RENEWED`, `SUBSCRIPTION_CANCELLED`,
+`SUBSCRIPTION_EXPIRED`, `SUBSCRIPTION_IN_GRACE_PERIOD`,
+`SUBSCRIPTION_OUT_OF_GRACE_PERIOD`, `SUBSCRIPTION_AUTO_RENEWAL_ON`,
+`SUBSCRIPTION_AUTO_RENEWAL_OFF`, `SUBSCRIPTION_SCHEDULED_TO_END`,
+`SUBSCRIPTION_MODIFIED_IMMEDIATE`, `SUBSCRIPTION_MODIFIED_DEFERRED`,
+`SUBSCRIPTION_CONVERTED_FREE_TRIAL_TO_PAID`. The payload is `receiptId`,
+`relatedReceipts`, `appUserId`, `notificationType`, `appPackageName`,
+`timestamp`, `betaProductTransaction` — no amount, and no field separating a
+refund from a cancellation.
+
+**Reporting API** downloads sales, earnings and subscription reports through a
+pre-signed S3 URL, authenticated with Login with Amazon. Sales reports are
+per-transaction from 2018 onward, with `Receipt ID`, `Transaction Id`,
+`Transaction Type` (Charge, Refund, Chargeback, Chargeback reversal),
+`Sales Price`, `Estimated Earnings` and `Marketplace Currency`. This is the only
+Amazon surface that reports an amount, and it is a batch export.
+
+Vega OS shares this server side. One app listing covers Fire OS and Vega, using
+the same Receipt Verification Service host and the same notification channel, so
+Vega is not a separate store.
+
+> **OpenIAP Note**: which of these the specification treats as available, and
+> how each is delivered, is stated in
+> `specs/commerce-protocol/examples/store-facts.json`.
+
+References:
+[Understanding Real-Time Notifications](https://developer.amazon.com/docs/in-app-purchasing/real-time-notifications.html),
+[RVS for Android apps](https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html),
+[Reporting API](https://developer.amazon.com/docs/reports-promo/reporting-API.html),
+[Sales reports](https://developer.amazon.com/docs/reports-promo/sales-reports.html)

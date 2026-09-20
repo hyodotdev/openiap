@@ -8,6 +8,12 @@
     </queries>
 
     <application>
+        <provider
+            android:name="dev.hyo.openiap.AmazonEarlyRegistrationProvider"
+            android:authorities="${applicationId}.openiap.amazon-startup"
+            android:exported="false"
+            android:initOrder="100" />
+
         <receiver
             android:name="com.amazon.device.iap.ResponseReceiver"
             android:exported="true"

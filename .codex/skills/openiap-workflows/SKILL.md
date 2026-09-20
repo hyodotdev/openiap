@@ -5,7 +5,7 @@ description: Use for OpenIAP monorepo work that should follow the repository's s
 
 # OpenIAP Workflows
 
-Use this skill when the user asks Codex to perform an OpenIAP repo workflow that
+Use this skill when the user asks the agent to perform an OpenIAP repo workflow that
 previously lived under `.claude/commands`, such as reviewing a PR, resolving an
 issue, auditing code, compiling knowledge, running device-backed E2E regression,
 verifying the monorepo, or committing and opening a PR.
@@ -13,8 +13,8 @@ verifying the monorepo, or committing and opening a PR.
 ## Source Of Truth
 
 Before changing code, read the root `AGENTS.md`; `CLAUDE.md` and `GEMINI.md`
-are symlinks to it in this repo, while Grok and Codex consume `AGENTS.md`
-directly. Then read the relevant detailed files:
+are symlinks to it in this repo, while Grok, Codex, and Muse consume
+`AGENTS.md` directly. Then read the relevant detailed files:
 
 - Package and library rules: `knowledge/internal/*.md`
 - Package conventions: `packages/*/CONVENTION.md`
@@ -26,7 +26,7 @@ specific package or workflow.
 
 ## Command Mapping
 
-Codex does not need Claude slash-command syntax. If the user says any of these
+You do not need Claude slash-command syntax. If the user says any of these
 natural-language requests, execute the matching workflow:
 
 - Review PR comments, fix review feedback, or "review-pr": read

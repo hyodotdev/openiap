@@ -3,7 +3,6 @@ import { Hono } from "hono";
 
 import { apiKeyMiddleware } from "./middleware";
 import {
-  readSpecVersion,
   requestLoggerMiddleware,
   type VerifyDebugLogLine,
   type VerifyLogLine,
@@ -103,8 +102,9 @@ describe("requestLoggerMiddleware", () => {
     expect(line.durationMs).toBeGreaterThanOrEqual(0);
   });
 
-  test("carries the client spec version from the wire onto the log line", async () => {
-    // The header name has to agree across kit, openiap-apple and openiap-google.
+  test("ignores a protocol version header instead of logging it", async () => {
+    // The header is gone: kit reads no client-declared version, so a caller
+    // cannot put an arbitrary string on a log line.
     const logs: VerifyLogLine[] = [];
     const app = buildApp({ logs });
 
@@ -118,39 +118,12 @@ describe("requestLoggerMiddleware", () => {
       body: JSON.stringify({ store: "apple", jws: TEST_APPLE_JWS }),
     });
 
-    expect(logs[0]?.specVersion).toBe("3.2.0");
-  });
-
-  test("omits a spec version the shape check rejects", async () => {
-    const logs: VerifyLogLine[] = [];
-    const app = buildApp({ logs });
-
-    await app.request("/verify", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer spec-header-junk",
-        "content-type": "application/json",
-        // Injection shapes are covered by the readSpecVersion unit test below;
-        // the runtime rejects a newline header before kit sees it.
-        "X-OpenIAP-Spec": "latest",
-      },
-      body: JSON.stringify({ store: "apple", jws: TEST_APPLE_JWS }),
-    });
-
-    expect(logs[0]).toBeDefined();
-    expect(logs[0]?.specVersion).toBeUndefined();
-  });
-
-  test("records a plausible client spec version and ignores anything else", async () => {
-    // Caller-controlled; nothing branches on it.
-    expect(readSpecVersion("3.2.0")).toBe("3.2.0");
-    expect(readSpecVersion("3.2.0-rc.1")).toBe("3.2.0-rc.1");
-    expect(readSpecVersion(undefined)).toBeUndefined();
-    expect(readSpecVersion("")).toBeUndefined();
-    expect(readSpecVersion("latest")).toBeUndefined();
-    expect(readSpecVersion("3.2")).toBeUndefined();
-    expect(readSpecVersion(`3.2.0-${"a".repeat(64)}`)).toBeUndefined();
-    expect(readSpecVersion('3.2.0"}\n{"level":"info"')).toBeUndefined();
+    const line = logs[0] as
+      | (VerifyLogLine & Record<string, unknown>)
+      | undefined;
+    expect(line).toBeDefined();
+    expect(line).not.toHaveProperty("specVersion");
+    expect(JSON.stringify(line)).not.toContain("3.2.0");
   });
 
   test("still logs when the validator rejects the payload (400)", async () => {

@@ -23,7 +23,7 @@ function ShowBillingProgramInformationDialogAndroid() {
       </h1>
       <p>
         Shows Google's billing program information dialog for Billing Choice.
-        Available in OpenIAP Spec 2.1.0 and <code>openiap-google</code> 2.3.0;
+        Available in OpenIAP 2.1.0 and <code>openiap-google</code> 2.3.0;
         requires Play Billing 9.1.0+.
       </p>
       <p>

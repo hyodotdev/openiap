@@ -38,11 +38,6 @@ export const PACKAGE_CONFIG = {
     ],
     version: (content) => JSON.parse(content).version,
   },
-  docs: {
-    path: "openiap-versions.json",
-    tags: (version) => [`docs-${version}`],
-    version: (content) => JSON.parse(content).spec,
-  },
   expo: {
     path: "libraries/expo-iap/package.json",
     tags: (version) => [`expo-iap-${version}`],

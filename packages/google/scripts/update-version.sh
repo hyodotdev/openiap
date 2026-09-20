@@ -25,7 +25,7 @@ if [[ ! -f "$VERSIONS_FILE" ]]; then
     exit 1
 fi
 
-# Update the native key and derived spec floor atomically.
+# Update the native package version; it constrains no protocol version.
 node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
     update-native google "$VERSION"
 

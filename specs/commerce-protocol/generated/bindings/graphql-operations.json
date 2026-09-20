@@ -4,9 +4,9 @@
   "operations": {
     "providerCapabilities": {
       "kind": "query",
-      "document": "query ProviderCapabilities { providerCapabilities { specVersion implementation { name version } eventTypes stores profiles bindings } }",
+      "document": "query ProviderCapabilities { providerCapabilities { commerceProtocolVersion implementation { name version } eventTypes stores profiles bindings } }",
       "selection": {
-        "specVersion": true,
+        "commerceProtocolVersion": true,
         "implementation": {
           "name": true,
           "version": true

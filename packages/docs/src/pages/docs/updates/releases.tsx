@@ -63,6 +63,42 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '16.6.2',
+    tag: 'react-native-iap-16.6.2',
+  },
+  { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
+];
+
+const GODOT_EMBED_REPORT_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.5.2', tag: 'godot-iap-3.5.2' },
+];
+
+const GODOT_RUNTIME_EMBED_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'godot-iap', version: '3.5.1', tag: 'godot-iap-3.5.1' },
+];
+
+const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: '@hyodotdev/openiap-commerce-protocol',
+    version: '0.3.0',
+    tag: 'hyodotdev-openiap-commerce-protocol-0.3.0',
+  },
+];
+
+const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.5.2', tag: 'google-3.5.2' },
+  {
+    name: 'react-native-iap',
+    version: '16.6.1',
+    tag: 'react-native-iap-16.6.1',
+  },
+  { name: 'expo-iap', version: '5.6.1', tag: 'expo-iap-5.6.1' },
+  { name: 'expo-iap', version: '5.6.2', tag: 'expo-iap-5.6.2' },
+];
+
 const OPENIAP_TOOLING_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.5.1', tag: 'google-3.5.1' },
   {
@@ -361,10 +397,555 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'framework-build-play-offers-2026-09-20',
+      aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-20'),
+      element: (
+        <div key="framework-build-play-offers-2026-09-20" style={noteCardStyle}>
+          {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="framework-build-play-offers-2026-09-20" level="h4">
+            September 20, 2026 - Framework build fixes and Play offer imports
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now imports active Google Play subscription offers across
+            base plans and clears stale offers for inactive subscriptions. When
+            a discount amount cannot be calculated exactly, the phase stays paid
+            instead of becoming a free trial. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/461"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #461
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              <strong>react-native-iap 16.6.2 and expo-iap 5.6.3</strong> - fix
+              debug logger TypeScript errors in apps without Node.js global
+              types (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/474"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #474
+              </a>
+              ).
+            </li>
+            <li>
+              <strong>react-native-iap 16.6.2</strong> - accepts Nitro Modules{' '}
+              <code>&gt;=0.36.5</code>, including 0.37.x, without a peer
+              dependency conflict (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/475"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #475
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul style={{ margin: 0 }}>
+              {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'godot-embed-report-2026-09-18',
+      aliases: GODOT_EMBED_REPORT_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-18'),
+      element: (
+        <div key="godot-embed-report-2026-09-18" style={noteCardStyle}>
+          {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-embed-report-2026-09-18" level="h4">
+            September 18, 2026 - godot-iap reports what the iOS embed script did
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            <code>fix_ios_embed.sh</code> only spoke when it removed a duplicate
+            runtime, so a run that found nothing looked exactly like a run that
+            never checked. It now names what the Embed Frameworks phase holds,
+            so a clean run reads{' '}
+            <code>
+              Runtime embed check: no conflict among the embeds we could read:
+              ...
+            </code>{' '}
+            and a plugin that never got embedded is absent from that list. An{' '}
+            <code>.xcframework</code> whose iOS slice it cannot resolve is
+            called out separately, since that is where a second runtime could
+            hide.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Two runs that reported success while changing nothing now fail
+            instead. Framework references missing from the Xcode project exit
+            non-zero and leave the project file alone, rather than warning on
+            stdout and writing a half-patched file. A <code>PYTHON_BIN</code>{' '}
+            that is not a Python 3 interpreter is rejected, rather than
+            swallowing the script and exiting zero.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            A normal run patches the project exactly as 3.5.1 did.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {GODOT_EMBED_REPORT_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'iapkit-unknown-reason-fail-closed-2026-09-18',
+      date: new Date('2026-09-18'),
+      element: (
+        <div
+          key="iapkit-unknown-reason-fail-closed-2026-09-18"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="iapkit-unknown-reason-fail-closed-2026-09-18"
+            level="h4"
+          >
+            September 18, 2026 - Unknown Apple transaction reasons now verify as
+            invalid
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            IAPKit now returns <code>UNKNOWN</code> (<code>isValid: false</code>
+            ) for a verified Apple transaction whose{' '}
+            <code>transactionReason</code> it does not recognize, instead of
+            inheriting the absent-reason grant. Revoked and expired transactions
+            still map to <code>CANCELED</code> and <code>EXPIRED</code> first,
+            and receipts with no reason at all behave exactly as before.
+          </p>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            No action required: Apple sends only <code>PURCHASE</code> and{' '}
+            <code>RENEWAL</code> today, so no live receipt changes state. If
+            Apple adds a value later, affected receipts report invalid until
+            IAPKit ships the mapping. No SDK update is needed — the change is
+            already live on hosted IAPKit. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/472"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #472
+            </a>
+            .
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: 'amazon-purchase-dialog-2026-09-15',
+      aliases: AMAZON_DIALOG_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-15'),
+      element: (
+        <div key="amazon-purchase-dialog-2026-09-15" style={noteCardStyle}>
+          {AMAZON_DIALOG_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="amazon-purchase-dialog-2026-09-15" level="h4">
+            September 15, 2026 - Amazon purchase dialog, and iOS rejection
+            messages
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Fixes the Fire OS purchase dialog never appearing (
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/460"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #460
+            </a>
+            {', '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/462"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #462
+            </a>
+            ) and iOS rejections losing their message (
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/463"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #463
+            </a>
+            {', '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/464"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              #464
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.5.2</strong> - registers with the Amazon
+              Appstore SDK at process start. The SDK installs its lifecycle
+              callbacks inside the first <code>registerListener</code> call and
+              launches the purchase Activity only from an Activity it has seen
+              resume, so registering in <code>initConnection</code> parked the
+              purchase until the next <code>onResume</code>: no dialog, then a
+              300s timeout. Also notifies listeners when a live billing
+              connection drops.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.6.1</strong> - picks up the Amazon fix
+              and clears its cached connection flag when the billing service
+              drops.
+            </li>
+            <li>
+              <strong>expo-iap 5.6.2</strong> - restores <code>message</code>{' '}
+              and <code>debugMessage</code> on iOS rejections. Expo appends a
+              source location to a rejected function&apos;s message, which made
+              the error envelope fail to parse, so a plain cancel arrived as{' '}
+              <code>user-cancelled</code> with{' '}
+              <code>&quot;Failed to request purchase&quot;</code> and read like
+              an outage.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Passing an Activity to <code>registerListener</code> changes
+              nothing: the SDK calls <code>getApplicationContext()</code> on
+              whatever it is given. The fix is when registration happens, not
+              what it is handed.
+            </li>
+            <li>
+              Amazon App Tester cannot show this. It answers over its own
+              service intents and never reaches the pipeline that launches the
+              Appstore&apos;s purchase Activity, so a purchase can pass in the
+              sandbox and present no dialog on the live store.
+            </li>
+            <li>
+              <code>react-native-iap</code> was never affected by the iOS
+              message loss; its bridge is Nitro and it extracts the payload with
+              a balanced-brace scan.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <ul>
+            {AMAZON_DIALOG_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'godot-runtime-embed-2026-09-17',
+      aliases: GODOT_RUNTIME_EMBED_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-17'),
+      element: (
+        <div key="godot-runtime-embed-2026-09-17" style={noteCardStyle}>
+          {GODOT_RUNTIME_EMBED_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="godot-runtime-embed-2026-09-17" level="h4">
+            September 17, 2026 - godot-iap installs beside other SwiftGodot
+            plugins
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            An iOS export containing godot-iap and any other SwiftGodot-based
+            plugin failed to build. Both ask Godot to embed a runtime that
+            installs as <code>Frameworks/SwiftGodotRuntime.framework</code>.
+            godot-iap ships it as a <code>.framework</code>; a plugin shipping
+            it as an <code>.xcframework</code> installs that same bundle name
+            from its iOS slice. Godot embeds each GDExtension dependency without
+            checking where it lands, so Xcode stopped with{' '}
+            <code>Multiple commands produce</code>.
+          </p>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            <code>fix_ios_embed.sh</code> now drops its own runtime entry when
+            another add-on already embeds that bundle, and leaves the other
+            add-on&apos;s entry untouched. Installing godot-iap on its own is
+            unchanged.
+          </p>
+
+          <Callout kind="important" title="Match your SwiftGodot versions">
+            <p style={{ margin: 0 }}>
+              Every SwiftGodot runtime declares the install name{' '}
+              <code>@rpath/SwiftGodotRuntime.framework/SwiftGodotRuntime</code>,
+              so one is loaded and both plugins bind to it. That is fine while
+              they were built against the same SwiftGodot; if the surviving
+              runtime lacks a symbol the other plugin needs, that plugin aborts
+              at launch with <code>Symbol not found</code>. godot-iap 3.5.1
+              builds against SwiftGodot v0.79.0 - align your other plugin on the
+              same release if you see that.
+            </p>
+          </Callout>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {GODOT_RUNTIME_EMBED_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'commerce-protocol-0-3-0-2026-09-16',
+      date: new Date('2026-09-16'),
+      element: (
+        <div key="commerce-protocol-0-3-0-2026-09-16" style={noteCardStyle}>
+          <AnchorLink id="commerce-protocol-0-3-0-2026-09-16" level="h4">
+            September 16, 2026 - Commerce Protocol 0.3.0 renames the descriptor
+            version member
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            A capability descriptor, a store-event mapping table and a store
+            facts table declare <code>commerceProtocolVersion</code> where they
+            declared <code>specVersion</code>. OpenIAP governs two protocols, so
+            a member named for &quot;the spec&quot; said nothing about which
+            one. The value, its <code>MAJOR.MINOR</code> type, and every
+            operation path are unchanged, and the wire protocol version stays{' '}
+            <code>1.0</code>.
+          </p>
+
+          <Callout kind="important" title="Upgrade to read the new member">
+            <p style={{ marginBottom: '0.5rem' }}>
+              This is a breaking change to a required member, which is why it
+              moves the package minor rather than the patch: a caret range on a
+              0.x version would otherwise pull it in silently. Validators
+              generated from <code>0.1.0</code> or <code>0.2.0</code> reject a
+              descriptor carrying the new name, and their bundled conformance
+              runner reads the old one.
+            </p>
+            <p style={{ margin: 0 }}>
+              Upgrade and read <code>commerceProtocolVersion</code>. Do not keep
+              a fallback to the old member: the specification is pre-1.0.0 and
+              the rename is the whole migration.{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                SPEC.md
+              </a>{' '}
+              &sect;12 carries the migration note.
+            </p>
+          </Callout>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            The runnable examples moved with it. Version 0.2.0 shipped to npm
+            without a release note; it is superseded by this release.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {COMMERCE_RENAME_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
+    {
+      id: 'spec-splits-into-two-protocols-2026-09-15',
+      date: new Date('2026-09-15'),
+      element: (
+        <div
+          key="spec-splits-into-two-protocols-2026-09-15"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="spec-splits-into-two-protocols-2026-09-15" level="h4">
+            September 15, 2026 - &quot;Spec&quot; splits into the Client
+            Protocol and the Commerce Protocol
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            OpenIAP governs two protocols and nothing else. Each is published as
+            its own npm package with its own version. The word &quot;spec&quot;
+            is being retired as a name for anything else.
+          </p>
+
+          <dl style={{ marginBottom: '1rem' }}>
+            <dt>
+              <strong>Client Protocol</strong> &mdash;{' '}
+              <code>@hyodotdev/openiap-client-protocol</code>
+            </dt>
+            <dd style={{ marginBottom: '0.75rem' }}>
+              The purchase API an app calls. <code>openiap-apple</code>,{' '}
+              <code>openiap-google</code>, and the six framework libraries
+              (expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap,
+              godot-iap, maui-iap) <strong>implement</strong> it. None of them
+              defines it.
+            </dd>
+            <dt>
+              <strong>Commerce Protocol</strong> &mdash;{' '}
+              <code>@hyodotdev/openiap-commerce-protocol</code>
+            </dt>
+            <dd>
+              The server-side contract for purchase verification, entitlements,
+              and lifecycle events. Any backend may implement it. IAPKit is one
+              such implementation: it serves every profile and both bindings,
+              and publishes its per-store gaps in its capability descriptor.
+            </dd>
+          </dl>
+
+          <Callout kind="important" title="What changes for you">
+            <p style={{ marginBottom: '0.5rem' }}>
+              A version like <code>3.4.0</code> that used to be labelled
+              &quot;OpenIAP Spec&quot; was the lowest release both{' '}
+              <code>openiap-apple</code> and <code>openiap-google</code> had
+              reached. It was never a protocol version. That number is retired:
+              the Client Protocol is versioned on its own from{' '}
+              <code>0.1.0</code>, and <code>openiap-apple</code> and{' '}
+              <code>openiap-google</code> are now just package versions.
+            </p>
+            <p style={{ marginBottom: '0.5rem' }}>
+              Schema deprecations now name a Client Protocol removal train. The
+              three fields scheduled for removal read &quot;Scheduled for
+              removal in client protocol 1.0.0&quot; instead of &quot;OpenIAP
+              4.0&quot;; the fields and their replacements are unchanged;
+              removal now lands with client protocol 1.0.0.
+            </p>
+            <p style={{ margin: 0 }}>
+              The Commerce Protocol&apos;s capability descriptor, store-event
+              mapping table and store facts table rename{' '}
+              <code>specVersion</code> to <code>commerceProtocolVersion</code>.
+              The value, the type and every operation path are unchanged, and
+              SPEC.md &sect;12 carries the migration note. Upgrade and read the
+              new member; the specification is pre-1.0.0, so there is no
+              fallback to keep.
+            </p>
+            <p style={{ margin: 0 }}>
+              The <code>X-OpenIAP-Spec</code> request header is removed. It was
+              optional telemetry that IAPKit only wrote to a log line, and
+              nothing ever branched on it, so verification is unaffected. With
+              it go the symbols that fed it:{' '}
+              <code>OpenIapVersion.specVersion</code> is now{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code> in{' '}
+              <code>openiap-apple</code>, and{' '}
+              <code>BuildConfig.OPENIAP_SPEC_VERSION</code> is gone from{' '}
+              <code>openiap-google</code>. Both ship in the next native release.
+            </p>
+          </Callout>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            Current versions are listed on{' '}
+            <Link to="/docs/updates/versions#client-protocol">Versions</Link>,
+            and the server-side contract has its own{' '}
+            <Link to="/commerce-protocol">Commerce Protocol</Link> section.
+          </p>
+        </div>
+      ),
+    },
+    {
       id: 'openiap-cli-and-protocols-2026-09-11',
+      aliases: OPENIAP_TOOLING_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-11'),
       element: (
         <div key="openiap-cli-and-protocols-2026-09-11" style={noteCardStyle}>
+          {OPENIAP_TOOLING_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
           <AnchorLink id="openiap-cli-and-protocols-2026-09-11" level="h4">
             September 11, 2026 - OpenIAP CLI and protocol packages
           </AnchorLink>

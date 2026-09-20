@@ -11,7 +11,7 @@ import {
 import { collectGeneratedSyncDrift } from "../specs/client/scripts/verify-generated-sync.mjs";
 import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
-import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
+import { assertClientProtocol } from "./release-branch-policy.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
 import {
   collectPurchasePayloadParityFailures,
@@ -74,9 +74,9 @@ const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
 
-function checkNativeSpecVersionFloor() {
+function checkClientProtocol() {
   try {
-    assertSpecMatchesNativeFloor(readJson("openiap-versions.json"));
+    assertClientProtocol(readJson("openiap-versions.json"));
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
   }
@@ -451,6 +451,10 @@ function listDirectories(relativePath) {
 
 function expectFile(relativePath) {
   if (!exists(relativePath)) fail(`missing file: ${relativePath}`);
+}
+
+function expectMissingFile(relativePath, label = relativePath) {
+  if (exists(relativePath)) fail(`${label}: ${relativePath} must not exist`);
 }
 
 function expectIncludes(relativePath, needles, label = relativePath) {
@@ -2034,7 +2038,7 @@ function expectNoExampleStorefrontIOS() {
 
 function expectNoApi24ConcurrentKeySets() {
   const listenerSetForEach =
-    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners)\.forEach\s*\{/;
+    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners|connectionStateListeners)\.forEach\s*\{/;
   const androidSourceRoots = [
     "packages/google/Example/src",
     "packages/google/openiap/src",
@@ -3192,7 +3196,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "specs/client/src/api-android.graphql",
     [
-      "OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0",
+      "OpenIAP availability: 2.1.0 / openiap-google 2.3.0",
       "requires Play Billing 9.1.0+",
     ],
     "Billing Choice OpenIAP-first API availability",
@@ -3200,7 +3204,7 @@ function checkBillingChoiceFieldBindings() {
   expectIncludes(
     "specs/client/src/type-android.graphql",
     [
-      "OpenIAP Spec 2.1.0 / openiap-google 2.3.0",
+      "OpenIAP 2.1.0 / openiap-google 2.3.0",
       "upstream API available since Play Billing 4.1.0",
     ],
     "Billing Choice OpenIAP-first type availability",
@@ -3257,6 +3261,58 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Horizon unsupported Google Billing APIs must not report success",
   );
+  expectIncludes(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    ["openIap.addConnectionStateListener("],
+    "react-native-iap subscribes to billing disconnect (#408)",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
+    ["openIap.addConnectionStateListener(", "openIap.removeConnectionStateListener("],
+    "expo-iap subscribes to billing disconnect (#408)",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapModule.kt",
+    ["if (connectionReady.get()) {"],
+    "expo-iap must not short-circuit initConnection on a cached flag (#408)",
+  );
+  expectIncludes(
+    "packages/apple/Tests/OpenIapTests/VerifyPurchaseWithProviderTests.swift",
+    ["OpenIapGeneratedVersion.clientProtocol"],
+    "Apple test tracks the generated version constant",
+  );
+  expectNotIncludes(
+    "packages/apple/Tests/OpenIapTests/VerifyPurchaseWithProviderTests.swift",
+    ["OpenIapGeneratedVersion.spec"],
+    "Apple test must not reference the removed spec constant",
+  );
+  for (const schema of [
+    "api.graphql",
+    "api-android.graphql",
+    "api-ios.graphql",
+    "error.graphql",
+    "event.graphql",
+    "schema.graphql",
+    "type.graphql",
+    "type-android.graphql",
+    "type-ios.graphql",
+  ]) {
+    expectNotIncludes(
+      `specs/client/src/${schema}`,
+      ["OpenIAP Spec"],
+      "published annotations name the OpenIAP level, not a spec",
+    );
+  }
+  for (const flavor of ["play", "horizon"]) {
+    expectIncludes(
+      `packages/google/openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`,
+      [
+        "if (droppedLiveClient) notifyBillingServiceDisconnected()",
+        "onSetupPending = { finishConnectionAttempt(attempt, client, false) },",
+      ],
+      `${flavor} billing disconnect notification (#408)`,
+    );
+  }
   expectIncludes(
     "packages/google/openiap/src/play/java/dev/hyo/openiap/utils/BillingResultConverters.kt",
     [
@@ -3943,8 +3999,15 @@ function checkFrameworkDependencyHygiene() {
   }
   const googleCoroutinesVersion = googleCoroutineVersions[0];
 
+  // packages/docs is not versioned. 0.0.0 says that; 1.0.0 would read as a
+  // stable release the site never makes.
+  const docsVersion = readJson("packages/docs/package.json").version;
+  if (docsVersion !== "0.0.0") {
+    fail(
+      `packages/docs/package.json version ${docsVersion} must stay pinned at 0.0.0; the docs site is not versioned`,
+    );
+  }
   for (const [packagePath, versionKey] of [
-    ["packages/docs/package.json", "spec"],
     ["packages/google/package.json", "google"],
     ["packages/apple/package.json", "apple"],
   ]) {
@@ -4060,6 +4123,9 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
+      clientProtocolPackageVersion: readJson("specs/client/package.json").version,
+      commerceProtocolPackageVersion: readJson("specs/commerce-protocol/package.json")
+        .version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
         "libraries/react-native-iap/package.json",
@@ -4144,8 +4210,10 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/docs/src/lib/versioning.ts",
     [
-      "type VersionKey = 'spec' | 'google' | 'apple';",
-      "'spec'",
+      "type VersionKey = 'clientProtocol' | 'google' | 'apple';",
+      "'clientProtocol'",
+      "clientProtocolPackageVersion",
+      "commerceProtocolPackageVersion",
       "'google'",
       "'apple'",
       "../generated/version-metadata.json",
@@ -4456,7 +4524,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-flutter.yml",
     [
       "flutter-iap-$PREV_VERSION",
-      'CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases"',
+      'CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases#flutter-iap-$NEW_VERSION"',
     ],
     "Flutter release workflow should generate changelog entries from prefixed tags",
   );
@@ -4931,7 +4999,6 @@ function checkFrameworkDependencyHygiene() {
     "scripts/sync-versions.sh",
     [
       "set -euo pipefail",
-      'sync_package_json_version "packages/docs/package.json" "spec"',
       'sync_package_json_version "packages/google/package.json" "google"',
       'sync_package_json_version "packages/apple/package.json" "apple"',
     ],
@@ -4958,7 +5025,7 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes(
     "scripts/sync-versions.sh",
     ['sync_package_json_version "specs/client/package.json"'],
-    "Client npm versions are independent of the native spec floor",
+    "the Client Protocol version flows manifest -> mirror, never the reverse",
   );
   expectIncludes(
     ".gitignore",
@@ -5078,7 +5145,7 @@ function checkFrameworkDependencyHygiene() {
       'EXPECTED_VERCEL_PROJECT_ID="prj_ZWRXid0aTL9bzMimBEb4T2PHD3P1"',
       'EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"',
       'npm install -g "vercel@$VERCEL_CLI_VERSION"',
-      'if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then',
+      'if [ -n "${1:-}" ]; then',
       "if ! ./scripts/sync-versions.sh; then",
       "if ! bun run typecheck; then",
       "if ! bun run build; then",
@@ -5092,26 +5159,21 @@ function checkFrameworkDependencyHygiene() {
       "Vercel environment target conflicts with the OpenIAP project",
       'select(.readyState == "READY" and .target == "production")',
       "Vercel CLI returned no ready production deployment",
-      "release-branch-policy.mjs assert-floor",
-      "release-branch-policy.mjs guard docs current false",
+      "release-branch-policy.mjs assert-client-protocol",
       "git fetch --no-tags origin main",
       "LOCAL_HEAD=$(git rev-parse HEAD)",
       "REMOTE_HEAD=$(git rev-parse origin/main)",
-      "OpenIAP Spec cannot be bumped independently",
+      "the docs site has no version to select",
       "Version metadata was not synchronized on main",
-      'DOCS_TAG="docs-$VERSION"',
-      "git ls-remote --exit-code --tags origin",
-      "already exists, so no new Docs GitHub Release is needed",
-      "has no Docs GitHub Release yet",
     ],
-    "deploy script derived spec policy",
+    "deploy script policy",
   );
   expectNotIncludes(
     "scripts/deploy.sh",
     [
       "npm install -g vercel",
       "if [ $? -ne 0 ]; then",
-      "'.spec = $version'",
+      "'.clientProtocol = $version'",
       'git commit -m "chore(spec)',
       "git push origin HEAD:main",
     ],
@@ -5297,32 +5359,10 @@ function checkFrameworkDependencyHygiene() {
     ["never hand-edited", "regenerated alongside"],
     "Kit assistant docs must not claim nonexistent generation automation",
   );
-  expectIncludes(
+  // The docs site is not versioned, so it has no release workflow to guard.
+  expectMissingFile(
     ".github/workflows/release.yml",
-    [
-      "Release the native-derived current spec version",
-      "release-branch-policy.mjs guard docs",
-      "release-branch-policy.mjs assert-floor",
-      "Native-derived spec version",
-      'if git rev-parse --verify "refs/tags/$TAG_NAME" >/dev/null 2>&1; then',
-      'assert-release-tag.mjs docs main "$TAG_NAME" "$VERSION"',
-      'git checkout --detach "$TAG_NAME"',
-      "continuing the idempotent release rerun",
-      "persist-credentials: false",
-    ],
-    "docs release workflow derived spec policy",
-  );
-  expectNotIncludes(
-    ".github/workflows/release.yml",
-    [
-      "git pull --rebase origin main",
-      "git commit",
-      "'.spec = $version'",
-      "- patch",
-      "- minor",
-      "- major",
-    ],
-    "docs release workflow must not mutate the derived spec",
+    "the docs site has no version and no release train",
   );
   for (const [releaseWorkflow, nativePackage] of [
     [".github/workflows/release-apple.yml", "apple"],
@@ -5335,7 +5375,7 @@ function checkFrameworkDependencyHygiene() {
         "packages/docs/src/generated/version-metadata.json",
         "packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
-        "release-branch-policy.mjs assert-floor",
+        "release-branch-policy.mjs assert-client-protocol",
         "Release branch moved after verification; rerun the release workflow",
       ],
       `${releaseWorkflow} must commit package metadata synced from openiap-versions.json`,
@@ -6182,17 +6222,15 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/release.md",
     [
       "currently every five minutes",
-      "`npm run deploy`; run `release.yml` with `version=current` only when",
+      "`npm run deploy`. The docs site is not versioned",
       "add the consolidated entry to",
       "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
-      "deployment. Run the Docs release workflow with",
-      "only when the native-derived `spec` advanced",
-      "immutable existing `docs-{spec}` tag is never reused",
-      "If a Docs GitHub Release is requested while",
-      "stop and explain that the immutable",
+      "There is no Docs release workflow and no docs tag",
+      "if a Docs\n  GitHub Release is requested",
+      "the docs site is not a versioned\n  artifact",
     ],
-    "dependency release gate must preserve review cadence and conditional Docs releases",
+    "dependency release gate must preserve review cadence and the unversioned docs deploy",
   );
   expectIncludes(
     ".codex/skills/loop-review/SKILL.md",
@@ -6476,15 +6514,13 @@ function checkFrameworkDependencyHygiene() {
     [
       "Creates Git tag `<apple-version>` (bare semver)",
       "Creates Git tag `google-<google-version>`",
-      "gh workflow run release.yml --ref main -f version=current",
-      "`docs-{version}`",
-      "Run the stable Docs workflow only when the spec",
+      "The docs site has no version",
       "first run `cd packages/docs && vercel link`",
       "immutable project and organization IDs",
       "conflicting `VERCEL_PROJECT_ID` or `VERCEL_ORG_ID`",
       "reports success only after Vercel returns a ready",
-      "If a Docs GitHub Release is requested while `spec` is unchanged",
-      "immutable tag scheme cannot represent it",
+      "There is no Docs release workflow",
+      "the docs site is not a\nversioned artifact",
       "still equal the workflow dispatch SHA after validation",
       "stop instead of rebasing unverified commits into the release",
       "immutable provenance tag must be pushed atomically before",
@@ -6501,18 +6537,13 @@ function checkFrameworkDependencyHygiene() {
   );
   expectIncludes(
     "scripts/deploy.sh",
-    [
-      "DOCS_TAG_STATUS=$?",
-      '[ "$DOCS_TAG_STATUS" -eq 2 ]',
-      "Unable to determine whether $DOCS_TAG exists",
-      "Check the remote tag state before creating a Docs GitHub Release",
-    ],
-    "docs deployment must distinguish a missing tag from remote lookup failures",
+    ["the docs site has no version to select"],
+    "docs deployment must reject a version argument",
   );
   expectNotIncludes(
-    ".github/workflows/release.yml",
-    ['git commit -m "chore: bump docs'],
-    "docs release workflow commit message must be conventional",
+    "scripts/deploy.sh",
+    ["DOCS_TAG", "Docs GitHub Release", "guard docs"],
+    "docs deployment must not resurrect the docs release tag",
   );
   expectNotIncludes(
     "scripts/bump-version.mjs",
@@ -6520,7 +6551,7 @@ function checkFrameworkDependencyHygiene() {
       "chore: bump version",
       "${versions[t]} → ${newVersion}",
       "git tag vX.X.X",
-      "`docs-${bumpedVersions.spec}`",
+      "`docs-${bumpedVersions.clientProtocol}`",
       "Bump spec (gql/docs) version",
     ],
     "root bump-version output must be accurate and conventional",
@@ -6575,7 +6606,7 @@ function checkFrameworkDependencyHygiene() {
   expectNotIncludes(
     "knowledge/internal/04-platform-packages.md",
     ['change `"gql"` version', "update the `gql` field"],
-    "platform package docs must use openiap-versions.json spec key",
+    "platform package docs must use the openiap-versions.json client protocol version key",
   );
 
   for (const dependencyFile of [
@@ -8879,7 +8910,7 @@ function checkFrameworkDependencyHygiene() {
   // resource symlink verbatim and it dangles inside the built bundle.
   expectIncludes(
     "packages/apple/Sources/OpenIapVersion.swift",
-    ["OpenIapGeneratedVersion.apple", "OpenIapGeneratedVersion.spec"],
+    ["OpenIapGeneratedVersion.apple", "OpenIapGeneratedVersion.clientProtocol"],
     "Apple OpenIAP runtime version",
   );
   expectNotIncludes(
@@ -8891,7 +8922,7 @@ function checkFrameworkDependencyHygiene() {
     "packages/apple/Sources/OpenIapGeneratedVersion.swift",
     [
       "// Generated by scripts/sync-versions.sh",
-      `static let spec = "${versions.spec}"`,
+      `static let clientProtocol = "${versions.clientProtocol}"`,
       `static let apple = "${versions.apple}"`,
       `static let google = "${versions.google}"`,
     ],
@@ -8952,7 +8983,7 @@ function checkReleaseNoteGroupingGuidance() {
       "project decision recorded from issue #206",
       "Group notable changes under the affected platform package or framework",
       "the next major for breaking public API or type removals",
-      "never infer or auto-align it from Apple and Google",
+      "If no explicit target\n   exists, ask; never infer one.",
       "Before naming any package's next major",
       "migration schedule. The release train must include every public removal",
     ],
@@ -9325,7 +9356,7 @@ function checkXcode27StoreKitCoverage() {
 }
 
 checkLibraryCoverageRegistry();
-checkNativeSpecVersionFloor();
+checkClientProtocol();
 checkDeprecationSchedule();
 checkNoOutboundWebhookStream();
 checkExpoSsotRegistry();

@@ -223,16 +223,25 @@ function listFiles(dir) {
 
 function prepareVersionFile(packageRoot) {
   const versionFile = path.join(packageRoot, 'openiap-versions.json');
-  if (!fs.existsSync(versionFile)) return () => {};
-
-  const stat = fs.lstatSync(versionFile);
-  const isSymlink = stat.isSymbolicLink();
+  let isSymlink = false;
   let target = null;
   let originalContent = null;
-  if (isSymlink) {
+  try {
     target = fs.readlinkSync(versionFile);
-  } else if (stat.isFile()) {
-    originalContent = fs.readFileSync(versionFile);
+    isSymlink = true;
+  } catch (error) {
+    if (error?.code === 'ENOENT') return () => {};
+    if (error?.code !== 'EINVAL') throw error;
+  }
+  if (!isSymlink) {
+    try {
+      originalContent = fs.readFileSync(versionFile);
+    } catch (error) {
+      if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
+        return () => {};
+      }
+      throw error;
+    }
     const content = originalContent.toString('utf8').trim();
     if (content.startsWith('.') && content.endsWith('.json') && !content.includes('\n')) {
       target = content;
@@ -305,7 +314,7 @@ function validateInstalledPackage(installedRoot, options) {
       throw new Error('openiap-versions.json must be a file');
     }
     const versions = readJsonObject(versionFile, 'openiap-versions.json');
-    for (const key of ['spec', 'google', 'apple']) {
+    for (const key of ['clientProtocol', 'google', 'apple']) {
       if (typeof versions[key] !== 'string' || versions[key].trim().length === 0) {
         throw new Error(`openiap-versions.json is missing ${key}`);
       }

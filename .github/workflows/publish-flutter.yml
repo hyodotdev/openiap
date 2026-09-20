@@ -132,7 +132,9 @@ jobs:
         run: flutter pub get
 
       - name: Android consumer build smoke test
-        run: bash scripts/verify-android-consumer-build.sh
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
       - name: Check if pub.dev package already published
         id: check_pub

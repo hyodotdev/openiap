@@ -6,7 +6,7 @@ export {
   behaviorIds,
   behaviorsByCategory,
 } from './spec/behaviors.mjs';
-export { SUITE_VERSION, specVersion } from './spec/version.mjs';
+export { SUITE_VERSION, clientProtocolVersion } from './spec/version.mjs';
 export { runConformance, NOT_IMPLEMENTED } from './runner/runner.mjs';
 export { runDifferential, formatDifferentialReport } from './runner/differential.mjs';
 export {

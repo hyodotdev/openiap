@@ -39,6 +39,29 @@ openiap/
 
 Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
 
+## Ownership Model
+
+OpenIAP governs two protocols and nothing else: the **Client Protocol**
+(`specs/client`) and the **Commerce Protocol** (`specs/commerce-protocol`).
+Each is published as its own npm package with its own version.
+
+`packages/apple`, `packages/google`, and every library under `libraries/`
+**implement** the Client Protocol; none of them defines it, and none may extend
+the contract locally — a new API starts as a schema change in `specs/client`.
+
+IAPKit (`packages/kit`) implements the Commerce Protocol. It conforms to the
+spec and never the reverse, it serves every profile and both bindings, and it
+declares its per-store gaps in its capability descriptor rather than leaving
+them implied.
+
+`packages/conformance` is the Client Protocol's behavioral conformance suite,
+not a third specification.
+
+`openiap-versions.json` carries `clientProtocol` — the Client Protocol version,
+mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
+native package versions. A version like `3.4.0` there is a native package
+version, not a protocol version.
+
 ## Directory Ownership Guardrail
 
 Keep each project surface under its canonical owner:
@@ -130,8 +153,8 @@ directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
 stream. The client SDK API and server-side commerce contract are siblings under
-the OpenIAP specification owner, but they keep independent schema inventories
-and generation targets. Never edit files under `generated/` directly.
+OpenIAP — the Client Protocol and the Commerce Protocol — but they keep
+independent schema inventories and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 

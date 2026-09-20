@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -80,7 +80,6 @@ describe('published package is self-contained', () => {
     const manifest = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'));
     for (const target of Object.values(manifest.bin ?? {})) {
       const path = join(PACKAGE_ROOT, target);
-      expect(statSync(path).isFile()).toBe(true);
       const source = readFileSync(path, 'utf8');
       expect(source, `${target} reaches outside the package`).not.toMatch(/\.\.\/\.\.\/\.\.\//);
     }

@@ -33,11 +33,11 @@ const RELEASES: ReleaseEntry[] = [
     items: [
       {
         kind: "docs",
-        text: "OpenIAP Spec 3.3.0 and the current SDK releases expose one openRedeemOfferCode call across Apple and Google. Keep purchase listeners active and verify redeemed transactions through the existing IAPKit flow.",
+        text: "The current SDK releases expose one openRedeemOfferCode call across Apple and Google. Keep purchase listeners active and verify redeemed transactions through the existing IAPKit flow.",
       },
       {
         kind: "docs",
-        text: "Replace presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid with openRedeemOfferCode before the platform-specific methods are removed in OpenIAP 4.0.",
+        text: "Replace presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid with openRedeemOfferCode before the platform-specific methods are removed in client-protocol@1.0.0.",
       },
     ],
   },
@@ -105,15 +105,11 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "fix",
-        text: "SDKs no longer fail a confirmed purchase over optional metadata. environment is forwarded as the opaque String the spec declares instead of being re-checked against Sandbox/Production, and a client payload whose format this build predates is dropped rather than thrown. The store echo and isValid typing stay strict.",
+        text: "SDKs no longer fail a confirmed purchase over optional metadata. environment is forwarded as the opaque String the Client Protocol declares instead of being re-checked against Sandbox/Production, and a client payload whose format this build predates is dropped rather than thrown. The store echo and isValid typing stay strict.",
       },
       {
         kind: "ops",
         text: "The purchase-state, client-payload-format, and verify-store enums are declared in kit's Convex layer, its OpenAPI response docs, and the GraphQL schema every SDK generates from. bun audit:kit-contract compares all three and gates both CI and this deploy, so a kit-only enum change can no longer reach published apps unnoticed.",
-      },
-      {
-        kind: "feature",
-        text: "Native verification requests send X-OpenIAP-Spec with the OpenIAP spec version the build was compiled against, and kit records it on the structured verify log line. The value is shape-checked and bounded, and nothing branches on it: a client cannot change how its receipt is verified by claiming a version.",
       },
       {
         kind: "security",
@@ -133,7 +129,7 @@ const RELEASES: ReleaseEntry[] = [
     items: [
       {
         kind: "fix",
-        text: "A versioned behavioral conformance suite now binds spec behaviors to real implementations, and the entitlement defects that binding surfaced are fixed. The type and API-surface contract was already drift-gated, but nothing verified what a declared symbol actually did.",
+        text: "A versioned behavioral conformance suite now binds protocol behaviors to real implementations, and the entitlement defects that binding surfaced are fixed. The type and API-surface contract was already drift-gated, but nothing verified what a declared symbol actually did.",
       },
     ],
   },

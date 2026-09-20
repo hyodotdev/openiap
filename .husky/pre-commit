@@ -82,6 +82,15 @@ if git diff --cached --name-only --diff-filter=ACMRD \
   bun run audit:agents
 fi
 
+# The audit's expiry maths and its guard test move together, and CI is a slow
+# place to learn they disagree. Unit step only: OSV-Scanner itself needs the
+# network and still runs in CI alone.
+if git diff --cached --name-only --diff-filter=ACMRD \
+  | grep -qE '(^|/)osv-scanner\.toml$|(^|/)(bun\.lock|yarn\.lock|Gemfile\.lock)$|^scripts/audit-security(\.test)?\.mjs$'; then
+  echo "🔐 dependency exception guards — running CI mirror…"
+  node --test scripts/audit-security.test.mjs scripts/bun-dependency-snapshot.test.mjs
+fi
+
 # Path filters gate native builds; a filter edit must not silently skip them.
 if git diff --cached --name-only --diff-filter=ACMR \
   | grep -qE '^(\.github/workflows/|scripts/audit-ci-path-filters(\.test)?\.mjs$)'; then

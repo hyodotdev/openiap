@@ -1,6 +1,6 @@
 // Generated-contract guard for the offer-code redemption surface: the unified
 // cross-platform openRedeemOfferCode operation plus the deprecated suffixed
-// operations that stay declared until OpenIAP 4.0.
+// operations that stay declared until client protocol 1.0.0.
 
 using System.Reflection;
 using Xunit;

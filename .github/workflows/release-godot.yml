@@ -1,4 +1,4 @@
-name: "A. Release: godot-iap"
+name: "A5. Release: godot-iap"
 
 on:
   workflow_dispatch:
@@ -549,10 +549,20 @@ jobs:
           fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/godot-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/godot-iap/" ":(top)packages/google/")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/godot-iap/" ":(top,exclude)libraries/godot-iap/.claude/" ":(top,exclude)libraries/godot-iap/AGENTS.md" ":(top,exclude)libraries/godot-iap/CLAUDE.md")
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google native library updates. See the consolidated release notes for details."
+          fi
+          # This addon bundles the Android AAR and its iOS GDExtension links
+          # openiap-apple, so name both versions instead of replaying their
+          # commits here. The path below is a symlink to the root manifest.
+          VERSIONS_FILE="$GITHUB_WORKSPACE/libraries/godot-iap/openiap-versions.json"
+          APPLE_VERSION=$(jq -r '.apple // empty' "$VERSIONS_FILE")
+          GOOGLE_VERSION=$(jq -r '.google // empty' "$VERSIONS_FILE")
+          if [ -z "$APPLE_VERSION" ] || [ -z "$GOOGLE_VERSION" ]; then
+            echo "::error::could not read the native pins from $VERSIONS_FILE"
+            exit 1
           fi
           cat > /tmp/release-notes.md <<EOF
           ## godot-iap $VERSION
@@ -562,6 +572,11 @@ jobs:
           ### What's Changed
 
           $CHANGELOG
+
+          ### Native packages
+
+          - [openiap-apple $APPLE_VERSION](https://github.com/hyodotdev/openiap/releases/tag/$APPLE_VERSION)
+          - [openiap-google $GOOGLE_VERSION](https://github.com/hyodotdev/openiap/releases/tag/google-$GOOGLE_VERSION)
 
           ### Installation
 
@@ -577,7 +592,7 @@ jobs:
 
           - [Setup guide — Godot](https://openiap.dev/docs/setup/godot)
           - [API reference](https://openiap.dev/docs/apis)
-          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [Release notes](https://openiap.dev/docs/updates/releases#godot-iap-$VERSION)
 
           ### Links
 
@@ -604,7 +619,9 @@ jobs:
           RELEASE_TAG: godot-iap-${{ steps.version.outputs.VERSION }}
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          LOCAL_ZIP="libraries/godot-iap/godot-iap-$VERSION.zip"
+          # This job's steps run from libraries/godot-iap (see defaults above),
+          # so the built zip sits beside us, not under a repo-root path.
+          LOCAL_ZIP="godot-iap-$VERSION.zip"
           EXPECTED="$(shasum -a 256 "$LOCAL_ZIP" | cut -d' ' -f1)"
           PUBLISHED_DIR="$(mktemp -d)"
           gh release download "$RELEASE_TAG" \
