@@ -4,13 +4,13 @@
 
 Current OpenIAP release workflows attach a machine-readable inventory of direct
 runtime components and dependency contracts, including first-party OpenIAP
-native contracts. A daily repair job fills missed assets for each latest stable
-release, and a weekly read-only job re-verifies and scans every published stable
-release carrying an SBOM. Prereleases rely on their release-time dispatch. That
-inventory lets a consumer — or a maintainer responding to a new advisory —
-identify the released dependency contract without reconstructing it from build
-scripts. Exact application exposure still comes from the consumer's resolved
-dependency graph.
+native contracts. A daily repair job fills missed assets for every stable
+release in the coverage era, and a weekly read-only job re-verifies and scans
+every published stable release carrying an SBOM. Prereleases rely on their
+release-time dispatch. That inventory lets a consumer — or a maintainer
+responding to a new advisory — identify the released dependency contract
+without reconstructing it from build scripts. Exact application exposure
+still comes from the consumer's resolved dependency graph.
 
 SBOMs are generated from released manifests and registry descriptors, shipped
 native declarations, and hash-pinned embedded binaries. No one edits an SBOM by
@@ -28,19 +28,20 @@ The releasable components are defined by `versionSources` in
 from either, so a component cannot be released without also being described.
 The distribution and release-tag columns are prose and are not machine-checked:
 
-| Component           | SBOM name                   | Distribution                     | Release tag                           |
-| ------------------- | --------------------------- | -------------------------------- | ------------------------------------- |
-| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager | `<version>`                           |
-| `google`            | `openiap-google`            | Maven Central                    | `google-<version>`                    |
-| `react-native`      | `react-native-iap`          | npm                              | `react-native-iap-<version>`          |
-| `expo`              | `expo-iap`                  | npm                              | `expo-iap-<version>`                  |
-| `conformance`       | `openiap-conformance`       | npm                              | `openiap-conformance-<version>`       |
-| `flutter`           | `flutter_inapp_purchase`    | pub.dev                          | `flutter-iap-<version>`               |
-| `kmp`               | `kmp-iap`                   | Maven Central                    | `kmp-iap-<version>`                   |
-| `maui`              | `OpenIap.Maui`              | NuGet                            | `maui-iap-<version>`                  |
-| `godot`             | `godot-iap`                 | GitHub Release                   | `godot-iap-<version>`                 |
-| `docs`              | `openiap-spec`              | GitHub Release                   | `docs-<version>`                      |
-| `commerce-protocol` | `openiap-commerce-protocol` | npm                              | `openiap-commerce-protocol-<version>` |
+| Component           | SBOM name                   | Distribution                               | Release tag                           |
+| ------------------- | --------------------------- | ------------------------------------------ | ------------------------------------- |
+| `apple`             | `openiap`                   | CocoaPods, Swift Package Manager           | `<version>`                           |
+| `google`            | `openiap-google`            | Maven Central                              | `google-<version>`                    |
+| `react-native`      | `react-native-iap`          | npm                                        | `react-native-iap-<version>`          |
+| `expo`              | `expo-iap`                  | npm                                        | `expo-iap-<version>`                  |
+| `conformance`       | `openiap-conformance`       | npm (retired)                              | `openiap-conformance-<version>`       |
+| `flutter`           | `flutter_inapp_purchase`    | pub.dev                                    | `flutter-iap-<version>`               |
+| `kmp`               | `kmp-iap`                   | Maven Central                              | `kmp-iap-<version>`                   |
+| `maui`              | `OpenIap.Maui`              | NuGet                                      | `maui-iap-<version>`                  |
+| `godot`             | `godot-iap`                 | GitHub Release                             | `godot-iap-<version>`                 |
+| `commerce-protocol` | `openiap-commerce-protocol` | npm (`@hyodotdev/openiap-commerce-protocol`) | `hyodotdev-openiap-commerce-protocol-<version>` |
+| `client-protocol`   | `openiap-client-protocol`   | npm (`@hyodotdev/openiap-client-protocol`) | `openiap-client-protocol-<version>`   |
+| `cli`               | `openiap`                   | npm (`@hyodotdev/openiap`)                 | `openiap-<version>`                   |
 
 `packages/kit` (IAPKit) is deliberately outside this list. It is a deployed
 service rather than a distributed package: consumers call it over HTTPS and
@@ -75,19 +76,22 @@ without an SBOM asset is not automatically a failure. The boundary is recorded
 as `SBOM_COVERAGE_FLOOR` in `scripts/generate-sbom.mjs`, derived from the
 published releases rather than chosen:
 
-| Component                          | First release required to carry an SBOM         |
-| ---------------------------------- | ----------------------------------------------- |
-| `apple`                            | `3.2.0`                                         |
-| `docs`                             | `docs-3.2.0`                                    |
-| `expo`                             | `expo-iap-5.3.0`                                |
-| `flutter`                          | `flutter-iap-10.3.0`                            |
-| `godot`                            | `godot-iap-3.3.0`                               |
-| `google`                           | `google-3.3.0`                                  |
-| `kmp`                              | `kmp-iap-3.3.0`                                 |
-| `maui`                             | `maui-iap-2.3.0`                                |
-| `react-native`                     | `react-native-iap-16.3.0`                       |
-| `conformance`                      | `openiap-conformance-1.0.0`                     |
-| `commerce-protocol`                | `openiap-commerce-protocol-0.1.0`               |
+| Component           | First release required to carry an SBOM |
+| ------------------- | --------------------------------------- |
+| `apple`             | `3.2.0`                                 |
+| `client-protocol`   | `openiap-client-protocol-0.1.0`         |
+| `expo`              | `expo-iap-5.3.0`                        |
+| `flutter`           | `flutter-iap-10.3.0`                    |
+| `godot`             | `godot-iap-3.3.0`                       |
+| `google`            | `google-3.3.0`                          |
+| `kmp`               | `kmp-iap-3.3.0`                         |
+| `maui`              | `maui-iap-2.3.0`                        |
+| `react-native`      | `react-native-iap-16.3.0`               |
+| `conformance`       | `openiap-conformance-1.0.0`             |
+| `commerce-protocol` | `openiap-commerce-protocol-0.1.0`       |
+
+The CLI has only a metadata bootstrap package so far, so it stays in
+`UNRELEASED_COMPONENTS` until its first functional release.
 
 Every released component is anchored here. "Covered from its first release"
 cannot be proved from a release list that might be missing that release, so a
@@ -108,7 +112,7 @@ way. They are not backfilled: an SBOM generated today resolves today's registry
 metadata, so it would describe something other than what shipped, and a
 plausible-looking artifact that misdescribes a release is worse than its
 absence. Advisory questions about a pre-floor release are answered from the
-tag's committed manifests. For Apple, the docs site and Godot those are the
+tag's committed manifests. For Apple and Godot those are the
 inputs the generator reads. Google, KMP and MAUI resolve their published POM or
 nuspec instead, so a manifest answer for those three describes what the tag
 declared rather than what publishing produced.
@@ -351,11 +355,12 @@ accessors, and unsupported coordinate shapes instead of silently dropping them.
 Every component release workflow dispatches `.github/workflows/sbom.yml` after
 creating its GitHub Release. This explicit dispatch is required because a
 release created with `GITHUB_TOKEN` does not trigger another workflow. A scan on
-SBOM changes and a daily schedule dispatch any missing newest stable asset.
-Prereleases rely on their release-time dispatch and are not part of this repair
-scan. The separate read-only `.github/workflows/security-rescan.yml` requires
-that asset to exist for each newest stable component release, then verifies and
-scans every published stable release that carries one each week.
+SBOM changes and a daily schedule dispatch any missing asset in the coverage
+era. Prereleases rely on their release-time dispatch and are not part of this
+repair scan. The separate read-only `.github/workflows/security-rescan.yml`
+requires that asset to exist for every stable release in the coverage era,
+then verifies and scans every published stable release that carries one each
+week.
 
 ```text
 release workflow  →  GitHub Release published
@@ -503,8 +508,8 @@ git worktree remove --force "$SBOM_REPRO_DIR"
   verified at investigation time, and published descriptors. The workflow
   records the attested workflow commit as the generator revision and refuses to
   overwrite an existing asset.
-- The newest stable release of each component is checked after SBOM changes and
-  every day, so a missed stable release-time dispatch is repaired without manual
+- Stable releases in the coverage era are checked after SBOM changes and
+  every day, so a missed release-time dispatch is repaired without manual
   triage.
 - Every published stable release SBOM is re-verified and vulnerability-scanned
   weekly. Older releases without an SBOM remain outside that scan. Results are
@@ -542,3 +547,8 @@ published descriptors when an advisory needs an affected-version list.
 
 See [README.md](README.md) for the full vulnerability-management picture and
 [CRA.md](CRA.md) for how this maps onto Cyber Resilience Act expectations.
+
+Commerce Protocol SBOM filenames keep the `openiap-commerce-protocol-` prefix.
+The root package name, npm PURL, and distribution link follow the manifest in
+the release commit, preserving unscoped historical releases and scoped future
+releases.

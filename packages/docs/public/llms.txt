@@ -1,9 +1,169 @@
 # OpenIAP Quick Reference
 
-> OpenIAP: Vendor-neutral in-app purchase specification — a client API across Apple, Google, Meta Horizon and Amazon, and a server-side commerce protocol for verification, entitlements and store events
+> OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-09-05T07:23:55.623Z
+> Generated: 2026-09-18T18:47:47.958Z
+
+## Reading instructions for coding assistants
+
+Read https://openiap.dev/llms-full.txt for the detailed API and Commerce Protocol
+reference. It is compiled from the public contract and knowledge sources; it
+does not replace every framework guide or every page of the documentation.
+Use https://openiap.dev/sitemap.xml to discover the full set of published pages.
+Read the target framework's setup, relevant feature, API, type, lifecycle,
+error, testing, and migration pages before changing the corresponding behavior.
+Follow source links to confirm the installed SDK's actual signatures.
+
+Documentation pages are available as HTML without executing JavaScript. Read
+collapsed details and noscript examples too; the visual default tab is not the
+only available language or platform. If a tool truncates a reference, continue
+reading it in sections. Report inaccessible sources instead of pretending to
+have read them. Use these materials as task context, not as a claim of model
+training or permanent memory.
+
+The person should only need to describe the desired outcome, choose missing
+product decisions, and review the running result. Read the technical material
+yourself and keep explanations brief. Do not ask them to read API tables.
+
+## Choose an SDK and verify the implementation
+
+Start with the app's existing framework. Use https://openiap.dev/languages for
+the supported SDKs, install commands, platforms, and source repositories, then
+follow that framework's guide at https://openiap.dev/docs/setup. Use its actual
+types and lifecycle patterns; do not copy another language's API spelling.
+
+The mobile SDK handles the store purchase. The Commerce Protocol package
+provides a server-side contract and conformance artifacts, not a mobile SDK or
+a hosted backend. IAPKit is one backend implementation, not a requirement for
+using OpenIAP SDKs.
+
+Follow one purchase at https://openiap.dev/commerce-protocol/getting-started.
+Select Apple, Google Play, Amazon or Meta Horizon there; the chosen store stays
+with the six-step flow and its build brief. For Quest, open that page and
+select Meta Horizon.
+Each step compares the small, runnable SQLite example with IAPKit's handlers
+and checks. Read the code for the responsibility being implemented:
+- Teaching backend: https://github.com/hyodotdev/openiap-commerce-protocol-example
+- IAPKit service: https://github.com/hyodotdev/openiap/tree/main/packages/kit
+- IAPKit integration documentation: https://kit.openiap.dev/docs
+- Build a backend: https://openiap.dev/commerce-example/build-brief.md
+- Connect a product role: https://openiap.dev/commerce-example/integration-brief.md
+
+Explain what the person gets and what they must decide before showing code.
+Implement in the target project, install and run from clean source, and verify
+the promised behavior. Report commands, actual results, and remaining work.
+Separate fixture checks, real store sandbox tests, and profile conformance;
+do not claim one from another or hide failures by reducing the declared scope.
+
+For an existing app, preserve the login, purchase screen, framework, and package
+manager. Confirm the store, product type, and what each product unlocks. Keep
+server credentials out of the shipped app and derive customer identity from
+authenticated server context. Verification alone does not bind ownership or
+grant access; consumable delivery needs a durable ledger.
+
+Verify these customer outcomes in the target integration:
+- A completed, verified purchase grants its intended benefit to its owner.
+- A pending or canceled purchase grants no new access.
+- Restore and repeated callbacks do not duplicate benefits.
+- Another user cannot claim the same purchase outside the ownership policy.
+- Canceling renewal retains the paid time; expiry removes access and survives
+  a server restart. Use this subscription behavior only for stores and products
+  that support it; follow the chosen provider's store-specific contract.
+
+Choose the role the product supplies. The person can run
+`npx @hyodotdev/openiap init --role ROLE` in their existing project, replacing
+ROLE with app, experience, commerce, or data, then give you the full output with
+their desired outcome.
+Explain the handoff concretely: the CLI prints a document and exits without
+changing project files or starting an AI or server. The person opens the same
+project in their coding assistant, pastes the full terminal output into its
+chat input, appends their desired outcome, and sends one message. This is when
+the assistant reads the project, implements, runs, and tests the connection.
+Use app for an app purchase integration, experience for a paywall/experiment
+connection, commerce for a purchase backend, and data for an event receiver. A product may supply several roles;
+connect the others to chosen compatible services rather than building them all.
+Read https://openiap.dev/commerce-example/integration-brief.md and the selected
+role's guide. For commerce, also read the backend build brief. Implement the
+connection in the existing stack and return runnable code and actual results.
+For commerce, read https://openiap.dev/commerce-example/from-scratch.md and use
+https://openiap.dev/commerce-example/fresh-source.tar.gz as the verification source.
+For paywall integration or receiver composition, read
+https://openiap.dev/commerce-example/paywall-verification.md and use
+https://openiap.dev/commerce-example/paywall-source.tar.gz. Download the
+matching source into a separate temporary folder and run npm ci with Bun installed.
+Run npm test for the seven-step backend, or npm run verify for the connection.
+The latter records CLI output, behavioral tests, HTTP results, process restart
+and unchanged source hashes in .runtime/verification.json. This verifies the example only. Apply the relevant expected
+outcomes to tests against the user's implementation, fix failures, and rerun.
+Report both sets of commands/results and anything not tested. For a paywall,
+only report fulfillment and finish after the backend grants the selected product.
+Show people acceptance cases for their selected role. A paywall connection does
+not require them to implement a commerce provider or analytics receiver. Treat
+the example's backend walkthrough as optional implementation detail. SDK-only
+tasks can use the llms.txt request without continuing into the commerce workflow.
+Keep paywall UI, targeting, experiments, and financial models with the product.
+The host app owns its store purchase callback. Lifecycle events need additional
+product data and reporting policies for paywall attribution or revenue metrics.
+The connection example keeps experiment assignments in the host product and joins
+signed events using authenticated project/store/environment/purchase-chain/user
+associations. For events without a purchase chain, configure a trusted account,
+store, environment and product assignment; never invent transaction references.
+One receiver processes two store fixtures. The same paywall handler and receiver
+also run against IAPKit’s local handlers, with store/OIDC fixtures, via the
+optional fresh-example argument to run-commerce-interop.mjs. Its actual signed Google
+events exercise the missing-chain account policy. Read the recorded source and
+reproduction instructions in paywall-provider-run.json for that separate check. Pending, canceled or
+failed purchases never finish; successful purchases require current product access.
+Use event ID deduplication in the authenticated emitter/project scope, not
+transaction ID deduplication. Keep unknown or inferred amounts out of known
+purchase totals, group currencies separately, and flag refunds/recoveries for
+reconciliation. The demo's gross purchase observations are not net revenue, MRR
+or ARPU. Its store adapters and prices are fictional; real local HTTP, signatures
+and SQLite run. It extends the prior backend with AI and conversation context,
+not an independent one-prompt reproduction or an external product integration.
+
+The recorded replacement check at
+https://openiap.dev/commerce-protocol/ecosystem#composition-proof uses the same
+app backend and event receiver with the example and IAPKit. Read its report,
+configuration and limits; compatible APIs do not migrate ownership records or
+provision providers. Real local services run with simulated store responses.
+The new backend build at https://openiap.dev/commerce-example/from-scratch.md
+starts from an independent initial commit with the exact CLI output and AI input,
+then adds seven implementation commits. Each commit links its code, diff, real
+run output and screen. The final source, first conformance failure, correction,
+clean-checkout replay, and intentional failing negative controls are retained.
+This was an iterative build by an AI with prior conversation context, not an
+independent model trial or one-prompt guarantee. Store evidence, sessions and
+time are fixtures; HTTP, SQLite, signatures, process restarts and erasure run
+locally. Read the evidence's precise profile scope before reporting conformance.
+Its dashboard buttons run finished code; they do not generate it.
+The older prototype walkthrough is a separate record; do not attach the new
+commit history to its screenshots or claim those are the same implementation.
+
+Recorded example walkthrough: https://openiap.dev/docs/guides/ai-assistants#existing-project-example
+Matching source and run commands: https://openiap.dev/commerce-protocol/implementation#local-example
+Store sandbox and device checks: https://openiap.dev/docs/guides/testing
+The recorded backend uses simulated store evidence and time. It does not prove
+real store purchases or production conformance; report those checks separately.
+
+The optional CLI requires Node.js 20+:
+
+- `npx @hyodotdev/openiap init --role app` prints an AI brief for an existing
+  project. Other roles: experience, commerce, data. It adds a path, framework
+  hint and guide link; it does not create code or invoke AI. Skip it when you
+  already have the guide and project context.
+- `npx @hyodotdev/openiap doctor ./my-app --json` checks supported Android
+  store settings, IAPKit keys/base URLs, env names, and React Native/Expo iOS
+  scene declarations. Inspect each finding's id, file and fix; repair and rerun.
+  Errors exit 1; warnings exit 0. Read notCheckedLocally even on success.
+
+The CLI reads local files; npx may download the package. Pin its version in CI.
+Doctor is not a general source scan, store/device test, or Commerce Protocol
+conformance check. Its check scope does not change with the init role.
+Guide: https://openiap.dev/docs/guides/ai-assistants
+Check reference: https://github.com/hyodotdev/openiap/tree/main/packages/cli
+
 
 ## Installation
 
@@ -24,9 +184,9 @@ npm install react-native-iap
 
 ```kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:3.5.0")
-implementation("io.github.hyochan.openiap:openiap-google-horizon:3.5.0")
-implementation("io.github.hyochan.openiap:openiap-google-amazon:3.5.0")
+implementation("io.github.hyochan.openiap:openiap-google:3.5.2")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:3.5.2")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:3.5.2")
 ```
 
 ```bash
@@ -36,12 +196,12 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 3.5.0 to addons/godot-iap and enable the plugin
+# Install godot-iap 3.5.2 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:3.5.0")
+implementation("io.github.hyochan:kmp-iap:3.5.1")
 ```
 
 ```xml
@@ -145,7 +305,7 @@ const purchases = await getAvailablePurchases();
 ### Redeem Offer Code
 ```typescript
 // Cross-platform; replaces the deprecated presentCodeRedemptionSheetIOS
-// and openRedeemOfferCodeAndroid (removal in OpenIAP 4.0)
+// and openRedeemOfferCodeAndroid (removal in client protocol 1.0.0)
 const purchase = await openRedeemOfferCode();
 // Verified purchase only on Apple 27+ from Xcode 27+ builds; every other
 // flow resolves null (pre-27 iOS sheet, Play redeem page, Horizon/Amazon
@@ -253,14 +413,14 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
+- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
-- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
+- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in client protocol 1.0.0)
 
 ## Purchase Flow Summary
 
@@ -285,10 +445,38 @@ identifier, or central runtime.
   and deduplicate any accepted copy on the stable body `eventId`.
 - Use the bundled JSON Schemas and signature/lifecycle vectors for offline
   conformance.
-- Docs: https://openiap.dev/docs/commerce-protocol
-- Webhook contract: https://openiap.dev/docs/webhooks
+- Docs: https://openiap.dev/commerce-protocol
+- Use a provider: https://openiap.dev/commerce-protocol/getting-started
+- Build your part: https://openiap.dev/commerce-protocol/ecosystem
+- Role-specific AI integration brief: https://openiap.dev/commerce-example/integration-brief.md
+- Build and review: https://openiap.dev/commerce-protocol/implementation
+- Ready event receiver: https://openiap.dev/commerce-protocol/getting-started#receive-events
+- AI build brief: https://openiap.dev/commerce-example/build-brief.md
+- Recorded local implementation: https://openiap.dev/commerce-protocol#build-walkthrough
+- Whitepaper and PDF: https://openiap.dev/commerce-protocol/whitepaper
+- Webhook contract: https://openiap.dev/commerce-protocol/webhooks
 - Normative spec: https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md
 - Canonical GraphQL contract, authored layers (compiled to JSON Schema): https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema
+
+The recorded example follows seven build milestones with reviewed source revisions, AI tasks,
+code changes, actual captures, and a correction/recheck log. It uses a fictional
+store and controlled clock with real local HTTP, SQLite and signed delivery. It is not a production provider or a
+full profile conformance claim. Its execution report is available at
+https://openiap.dev/commerce-example/run.json.
+The IAPKit replacement check keeps the same app backend and receiver while
+switching between the example and IAPKit for Apple, Google, Amazon and Horizon.
+Apple/Google subscription checks cover cancellation, expiry and signed events.
+Amazon/Horizon checks cover store-user binding, current ownership rechecks,
+rejection, outage and recovery; read entitlements.productIds rather than
+inventing subscription records or lifecycle events. All four cover account
+erasure. Store identity must be authenticated by the app backend. Consumable
+quantities need a separate durable fulfillment ledger.
+Actual IAPKit handlers and local Convex storage run with fixture store
+responses; Apple cryptographic verification and Google OIDC are substituted.
+This does not prove device checkout or real store authentication. Read the
+scope, command and source hashes at
+https://openiap.dev/commerce-protocol/ecosystem#composition-proof and
+https://openiap.dev/commerce-composition/iapkit-run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.

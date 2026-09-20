@@ -53,6 +53,7 @@ const DIRECTIVE_ARGUMENTS = new Map([
   ["storeEvidence", new Set(["store", "member"])],
   ["storeMappingInvariant", new Set()],
   ["supportInvariant", new Set()],
+  ["factInvariant", new Set()],
 ]);
 const SUPPORTED_DIRECTIVES = new Set(DIRECTIVE_ARGUMENTS.keys());
 const REPEATABLE_DIRECTIVES = new Set([
@@ -730,6 +731,34 @@ export function compileProtocolContract(source) {
         properties: { provider: { const: true } },
         required: ["provider"],
       };
+    }
+
+    if (directive(node, "factInvariant")) {
+      schema.allOf = [
+        {
+          if: {
+            properties: { available: { const: true } },
+            required: ["available"],
+          },
+          then: {
+            properties: {
+              delivery: { not: { const: "none" } },
+              surface: { type: "string", minLength: 1 },
+            },
+            required: ["surface"],
+          },
+          else: {
+            properties: {
+              delivery: { const: "none" },
+              notes: { type: "string", minLength: 1 },
+            },
+            required: ["notes"],
+            // A surface on an unavailable capability qualifies the `false`
+            // with the one key left open to do it.
+            not: { required: ["surface"] },
+          },
+        },
+      ];
     }
 
     if (directive(node, "storeMappingInvariant")) {

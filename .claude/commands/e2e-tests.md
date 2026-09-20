@@ -46,6 +46,25 @@ exact missing command, tool, device, or store prerequisite.
 
 Notes:
 
+- **An Amazon device flow under App Tester does not prove the live Appstore.**
+  App Tester answers over its own service intents and never goes through the
+  SDK's in-process foreground task pipeline, which is what launches the
+  Appstore's purchase Activity on the live store (issue #460). When an Amazon
+  change touches connection, listener registration, or the purchase request,
+  run one purchase through Live App Testing and confirm the `START u0 ...
+  com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
+  `ActivityManager` on Fire OS 7, `ActivityTaskManager` on Fire OS 8).
+  `adb logcat -s Kiwi` shows the SDK's own log (verified on a debug build):
+  `No UI visible to execute task` means the SDK inside the app is holding the
+  Appstore's purchase Intent until it sees the host Activity resume.
+- **Gate the registration order on every Amazon change.** The symptom needs a
+  store install; its cause does not.
+  `scripts/verify-amazon-registration-order.sh <serial> [package]` cold-starts
+  the app and fails unless the provider registered before the first Activity
+  resume — no purchase, store install or Amazon account. Exit 0 pass, 1 fail;
+  pass the package for an example other than `dev.hyo.martie`. Use a debug
+  build: R8 can strip the log line it asserts on. Run it before the Live App
+  Testing pass, not instead of it.
 - VegaOS is required only for `react-native-iap` and `expo-iap`.
 - Godot is required only on Android and iOS.
 - Horizon is build-only unless the user explicitly provides a Horizon device and
@@ -90,6 +109,12 @@ Notes:
 Run this row as part of every full E2E regression. When the request is narrowed
 to IAPKit, run this row plus the focused package/example checks that support it;
 do not rerun unrelated framework/store rows.
+
+Read the "Device and Workspace State That Silently Breaks a Row" section of
+`.codex/skills/iapkit-e2e-martie/SKILL.md` first. A leftover store flavor in the
+generated Android project, a leftover iOS scene session from another app sharing
+the bundle id, and prebuilt React Native each break a row in a way that looks
+like a store or account failure.
 
 Prerequisites:
 

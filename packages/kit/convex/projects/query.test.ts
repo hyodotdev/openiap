@@ -61,6 +61,8 @@ describe("projectForDashboard", () => {
       userErasureHashKey: "erasure-secret",
       verificationAdmissionTokens: 10,
       verificationAdmissionRefilledAt: 1_000,
+      entitlementRecheckTokens: 7,
+      entitlementRecheckRefilledAt: 2_000,
     } as never);
 
     expect(result).not.toHaveProperty("apiKey");
@@ -69,5 +71,7 @@ describe("projectForDashboard", () => {
     expect(result).not.toHaveProperty("userErasureHashKey");
     expect(result).not.toHaveProperty("verificationAdmissionTokens");
     expect(result).not.toHaveProperty("verificationAdmissionRefilledAt");
+    expect(result).not.toHaveProperty("entitlementRecheckTokens");
+    expect(result).not.toHaveProperty("entitlementRecheckRefilledAt");
   });
 });

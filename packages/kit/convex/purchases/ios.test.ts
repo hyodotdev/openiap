@@ -165,6 +165,58 @@ describe("App Store mappings (real data)", () => {
     });
   });
 
+  it("treats a non-consumable without a transaction reason as entitled", () => {
+    const receipt = mapToAppStoreReceiptResponse({
+      transactionId: "60002463315105",
+      originalTransactionId: "60002463315105",
+      bundleId: "com.gotterdammerung.untold.ios",
+      productId: "untold_full_premium",
+      type: "Non-Consumable",
+      environment: "Production",
+    });
+
+    expect(receipt).toEqual({
+      isValid: true,
+      state: HarmonizedPurchaseState.ENTITLED,
+      productId: "untold_full_premium",
+    });
+  });
+
+  it("treats a consumable without a transaction reason as ready to consume", () => {
+    const receipt = mapToAppStoreReceiptResponse({
+      transactionId: "2000001013981797",
+      originalTransactionId: "2000001013981797",
+      bundleId: "dev.hyo.martie",
+      productId: "dev.hyo.martie.10bulbs",
+      type: "Consumable",
+      environment: "Sandbox",
+    });
+
+    expect(receipt).toEqual({
+      isValid: true,
+      state: HarmonizedPurchaseState.READY_TO_CONSUME,
+      productId: "dev.hyo.martie.10bulbs",
+    });
+  });
+
+  it("fails closed on an unrecognized transaction reason", () => {
+    const receipt = mapToAppStoreReceiptResponse({
+      transactionId: "2000001013981797",
+      originalTransactionId: "2000001013981797",
+      bundleId: "dev.hyo.martie",
+      productId: "dev.hyo.martie.10bulbs",
+      type: "Consumable",
+      environment: "Sandbox",
+      transactionReason: "SOME_NEW_REASON",
+    });
+
+    expect(receipt).toEqual({
+      isValid: false,
+      state: HarmonizedPurchaseState.UNKNOWN,
+      productId: "dev.hyo.martie.10bulbs",
+    });
+  });
+
   it("marks a valid receipt inauthentic when expectedProductId mismatches", () => {
     const receipt = applyExpectedProductId(
       {

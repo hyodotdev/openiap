@@ -19,8 +19,9 @@ function isGroup(entry: MenuEntry): entry is MenuGroup {
 
 interface MenuDropdownProps {
   title: string;
-  titleTo: string;
+  titleTo?: string;
   items: MenuEntry[];
+  defaultExpanded?: boolean;
   onItemClick?: () => void;
 }
 
@@ -131,9 +132,10 @@ export function MenuDropdown({
   title,
   titleTo,
   items,
+  defaultExpanded = false,
   onItemClick,
 }: MenuDropdownProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const location = useLocation();
   const navigate = useNavigate();
   const contentId = useId();
@@ -150,13 +152,14 @@ export function MenuDropdown({
     if (isGroupActive) {
       setIsExpanded(true);
     }
-  }, [isGroupActive]);
+  }, [isGroupActive, location.pathname]);
 
   // Title click: always navigate + close the mobile drawer. Collapsing
   // is handled exclusively by the dedicated chevron toggle so screen-
   // reader semantics stay clean (the title is a nav control, not a
   // disclosure control).
   const handleTitleClick = () => {
+    if (!titleTo) return;
     setIsExpanded(true);
     navigate(titleTo);
     onItemClick?.();
@@ -166,27 +169,43 @@ export function MenuDropdown({
 
   return (
     <li className="menu-dropdown">
-      <div
-        className={`menu-dropdown-header ${isTitleActive ? 'active' : isChildActive ? 'group-active' : ''}`}
-      >
-        <button
-          type="button"
-          onClick={handleTitleClick}
-          className={`menu-dropdown-title ${isTitleActive ? 'active' : ''}`}
+      {titleTo ? (
+        <div
+          className={`menu-dropdown-header ${isTitleActive ? 'active' : isChildActive ? 'group-active' : ''}`}
         >
-          {title}
-        </button>
+          <button
+            type="button"
+            onClick={handleTitleClick}
+            className={`menu-dropdown-title ${isTitleActive ? 'active' : ''}`}
+          >
+            {title}
+          </button>
+          <button
+            type="button"
+            onClick={toggleExpanded}
+            className="menu-dropdown-toggle"
+            aria-label={`Toggle ${title} submenu`}
+            aria-expanded={isExpanded}
+            aria-controls={contentId}
+          >
+            <Chevron isExpanded={isExpanded} />
+          </button>
+        </div>
+      ) : (
         <button
           type="button"
           onClick={toggleExpanded}
-          className="menu-dropdown-toggle"
+          className={`menu-dropdown-header ${isChildActive ? 'group-active' : ''}`}
           aria-label={`Toggle ${title} submenu`}
           aria-expanded={isExpanded}
           aria-controls={contentId}
         >
-          <Chevron isExpanded={isExpanded} />
+          <span className="menu-dropdown-title">{title}</span>
+          <span className="menu-dropdown-toggle" aria-hidden="true">
+            <Chevron isExpanded={isExpanded} />
+          </span>
         </button>
-      </div>
+      )}
       <div
         id={contentId}
         className="menu-dropdown-content"
@@ -197,7 +216,7 @@ export function MenuDropdown({
           {items.map((entry) =>
             isGroup(entry) ? (
               <SubMenu
-                key={`${titleTo}::group::${entry.label.replace(/\s+/g, '-').toLowerCase()}`}
+                key={`${titleTo ?? title}::group::${entry.label.replace(/\s+/g, '-').toLowerCase()}`}
                 group={entry}
                 onItemClick={onItemClick}
                 parentExpanded={isExpanded}

@@ -5,9 +5,9 @@ public struct OpenIapVersion {
         OpenIapGeneratedVersion.apple
     }
 
-    /// Current OpenIAP specification version
-    public static var specVersion: String {
-        OpenIapGeneratedVersion.spec
+    /// Client Protocol version this build implements.
+    public static var clientProtocolVersion: String {
+        OpenIapGeneratedVersion.clientProtocol
     }
 }
 

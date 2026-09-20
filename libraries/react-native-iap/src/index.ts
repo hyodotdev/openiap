@@ -149,6 +149,7 @@ export interface EventSubscription {
 // Export hooks
 export {useIAP} from './hooks/useIAP';
 export {kitApi, KitApiError} from './kit-api';
+export {getUserFriendlyErrorMessage} from './utils/errorMapping';
 export type {
   KitApiOptions,
   KitClientPayloadCache,
@@ -2130,7 +2131,7 @@ export const consumePurchaseAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
- * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
@@ -2416,7 +2417,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
- * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'

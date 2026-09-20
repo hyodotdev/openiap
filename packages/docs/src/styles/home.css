@@ -213,6 +213,70 @@
   font-size: 0.76rem;
 }
 
+.hero-protocols {
+  margin-top: 1.1rem;
+}
+
+.hero-protocols-label {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-protocols-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.6rem;
+}
+
+.hero-protocol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.hero-protocol:hover,
+.hero-protocol:focus-visible {
+  border-color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 7%, transparent);
+}
+
+.hero-protocol-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+}
+
+.hero-protocol-name {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.hero-protocol-version {
+  color: var(--accent-color);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.hero-protocol-blurb {
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
 .hero-orbit {
   position: relative;
   min-height: 480px;
@@ -739,6 +803,7 @@
   margin: 0 auto;
 }
 
+.home-section h1,
 .home-section h2 {
   font-size: 2.5rem;
   margin-bottom: 1rem;

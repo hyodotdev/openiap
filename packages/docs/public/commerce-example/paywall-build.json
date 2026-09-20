@@ -1,0 +1,341 @@
+{
+  "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
+  "branch": "codex/commerce-protocol-from-scratch",
+  "sourceCommit": "e93c68f3f7b62753f42d22002a927f5163a0c613",
+  "implementationCommit": "e93c68f3f7b62753f42d22002a927f5163a0c613",
+  "archiveSha256": "953222a2edd81b8eb2b16ea6d923bebb81d72804d3d82a2a10f006c9feabcf64",
+  "verification": {
+    "tests": 20,
+    "assertions": 264,
+    "portableCases": 51
+  },
+  "state": {
+    "stores": [
+      {
+        "id": "apple",
+        "label": "Apple fixture",
+        "variant": "A",
+        "access": true
+      },
+      {
+        "id": "google",
+        "label": "Google fixture",
+        "variant": "B",
+        "access": true
+      }
+    ],
+    "report": {
+      "events": [
+        {
+          "eventId": "d3400940-e994-4707-bd14-92af331e7598",
+          "eventType": "subscription.started",
+          "store": "apple",
+          "customer": "alice-apple",
+          "transactionId": "apple-demo-chain-0",
+          "experiment": "onboarding",
+          "variant": "A",
+          "amount": {
+            "currency": "USD",
+            "amountMicros": 4990000,
+            "provenance": "store"
+          },
+          "treatment": "known purchase amount"
+        },
+        {
+          "eventId": "044a0fce-c8fc-49fa-a421-ab9d9f4d3a9c",
+          "eventType": "entitlement.granted",
+          "store": "apple",
+          "customer": "alice-apple",
+          "transactionId": "apple-demo-chain-0",
+          "experiment": "onboarding",
+          "variant": "A",
+          "amount": null,
+          "treatment": "lifecycle only"
+        },
+        {
+          "eventId": "c65690d9-bcf4-4fe3-a818-8f799ca5302c",
+          "eventType": "subscription.renewed",
+          "store": "apple",
+          "customer": "alice-apple",
+          "transactionId": "apple-demo-chain-1",
+          "experiment": "onboarding",
+          "variant": "A",
+          "amount": {
+            "currency": "USD",
+            "amountMicros": 4990000,
+            "provenance": "store"
+          },
+          "treatment": "known purchase amount"
+        },
+        {
+          "eventId": "be61841f-ce76-49dc-84cb-681e317c0b0b",
+          "eventType": "subscription.canceled",
+          "store": "apple",
+          "customer": "alice-apple",
+          "transactionId": "apple-demo-chain-1",
+          "experiment": "onboarding",
+          "variant": "A",
+          "amount": null,
+          "treatment": "lifecycle only"
+        },
+        {
+          "eventId": "333a0181-c621-47f0-b2ed-d7c293d365d9",
+          "eventType": "subscription.started",
+          "store": "google",
+          "customer": "alice-google",
+          "transactionId": "google-demo-chain-0",
+          "experiment": "onboarding",
+          "variant": "B",
+          "amount": null,
+          "treatment": "amount unknown"
+        },
+        {
+          "eventId": "88fea343-63c1-46db-9ae3-273aa12c55b6",
+          "eventType": "entitlement.granted",
+          "store": "google",
+          "customer": "alice-google",
+          "transactionId": "google-demo-chain-0",
+          "experiment": "onboarding",
+          "variant": "B",
+          "amount": null,
+          "treatment": "lifecycle only"
+        }
+      ],
+      "totals": [
+        {
+          "currency": "USD",
+          "experiment": "onboarding",
+          "variant": "A",
+          "amountMicros": 9980000
+        }
+      ],
+      "unknownAmounts": 1,
+      "reconciliation": 0
+    },
+    "receiver": "http://127.0.0.1:52594/webhooks/commerce"
+  },
+  "browserSourceCommit": "abdbcef40fc710540853aa46e0b374711b6047ba",
+  "browser": {
+    "kind": "Actual browser operation of the locally implemented extension; not a human study",
+    "steps": [
+      {
+        "step": "pending",
+        "state": {
+          "access": "Premium locked",
+          "events": "0",
+          "notice": "Purchase result: pending. Finish callbacks: 0. Deliver events to update analytics.",
+          "totals": "Variant A · No known amountVariant B · No known amount"
+        }
+      },
+      {
+        "step": "buy",
+        "state": {
+          "access": "Premium open",
+          "events": "0",
+          "notice": "Purchase result: fulfilled. Finish callbacks: 1. Deliver events to update analytics.",
+          "trace": {
+            "finishCalls": 1,
+            "result": "fulfilled",
+            "trace": [
+              {
+                "destination": "http://127.0.0.1:5198/commerce/v1/purchases/verify",
+                "input": {
+                  "apple": {
+                    "jws": "fixture.apple.premium"
+                  },
+                  "store": "apple"
+                },
+                "method": "POST",
+                "response": {
+                  "environment": "sandbox",
+                  "isValid": true,
+                  "productId": "premium.monthly",
+                  "state": "ENTITLED",
+                  "store": "apple"
+                },
+                "status": 200
+              },
+              {
+                "destination": "http://127.0.0.1:5198/commerce/v1/purchases/bind",
+                "input": {
+                  "apple": {
+                    "jws": "fixture.apple.premium"
+                  },
+                  "store": "apple",
+                  "userId": "alice-apple"
+                },
+                "method": "POST",
+                "response": {
+                  "bound": true
+                },
+                "status": 200
+              },
+              {
+                "destination": "http://127.0.0.1:5198/commerce/v1/entitlements?userId=alice-apple",
+                "method": "GET",
+                "response": {
+                  "productIds": [
+                    "premium.monthly"
+                  ],
+                  "subscriptions": [
+                    {
+                      "active": true,
+                      "expiresAt": 1791849600000,
+                      "productId": "premium.monthly",
+                      "state": "Active",
+                      "store": "apple",
+                      "willRenew": true
+                    }
+                  ],
+                  "userId": "alice-apple"
+                },
+                "status": 200
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "deliver purchase",
+        "state": {
+          "events": "2",
+          "totals": "Variant A · $4.99Variant B · No known amount"
+        }
+      },
+      {
+        "step": "renew and deliver",
+        "state": {
+          "events": "3",
+          "totals": "Variant A · $9.98Variant B · No known amount"
+        }
+      },
+      {
+        "step": "cancel and deliver",
+        "state": {
+          "access": "Premium open",
+          "events": "4",
+          "totals": "Variant A · $9.98Variant B · No known amount"
+        }
+      },
+      {
+        "step": "redeliver apple",
+        "state": {
+          "events": "4",
+          "totals": "Variant A · $9.98Variant B · No known amount"
+        }
+      },
+      {
+        "step": "google purchase",
+        "state": {
+          "access": "Premium open",
+          "events": "6",
+          "totals": "Variant A · $9.98Variant B · No known amount · 1 unknown",
+          "unknown": "1"
+        }
+      },
+      {
+        "step": "redeliver google",
+        "state": {
+          "events": "6",
+          "totals": "Variant A · $9.98Variant B · No known amount · 1 unknown",
+          "unknown": "1"
+        }
+      },
+      {
+        "step": "mobile rendering",
+        "state": {
+          "bodyWidth": 375,
+          "events": "6",
+          "totals": "Variant A · $9.98Variant B · No known amount · 1 unknown",
+          "width": 390
+        }
+      }
+    ]
+  },
+  "harness": {
+    "checks": 8,
+    "recordedAt": "2026-09-19T15:55:43.645Z"
+  },
+  "providerVerification": {
+    "checks": 19,
+    "regressionChecks": 170,
+    "recordedAt": "2026-09-19T15:57:02.258Z",
+    "state": {
+      "stores": [
+        {
+          "id": "google",
+          "label": "IAPKit Google fixture",
+          "variant": "A",
+          "access": true
+        }
+      ],
+      "report": {
+        "events": [
+          {
+            "eventId": "k176w4zeqvsqjs0kpkcbcxz7158eqpgg",
+            "eventType": "subscription.started",
+            "store": "google",
+            "customer": "fresh_paywall_user",
+            "transactionId": null,
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 5000000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "k17cty2c63r28x7zyhgry3rh698eq7za",
+            "eventType": "entitlement.granted",
+            "store": "google",
+            "customer": "fresh_paywall_user",
+            "transactionId": null,
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          },
+          {
+            "eventId": "k172tw0mjeqn84gqgxbb39jz1x8epcta",
+            "eventType": "subscription.renewed",
+            "store": "google",
+            "customer": "fresh_paywall_user",
+            "transactionId": null,
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": {
+              "currency": "USD",
+              "amountMicros": 5000000,
+              "provenance": "store"
+            },
+            "treatment": "known purchase amount"
+          },
+          {
+            "eventId": "k178e26n3637pth59fy0r59w0n8eqnsa",
+            "eventType": "subscription.canceled",
+            "store": "google",
+            "customer": "fresh_paywall_user",
+            "transactionId": null,
+            "experiment": "onboarding",
+            "variant": "A",
+            "amount": null,
+            "treatment": "lifecycle only"
+          }
+        ],
+        "totals": [
+          {
+            "currency": "USD",
+            "experiment": "onboarding",
+            "variant": "A",
+            "amountMicros": 10000000
+          }
+        ],
+        "unknownAmounts": 0,
+        "reconciliation": 0
+      },
+      "receiver": "http://127.0.0.1:52651/webhooks/commerce"
+    }
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "recordedAt": "2026-09-16T00:55:31.262Z",
+  "scope": "Each recorded archive extracted outside both repositories; patches applied in order from an empty directory; published dependencies installed with npm.",
+  "results": [
+    {
+      "id": "01-contract",
+      "archiveSha256": "be354098298d8fbbe9c72afcce1405f15a23fae95db8788cb1b5f71dd9319b8a",
+      "patchSha256": "72580caa82a312387ca0cf864374adbd4214f94fcf5383694b150a91d2977220",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 213ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 6,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "02-verify",
+      "archiveSha256": "5df992e5f1f8acc4d323a24a25249834c761183bfe19887cdffd4946c565dbd6",
+      "patchSha256": "f29b8ff88e813afe2ba18ad42c1fdcfd0e923b3422a064df133c19b19910c215",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 216ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 10,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "03-bind",
+      "archiveSha256": "880ce127299922ca5d3e97448026a26a6ed003936b2a0bfc097a734f79a1fae5",
+      "patchSha256": "2629932860947e3b6ff043d5587a7d6c48c309023b0158e178c33ea255fce4e1",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 220ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 15,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Discovery remains unsupported until an event can be emitted\",\n    \"Purchase storage starts empty\",\n    \"Unready discovery returns a portable error\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "04-cancel",
+      "archiveSha256": "519232143ccd860aed14eb95d22eb94dc31ad19a01943534fc6c64466cc29b7e",
+      "patchSha256": "fd7cec76566fb0174fd16a278e6f7d6dfb215be1c361891dd0205d7d7db673e7",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 213ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 18,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Capabilities use the published response schema\",\n    \"Purchase storage starts empty\",\n    \"No profile conformance is claimed\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"Cancellation keeps paid access\",\n    \"Cancellation stops renewal\",\n    \"Cancellation queues one event\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "05-deliver",
+      "archiveSha256": "fa4c92d17f964094f7bc1e14b3f5db848f4e7eaea5cecf7740dfd2e53e3b9bab",
+      "patchSha256": "b8afbe48d79ad60912a8b968e0435866ea2695ad296414a3a4beb26a3b882c43",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 213ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\n{\n  \"passed\": 22,\n  \"checks\": [\n    \"Fixture request matches the installed schema\",\n    \"Capabilities use the published response schema\",\n    \"Purchase storage starts empty\",\n    \"No profile conformance is claimed\",\n    \"Fixture evidence is accepted\",\n    \"Verification does not grant access\",\n    \"Invalid evidence produces a negative verdict\",\n    \"An upstream outage is not a negative verdict\",\n    \"Verification credentials cannot bind a user\",\n    \"The server binds Alice\",\n    \"Repeating the same binding succeeds\",\n    \"Bob cannot take Alice's purchase\",\n    \"Alice can access Premium\",\n    \"Cancellation keeps paid access\",\n    \"Cancellation stops renewal\",\n    \"Cancellation queues one event\",\n    \"A 503 leaves a durable retry\",\n    \"Retry survives provider restart\",\n    \"Retry keeps the delivery identity\",\n    \"Redelivery has one durable inbox effect\",\n    \"An unimplemented operation is explicitly refused\",\n    \"Untrusted browser origins are refused\"\n  ]\n}\n"
+        }
+      ]
+    },
+    {
+      "id": "06-recover",
+      "archiveSha256": "67bc01ef56eb04d677db3aff28ef3bf850a2838ab18e7ffcdcfe9709459c4a7f",
+      "patchSha256": "ca3cca8d4e314424305d2b8020df76c3a533ac4100318495006a8c263367d347",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 210ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs\n\nCommerce Protocol Example: 138 checks passed. No store or production service contacted.\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\n 4 pass\n 0 fail\nRan 4 tests across 1 file. [66.00ms]\n"
+        }
+      ]
+    },
+    {
+      "id": "07-account-erasure",
+      "archiveSha256": "c63ca40e35599e6eddba7042b4d19bb5294338967330ef4b1dd50a4bfe15f1c4",
+      "patchSha256": "7fea52f9c405ba36e885f9c02a6c304f0dcf35d099be27d9b577f7fc4d0aa5b0",
+      "sourceHashesMatch": true,
+      "patchAppliesExactly": true,
+      "commands": [
+        {
+          "command": "npm ci --ignore-scripts --no-audit --no-fund",
+          "exitCode": 0,
+          "output": "\nadded 10 packages in 216ms\n"
+        },
+        {
+          "command": "npm test",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n\n 3 pass\n 0 fail\n 20 expect() calls\nRan 3 tests across 2 files. [145.00ms]\n"
+        },
+        {
+          "command": "npm run test:tooling",
+          "exitCode": 0,
+          "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\n 5 pass\n 0 fail\nRan 5 tests across 1 file. [70.00ms]\n"
+        }
+      ]
+    }
+  ]
+}

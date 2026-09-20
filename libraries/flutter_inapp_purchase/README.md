@@ -5,7 +5,7 @@
   
   [![Pub Version](https://img.shields.io/pub/v/flutter_inapp_purchase.svg?style=flat-square)](https://pub.dartlang.org/packages/flutter_inapp_purchase) [![Flutter CI](https://github.com/hyodotdev/openiap/actions/workflows/ci-flutter-inapp-purchase.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci-flutter-inapp-purchase.yml?query=branch%3Amain) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![Coverage Status](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=flutter-inapp-purchase)](https://app.codecov.io/gh/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
   
-  A comprehensive Flutter plugin for implementing in-app purchases that conforms to the [OpenIAP specification](https://openiap.dev)
+  A comprehensive Flutter plugin for implementing in-app purchases that conforms to the [OpenIAP Client Protocol](https://openiap.dev)
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="40" /></a>
 
@@ -123,7 +123,7 @@ final sameIap = FlutterInappPurchase.instance; // Same instance
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
 
-flutter_inapp_purchase conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
+flutter_inapp_purchase conforms to the **[OpenIAP Client Protocol](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
 - **Generated type-safe bindings** — Swift, Kotlin, Dart, and GDScript from a single GraphQL schema

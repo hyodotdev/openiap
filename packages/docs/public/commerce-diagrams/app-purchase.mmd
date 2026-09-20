@@ -1,0 +1,15 @@
+sequenceDiagram
+  actor User
+  participant Paywall as Paywall Service
+  participant App as App code
+  participant SDK as OpenIAP SDK
+  participant Store as Apple / Google
+  Note over Paywall,App: App team wires purchase and result callbacks
+  User->>Paywall: Select a subscription
+  Paywall->>App: Product selection callback
+  App->>SDK: requestPurchase with store-fetched product / offer
+  SDK->>Store: Store purchase request
+  Store-->>SDK: Purchase result and evidence
+  SDK-->>App: Purchase callback
+  Note over App: Next: send evidence to the app backend
+  Note over App,Store: Pending, canceled or failed purchase: no new access

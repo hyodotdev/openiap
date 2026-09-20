@@ -349,7 +349,7 @@ dependencies {
         </ul>
 
         <p>
-          These libraries implement the OpenIAP specification and handle
+          These libraries implement the OpenIAP Client Protocol and handle
           Android-specific requirements — refer to each library&apos;s
           documentation for implementation details.
         </p>

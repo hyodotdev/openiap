@@ -1,0 +1,225 @@
+{
+  "recordedAt": "2026-09-16T00:54:56.779Z",
+  "scope": "Real loopback HTTP, signature validation and durable deduplication. Fictional lifecycle samples; no provider or store contacted. One emitter/project per receiver database. No business or revenue calculation.",
+  "checks": [
+    "Health accepts the proxy public Host header",
+    "subscription.started: authenticated and saved",
+    "subscription.started: redelivery deduplicated",
+    "subscription.started: tampering rejected",
+    "entitlement.granted: authenticated and saved",
+    "entitlement.granted: redelivery deduplicated",
+    "entitlement.granted: tampering rejected",
+    "subscription.renewed: authenticated and saved",
+    "subscription.renewed: redelivery deduplicated",
+    "subscription.renewed: tampering rejected",
+    "subscription.canceled: authenticated and saved",
+    "subscription.canceled: redelivery deduplicated",
+    "subscription.canceled: tampering rejected",
+    "subscription.expired: authenticated and saved",
+    "subscription.expired: redelivery deduplicated",
+    "subscription.expired: tampering rejected",
+    "entitlement.revoked: authenticated and saved",
+    "entitlement.revoked: redelivery deduplicated",
+    "entitlement.revoked: tampering rejected",
+    "subscription.refunded: authenticated and saved",
+    "subscription.refunded: redelivery deduplicated",
+    "subscription.refunded: tampering rejected",
+    "One inbox record per event",
+    "Inbox survives reopening SQLite"
+  ],
+  "results": [
+    {
+      "event": {
+        "eventId": "f45e2685-2703-4713-a83d-3468272e2eb2",
+        "eventType": "subscription.started",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520036734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "price": {
+          "currency": "USD",
+          "amountMicros": 9990000,
+          "provenance": "store"
+        },
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "expiresAt": 1789520156734,
+          "willRenew": true
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "586a24ec-208b-47a8-a03a-85f6ccd440ad",
+        "eventType": "entitlement.granted",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520037734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "expiresAt": 1789520156734,
+          "willRenew": true
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "ff0a2621-2ddf-421f-ac63-b30e764a946b",
+        "eventType": "subscription.renewed",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520038734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "price": {
+          "currency": "USD",
+          "amountMicros": 9990000,
+          "provenance": "store"
+        },
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "expiresAt": 1789520156734,
+          "willRenew": true
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "a6a05a02-208c-4d9e-bd56-15e4a672d235",
+        "eventType": "subscription.canceled",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520039734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "expiresAt": 1789520156734,
+          "willRenew": false
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "385d4181-5738-44d6-9b53-cdc27b751352",
+        "eventType": "subscription.expired",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520040734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "active": false,
+          "expiresAt": 1789520095734,
+          "willRenew": false
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "c9056e9f-dc6d-4f9c-822b-b656f853b77d",
+        "eventType": "entitlement.revoked",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520041734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "active": false,
+          "expiresAt": 1789520095734,
+          "willRenew": false
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    },
+    {
+      "event": {
+        "eventId": "e60053b2-8859-4011-b7a6-66d5ff98d2f6",
+        "eventType": "subscription.refunded",
+        "eventVersion": "1.0",
+        "occurredAt": 1789520042734,
+        "processedAt": 1789520096734,
+        "store": "fixture",
+        "environment": "local-fixture",
+        "projectId": "demo_project",
+        "userId": "demo_user",
+        "productId": "premium.monthly",
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Refunded",
+          "active": false,
+          "expiresAt": 1789520095734,
+          "willRenew": false
+        }
+      },
+      "httpStatus": 200,
+      "duplicate": true,
+      "requestHost": "receiver.example.test",
+      "tamperedHttpStatus": 401
+    }
+  ],
+  "inboxCount": 7,
+  "sourceHashes": {
+    "consumer.mjs": "f9cdc5eff17f322dd2ae146546cfc5ed9b5f1a02495294b83bc17ec227aff18f",
+    "webhooks.mjs": "e6da4eb939244f1b05ad61307f717a2214bf830da9d27993beb969676cc936a6",
+    "contract.mjs": "474dfee661cf00617872f6f50c3f4f5e88706e80d2fd6fcdda9304f489268c73",
+    "package.json": "9be61e89a0de195d9fc3ccc7199c073bee0610c475c0cf3ee71387bbd1df6b24",
+    "package-lock.json": "fbcf20a1a02f208ccc5f5648207b42cf87c5550fc0df62a8870dedfeb5e0d23e"
+  }
+}

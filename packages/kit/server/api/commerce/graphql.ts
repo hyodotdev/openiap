@@ -14,8 +14,8 @@ import {
   type OperationDefinitionNode,
   type SelectionSetNode,
 } from "graphql";
-import HTTP_BINDING from "openiap-commerce-protocol/generated/bindings/http-binding.json";
-import operationsSdl from "openiap-commerce-protocol/generated/bindings/operations-sdl.json";
+import HTTP_BINDING from "@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json";
+import operationsSdl from "@hyodotdev/openiap-commerce-protocol/generated/bindings/operations-sdl.json";
 
 import { ProtocolOperationError } from "./errors";
 import * as handlers from "./handlers";

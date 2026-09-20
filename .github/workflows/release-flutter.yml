@@ -1,4 +1,4 @@
-name: "A. Release: flutter_inapp_purchase"
+name: "A5. Release: flutter_inapp_purchase"
 
 on:
   workflow_dispatch:
@@ -92,7 +92,9 @@ jobs:
 
       - name: Android consumer build smoke test
         working-directory: libraries/flutter_inapp_purchase
-        run: bash scripts/verify-android-consumer-build.sh
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
   validate-ios:
     needs: [release-branch]
@@ -325,7 +327,7 @@ jobs:
           PREV_VERSION: ${{ steps.bump.outputs.prev_version }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases"
+          CONSOLIDATED_RELEASE_NOTES="https://openiap.dev/docs/updates/releases#flutter-iap-$NEW_VERSION"
           CHANGES=""
           PREV_TAG=""
           for CANDIDATE in "flutter-iap-$PREV_VERSION" "$PREV_VERSION"; do
@@ -519,10 +521,21 @@ jobs:
           fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/flutter-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/flutter_inapp_purchase/" ":(top,exclude)libraries/flutter_inapp_purchase/.claude/" ":(top,exclude)libraries/flutter_inapp_purchase/AGENTS.md" ":(top,exclude)libraries/flutter_inapp_purchase/CLAUDE.md")
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
+          fi
+          # These native packages are a published dependency of this release, so
+          # name the versions this tag pins instead of replaying their commits.
+          # The path below is a symlink to the repository-root manifest, so it
+          # resolves to the pins this tag actually shipped.
+          VERSIONS_FILE="$GITHUB_WORKSPACE/libraries/flutter_inapp_purchase/openiap-versions.json"
+          APPLE_VERSION=$(jq -r '.apple // empty' "$VERSIONS_FILE")
+          GOOGLE_VERSION=$(jq -r '.google // empty' "$VERSIONS_FILE")
+          if [ -z "$APPLE_VERSION" ] || [ -z "$GOOGLE_VERSION" ]; then
+            echo "::error::could not read the native pins from $VERSIONS_FILE"
+            exit 1
           fi
           cat > /tmp/release-notes.md <<EOF
           ## flutter_inapp_purchase $VERSION
@@ -532,6 +545,11 @@ jobs:
           ### What's Changed
 
           $CHANGELOG
+
+          ### Native packages
+
+          - [openiap-apple $APPLE_VERSION](https://github.com/hyodotdev/openiap/releases/tag/$APPLE_VERSION)
+          - [openiap-google $GOOGLE_VERSION](https://github.com/hyodotdev/openiap/releases/tag/google-$GOOGLE_VERSION)
 
           ### Installation
 
@@ -549,7 +567,7 @@ jobs:
 
           - [Setup guide — Flutter](https://openiap.dev/docs/setup/flutter)
           - [API reference](https://openiap.dev/docs/apis)
-          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [Release notes](https://openiap.dev/docs/updates/releases#flutter-iap-$VERSION)
 
           ### Links
 

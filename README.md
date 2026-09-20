@@ -10,28 +10,29 @@
 
 ---
 
-OpenIAP is a unified specification for in-app purchases across platforms, frameworks, and emerging technologies.
+OpenIAP is two protocols for in-app purchases across platforms, frameworks, and emerging technologies: the Client Protocol for what an app calls, and the Commerce Protocol for what servers exchange.
 
 ## Overview
 
-The OpenIAP specification standardizes IAP implementations to reduce fragmentation and enable consistent behavior across all platforms. This is especially critical in the AI coding era where standardized APIs enable better code generation.
+The two protocols standardize IAP implementations to reduce fragmentation and enable consistent behavior across every platform. The Client Protocol gives an app one purchase API whatever the store; the Commerce Protocol gives backends one contract for verification, entitlements, and subscription lifecycle events. This is especially critical in the AI coding era where standardized APIs enable better code generation.
 
-## Specifications
+## Protocols
 
 The contracts every package and library implements live under `specs/`. They are publishable, implementation-independent, and never deployed as services:
 
-- **[client](specs/client)** - OpenIAP client API and multiplatform type generation. Consumed inside this repository as the workspace package `@hyodotdev/openiap`; it is not on npm, and its version is the spec floor below, not a release [![Client spec floor](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.spec&label=version&logo=graphql&color=purple&prefix=v)](https://github.com/hyodotdev/openiap/blob/main/openiap-versions.json)
-- **[Commerce Protocol](specs/commerce-protocol)** - Vendor-neutral server operations, events, bindings, and conformance, published to npm as [`openiap-commerce-protocol`](https://www.npmjs.com/package/openiap-commerce-protocol) [![npm version](https://img.shields.io/npm/v/openiap-commerce-protocol/latest?logo=npm&color=CB3837)](https://www.npmjs.com/package/openiap-commerce-protocol)
+- **[Client Protocol](specs/client)** — Client purchase API and generated types for six languages. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-client-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-client-protocol)
+- **[Commerce Protocol](specs/commerce-protocol)** — Server operations, events, bindings, and conformance. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-commerce-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-commerce-protocol)
 
 ## Packages
 
 This monorepo contains all OpenIAP packages:
 
-- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
-- **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
+- **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![Maven Central (Amazon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-amazon?label=Fire%20OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
 - **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.apple&label=version&logo=swift&color=orange&prefix=v)](https://github.com/hyodotdev/openiap/releases?q=Apple&expanded=true) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
-- **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
+- **[docs](packages/docs)** - Documentation site at [openiap.dev](https://openiap.dev)
+- **[cli](packages/cli)** - `@hyodotdev/openiap` prints an AI implementation brief and runs local configuration checks. [![npm](https://img.shields.io/npm/v/@hyodotdev/openiap/latest)](https://www.npmjs.com/package/@hyodotdev/openiap)
 - **[mcp-server](packages/mcp-server)** - IAPKit MCP server, hosted at [kit.openiap.dev/mcp](https://kit.openiap.dev/mcp) for AI coding agents
+- **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
 
 ## Libraries
 
@@ -77,13 +78,13 @@ Have a question or need help? Ask in the relevant [GitHub Discussions](https://g
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | openiap-apple          | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-apple)          |
 | openiap-google         | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-google)         |
-| IAPKit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
 | expo-iap               | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap)               |
 | react-native-iap       | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap)       |
 | flutter_inapp_purchase | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/flutter_inapp_purchase) |
 | kmp-iap                | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/kmp-iap)                |
 | maui-iap               | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/maui-iap)               |
 | godot-iap              | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/godot-iap)              |
+| IAPKit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
 
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 

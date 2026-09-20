@@ -3,18 +3,7 @@ Allow: /
 
 Sitemap: https://openiap.dev/sitemap.xml
 
-# AI Assistants / LLM Crawlers
-# Reference: https://llmstxt.org/
-User-agent: GPTBot
-User-agent: ChatGPT-User
-User-agent: Claude-Web
-User-agent: Anthropic-AI
-User-agent: PerplexityBot
-User-agent: Google-Extended
-Allow: /
-Allow: /llms.txt
-Allow: /llms-full.txt
-
-# LLM context files for AI assistants
+# The wildcard rule also allows search and assistant crawlers.
+# Optional context files for coding assistants:
 # llms.txt: https://openiap.dev/llms.txt (concise overview)
 # llms-full.txt: https://openiap.dev/llms-full.txt (detailed reference)

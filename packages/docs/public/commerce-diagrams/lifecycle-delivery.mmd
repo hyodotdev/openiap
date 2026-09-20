@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant Store as Apple / Google
+  participant Provider as Commerce Provider
+  participant Receiver as Event consumer
+  Note over Provider,Receiver: Register an app backend or external service receiver
+  Store->>Provider: Lifecycle notification
+  Provider->>Provider: Authenticate and reconcile
+  Provider->>Provider: Commit state and event outbox
+  Provider->>Receiver: Signed event over HTTPS
+  Receiver->>Receiver: Verify signature and schema
+  Receiver->>Receiver: Persist and deduplicate
+  Receiver-->>Provider: 2xx after durable acceptance
+  Note over Provider,Receiver: On retryable failure: same event/body, fresh signature
+  Receiver->>Receiver: Apply durable work idempotently

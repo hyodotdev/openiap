@@ -1,40 +1,146 @@
-@page { size: A4; margin: 22mm 20mm 20mm; }
-:root { --ink:#15181d; --muted:#5b6472; --rule:#d9dee6; --accent:#1f5f9e; }
-* { box-sizing: border-box; }
-body { font-family: "Charter","Iowan Old Style","Palatino Linotype",Georgia,serif;
-  color: var(--ink); font-size: 10.5pt; line-height: 1.52; margin: 0; }
-h1 { font-size: 22pt; line-height: 1.18; margin: 0 0 6pt; letter-spacing: -0.01em; }
-h2 { font-size: 13pt; margin: 20pt 0 6pt; padding-bottom: 3pt;
-  border-bottom: 0.6pt solid var(--rule); break-after: avoid; }
-h3 { font-size: 11pt; margin: 14pt 0 4pt; color: #2a3038; break-after: avoid; }
-h1 + p { color: var(--muted); font-size: 9.5pt; line-height: 1.5; }
-p { margin: 0 0 7pt; orphans: 3; widows: 3; }
-a { color: var(--accent); text-decoration: none; }
-code { font-family: "SF Mono",Menlo,Consolas,monospace; font-size: 0.86em;
-  background: #f1f3f6; padding: 0.5pt 2.5pt; border-radius: 2pt; }
-pre { background: #f7f8fa; border: 0.6pt solid var(--rule); border-radius: 3pt;
-  padding: 7pt 9pt; font-size: 8.6pt; line-height: 1.42; overflow-wrap: anywhere;
-  white-space: pre-wrap; break-inside: avoid; }
-pre code { background: none; padding: 0; }
-table { border-collapse: collapse; width: 100%; font-size: 8.8pt;
-  margin: 8pt 0 10pt; break-inside: avoid; }
-th, td { border: 0.6pt solid var(--rule); padding: 4pt 6pt; text-align: left;
-  vertical-align: top; }
-th { background: #f1f3f6; font-weight: 600; }
-ul, ol { margin: 0 0 7pt; padding-left: 16pt; }
-li { margin-bottom: 3pt; }
-hr { border: none; border-top: 0.6pt solid var(--rule); margin: 14pt 0; }
+@page {
+  size: A4;
+  margin: 22mm 20mm 20mm;
+}
+:root {
+  --ink: #15181d;
+  --muted: #5b6472;
+  --rule: #d9dee6;
+  --accent: #1f5f9e;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family:
+    "Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  color: var(--ink);
+  font-size: 10.5pt;
+  line-height: 1.52;
+  margin: 0;
+}
+h1 {
+  font-size: 22pt;
+  line-height: 1.18;
+  margin: 0 0 6pt;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 13pt;
+  margin: 20pt 0 6pt;
+  padding-bottom: 3pt;
+  border-bottom: 0.6pt solid var(--rule);
+  break-after: avoid;
+}
+h3 {
+  font-size: 11pt;
+  margin: 14pt 0 4pt;
+  color: #2a3038;
+  break-after: avoid;
+}
+h1 + p {
+  color: var(--muted);
+  font-size: 9.5pt;
+  line-height: 1.5;
+}
+p {
+  margin: 0 0 7pt;
+  orphans: 3;
+  widows: 3;
+}
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  background: #f1f3f6;
+  padding: 0.5pt 2.5pt;
+  border-radius: 2pt;
+}
+pre {
+  background: #f7f8fa;
+  border: 0.6pt solid var(--rule);
+  border-radius: 3pt;
+  padding: 7pt 9pt;
+  font-size: 8.6pt;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  break-inside: avoid;
+}
+pre code {
+  background: none;
+  padding: 0;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 8.8pt;
+  margin: 8pt 0 10pt;
+  break-inside: avoid;
+}
+th,
+td {
+  border: 0.6pt solid var(--rule);
+  padding: 4pt 6pt;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #f1f3f6;
+  font-weight: 600;
+}
+ul,
+ol {
+  margin: 0 0 7pt;
+  padding-left: 16pt;
+}
+li {
+  margin-bottom: 3pt;
+}
+hr {
+  border: none;
+  border-top: 0.6pt solid var(--rule);
+  margin: 14pt 0;
+}
 
-@page { @bottom-center { content: counter(page) " / " counter(pages);
-  font-family: Georgia, serif; font-size: 8.5pt; color: #7a828d; } }
-figure.mermaid { margin: 10pt 0 4pt; text-align: center; break-inside: avoid; }
-figure.mermaid svg { max-width: 100%; height: auto; }
+@page {
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: Georgia, serif;
+    font-size: 8.5pt;
+    color: #7a828d;
+  }
+}
+figure.mermaid {
+  margin: 10pt 0 4pt;
+  text-align: center;
+  break-inside: avoid;
+  break-after: avoid;
+}
+figure.mermaid svg {
+  max-width: 100%;
+  max-height: 165mm;
+  height: auto;
+}
+
+figure.mermaid svg[aria-roledescription="sequence"] {
+  max-height: 195mm;
+}
 
 /* A reference's anchor and its entry must not be split across a page: the
    anchor is an empty <a id> paragraph that Marked emits just above the text. */
-p:has(> a[id^="ref-"]) { break-after: avoid; }
-p:has(> a[id^="ref-"]) + p { break-before: avoid; }
+p:has(> a[id^="ref-"]) {
+  break-after: avoid;
+}
+p:has(> a[id^="ref-"]) + p {
+  break-before: avoid;
+}
 
 /* Paragraphs here run four to eight lines; splitting one strands a fragment
    on the next page, which is worst in the reference list. */
-p { break-inside: avoid; }
+p {
+  break-inside: avoid;
+}

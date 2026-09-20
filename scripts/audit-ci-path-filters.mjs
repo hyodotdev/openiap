@@ -30,6 +30,7 @@ export const nativeWorkflows = Object.freeze([
 
 export const ciFilterJobs = Object.freeze({
   android: ["ci:test-android"],
+  cli: ["ci:test-cli"],
   docs: ["ci:test-docs"],
   gql: ["ci:test-gql"],
   ios: ["ci:test-ios", "ci:test-ios-compiler-boundaries"],
@@ -361,6 +362,13 @@ export const cases = Object.freeze([
   {
     name: "codeql-workflow-edit",
     files: [".github/workflows/codeql.yml"],
+    jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
+  },
+  {
+    // Config-only: guards the `.github/codeql/**` dorny patterns, which the
+    // workflow-edit case cannot catch (it matches on the workflow path alone).
+    name: "codeql-config-edit",
+    files: [".github/codeql/codeql-config.yml"],
     jobs: ["codeql:analyze-swift", ...ALL_SWIFT_WRAPPERS],
   },
   {

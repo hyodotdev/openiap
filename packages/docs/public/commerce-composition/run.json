@@ -1,0 +1,455 @@
+{
+  "recordedAt": "2026-09-16T01:00:38.054Z",
+  "scope": "Two separately implemented fixture providers and two scoped receivers over loopback HTTP in one Bun process. One backend client and receiver implementation, unchanged across both configurations. Host purchase callbacks are simulated.",
+  "limits": [
+    "Same project authorship; no independent organization validation.",
+    "No store purchase, SDK/device checkout, complete profile conformance, or production deployment.",
+    "SQLite versus in-memory state is tested on fresh stores, not a historical-data migration.",
+    "One trusted emitter/project and secret per receiver database; no cross-provider deduplication claim."
+  ],
+  "protocolVersion": "1.0",
+  "sourceHashes": {
+    "composition/commerce-client.mjs": "f1f1a056bc76801df25111cb12fdcde501d507a5461ef8b15bfe2f57979cd03c",
+    "composition/memory-provider.mjs": "e07417405374d7caad01de5c527445176097385750b3f7b9b74bbc49a0e4147f",
+    "composition/purchase-flow.mjs": "ce6f98426c36eab346e900ac06ed31f2d387e542c518a48c92a67f7bae147ec8",
+    "composition/run.mjs": "6974e2ae16bd84fbb1bbb583beef7e2e0774b6b41322ebe72b8ae059445a546e",
+    "composition/README.md": "99e302c7365cf3969f61be2c466f31f5cf0928b2f3f0351e45907666f0459a44",
+    "contract.mjs": "474dfee661cf00617872f6f50c3f4f5e88706e80d2fd6fcdda9304f489268c73",
+    "provider.mjs": "c130e486f7b52c28caab70ce469b50e5169e6bb673217cd5af0de5ce16b67ef8",
+    "webhooks.mjs": "e6da4eb939244f1b05ad61307f717a2214bf830da9d27993beb969676cc936a6",
+    "package.json": "9be61e89a0de195d9fc3ccc7199c073bee0610c475c0cf3ee71387bbd1df6b24",
+    "package-lock.json": "fbcf20a1a02f208ccc5f5648207b42cf87c5550fc0df62a8870dedfeb5e0d23e"
+  },
+  "configurationChanges": [
+    "Provider URL",
+    "Server credential",
+    "Emitter endpoint, signing secret, and isolated inbox database"
+  ],
+  "checks": [
+    "sqlite: contract major matches",
+    "sqlite: no unearned profile claim",
+    "sqlite: no access before verification",
+    "sqlite: rejected evidence stays a verdict",
+    "sqlite: verifier outage stays an operation failure",
+    "sqlite: rejected verification cannot fulfill",
+    "sqlite: accepts fixture evidence",
+    "sqlite: verification alone grants no access",
+    "sqlite: selected product reaches purchase callback",
+    "sqlite: paywall selection completes",
+    "sqlite: fulfillment precedes finishing",
+    "sqlite: trusted user receives Premium",
+    "sqlite: client identity is ignored",
+    "sqlite: another user cannot take ownership",
+    "sqlite: repeated fulfillment returns the same access",
+    "sqlite: cancellation preserves paid time",
+    "sqlite: temporary receiver failure is queued for retry",
+    "memory: contract major matches",
+    "memory: no unearned profile claim",
+    "memory: no access before verification",
+    "memory: rejected evidence stays a verdict",
+    "memory: verifier outage stays an operation failure",
+    "memory: rejected verification cannot fulfill",
+    "memory: accepts fixture evidence",
+    "memory: verification alone grants no access",
+    "memory: selected product reaches purchase callback",
+    "memory: paywall selection completes",
+    "memory: fulfillment precedes finishing",
+    "memory: trusted user receives Premium",
+    "memory: client identity is ignored",
+    "memory: another user cannot take ownership",
+    "memory: repeated fulfillment returns the same access",
+    "memory: cancellation preserves paid time",
+    "memory: temporary receiver failure is queued for retry",
+    "sqlite: retry succeeds over HTTP",
+    "sqlite: one inbox effect per event",
+    "sqlite: redelivery is a duplicate",
+    "sqlite: modified body fails authentication",
+    "sqlite: another emitter's key is rejected",
+    "sqlite: optional extension is accepted",
+    "sqlite: equal IDs in different emitter inboxes are not lost",
+    "sqlite: an extension violating the contract is rejected",
+    "sqlite: extension bytes survive storage",
+    "memory: retry succeeds over HTTP",
+    "memory: one inbox effect per event",
+    "memory: redelivery is a duplicate",
+    "memory: modified body fails authentication",
+    "memory: another emitter's key is rejected",
+    "memory: optional extension is accepted",
+    "memory: equal IDs in different emitter inboxes are not lost",
+    "memory: an extension violating the contract is rejected",
+    "memory: extension bytes survive storage",
+    "sqlite: read closes access at the deadline before a notification",
+    "sqlite: expired status is inactive",
+    "sqlite: lifecycle and grant events match",
+    "sqlite: all emitted events were persisted",
+    "sqlite: wrong caller credentials fail closed",
+    "memory: read closes access at the deadline before a notification",
+    "memory: expired status is inactive",
+    "memory: lifecycle and grant events match",
+    "memory: all emitted events were persisted",
+    "memory: wrong caller credentials fail closed",
+    "same consumer observes equal before results across providers",
+    "same consumer observes equal bound results across providers",
+    "same consumer observes equal canceled results across providers",
+    "same consumer observes equal expired results across providers",
+    "host: pending is shown without fulfillment or finishing",
+    "host: canceled is shown without fulfillment or finishing",
+    "host: failed is shown without fulfillment or finishing",
+    "host: repeated selection does not start another purchase",
+    "host: selection becomes available after cancellation",
+    "host: backend failure does not finish a purchase",
+    "host: a finish failure preserves confirmed access",
+    "client: a malformed success response is rejected over HTTP",
+    "consumer and provider source files stay unchanged throughout the run"
+  ],
+  "results": [
+    {
+      "id": "sqlite",
+      "label": "SQLite provider",
+      "source": "provider.mjs",
+      "before": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "bound": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "store": "fixture",
+            "expiresAt": 1791363600000,
+            "willRenew": true
+          }
+        ]
+      },
+      "canceled": {
+        "active": true,
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "store": "fixture",
+          "expiresAt": 1791363600000,
+          "willRenew": false
+        }
+      },
+      "expired": {
+        "active": false,
+        "subscription": {
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "active": false,
+          "store": "fixture",
+          "expiresAt": 1791363600000,
+          "willRenew": false
+        }
+      }
+    },
+    {
+      "id": "memory",
+      "label": "Memory provider",
+      "source": "composition/memory-provider.mjs",
+      "before": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "bound": {
+        "userId": "demo_alice",
+        "productIds": [
+          "premium.monthly"
+        ],
+        "subscriptions": [
+          {
+            "store": "fixture",
+            "productId": "premium.monthly",
+            "state": "Active",
+            "active": true,
+            "expiresAt": 1791363600000,
+            "willRenew": true
+          }
+        ]
+      },
+      "canceled": {
+        "active": true,
+        "subscription": {
+          "store": "fixture",
+          "productId": "premium.monthly",
+          "state": "Active",
+          "active": true,
+          "expiresAt": 1791363600000,
+          "willRenew": false
+        }
+      },
+      "expired": {
+        "active": false,
+        "subscription": {
+          "store": "fixture",
+          "productId": "premium.monthly",
+          "state": "Expired",
+          "active": false,
+          "expiresAt": 1791363600000,
+          "willRenew": false
+        }
+      }
+    }
+  ],
+  "traces": [
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/capabilities",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 502
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/subscriptions/status",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/capabilities",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 502
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/verify",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "POST",
+      "path": "/commerce/v1/purchases/bind",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/subscriptions/status",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/subscriptions/status",
+      "status": 200
+    },
+    {
+      "provider": "sqlite",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 401
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/subscriptions/status",
+      "status": 200
+    },
+    {
+      "provider": "memory",
+      "method": "GET",
+      "path": "/commerce/v1/entitlements",
+      "status": 401
+    }
+  ],
+  "negativeControl": {
+    "change": "Replace now < expiresAt with now <= expiresAt in a temporary provider copy",
+    "detected": true,
+    "rejectedCheck": "sqlite: read closes access at the deadline before a notification"
+  },
+  "archiveVerification": {
+    "command": "npm ci --ignore-scripts && bun composition/run.mjs",
+    "sameSourceAndResults": true,
+    "sha256": "81bceeb7356ff27a84735a39d837b782421fbe36e1819826b18a234f1102179e"
+  }
+}

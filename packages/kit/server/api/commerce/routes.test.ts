@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { buildSchema, getIntrospectionQuery, printSchema } from "graphql";
-import operationsSdl from "openiap-commerce-protocol/generated/bindings/operations-sdl.json";
+import operationsSdl from "@hyodotdev/openiap-commerce-protocol/generated/bindings/operations-sdl.json";
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
@@ -17,6 +17,12 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/convex", () => ({
   api: {
     purchases: {
+      action: {
+        readBoundPurchaseEntitlements: "readBoundPurchaseEntitlements",
+      },
+      mutation: {
+        bindVerifiedPurchaseAsServer: "bindVerifiedPurchaseAsServer",
+      },
       ios: { verifyAppStoreReceiptInternalV1: "verifyApple" },
       android: { verifyGooglePlayReceiptInternalV1: "verifyGoogle" },
       horizon: { verifyMetaHorizonReceiptInternalV1: "verifyHorizon" },
@@ -109,6 +115,71 @@ describe("commerce REST adapter", () => {
     );
     expect(response.status).toBe(403);
     expect((await response.json()).error.code).toBe("FORBIDDEN");
+  });
+
+  it("evaluates subscription expiry after store ownership refreshes", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    try {
+      const subscription = {
+        productId: "apple-premium",
+        platform: "IOS",
+        state: "Active",
+        expiresAt: 2_000,
+        startedAt: 0,
+        updatedAt: 0,
+      };
+      mocks.action.mockImplementation(async () => {
+        clock.mockReturnValue(3_000);
+        return { productIds: ["amazon-premium"] };
+      });
+      mocks.query.mockImplementation(async (name, args) => {
+        if (name !== "entitlementsV2") return { ok: true };
+        const active = subscription.expiresAt > args.now;
+        return {
+          userId: args.userId,
+          productIds: active ? [subscription.productId] : [],
+          subscriptions: active ? [subscription] : [],
+        };
+      });
+      const response = await buildApp().request(
+        "/commerce/v1/entitlements?userId=user-1",
+        { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        userId: "user-1",
+        productIds: ["amazon-premium"],
+        subscriptions: [],
+      });
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("observes subscription erasure completed during a store refresh", async () => {
+    let erased = false;
+    mocks.action.mockImplementation(async () => {
+      erased = true;
+      return { productIds: [] };
+    });
+    mocks.query.mockImplementation(async (name, args) => {
+      if (name !== "entitlementsV2") return { ok: true };
+      return {
+        userId: args.userId,
+        productIds: erased ? [] : ["apple-premium"],
+        subscriptions: [],
+      };
+    });
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      userId: "user-1",
+      productIds: [],
+      subscriptions: [],
+    });
   });
 
   it("reports VERIFICATION_FAILED as 502 when the store verdict is unreachable", async () => {
@@ -249,15 +320,59 @@ describe("commerce REST adapter", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
-  it("reports a Horizon purchase as not bound without exposing why", async () => {
+  it("binds Horizon using the verified store user and SKU identity", async () => {
+    mocks.mutation.mockResolvedValue({ bound: true });
     const response = await post(buildApp(), "/commerce/v1/purchases/bind", {
       userId: "user-1",
       store: "horizon",
       horizon: { userId: "1234567890", sku: "premium" },
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ bound: false });
-    expect(mocks.mutation).not.toHaveBeenCalled();
+    expect(await response.json()).toEqual({ bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "bindVerifiedPurchaseAsServer",
+      {
+        apiKey: SERVER_KEY,
+        userId: "user-1",
+        store: "horizon",
+        remoteId: "1234567890:premium",
+      },
+    );
+  });
+
+  it("binds Amazon using the store user, receipt id and environment", async () => {
+    mocks.mutation.mockResolvedValue({ bound: true });
+    const response = await post(buildApp(), "/commerce/v1/purchases/bind", {
+      userId: "user-1",
+      store: "amazon",
+      amazon: { userId: "amzn1.account.X", receiptId: "rcpt/1", sandbox: true },
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ bound: true });
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "bindVerifiedPurchaseAsServer",
+      {
+        apiKey: SERVER_KEY,
+        userId: "user-1",
+        store: "amazon",
+        remoteId: "sandbox:amzn1.account.X:rcpt%2F1",
+      },
+    );
+  });
+
+  it("answers with a declared code when the bound-purchase read itself faults", async () => {
+    // The operation declares no verdict code, so an unclassifiable fault is an
+    // internal error, never a 502 the manifest does not list.
+    mocks.action.mockRejectedValue(new Error("upstream down"));
+    mocks.handleConvexError.mockReturnValue(null);
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error.code).toBe("INTERNAL_ERROR");
+    expect(body.error.message).not.toContain("upstream");
   });
 
   it("authenticates before revealing a non-binding store verdict", async () => {
@@ -520,7 +635,7 @@ describe("commerce GraphQL adapter", () => {
   it("blocks alias amplification hidden in an inline fragment", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query Amplify { ... on Query { a: providerCapabilities { specVersion } b: providerCapabilities { specVersion } c: providerCapabilities { specVersion } } }",
+        "query Amplify { ... on Query { a: providerCapabilities { commerceProtocolVersion } b: providerCapabilities { commerceProtocolVersion } c: providerCapabilities { commerceProtocolVersion } } }",
       operationName: "Amplify",
     });
     expect(response.status).toBe(200);
@@ -533,7 +648,7 @@ describe("commerce GraphQL adapter", () => {
   it("blocks alias amplification hidden in a named fragment spread", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query Amplify { ...F } fragment F on Query { a: providerCapabilities { specVersion } b: providerCapabilities { specVersion } }",
+        "query Amplify { ...F } fragment F on Query { a: providerCapabilities { commerceProtocolVersion } b: providerCapabilities { commerceProtocolVersion } }",
       operationName: "Amplify",
     });
     const body = await response.json();
@@ -544,7 +659,7 @@ describe("commerce GraphQL adapter", () => {
   it("rejects a request with more than one operation", async () => {
     const response = await post(buildApp(), "/commerce/v1/graphql", {
       query:
-        "query A { providerCapabilities { specVersion } } query B { providerCapabilities { specVersion } }",
+        "query A { providerCapabilities { commerceProtocolVersion } } query B { providerCapabilities { commerceProtocolVersion } }",
       operationName: "A",
     });
     expect(response.status).toBe(200);
@@ -671,7 +786,7 @@ describe("commerce GraphQL adapter", () => {
     // HTTP 200 with the code in extensions — an oversized body included, so the
     // endpoint never splits its own status contract (429 vs 200).
     const oversized = await post(buildApp(), "/commerce/v1/graphql", {
-      query: `query { providerCapabilities { specVersion } } # ${"x".repeat(40_000)}`,
+      query: `query { providerCapabilities { commerceProtocolVersion } } # ${"x".repeat(40_000)}`,
     });
     expect(oversized.status).toBe(200);
     const body = await oversized.json();
@@ -682,9 +797,11 @@ describe("commerce GraphQL adapter", () => {
     // f0 spreads f1 twice, f1 spreads f2 twice … — naive full expansion is
     // 2^N. A ~1.3 KB request must be rejected in milliseconds, not seconds.
     const depth = 24;
-    let query = "query Dos { providerCapabilities { specVersion ...f0 } }\n";
+    let query =
+      "query Dos { providerCapabilities { commerceProtocolVersion ...f0 } }\n";
     for (let i = 0; i < depth; i += 1) {
-      const next = i + 1 < depth ? `...f${i + 1} ...f${i + 1}` : "specVersion";
+      const next =
+        i + 1 < depth ? `...f${i + 1} ...f${i + 1}` : "commerceProtocolVersion";
       query += `fragment f${i} on ProviderCapabilities { ${next} }\n`;
     }
     const start = performance.now();
@@ -882,5 +999,31 @@ describe("commerce verify admission on both bindings", () => {
     expect(prod.status).toBe(200);
     expect((await prod.json()).isValid).toBe(true);
     expect(mocks.action).toHaveBeenCalled();
+  });
+});
+
+describe("commerce entitlement rechecks", () => {
+  beforeEach(() => {
+    mocks.action.mockReset();
+    mocks.mutation.mockReset();
+    mocks.query.mockReset();
+    mocks.handleConvexError.mockReset();
+    mocks.handleConvexError.mockReturnValue(null);
+  });
+
+  it("reports an exhausted recheck budget as 429 with the retry hint", async () => {
+    mocks.action.mockRejectedValue(new Error("limited"));
+    mocks.handleConvexError.mockReturnValue({
+      code: "RATE_LIMITED",
+      message: "Too many entitlement rechecks",
+      retryAfterSec: 4,
+    });
+    const response = await buildApp().request(
+      "/commerce/v1/entitlements?userId=user-1",
+      { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("4");
+    expect((await response.json()).error.code).toBe("RATE_LIMITED");
   });
 });

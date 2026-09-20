@@ -48,6 +48,22 @@ class MemQuery {
     );
   }
 
+  filter(
+    build: (query: {
+      field: (name: string) => string;
+      eq: (field: string, value: unknown) => (row: Row) => boolean;
+    }) => (row: Row) => boolean,
+  ): MemQuery {
+    return new MemQuery(
+      this.rows.filter(
+        build({
+          field: (name) => name,
+          eq: (field, value) => (row) => row[field] === value,
+        }),
+      ),
+    );
+  }
+
   order(direction: "asc" | "desc"): MemQuery {
     return new MemQuery(
       [...this.rows].sort((left, right) => {

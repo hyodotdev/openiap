@@ -54,6 +54,7 @@ jobs:
               - 'libraries/kmp-iap/openiap-versions.json'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
 
       - name: Detect Swift wrapper changes
@@ -68,29 +69,34 @@ jobs:
               - 'libraries-versions.jsonc'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
             expo:
               - 'libraries/expo-iap/**'
               - 'libraries-versions.jsonc'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
             expo-onside:
               - 'libraries/expo-iap/**'
               - 'libraries-versions.jsonc'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
             flutter:
               - 'libraries/flutter_inapp_purchase/**'
               - 'libraries-versions.jsonc'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
             godot:
               - 'libraries/godot-iap/**'
               - 'openiap-versions.json'
               - '.github/workflows/codeql.yml'
+              - '.github/codeql/**'
               - '!**/*.md'
 
   analyze:
@@ -119,6 +125,7 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: none
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Analyze
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
@@ -155,6 +162,7 @@ jobs:
           languages: java-kotlin
           build-mode: manual
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build Google Kotlin targets
         working-directory: packages/google
@@ -238,6 +246,7 @@ jobs:
           languages: java-kotlin
           build-mode: manual
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build React Native Android wrapper
         if: matrix.component == 'react-native'
@@ -271,7 +280,8 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
         run: |
           flutter pub get
-          bash scripts/verify-android-consumer-build.sh
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            bash scripts/verify-android-consumer-build.sh
 
       - name: Build Godot Android wrapper
         if: matrix.component == 'godot'
@@ -360,6 +370,7 @@ jobs:
           languages: swift
           build-mode: manual
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       # Clean so the traced build recompiles everything; a cache hit would
       # leave the CodeQL database empty.
@@ -475,6 +486,7 @@ jobs:
           languages: swift
           build-mode: manual
           queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build React Native Swift wrapper
         if: matrix.component == 'react-native'

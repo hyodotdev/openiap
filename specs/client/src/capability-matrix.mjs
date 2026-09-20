@@ -154,13 +154,13 @@ export const CAPABILITY_MATRIX = Object.freeze({
       Apple: 'required',
       Google: 'required',
       Amazon: 'optional',
-      Horizon: 'unsupported',
+      Horizon: 'optional',
     },
     evidence: {
       Amazon:
         'packages/kit/convex/purchases/amazon.ts (reconcileAmazonPurchases) — reconciliation by polling rather than push notifications.',
       Horizon:
-        'packages/kit/convex/purchases/horizon.ts — verification only; Meta exposes no subscription notification stream.',
+        'packages/kit/convex/purchases/horizon.ts — verification only. Meta publishes subscription and order webhook fields; IAPKit subscribes to none of them.',
     },
   },
 });

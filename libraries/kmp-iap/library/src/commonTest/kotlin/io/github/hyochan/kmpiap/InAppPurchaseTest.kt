@@ -1142,7 +1142,7 @@ class InAppPurchaseTest {
     }
 
     // =========================================================================
-    // openRedeemOfferCodeAndroid Handler Tests (deprecated, removal in OpenIAP 4.0)
+    // openRedeemOfferCodeAndroid Handler Tests (deprecated, removal in client protocol 1.0.0)
     // =========================================================================
 
     @Suppress("DEPRECATION")

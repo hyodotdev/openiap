@@ -9,7 +9,7 @@
 [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">OpenIAP specification</a>
+A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">OpenIAP Client Protocol</a>
 
 Requires Godot 4.3+, iOS 17+ for the Swift GDExtension, or Android API 24+.
 
@@ -19,7 +19,7 @@ Requires Godot 4.3+, iOS 17+ for the Swift GDExtension, or Android API 24+.
 
 ## About
 
-This is an In-App Purchase plugin for Godot Engine, built following the [OpenIAP specification](https://openiap.dev). This project has been inspired by [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap), [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase), [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap), and [react-native-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap).
+This is an In-App Purchase plugin for Godot Engine, built following the [OpenIAP Client Protocol](https://openiap.dev). This project has been inspired by [expo-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap), [flutter_inapp_purchase](https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase), [kmp-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap), and [react-native-iap](https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap).
 
 We are trying to share the same experience of in-app purchase in Godot Engine as in other cross-platform frameworks. Native code is powered by [openiap-apple](https://github.com/hyodotdev/openiap/tree/main/packages/apple) and [openiap-google](https://github.com/hyodotdev/openiap/tree/main/packages/google) modules.
 
@@ -88,7 +88,7 @@ See the [Quick Start Guide](https://openiap.dev/docs/setup/godot) for complete c
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
 
-godot-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
+godot-iap conforms to the **[OpenIAP Client Protocol](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 
 - **Shared specification** — Common types, error codes, and purchase flows across all platforms
 - **Generated type-safe bindings** — Swift, Kotlin, Dart, and GDScript from a single GraphQL schema

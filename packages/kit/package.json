@@ -54,7 +54,7 @@
     "hono-openapi": "^1.1.0",
     "lucide-react": "^0.577.0",
     "mixpanel-browser": "^2.72.0",
-    "openiap-commerce-protocol": "workspace:*",
+    "@hyodotdev/openiap-commerce-protocol": "workspace:*",
     "oslo": "^1.2.1",
     "prism-react-renderer": "^2.4.1",
     "react": "^19.0.0",

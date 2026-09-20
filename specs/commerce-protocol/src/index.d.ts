@@ -10,6 +10,7 @@ export declare const bundleSchema: JsonSchema;
 export declare const commerceEventSchema: JsonSchema;
 export declare const providerCapabilitiesSchema: JsonSchema;
 export declare const storeEventMappingSchema: JsonSchema;
+export declare const storeFactsSchema: JsonSchema;
 export declare const operationsSchema: JsonSchema;
 export declare const schemas: readonly JsonSchema[];
 

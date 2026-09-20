@@ -92,12 +92,51 @@ A MINOR change requires:
 A MAJOR change additionally requires a migration note in `SPEC.md` stating what
 breaks and what a consumer pinned to the previous major should do.
 
+## The store axis has one source
+
+`examples/store-facts.json` states what each store's own API offers. Nothing in
+this repository can verify it, because it is a claim about someone else's
+product. A capability descriptor's `provider` value is a copy of `available`
+there, and the
+mapping table's `notificationChannel` is a copy of that store's
+`serverNotifications.surface`; `test/store-facts.test.mjs` fails when a copy
+drifts.
+
+Changing a value there means reading the vendor's current documentation and
+naming the endpoint, channel, report or field in `surface`. Writing
+`available: false` is the strongest claim the package makes and the one no test
+can check, so it owes `notes` saying which surfaces were examined. Phrase an
+absence as ours — "this implementation consumes none of them" — unless you have
+a citation for theirs.
+
 ## Do not specify what is not implemented
 
 A capability may enter the specification only when a real implementation emits
 it and a test proves it. `SPEC.md` §14 exists to hold the rest: an honestly
 listed gap is useful, a specified-but-absent feature is a lie a consumer will
 build against.
+
+## Public collaboration and implementation evidence
+
+Open a public issue before changing shared behavior. Use the Commerce Protocol
+proposal form and follow the project's [significant-decision review process](https://openiap.dev/docs/foundation/governance#significant-decisions).
+Include the use case, affected roles and implementations, a runnable example
+with an expected result and rejection case, and the MAJOR/MINOR impact.
+Explain why an existing profile or extension cannot express the requirement.
+
+Apply the same schema and behavioral checks to every implementation, including
+IAPKit. A feature's presence in IAPKit is not sufficient evidence for acceptance.
+Record relevant implementation affiliations, objections, their resolution, and
+the decision rationale in the issue. Identify who actually reviewed or ran the
+example; missing independent review stays an explicit gap, not an endorsement.
+The current project lead retains the decision authority described by governance.
+
+For interoperability reports, include source revisions or hashes, commands,
+the compared configurations without credential values, changed adapter/client
+files, results, and limits. Separate same-project fixtures, external implementer
+reproductions, store sandbox runs, and production observations. Preserve failing
+cases and disclose required client changes; two green schema checks alone do
+not demonstrate interchangeable implementations.
 
 ## The deployed wire format constrains us
 
@@ -114,6 +153,20 @@ version. Do not "fix" it in place.
 `packages/kit/convex/commerce/spec.conformance.test.ts` validates payloads that
 IAPKit actually builds against the schemas published here, and compares the two
 vocabularies directly. It fails when either side drifts.
+
+IAPKit's runtime imports the generated schemas, the HTTP manifest, and
+`vectors/signatures.json` directly rather than `src/index.mjs`, because the
+Convex isolate cannot load files with `node:fs`. A change to one of those
+artifacts therefore reaches IAPKit at build time rather than through a version
+bump.
+
+That is the right behaviour for a value IAPKit only consumes, and the wrong one
+for a value it puts on the wire, where silently following a rename would break
+receivers that already decode the old name. So IAPKit pins those in its own
+tests. Renaming one here fails a kit test on purpose —
+`convex/commerce/contract.test.ts` for the header names, the content type, and
+the signature prefix, and `convex/commerce/spec.conformance.test.ts` for the
+emitted `eventVersion`. The fix is a migration decision in kit, not a test edit.
 
 That test belongs to kit, not to this package: the specification does not depend
 on its implementation. When a spec change makes it fail, the correct fix is

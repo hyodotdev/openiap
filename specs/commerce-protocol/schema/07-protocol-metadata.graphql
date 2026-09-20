@@ -19,7 +19,7 @@ extend schema
   @document(
     name: "provider-capabilities"
     title: "OpenIAP Commerce Protocol implementation descriptor"
-    description: "What an implementation supports: the specification version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data."
+    description: "What an implementation supports: the protocol version it speaks, the event types it can emit, and what it can actually observe per store. This is the document a consumer, an operator, or a tool reads to determine compatibility without guessing and without reading prose. It contains no commerce data."
     root: "ProviderCapabilities"
   )
   @document(
@@ -68,6 +68,12 @@ extend schema
   @errorStatus(code: "INTERNAL_ERROR", http: 500)
   @errorStatus(code: "UNSUPPORTED_PROFILE", http: 501)
   @errorStatus(code: "VERIFICATION_FAILED", http: 502)
+  @document(
+    name: "store-facts"
+    title: "OpenIAP Commerce Protocol store facts"
+    description: "What each store's own commerce surface offers, stated once by this specification rather than restated by every implementation. A capability descriptor's `provider` axis answers the same question and MUST agree with this document. These are observations of vendor documentation at a point in time, so a consumer MUST treat an absent store or capability as unknown rather than as absent-from-the-store."
+    root: "StoreFacts"
+  )
   @document(
     name: "store-event-mapping"
     title: "OpenIAP Commerce Protocol store event mapping"

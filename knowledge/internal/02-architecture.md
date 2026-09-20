@@ -5,9 +5,10 @@
 
 ## Monorepo Structure
 
-```
+```text
 openiap/
 ├── packages/
+│   ├── cli/           # `openiap init` + `doctor` CLI (npm, Node)
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── google/        # Android library (Kotlin)
@@ -15,9 +16,8 @@ openiap/
 │   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── specs/             # Publishable specifications; never deployed services
-│   └── openiap/
-│       ├── client/             # Client GraphQL contract + multiplatform code generation
-│       └── commerce-protocol/  # Vendor-neutral server-side commerce contract
+│   ├── client/             # Client GraphQL contract + multiplatform code generation
+│   └── commerce-protocol/  # Vendor-neutral server-side commerce contract
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
 ├── libraries/         # Framework SDK implementations
@@ -39,6 +39,29 @@ openiap/
 
 Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
 
+## Ownership Model
+
+OpenIAP governs two protocols and nothing else: the **Client Protocol**
+(`specs/client`) and the **Commerce Protocol** (`specs/commerce-protocol`).
+Each is published as its own npm package with its own version.
+
+`packages/apple`, `packages/google`, and every library under `libraries/`
+**implement** the Client Protocol; none of them defines it, and none may extend
+the contract locally — a new API starts as a schema change in `specs/client`.
+
+IAPKit (`packages/kit`) implements the Commerce Protocol. It conforms to the
+spec and never the reverse, it serves every profile and both bindings, and it
+declares its per-store gaps in its capability descriptor rather than leaving
+them implied.
+
+`packages/conformance` is the Client Protocol's behavioral conformance suite,
+not a third specification.
+
+`openiap-versions.json` carries `clientProtocol` — the Client Protocol version,
+mirrored from `specs/client/package.json` — alongside `google` and `apple`, the
+native package versions. A version like `3.4.0` there is a native package
+version, not a protocol version.
+
 ## Directory Ownership Guardrail
 
 Keep each project surface under its canonical owner:
@@ -49,6 +72,7 @@ Keep each project surface under its canonical owner:
 | Framework SDKs                                   | `libraries/<name>/`     |
 | Agent integrations distributed to users          | `plugins/<name>/`       |
 | Behavioral conformance spec, runner, and reports | `packages/conformance/` |
+| Developer-facing command line tools              | `packages/cli/`         |
 | Specifications, generators, and conformance data | `specs/<name>/` |
 | Repository knowledge                             | `knowledge/`            |
 | Repository-wide automation                       | `scripts/`              |
@@ -84,7 +108,7 @@ manifests under `specs/`.
 ### specs/client
 
 **Purpose:** Authored OpenIAP client API contract and multiplatform type
-generation. The publishable package name is `@hyodotdev/openiap`.
+generation. The publishable package name is `@hyodotdev/openiap-client-protocol`.
 
 - Contains the GraphQL SDL defining the client API and its types
 - Generates types for: TypeScript, Swift, Kotlin, Dart, GDScript, C#
@@ -129,8 +153,8 @@ directives for JSON-only constraints and defines `Query` and `Mutation`
 operation roots for the portable server surface, but no `Subscription` root —
 the operation surface is bounded request/response, and the compiler rejects a
 stream. The client SDK API and server-side commerce contract are siblings under
-the OpenIAP specification owner, but they keep independent schema inventories
-and generation targets. Never edit files under `generated/` directly.
+OpenIAP — the Client Protocol and the Commerce Protocol — but they keep
+independent schema inventories and generation targets. Never edit files under `generated/` directly.
 
 ### packages/apple
 

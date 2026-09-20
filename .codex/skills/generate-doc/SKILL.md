@@ -113,13 +113,12 @@ versions in this order:
    impact is ambiguous or conflicts with an existing release plan, ask instead
    of guessing.
 4. Do not bump unaffected packages merely to make a release list symmetrical.
-5. Reuse the explicit maintainer-selected OpenIAP Spec/docs target from the
-   coordinated release plan or unreleased card. If no explicit coordinated spec
-   target exists, ask; never infer or auto-align it from Apple and Google
-   versions. The note reports the `spec` value that is actually committed in
-   `openiap-versions.json` — the version writers derive that floor from the
-   native keys — so a plan naming a spec target that floor does not carry is a
-   stop-and-ask, not a value to compute your way out of.
+5. Reuse the explicit maintainer-selected Client Protocol target from the
+   coordinated release plan or unreleased card. If no explicit target
+   exists, ask; never infer one. The note reports the `clientProtocol` value
+   actually committed in `openiap-versions.json`, which mirrors
+   `specs/client/package.json` — so a plan naming a target the manifest does not
+   carry is a stop-and-ask, not a value to compute your way out of.
 
 Before naming any package's next major, inspect the canonical deprecation and
 migration schedule. The release train must include every public removal already
@@ -152,13 +151,28 @@ Follow the existing card pattern:
 - Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
+- Register the card's package tags as aliases and render their hidden anchors:
+
+  ```tsx
+  aliases: MY_RELEASES.map((release) => release.tag),
+  // and, first thing inside the card's <div>:
+  {MY_RELEASES.map((release) => (
+    <span key={release.tag} id={release.tag} aria-hidden="true" />
+  ))}
+  ```
+
+  Release workflows link a version's own anchor
+  (`/docs/updates/releases#godot-iap-3.5.1`). The page paginates and resolves a
+  hash only against a note's `id` or `aliases`, so a card without them leaves
+  those links on page one — a dead link that still looks alive. `bun run
+  audit:docs` fails when a card lists `Package Releases` without them.
 
 Card section layout (mandatory for multi-package cards):
 
 - Use only the sections that contain distinct user-visible behavior or
   information readers must act on. When present, keep this order:
   1. `Common changes`
-  2. `Shared spec and native packages`
+  2. `Protocols and native packages`
   3. `Framework libraries`
   4. `Integration notes` (or migration notes)
   5. The bordered `Package Releases` block
@@ -167,9 +181,9 @@ Card section layout (mandatory for multi-package cards):
   most one `<li>` inside the shared group list, written as
   `<strong>package version</strong> - prose description`
   (for example `<strong>react-native-iap 16.0.2</strong> - exposes ...`).
-- `Shared spec and native packages` holds `OpenIAP Spec`, `openiap-apple`, and
-  `openiap-google` bullets; `Framework libraries` holds the framework SDK
-  bullets. Omit the section when it would be empty.
+- `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
+  `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
+  framework SDK bullets. Omit the section when it would be empty.
 - A package whose only change is selecting a shared native dependency,
   regenerating types, or republishing the same behavior belongs only in
   `Package Releases`. Do not manufacture one boilerplate bullet per wrapper.

@@ -515,12 +515,12 @@ public final class OpenIapStore: ObservableObject {
     // tvOS: showManageSubscriptions not available on tvOS (subscriptions managed in Settings > Accounts)
     // tvOS: deepLinkToSubscriptions not available on tvOS (no window scene UI)
     #if !os(tvOS)
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
     public func presentCodeRedemptionSheetIOS() async throws {
         _ = try await module.openRedeemOfferCode()
     }
 
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
     public func presentCodeRedemptionSheetResultIOS() async throws -> PurchaseIOS? {
         try await module.openRedeemOfferCode()
     }

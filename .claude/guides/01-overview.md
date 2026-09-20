@@ -8,6 +8,7 @@ OpenIAP is an open specification that standardizes in-app purchase implementatio
 openiap/
 ├── packages/
 │   ├── apple/         # iOS/macOS library (Swift, StoreKit 2)
+│   ├── cli/           # `openiap init` + `doctor` command line tool (Node)
 │   ├── google/        # Android library (Kotlin, Play Billing)
 │   ├── docs/          # Documentation site (React/Vite)
 │   └── kit/           # Hosted receipt-validation SaaS (kit.openiap.dev)
@@ -26,20 +27,28 @@ openiap/
 | --------------------------------- | ----------------------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
 | `packages/apple`                  | iOS/macOS IAP implementation                                      | Swift            | CocoaPods, SPM                                                   |
 | `packages/google`                 | Android IAP implementation                                        | Kotlin           | Maven Central                                                    |
-| `specs/client`            | Client contract and generated types                               | GraphQL          | Swift, Kotlin, Dart, TS types; package name `@hyodotdev/openiap` |
-| `specs/commerce-protocol` | Server-side Commerce Protocol contract, bindings, and conformance | GraphQL          | Package name `openiap-commerce-protocol`                         |
+| `packages/cli`                    | AI implementation briefs and local project checks                       | Node             | npm package `@hyodotdev/openiap`                             |
+| `specs/client`            | Client contract and generated types                               | GraphQL          | Swift, Kotlin, Dart, TS types; package name `@hyodotdev/openiap-client-protocol` |
+| `specs/commerce-protocol` | Server-side Commerce Protocol contract, bindings, and conformance | GraphQL          | Package name `@hyodotdev/openiap-commerce-protocol`                         |
 | `packages/docs`                   | Documentation website                                             | React/TypeScript | Vercel deployment                                                |
 | `packages/kit`                    | Hosted receipt-validation SaaS (free, MIT, self-hostable)         | TypeScript       | Fly.io app (`openiap-kit`)                                       |
 
 ## Version Management
 
-All versions are tracked in `openiap-versions.json`:
+OpenIAP versions exactly two things: the Client Protocol
+(`specs/client/package.json`) and the Commerce Protocol
+(`specs/commerce-protocol/package.json`). Everything else carries its own
+package version, and the docs site carries none.
+
+`openiap-versions.json` is the manifest every consumer reads. `clientProtocol`
+mirrors the Client Protocol manifest; `google` and `apple` are the native
+package versions:
 
 ```json
 {
-  "apple": "1.2.x",
-  "google": "1.2.x",
-  "spec": "1.2.x"
+  "clientProtocol": "0.1.0",
+  "google": "3.5.2",
+  "apple": "3.4.0"
 }
 ```
 

@@ -51,3 +51,19 @@ object-store dependency.
 When a dashboard flow changes (new field, renamed tab, etc.),
 re-run the capture script and commit the updated WebPs with the PR
 that changed the UI. Don't let docs screenshots drift.
+
+## Commerce Protocol comparison
+
+The runnable example is owned by
+[openiap-commerce-protocol-example](https://github.com/hyodotdev/openiap-commerce-protocol-example).
+After exporting its verified checkpoints to the docs site, run from `packages/kit`:
+
+```sh
+bun scripts/docs/compare-commerce-example.ts
+```
+
+This extracts the selected final archive into a temporary directory, installs
+its published dependencies with npm, compares signature vectors with IAPKit,
+and runs the existing IAPKit commerce tests with Convex/store I/O mocked.
+It writes `packages/docs/public/commerce-lab/run.json` without contacting
+production or making a store purchase.

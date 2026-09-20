@@ -1,6 +1,6 @@
 import { CAPABILITY_STORES, capabilityLevel } from "../spec/generated-spec.mjs";
 import { BEHAVIORS, behaviorById } from "../spec/behaviors.mjs";
-import { SUITE_VERSION, specVersion } from "../spec/version.mjs";
+import { SUITE_VERSION, clientProtocolVersion } from "../spec/version.mjs";
 
 /**
  * Drives an adapter through every behavior and returns a compatibility report.
@@ -198,7 +198,7 @@ export async function runConformance(adapter, options = {}) {
   const hasFailures = results.some((result) => result.outcome === "fail");
   return {
     suiteVersion: SUITE_VERSION,
-    specVersion: specVersion(),
+    clientProtocolVersion: clientProtocolVersion(),
     implementation: adapter.implementation,
     store: adapter.store,
     results,

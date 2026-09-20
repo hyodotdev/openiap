@@ -5,10 +5,21 @@ import { fileURLToPath } from "node:url";
 
 import {
   commerceProtocolManifest,
+  openiapNpmPackages,
   validateVersion,
 } from "./release-branch-policy.mjs";
 
 export const PACKAGE_CONFIG = {
+  ...Object.fromEntries(
+    Object.entries(openiapNpmPackages).map(([id, config]) => [
+      id,
+      {
+        path: config.path,
+        tags: (version) => [`${config.tagPrefix}-${version}`],
+        version: (content) => JSON.parse(content).version,
+      },
+    ]),
+  ),
   apple: {
     path: "openiap-versions.json",
     tags: (version) => [version, `apple-v${version}`],
@@ -21,13 +32,11 @@ export const PACKAGE_CONFIG = {
   },
   "commerce-protocol": {
     ...commerceProtocolManifest,
-    tags: (version) => [`openiap-commerce-protocol-${version}`],
+    tags: (version) => [
+      `${openiapNpmPackages["commerce-protocol"].tagPrefix}-${version}`,
+      `openiap-commerce-protocol-${version}`,
+    ],
     version: (content) => JSON.parse(content).version,
-  },
-  docs: {
-    path: "openiap-versions.json",
-    tags: (version) => [`docs-${version}`],
-    version: (content) => JSON.parse(content).spec,
   },
   expo: {
     path: "libraries/expo-iap/package.json",
@@ -98,7 +107,7 @@ function parseRemoteTagCommit(output, tag) {
 }
 
 export function assertReleaseTag(
-  { packageId, branch, tag, expectedVersion },
+  { packageId, branch, tag, expectedVersion, expectedName },
   runGit = defaultRunGit,
 ) {
   const config = PACKAGE_CONFIG[packageId];
@@ -134,6 +143,11 @@ export function assertReleaseTag(
     );
   }
   const tagVersion = config.version(metadata);
+  if (expectedName && JSON.parse(metadata).name !== expectedName) {
+    throw new Error(
+      `${tag} belongs to a different npm package. Release a new version instead of retrying current.`,
+    );
+  }
   if (tagVersion !== version) {
     throw new Error(
       `${tag} metadata version is ${tagVersion || "missing"}, expected ${version}`,
@@ -179,13 +193,14 @@ export function assertReleaseTag(
 }
 
 async function main() {
-  const [packageId, branch, tag, expectedVersion] = process.argv.slice(2);
+  const [packageId, branch, tag, expectedVersion, expectedName] =
+    process.argv.slice(2);
   if (!packageId || !branch || !tag || !expectedVersion) {
     throw new Error(
-      "Usage: node scripts/assert-release-tag.mjs <package> <branch> <tag> <version>",
+      "Usage: node scripts/assert-release-tag.mjs <package> <branch> <tag> <version> [npm-package-name]",
     );
   }
-  assertReleaseTag({ packageId, branch, tag, expectedVersion });
+  assertReleaseTag({ packageId, branch, tag, expectedVersion, expectedName });
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

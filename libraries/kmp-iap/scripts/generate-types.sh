@@ -21,19 +21,19 @@ except json.JSONDecodeError as exc:
     print(f"Error parsing {versions_path}: {exc}", file=sys.stderr)
     sys.exit(1)
 
-value = data.get("spec")
+value = data.get("clientProtocol")
 if not isinstance(value, str) or not value.strip():
-    print("Error: 'spec' version missing in openiap-versions.json", file=sys.stderr)
+    print("Error: 'clientProtocol' version missing in openiap-versions.json", file=sys.stderr)
     sys.exit(1)
 value = value.strip()
 if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_-]*", value):
-    print(f"Error: invalid 'spec' version {value!r}", file=sys.stderr)
+    print(f"Error: invalid 'clientProtocol' version {value!r}", file=sys.stderr)
     sys.exit(1)
 
 print(value)
 PY
 )
-TAG="docs-${VERSION}"
+TAG="openiap-client-protocol-${VERSION}"
 
 TARGET_REPOSITORY_PATH="libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt"
 DOWNLOAD_URL="https://raw.githubusercontent.com/hyodotdev/openiap/${TAG}/${TARGET_REPOSITORY_PATH}"

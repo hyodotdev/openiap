@@ -113,17 +113,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
-    /// Reports the compile-time response contract; never used for negotiation.
     static func makeIapkitRequest(
         url: URL,
         apiKey: String?,
-        body: Data,
-        specVersion: String = OpenIapVersion.specVersion
+        body: Data
     ) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
         let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmedApiKey, trimmedApiKey.isEmpty == false {
             request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")
@@ -1525,7 +1522,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Deprecated. Use openRedeemOfferCode instead.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.")
+    @available(*, deprecated, message: "Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0.")
     public func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? {
         try await openRedeemOfferCode()
     }

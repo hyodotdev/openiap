@@ -1,0 +1,20 @@
+{
+  "startedAt": "2026-09-16T00:55:16.572Z",
+  "commands": [
+    {
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "output": "\nadded 10 packages in 202ms\n"
+    },
+    {
+      "command": "npm test",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test\n> bun verify.mjs && bun test composition/app-backend.test.mjs composition/receiver.test.mjs\n\nCommerce Protocol Example: 229 checks passed. No store or production service contacted.\nbun test v1.3.13 (bf2e2cec)\n\n 3 pass\n 0 fail\n 20 expect() calls\nRan 3 tests across 2 files. [140.00ms]\n"
+    },
+    {
+      "command": "npm run test:tooling",
+      "exitCode": 0,
+      "output": "\n> openiap-commerce-protocol-example@0.0.0 test:tooling\n> bun test checkpoint-tools.test.mjs\n\nbun test v1.3.13 (bf2e2cec)\n\n 5 pass\n 0 fail\nRan 5 tests across 1 file. [66.00ms]\n"
+    }
+  ]
+}

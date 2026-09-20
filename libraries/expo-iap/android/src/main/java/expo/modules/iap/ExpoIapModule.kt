@@ -159,13 +159,6 @@ class ExpoIapModule : Module() {
                                     ExpoIapLog.warning("Activity not available during initConnection")
                                 }
 
-                            // If already connected, short-circuit
-                            if (connectionReady.get()) {
-                                ExpoIapLog.result("initConnection", true)
-                                promise.resolve(true)
-                                return@withLock
-                            }
-
                             // Attach listeners early to avoid races during init
                             if (listenerHandles == null) {
                                 listenerHandles =
@@ -191,7 +184,11 @@ class ExpoIapModule : Module() {
                                 // Clear any buffered events from a failed init
                                 pendingEvents.clear()
                                 ExpoIapLog.failure("initConnection", IllegalStateException("Failed to initialize connection"))
-                                promise.reject(OpenIapError.InitConnection.CODE, "Failed to initialize connection", null)
+                                promise.reject(
+                                    OpenIapError.InitConnection.CODE,
+                                    OpenIapError.InitConnection.message,
+                                    null,
+                                )
                                 return@withLock
                             }
 

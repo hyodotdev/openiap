@@ -49,9 +49,11 @@ export default function WebhooksPage() {
         Retries use exponential backoff, permanent failures remain visible as
         dead letters, and project admins can replay them from the same tab.
       </p>
-      <CodeBlock language="text">{`openiap-signature: v1=<hmac-sha256>
+      <CodeBlock language="text">{`content-type: application/json
+openiap-signature: v1=<hmac-sha256>
 openiap-timestamp: <unix-seconds>
-openiap-event-id: <must equal body.eventId>`}</CodeBlock>
+openiap-event-id: <must equal body.eventId>
+openiap-delivery-id: <stable across retries of one attempt chain>`}</CodeBlock>
       <p>
         Compute lowercase hex with{" "}
         <code>HMAC_SHA256(secret, timestamp + &quot;.&quot; + rawBody)</code>,
@@ -194,7 +196,7 @@ subscription.resumed, entitlement.granted, entitlement.revoked`}</CodeBlock>
       <p>
         The vendor-neutral{" "}
         <a
-          href="https://openiap.dev/docs/webhooks"
+          href="https://openiap.dev/commerce-protocol/webhooks"
           className="text-primary underline"
           target="_blank"
           rel="noopener noreferrer"

@@ -1,5 +1,7 @@
 # OpenIAP Commerce Protocol
 
+[![npm](https://img.shields.io/npm/v/@hyodotdev/openiap-commerce-protocol/latest)](https://www.npmjs.com/package/@hyodotdev/openiap-commerce-protocol)
+
 A vendor-neutral specification for the **server side** of in-app purchases.
 
 OpenIAP normalizes the client-side purchase API across stores. This normalizes
@@ -17,6 +19,45 @@ it does not sit in the path of anyone's commerce.
 
 **[Read the specification →](./SPEC.md)**
 
+## Choose your role
+
+A paywall specialist can supply the experience, a commerce service the purchase
+and access decisions, and an analytics platform the event processing. An
+integrated platform can supply several roles. Explore the [role map](https://openiap.dev/commerce-protocol#architecture)
+and [AI integration brief](https://openiap.dev/commerce-example/integration-brief.md)
+to connect your product to apps using OpenIAP. These product roles do not add
+protocol profiles or a universal paywall API.
+
+## Start implementing
+
+```sh
+npm install @hyodotdev/openiap-commerce-protocol
+```
+
+Or use `pnpm add`, `yarn add`, or `bun add` with the same package name.
+
+Give your AI the installed package's `SPEC.md`, `DESIGN.md`, and `generated/`
+artifacts. The package supplies the contract; your AI implements the backend.
+
+- **See what AI built:** the [recorded walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
+  shows a real local HTTP + SQLite backend in six milestones, with captured
+  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/implementation#iapkit) explains what was tested. Give the
+  [build brief](https://openiap.dev/commerce-example/build-brief.md)
+  to your AI to build the same flow in your own stack.
+- **Integrate your backend:** [Use a provider](https://openiap.dev/commerce-protocol/getting-started)
+  walks through discovery, verification, account binding, and entitlement reads.
+- **Build a provider:** [Build with AI](https://openiap.dev/commerce-protocol/implementation)
+  provides the brief, runnable example, and next implementation steps.
+  [DESIGN.md §5](./DESIGN.md#5-implementation-blueprint) contains the architecture
+  blueprint, storage keys, transaction boundaries, and recovery design.
+- **Try the contract locally:** from the repository root, run `bun install`,
+  then `cd specs/commerce-protocol && bun run quickstart`. The
+  [development walkthrough](https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/scripts/quickstart.mjs) uses the in-memory mock,
+  checks authorization and binding behavior, and runs REST/GraphQL conformance.
+  It uses fixture evidence, opens no HTTP server, and does not validate real
+  store purchases. Its Ajv and GraphQL dependencies come from this package's
+  development setup.
+
 [DESIGN.md](./DESIGN.md) explains why the boundaries sit where they do. It is
 background, not normative: where the two disagree, `SPEC.md` is right. It is
 also published as a PDF at
@@ -26,16 +67,16 @@ The contract sits between the stores and everything downstream of a backend:
 
 ```mermaid
 flowchart TB
-  stores["Apple / Google / Meta / Amazon<br/>the stores"]
-  backend["A backend that implements this spec<br/>IAPKit, another provider, or the adopter's own — in any language<br/><br/>verify → normalize → lifecycle → entitle"]
+  stores["Apple / Google<br/>/ Meta / Amazon<br/>the stores"]
+  backend["A backend that<br/>implements this spec<br/>IAPKit, another<br/>provider, or the<br/>adopter's own<br/>— in any language<br/><br/>verify → normalize<br/>→ lifecycle → entitle"]
   app["shipped application<br/>verification role (§5)"]
   server["the adopter's backend<br/>server role (§5)"]
-  consumers["any consumer<br/>data pipeline / CRM / analytics"]
+  consumers["any consumer<br/>data pipeline<br/>/ CRM / analytics"]
 
-  stores -->|"store-native notifications and APIs"| backend
-  app -->|"verifyPurchase, providerCapabilities (§4.1, §4.6)<br/>over REST (§6) or GraphQL (§7)"| backend
-  server -->|"those, plus subscriptionStatus, entitlements, bindPurchase, eraseUser (§4.2–§4.5)<br/>server role only — never a shipped app"| backend
-  backend -->|"OpenIAP Commerce Protocol events (§9)"| consumers
+  stores -->|"&nbsp;store-native&nbsp;<br/>&nbsp;notifications and APIs&nbsp;"| backend
+  app -->|"&nbsp;verifyPurchase,&nbsp;<br/>&nbsp;providerCapabilities&nbsp;<br/>&nbsp;(§4.1, §4.6)&nbsp;<br/>&nbsp;over REST (§6) or&nbsp;<br/>&nbsp;GraphQL (§7)&nbsp;"| backend
+  server -->|"&nbsp;those, plus&nbsp;<br/>&nbsp;subscriptionStatus,&nbsp;<br/>&nbsp;entitlements,&nbsp;<br/>&nbsp;bindPurchase,&nbsp;<br/>&nbsp;eraseUser (§4.2–§4.5)&nbsp;<br/>&nbsp;server role only&nbsp;<br/>&nbsp;— never a shipped app&nbsp;"| backend
+  backend -->|"&nbsp;OpenIAP Commerce&nbsp;<br/>&nbsp;Protocol events (§9)&nbsp;"| consumers
 ```
 
 ## Reviewing a change
@@ -48,7 +89,7 @@ Review only the authored surfaces, in this order:
    operation surface, and validation directives.
    [`generated/commerce-protocol.graphql`](./generated/commerce-protocol.graphql)
    is their generated single-file assembly (also exported at the package path
-   `openiap-commerce-protocol/commerce-protocol.graphql`).
+   `@hyodotdev/openiap-commerce-protocol/commerce-protocol.graphql`).
 3. [`examples/`](./examples/) — representative documents and store mappings.
 4. [`vectors/signatures.json`](./vectors/signatures.json) — hand-authored
    cryptographic truth cases.
@@ -101,13 +142,11 @@ Three rules that are easy to get wrong, all specified in detail in `SPEC.md`:
 
 ## Calling a provider
 
-Every conforming provider serves the same six operations — verify a purchase,
-read status and entitlements, bind a purchase to your own user id, erase a
-user, and read the provider's capability descriptor — over REST
-(`/commerce/v1/...`, described by the generated OpenAPI document) or GraphQL
-(the generated schema projection), with one shared error-code space. `SPEC.md`
-§4–§8 define the surface; a backend written against it keeps working when the
-provider behind it changes.
+Start with the provider's capability descriptor. Every conforming provider
+supports discovery; its declared profiles determine which purchase, status,
+entitlement, binding, and erasure operations it supports. Check those profiles
+before calling an operation. REST and GraphQL bindings share one error-code
+space. `SPEC.md` §4–§8 define the surface and authorization rules.
 
 ## Certifying a provider
 
@@ -117,7 +156,7 @@ import {
   createRestAdapter,
   createGraphqlAdapter,
   runConformance,
-} from "openiap-commerce-protocol/conformance";
+} from "@hyodotdev/openiap-commerce-protocol/conformance";
 
 const report = await runConformance({
   adapters: [
@@ -181,7 +220,7 @@ specification_, so any of the three can feed it.
 
 ## Status
 
-Version 0.1.0, specifying protocol version 1.0. The event vocabulary,
+Implements protocol version 1.0. The event vocabulary,
 envelope, webhook contract, operation surface, REST and GraphQL bindings, and
 portable conformance runner are implemented and tested. `SPEC.md` §14 lists
 what is deliberately not in this version.

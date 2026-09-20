@@ -1,4 +1,4 @@
-name: "A. Release: Google"
+name: "A4. Release: Google"
 
 on:
   workflow_dispatch:
@@ -308,7 +308,11 @@ jobs:
 
       - name: Sync version files
         if: steps.version.outputs.skip_version_commit != 'true'
-        run: ./scripts/sync-release-generated.sh
+        run: |
+          # Gate the branch state before regenerating over it; sync writes the
+          # Client Protocol mirror, so a check after it could never fail.
+          node scripts/release-branch-policy.mjs assert-client-protocol
+          ./scripts/sync-release-generated.sh
 
       - name: Assert verified release head is unchanged
         if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
@@ -327,14 +331,13 @@ jobs:
           git add openiap-versions.json packages/*/openiap-versions.json
           git add packages/apple/Sources/OpenIapGeneratedVersion.swift
           git add packages/docs/src/generated/version-metadata.json
-          git add specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+          git add packages/docs/package.json packages/google/package.json packages/apple/package.json
           git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
 
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
             git commit -m "chore(release): openiap-google@$VERSION"
-            node scripts/release-branch-policy.mjs assert-floor
             if ! git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "::error::Release branch moved after verification; rerun the release workflow"
               exit 1
@@ -392,7 +395,7 @@ jobs:
             CHANGELOG="- Initial release"
           else
             echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/" ":(top,exclude)packages/google/.claude/" ":(top,exclude)packages/google/AGENTS.md" ":(top,exclude)packages/google/CLAUDE.md")
 
             if [ -z "$CHANGELOG" ]; then
               CHANGELOG="- No direct code changes in packages/google/."
@@ -471,7 +474,7 @@ jobs:
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
-          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [Release notes](https://openiap.dev/docs/updates/releases#google-$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
 
           ### Maven Central

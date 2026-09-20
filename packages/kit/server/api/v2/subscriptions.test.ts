@@ -159,7 +159,8 @@ describe("v2 subscription routes", () => {
 
 describe("v2 subscription state vocabulary", () => {
   it("matches the Commerce Protocol's, so the OpenAPI copy cannot drift", async () => {
-    const { SUBSCRIPTION_STATES } = await import("openiap-commerce-protocol");
+    const { SUBSCRIPTION_STATES } =
+      await import("@hyodotdev/openiap-commerce-protocol");
     const { subscriptionV2Schema } = await import("./route-schemas");
     const stateSchema = subscriptionV2Schema.entries.state as {
       options: readonly { literal: string }[];

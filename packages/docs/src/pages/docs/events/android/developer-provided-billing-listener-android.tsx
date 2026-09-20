@@ -22,10 +22,10 @@ function DeveloperProvidedBillingListenerAndroid() {
       <p>
         Fired when a user selects developer-provided billing in an External
         Payments or Billing Choice purchase flow. Billing Choice payload fields
-        are available in OpenIAP Spec 2.1.0 and <code>openiap-google</code>{' '}
-        2.3.0, and require Play Billing 9.1.0+. Unlike User Choice Billing, this
-        event is tied to the developer billing option configured for the
-        purchase itself.
+        are available in OpenIAP 2.1.0 and <code>openiap-google</code> 2.3.0,
+        and require Play Billing 9.1.0+. Unlike User Choice Billing, this event
+        is tied to the developer billing option configured for the purchase
+        itself.
       </p>
       <p>
         <strong>Eligibility:</strong> Availability depends on the enabled Google

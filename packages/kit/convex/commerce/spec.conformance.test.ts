@@ -17,7 +17,7 @@ import {
   WEBHOOK,
   commerceEventSchema,
   primitivesSchema,
-} from "openiap-commerce-protocol";
+} from "@hyodotdev/openiap-commerce-protocol";
 import { describe, expect, it } from "vitest";
 
 import type { Doc } from "../_generated/dataModel";
@@ -120,7 +120,11 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
     expect(COMMERCE_EVENT_SCHEMA_VERSION).toBe(COMMERCE_EVENT_VERSION);
   });
 
-  it("bounds extensions exactly as the specification does", () => {
+  it("reads the extension bounds the specification sets", () => {
+    // kit imports these rather than pinning them: they constrain the sanitizer
+    // and no receiver decodes them, so following the protocol is correct. Both
+    // sides read one schema, so what this proves is that kit maps the same
+    // three fields — the values themselves are pinned in the spec package.
     expect({
       maxEntries: MAX_EXTENSION_ENTRIES,
       maxKeyLength: MAX_EXTENSION_KEY_LENGTH,
@@ -128,7 +132,10 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
     }).toEqual(EXTENSION_LIMITS);
   });
 
-  it("uses the transport headers and replay window the specification fixes", () => {
+  it("maps the transport constants the specification publishes", () => {
+    // Both sides read one file, so this is a mapping check: it catches kit
+    // reading the wrong key, not a protocol change. The alarm for a rename is
+    // the golden in contract.test.ts.
     expect(SIGNATURE_HEADER).toBe(WEBHOOK.signatureHeader);
     expect(TIMESTAMP_HEADER).toBe(WEBHOOK.timestampHeader);
     expect(EVENT_ID_HEADER).toBe(WEBHOOK.eventIdHeader);
@@ -139,7 +146,9 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
 
   const signatureVectors = JSON.parse(
     readFileSync(
-      resolveSpec("openiap-commerce-protocol/vectors/signatures.json"),
+      resolveSpec(
+        "@hyodotdev/openiap-commerce-protocol/vectors/signatures.json",
+      ),
       "utf8",
     ),
   ) as {
@@ -293,7 +302,7 @@ describe("kit's capabilities agree with the published descriptor", () => {
   const descriptor = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/provider-capabilities.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/provider-capabilities.json",
       ),
       "utf8",
     ),
@@ -355,7 +364,9 @@ describe("kit's capabilities agree with the published descriptor", () => {
 describe("kit reproduces the specification's lifecycle vectors", () => {
   const vectors = JSON.parse(
     readFileSync(
-      resolveSpec("openiap-commerce-protocol/generated/vectors/lifecycle.json"),
+      resolveSpec(
+        "@hyodotdev/openiap-commerce-protocol/generated/vectors/lifecycle.json",
+      ),
       "utf8",
     ),
   ) as {
@@ -489,7 +500,7 @@ describe("kit can produce everything the store mapping promises", () => {
   const mapping = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/store-event-mapping.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/store-event-mapping.json",
       ),
       "utf8",
     ),
@@ -599,7 +610,7 @@ describe("kit's cancellation vocabulary is one the specification names", () => {
   const described = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/generated/schemas/commerce-event.schema.json",
+        "@hyodotdev/openiap-commerce-protocol/generated/schemas/commerce-event.schema.json",
       ),
       "utf8",
     ),
@@ -797,7 +808,7 @@ describe("every mapping row produces the event it promises", () => {
   const mapping = JSON.parse(
     readFileSync(
       resolveSpec(
-        "openiap-commerce-protocol/examples/store-event-mapping.json",
+        "@hyodotdev/openiap-commerce-protocol/examples/store-event-mapping.json",
       ),
       "utf8",
     ),

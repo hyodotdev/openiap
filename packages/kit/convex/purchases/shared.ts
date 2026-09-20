@@ -163,6 +163,22 @@ export async function getVerificationProjectByApiKey(
   return project;
 }
 
+// An entitlements read pays once, one token per bound purchase it rechecks.
+export async function assertEntitlementRecheckAdmission(
+  ctx: ActionCtx,
+  projectId: Id<"projects">,
+  cost: number,
+): Promise<void> {
+  await ctx.runMutation(internal.purchases.verificationAdmission.consume, {
+    projectId,
+    bucket: "entitlementRecheck",
+    cost,
+  });
+}
+
+// A recheck re-asks the store about a purchase IAPKit already holds.
+export type RecheckOptions = { recheck?: boolean };
+
 function normalizeAppStoreTransactionReason(
   reason?: string,
 ): AppStoreTransactionReason | undefined {
@@ -207,7 +223,7 @@ export function mapToAppStoreReceiptResponse(
   receiptData: AppStoreReceiptData,
 ): ReceiptResponse {
   const state = mapAppStorePurchaseState(
-    normalizeAppStoreTransactionReason(receiptData.transactionReason),
+    receiptData.transactionReason,
     receiptData.expiresDate,
     normalizeAppStoreProductType(receiptData.type),
     receiptData.revocationDate,
@@ -394,7 +410,7 @@ export function mapGooglePlayPurchaseState(
 }
 
 export function mapAppStorePurchaseState(
-  transactionReason?: AppStoreTransactionReason,
+  transactionReason?: string,
   expiresDate?: number,
   type?: AppStoreProductType,
   revocationDate?: number,
@@ -407,7 +423,7 @@ export function mapAppStorePurchaseState(
     return HarmonizedPurchaseState.EXPIRED;
   }
 
-  switch (transactionReason) {
+  switch (normalizeAppStoreTransactionReason(transactionReason)) {
     case AppStoreTransactionReason.PURCHASE:
       // For consumables, they're ready to be consumed after purchase
       if (type === AppStoreProductType.CONSUMABLE) {
@@ -416,13 +432,23 @@ export function mapAppStorePurchaseState(
       return HarmonizedPurchaseState.ENTITLED;
     case AppStoreTransactionReason.RENEWAL:
       return HarmonizedPurchaseState.ENTITLED;
-    default:
+    default: {
+      // A verified transaction with a reason value kit does not know:
+      // fail closed instead of inheriting the absent-reason grant below.
+      const unrecognizedReason = transactionReason?.trim();
+      if (unrecognizedReason) {
+        console.warn("[app-store] unrecognized transactionReason", {
+          transactionReason: unrecognizedReason,
+        });
+        return HarmonizedPurchaseState.UNKNOWN;
+      }
       // For App Store, if we have a valid transaction, it's generally purchased
       // For consumables without explicit transaction reason, assume ready to consume
       if (type === AppStoreProductType.CONSUMABLE) {
         return HarmonizedPurchaseState.READY_TO_CONSUME;
       }
       return HarmonizedPurchaseState.ENTITLED;
+    }
   }
 }
 

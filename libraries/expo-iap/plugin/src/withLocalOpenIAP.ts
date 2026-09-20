@@ -216,14 +216,19 @@ const withLocalOpenIAP: ConfigPlugin<
         return config;
       }
 
-      if (!fs.existsSync(podfilePath)) {
+      let podfileContent: string;
+      try {
+        podfileContent = fs.readFileSync(podfilePath, 'utf8');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+          throw error;
+        }
         console.warn(`⚠️  Podfile not found at ${podfilePath}. Skipping.`);
         return config;
       }
 
       logOnce(`✅ Using local OpenIAP from: ${iosPath}`);
 
-      let podfileContent = fs.readFileSync(podfilePath, 'utf8');
       let podfileChanged = false;
 
       if (props?.enableOnside) {
@@ -516,25 +521,31 @@ const withLocalOpenIAP: ConfigPlugin<
         'gradle.properties',
       );
 
-      if (fs.existsSync(gradlePropertiesPath)) {
-        let contents = fs.readFileSync(gradlePropertiesPath, 'utf8');
-        const isHorizon = props?.isHorizonEnabled ?? false;
-        const isFireOS = props?.isFireOsEnabled ?? false;
-
-        contents = contents.replace(/^horizonEnabled=.*$/gm, '');
-        contents = contents.replace(/^fireOsEnabled=.*$/gm, '');
-        if (!contents.endsWith('\n')) contents += '\n';
-        contents += `horizonEnabled=${isHorizon}\n`;
-        contents += `fireOsEnabled=${isFireOS}\n`;
-
-        fs.writeFileSync(gradlePropertiesPath, contents);
-        logOnce(
-          `🛠️ expo-iap: Set horizonEnabled=${isHorizon} in gradle.properties`,
-        );
-        logOnce(
-          `🛠️ expo-iap: Set fireOsEnabled=${isFireOS} in gradle.properties`,
-        );
+      let contents: string;
+      try {
+        contents = fs.readFileSync(gradlePropertiesPath, 'utf8');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+          throw error;
+        }
+        return config;
       }
+      const isHorizon = props?.isHorizonEnabled ?? false;
+      const isFireOS = props?.isFireOsEnabled ?? false;
+
+      contents = contents.replace(/^horizonEnabled=.*$/gm, '');
+      contents = contents.replace(/^fireOsEnabled=.*$/gm, '');
+      if (!contents.endsWith('\n')) contents += '\n';
+      contents += `horizonEnabled=${isHorizon}\n`;
+      contents += `fireOsEnabled=${isFireOS}\n`;
+
+      fs.writeFileSync(gradlePropertiesPath, contents);
+      logOnce(
+        `🛠️ expo-iap: Set horizonEnabled=${isHorizon} in gradle.properties`,
+      );
+      logOnce(
+        `🛠️ expo-iap: Set fireOsEnabled=${isFireOS} in gradle.properties`,
+      );
 
       return config;
     },

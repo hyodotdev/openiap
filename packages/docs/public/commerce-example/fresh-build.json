@@ -1,0 +1,77 @@
+{
+  "repository": "https://github.com/hyodotdev/openiap-commerce-protocol-example",
+  "branch": "docs/example-backend-reference",
+  "milestones": [
+    {
+      "step": 0,
+      "title": "Initial input",
+      "result": "CLI prints a brief; no application source exists.",
+      "report": "evidence/00-install.json",
+      "screen": null,
+      "commit": "39cdad22713cae5cfa864ce63f4a69c933c51990"
+    },
+    {
+      "step": 1,
+      "title": "Start the server",
+      "result": "HTTP and an empty SQLite database run.",
+      "report": "evidence/01-server.json",
+      "screen": "evidence/01-screen.png",
+      "commit": "e4b92680c746eee9abecb4da290499d89f118cbd"
+    },
+    {
+      "step": 2,
+      "title": "Verify a receipt",
+      "result": "One purchase is saved; no customer owns it.",
+      "report": "evidence/02-verification.json",
+      "screen": "evidence/02-screen.png",
+      "commit": "e77b493699bb95b5b8be203135b68484c4b4a92d"
+    },
+    {
+      "step": 3,
+      "title": "Connect Alice",
+      "result": "Alice gets Premium; Bob cannot take the purchase.",
+      "report": "evidence/03-ownership.json",
+      "screen": "evidence/03-screen.png",
+      "commit": "6161977a9c79612297c859f414ff366aeebcd0be"
+    },
+    {
+      "step": 4,
+      "title": "Cancel renewal",
+      "result": "Paid access stays open; the change is queued.",
+      "report": "evidence/04-lifecycle.json",
+      "screen": "evidence/04-screen.png",
+      "commit": "18fcf40579b9161d3ff629574f896be5eeca1151"
+    },
+    {
+      "step": 5,
+      "title": "Deliver events",
+      "result": "503 is retried; the receiver saves one copy.",
+      "report": "evidence/05-delivery.json",
+      "screen": "evidence/05-screen.png",
+      "commit": "d1d9a96432624af8369560188c31af334da526d5"
+    },
+    {
+      "step": 6,
+      "title": "Expire and restart",
+      "result": "Access closes on time; state survives process restart.",
+      "report": "evidence/06-recovery.json",
+      "screen": "evidence/06-screen.png",
+      "commit": "e697873b605e4b529e9d743d8f090c8935f1e560"
+    },
+    {
+      "step": 7,
+      "title": "Erase the account",
+      "result": "Identity is removed; late requests cannot restore access.",
+      "report": "evidence/07-final.json",
+      "screen": "evidence/07-screen.png",
+      "commit": "e7bd417e80723e9cad3991f5648f2cb6803f3796"
+    }
+  ],
+  "sourceCommit": "6231319fedc29b8e6052e1558b0626abecc2e05a",
+  "verification": {
+    "tests": 12,
+    "assertions": 142,
+    "portableCases": 45
+  },
+  "archiveSha256": "723fdcad782fda025d4a0f0ecc05a56fe587514039f9de8f61717a31ebd34f5b"
+}

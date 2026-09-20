@@ -79,18 +79,52 @@ const asStringArray = (value: unknown): string[] | undefined =>
       )
     : undefined;
 
+// On iOS, Expo appends " (at <file>:<line>)" to a rejected function's message,
+// so the envelope is rarely the end of the string. Take the object and stop there.
+const sliceEnvelopeObject = (payload: string): string | undefined => {
+  const start = payload.indexOf('{');
+  if (start < 0) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < payload.length; index += 1) {
+    const character = payload[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return payload.slice(start, index + 1);
+    }
+  }
+  return undefined;
+};
+
 const parseNativeErrorEnvelope = (
   message: string,
 ): UnknownRecord | undefined => {
   const markerIndex = message.indexOf(OPENIAP_ERROR_ENVELOPE_PREFIX);
   if (markerIndex < 0) return undefined;
 
+  const envelope = sliceEnvelopeObject(
+    message.slice(markerIndex + OPENIAP_ERROR_ENVELOPE_PREFIX.length),
+  );
+  if (envelope === undefined) return undefined;
+
   try {
-    return asRecord(
-      JSON.parse(
-        message.slice(markerIndex + OPENIAP_ERROR_ENVELOPE_PREFIX.length),
-      ),
-    );
+    return asRecord(JSON.parse(envelope));
   } catch {
     return undefined;
   }
@@ -428,6 +462,11 @@ export function isRecoverableError(error: unknown): boolean {
   return !!code && (recoverableErrors as string[]).includes(code);
 }
 
+/**
+ * End-user copy for a known error code, derived from the code by design: the
+ * native message can name build configuration a customer must not be shown.
+ * Developers get that diagnostic as `error.message`.
+ */
 export function getUserFriendlyErrorMessage(error: ErrorLike): string {
   const errorCode = extractCode(error);
 

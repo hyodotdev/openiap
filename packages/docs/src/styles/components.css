@@ -32,6 +32,19 @@
   border-color: var(--primary-color);
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+.btn:focus-visible,
+.language-tab:focus-visible,
+.platform-tab:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 3px;
+}
+
 /* Footer - Compact */
 .footer {
   background: var(--bg-primary);

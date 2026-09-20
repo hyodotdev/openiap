@@ -61,3 +61,40 @@ export const openSearchModal = () => {
 export const closeSearchModal = () => {
   searchModalSignal.value = false;
 };
+
+export interface CommerceArchitecturePart {
+  label: string;
+  title: string;
+  description: string;
+  reference: string;
+  referenceLabel: string;
+  step?: number;
+  packageName?: string;
+}
+
+export interface CommerceArchitectureModalState {
+  part: CommerceArchitecturePart;
+  onShowExample: (step: number) => void;
+  onClose: () => void;
+}
+
+export const commerceArchitectureModalSignal =
+  signal<CommerceArchitectureModalState | null>(null);
+
+export const subscribeToCommerceArchitecture = (
+  onStoreChange: () => void
+): (() => void) => commerceArchitectureModalSignal.subscribe(onStoreChange);
+
+export const getCommerceArchitectureSnapshot =
+  (): CommerceArchitectureModalState | null =>
+    commerceArchitectureModalSignal.value;
+
+export const openCommerceArchitectureModal = (
+  modal: CommerceArchitectureModalState
+): void => {
+  commerceArchitectureModalSignal.value = modal;
+};
+
+export const closeCommerceArchitectureModal = (): void => {
+  commerceArchitectureModalSignal.value = null;
+};

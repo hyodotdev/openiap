@@ -5,7 +5,11 @@ import Footer from './Footer';
 
 function Layout() {
   const location = useLocation();
-  const isDocsPage = location.pathname.startsWith('/docs');
+  // Both documentation sections lay out their own full-height sidebar, so
+  // the site footer would sit under an empty column.
+  const hasSidebar =
+    location.pathname.startsWith('/docs') ||
+    location.pathname.startsWith('/commerce-protocol');
 
   return (
     <div className="layout">
@@ -13,7 +17,7 @@ function Layout() {
       <main className="main-content">
         <Outlet />
       </main>
-      {!isDocsPage && <Footer />}
+      {!hasSidebar && <Footer />}
     </div>
   );
 }

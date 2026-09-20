@@ -2,6 +2,21 @@
 // URL safety, retry schedule and payload signing. Kept free of Convex types so
 // they unit-test directly, and so the claim mutation and the "use node" HTTP
 // action can share one set of numbers.
+//
+// The wire constants come from the Commerce Protocol's published transport
+// record rather than being restated here. The spec package's runtime index
+// reads that record with node:fs, which the Convex isolate cannot do, so the
+// JSON artifact is imported directly and embedded at build time. The imports
+// are named so the bundler keeps the four constants and drops the signature
+// test corpus that shares the file. What deployed receivers already decode is
+// pinned in contract.test.ts, so a protocol rename fails there on purpose.
+
+import {
+  contentType,
+  headers,
+  signaturePrefix,
+  toleranceSeconds,
+} from "@hyodotdev/openiap-commerce-protocol/vectors/signatures.json";
 
 /** Attempt budget before a delivery becomes dead-letter. */
 export const MAX_DELIVERY_ATTEMPTS = 14;
@@ -20,13 +35,14 @@ export const REQUEST_TIMEOUT_MS = 10_000;
 export const LEASE_MS = REQUEST_TIMEOUT_MS + 60_000;
 
 /** Receivers reject stale signatures, match the header, then dedupe body.eventId. */
-export const SIGNATURE_TOLERANCE_SECONDS = 300;
+export const SIGNATURE_TOLERANCE_SECONDS = toleranceSeconds;
 
-export const SIGNATURE_HEADER = "openiap-signature";
-export const TIMESTAMP_HEADER = "openiap-timestamp";
-export const EVENT_ID_HEADER = "openiap-event-id";
-export const DELIVERY_ID_HEADER = "openiap-delivery-id";
-export const CONTENT_TYPE = "application/json";
+export const SIGNATURE_HEADER = headers.signature;
+export const TIMESTAMP_HEADER = headers.timestamp;
+export const EVENT_ID_HEADER = headers.eventId;
+export const DELIVERY_ID_HEADER = headers.deliveryId;
+export const CONTENT_TYPE = contentType;
+export const SIGNATURE_PREFIX = signaturePrefix;
 
 /**
  * Exponential backoff with a cap. Attempt 1 retries after ~30s and the last
@@ -189,8 +205,8 @@ function toHex(buffer: ArrayBuffer): string {
 }
 
 /**
- * `v1=<hex>` over `"<timestamp>.<body>"`. The timestamp is inside the signed
- * material so a captured body cannot be replayed with a fresh header.
+ * `<prefix><hex>` over `"<timestamp>.<body>"`. The timestamp is inside the
+ * signed material so a captured body cannot be replayed with a fresh header.
  */
 export async function signPayload(
   secret: string,
@@ -209,7 +225,7 @@ export async function signPayload(
     key,
     new TextEncoder().encode(`${timestampSeconds}.${body}`),
   );
-  return `v1=${toHex(signature)}`;
+  return `${SIGNATURE_PREFIX}${toHex(signature)}`;
 }
 
 /**
@@ -227,8 +243,43 @@ export async function signPayloadWithRotation(
   return `${current},${previous}`;
 }
 
-/** HTTP outcomes worth retrying. 4xx other than 408/429 are permanent. */
-export function isRetryableStatus(status: number): boolean {
-  if (status === 408 || status === 429) return true;
-  return status >= 500;
+/**
+ * SPEC.md §9.4.1 envelope for one attempt. A retry passes the same body,
+ * eventId, and deliveryId with a fresh timestamp, so only the signature and
+ * timestamp headers change across the chain.
+ */
+export async function composeDeliveryHeaders(args: {
+  secrets: { current: string; previous?: string };
+  timestampSeconds: number;
+  body: string;
+  eventId: string;
+  deliveryId: string;
+}): Promise<Record<string, string>> {
+  return {
+    "content-type": CONTENT_TYPE,
+    [SIGNATURE_HEADER]: await signPayloadWithRotation(
+      args.secrets,
+      args.timestampSeconds,
+      args.body,
+    ),
+    [TIMESTAMP_HEADER]: String(args.timestampSeconds),
+    [EVENT_ID_HEADER]: args.eventId,
+    [DELIVERY_ID_HEADER]: args.deliveryId,
+  };
+}
+
+export type DeliveryOutcome = "delivered" | "retry" | "permanent-failure";
+
+/**
+ * SPEC.md §9.4.3: 2xx is delivered; 408, 429, 5xx, and no status at all
+ * (timeout or connection error, passed as `undefined`) retry; every other
+ * status, redirects included, is permanent.
+ */
+export function classifyDeliveryResponse(
+  status: number | undefined,
+): DeliveryOutcome {
+  if (status === undefined) return "retry";
+  if (status >= 200 && status < 300) return "delivered";
+  if (status === 408 || status === 429 || status >= 500) return "retry";
+  return "permanent-failure";
 }

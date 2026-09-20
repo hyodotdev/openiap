@@ -1,33 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent as ReactPointerEvent,
-} from 'react';
-import { createPortal } from 'react-dom';
-import { Bookmark } from 'lucide-react';
 import {
-  Link,
   Route,
   Routes,
   Navigate,
   NavLink,
+  parsePath,
   useLocation,
+  useParams,
 } from 'react-router-dom';
+import DocsShell from '../../components/DocsShell';
 import { MenuDropdown } from '../../components/MenuDropdown';
 import ExternalRedirect from '../../components/ExternalRedirect';
 import { LIBRARIES } from '../../lib/images';
 import GettingStarted from './getting-started';
 import Ecosystem from './ecosystem';
-import CommerceProtocol from './commerce-protocol';
-import CommerceAuthentication from './commerce-protocol/authentication';
-import CommerceCapabilities from './commerce-protocol/capabilities';
-import CommerceConformance from './commerce-protocol/conformance';
-import CommerceGraphql from './commerce-protocol/graphql';
-import CommerceOperations from './commerce-protocol/operations';
-import CommerceProfiles from './commerce-protocol/profiles';
-import CommerceRest from './commerce-protocol/rest';
-import CommerceVersioning from './commerce-protocol/versioning';
 import LifeCycle from './lifecycle';
 import Subscription from './lifecycle/subscription';
 import TypesIndex from './types/index';
@@ -100,7 +85,6 @@ import APIsShowBillingProgramInformationDialogAndroid from './apis/android/show-
 import APIsShowInAppMessagesAndroid from './apis/android/show-in-app-messages-android';
 import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-code-android';
 import Events from './events';
-import Webhooks from './webhooks';
 import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
 import EventsPurchaseErrorListener from './events/purchase-error-listener';
 import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
@@ -157,280 +141,44 @@ import NotFound from '../404';
    /docs/types/request#request-purchase-props would land on /docs/types
    minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
 function NavigatePreservingHash({ to }: { to: string }) {
-  const { hash } = useLocation();
-  const target = to.includes('#') ? to : `${to}${hash || ''}`;
-  return <Navigate to={target} replace />;
-}
-
-const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'openiap-docs-sidebar-collapsed-v1';
-const SIDEBAR_DEFAULT_WIDTH = 340;
-const SIDEBAR_MIN_WIDTH = 300;
-const SIDEBAR_MAX_WIDTH = 480;
-const SIDEBAR_KEYBOARD_STEP = 16;
-// Ignore tiny pointer movement so clicking the resize rail never nudges it.
-const SIDEBAR_DRAG_THRESHOLD = 4;
-
-function clampSidebarWidth(width: number) {
-  return Math.min(
-    SIDEBAR_MAX_WIDTH,
-    Math.max(SIDEBAR_MIN_WIDTH, Math.round(width))
+  const { search, hash } = useLocation();
+  // Whatever the target names, it keeps; the rest carries over from the URL the
+  // visitor arrived on. Hand-splitting on '#' mis-parses a target with a query.
+  const target = parsePath(to);
+  return (
+    <Navigate
+      to={{
+        pathname: target.pathname,
+        search: target.search ?? search,
+        hash: target.hash ?? hash,
+      }}
+      replace
+    />
   );
 }
 
-function readSavedSidebarWidth() {
-  if (typeof window === 'undefined') {
-    return SIDEBAR_DEFAULT_WIDTH;
-  }
-
-  const saved = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-  const parsed = saved ? Number(saved) : Number.NaN;
-
-  return Number.isFinite(parsed)
-    ? clampSidebarWidth(parsed)
-    : SIDEBAR_DEFAULT_WIDTH;
-}
-
-function readSavedSidebarCollapsed() {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
-}
-
-/** The protocol's own pages, with or without a trailing slash: `/docs/commerce-
- * protocol/` renders the landing page, which must not link back to itself. */
-function isCommerceProtocolPage(pathname: string): boolean {
-  const path = pathname.replace(/\/+$/, '');
+/** `/docs/commerce-protocol/rest` -> `/commerce-protocol/rest`, intact. */
+function CommerceProtocolRedirect() {
+  const { search, hash } = useLocation();
+  const subPath = useParams()['*'] ?? '';
   return (
-    path.startsWith('/docs/commerce-protocol/') || path === '/docs/webhooks'
+    <Navigate
+      to={{
+        pathname: `/commerce-protocol${subPath ? `/${subPath}` : ''}`,
+        search,
+        hash,
+      }}
+      replace
+    />
   );
 }
 
 function Docs() {
-  const { pathname } = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
-    readSavedSidebarCollapsed
-  );
-  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
-  const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
-  const sidebarRef = useRef<HTMLElement | null>(null);
-  const sidebarScrollTimeoutRef = useRef<number | null>(null);
-  const dragRef = useRef<{
-    startX: number;
-    moved: boolean;
-  } | null>(null);
-
-  const closeSidebar = () => setIsSidebarOpen(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 500);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      SIDEBAR_WIDTH_STORAGE_KEY,
-      String(sidebarWidth)
-    );
-  }, [sidebarWidth]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      SIDEBAR_COLLAPSED_STORAGE_KEY,
-      String(isSidebarCollapsed)
-    );
-  }, [isSidebarCollapsed]);
-
-  useEffect(() => {
-    return () => {
-      if (sidebarScrollTimeoutRef.current !== null) {
-        window.clearTimeout(sidebarScrollTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isResizingSidebar) {
-      return;
-    }
-
-    const previousCursor = document.body.style.cursor;
-    const previousUserSelect = document.body.style.userSelect;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-
-    const handlePointerMove = (event: PointerEvent) => {
-      const drag = dragRef.current;
-
-      if (!drag) {
-        return;
-      }
-
-      if (
-        !drag.moved &&
-        Math.abs(event.clientX - drag.startX) < SIDEBAR_DRAG_THRESHOLD
-      ) {
-        return;
-      }
-
-      drag.moved = true;
-
-      const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
-      const nextWidth = event.clientX - sidebarLeft;
-      setSidebarWidth(clampSidebarWidth(nextWidth));
-    };
-
-    const stopResizing = () => {
-      dragRef.current = null;
-      setIsResizingSidebar(false);
-    };
-
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', stopResizing);
-    window.addEventListener('pointercancel', stopResizing);
-
-    return () => {
-      document.body.style.cursor = previousCursor;
-      document.body.style.userSelect = previousUserSelect;
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', stopResizing);
-      window.removeEventListener('pointercancel', stopResizing);
-    };
-  }, [isResizingSidebar]);
-
-  const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (window.innerWidth <= 768 || isSidebarCollapsed) {
-      return;
-    }
-
-    event.preventDefault();
-    dragRef.current = {
-      startX: event.clientX,
-      moved: false,
-    };
-    setIsResizingSidebar(true);
-  };
-
-  const handleSidebarScroll = () => {
-    setIsSidebarScrolling(true);
-
-    if (sidebarScrollTimeoutRef.current !== null) {
-      window.clearTimeout(sidebarScrollTimeoutRef.current);
-    }
-
-    sidebarScrollTimeoutRef.current = window.setTimeout(() => {
-      setIsSidebarScrolling(false);
-      sidebarScrollTimeoutRef.current = null;
-    }, 700);
-  };
-
-  const handleSidebarResizerKeyDown = (
-    event: KeyboardEvent<HTMLButtonElement>
-  ) => {
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-      event.preventDefault();
-      setSidebarWidth((width) =>
-        clampSidebarWidth(
-          width +
-            (event.key === 'ArrowRight'
-              ? SIDEBAR_KEYBOARD_STEP
-              : -SIDEBAR_KEYBOARD_STEP)
-        )
-      );
-    }
-
-    if (event.key === 'Home') {
-      event.preventDefault();
-      setSidebarWidth(SIDEBAR_MIN_WIDTH);
-    }
-
-    if (event.key === 'End') {
-      event.preventDefault();
-      setSidebarWidth(SIDEBAR_MAX_WIDTH);
-    }
-  };
-
-  const sidebarStyle = {
-    '--docs-sidebar-width': `${sidebarWidth}px`,
-  } as CSSProperties;
-
-  // Portal the sidebar toggle to document.body so it sits OUTSIDE any
-  // ancestor's stacking context, AND fully unmount it while the drawer
-  // is open. Earlier rounds left the toggle in the DOM with
-  // `.hidden { opacity: 0; pointer-events: none }` while the drawer was
-  // open, which on iOS Safari still let the toggle absorb taps that
-  // landed on the drawer's first menu item ("APIs" header sits at
-  // y≈88-120px, exactly where the fixed toggle at top: 70px lives).
-  // Removing the element from the DOM entirely guarantees the drawer
-  // items underneath get every tap they should.
-  const sidebarToggle = isSidebarOpen
-    ? null
-    : createPortal(
-        <button
-          type="button"
-          className={`docs-sidebar-toggle ${isScrolled ? 'scrolled' : ''}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsSidebarOpen(true);
-          }}
-          aria-label="Toggle sidebar"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M3 5h14M3 10h14M3 15h14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          <span>Menu</span>
-        </button>,
-        document.body
-      );
-
   return (
-    <div
-      className={`docs-container ${
-        isSidebarCollapsed ? 'is-sidebar-collapsed' : ''
-      } ${
-        pathname === '/docs/commerce-protocol' ? 'docs-container--wide' : ''
-      }`}
-    >
-      {sidebarToggle}
-
-      {/* Kept mounted so it can fade OUT with the drawer; unmounting it on
-          close made the backdrop vanish instantly while the drawer was still
-          sliding. Hidden state is visibility + pointer-events, not unmount. */}
-      <div
-        className={`sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
-        onClick={closeSidebar}
-      ></div>
-
-      <aside
-        ref={sidebarRef}
-        id="docs-sidebar"
-        className={`docs-sidebar ${isSidebarOpen ? 'open' : ''} ${
-          isResizingSidebar ? 'is-resizing' : ''
-        } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
-        style={sidebarStyle}
-        onScroll={handleSidebarScroll}
-      >
-        <nav className="docs-nav">
+    <DocsShell
+      navLabel="documentation navigation"
+      nav={(closeSidebar) => (
+        <>
           <ul>
             <li>
               <NavLink
@@ -798,23 +546,6 @@ function Docs() {
                 Errors
               </NavLink>
             </li>
-            {/* Deliberately not a section of these docs: the server-side spec
-                has its own top-level navigation, and this is the doorway to
-                it, not an entry in this list. */}
-            <li className="docs-nav-doorway-item">
-              <NavLink
-                to="/docs/commerce-protocol"
-                className="docs-nav-doorway"
-                onClick={closeSidebar}
-              >
-                <span className="docs-nav-doorway__label">
-                  Commerce Protocol
-                </span>
-                <span className="docs-nav-doorway__hint">
-                  The server side, specified separately
-                </span>
-              </NavLink>
-            </li>
           </ul>
           <h3 style={{ marginTop: '2rem' }}>Setup Guide</h3>
           <ul>
@@ -1058,719 +789,626 @@ function Docs() {
               </NavLink>
             </li>
           </ul>
-        </nav>
-      </aside>
-      <div
-        className={`docs-sidebar-rail ${
-          isResizingSidebar ? 'is-resizing' : ''
-        } ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
-      >
-        <button
-          type="button"
-          role="separator"
-          className="docs-sidebar-resizer"
-          aria-label="Resize documentation navigation"
-          aria-orientation="vertical"
-          aria-valuemin={SIDEBAR_MIN_WIDTH}
-          aria-valuemax={SIDEBAR_MAX_WIDTH}
-          aria-valuenow={sidebarWidth}
-          title="Drag to resize · Double-click to reset"
-          onPointerDown={startSidebarResize}
-          onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
-          onKeyDown={handleSidebarResizerKeyDown}
-        >
-          <span aria-hidden="true" />
-        </button>
-        {isResizingSidebar && (
-          <output className="docs-sidebar-width-readout">
-            {sidebarWidth}px
-          </output>
-        )}
-
-        <button
-          type="button"
-          className="docs-sidebar-handle"
-          aria-expanded={!isSidebarCollapsed}
-          aria-controls="docs-sidebar"
-          aria-label={
-            isSidebarCollapsed
-              ? 'Show documentation navigation'
-              : 'Hide documentation navigation'
+        </>
+      )}
+    >
+      <Routes>
+        <Route
+          index
+          element={<Navigate to="/docs/getting-started" replace />}
+        />
+        <Route path="getting-started" element={<GettingStarted />} />
+        <Route path="ecosystem" element={<Ecosystem />} />
+        {/* the specification became its own section in 2026-09; these two
+              keep every published /docs link working */}
+        <Route
+          path="commerce-protocol/*"
+          element={<CommerceProtocolRedirect />}
+        />
+        <Route path="lifecycle" element={<LifeCycle />} />
+        <Route path="lifecycle/subscription" element={<Subscription />} />
+        <Route path="types" element={<TypesIndex />} />
+        <Route path="types/product" element={<TypesProduct />} />
+        <Route
+          path="types/subscription-product"
+          element={<TypesSubscriptionProduct />}
+        />
+        <Route path="types/storefront" element={<TypesStorefront />} />
+        <Route path="types/purchase" element={<TypesPurchase />} />
+        <Route
+          path="types/active-subscription"
+          element={<TypesActiveSubscription />}
+        />
+        <Route path="types/product-request" element={<TypesProductRequest />} />
+        <Route
+          path="types/request-purchase-props"
+          element={<TypesRequestPurchaseProps />}
+        />
+        <Route
+          path="types/purchase-updated-listener-options"
+          element={<TypesPurchaseUpdatedListenerOptions />}
+        />
+        <Route
+          path="types/alternative-billing-types"
+          element={<TypesAlternativeBillingTypes />}
+        />
+        <Route
+          path="types/billing-programs"
+          element={<TypesBillingPrograms />}
+        />
+        <Route
+          path="types/external-purchase-link"
+          element={<TypesExternalPurchaseLink />}
+        />
+        <Route path="types/verify-purchase" element={<TypesVerifyPurchase />} />
+        <Route
+          path="types/verify-purchase-with-provider-props"
+          element={<TypesVerifyPurchaseWithProviderProps />}
+        />
+        <Route
+          path="types/verify-purchase-with-provider-result"
+          element={<TypesVerifyPurchaseWithProviderResult />}
+        />
+        <Route
+          path="types/ios/discount-offer-ios"
+          element={
+            <NavigatePreservingHash to="/docs/types/subscription-offer" />
           }
-          title={isSidebarCollapsed ? 'Show navigation' : 'Hide navigation'}
-          onClick={() => setIsSidebarCollapsed((isCollapsed) => !isCollapsed)}
-        >
-          {/* Quarter turn so it hangs off the edge like a clipped-in bookmark.
-              Filled while the nav is showing, outlined once it is put away. */}
-          <Bookmark
-            size={17}
-            strokeWidth={2}
-            fill={isSidebarCollapsed ? 'none' : 'currentColor'}
-            style={{ transform: 'rotate(90deg)' }}
-            aria-hidden="true"
-          />
-        </button>
-      </div>
-      <main className="docs-content">
-        {/* The protocol's own pages are reached from its landing page, not from
-            this sidebar, so a reader who arrives at one directly needs a way
-            back into that section. */}
-        {isCommerceProtocolPage(pathname) && (
-          <Link to="/docs/commerce-protocol" className="docs-section-backlink">
-            ← Commerce Protocol
-          </Link>
-        )}
-        <Routes>
-          <Route
-            index
-            element={<Navigate to="/docs/getting-started" replace />}
-          />
-          <Route path="getting-started" element={<GettingStarted />} />
-          <Route path="ecosystem" element={<Ecosystem />} />
-          <Route path="commerce-protocol" element={<CommerceProtocol />} />
-          <Route
-            path="commerce-protocol/profiles"
-            element={<CommerceProfiles />}
-          />
-          <Route
-            path="commerce-protocol/operations"
-            element={<CommerceOperations />}
-          />
-          <Route path="commerce-protocol/rest" element={<CommerceRest />} />
-          <Route
-            path="commerce-protocol/graphql"
-            element={<CommerceGraphql />}
-          />
-          <Route
-            path="commerce-protocol/authentication"
-            element={<CommerceAuthentication />}
-          />
-          <Route
-            path="commerce-protocol/capabilities"
-            element={<CommerceCapabilities />}
-          />
-          <Route
-            path="commerce-protocol/conformance"
-            element={<CommerceConformance />}
-          />
-          <Route
-            path="commerce-protocol/versioning"
-            element={<CommerceVersioning />}
-          />
-          <Route path="lifecycle" element={<LifeCycle />} />
-          <Route path="lifecycle/subscription" element={<Subscription />} />
-          <Route path="types" element={<TypesIndex />} />
-          <Route path="types/product" element={<TypesProduct />} />
-          <Route
-            path="types/subscription-product"
-            element={<TypesSubscriptionProduct />}
-          />
-          <Route path="types/storefront" element={<TypesStorefront />} />
-          <Route path="types/purchase" element={<TypesPurchase />} />
-          <Route
-            path="types/active-subscription"
-            element={<TypesActiveSubscription />}
-          />
-          <Route
-            path="types/product-request"
-            element={<TypesProductRequest />}
-          />
-          <Route
-            path="types/request-purchase-props"
-            element={<TypesRequestPurchaseProps />}
-          />
-          <Route
-            path="types/purchase-updated-listener-options"
-            element={<TypesPurchaseUpdatedListenerOptions />}
-          />
-          <Route
-            path="types/alternative-billing-types"
-            element={<TypesAlternativeBillingTypes />}
-          />
-          <Route
-            path="types/billing-programs"
-            element={<TypesBillingPrograms />}
-          />
-          <Route
-            path="types/external-purchase-link"
-            element={<TypesExternalPurchaseLink />}
-          />
-          <Route
-            path="types/verify-purchase"
-            element={<TypesVerifyPurchase />}
-          />
-          <Route
-            path="types/verify-purchase-with-provider-props"
-            element={<TypesVerifyPurchaseWithProviderProps />}
-          />
-          <Route
-            path="types/verify-purchase-with-provider-result"
-            element={<TypesVerifyPurchaseWithProviderResult />}
-          />
-          <Route
-            path="types/ios/discount-offer-ios"
-            element={
-              <NavigatePreservingHash to="/docs/types/subscription-offer" />
-            }
-          />
-          <Route
-            path="types/ios/discount-ios"
-            element={
-              <NavigatePreservingHash to="/docs/types/subscription-offer" />
-            }
-          />
-          <Route
-            path="types/ios/subscription-period-ios"
-            element={<TypesSubscriptionPeriodIOS />}
-          />
-          <Route
-            path="types/ios/subscription-billing-plan-ios"
-            element={<TypesSubscriptionBillingPlanIOS />}
-          />
-          <Route
-            path="types/ios/payment-mode-ios"
-            element={<TypesPaymentModeIOS />}
-          />
-          <Route
-            path="types/ios/subscription-status-ios"
-            element={<TypesSubscriptionStatusIOS />}
-          />
-          <Route
-            path="types/ios/app-transaction-ios"
-            element={<TypesAppTransactionIOS />}
-          />
-          <Route
-            path="types/ios/renewal-info-ios"
-            element={<TypesRenewalInfoIOS />}
-          />
-          <Route
-            path="types/android/one-time-purchase-offer-detail-android"
-            element={<NavigatePreservingHash to="/docs/types/discount-offer" />}
-          />
-          <Route
-            path="types/android/subscription-offer-android"
-            element={
-              <NavigatePreservingHash to="/docs/types/subscription-offer" />
-            }
-          />
-          <Route
-            path="types/android/pricing-phase-android"
-            element={<TypesPricingPhaseAndroid />}
-          />
-          <Route path="types/discount-offer" element={<TypesDiscountOffer />} />
-          <Route
-            path="types/subscription-offer"
-            element={<TypesSubscriptionOffer />}
-          />
-          <Route
-            path="types/request"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route
-            path="types/alternative"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route
-            path="types/verification"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route
-            path="types/ios"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route
-            path="types/android"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route
-            path="types/offer"
-            element={<NavigatePreservingHash to="/docs/types" />}
-          />
-          <Route path="apis" element={<APIsIndex />} />
-          <Route path="apis/init-connection" element={<APIsInitConnection />} />
-          <Route path="apis/end-connection" element={<APIsEndConnection />} />
-          <Route path="apis/fetch-products" element={<APIsFetchProducts />} />
-          <Route
-            path="apis/get-available-purchases"
-            element={<APIsGetAvailablePurchases />}
-          />
-          <Route
-            path="apis/request-purchase"
-            element={<APIsRequestPurchase />}
-          />
-          <Route
-            path="apis/finish-transaction"
-            element={<APIsFinishTransaction />}
-          />
-          <Route
-            path="apis/restore-purchases"
-            element={<APIsRestorePurchases />}
-          />
-          <Route path="apis/get-storefront" element={<APIsGetStorefront />} />
-          <Route
-            path="apis/get-active-subscriptions"
-            element={<APIsGetActiveSubscriptions />}
-          />
-          <Route
-            path="apis/has-active-subscriptions"
-            element={<APIsHasActiveSubscriptions />}
-          />
-          <Route
-            path="apis/deep-link-to-subscriptions"
-            element={<APIsDeepLinkToSubscriptions />}
-          />
-          <Route
-            path="apis/open-redeem-offer-code"
-            element={<APIsOpenRedeemOfferCode />}
-          />
-          <Route
-            path="apis/validate-receipt"
-            element={
-              <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
-            }
-          />
-          <Route
-            path="apis/ios/clear-transaction-ios"
-            element={<APIsClearTransactionIOS />}
-          />
-          <Route
-            path="apis/ios/get-pending-transactions-ios"
-            element={<APIsGetPendingTransactionsIOS />}
-          />
-          <Route
-            path="apis/ios/get-all-transactions-ios"
-            element={<APIsGetAllTransactionsIOS />}
-          />
-          <Route path="apis/ios/sync-ios" element={<APIsSyncIOS />} />
-          <Route
-            path="apis/ios/get-storefront-ios"
-            element={<NavigatePreservingHash to="/docs/apis/get-storefront" />}
-          />
-          <Route
-            path="apis/ios/get-promoted-product-ios"
-            element={<APIsGetPromotedProductIOS />}
-          />
-          <Route
-            path="apis/ios/is-eligible-for-intro-offer-ios"
-            element={<APIsIsEligibleForIntroOfferIOS />}
-          />
-          <Route
-            path="apis/ios/subscription-status-ios"
-            element={<APIsSubscriptionStatusIOS />}
-          />
-          <Route
-            path="apis/ios/current-entitlement-ios"
-            element={<APIsCurrentEntitlementIOS />}
-          />
-          <Route
-            path="apis/ios/latest-transaction-ios"
-            element={<APIsLatestTransactionIOS />}
-          />
-          <Route
-            path="apis/ios/show-manage-subscriptions-ios"
-            element={<APIsShowManageSubscriptionsIOS />}
-          />
-          <Route
-            path="apis/ios/is-transaction-verified-ios"
-            element={<APIsIsTransactionVerifiedIOS />}
-          />
-          <Route
-            path="apis/ios/get-transaction-jws-ios"
-            element={<APIsGetTransactionJwsIOS />}
-          />
-          <Route
-            path="apis/ios/get-receipt-data-ios"
-            element={<APIsGetReceiptDataIOS />}
-          />
-          <Route
-            path="apis/ios/begin-refund-request-ios"
-            element={<APIsBeginRefundRequestIOS />}
-          />
-          <Route
-            path="apis/ios/present-code-redemption-sheet-ios"
-            element={<APIsPresentCodeRedemptionSheetIOS />}
-          />
-          <Route
-            path="apis/ios/get-app-transaction-ios"
-            element={<APIsGetAppTransactionIOS />}
-          />
-          <Route
-            path="apis/ios/can-present-external-purchase-notice-ios"
-            element={<APIsCanPresentExternalPurchaseNoticeIOS />}
-          />
-          <Route
-            path="apis/ios/present-external-purchase-notice-sheet-ios"
-            element={<APIsPresentExternalPurchaseNoticeSheetIOS />}
-          />
-          <Route
-            path="apis/ios/present-external-purchase-link-ios"
-            element={<APIsPresentExternalPurchaseLinkIOS />}
-          />
-          <Route
-            path="apis/ios/is-eligible-for-external-purchase-custom-link-ios"
-            element={<APIsIsEligibleForExternalPurchaseCustomLinkIOS />}
-          />
-          <Route
-            path="apis/ios/get-external-purchase-custom-link-token-ios"
-            element={<APIsGetExternalPurchaseCustomLinkTokenIOS />}
-          />
-          <Route
-            path="apis/ios/show-external-purchase-custom-link-notice-ios"
-            element={<APIsShowExternalPurchaseCustomLinkNoticeIOS />}
-          />
-          <Route
-            path="apis/ios/request-purchase-on-promoted-product-ios"
-            element={
-              <NavigatePreservingHash to="/docs/events/ios/promoted-product-listener-ios" />
-            }
-          />
-          <Route
-            path="apis/ios/validate-receipt-ios"
-            element={
-              <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
-            }
-          />
-          <Route
-            path="apis/android/acknowledge-purchase-android"
-            element={<APIsAcknowledgePurchaseAndroid />}
-          />
-          <Route
-            path="apis/android/consume-purchase-android"
-            element={<APIsConsumePurchaseAndroid />}
-          />
-          <Route
-            path="apis/android/check-alternative-billing-availability-android"
-            element={
-              <NavigatePreservingHash to="/docs/apis/android/is-billing-program-available-android" />
-            }
-          />
-          <Route
-            path="apis/android/show-alternative-billing-dialog-android"
-            element={
-              <NavigatePreservingHash to="/docs/apis/android/launch-external-link-android" />
-            }
-          />
-          <Route
-            path="apis/android/create-alternative-billing-token-android"
-            element={
-              <NavigatePreservingHash to="/docs/apis/android/create-billing-program-reporting-details-android" />
-            }
-          />
-          <Route
-            path="apis/android/enable-billing-program-android"
-            element={<APIsEnableBillingProgramAndroid />}
-          />
-          <Route
-            path="apis/android/is-billing-program-available-android"
-            element={<APIsIsBillingProgramAvailableAndroid />}
-          />
-          <Route
-            path="apis/android/get-billing-choice-info-android"
-            element={<APIsGetBillingChoiceInfoAndroid />}
-          />
-          <Route
-            path="apis/android/launch-external-link-android"
-            element={<APIsLaunchExternalLinkAndroid />}
-          />
-          <Route
-            path="apis/android/create-billing-program-reporting-details-android"
-            element={<APIsCreateBillingProgramReportingDetailsAndroid />}
-          />
-          <Route
-            path="apis/android/show-billing-program-information-dialog-android"
-            element={<APIsShowBillingProgramInformationDialogAndroid />}
-          />
-          <Route
-            path="apis/android/show-in-app-messages-android"
-            element={<APIsShowInAppMessagesAndroid />}
-          />
-          <Route
-            path="apis/android/open-redeem-offer-code-android"
-            element={<APIsOpenRedeemOfferCodeAndroid />}
-          />
-          <Route
-            path="apis/connection"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/products"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/purchase"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/subscription"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/ios"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/android"
-            element={<NavigatePreservingHash to="/docs/apis" />}
-          />
-          <Route
-            path="apis/validation"
-            element={<NavigatePreservingHash to="/docs/features/validation" />}
-          />
-          <Route
-            path="apis/debugging"
-            element={<NavigatePreservingHash to="/docs/features/debugging" />}
-          />
-          <Route
-            path="apis/refund"
-            element={<NavigatePreservingHash to="/docs/features/refund" />}
-          />
-          <Route path="events" element={<Events />} />
-          <Route path="webhooks" element={<Webhooks />} />
-          <Route
-            path="kit-backend"
-            element={
-              <ExternalRedirect
-                to="https://kit.openiap.dev/docs"
-                hashTargets={{
-                  '#surface': 'https://kit.openiap.dev/docs/api',
-                  '#api-keys-environments': 'https://kit.openiap.dev/docs/api',
-                  '#dashboard': 'https://kit.openiap.dev/docs/projects',
-                  '#order-lookup': 'https://kit.openiap.dev/docs/orders',
-                  '#purchase-verification': 'https://kit.openiap.dev/docs/api',
-                  '#entitlements': 'https://kit.openiap.dev/docs/api',
-                  '#refresh-entitlements-without-sse':
-                    'https://kit.openiap.dev/docs/api',
-                  '#hosted-capacity': 'https://kit.openiap.dev/docs/operations',
-                  '#product-client-payloads':
-                    'https://kit.openiap.dev/docs/products',
-                  '#fetch-client-payload-on-app-open':
-                    'https://kit.openiap.dev/docs/products',
-                  '#cost-and-abuse-guardrails':
-                    'https://kit.openiap.dev/docs/products',
-                  '#write-client-payload-from-ci':
-                    'https://kit.openiap.dev/docs/products',
-                  '#client-payload-behavior':
-                    'https://kit.openiap.dev/docs/products',
-                  '#product-sync': 'https://kit.openiap.dev/docs/products',
-                  '#mcp': 'https://kit.openiap.dev/docs/ai-assistants',
-                }}
-              />
-            }
-          />
-          <Route
-            path="kit-compatibility"
-            element={
-              <ExternalRedirect
-                to="https://kit.openiap.dev/docs/compatibility"
-                hashTargets={Object.fromEntries(
-                  [
-                    '#three-clocks',
-                    '#guarantees',
-                    '#degrade',
-                    '#spec-header',
-                    '#enforcement',
-                    '#your-side',
-                  ].map((hash) => [
-                    hash,
-                    `https://kit.openiap.dev/docs/compatibility${hash}`,
-                  ])
-                )}
-              />
-            }
-          />
-          <Route
-            path="events/purchase-updated-listener"
-            element={<EventsPurchaseUpdatedListener />}
-          />
-          <Route
-            path="events/purchase-error-listener"
-            element={<EventsPurchaseErrorListener />}
-          />
-          <Route
-            path="events/subscription-billing-issue-listener"
-            element={<EventsSubscriptionBillingIssueListener />}
-          />
-          <Route
-            path="events/ios/promoted-product-listener-ios"
-            element={<EventsPromotedProductListenerIOS />}
-          />
-          <Route
-            path="events/android/user-choice-billing-listener-android"
-            element={<EventsUserChoiceBillingListenerAndroid />}
-          />
-          <Route
-            path="events/android/developer-provided-billing-listener-android"
-            element={<EventsDeveloperProvidedBillingListenerAndroid />}
-          />
-          <Route path="errors" element={<Errors />} />
-          <Route path="features/purchase" element={<Purchase />} />
-          <Route
-            path="features/subscription"
-            element={<SubscriptionFeature />}
-          />
-          <Route
-            path="features/subscription/upgrade-downgrade"
-            element={<SubscriptionUpgradeDowngrade />}
-          />
-          <Route
-            path="features/subscription/active-subscriptions"
-            element={<SubscriptionActiveSubscriptions />}
-          />
-          <Route path="features/discount" element={<Discount />} />
-          <Route
-            path="features/offer-code-redemption"
-            element={<OfferCodeRedemption />}
-          />
-          <Route
-            path="features/external-purchase"
-            element={<ExternalPurchase />}
-          />
-          <Route
-            path="features/subscription-billing-issue"
-            element={<SubscriptionBillingIssue />}
-          />
-          <Route path="features/refund" element={<Refund />} />
-          <Route path="features/validation" element={<Validation />} />
-          <Route path="features/debugging" element={<Debugging />} />
-          <Route
-            path="features/store-integrations"
-            element={<NavigatePreservingHash to="/docs/setup/store" />}
-          />
-          <Route
-            path="features/runtime-integrations"
-            element={<NavigatePreservingHash to="/docs/setup/store" />}
-          />
-          <Route
-            path="features/alternative-marketplace"
-            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
-          />
-          <Route
-            path="features/alternative-marketplace/onside"
-            element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
-          />
-          <Route
-            path="features/horizon-os"
-            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
-          />
-          <Route
-            path="features/fire-os"
-            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
-          />
-          <Route
-            path="features/vega-os"
-            element={<Navigate to="/docs/setup/store/amazon#vega-os" replace />}
-          />
-          <Route path="ios-setup" element={<IOSSetup />} />
-          <Route path="android-setup" element={<AndroidSetup />} />
-          <Route
-            path="horizon-setup"
-            element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
-          />
-          <Route
-            path="fireos-setup"
-            element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
-          />
-          <Route path="setup" element={<SetupIndex />} />
-          <Route path="setup/store" element={<StoreSetup />} />
-          <Route path="setup/store/horizon" element={<HorizonStoreSetup />} />
-          <Route path="setup/store/amazon" element={<AmazonStoreSetup />} />
-          <Route path="setup/store/onside" element={<OnsideStoreSetup />} />
-          <Route path="setup/react-native" element={<ReactNativeSetup />} />
-          <Route path="setup/expo" element={<ExpoSetup />} />
-          <Route path="setup/flutter" element={<FlutterSetup />} />
-          <Route path="setup/godot" element={<GodotSetup />} />
-          <Route path="setup/kmp" element={<KmpSetup />} />
-          <Route path="setup/maui" element={<MauiSetup />} />
-          <Route path="example" element={<Example />} />
-          <Route
-            path="example/ios"
-            element={<Navigate to="/docs/example" replace />}
-          />
-          <Route
-            path="example/android"
-            element={<Navigate to="/docs/example" replace />}
-          />
-          <Route
-            path="example/horizon"
-            element={<Navigate to="/docs/example" replace />}
-          />
-          <Route
-            path="example/fireos"
-            element={<Navigate to="/docs/example" replace />}
-          />
-          <Route
-            path="example/amazon"
-            element={<Navigate to="/docs/example" replace />}
-          />
-          <Route path="guides/ai-assistants" element={<AIAssistants />} />
-          <Route
-            path="guides/mcp-server"
-            element={
-              <ExternalRedirect
-                to="https://kit.openiap.dev/docs/ai-assistants"
-                hashTargets={{
-                  '#where-to-open-it':
-                    'https://kit.openiap.dev/docs/ai-assistants',
-                  '#codex-plugin':
-                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
-                  '#claude-code-plugin':
-                    'https://kit.openiap.dev/docs/ai-assistants/claude-plugin',
-                  '#manual-config':
-                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
-                  '#expo-smoke-test':
-                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
-                  '#example-app':
-                    'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
-                  '#tools': 'https://kit.openiap.dev/docs/ai-assistants',
-                  '#safety': 'https://kit.openiap.dev/docs/ai-assistants',
-                }}
-              />
-            }
-          />
-          <Route path="guides/testing" element={<Testing />} />
-          <Route path="security/overview" element={<SecurityOverview />} />
-          <Route path="security/sbom" element={<SecuritySbom />} />
-          <Route path="security/compliance" element={<SecurityCompliance />} />
-          <Route path="foundation/about" element={<FoundationOnePager />} />
-          <Route
-            path="foundation/governance"
-            element={<FoundationGovernance />}
-          />
-          <Route
-            path="foundation/sponsorship"
-            element={<FoundationSponsorship />}
-          />
-          <Route
-            path="foundation/roadmap-budget"
-            element={<FoundationRoadmapBudget />}
-          />
-          <Route
-            path="foundation/founding-supporters"
-            element={<FoundationFoundingSupporters />}
-          />
-          <Route path="foundation/research" element={<FoundationResearch />} />
-          <Route
-            path="foundation/whitepapers"
-            element={<FoundationWhitepapers />}
-          />
-          <Route path="updates/announcements" element={<Announcements />} />
-          <Route
-            path="updates/notes"
-            element={<Navigate to="/docs/updates/releases" replace />}
-          />
-          <Route path="updates/releases" element={<Releases />} />
-          <Route path="updates/migration" element={<Migration />} />
-          {/* the page was published at updates/deprecations until 2026-08;
+        />
+        <Route
+          path="types/ios/discount-ios"
+          element={
+            <NavigatePreservingHash to="/docs/types/subscription-offer" />
+          }
+        />
+        <Route
+          path="types/ios/subscription-period-ios"
+          element={<TypesSubscriptionPeriodIOS />}
+        />
+        <Route
+          path="types/ios/subscription-billing-plan-ios"
+          element={<TypesSubscriptionBillingPlanIOS />}
+        />
+        <Route
+          path="types/ios/payment-mode-ios"
+          element={<TypesPaymentModeIOS />}
+        />
+        <Route
+          path="types/ios/subscription-status-ios"
+          element={<TypesSubscriptionStatusIOS />}
+        />
+        <Route
+          path="types/ios/app-transaction-ios"
+          element={<TypesAppTransactionIOS />}
+        />
+        <Route
+          path="types/ios/renewal-info-ios"
+          element={<TypesRenewalInfoIOS />}
+        />
+        <Route
+          path="types/android/one-time-purchase-offer-detail-android"
+          element={<NavigatePreservingHash to="/docs/types/discount-offer" />}
+        />
+        <Route
+          path="types/android/subscription-offer-android"
+          element={
+            <NavigatePreservingHash to="/docs/types/subscription-offer" />
+          }
+        />
+        <Route
+          path="types/android/pricing-phase-android"
+          element={<TypesPricingPhaseAndroid />}
+        />
+        <Route path="types/discount-offer" element={<TypesDiscountOffer />} />
+        <Route
+          path="types/subscription-offer"
+          element={<TypesSubscriptionOffer />}
+        />
+        <Route
+          path="types/request"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route
+          path="types/alternative"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route
+          path="types/verification"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route
+          path="types/ios"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route
+          path="types/android"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route
+          path="types/offer"
+          element={<NavigatePreservingHash to="/docs/types" />}
+        />
+        <Route path="apis" element={<APIsIndex />} />
+        <Route path="apis/init-connection" element={<APIsInitConnection />} />
+        <Route path="apis/end-connection" element={<APIsEndConnection />} />
+        <Route path="apis/fetch-products" element={<APIsFetchProducts />} />
+        <Route
+          path="apis/get-available-purchases"
+          element={<APIsGetAvailablePurchases />}
+        />
+        <Route path="apis/request-purchase" element={<APIsRequestPurchase />} />
+        <Route
+          path="apis/finish-transaction"
+          element={<APIsFinishTransaction />}
+        />
+        <Route
+          path="apis/restore-purchases"
+          element={<APIsRestorePurchases />}
+        />
+        <Route path="apis/get-storefront" element={<APIsGetStorefront />} />
+        <Route
+          path="apis/get-active-subscriptions"
+          element={<APIsGetActiveSubscriptions />}
+        />
+        <Route
+          path="apis/has-active-subscriptions"
+          element={<APIsHasActiveSubscriptions />}
+        />
+        <Route
+          path="apis/deep-link-to-subscriptions"
+          element={<APIsDeepLinkToSubscriptions />}
+        />
+        <Route
+          path="apis/open-redeem-offer-code"
+          element={<APIsOpenRedeemOfferCode />}
+        />
+        <Route
+          path="apis/validate-receipt"
+          element={
+            <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
+          }
+        />
+        <Route
+          path="apis/ios/clear-transaction-ios"
+          element={<APIsClearTransactionIOS />}
+        />
+        <Route
+          path="apis/ios/get-pending-transactions-ios"
+          element={<APIsGetPendingTransactionsIOS />}
+        />
+        <Route
+          path="apis/ios/get-all-transactions-ios"
+          element={<APIsGetAllTransactionsIOS />}
+        />
+        <Route path="apis/ios/sync-ios" element={<APIsSyncIOS />} />
+        <Route
+          path="apis/ios/get-storefront-ios"
+          element={<NavigatePreservingHash to="/docs/apis/get-storefront" />}
+        />
+        <Route
+          path="apis/ios/get-promoted-product-ios"
+          element={<APIsGetPromotedProductIOS />}
+        />
+        <Route
+          path="apis/ios/is-eligible-for-intro-offer-ios"
+          element={<APIsIsEligibleForIntroOfferIOS />}
+        />
+        <Route
+          path="apis/ios/subscription-status-ios"
+          element={<APIsSubscriptionStatusIOS />}
+        />
+        <Route
+          path="apis/ios/current-entitlement-ios"
+          element={<APIsCurrentEntitlementIOS />}
+        />
+        <Route
+          path="apis/ios/latest-transaction-ios"
+          element={<APIsLatestTransactionIOS />}
+        />
+        <Route
+          path="apis/ios/show-manage-subscriptions-ios"
+          element={<APIsShowManageSubscriptionsIOS />}
+        />
+        <Route
+          path="apis/ios/is-transaction-verified-ios"
+          element={<APIsIsTransactionVerifiedIOS />}
+        />
+        <Route
+          path="apis/ios/get-transaction-jws-ios"
+          element={<APIsGetTransactionJwsIOS />}
+        />
+        <Route
+          path="apis/ios/get-receipt-data-ios"
+          element={<APIsGetReceiptDataIOS />}
+        />
+        <Route
+          path="apis/ios/begin-refund-request-ios"
+          element={<APIsBeginRefundRequestIOS />}
+        />
+        <Route
+          path="apis/ios/present-code-redemption-sheet-ios"
+          element={<APIsPresentCodeRedemptionSheetIOS />}
+        />
+        <Route
+          path="apis/ios/get-app-transaction-ios"
+          element={<APIsGetAppTransactionIOS />}
+        />
+        <Route
+          path="apis/ios/can-present-external-purchase-notice-ios"
+          element={<APIsCanPresentExternalPurchaseNoticeIOS />}
+        />
+        <Route
+          path="apis/ios/present-external-purchase-notice-sheet-ios"
+          element={<APIsPresentExternalPurchaseNoticeSheetIOS />}
+        />
+        <Route
+          path="apis/ios/present-external-purchase-link-ios"
+          element={<APIsPresentExternalPurchaseLinkIOS />}
+        />
+        <Route
+          path="apis/ios/is-eligible-for-external-purchase-custom-link-ios"
+          element={<APIsIsEligibleForExternalPurchaseCustomLinkIOS />}
+        />
+        <Route
+          path="apis/ios/get-external-purchase-custom-link-token-ios"
+          element={<APIsGetExternalPurchaseCustomLinkTokenIOS />}
+        />
+        <Route
+          path="apis/ios/show-external-purchase-custom-link-notice-ios"
+          element={<APIsShowExternalPurchaseCustomLinkNoticeIOS />}
+        />
+        <Route
+          path="apis/ios/request-purchase-on-promoted-product-ios"
+          element={
+            <NavigatePreservingHash to="/docs/events/ios/promoted-product-listener-ios" />
+          }
+        />
+        <Route
+          path="apis/ios/validate-receipt-ios"
+          element={
+            <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
+          }
+        />
+        <Route
+          path="apis/android/acknowledge-purchase-android"
+          element={<APIsAcknowledgePurchaseAndroid />}
+        />
+        <Route
+          path="apis/android/consume-purchase-android"
+          element={<APIsConsumePurchaseAndroid />}
+        />
+        <Route
+          path="apis/android/check-alternative-billing-availability-android"
+          element={
+            <NavigatePreservingHash to="/docs/apis/android/is-billing-program-available-android" />
+          }
+        />
+        <Route
+          path="apis/android/show-alternative-billing-dialog-android"
+          element={
+            <NavigatePreservingHash to="/docs/apis/android/launch-external-link-android" />
+          }
+        />
+        <Route
+          path="apis/android/create-alternative-billing-token-android"
+          element={
+            <NavigatePreservingHash to="/docs/apis/android/create-billing-program-reporting-details-android" />
+          }
+        />
+        <Route
+          path="apis/android/enable-billing-program-android"
+          element={<APIsEnableBillingProgramAndroid />}
+        />
+        <Route
+          path="apis/android/is-billing-program-available-android"
+          element={<APIsIsBillingProgramAvailableAndroid />}
+        />
+        <Route
+          path="apis/android/get-billing-choice-info-android"
+          element={<APIsGetBillingChoiceInfoAndroid />}
+        />
+        <Route
+          path="apis/android/launch-external-link-android"
+          element={<APIsLaunchExternalLinkAndroid />}
+        />
+        <Route
+          path="apis/android/create-billing-program-reporting-details-android"
+          element={<APIsCreateBillingProgramReportingDetailsAndroid />}
+        />
+        <Route
+          path="apis/android/show-billing-program-information-dialog-android"
+          element={<APIsShowBillingProgramInformationDialogAndroid />}
+        />
+        <Route
+          path="apis/android/show-in-app-messages-android"
+          element={<APIsShowInAppMessagesAndroid />}
+        />
+        <Route
+          path="apis/android/open-redeem-offer-code-android"
+          element={<APIsOpenRedeemOfferCodeAndroid />}
+        />
+        <Route
+          path="apis/connection"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/products"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/purchase"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/subscription"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/ios"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/android"
+          element={<NavigatePreservingHash to="/docs/apis" />}
+        />
+        <Route
+          path="apis/validation"
+          element={<NavigatePreservingHash to="/docs/features/validation" />}
+        />
+        <Route
+          path="apis/debugging"
+          element={<NavigatePreservingHash to="/docs/features/debugging" />}
+        />
+        <Route
+          path="apis/refund"
+          element={<NavigatePreservingHash to="/docs/features/refund" />}
+        />
+        <Route path="events" element={<Events />} />
+        <Route
+          path="webhooks"
+          element={<NavigatePreservingHash to="/commerce-protocol/webhooks" />}
+        />
+        <Route
+          path="kit-backend"
+          element={
+            <ExternalRedirect
+              to="https://kit.openiap.dev/docs"
+              hashTargets={{
+                '#surface': 'https://kit.openiap.dev/docs/api',
+                '#api-keys-environments': 'https://kit.openiap.dev/docs/api',
+                '#dashboard': 'https://kit.openiap.dev/docs/projects',
+                '#order-lookup': 'https://kit.openiap.dev/docs/orders',
+                '#purchase-verification': 'https://kit.openiap.dev/docs/api',
+                '#entitlements': 'https://kit.openiap.dev/docs/api',
+                '#refresh-entitlements-without-sse':
+                  'https://kit.openiap.dev/docs/api',
+                '#hosted-capacity': 'https://kit.openiap.dev/docs/operations',
+                '#product-client-payloads':
+                  'https://kit.openiap.dev/docs/products',
+                '#fetch-client-payload-on-app-open':
+                  'https://kit.openiap.dev/docs/products',
+                '#cost-and-abuse-guardrails':
+                  'https://kit.openiap.dev/docs/products',
+                '#write-client-payload-from-ci':
+                  'https://kit.openiap.dev/docs/products',
+                '#client-payload-behavior':
+                  'https://kit.openiap.dev/docs/products',
+                '#product-sync': 'https://kit.openiap.dev/docs/products',
+                '#mcp': 'https://kit.openiap.dev/docs/ai-assistants',
+              }}
+            />
+          }
+        />
+        <Route
+          path="kit-compatibility"
+          element={
+            <ExternalRedirect
+              to="https://kit.openiap.dev/docs/compatibility"
+              hashTargets={Object.fromEntries(
+                [
+                  '#three-clocks',
+                  '#guarantees',
+                  '#degrade',
+                  '#spec-header',
+                  '#enforcement',
+                  '#your-side',
+                ].map((hash) => [
+                  hash,
+                  `https://kit.openiap.dev/docs/compatibility${hash}`,
+                ])
+              )}
+            />
+          }
+        />
+        <Route
+          path="events/purchase-updated-listener"
+          element={<EventsPurchaseUpdatedListener />}
+        />
+        <Route
+          path="events/purchase-error-listener"
+          element={<EventsPurchaseErrorListener />}
+        />
+        <Route
+          path="events/subscription-billing-issue-listener"
+          element={<EventsSubscriptionBillingIssueListener />}
+        />
+        <Route
+          path="events/ios/promoted-product-listener-ios"
+          element={<EventsPromotedProductListenerIOS />}
+        />
+        <Route
+          path="events/android/user-choice-billing-listener-android"
+          element={<EventsUserChoiceBillingListenerAndroid />}
+        />
+        <Route
+          path="events/android/developer-provided-billing-listener-android"
+          element={<EventsDeveloperProvidedBillingListenerAndroid />}
+        />
+        <Route path="errors" element={<Errors />} />
+        <Route path="features/purchase" element={<Purchase />} />
+        <Route path="features/subscription" element={<SubscriptionFeature />} />
+        <Route
+          path="features/subscription/upgrade-downgrade"
+          element={<SubscriptionUpgradeDowngrade />}
+        />
+        <Route
+          path="features/subscription/active-subscriptions"
+          element={<SubscriptionActiveSubscriptions />}
+        />
+        <Route path="features/discount" element={<Discount />} />
+        <Route
+          path="features/offer-code-redemption"
+          element={<OfferCodeRedemption />}
+        />
+        <Route
+          path="features/external-purchase"
+          element={<ExternalPurchase />}
+        />
+        <Route
+          path="features/subscription-billing-issue"
+          element={<SubscriptionBillingIssue />}
+        />
+        <Route path="features/refund" element={<Refund />} />
+        <Route path="features/validation" element={<Validation />} />
+        <Route path="features/debugging" element={<Debugging />} />
+        <Route
+          path="features/store-integrations"
+          element={<NavigatePreservingHash to="/docs/setup/store" />}
+        />
+        <Route
+          path="features/runtime-integrations"
+          element={<NavigatePreservingHash to="/docs/setup/store" />}
+        />
+        <Route
+          path="features/alternative-marketplace"
+          element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
+        />
+        <Route
+          path="features/alternative-marketplace/onside"
+          element={<NavigatePreservingHash to="/docs/setup/store/onside" />}
+        />
+        <Route
+          path="features/horizon-os"
+          element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
+        />
+        <Route
+          path="features/fire-os"
+          element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
+        />
+        <Route
+          path="features/vega-os"
+          element={<Navigate to="/docs/setup/store/amazon#vega-os" replace />}
+        />
+        <Route path="ios-setup" element={<IOSSetup />} />
+        <Route path="android-setup" element={<AndroidSetup />} />
+        <Route
+          path="horizon-setup"
+          element={<NavigatePreservingHash to="/docs/setup/store/horizon" />}
+        />
+        <Route
+          path="fireos-setup"
+          element={<Navigate to="/docs/setup/store/amazon#fire-os" replace />}
+        />
+        <Route path="setup" element={<SetupIndex />} />
+        <Route path="setup/store" element={<StoreSetup />} />
+        <Route path="setup/store/horizon" element={<HorizonStoreSetup />} />
+        <Route path="setup/store/amazon" element={<AmazonStoreSetup />} />
+        <Route path="setup/store/onside" element={<OnsideStoreSetup />} />
+        <Route path="setup/react-native" element={<ReactNativeSetup />} />
+        <Route path="setup/expo" element={<ExpoSetup />} />
+        <Route path="setup/flutter" element={<FlutterSetup />} />
+        <Route path="setup/godot" element={<GodotSetup />} />
+        <Route path="setup/kmp" element={<KmpSetup />} />
+        <Route path="setup/maui" element={<MauiSetup />} />
+        <Route path="example" element={<Example />} />
+        <Route
+          path="example/ios"
+          element={<Navigate to="/docs/example" replace />}
+        />
+        <Route
+          path="example/android"
+          element={<Navigate to="/docs/example" replace />}
+        />
+        <Route
+          path="example/horizon"
+          element={<Navigate to="/docs/example" replace />}
+        />
+        <Route
+          path="example/fireos"
+          element={<Navigate to="/docs/example" replace />}
+        />
+        <Route
+          path="example/amazon"
+          element={<Navigate to="/docs/example" replace />}
+        />
+        <Route path="guides/ai-assistants" element={<AIAssistants />} />
+        <Route
+          path="guides/mcp-server"
+          element={
+            <ExternalRedirect
+              to="https://kit.openiap.dev/docs/ai-assistants"
+              hashTargets={{
+                '#where-to-open-it':
+                  'https://kit.openiap.dev/docs/ai-assistants',
+                '#codex-plugin':
+                  'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                '#claude-code-plugin':
+                  'https://kit.openiap.dev/docs/ai-assistants/claude-plugin',
+                '#manual-config':
+                  'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                '#expo-smoke-test':
+                  'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                '#example-app':
+                  'https://kit.openiap.dev/docs/ai-assistants/codex-plugin',
+                '#tools': 'https://kit.openiap.dev/docs/ai-assistants',
+                '#safety': 'https://kit.openiap.dev/docs/ai-assistants',
+              }}
+            />
+          }
+        />
+        <Route path="guides/testing" element={<Testing />} />
+        <Route path="security/overview" element={<SecurityOverview />} />
+        <Route path="security/sbom" element={<SecuritySbom />} />
+        <Route path="security/compliance" element={<SecurityCompliance />} />
+        <Route path="foundation/about" element={<FoundationOnePager />} />
+        <Route
+          path="foundation/governance"
+          element={<FoundationGovernance />}
+        />
+        <Route
+          path="foundation/sponsorship"
+          element={<FoundationSponsorship />}
+        />
+        <Route
+          path="foundation/roadmap-budget"
+          element={<FoundationRoadmapBudget />}
+        />
+        <Route
+          path="foundation/founding-supporters"
+          element={<FoundationFoundingSupporters />}
+        />
+        <Route path="foundation/research" element={<FoundationResearch />} />
+        <Route
+          path="foundation/whitepapers"
+          element={<FoundationWhitepapers />}
+        />
+        <Route path="updates/announcements" element={<Announcements />} />
+        <Route
+          path="updates/notes"
+          element={<Navigate to="/docs/updates/releases" replace />}
+        />
+        <Route path="updates/releases" element={<Releases />} />
+        <Route path="updates/migration" element={<Migration />} />
+        {/* the page was published at updates/deprecations until 2026-08;
               keep the old path working for existing links and search results */}
-          <Route
-            path="updates/deprecations"
-            element={<NavigatePreservingHash to="/docs/updates/migration" />}
-          />
-          <Route path="updates/versions" element={<Versions />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-    </div>
+        <Route
+          path="updates/deprecations"
+          element={<NavigatePreservingHash to="/docs/updates/migration" />}
+        />
+        <Route path="updates/versions" element={<Versions />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </DocsShell>
   );
 }
 

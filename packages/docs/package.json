@@ -1,13 +1,14 @@
 {
   "name": "@hyodotdev/openiap-docs",
   "private": true,
-  "version": "3.4.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "showcase:metrics": "node scripts/refresh-showcase-metrics.mjs",
     "showcase:metrics:test": "node --test scripts/refresh-showcase-metrics.test.mjs",
     "dev": "bunx vite",
-    "build": "bun run typecheck && bunx vite build",
+    "build": "bun run typecheck && bun scripts/check-commerce-composition.mjs && bunx vite build && node scripts/prerender.mjs",
+    "test:discoverability": "node --test scripts/prerender.test.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit --pretty false && bunx vite build",
     "preview": "bunx vite preview",
@@ -21,7 +22,7 @@
   "dependencies": {
     "@preact/signals-react": "^3.2.1",
     "@types/prismjs": "^1.26.5",
-    "openiap-commerce-protocol": "workspace:*",
+    "@hyodotdev/openiap-commerce-protocol": "workspace:*",
     "prismjs": "^1.30.0",
     "react": "^19.0.0",
     "react-compiler-runtime": "^19.1.0-rc.2",

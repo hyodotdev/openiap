@@ -1,4 +1,5 @@
 import { useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
+import StaticExamples, { useStaticExamples } from './StaticExamples';
 import {
   CODE_LANGUAGES,
   DEFAULT_CODE_LANGUAGE,
@@ -37,6 +38,7 @@ const getCodeLanguageSnapshot = (): CodeLanguage => codeLanguageSignal.value;
 const getCodeLanguageServerSnapshot = (): CodeLanguage => DEFAULT_CODE_LANGUAGE;
 
 function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
+  const isStatic = useStaticExamples();
   const availableLanguages = CODE_LANGUAGES.filter(
     (lang) => children[lang] !== undefined
   );
@@ -48,6 +50,17 @@ function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
   const activeTab = availableLanguages.includes(preferredLanguage)
     ? preferredLanguage
     : (availableLanguages[0] ?? 'swift');
+
+  const examples = availableLanguages
+    .filter((lang) => isStatic || lang !== activeTab)
+    .map((lang) => (
+      <details key={lang}>
+        <summary>{LANGUAGE_LABELS[lang]} example</summary>
+        {children[lang]}
+      </details>
+    ));
+
+  if (isStatic) return <>{examples}</>;
 
   return (
     <div className="language-tabs">
@@ -64,6 +77,7 @@ function LanguageTabs({ children }: LanguageTabsProps): ReactElement {
         ))}
       </div>
       <div className="language-tabs-content">{children[activeTab]}</div>
+      <StaticExamples>{examples}</StaticExamples>
     </div>
   );
 }

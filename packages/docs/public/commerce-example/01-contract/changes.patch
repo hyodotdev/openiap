@@ -1,0 +1,2889 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..680f1ea
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,5 @@
++node_modules/
++.build-cache/
++*.sqlite*
++.env*
++.DS_Store
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..d5632c9
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,22 @@
++# Example acceptance
++
++Read `README.md` for the runnable scope, `INTEGRATE.md` for product boundaries,
++and `BUILD.md` for the implementation milestones and completion checks.
++
++Before finishing a change:
++
++- Follow the running example as a first-time reader on desktop and mobile.
++  Explain the result and the reader's next decision before implementation
++  detail. Keep a short record of the tasks attempted and points of confusion.
++- Compare the affected responsibility with the corresponding IAPKit handler
++  and test linked from the [purchase guide](https://openiap.dev/commerce-protocol/getting-started).
++  Report the actual differences; the installed protocol remains authoritative.
++- Replay changed implementation instructions in a clean project, using only
++  the documented inputs. Run the startup command, tests, and affected demos.
++  Retain failed attempts and verify the repaired behavior independently.
++- Identify the tested source revision, commands, results, and fixture scope.
++  Do not infer real-store support, full profile conformance, or interoperability
++  between providers from a local fixture run. Label an AI reader simulation as
++  a simulation, not a human user study.
++
++Do not manufacture successful output or weaken acceptance to hide a failure.
+diff --git a/BUILD.md b/BUILD.md
+new file mode 100644
+index 0000000..7336624
+--- /dev/null
++++ b/BUILD.md
+@@ -0,0 +1,87 @@
++# Build a purchase-to-access backend with AI
++
++Implement the OpenIAP Commerce Protocol in my repository. Start with one working
++purchase flow and prove each milestone before adding the next.
++
++## Read these first
++
++Use my project's package manager to install `openiap-commerce-protocol`.
++For example, with npm:
++
++```sh
++npm install openiap-commerce-protocol
++```
++
++The equivalent commands are `pnpm add`, `yarn add`, or `bun add` followed by the
++same package name. Read these files from the installed package directory
++(normally `node_modules/openiap-commerce-protocol/`):
++
++- `SPEC.md`: normative behavior, authorization, lifecycle, and delivery rules.
++- `DESIGN.md`: architecture and reasoning.
++- `generated/openapi/commerce-protocol.openapi.json`: REST request/response API.
++- `generated/bindings/http-binding.json`: operations, roles, and schema pointers.
++- `generated/schemas/commerce-protocol.bundle.schema.json`: offline validation.
++- `conformance/` and `vectors/`: portable checks and signature fixtures.
++
++The package supplies the contract and test artifacts, not a running backend.
++Implement the backend in my project. Do not require an OpenIAP or IAPKit checkout,
++and do not invent request fields, response shapes, role rules, or enum values.
++Follow my repository's instructions. Keep work uncommitted for review.
++
++## Start with a reviewable local result
++
++Use the stack already in my repository. If this is an empty project, choose a
++small HTTP/JSON backend and SQLite; the protocol does not require a specific
++language or runtime. Use an explicitly fictional fixture store and a controlled
++clock first. No real purchases, production credentials, or cloud resources.
++
++Build these milestones in order:
++
++1. **Contract:** serve capabilities and validate requests and responses against
++   the generated artifacts. Start with an empty persistent database. Advertise
++   only demonstrated support; do not claim partially implemented profiles.
++2. **Verification:** accept known fixture evidence, reject invalid evidence, and
++   distinguish an upstream outage from a negative verdict. Persist a purchase
++   without binding a user or granting account access.
++3. **Ownership and access:** bind through an authenticated server role. Obtain
++   the user identity from the backend session and its ownership policy. Refuse
++   cross-user transfer, including concurrent requests. Return tokenless status
++   and entitlement responses; verification credentials cannot enumerate users.
++4. **Lifecycle:** process cancellation and expiry. Cancellation preserves the
++   remaining paid period. Access closes at the expiry boundary even before an
++   expiry notification arrives. Store state, observation deduplication, and
++   outbound event bytes in one transaction. Prove rollback under a write failure.
++5. **Delivery:** sign the exact persisted bytes, authenticate raw bytes at the
++   receiver, and insert into a durable inbox before acknowledging. Demonstrate
++   503 → retry → success, lost-ack redelivery, tamper rejection, and a bounded
++   dead-letter path. Retry with unchanged event/body/delivery identity and a
++   fresh signature. Mark loopback transport as a local test exception; a real
++   events profile requires the public HTTPS destination protections in the spec.
++6. **Recovery:** reopen the databases with pending deliveries, resume processing,
++   and prove that neither ownership nor receiver deduplication disappears.
++
++After each milestone, run it. Show the command, actual API result, storage
++change, and passing assertions. Capture the working screen. Do not manufacture
++logs, screenshots, conformance counts, or claims about capabilities not tested.
++
++## Deliver
++
++- A runnable local backend and small inspection UI.
++- One command that verifies the demonstrated flow and exits nonzero on failure.
++- A short visual walkthrough, with real captured results for each milestone.
++- The exact scope and remaining work, including real store validation,
++  authentication, erasure, multi-tenant isolation, public HTTPS delivery,
++  operations, and full profile conformance. Keep the main explanation short;
++  link the specification for details.
++
++## Then extend toward a production provider
++
++Ask me which real store, backend identity system, and deployment environment to
++integrate before using credentials or external services. Implement the remaining
++operations of each chosen profile, including erasure for `accountLifecycle`.
++Run the portable conformance runner for every advertised binding and profile;
++also run real store sandbox, recovery, isolation, and load tests. Treat IAPKit as
++an implementation example, never as a replacement for the protocol's contract.
++
++Recorded local example and reproduction instructions:
++https://github.com/hyodotdev/openiap/tree/main/packages/kit/examples/commerce-protocol
+diff --git a/INTEGRATE.md b/INTEGRATE.md
+new file mode 100644
+index 0000000..122ee9f
+--- /dev/null
++++ b/INTEGRATE.md
+@@ -0,0 +1,146 @@
++# Build your part of the OpenIAP ecosystem
++
++Use this brief with an AI in your product repository. Pick the role you sell;
++connect the other roles to existing services. An integrated platform can own
++several roles. These are product roles, not additional protocol profiles.
++
++| Your product                | You deliver                                                                            | Connect to                                                            |
++| --------------------------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
++| Paywalls and experiments    | Presentation, product selection, purchase/result callbacks                             | The app's existing OpenIAP purchase flow; optionally lifecycle events |
++| Commerce backend            | Store verification, ownership, access, lifecycle delivery for the profiles you declare | Authenticated app backend, store adapters, downstream receivers       |
++| Analytics, attribution, CRM | Durable event ingestion and your own reporting or automation                           | A configured commerce emitter                                         |
++| Integrated platform         | The roles above that your product supplies                                             | One app integration with an explicit owner for each state transition  |
++
++## Start with working code
++
++[Download the complete example](https://github.com/hyodotdev/openiap-commerce-protocol-example/archive/refs/heads/main.zip)
++and extract it into an empty directory. It contains `client-bridge.mjs`,
++`consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
++The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
++contains the same project and its build history.
++
++Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`,
++or `bun install`. This example's runtime is Bun. The contract is
++`openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
++
++- `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
++  installed verification schema; rejects missing or unsupported evidence.
++- `npm run demo:consumer`: sends signed lifecycle events to a SQLite inbox over
++  HTTP, repeats deliveries, rejects tampering, and reopens persisted storage.
++- `npm test` and `npm start`: verify and inspect the fixture commerce backend.
++
++The bridge and consumer can be used separately. These checks prove local
++boundaries with fictional inputs, not a mobile checkout or a store adapter.
++The [receiver setup guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/receiver.md)
++gives the endpoint, configuration, and limits.
++
++## Task for the AI
++
++Use the [purchase walkthrough](https://openiap.dev/commerce-protocol/getting-started)
++to compare this example with [IAPKit's service implementation](https://github.com/hyodotdev/openiap/tree/main/packages/kit)
++at each step. This repository shows the small local implementation; IAPKit shows
++store adapters, project credentials, erasure, and both API bindings. Follow the
++linked handlers and checks for the responsibility you own. The installed
++specification defines the required behavior; neither implementation changes it.
++
++Inspect this repository's purchase flow and choose the role from the table.
++Install `openiap-commerce-protocol` with this repository's package manager.
++Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
++vectors for the role being implemented. Package 0.1.0 does not ship `DESIGN.md`;
++the [role guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md)
++and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf) give context.
++
++Implement the selected role using the product's existing framework and design
++system. Deliver usable code and a short connection example, not a list of work
++for the app team. Follow these boundaries:
++
++1. **Paywall:** accept the app's store-fetched products, return a selected product
++   ID to its existing purchase callback, and display pending, canceled, failed,
++   and fulfilled results. Let the host select valid store offers. Never infer
++   purchase success or access from a click. Wire result callbacks to the host's
++   existing purchase lifecycle. Commerce Protocol defines no universal paywall
++   UI, targeting, or product catalog API; document this host adapter explicitly.
++2. **App connection:** the app uses its OpenIAP library to fetch products and
++   request a store purchase. Its purchase callback sends evidence to its
++   authenticated backend. Use `client-bridge.mjs` there to map Apple, Google, Amazon, and Horizon
++   purchase fields into a verification input; this does not authenticate the
++   evidence. Keep server keys and user selection on that backend. Verify, bind
++   under the ownership policy, read current access, fulfill durably, then finish
++   the transaction through the client library. Keep store acknowledgement and
++   consumption responsibilities explicit for the chosen store and product type.
++3. **Commerce:** provide core discovery and implement every operation/obligation
++   of each advertised profile and binding. Account lifecycle includes erasure.
++   Keep one authoritative ownership and entitlement service for each app/project,
++   even when it delegates verification. Use [backend build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md) for the backend
++   implementation sequence. The fixture backend advertises no complete profiles.
++4. **Data:** reuse or port `webhooks.mjs` and `consumer.mjs`. Authenticate exact
++   body bytes before parsing, validate, durably deduplicate in the configured
++   emitter/project scope, then acknowledge. Keep optional unknown values unknown.
++   Receiving events does not qualify a product for the `events` emitter profile.
++   Lifecycle events alone are not a revenue ledger: charge, refund, trial, tax,
++   currency conversion, attribution, and reporting policies need their own data
++   and product-specific rules. Do not count every event as a new purchase.
++
++The current client `verifyPurchaseWithProvider` helper supports IAPKit's own
++API. A different provider name or base URL does not turn it into this protocol.
++Other providers connect through the app backend's REST or GraphQL calls. Amazon and Horizon require a store-specific user identifier distinct from the
++app user ID. Pass it as `context.storeUserId` to the bridge after authenticating
++the store account link. `startAppBackend` requires `resolveStoreUser` for these
++stores and rejects evidence belonging to a different store account. Never
++implement that callback by copying a user ID from the request body.
++
++## Select the store before implementing
++
++Follow the six-step purchase flow with your chosen store. Verification and
++binding use these evidence shapes:
++
++| Store | Purchase evidence | IAPKit access path |
++| --- | --- | --- |
++| Apple | `apple.jws` from the store purchase | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Google | `google.purchaseToken` | Bind the verified subscription; read its current state and listen for lifecycle events |
++| Amazon | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS |
++| Meta Horizon | `horizon.userId`, `horizon.sku` | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta |
++
++For Amazon and Horizon, use `entitlements.productIds` for access. IAPKit does
++not invent a subscription record, expiry date, or lifecycle event for these
++ownership checks. An empty `subscriptions` list can accompany owned products.
++A negative store answer removes the product; a failed store call fails the
++read. Decide caching and outage policy in the app backend. Reads currently
++fail if an account has more than 20 linked Amazon/Horizon purchase rows.
++
++For Quest, verify Meta's user proof on your authenticated backend before linking
++that Meta user to the app account. Follow the official
++[Meta user verification guide](https://developers.meta.com/horizon/documentation/android-apps/ps-ownership/).
++For Amazon, establish the store account association through your application's
++trusted sign-in and ownership policy. Receipt possession alone does not prove
++which app account may claim it. The runnable comparison uses explicit fictional
++session links; it does not implement your authentication provider.
++
++Keep consumable fulfillment separate: record each granted unit durably and
++idempotently before finishing/consuming. A verified SKU is not a new quantity
++to credit on every read. The protocol walkthrough demonstrates Premium access;
++it does not implement a wallet or sell a Nami paywall.
++
++For IAPKit setup, configure Apple bundle/App ID and Server API signing key,
++Google package and service account, Meta App ID/secret, or Amazon RVS shared
++secret in the project. Keep secrets on the server. Enable Amazon sandbox only
++for App Tester evidence. The local comparison requires none of these real
++credentials; its external store responses are fixtures.
++
++## Deliver and prove the connection
++
++Ship the adapter/endpoint, setup command, supported stores and profiles,
++credential configuration, and one app-facing integration example. Agree on
++opaque user IDs, issuer/project scope, and versions with connected services.
++Protocol compatibility does not perform onboarding, provisioning, ownership
++migration, or provider discovery for the app automatically.
++
++For each owned role, run a successful flow and its failure cases. Inspect the
++rendered result and actual response, fix the failing behavior, and repeat the
++same check. Save the source revision, commands, responses, screenshots, and
++limits. Include cancellation, pending purchase, duplicate delivery, expiry,
++and account isolation where applicable. An integrated platform must prove each
++role it claims; a paywall specialist need not implement a purchase verifier.
++
++Label fixture checks separately from real device/store sandbox checks and full
++profile conformance. Never claim the latter from a schema match alone.
+diff --git a/LICENSE b/LICENSE
+new file mode 100644
+index 0000000..2987b94
+--- /dev/null
++++ b/LICENSE
+@@ -0,0 +1,21 @@
++# MIT License
++
++Copyright (c) 2025 hyo.dev
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..d643942
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,51 @@
++# OpenIAP Commerce Protocol example
++
++Build a small purchase-to-access backend with AI, one working milestone at a
++time. Each checkpoint includes the task, source changes, executed checks, and
++a screenshot of that version running.
++
++## Run
++
++Use your favorite package manager to install dependencies:
++
++```sh
++npm install # or pnpm install, yarn install, bun install
++npm test
++npm start
++```
++
++This example uses the Bun runtime for HTTP and SQLite. Its scripts work through
++any package manager with Bun installed. The protocol can be implemented in your
++own language and stack. Open http://127.0.0.1:5181 and run each available step.
++
++## Build with AI
++
++Give [BUILD.md](BUILD.md) to your AI. Ask it to add one milestone, run it, inspect
++the actual screen and responses, fix any issue, and repeat the failed check.
++Review the result before moving to the next milestone.
++
++[docs/build](docs/build) records this development run. Every source archive is
++an independently runnable checkpoint. Later functionality is absent from the
++earlier source, rather than hidden behind a runtime step switch. The dashboard
++replays the operations implemented at that checkpoint.
++
++This implementation extracts and extends the previously tested OpenIAP Commerce
++Lab prototype. It is an incremental implementation record, not a claim that an
++AI produced the backend in one prompt without reference code.
++
++## Scope
++
++The HTTP requests, SQLite writes, ownership rules, HMAC signatures, delivery
++retries, and database recovery are real local operations. The store, user, and
++clock are fixtures. No real purchases or credentials are needed.
++
++This is an educational part of the IAPKit architecture, not a production
++provider. Real store validation, login, erasure, tenant isolation, GraphQL,
++public HTTPS delivery, and full profile conformance remain separate work.
++
++## Record another checkpoint
++
++Update `ai-task.md` with the task and review notes. Run `npm test`, inspect the
++dashboard, then `npm run capture` with Google Chrome installed. Capture runs the
++checks again and preserves failed attempts. Published checkpoints are immutable;
++use a new directory name in `checkpoint.json` for another revision.
+diff --git a/ai-task.md b/ai-task.md
+new file mode 100644
+index 0000000..8469ac8
+--- /dev/null
++++ b/ai-task.md
+@@ -0,0 +1,7 @@
++# Start with the contract
++
++Install the published contract in an independent project. Add capabilities, request/response validation, local HTTP inspection, and SQLite. Return UNSUPPORTED_PROFILE for operations that have not been implemented. Do not claim profile conformance.
++
++Use the existing reviewed prototype where it satisfies the installed contract.
++Run the backend, inspect the result, correct problems, and rerun the affected check.
++Keep all work uncommitted.
+diff --git a/capture.mjs b/capture.mjs
+new file mode 100644
+index 0000000..5435689
+--- /dev/null
++++ b/capture.mjs
+@@ -0,0 +1,78 @@
++import assert from 'node:assert/strict';
++import { createHash } from 'node:crypto';
++import { spawnSync } from 'node:child_process';
++import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, cpSync, rmSync } from 'node:fs';
++import { join } from 'node:path';
++import { chromium } from '@playwright/test';
++import { startLab } from './server.mjs';
++import { verifyLab } from './verify.mjs';
++import { STAGES } from './scenario.mjs';
++
++const root = import.meta.dir;
++const checkpoint = JSON.parse(readFileSync(join(root, 'checkpoint.json'), 'utf8'));
++const output = join(root, 'docs/build', checkpoint.id);
++mkdirSync(output, { recursive: true });
++assert(!existsSync(join(output, 'run.json')), 'Checkpoint already published; choose a new checkpoint id.');
++const attempt = readdirSync(output).filter(name => name.startsWith('attempt-')).length + 1;
++const startedAt = new Date().toISOString();
++let checks;
++try {
++  checks = await verifyLab();
++  writeFileSync(join(output, `attempt-${attempt}.txt`), JSON.stringify({ startedAt, command: 'npm test', passed: checks.length, checks }, null, 2));
++} catch (error) {
++  writeFileSync(join(output, `attempt-${attempt}.txt`), `${startedAt}\n${error.stack}\n`);
++  throw error;
++}
++
++const files = readdirSync(root).filter(name => /\.(mjs|html|json|md)$/.test(name) || name === 'LICENSE' || name === '.gitignore');
++const cache = join(root, '.build-cache');
++const current = join(cache, 'after');
++const previous = join(cache, 'before');
++mkdirSync(previous, { recursive: true });
++rmSync(current, { recursive: true, force: true });
++mkdirSync(current, { recursive: true });
++for (const name of files) cpSync(join(root, name), join(current, name));
++const diff = spawnSync('git', ['diff', '--no-index', '--no-ext-diff', '--', 'before', 'after'], { cwd: cache, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 });
++assert([0, 1].includes(diff.status), diff.stderr);
++const patch = diff.stdout.split('\n').map(line => /^(diff --git |--- a\/|\+\+\+ b\/)/.test(line) ? line.replace(/([ab])\/(?:before|after)\//g, '$1/') : line).join('\n');
++writeFileSync(join(output, 'changes.patch'), patch);
++const archive = spawnSync('tar', ['-czf', join(output, 'source.tar.gz'), '-C', current, ...files]);
++assert.equal(archive.status, 0, archive.stderr?.toString());
++
++const lab = startLab();
++const browser = await chromium.launch({ channel: 'chrome' });
++try {
++  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
++  const errors = [];
++  page.on('pageerror', error => errors.push(error.message));
++  await page.goto(lab.runtime.baseUrl, { waitUntil: 'domcontentloaded' });
++  for (let step = 1; step <= STAGES.length; step++) {
++    await page.getByRole('button', { name: `Run step ${step} →`, exact: true }).click();
++    await page.locator('#progress').filter({ hasText: `Milestone ${step} / ${STAGES.length}` }).waitFor();
++  }
++  assert.deepEqual(errors, []);
++  assert.equal(await page.locator('#error').textContent(), '');
++  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
++  await page.screenshot({ path: join(output, 'screen.png'), fullPage: true });
++  const history = lab.scenario.history;
++  const record = {
++    ...checkpoint,
++    startedAt,
++    recordedAt: new Date().toISOString(),
++    packageVersion: JSON.parse(readFileSync(join(root, 'node_modules/@hyodotdev/openiap-commerce-protocol/package.json'), 'utf8')).version,
++    task: readFileSync(join(root, 'ai-task.md'), 'utf8'),
++    sourceHashes: Object.fromEntries(files.map(name => [name, createHash('sha256').update(readFileSync(join(current, name))).digest('hex')])),
++    checks,
++    history,
++    screenshot: 'screen.png',
++    scope: 'Incremental source checkpoint adapted from the reviewed Commerce Lab prototype. HTTP and SQLite execute locally; store and clock are fixtures. No full profile claim.',
++  };
++  writeFileSync(join(output, 'run.json'), JSON.stringify(record, null, 2) + '\n');
++  rmSync(previous, { recursive: true, force: true });
++  cpSync(current, previous, { recursive: true });
++  console.log(`Captured ${checkpoint.id}: ${checks.length} checks, ${files.length} source files.`);
++} finally {
++  await browser.close();
++  await lab.close();
++  rmSync(lab.directory, { recursive: true, force: true });
++}
+diff --git a/checkpoint-tools.mjs b/checkpoint-tools.mjs
+new file mode 100644
+index 0000000..8ef96bc
+--- /dev/null
++++ b/checkpoint-tools.mjs
+@@ -0,0 +1,188 @@
++import assert from "node:assert/strict";
++import { createHash } from "node:crypto";
++import { spawnSync } from "node:child_process";
++import {
++  cpSync,
++  existsSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  readdirSync,
++  statSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir, homedir } from "node:os";
++import { join } from "node:path";
++
++export const SOURCE_FILES = [
++  ".gitignore",
++  ".yarnrc.yml",
++  "LICENSE",
++  "AGENTS.md",
++  "README.md",
++  "BUILD.md",
++  "INTEGRATE.md",
++  "ai-task.md",
++  "checkpoint.json",
++  "package.json",
++  "package-lock.json",
++  "contract.mjs",
++  "provider.mjs",
++  "erasure.mjs",
++  "verify-erasure.mjs",
++  "verify-stores.mjs",
++  "webhooks.mjs",
++  "consumer.mjs",
++  "client-bridge.mjs",
++  "scenario.mjs",
++  "server.mjs",
++  "verify.mjs",
++  "dashboard.html",
++  "composition/README.md",
++  "composition/app-backend.mjs",
++  "composition/app-backend.test.mjs",
++  "composition/receiver.test.mjs",
++  "composition/commerce-client.mjs",
++  "composition/export.mjs",
++  "composition/memory-provider.mjs",
++  "composition/purchase-flow.mjs",
++  "composition/run.mjs",
++
++  "capture.mjs",
++  "export-docs.mjs",
++  "checkpoint-tools.mjs",
++  "checkpoint-tools.test.mjs",
++  "verify-checkpoints.mjs",
++];
++export const sha256 = (file) =>
++  createHash("sha256").update(readFileSync(file)).digest("hex");
++export function hashes(directory) {
++  const entries = [];
++  function visit(relative) {
++    for (const name of readdirSync(join(directory, relative)).sort()) {
++      const file = join(relative, name);
++      if (statSync(join(directory, file)).isDirectory()) visit(file);
++      else entries.push([file, sha256(join(directory, file))]);
++    }
++  }
++  visit("");
++  return Object.fromEntries(entries);
++}
++export function sanitize(text) {
++  const roots = [process.cwd(), import.meta.dir, homedir()]
++    .filter(Boolean)
++    .sort((a, b) => b.length - a.length);
++  let result = text;
++  for (const root of roots) result = result.replaceAll(root, "<local-path>");
++  return result.replace(
++    /\/[^\s"']*\/commerce-(?:capture|patch|verify|lab|example|compare|consumer)-[^\s/"']+/g,
++    "<temporary-project>",
++  );
++}
++export function nextAttempt(directory) {
++  return (
++    Math.max(
++      0,
++      ...readdirSync(directory).map((name) =>
++        Number(/^(?:attempt|failure)-(\d+)\.txt$/.exec(name)?.[1] ?? 0),
++      ),
++    ) + 1
++  );
++}
++export function run(command, args, cwd) {
++  const result = spawnSync(command, args, {
++    cwd,
++    encoding: "utf8",
++    maxBuffer: 20 * 1024 * 1024,
++  });
++  const output = sanitize((result.stdout ?? "") + (result.stderr ?? ""));
++  assert.equal(result.status, 0, `${command} ${args.join(" ")}\n${output}`);
++  return {
++    command: [command, ...args].join(" "),
++    exitCode: result.status,
++    output,
++  };
++}
++export function extract(archive, target) {
++  mkdirSync(target, { recursive: true });
++  // Older macOS archives contain AppleDouble metadata, not source files.
++  run("tar", [
++    ...(process.platform === "darwin" ? ["--no-mac-metadata"] : []),
++    "--exclude=._*",
++    "-xzf",
++    archive,
++    "-C",
++    target,
++  ]);
++}
++export function normalizePatch(patch) {
++  return patch
++    .split("\n")
++    .map((line) => {
++      if (/^(diff --git |--- a\/|\+\+\+ b\/)/.test(line)) {
++        return line.replace(/([ab])\/(?:before|after)\//g, "$1/");
++      }
++      return line;
++    })
++    .join("\n");
++}
++export function createPatch(before, after) {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-patch-"));
++  try {
++    cpSync(before, join(temp, "before"), { recursive: true });
++    cpSync(after, join(temp, "after"), { recursive: true });
++    const result = spawnSync(
++      "git",
++      ["diff", "--no-index", "--no-ext-diff", "--", "before", "after"],
++      { cwd: temp, encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
++    );
++    assert([0, 1].includes(result.status), result.stderr);
++    const patch = normalizePatch(result.stdout);
++    writeFileSync(join(temp, "changes.patch"), patch);
++    cpSync(before, join(temp, "applied"), { recursive: true });
++    if (patch)
++      run("git", ["apply", join(temp, "changes.patch")], join(temp, "applied"));
++    assert.deepEqual(
++      hashes(join(temp, "applied")),
++      hashes(after),
++      "Patch must reproduce the source archive exactly",
++    );
++    return patch;
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++}
++export function readRecords(directory) {
++  const records = readdirSync(directory)
++    .filter(
++      (name) =>
++        /^\d\d-[\w-]+$/.test(name) &&
++        existsSync(join(directory, name, "run.json")),
++    )
++    .sort()
++    .map((name) =>
++      JSON.parse(readFileSync(join(directory, name, "run.json"), "utf8")),
++    );
++  const byId = new Map(records.map((record) => [record.id, record]));
++  const ordered = [],
++    visiting = new Set(),
++    visited = new Set();
++  function visit(record) {
++    if (visited.has(record.id)) return;
++    assert(!visiting.has(record.id), `Checkpoint cycle: ${record.id}`);
++    visiting.add(record.id);
++    if (record.previous) {
++      assert(
++        byId.has(record.previous),
++        `Missing predecessor: ${record.previous}`,
++      );
++      visit(byId.get(record.previous));
++    }
++    visiting.delete(record.id);
++    visited.add(record.id);
++    ordered.push(record);
++  }
++  records.forEach(visit);
++  return ordered;
++}
+diff --git a/checkpoint-tools.test.mjs b/checkpoint-tools.test.mjs
+new file mode 100644
+index 0000000..a45e857
+--- /dev/null
++++ b/checkpoint-tools.test.mjs
+@@ -0,0 +1,136 @@
++import assert from "node:assert/strict";
++import { test } from "bun:test";
++import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir, homedir } from "node:os";
++import { join } from "node:path";
++import {
++  createPatch,
++  extract,
++  hashes,
++  nextAttempt,
++  run,
++  sanitize,
++  readRecords,
++} from "./checkpoint-tools.mjs";
++
++test("archive extraction excludes macOS metadata and preserves source hashes", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    const source = join(temp, "source");
++    mkdirSync(source);
++    writeFileSync(join(source, "README.md"), "Source content\n");
++    const expected = hashes(source);
++    const metadata = Buffer.alloc(70);
++    metadata.writeUInt32BE(0x00051607, 0);
++    metadata.writeUInt32BE(0x00020000, 4);
++    metadata.writeUInt16BE(1, 24);
++    metadata.writeUInt32BE(9, 26);
++    metadata.writeUInt32BE(38, 30);
++    metadata.writeUInt32BE(32, 34);
++    writeFileSync(join(source, "._README.md"), metadata);
++    const archive = join(temp, "source.tar.gz");
++    run("env", [
++      "COPYFILE_DISABLE=1",
++      "tar",
++      "-czf",
++      archive,
++      "-C",
++      source,
++      "._README.md",
++      "README.md",
++    ]);
++    const target = join(temp, "extracted");
++    extract(archive, target);
++    assert.deepEqual(hashes(target), expected);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
++test("patches preserve path-like source text across additions, changes, and deletions", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-patch-test-"));
++  try {
++    const before = join(temp, "before"),
++      after = join(temp, "after");
++    mkdirSync(before);
++    mkdirSync(after);
++    writeFileSync(
++      join(after, "capture.mjs"),
++      "const paths = ['a/before/', 'b/after/'];\n",
++    );
++    assert.match(
++      createPatch(before, after),
++      /\+const paths = \['a\/before\/', 'b\/after\/'\];/,
++    );
++    writeFileSync(join(before, "capture.mjs"), "old\n");
++    writeFileSync(join(before, "removed.md"), "remove\n");
++    assert.match(createPatch(before, after), /deleted file mode/);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
++test("failed attempts get new numbers and private paths are redacted", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    writeFileSync(join(temp, "failure-1.txt"), "first failure");
++    assert.equal(nextAttempt(temp), 2);
++    writeFileSync(join(temp, "failure-2.txt"), "second failure");
++    assert.equal(nextAttempt(temp), 3);
++    const output = sanitize(
++      `${homedir()}/.npm/_logs/debug.log ${import.meta.dir}/capture.mjs ${temp}/source.mjs`,
++    );
++    assert(!output.includes(homedir()));
++    assert(!output.includes(import.meta.dir));
++    assert(!output.includes(temp));
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
++test("unfinished captures do not hide completed records", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  try {
++    mkdirSync(join(temp, "01-complete"));
++    writeFileSync(
++      join(temp, "01-complete/run.json"),
++      JSON.stringify({ id: "01-complete" }),
++    );
++    mkdirSync(join(temp, "02-failed"));
++    writeFileSync(join(temp, "02-failed/failure-1.txt"), "Browser unavailable");
++    assert.deepEqual(readRecords(temp), [{ id: "01-complete" }]);
++    writeFileSync(
++      join(temp, "02-failed/run.json"),
++      JSON.stringify({ id: "02-failed" }),
++    );
++    assert.equal(readRecords(temp).length, 2);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
++
++test("checkpoint replay follows predecessors instead of directory name order", () => {
++  const temp = mkdtempSync(join(tmpdir(), "commerce-capture-test-"));
++  const records = [
++    { id: "07-reviewed", previous: "01-start" },
++    { id: "07-interoperable", previous: "07-reviewed" },
++    { id: "01-start" },
++  ];
++  try {
++    for (const record of records) {
++      mkdirSync(join(temp, record.id));
++      writeFileSync(join(temp, record.id, "run.json"), JSON.stringify(record));
++    }
++    assert.deepEqual(
++      readRecords(temp).map((record) => record.id),
++      ["01-start", "07-reviewed", "07-interoperable"],
++    );
++    writeFileSync(
++      join(temp, "01-start/run.json"),
++      JSON.stringify({ id: "01-start", previous: "07-interoperable" }),
++    );
++    assert.throws(() => readRecords(temp), /Checkpoint cycle/);
++  } finally {
++    rmSync(temp, { recursive: true, force: true });
++  }
++});
+diff --git a/checkpoint.json b/checkpoint.json
+new file mode 100644
+index 0000000..04e22f5
+--- /dev/null
++++ b/checkpoint.json
+@@ -0,0 +1,7 @@
++{
++  "step": 1,
++  "id": "01-contract",
++  "title": "Start with the contract",
++  "built": "HTTP routes + schema validation + SQLite",
++  "result": "A running server, an empty purchase table, and no access."
++}
+diff --git a/client-bridge.mjs b/client-bridge.mjs
+new file mode 100644
+index 0000000..248d314
+--- /dev/null
++++ b/client-bridge.mjs
+@@ -0,0 +1,130 @@
++import assert from "node:assert/strict";
++import { operation, validate } from "./contract.mjs";
++
++// Run on the app backend; the provider still authenticates the store evidence.
++export function toVerifyPurchaseInput(purchase, context = {}) {
++  const { store, purchaseToken } = purchase ?? {};
++  let input;
++  const required = (value) => {
++    if (typeof value !== "string" || !value.trim())
++      throw new Error("Purchase evidence is required");
++    return value;
++  };
++  switch (store) {
++    case "apple":
++      input = { store, apple: { jws: required(purchaseToken) } };
++      break;
++    case "google":
++      input = { store, google: { purchaseToken: required(purchaseToken) } };
++      break;
++    case "amazon":
++      input = {
++        store,
++        amazon: {
++          userId: required(context.storeUserId),
++          receiptId: required(purchaseToken),
++          ...(context.amazonSandbox === true ? { sandbox: true } : {}),
++        },
++      };
++      break;
++    case "horizon":
++      input = {
++        store,
++        horizon: {
++          userId: required(context.storeUserId),
++          sku: required(purchase.productId),
++        },
++      };
++      break;
++    default:
++      throw new Error("Unsupported purchase store");
++  }
++  if (!validate(operation("verifyPurchase").input, input))
++    throw new Error("Purchase evidence does not match the protocol input");
++  return input;
++}
++
++export function runBridgeDemo() {
++  const checks = [];
++  for (const store of ["apple", "google"]) {
++    const token = `fictional-${store}-evidence`;
++    const input = toVerifyPurchaseInput({
++      store,
++      purchaseToken: token,
++      productId: "premium.monthly",
++      userId: "untrusted-client-claim",
++    });
++    assert.deepEqual(input, {
++      store,
++      ...(store === "apple"
++        ? { apple: { jws: token } }
++        : { google: { purchaseToken: token } }),
++    });
++    checks.push(`${store}: maps evidence without forwarding client identity`);
++    assert(validate(operation("verifyPurchase").input, input));
++    checks.push(`${store}: matches the installed verification input schema`);
++  }
++  for (const store of ["amazon", "horizon"]) {
++    const input = toVerifyPurchaseInput(
++      {
++        store,
++        purchaseToken: "receipt-1",
++        productId: "premium.monthly",
++        userId: "untrusted-app-user",
++      },
++      { storeUserId: "authenticated-store-user", amazonSandbox: true },
++    );
++    assert.deepEqual(
++      input,
++      store === "amazon"
++        ? {
++            store,
++            amazon: {
++              userId: "authenticated-store-user",
++              receiptId: "receipt-1",
++              sandbox: true,
++            },
++          }
++        : {
++            store,
++            horizon: {
++              userId: "authenticated-store-user",
++              sku: "premium.monthly",
++            },
++          },
++    );
++    checks.push(
++      `${store}: uses server-selected store identity, distinct from the app user`,
++    );
++    assert(validate(operation("verifyPurchase").input, input));
++    checks.push(`${store}: matches the installed verification input schema`);
++  }
++  for (const [label, purchase] of [
++    ["missing purchase", null],
++    ["unknown store", { store: "unknown", purchaseToken: "fictional" }],
++    [
++      "Amazon requires its authenticated store user",
++      { store: "amazon", purchaseToken: "fictional" },
++    ],
++    [
++      "Horizon requires its authenticated store user",
++      { store: "horizon", purchaseToken: "fictional" },
++    ],
++    ["missing evidence", { store: "apple" }],
++    ["blank evidence", { store: "google", purchaseToken: " " }],
++    ["non-string evidence", { store: "apple", purchaseToken: 123 }],
++    [
++      "oversized evidence",
++      { store: "apple", purchaseToken: "x".repeat(16385) },
++    ],
++  ]) {
++    assert.throws(() => toVerifyPurchaseInput(purchase), Error);
++    checks.push(`Rejects ${label}`);
++  }
++  return checks;
++}
++
++if (import.meta.main)
++  console.log(
++    `Client boundary: ${runBridgeDemo().length} checks passed against the installed contract. Fixture fields only; no SDK checkout or store contacted.`,
++  );
+diff --git a/consumer.mjs b/consumer.mjs
+new file mode 100644
+index 0000000..72eb7cb
+--- /dev/null
++++ b/consumer.mjs
+@@ -0,0 +1,211 @@
++import assert from "node:assert/strict";
++import { randomBytes, randomUUID, createHash } from "node:crypto";
++import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import { WEBHOOK, COMMERCE_EVENT_VERSION } from "@hyodotdev/openiap-commerce-protocol";
++import { createReceiver, sign } from "./webhooks.mjs";
++import { validate } from "./contract.mjs";
++
++// One app inbox; named emitters can bind separate signing keys to project IDs.
++export function startConsumer({ secret, path, port = 0, now = Date.now }) {
++  assert(secret, "Set COMMERCE_WEBHOOK_SECRET to the provider signing secret.");
++  let receiver = createReceiver(path, secret, now);
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port,
++    maxRequestBodySize: 64 * 1024,
++    fetch(request) {
++      const url = new URL(request.url);
++      if (request.method === "POST" && url.pathname === "/webhooks/commerce")
++        return receiver.fetch(request);
++      if (request.method === "GET" && url.pathname === "/health")
++        return Response.json({ ready: true });
++      return new Response("Not found", { status: 404 });
++    },
++  });
++  return {
++    url: `http://127.0.0.1:${server.port}/webhooks/commerce`,
++    count: () => receiver.count(),
++    eraseUser: (userId) => receiver.eraseUser(userId),
++    inspect: () => receiver.inspect(),
++    reopen() {
++      receiver.close();
++      receiver = createReceiver(path, secret, now);
++    },
++    async close() {
++      await server.stop(true);
++      receiver.close();
++    },
++  };
++}
++
++export async function runConsumerDemo() {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-consumer-"));
++  const secret = randomBytes(32).toString("hex");
++  const now = Date.now();
++  const consumer = startConsumer({
++    secret,
++    path: join(directory, "inbox.sqlite"),
++    now: () => now,
++  });
++  const checks = [],
++    results = [];
++  const check = (name, actual, expected) => {
++    assert.deepEqual(actual, expected, name);
++    checks.push(name);
++  };
++  const lifecycle = [
++    ["subscription.started", "Active", true],
++    ["entitlement.granted", "Active", true],
++    ["subscription.renewed", "Active", true],
++    ["subscription.canceled", "Active", true],
++    ["subscription.expired", "Expired", false],
++    ["entitlement.revoked", "Expired", false],
++    ["subscription.refunded", "Refunded", false],
++  ];
++  try {
++    const health = await fetch(new URL("/health", consumer.url), {
++      headers: { host: "receiver.example.test" },
++    });
++    check("Health accepts the proxy public Host header", health.status, 200);
++    for (const [index, [eventType, state, active]] of lifecycle.entries()) {
++      const event = {
++        eventId: randomUUID(),
++        eventType,
++        eventVersion: COMMERCE_EVENT_VERSION,
++        occurredAt: now - 60_000 + index * 1000,
++        processedAt: now,
++        store: "fixture",
++        environment: "local-fixture",
++        projectId: "demo_project",
++        userId: "demo_user",
++        productId: "premium.monthly",
++        ...(["subscription.started", "subscription.renewed"].includes(eventType)
++          ? {
++              price: {
++                currency: "USD",
++                amountMicros: 9990000,
++                provenance: "store",
++              },
++            }
++          : {}),
++        subscription: {
++          productId: "premium.monthly",
++          state,
++          active,
++          expiresAt: active ? now + 60_000 : now - 1000,
++          willRenew: active && eventType !== "subscription.canceled",
++        },
++      };
++      assert(validate("#/$defs/CommerceEvent", event));
++      const body = JSON.stringify(event);
++      const timestamp = String(Math.floor(now / 1000));
++      const headers = {
++        host: "receiver.example.test",
++        "content-type": WEBHOOK.contentType,
++        [WEBHOOK.timestampHeader]: timestamp,
++        [WEBHOOK.signatureHeader]: sign(secret, timestamp, body),
++        [WEBHOOK.eventIdHeader]: event.eventId,
++        [WEBHOOK.deliveryIdHeader]: randomUUID(),
++      };
++      const response = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body,
++      });
++      const result = await response.json();
++      check(
++        `${eventType}: authenticated and saved`,
++        [response.status, result.duplicate],
++        [200, false],
++      );
++      const duplicate = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body,
++      });
++      const duplicateResult = await duplicate.json();
++      check(
++        `${eventType}: redelivery deduplicated`,
++        [duplicate.status, duplicateResult.duplicate],
++        [200, true],
++      );
++      const tampered = await fetch(consumer.url, {
++        method: "POST",
++        headers,
++        body: body + " ",
++      });
++      check(`${eventType}: tampering rejected`, tampered.status, 401);
++      results.push({
++        event,
++        httpStatus: response.status,
++        duplicate: duplicateResult.duplicate,
++        requestHost: headers.host,
++        tamperedHttpStatus: tampered.status,
++      });
++    }
++    check("One inbox record per event", consumer.count(), lifecycle.length);
++    consumer.reopen();
++    check(
++      "Inbox survives reopening SQLite",
++      consumer.count(),
++      lifecycle.length,
++    );
++    return {
++      recordedAt: new Date().toISOString(),
++      scope:
++        "Real loopback HTTP, signature validation and durable deduplication. Fictional lifecycle samples; no provider or store contacted. One emitter/project per receiver database. No business or revenue calculation.",
++      checks,
++      results,
++      inboxCount: consumer.count(),
++    };
++  } finally {
++    await consumer.close();
++    rmSync(directory, { recursive: true, force: true });
++  }
++}
++
++if (import.meta.main) {
++  if (process.argv[2] === "demo") {
++    const report = await runConsumerDemo();
++    if (process.argv[3] === "--record") {
++      assert(process.argv[4], "Provide a report path");
++      report.sourceHashes = Object.fromEntries(
++        [
++          "consumer.mjs",
++          "webhooks.mjs",
++          "contract.mjs",
++          "package.json",
++          "package-lock.json",
++        ].map((name) => [
++          name,
++          createHash("sha256")
++            .update(readFileSync(join(import.meta.dir, name)))
++            .digest("hex"),
++        ]),
++      );
++      writeFileSync(
++        resolve(process.argv[4]),
++        JSON.stringify(report, null, 2) + "\n",
++      );
++    }
++    console.log(
++      `Receiver ready: ${report.inboxCount} events saved once; ${report.checks.length} checks passed. No external service contacted.`,
++    );
++  } else {
++    const consumer = startConsumer({
++      secret: process.env.COMMERCE_WEBHOOK_SECRET,
++      path: resolve(process.env.COMMERCE_INBOX_PATH ?? "consumer.sqlite"),
++      port: 5182,
++    });
++    console.log(
++      `Receiver: ${consumer.url}\nPersisted inbox: ${resolve(process.env.COMMERCE_INBOX_PATH ?? "consumer.sqlite")}`,
++    );
++    for (const signal of ["SIGINT", "SIGTERM"])
++      process.on(signal, async () => {
++        await consumer.close();
++        process.exit(0);
++      });
++  }
++}
+diff --git a/contract.mjs b/contract.mjs
+new file mode 100644
+index 0000000..0fc4c5f
+--- /dev/null
++++ b/contract.mjs
+@@ -0,0 +1,24 @@
++import Ajv from "ajv/dist/2020.js";
++import { bundleSchema, HTTP_BINDING } from "@hyodotdev/openiap-commerce-protocol";
++
++const ajv = new Ajv({ strict: false, allErrors: true });
++ajv.addSchema(bundleSchema);
++const validators = new Map();
++
++export function validate(pointer, value) {
++  if (!validators.has(pointer)) {
++    validators.set(pointer, ajv.compile({ $ref: bundleSchema.$id + pointer }));
++  }
++  return validators.get(pointer)(value);
++}
++
++export function operation(name) {
++  return HTTP_BINDING.operations.find((entry) => entry.name === name);
++}
++
++export function protocolError(code) {
++  return Response.json(
++    { error: { code, message: code.replaceAll("_", " ").toLowerCase() } },
++    { status: HTTP_BINDING.errorStatus[code] },
++  );
++}
+diff --git a/dashboard.html b/dashboard.html
+new file mode 100644
+index 0000000..85b613b
+--- /dev/null
++++ b/dashboard.html
+@@ -0,0 +1,384 @@
++<!doctype html>
++<html lang="en">
++  <head>
++    <meta charset="utf-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1" />
++    <title>Commerce Protocol Example · Purchase to access</title>
++    <style>
++      * {
++        box-sizing: border-box;
++      }
++      body {
++        margin: 0;
++        font:
++          15px/1.5 system-ui,
++          sans-serif;
++        background: #101512;
++        color: #eef4ee;
++      }
++      main {
++        max-width: 1260px;
++        margin: auto;
++        padding: 24px;
++      }
++      header,
++      .heading,
++      .toolbar {
++        display: flex;
++        gap: 24px;
++        align-items: center;
++        justify-content: space-between;
++      }
++      header {
++        border-bottom: 1px solid #334138;
++        padding-bottom: 22px;
++      }
++      .brand {
++        font-size: 21px;
++        font-weight: 750;
++        letter-spacing: -0.6px;
++      }
++      .badge,
++      .eyebrow {
++        color: #b4d7b6;
++        font-size: 12px;
++        letter-spacing: 0.1em;
++        text-transform: uppercase;
++      }
++      .badge {
++        border: 1px solid #4b6551;
++        border-radius: 30px;
++        padding: 7px 12px;
++      }
++      h1 {
++        font-size: clamp(24px, 3vw, 36px);
++        letter-spacing: -0.035em;
++        margin: 5px 0 8px;
++        line-height: 1.2;
++      }
++      h2 {
++        font-size: 15px;
++        margin: 0 0 16px;
++      }
++      p {
++        color: #b0bdb2;
++        margin: 0;
++      }
++      .heading {
++        padding: 8px 0;
++        align-items: start;
++      }
++      button {
++        background: #c6ecac;
++        border: 0;
++        color: #132015;
++        font: inherit;
++        font-weight: 700;
++        padding: 12px 19px;
++        border-radius: 8px;
++        cursor: pointer;
++        flex-shrink: 0;
++      }
++      button:disabled {
++        opacity: 0.6;
++        cursor: default;
++      }
++      button:focus-visible {
++        outline: 3px solid white;
++        outline-offset: 4px;
++      }
++      ol {
++        display: grid;
++        grid-template-columns: repeat(6, 1fr);
++        gap: 10px;
++        padding: 0;
++        margin: 0 0 24px;
++        list-style: none;
++      }
++      li {
++        border-top: 3px solid #334138;
++        padding-top: 10px;
++        font-size: 12px;
++        color: #9aa89d;
++      }
++      li.current {
++        color: #d2f9b9;
++        border-color: #c6ecac;
++      }
++      li.complete {
++        border-color: #648b54;
++      }
++      .metrics {
++        display: grid;
++        grid-template-columns: repeat(4, 1fr);
++        gap: 14px;
++        margin-bottom: 20px;
++      }
++      .metric,
++      section {
++        background: #1a231d;
++        border: 1px solid #334138;
++        border-radius: 12px;
++        padding: 16px;
++        min-width: 0;
++      }
++      .metric span {
++        display: block;
++        color: #a9b9ad;
++        font-size: 12px;
++      }
++      .metric strong {
++        font-size: 28px;
++        font-weight: 600;
++      }
++      .grid {
++        display: grid;
++        grid-template-columns: 1.1fr 1fr;
++        gap: 12px;
++      }
++      .stack {
++        display: grid;
++        gap: 12px;
++      }
++      table {
++        border-collapse: collapse;
++        width: 100%;
++        font-size: 12px;
++      }
++      td,
++      th {
++        text-align: left;
++        padding: 9px 6px;
++        border-bottom: 1px solid #334138;
++        overflow-wrap: anywhere;
++      }
++      th {
++        color: #a9b9ad;
++        font-weight: 500;
++      }
++      .empty {
++        padding: 8px 0;
++        font-size: 13px;
++        color: #94a398;
++      }
++      .check {
++        color: #c6ecac;
++        margin: 4px 0;
++        font-size: 13px;
++      }
++      pre {
++        margin: 0;
++        font:
++          12px/1.5 ui-monospace,
++          monospace;
++        white-space: pre-wrap;
++        overflow-wrap: anywhere;
++        max-height: 330px;
++        overflow-y: auto;
++        color: #d2ddd4;
++      }
++      .built {
++        color: #aebeb0;
++        font-size: 12px;
++        margin-top: 12px;
++      }
++      footer {
++        color: #98a79c;
++        font-size: 12px;
++        margin: 20px 0 0;
++      }
++      #error {
++        color: #ffb09b;
++      }
++      @media (max-width: 700px) {
++        main {
++          padding: 18px;
++        }
++        .heading {
++          flex-direction: column;
++        }
++        .grid {
++          grid-template-columns: 1fr;
++        }
++        .metrics {
++          grid-template-columns: 1fr 1fr;
++        }
++        ol {
++          grid-template-columns: repeat(3, 1fr);
++        }
++        header {
++          gap: 10px;
++        }
++      }
++    </style>
++  </head>
++  <body>
++    <main>
++      <header>
++        <div class="brand">◈ Commerce Protocol Example</div>
++        <span class="badge">Local fixture · real HTTP + SQLite</span>
++      </header>
++      <div class="heading">
++        <div>
++          <span class="eyebrow" id="progress">Ready to run</span>
++          <h1 id="title">From a purchase to current access.</h1>
++          <p id="summary">
++            Run the six milestones against a new, empty database.
++          </p>
++          <div class="built" id="built"></div>
++        </div>
++        <button id="next">Run step 1 →</button>
++      </div>
++      <ol id="steps" aria-label="Implementation milestones"></ol>
++      <div class="metrics">
++        <div class="metric">
++          <span>Saved purchases</span><strong id="purchases">0</strong>
++        </div>
++        <div class="metric">
++          <span>Alice's access</span><strong id="access">No access</strong>
++        </div>
++        <div class="metric">
++          <span>Receiver inbox</span><strong id="inbox">0</strong>
++        </div>
++        <div class="metric">
++          <span>Passing checks</span><strong id="checks">0</strong>
++        </div>
++      </div>
++      <div class="grid">
++        <div class="stack">
++          <section>
++            <h2>Purchase storage</h2>
++            <div id="purchase-table" class="empty">
++              No purchase has been verified.
++            </div>
++          </section>
++          <section>
++            <h2>Event deliveries</h2>
++            <div id="delivery-table" class="empty">
++              No lifecycle event has occurred.
++            </div>
++          </section>
++          <section>
++            <h2>This step proves</h2>
++            <div id="proofs" class="empty">
++              Each step runs assertions before it is marked complete.
++            </div>
++          </section>
++        </div>
++        <section>
++          <h2>Actual request results</h2>
++          <pre id="responses">Waiting for the first HTTP request…</pre>
++        </section>
++      </div>
++      <p id="error" role="alert"></p>
++      <footer id="scope">
++        Incrementally built educational example. The store and clock are fixtures; API
++        requests, SQLite writes, signatures and receiver requests execute
++        locally. This is not the IAPKit product or a production-conformance
++        claim.
++      </footer>
++    </main>
++    <script type="module">
++      const $ = (id) => document.getElementById(id);
++      let state = await (await fetch("/demo/state")).json();
++      function table(target, columns, rows) {
++        $(target).replaceChildren();
++        if (!rows.length) {
++          $(target).textContent = "No records yet.";
++          return;
++        }
++        const table = document.createElement("table");
++        const head = table.createTHead().insertRow();
++        for (const [label] of columns) {
++          const th = document.createElement("th");
++          th.textContent = label;
++          head.append(th);
++        }
++        const body = table.createTBody();
++        for (const row of rows) {
++          const tr = body.insertRow();
++          for (const [, key] of columns)
++            tr.insertCell().textContent = String(row[key] ?? "Unbound");
++        }
++        $(target).append(table);
++      }
++      function render() {
++        const current = state.history.at(-1);
++        const step = current?.step ?? 0;
++        $("steps").replaceChildren();
++        state.stages.forEach((item, index) => {
++          const li = document.createElement("li");
++          li.textContent = `0${index + 1} ${item.title}`;
++          li.className =
++            index + 1 === step ? "current" : index < step ? "complete" : "";
++          $("steps").append(li);
++        });
++        $("next").textContent =
++          step === state.stages.length
++            ? "All steps passed ✓"
++            : `Run step ${step + 1} →`;
++        $("next").disabled = step === state.stages.length;
++        if (!current) return;
++        $("progress").textContent =
++          `Milestone ${step} / ${state.stages.length} · ${current.simulatedTime.slice(0, 10)} simulated clock`;
++        $("title").textContent = current.title;
++        $("summary").textContent = current.result;
++        $("built").textContent = `Implemented: ${current.built}`;
++        $("purchases").textContent = current.purchases.length;
++        $("access").textContent = current.access.productIds.length
++          ? "Premium"
++          : "No access";
++        $("inbox").textContent = current.inboxCount;
++        $("checks").textContent = current.totalChecks;
++        table(
++          "purchase-table",
++          [
++            ["User", "userId"],
++            ["Product", "productId"],
++            ["State", "state"],
++            ["Renewal", "willRenew"],
++          ],
++          current.purchases,
++        );
++        table(
++          "delivery-table",
++          [
++            ["Event", "eventType"],
++            ["Attempts", "attempts"],
++            ["Status", "status"],
++          ],
++          current.deliveries,
++        );
++        $("proofs").replaceChildren();
++        for (const check of current.checks) {
++          const p = document.createElement("p");
++          p.className = "check";
++          p.textContent = `✓ ${check}`;
++          $("proofs").append(p);
++        }
++        $("responses").textContent = current.responses
++          .map(
++            (r) =>
++              `${r.operation}${r.httpStatus ? ` · HTTP ${r.httpStatus}` : ""}\n${JSON.stringify(r.body, null, 2)}`,
++          )
++          .join("\n\n");
++      }
++      $("next").onclick = async () => {
++        $("next").disabled = true;
++        $("error").textContent = "";
++        try {
++          const response = await fetch("/demo/advance", { method: "POST" });
++          if (!response.ok)
++            throw new Error("Step failed; inspect the server output.");
++          await response.json();
++          state = await (await fetch("/demo/state")).json();
++          render();
++        } catch (error) {
++          $("error").textContent = error.message;
++          $("next").disabled = false;
++        }
++      };
++      render();
++    </script>
++  </body>
++</html>
+diff --git a/erasure.mjs b/erasure.mjs
+new file mode 100644
+index 0000000..fb977b1
+--- /dev/null
++++ b/erasure.mjs
+@@ -0,0 +1,36 @@
++import { createHmac, randomBytes, randomUUID } from "node:crypto";
++
++// Retain a stable retry marker without storing the user ID verbatim.
++export function createErasureLedger(db) {
++  db.exec(`
++    PRAGMA secure_delete = ON;
++    CREATE TABLE IF NOT EXISTS erasure_key (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
++    CREATE TABLE IF NOT EXISTS erased_users (user_hash TEXT PRIMARY KEY, job_id TEXT NOT NULL);
++  `);
++  db.query("INSERT OR IGNORE INTO erasure_key VALUES (1, ?)").run(
++    randomBytes(32).toString("hex"),
++  );
++  const key = db
++    .query("SELECT value FROM erasure_key WHERE id = 1")
++    .get().value;
++  const hash = (userId) =>
++    createHmac("sha256", key).update(userId).digest("hex");
++  return {
++    has: (userId) =>
++      Boolean(
++        db
++          .query("SELECT 1 FROM erased_users WHERE user_hash = ?")
++          .get(hash(userId)),
++      ),
++    remember(userId) {
++      const userHash = hash(userId);
++      db.query("INSERT OR IGNORE INTO erased_users VALUES (?, ?)").run(
++        userHash,
++        randomUUID(),
++      );
++      return db
++        .query("SELECT job_id FROM erased_users WHERE user_hash = ?")
++        .get(userHash).job_id;
++    },
++  };
++}
+diff --git a/export-docs.mjs b/export-docs.mjs
+new file mode 100644
+index 0000000..4dbddd0
+--- /dev/null
++++ b/export-docs.mjs
+@@ -0,0 +1,122 @@
++import assert from "node:assert/strict";
++import {
++  cpSync,
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import {
++  SOURCE_FILES,
++  extract,
++  hashes,
++  readRecords,
++  sha256,
++} from "./checkpoint-tools.mjs";
++
++const target = process.argv[2];
++assert(target, "Usage: bun export-docs.mjs <documentation-assets-directory>");
++const output = resolve(target);
++const source = join(import.meta.dir, "docs/build");
++const guide = JSON.parse(readFileSync(join(source, "guide.json"), "utf8"));
++const records = readRecords(source);
++const selected = guide.map((step) => {
++  const record = records.find((record) => record.id === step.id);
++  assert(record, `Missing checkpoint: ${step.id}`);
++  return record;
++});
++const last = selected.at(-1);
++assert.deepEqual(
++  selected.map((record) => record.step),
++  guide.map((_, index) => index + 1),
++);
++assert(
++  guide.every(
++    (step) => typeof step.label === "string" && step.label.length > 0,
++  ),
++);
++assert.deepEqual(
++  Object.fromEntries(
++    SOURCE_FILES.sort().map((name) => [
++      name,
++      sha256(join(import.meta.dir, name)),
++    ]),
++  ),
++  last.sourceHashes,
++  "Capture the final source before exporting",
++);
++const verification = JSON.parse(
++  readFileSync(join(source, "verification.json"), "utf8"),
++);
++for (const record of records) {
++  const result = verification.results.find((result) => result.id === record.id);
++  assert(
++    result?.sourceHashesMatch && result.patchAppliesExactly,
++    `Verify ${record.id} before export`,
++  );
++  assert.equal(
++    result.archiveSha256,
++    sha256(join(source, record.id, "source.tar.gz")),
++  );
++  assert.equal(
++    result.patchSha256,
++    sha256(join(source, record.id, "changes.patch")),
++  );
++}
++const consumerReport = JSON.parse(
++  readFileSync(join(source, "consumer-run.json"), "utf8"),
++);
++for (const [name, digest] of Object.entries(consumerReport.sourceHashes))
++  assert.equal(
++    digest,
++    last.sourceHashes[name],
++    "Record the consumer demo again before export",
++  );
++mkdirSync(output, { recursive: true });
++cpSync(join(source, last.id, "source.tar.gz"), join(output, "source.tar.gz"));
++for (const record of records)
++  cpSync(join(source, record.id), join(output, record.id), { recursive: true });
++for (const name of [
++  "README.md",
++  "REVIEW.md",
++  "verification.json",
++  "consumer-run.json",
++  "01-contract-first-attempt.txt",
++])
++  cpSync(join(source, name), join(output, name));
++const report = {
++  recordedAt: last.recordedAt,
++  scope: last.scope,
++  checks: last.checks,
++  standalone: { version: last.packageVersion, passed: last.checks.length },
++  milestones: selected.map((record, index) => ({
++    ...record.history.at(-1),
++    screenshot: `${record.id}/screen.png`,
++    build: {
++      ...guide[index],
++      source: `${record.id}/source.tar.gz`,
++      changes: `${record.id}/changes.patch`,
++      report: `${record.id}/run.json`,
++      ...(record.previous
++        ? { previousSource: `${record.previous}/source.tar.gz` }
++        : {}),
++      passed: record.checks.length,
++    },
++  })),
++};
++const temp = mkdtempSync(join(tmpdir(), "commerce-verify-export-"));
++try {
++  extract(join(source, last.id, "source.tar.gz"), temp);
++  assert.deepEqual(hashes(temp), last.sourceHashes);
++  cpSync(join(temp, "BUILD.md"), join(output, "build-brief.md"));
++  cpSync(join(temp, "INTEGRATE.md"), join(output, "integration-brief.md"));
++} finally {
++  rmSync(temp, { recursive: true, force: true });
++}
++writeFileSync(join(output, "run.json"), JSON.stringify(report, null, 2) + "\n");
++console.log(
++  `Exported ${selected.length} milestones and ${records.length} source revisions to ${output}`,
++);
+diff --git a/package-lock.json b/package-lock.json
+new file mode 100644
+index 0000000..c5800f3
+--- /dev/null
++++ b/package-lock.json
+@@ -0,0 +1,141 @@
++{
++  "name": "openiap-commerce-protocol-example",
++  "version": "0.0.0",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "openiap-commerce-protocol-example",
++      "version": "0.0.0",
++      "dependencies": {
++        "@hyodotdev/openiap-commerce-protocol": "0.3.0",
++        "ajv": "^8.17.1"
++      },
++      "devDependencies": {
++        "@playwright/test": "1.62.1"
++      }
++    },
++    "node_modules/@hyodotdev/openiap-commerce-protocol": {
++      "version": "0.3.0",
++      "resolved": "https://registry.npmjs.org/@hyodotdev/openiap-commerce-protocol/-/openiap-commerce-protocol-0.3.0.tgz",
++      "integrity": "sha512-IHm1uewLOrIIyud8wG2YQFd6YplUQIMMCAV68BmNOOVRKQBgRjr/HANLXZAChyK33MHgn0LKVoLxO6ukJQi+Ig==",
++      "license": "MIT"
++    },
++    "node_modules/@playwright/test": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/@playwright/test/-/test-1.62.1.tgz",
++      "integrity": "sha512-DTcUc8qii+cpHvtOwggMtBRMjKZHXYWdw8syRYu2vtzuq4Wxphqq4NfCs5Zt44L6mA8rfDfj+PHnxFc/FeK6mQ==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "playwright": "1.62.1"
++      },
++      "bin": {
++        "playwright": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      }
++    },
++    "node_modules/ajv": {
++      "version": "8.20.0",
++      "resolved": "https://registry.npmjs.org/ajv/-/ajv-8.20.0.tgz",
++      "integrity": "sha512-Thbli+OlOj+iMPYFBVBfJ3OmCAnaSyNn4M1vz9T6Gka5Jt9ba/HIR56joy65tY6kx/FCF5VXNB819Y7/GUrBGA==",
++      "license": "MIT",
++      "dependencies": {
++        "fast-deep-equal": "^3.1.3",
++        "fast-uri": "^3.0.1",
++        "json-schema-traverse": "^1.0.0",
++        "require-from-string": "^2.0.2"
++      },
++      "funding": {
++        "type": "github",
++        "url": "https://github.com/sponsors/epoberezkin"
++      }
++    },
++    "node_modules/fast-deep-equal": {
++      "version": "3.1.3",
++      "resolved": "https://registry.npmjs.org/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz",
++      "integrity": "sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==",
++      "license": "MIT"
++    },
++    "node_modules/fast-uri": {
++      "version": "3.1.8",
++      "resolved": "https://registry.npmjs.org/fast-uri/-/fast-uri-3.1.8.tgz",
++      "integrity": "sha512-GZMtZUTNRpOVIECoXwLNZS5xUGE+mVNbTB8h/7Rwh2TFWcBQiPzTgyZi05BF9UMZKkLJv8XBRJTlU7zg8+ZfMg==",
++      "funding": [
++        {
++          "type": "github",
++          "url": "https://github.com/sponsors/fastify"
++        },
++        {
++          "type": "opencollective",
++          "url": "https://opencollective.com/fastify"
++        }
++      ],
++      "license": "BSD-3-Clause"
++    },
++    "node_modules/fsevents": {
++      "version": "2.3.2",
++      "resolved": "https://registry.npmjs.org/fsevents/-/fsevents-2.3.2.tgz",
++      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
++      "dev": true,
++      "hasInstallScript": true,
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": "^8.16.0 || ^10.6.0 || >=11.0.0"
++      }
++    },
++    "node_modules/json-schema-traverse": {
++      "version": "1.0.0",
++      "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-1.0.0.tgz",
++      "integrity": "sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==",
++      "license": "MIT"
++    },
++    "node_modules/playwright": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/playwright/-/playwright-1.62.1.tgz",
++      "integrity": "sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "dependencies": {
++        "playwright-core": "1.62.1"
++      },
++      "bin": {
++        "playwright": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      },
++      "optionalDependencies": {
++        "fsevents": "2.3.2"
++      }
++    },
++    "node_modules/playwright-core": {
++      "version": "1.62.1",
++      "resolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.62.1.tgz",
++      "integrity": "sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==",
++      "dev": true,
++      "license": "Apache-2.0",
++      "bin": {
++        "playwright-core": "cli.js"
++      },
++      "engines": {
++        "node": ">=20"
++      }
++    },
++    "node_modules/require-from-string": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/require-from-string/-/require-from-string-2.0.2.tgz",
++      "integrity": "sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    }
++  }
++}
+diff --git a/package.json b/package.json
+new file mode 100644
+index 0000000..79f3dea
+--- /dev/null
++++ b/package.json
+@@ -0,0 +1,18 @@
++{
++  "name": "openiap-commerce-protocol-example",
++  "version": "0.0.0",
++  "private": true,
++  "type": "module",
++  "scripts": {
++    "start": "bun server.mjs",
++    "test": "bun verify.mjs",
++    "capture": "bun capture.mjs"
++  },
++  "dependencies": {
++    "@hyodotdev/openiap-commerce-protocol": "0.3.0",
++    "ajv": "^8.17.1"
++  },
++  "devDependencies": {
++    "@playwright/test": "1.62.1"
++  }
++}
+diff --git a/provider.mjs b/provider.mjs
+new file mode 100644
+index 0000000..0bdbcd9
+--- /dev/null
++++ b/provider.mjs
+@@ -0,0 +1,121 @@
++import { Database } from "bun:sqlite";
++import { createHash, randomUUID } from "node:crypto";
++import {
++  providerCapabilitiesSchema,
++  COMMERCE_EVENT_VERSION,
++  HTTP_BINDING,
++} from "@hyodotdev/openiap-commerce-protocol";
++import { protocolError, validate } from "./contract.mjs";
++
++export const FIXTURE = Object.freeze({
++  store: "fixture",
++  evidence: "local-purchase-alice",
++  userId: "demo_alice",
++  productId: "premium.monthly",
++  startsAt: Date.UTC(2026, 8, 7, 9),
++  expiresAt: Date.UTC(2026, 9, 7, 9),
++});
++export const CREDENTIALS = Object.freeze({
++  verification: "Bearer local-demo-verification",
++  server: "Bearer local-demo-server",
++});
++const fingerprint = (value) => createHash("sha256").update(value).digest("hex");
++
++export function isEntitled(state, expiresAt, now) {
++  return (
++    (state === "Active" || state === "InGracePeriod") &&
++    (expiresAt == null || now < expiresAt)
++  );
++}
++
++export function createProvider(path, now) {
++  const db = new Database(path, { create: true });
++  db.exec(`
++    PRAGMA journal_mode = WAL;
++    CREATE TABLE IF NOT EXISTS purchases (
++      fingerprint TEXT PRIMARY KEY, user_id TEXT, product_id TEXT NOT NULL,
++      state TEXT NOT NULL, expires_at INTEGER NOT NULL, will_renew INTEGER NOT NULL,
++      observed_at INTEGER NOT NULL
++    );
++  `);
++
++  function snapshot(row) {
++    return {
++      productId: row.product_id,
++      state: row.state,
++      active: isEntitled(row.state, row.expires_at, now()),
++      store: FIXTURE.store,
++      expiresAt: row.expires_at,
++      willRenew: Boolean(row.will_renew),
++    };
++  }
++
++  function rowsFor(userId) {
++    return db.query("SELECT * FROM purchases WHERE user_id = ?").all(userId);
++  }
++
++  function entitlements(userId) {
++    const subscriptions = rowsFor(userId)
++      .map(snapshot)
++      .filter((row) => row.active);
++    return {
++      userId,
++      productIds: [...new Set(subscriptions.map((row) => row.productId))],
++      subscriptions,
++    };
++  }
++
++  const handlers = {
++  };
++
++  async function fetch(request) {
++    const url = new URL(request.url);
++    const spec = HTTP_BINDING.operations.find(
++      (entry) => entry.path === url.pathname && entry.method === request.method,
++    );
++    if (!spec) return protocolError("NOT_FOUND");
++    const auth = request.headers.get("authorization");
++    if (spec.auth !== "none") {
++      if (!Object.values(CREDENTIALS).includes(auth))
++        return protocolError("UNAUTHORIZED");
++      if (spec.auth === "server" && auth !== CREDENTIALS.server)
++        return protocolError("FORBIDDEN");
++    }
++    if (!handlers[spec.name]) return protocolError("UNSUPPORTED_PROFILE");
++    let input = null;
++    if (spec.input) {
++      try {
++        input =
++          request.method === "GET"
++            ? Object.fromEntries(url.searchParams)
++            : await request.json();
++      } catch {
++        return protocolError("INVALID_REQUEST");
++      }
++      if (!validate(spec.input, input)) return protocolError("INVALID_REQUEST");
++    }
++    try {
++      const result = handlers[spec.name](input);
++      if (result.error) return protocolError(result.error);
++      if (!validate(spec.result, result))
++        throw new Error("Invalid protocol response");
++      return Response.json(result, { status: spec.successStatus });
++    } catch {
++      return protocolError("INTERNAL_ERROR");
++    }
++  }
++
++  function inspect() {
++    return {
++      purchases: db
++        .query(
++          "SELECT user_id AS userId, product_id AS productId, state, will_renew AS willRenew FROM purchases",
++        )
++        .all(),
++      access: entitlements(FIXTURE.userId),
++      deliveries: [],
++    };
++  }
++
++  return { db, fetch, inspect, close: () => db.close() };
++}
+diff --git a/scenario.mjs b/scenario.mjs
+new file mode 100644
+index 0000000..4c814c3
+--- /dev/null
++++ b/scenario.mjs
+@@ -0,0 +1,80 @@
++import assert from "node:assert/strict";
++import { operation, validate } from "./contract.mjs";
++import { CREDENTIALS, FIXTURE } from "./provider.mjs";
++
++export const STAGES = [
++  {
++    "title": "Start with the contract",
++    "built": "HTTP routes + schema validation + SQLite",
++    "result": "A running server, an empty purchase table, and no access."
++  }
++];
++
++export async function requestOperation(baseUrl, name, input, role = "server") {
++  const spec = operation(name);
++  const url = new URL(spec.path, baseUrl);
++  if (spec.method === "GET" && input)
++    for (const [key, value] of Object.entries(input))
++      url.searchParams.set(key, value);
++  const response = await fetch(url, {
++    method: spec.method,
++    headers: {
++      "content-type": "application/json",
++      ...(role ? { authorization: CREDENTIALS[role] } : {}),
++    },
++    ...(spec.method === "POST" ? { body: JSON.stringify(input) } : {}),
++  });
++  return {
++    operation: name,
++    httpStatus: response.status,
++    body: await response.json(),
++  };
++}
++
++export function createScenario(runtime) {
++  const history = [];
++  const checks = [];
++  const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++  const call = (name, input, role) =>
++    requestOperation(runtime.baseUrl, name, input, role);
++  const check = (label, actual, expected) => {
++    assert.deepEqual(actual, expected, label);
++    checks.push(label);
++  };
++
++  async function advance() {
++    const stage = history.length;
++    if (stage >= STAGES.length) return history.at(-1);
++    const responses = [];
++    const run = async (name, input, role) => {
++      const result = await call(name, input, role);
++      responses.push(result);
++      return result;
++    };
++    const start = checks.length;
++    if (stage === 0) {
++      check("Fixture request matches the installed schema", validate(operation("verifyPurchase").input, evidence), true);
++      check(
++        "Discovery remains unsupported until an event can be emitted",
++        (await run("providerCapabilities", null, null)).httpStatus,
++        501,
++      );
++      check("Purchase storage starts empty", runtime.provider.inspect().purchases, []);
++      check("Unready discovery returns a portable error", (await run("providerCapabilities", null, null)).body.error.code, "UNSUPPORTED_PROFILE");
++    }
++    const entry = {
++      step: stage + 1,
++      ...STAGES[stage],
++      simulatedTime: new Date(runtime.time).toISOString(),
++      ...runtime.provider.inspect(),
++      inboxCount: 0,
++      responses,
++      checks: checks.slice(start),
++      totalChecks: checks.length,
++    };
++    history.push(entry);
++    return entry;
++  }
++
++  return { advance, history };
++}
+diff --git a/server.mjs b/server.mjs
+new file mode 100644
+index 0000000..fbac7e0
+--- /dev/null
++++ b/server.mjs
+@@ -0,0 +1,85 @@
++import { mkdtempSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { randomBytes } from "node:crypto";
++import { createProvider, FIXTURE } from "./provider.mjs";
++import { createScenario, STAGES } from "./scenario.mjs";
++
++export function startLab({ port = 0 } = {}) {
++  const directory = mkdtempSync(join(tmpdir(), "commerce-lab-"));
++  const runtime = {
++    time: FIXTURE.startsAt,
++    secret: randomBytes(32).toString("hex"),
++    now: () => runtime.time,
++    restart() {
++      runtime.provider?.close();
++      runtime.provider = createProvider(
++        join(directory, "provider.sqlite"),
++        runtime.now,
++      );
++    },
++    post: (init) =>
++      fetch(`${runtime.baseUrl}/demo/receiver`, {
++        ...init,
++        redirect: "manual",
++        signal: AbortSignal.timeout(5000),
++      }),
++  };
++  runtime.restart();
++  let advancing = false;
++  const scenario = createScenario(runtime);
++  const server = Bun.serve({
++    hostname: "127.0.0.1",
++    port,
++    maxRequestBodySize: 64 * 1024,
++    async fetch(request) {
++      const url = new URL(request.url);
++      const origin = request.headers.get("origin");
++      if (
++        url.origin !== runtime.baseUrl ||
++        (origin && origin !== runtime.baseUrl)
++      )
++        return new Response("Local requests only", { status: 403 });
++      if (url.pathname.startsWith("/commerce/v1/"))
++        return runtime.provider.fetch(request);
++      if (url.pathname === "/demo/state" && request.method === "GET")
++        return Response.json({ stages: STAGES, history: scenario.history });
++      if (url.pathname === "/demo/advance" && request.method === "POST") {
++        if (advancing) return new Response("Step running", { status: 409 });
++        advancing = true;
++        try {
++          return Response.json(await scenario.advance());
++        } finally {
++          advancing = false;
++        }
++      }
++      if (url.pathname === "/" && request.method === "GET")
++        return new Response(
++          Bun.file(new URL("./dashboard.html", import.meta.url)),
++        );
++      return new Response("Not found", { status: 404 });
++    },
++  });
++  runtime.baseUrl = `http://127.0.0.1:${server.port}`;
++  return {
++    runtime,
++    scenario,
++    directory,
++    async close() {
++      await server.stop(true);
++      runtime.provider.close();
++    },
++  };
++}
++
++if (import.meta.main) {
++  const lab = startLab({ port: Number(process.env.COMMERCE_LAB_PORT ?? 5181) });
++  console.log(
++    `Commerce Lab: ${lab.runtime.baseUrl}\nDisposable SQLite files: ${lab.directory}\nFictional fixture store. No payments, credentials, or external services required.`,
++  );
++  for (const signal of ["SIGINT", "SIGTERM"])
++    process.on(signal, async () => {
++      await lab.close();
++      process.exit(0);
++    });
++}
+diff --git a/verify-checkpoints.mjs b/verify-checkpoints.mjs
+new file mode 100644
+index 0000000..bd6b925
+--- /dev/null
++++ b/verify-checkpoints.mjs
+@@ -0,0 +1,84 @@
++import assert from "node:assert/strict";
++import {
++  mkdirSync,
++  mkdtempSync,
++  readFileSync,
++  rmSync,
++  writeFileSync,
++} from "node:fs";
++import { tmpdir } from "node:os";
++import { join, resolve } from "node:path";
++import {
++  extract,
++  hashes,
++  readRecords,
++  run,
++  sha256,
++} from "./checkpoint-tools.mjs";
++
++const source = resolve(process.argv[2] ?? join(import.meta.dir, "docs/build"));
++const temp = mkdtempSync(join(tmpdir(), "commerce-verify-"));
++const records = readRecords(source);
++const results = [];
++try {
++  const applied = join(temp, "applied");
++  mkdirSync(applied);
++  for (const record of records) {
++    const directory = join(source, record.id);
++    const archive = join(directory, "source.tar.gz");
++    const consumer = join(temp, record.id);
++    extract(archive, consumer);
++    assert.deepEqual(
++      hashes(consumer),
++      record.sourceHashes,
++      `${record.id}: archive hashes`,
++    );
++    const patch = join(directory, "changes.patch");
++    if (readFileSync(patch, "utf8")) run("git", ["apply", patch], applied);
++    assert.deepEqual(
++      hashes(applied),
++      record.sourceHashes,
++      `${record.id}: patch chain from empty`,
++    );
++    const commands = [
++      run(
++        "npm",
++        ["ci", "--ignore-scripts", "--no-audit", "--no-fund"],
++        consumer,
++      ),
++      run("npm", ["test"], consumer),
++    ];
++    if (
++      JSON.parse(readFileSync(join(consumer, "package.json"), "utf8")).scripts[
++        "test:tooling"
++      ]
++    )
++      commands.push(run("npm", ["run", "test:tooling"], consumer));
++    results.push({
++      id: record.id,
++      archiveSha256: sha256(archive),
++      patchSha256: sha256(patch),
++      sourceHashesMatch: true,
++      patchAppliesExactly: true,
++      commands,
++    });
++    console.log(
++      `Verified ${record.id}: extracted source, patch chain, npm ci, npm test`,
++    );
++  }
++  writeFileSync(
++    join(source, "verification.json"),
++    JSON.stringify(
++      {
++        recordedAt: new Date().toISOString(),
++        scope:
++          "Each recorded archive extracted outside both repositories; patches applied in order from an empty directory; published dependencies installed with npm.",
++        results,
++      },
++      null,
++      2,
++    ) + "\n",
++  );
++} finally {
++  rmSync(temp, { recursive: true, force: true });
++}
+diff --git a/verify-erasure.mjs b/verify-erasure.mjs
+new file mode 100644
+index 0000000..d8ef01e
+--- /dev/null
++++ b/verify-erasure.mjs
+@@ -0,0 +1,153 @@
++import assert from "node:assert/strict";
++import { rmSync } from "node:fs";
++import { startLab } from "./server.mjs";
++import { FIXTURE } from "./provider.mjs";
++import { requestOperation, STAGES } from "./scenario.mjs";
++import { deliver, sign } from "./webhooks.mjs";
++import { WEBHOOK } from "@hyodotdev/openiap-commerce-protocol";
++
++export async function verifyErasure() {
++  const checks = [];
++  const check = (name, actual, expected) => {
++    assert.deepEqual(actual, expected, name);
++    checks.push(name);
++  };
++  const lab = startLab();
++  try {
++    const { runtime } = lab;
++    const call = (name, input, role) =>
++      requestOperation(runtime.baseUrl, name, input, role);
++    const evidence = { store: FIXTURE.store, evidence: FIXTURE.evidence };
++    await call("verifyPurchase", evidence);
++    await call("bindPurchase", { ...evidence, userId: FIXTURE.userId });
++    const pending = runtime.provider.db
++      .query("SELECT body FROM outbox LIMIT 1")
++      .get().body;
++    const post = (body) => {
++      const timestamp = String(Math.floor(runtime.now() / 1000));
++      return runtime.post({
++        method: "POST",
++        body,
++        headers: {
++          [WEBHOOK.timestampHeader]: timestamp,
++          [WEBHOOK.signatureHeader]: sign(runtime.secret, timestamp, body),
++          [WEBHOOK.eventIdHeader]: JSON.parse(body).eventId,
++        },
++      });
++    };
++    await post(pending);
++    check(
++      "An active purchase has a delivered event copy",
++      runtime.receiver.count(),
++      1,
++    );
++    runtime.receiver.eraseUser(FIXTURE.userId);
++    let erased;
++    await deliver(
++      runtime.provider,
++      runtime.secret,
++      runtime.now,
++      async (init) => {
++        erased = await call("eraseUser", { userId: FIXTURE.userId });
++        return runtime.post(init);
++      },
++    );
++    check("Erasure during delivery completes", erased.body.status, "completed");
++    check(
++      "An in-flight event cannot resurrect receiver data",
++      runtime.receiver.count(),
++      0,
++    );
++    check(
++      "An in-flight acknowledgement cannot resurrect the outbox",
++      runtime.provider.inspect().deliveries,
++      [],
++    );
++    runtime.restart();
++    check(
++      "Repeated erase survives restart",
++      (await call("eraseUser", { userId: FIXTURE.userId })).body,
++      erased.body,
++    );
++    check(
++      "An old signed event remains discarded after restart",
++      (await (await post(pending)).json()).discarded,
++      "erased-user",
++    );
++    const late = JSON.stringify({
++      ...JSON.parse(pending),
++      eventId: "late-new-event",
++    });
++    check(
++      "A new event ID cannot bypass erasure",
++      (await (await post(late)).json()).discarded,
++      "erased-user",
++    );
++    check(
++      "Verification cannot bind an erased purchase",
++      (await call("verifyPurchase", evidence)).body.isValid,
++      true,
++    );
++    check(
++      "Stale binding cannot restore an erased account",
++      (await call("bindPurchase", { ...evidence, userId: FIXTURE.userId })).body
++        .bound,
++      false,
++    );
++    check(
++      "Another account cannot claim erased evidence",
++      (await call("bindPurchase", { ...evidence, userId: "demo_bob" })).body
++        .bound,
++      false,
++    );
++    check(
++      "Erased account is inactive before paid expiry",
++      (await call("subscriptionStatus", { userId: FIXTURE.userId })).body,
++      { active: false },
++    );
++    runtime.time = FIXTURE.expiresAt;
++    runtime.provider.observe({
++      id: "expiry-after-deletion",
++      kind: "expire",
++      occurredAt: runtime.time,
++    });
++    await deliver(runtime.provider, runtime.secret, runtime.now, runtime.post);
++    check(
++      "Late lifecycle processing carries no erased identity",
++      runtime.receiver.inspect().map((event) => event.userId),
++      [undefined],
++    );
++    const serialized = JSON.stringify([
++      runtime.provider.db.query("SELECT * FROM purchases").all(),
++      runtime.provider.db.query("SELECT * FROM outbox").all(),
++      runtime.provider.db.query("SELECT * FROM erased_users").all(),
++      runtime.receiver.inspect(),
++    ]);
++    check(
++      "Persisted protocol records contain no erased user ID",
++      serialized.includes(FIXTURE.userId),
++      false,
++    );
++    check(
++      "Unknown-user erasure is accepted",
++      (await call("eraseUser", { userId: "missing_user" })).body.accepted,
++      true,
++    );
++  } finally {
++    await lab.close();
++    rmSync(lab.directory, { recursive: true, force: true });
++  }
++  const walkthrough = startLab();
++  try {
++    for (let i = 0; i < STAGES.length; i++)
++      await walkthrough.scenario.advance();
++    checks.push(...walkthrough.scenario.history.at(-1).checks);
++  } finally {
++    await walkthrough.close();
++    rmSync(walkthrough.directory, { recursive: true, force: true });
++  }
++  return checks;
++}
++
++if (import.meta.main)
++  console.log(`${(await verifyErasure()).length} erasure checks passed.`);
+diff --git a/verify-stores.mjs b/verify-stores.mjs
+new file mode 100644
+index 0000000..01bc808
+--- /dev/null
++++ b/verify-stores.mjs
+@@ -0,0 +1,173 @@
++import assert from "node:assert/strict";
++import { createProvider, CREDENTIALS } from "./provider.mjs";
++import { operation } from "./contract.mjs";
++import { toVerifyPurchaseInput } from "./client-bridge.mjs";
++
++export async function verifyStores() {
++  const checks = [];
++  for (const store of ["apple", "google", "amazon", "horizon"]) {
++    let current = true;
++    let time = Date.now();
++    const input = toVerifyPurchaseInput(
++      { store, purchaseToken: "fictional-proof", productId: "premium.monthly" },
++      { storeUserId: "fixture-store-user", amazonSandbox: true },
++    );
++    const evidence =
++      store === "amazon"
++        ? JSON.stringify(["fixture-store-user", "fictional-proof", true])
++        : store === "horizon"
++          ? JSON.stringify(["fixture-store-user", "premium.monthly"])
++          : "fictional-proof";
++    const fixture = {
++      store,
++      evidence,
++      userId: "alice",
++      productId: "premium.monthly",
++      startsAt: time,
++      expiresAt: time + 60000,
++      pointInTime: ["amazon", "horizon"].includes(store),
++      currentVerdict: () => current,
++    };
++    const provider = createProvider(":memory:", () => time, fixture);
++    const check = (label, actual, expected) => {
++      assert.deepEqual(actual, expected, `${store}: ${label}`);
++      checks.push(`${store}: ${label}`);
++    };
++    async function call(name, body, credential = CREDENTIALS.server) {
++      const spec = operation(name),
++        url = new URL(spec.path, "http://fixture.invalid");
++      if (spec.method === "GET")
++        for (const [key, value] of Object.entries(body ?? {}))
++          url.searchParams.set(key, value);
++      const response = await provider.fetch(
++        new Request(url, {
++          method: spec.method,
++          headers: {
++            authorization: credential,
++            "content-type": "application/json",
++          },
++          ...(spec.method === "POST" ? { body: JSON.stringify(body) } : {}),
++        }),
++      );
++      return { status: response.status, result: await response.json() };
++    }
++    try {
++      check(
++        "unverified evidence cannot bind",
++        (await call("bindPurchase", { ...input, userId: "alice" })).result
++          .bound,
++        false,
++      );
++      check(
++        "matching evidence verifies",
++        (await call("verifyPurchase", input)).result.isValid,
++        true,
++      );
++      check(
++        "verification alone gives no access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "verification credentials cannot bind",
++        (
++          await call(
++            "bindPurchase",
++            { ...input, userId: "alice" },
++            CREDENTIALS.verification,
++          )
++        ).status,
++        403,
++      );
++      for (let i = 0; i < 2; i++)
++        check(
++          "binding and retry keep one owner",
++          (await call("bindPurchase", { ...input, userId: "alice" })).result
++            .bound,
++          true,
++        );
++      check(
++        "another account cannot claim the purchase",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++      check(
++        "owned product is accessible",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        ["premium.monthly"],
++      );
++      if (fixture.pointInTime) {
++        current = "outage";
++        check(
++          "an outage is an error, not cached access",
++          (await call("entitlements", { userId: "alice" })).status,
++          502,
++        );
++        current = false;
++        check(
++          "a negative recheck removes access",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          [],
++        );
++        current = true;
++        check(
++          "a confirmed recheck restores ownership",
++          (await call("entitlements", { userId: "alice" })).result.productIds,
++          ["premium.monthly"],
++        );
++      }
++      check(
++        "erasure completes",
++        (await call("eraseUser", { userId: "alice" })).result.status,
++        "completed",
++      );
++      check(
++        "erasure removes access",
++        (await call("entitlements", { userId: "alice" })).result.productIds,
++        [],
++      );
++      check(
++        "erased evidence cannot be claimed",
++        (await call("bindPurchase", { ...input, userId: "bob" })).result.bound,
++        false,
++      );
++      for (const [label, offset] of [
++        ["before", -1],
++        ["at", 0],
++        ["after", 1],
++      ]) {
++        time = fixture.expiresAt + offset;
++        const verdict = (await call("verifyPurchase", input)).result;
++        check(
++          `verification ${label} the fixture deadline respects the store's access model`,
++          [verdict.isValid, verdict.state],
++          fixture.pointInTime || offset < 0
++            ? [true, "ENTITLED"]
++            : [false, "EXPIRED"],
++        );
++      }
++      if (fixture.pointInTime) {
++        current = false;
++        const rejected = (await call("verifyPurchase", input)).result;
++        check(
++          "a negative ownership verdict remains rejected after the fixture deadline",
++          [rejected.isValid, rejected.state],
++          [false, "INAUTHENTIC"],
++        );
++        current = "outage";
++        check(
++          "an ownership verification outage remains an error after the fixture deadline",
++          (await call("verifyPurchase", input)).status,
++          502,
++        );
++      }
++    } finally {
++      provider.close();
++    }
++  }
++  return checks;
++}
++if (import.meta.main)
++  console.log(
++    `Store fixtures: ${(await verifyStores()).length} checks passed. No store contacted.`,
++  );
+diff --git a/verify.mjs b/verify.mjs
+new file mode 100644
+index 0000000..e23c995
+--- /dev/null
++++ b/verify.mjs
+@@ -0,0 +1,29 @@
++import assert from "node:assert/strict";
++import { rmSync } from "node:fs";
++import { startLab } from "./server.mjs";
++import { STAGES, requestOperation } from "./scenario.mjs";
++
++export async function verifyLab() {
++  const lab = startLab();
++  const checks = [];
++  const check = (label, actual, expected) => {
++    assert.deepEqual(actual, expected, label);
++    checks.push(label);
++  };
++  try {
++    for (const stage of STAGES) await lab.scenario.advance();
++    checks.push(...lab.scenario.history.flatMap(entry => entry.checks));
++    const unsupported = "verifyPurchase";
++    const response = await requestOperation(lab.runtime.baseUrl, unsupported, {});
++    check("An unimplemented operation is explicitly refused", response.body.error.code, "UNSUPPORTED_PROFILE");
++    check("Untrusted browser origins are refused", (await fetch(lab.runtime.baseUrl + "/demo/advance", { method: "POST", headers: { origin: "https://untrusted.example" } })).status, 403);
++    return checks;
++  } finally {
++    await lab.close();
++    rmSync(lab.directory, {recursive:true, force:true});
++  }
++}
++if (import.meta.main) {
++  const checks = await verifyLab();
++  console.log(JSON.stringify({passed: checks.length, checks}, null, 2));
++}
+diff --git a/webhooks.mjs b/webhooks.mjs
+new file mode 100644
+index 0000000..df8523d
+--- /dev/null
++++ b/webhooks.mjs
+@@ -0,0 +1,188 @@
++import { Database } from "bun:sqlite";
++import { createHmac, timingSafeEqual } from "node:crypto";
++import { WEBHOOK } from "@hyodotdev/openiap-commerce-protocol";
++import { validate } from "./contract.mjs";
++import { createErasureLedger } from "./erasure.mjs";
++
++export function sign(secret, timestamp, body) {
++  return (
++    WEBHOOK.signaturePrefix +
++    createHmac("sha256", secret)
++      .update(`${timestamp}.`)
++      .update(body)
++      .digest("hex")
++  );
++}
++
++export function authentic(secrets, timestamp, body, signatures, nowSeconds) {
++  if (!/^\d+$/.test(timestamp ?? "")) return false;
++  if (
++    !Number.isSafeInteger(Number(timestamp)) ||
++    Math.abs(nowSeconds - Number(timestamp)) > WEBHOOK.toleranceSeconds
++  )
++    return false;
++  return (signatures ?? "").split(",").some((raw) => {
++    const candidate = raw.trim();
++    if (!/^v1=[a-f0-9]{64}$/.test(candidate)) return false;
++    return secrets.some((secret) =>
++      timingSafeEqual(
++        Buffer.from(candidate),
++        Buffer.from(sign(secret, timestamp, body)),
++      ),
++    );
++  });
++}
++
++export function createReceiver(path, secret, now) {
++  const emitters =
++    typeof secret === "string" ? [{ name: "default", secret }] : secret;
++  if (
++    !Array.isArray(emitters) ||
++    !emitters.length ||
++    emitters.some(
++      (entry) =>
++        !entry.name ||
++        !entry.secret ||
++        (typeof secret !== "string" && !entry.projectId),
++    )
++  )
++    throw new Error(
++      "Configure each emitter with a name, project ID, and signing secret",
++    );
++  if (new Set(emitters.map((entry) => entry.name)).size !== emitters.length)
++    throw new Error("Emitter names must be unique");
++  const db = new Database(path, { create: true });
++  db.exec(
++    "CREATE TABLE IF NOT EXISTS inbox (event_id TEXT PRIMARY KEY, body TEXT NOT NULL)",
++  );
++  const erasures = createErasureLedger(db);
++  // Upgrade old single-emitter event IDs without losing durable deduplication.
++  db.transaction(() => {
++    for (const row of db.query("SELECT event_id, body FROM inbox").all()) {
++      const event = JSON.parse(row.body);
++      if (row.event_id !== event.eventId) continue;
++      const matching = emitters.filter(
++        (entry) => entry.projectId === event.projectId,
++      );
++      const name = matching.length === 1 ? matching[0].name : "default";
++      const identity = JSON.stringify([name, event.projectId, event.eventId]);
++      db.query("INSERT OR IGNORE INTO inbox VALUES (?, ?)").run(
++        identity,
++        row.body,
++      );
++      db.query("DELETE FROM inbox WHERE event_id = ?").run(row.event_id);
++    }
++  })();
++
++  async function fetch(request) {
++    const bytes = new Uint8Array(await request.arrayBuffer());
++    const authenticated = emitters.filter((emitter) =>
++      authentic(
++        [emitter.secret],
++        request.headers.get(WEBHOOK.timestampHeader),
++        bytes,
++        request.headers.get(WEBHOOK.signatureHeader),
++        Math.floor(now() / 1000),
++      ),
++    );
++    if (!authenticated.length) {
++      return new Response("Invalid signature", { status: 401 });
++    }
++    let body, event;
++    try {
++      body = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++      event = JSON.parse(body);
++    } catch {
++      return new Response("Invalid JSON", { status: 400 });
++    }
++    if (!validate("#/$defs/CommerceEvent", event))
++      return new Response("Invalid event", { status: 400 });
++    if (request.headers.get(WEBHOOK.eventIdHeader) !== event.eventId)
++      return new Response("Event ID mismatch", { status: 400 });
++    const emitter = authenticated.find(
++      (entry) => !entry.projectId || entry.projectId === event.projectId,
++    );
++    if (!emitter)
++      return new Response("Unexpected emitter project", { status: 401 });
++    if (event.userId && erasures.has(event.userId))
++      return Response.json({ accepted: true, discarded: "erased-user" });
++    // Inbox insertion is the durable effect; downstream jobs can consume it later.
++    const result = db
++      .query("INSERT OR IGNORE INTO inbox VALUES (?, ?)")
++      .run(
++        JSON.stringify([emitter.name, event.projectId, event.eventId]),
++        body,
++      );
++    return Response.json({ accepted: true, duplicate: result.changes === 0 });
++  }
++
++  return {
++    fetch,
++    eraseUser(userId) {
++      return db.transaction(() => {
++        erasures.remember(userId);
++        return db
++          .query("DELETE FROM inbox WHERE json_extract(body, '$.userId') = ?")
++          .run(userId).changes;
++      })();
++    },
++    inspect: () =>
++      db
++        .query("SELECT body FROM inbox ORDER BY rowid")
++        .all()
++        .map((row) => JSON.parse(row.body)),
++    count: () => db.query("SELECT count(*) AS count FROM inbox").get().count,
++    close: () => db.close(),
++  };
++}
++
++// The caller injects a loopback test transport. This is not a public HTTPS worker.
++export async function deliver(provider, secret, now, post) {
++  const results = [];
++  const rows = provider.db
++    .query(
++      "SELECT * FROM outbox WHERE status = 'pending' AND next_at <= ? ORDER BY rowid",
++    )
++    .all(now());
++  for (const candidate of rows) {
++    const row = provider.db
++      .query("SELECT * FROM outbox WHERE event_id = ? AND status = 'pending'")
++      .get(candidate.event_id);
++    if (!row) continue;
++    const timestamp = Math.floor(now() / 1000).toString();
++    const headers = {
++      "content-type": WEBHOOK.contentType,
++      [WEBHOOK.timestampHeader]: timestamp,
++      [WEBHOOK.signatureHeader]: sign(secret, timestamp, row.body),
++      [WEBHOOK.eventIdHeader]: row.event_id,
++      [WEBHOOK.deliveryIdHeader]: row.delivery_id,
++    };
++    let status;
++    try {
++      status = (await post({ method: "POST", headers, body: row.body })).status;
++    } catch {
++      status = 503;
++    }
++    const attempts = row.attempts + 1;
++    const retryable = status === 408 || status === 429 || status >= 500;
++    const next =
++      status >= 200 && status < 300
++        ? "delivered"
++        : retryable && attempts < 3
++          ? "pending"
++          : "dead-letter";
++    provider.db
++      .query(
++        "UPDATE outbox SET attempts = ?, status = ?, next_at = ? WHERE event_id = ?",
++      )
++      .run(attempts, next, now() + 30_000 * 2 ** (attempts - 1), row.event_id);
++    results.push({
++      eventId: row.event_id,
++      deliveryId: row.delivery_id,
++      httpStatus: status,
++      attempt: attempts,
++      status: next,
++    });
++  }
++  return results;
++}

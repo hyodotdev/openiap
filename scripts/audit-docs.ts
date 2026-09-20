@@ -35,7 +35,7 @@ import { readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 import { GENERATED_SYNC_MANIFEST } from "../specs/client/generated-sync-manifest.mjs";
-import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
+import { assertClientProtocol } from "./release-branch-policy.mjs";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
 const DOC_ROOTS = [
@@ -1461,6 +1461,95 @@ function formatQuotedList(values: string[]): string {
  * `Planned Package Releases`; once it is changed to `Package Releases`, bare
  * package text is a docs regression.
  */
+// Release workflows link a version's own anchor, e.g.
+// /docs/updates/releases#godot-iap-3.5.1. The page paginates and resolves a
+// hash only against a note's id or aliases, so a card that lists package
+// releases without registering their tags leaves those links pointing at the
+// top of page one — a dead link that looks alive. These cards predate the
+// scheme; every new one must register its tags.
+const RELEASE_CARDS_WITHOUT_VERSION_ANCHORS = new Set<string>([
+  "commerce-protocol-0-3-0-2026-09-16",
+  "android-gradle-compatibility-2026-09-07",
+  "android-iap-opt-out-2026-09-03",
+  "purchase-lifecycle-horizon-verification-2026-08-31",
+  "storekit-toolchain-compatibility-2026-08-29",
+  "unified-offer-code-redemption-2026-08-27",
+  "react-native-iap-android-listener-isolation-2026-08-26",
+  "purchase-diagnostics-log-sanitization-2026-08-21",
+  "godot-gdextension-platform-tags-2026-08-20",
+  "godot-macos-storekit-routing-2026-08-17",
+  "compatibility-conformance-purchase-safety-2026-08-14",
+  "store-verification-integrity-amazon-provenance-2026-08-12",
+  "subscription-replacement-r8-fix-2026-08-11",
+  "store-api-follow-up-hardening-2026-08-10",
+  "store-api-contract-modernization-2026-08-10",
+  "dependency-toolchain-modernization-2026-08-09",
+  "amazon-rvs-user-data-patch-train-2026-08-04",
+  "apple-framework-compatibility-patches-2026-08-02",
+  "google-play-ambiguous-purchase-recovery-2026-07-28",
+  "openiap-major-api-cleanup-2026-07-29",
+  "iapkit-security-cross-sdk-payload-integrity-2026-07-25",
+  "spec-2-4-2-stable-train-offer-contracts-2026-07-24",
+  "react-native-iap-fetch-products-all-fix-2026-07-20",
+  "cross-sdk-audit-fixes-2026-07-20",
+  "iapkit-product-client-payloads-2026-07-16",
+  "framework-build-compatibility-patches-2026-07-16",
+  "local-self-hosted-iapkit-verification-2026-07-14",
+  "purchase-safety-lifecycle-release-2026-07-12",
+  "multi-store-billing-9-1-sdk-release-2026-07-11",
+  "ios-cancellation-error-bridge-hotfix-2026-07-02",
+  "ios-subscription-commitment-billing-plans-2026-07-02",
+  "ios-syncios-cancellation-error-hotfix-2026-06-28",
+  "fetch-products-all-parity-hotfix-2026-06-26",
+  "flutter-swift-package-manager-support-2026-06-23",
+  "android-already-owned-recovery-hotfix-2026-06-23",
+  "ios-subscription-group-id-product-field-2026-05-27",
+  "android-billing-callback-race-hotfix-2026-05-19",
+  "sdk-minor-maintenance-2026-05-17",
+  "openiap-spec-2-0-2-purchase-update-replay-controls",
+  "godot-iap-2-2-9-macos-gatekeeper-packaging",
+  "godot-iap-2-2-8-ios-export-framework-embedding",
+  "apple-2-1-8-promoted-iap-cold-start",
+  "apple-2-1-7-framework-ios-connection-teardown-patches",
+  "maui-iap-1-0-1-openiap-namespace",
+  "maui-iap-1-0-0",
+  "apple-2-1-6-google-2-1-4-sdk-parity",
+  "releases-2026-05-05",
+  "releases-2026-04-25",
+  "releases-2026-04-24",
+  "releases-2026-04-17",
+  "releases-2026-04-16",
+]);
+
+export function auditReleaseNoteVersionAnchors(
+  filePath: string,
+  source?: string,
+  grandfathered: ReadonlySet<string> = RELEASE_CARDS_WITHOUT_VERSION_ANCHORS,
+): Drift[] {
+  const src = source ?? readFileSync(filePath, "utf8");
+  const drifts: Drift[] = [];
+  const cardRe = /^ {4}\{\n {6}id: '([^']+)',\n([\s\S]*?)^ {4}\},\n/gm;
+  let match: RegExpExecArray | null;
+  while ((match = cardRe.exec(src)) !== null) {
+    const [, id, body] = match;
+    if (!body.includes("Package Releases")) continue;
+    if (grandfathered.has(id)) continue;
+    if (/aliases:[^\n]*\.map\(\(release\) => release\.tag\)/.test(body))
+      continue;
+    drifts.push({
+      rule: "R1",
+      file: filePath,
+      line: src.slice(0, match.index).split("\n").length,
+      message:
+        `release card '${id}' lists Package Releases but does not register its ` +
+        "tags as aliases, so #<tag> links land on page one instead of the card. " +
+        "Add `aliases: <ARRAY>.map((release) => release.tag)` and render the " +
+        "hidden anchors beside it.",
+    });
+  }
+  return drifts;
+}
+
 function auditReleaseNotePackageLinks(filePath: string): Drift[] {
   const src = readFileSync(filePath, "utf8");
   const drifts: Drift[] = [];
@@ -1602,7 +1691,7 @@ function auditVersionMetadata(): Drift[] {
   );
   if (rootVersions) {
     try {
-      assertSpecMatchesNativeFloor(rootVersions);
+      assertClientProtocol(rootVersions);
     } catch (error) {
       drifts.push({
         file: ROOT_VERSIONS_FILE,
@@ -1611,7 +1700,7 @@ function auditVersionMetadata(): Drift[] {
         message:
           error instanceof Error
             ? error.message
-            : "OpenIAP Spec must match the native version floor.",
+            : "openiap-versions.json clientProtocol must equal specs/client/package.json.",
       });
     }
   }
@@ -1872,7 +1961,7 @@ export function findWebhookTransportDrift(
   source: string,
   vectors: { headers: Record<string, string>; toleranceSeconds: number },
   specification: string,
-  file = "packages/docs/src/pages/docs/webhooks.tsx",
+  file = "packages/docs/src/pages/commerce-protocol/webhooks.tsx",
 ): Drift[] {
   const drifts: Drift[] = [];
   const push = (message: string) =>
@@ -1950,7 +2039,10 @@ export function findWebhookTransportDrift(
 }
 
 function auditWebhookTransportConstants(): Drift[] {
-  const file = join(REPO_ROOT, "packages/docs/src/pages/docs/webhooks.tsx");
+  const file = join(
+    REPO_ROOT,
+    "packages/docs/src/pages/commerce-protocol/webhooks.tsx",
+  );
   if (!statSyncSafe(file)) {
     return [
       {
@@ -2127,6 +2219,7 @@ async function main() {
   }
 
   drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
+  drifts.push(...auditReleaseNoteVersionAnchors(RELEASE_NOTES_FILE));
   drifts.push(...auditVersionMetadata());
   drifts.push(
     ...auditVerifyPurchaseDocs(

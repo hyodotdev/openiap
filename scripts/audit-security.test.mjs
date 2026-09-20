@@ -361,16 +361,31 @@ reason = "Invalid date."
 
 test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   const yarnLock = "libraries/react-native-iap/yarn.lock";
+  // Ids and expiry both come from the real exception file, so adding or
+  // retiring one needs no edit here. This covers the expiry lifecycle, not
+  // which advisories are excepted: a stale or bogus entry surfaces in the
+  // auditor itself, asserted below as unused and unaccepted findings.
+  const exceptions = parseOsvIgnoredVulnerabilities(
+    readFileSync(
+      resolve(
+        import.meta.dirname,
+        "..",
+        "libraries/react-native-iap/osv-scanner.toml",
+      ),
+      "utf8",
+    ),
+  );
+  assert.ok(exceptions.size > 0, "the fixture needs at least one exception");
+  const lastExpiry = [...exceptions.values()]
+    .map((entry) => Date.parse(`${entry.ignoreUntil}T00:00:00Z`))
+    .reduce((a, b) => Math.max(a, b));
+  const dayAfterLastExpiry = new Date(lastExpiry + 24 * 60 * 60 * 1000);
   const activeReport = JSON.stringify({
     results: [
       {
         packages: [
           {
-            vulnerabilities: [
-              { id: "GHSA-5p2g-fcmc-qvqq" },
-              { id: "GHSA-w3rx-r6r6-pgpr" },
-              { id: "GHSA-vcc3-ghjq-m6fr" },
-            ],
+            vulnerabilities: [...exceptions.keys()].map((id) => ({ id })),
           },
         ],
       },
@@ -403,10 +418,14 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
     /unused dependency exception/u,
   );
   assert.throws(
-    () =>
-      auditDependencies(scanner, [], new Date("2026-09-15T00:00:00Z"), [
-        yarnLock,
-      ]),
+    () => auditDependencies(scanner, [], dayAfterLastExpiry, [yarnLock]),
+    /expired dependency exception/u,
+  );
+  // OSV-Scanner stops honouring a window on the ignoreUntil date itself. This
+  // audit once called that same day live, so a lapsed exception failed CI while
+  // this stayed silent; the boundary is pinned rather than left to a comparison.
+  assert.throws(
+    () => auditDependencies(scanner, [], new Date(lastExpiry), [yarnLock]),
     /expired dependency exception/u,
   );
   const unaccepted = JSON.parse(activeReport);
@@ -712,7 +731,7 @@ test("compiled CodeQL Gradle builds reuse the transient-network retry guard", ()
   );
   assert.equal(
     (workflow.match(/scripts\/ci\/retry-gradle\.sh/gu) ?? []).length,
-    6,
+    7,
   );
   assert.match(workflow, /:openiap:compilePlayDebugKotlin/u);
   assert.match(workflow, /:library:compilePlayDebugKotlinAndroid/u);
@@ -926,131 +945,167 @@ test("actions from one repository must be pinned to one commit", () => {
   // its own, and every Analyze job died with "Loaded a configuration file for
   // version 4.37.9, but running version 4.37.8". Grouping in dependabot.yml
   // stops it arriving split; this catches it if it arrives split anyway.
-  const drifted = findActionFamilyDrift([
+  const drifted = findActionFamilyDrift(
     [
-      "codeql.yml",
-      workflow(
-        uses("github/codeql-action/init", NEW),
-        uses("github/codeql-action/analyze", OLD),
-      ),
+      [
+        "codeql.yml",
+        workflow(
+          uses("github/codeql-action/init", NEW),
+          uses("github/codeql-action/analyze", OLD),
+        ),
+      ],
     ],
-  ], none);
+    none,
+  );
   assert.equal(drifted.length, 1);
-  assert.match(drifted[0], /github\/codeql-action is pinned to 2 different commits/u);
+  assert.match(
+    drifted[0],
+    /github\/codeql-action is pinned to 2 different commits/u,
+  );
   // It has to say WHERE, or the reader cannot act on it.
   assert.match(drifted[0], /codeql\.yml/u);
 
   // A repository can publish a root action alongside sub-actions, so a missing
   // subpath is still the same family. Requiring one missed this entirely.
-  const rootDrift = findActionFamilyDrift([
+  const rootDrift = findActionFamilyDrift(
     [
-      "codeql.yml",
-      workflow(
-        uses("github/codeql-action", OLD),
-        uses("github/codeql-action/init", NEW),
-      ),
+      [
+        "codeql.yml",
+        workflow(
+          uses("github/codeql-action", OLD),
+          uses("github/codeql-action/init", NEW),
+        ),
+      ],
     ],
-  ], none);
+    none,
+  );
   assert.equal(rootDrift.length, 1);
-  assert.match(rootDrift[0], /github\/codeql-action is pinned to 2 different commits/u);
+  assert.match(
+    rootDrift[0],
+    /github\/codeql-action is pinned to 2 different commits/u,
+  );
 
   // A reusable workflow is a reference from the same repository, so two of
   // them at different commits is drift. The subpath has dots in it.
   assert.equal(
-    findActionFamilyDrift([
+    findActionFamilyDrift(
       [
-        "call.yml",
-        workflow(
-          uses("hyodotdev/openiap/.github/workflows/a.yml", OLD),
-          uses("hyodotdev/openiap/.github/workflows/b.yml", NEW),
-        ),
+        [
+          "call.yml",
+          workflow(
+            uses("hyodotdev/openiap/.github/workflows/a.yml", OLD),
+            uses("hyodotdev/openiap/.github/workflows/b.yml", NEW),
+          ),
+        ],
       ],
-    ], none).length,
+      none,
+    ).length,
     1,
   );
 
   // A local action has no owner, and a docker digest is not a git commit.
   assert.deepEqual(
-    findActionFamilyDrift([
+    findActionFamilyDrift(
       [
-        "w.yml",
-        workflow(
-          "./.github/actions/a",
-          "./.github/actions/b",
-          `docker://alpine@sha256:${"a".repeat(64)}`,
-        ),
+        [
+          "w.yml",
+          workflow(
+            "./.github/actions/a",
+            "./.github/actions/b",
+            `docker://alpine@sha256:${"a".repeat(64)}`,
+          ),
+        ],
       ],
-    ], none),
+      none,
+    ),
     [],
   );
 
   // A SHA in a comment or a shell line is not a reference the workflow
   // resolves; matching raw text reported drift against both.
   assert.deepEqual(
-    findActionFamilyDrift([
+    findActionFamilyDrift(
       [
-        "w.yml",
         [
-          "on: push",
-          "jobs:",
-          "  a:",
-          "    steps:",
-          `      # was actions/checkout@${OLD}`,
-          `      - run: echo "pinned actions/checkout@${OLD}"`,
-          `      - uses: actions/checkout@${NEW} # v4`,
-          "",
-        ].join("\n"),
+          "w.yml",
+          [
+            "on: push",
+            "jobs:",
+            "  a:",
+            "    steps:",
+            `      # was actions/checkout@${OLD}`,
+            `      - run: echo "pinned actions/checkout@${OLD}"`,
+            `      - uses: actions/checkout@${NEW} # v4`,
+            "",
+          ].join("\n"),
+        ],
       ],
-    ], none),
+      none,
+    ),
     [],
   );
 
   // GitHub resolves an action reference case-insensitively, so a differently
   // cased owner is the same repository, not a second family.
   assert.equal(
-    findActionFamilyDrift([
+    findActionFamilyDrift(
       [
-        "w.yml",
-        workflow(
-          uses("GitHub/codeql-action/init", OLD),
-          uses("github/codeql-action/analyze", NEW),
-        ),
+        [
+          "w.yml",
+          workflow(
+            uses("GitHub/codeql-action/init", OLD),
+            uses("github/codeql-action/analyze", NEW),
+          ),
+        ],
       ],
-    ], none).length,
+      none,
+    ).length,
     1,
   );
 
   // A single-path action agreeing with itself is not a finding.
   assert.deepEqual(
-    findActionFamilyDrift([
-      ["a.yml", workflow(uses("actions/checkout", NEW))],
-      ["b.yml", workflow(uses("actions/checkout", NEW))],
-    ], none),
+    findActionFamilyDrift(
+      [
+        ["a.yml", workflow(uses("actions/checkout", NEW))],
+        ["b.yml", workflow(uses("actions/checkout", NEW))],
+      ],
+      none,
+    ),
     [],
   );
 
   // Across files counts too — upload-sarif lives in a different workflow.
   assert.equal(
-    findActionFamilyDrift([
-      ["codeql.yml", workflow(uses("github/codeql-action/init", NEW))],
-      ["scorecard.yml", workflow(uses("github/codeql-action/upload-sarif", OLD))],
-    ], none).length,
+    findActionFamilyDrift(
+      [
+        ["codeql.yml", workflow(uses("github/codeql-action/init", NEW))],
+        [
+          "scorecard.yml",
+          workflow(uses("github/codeql-action/upload-sarif", OLD)),
+        ],
+      ],
+      none,
+    ).length,
     1,
   );
 
   // Agreement is not a finding, and neither is a single-path action that
   // happens to sit at a different commit from an unrelated one.
   assert.deepEqual(
-    findActionFamilyDrift([
+    findActionFamilyDrift(
       [
-        "codeql.yml",
-        workflow(
-          uses("github/codeql-action/init", NEW),
-          uses("github/codeql-action/analyze", NEW),
-        ),
+        [
+          "codeql.yml",
+          workflow(
+            uses("github/codeql-action/init", NEW),
+            uses("github/codeql-action/analyze", NEW),
+          ),
+        ],
+        ["ci.yml", workflow(uses("gradle/actions/setup-gradle", OLD))],
       ],
-      ["ci.yml", workflow(uses("gradle/actions/setup-gradle", OLD))],
-    ], none),
+      none,
+    ),
     [],
   );
 
@@ -1120,11 +1175,25 @@ test("a family can be exempted from lockstep by name", () => {
   const split = [
     [
       "legacy.yml",
-      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${OLD} # v4.2.2`, ""].join("\n"),
+      [
+        "on: push",
+        "jobs:",
+        "  a:",
+        "    steps:",
+        `      - uses: actions/checkout@${OLD} # v4.2.2`,
+        "",
+      ].join("\n"),
     ],
     [
       "hosted.yml",
-      ["on: push", "jobs:", "  a:", "    steps:", `      - uses: actions/checkout@${NEW} # v5.0.0`, ""].join("\n"),
+      [
+        "on: push",
+        "jobs:",
+        "  a:",
+        "    steps:",
+        `      - uses: actions/checkout@${NEW} # v5.0.0`,
+        "",
+      ].join("\n"),
     ],
   ];
 

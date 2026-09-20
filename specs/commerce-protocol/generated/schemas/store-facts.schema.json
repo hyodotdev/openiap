@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openiap.dev/schemas/commerce-protocol/1.0/store-facts.schema.json",
+  "title": "OpenIAP Commerce Protocol store facts",
+  "description": "What each store's own commerce surface offers. A capability descriptor's `provider` axis answers the same question and MUST agree with this document; the descriptor keeps its `implementation` axis, which only that backend can answer.\n\nThese are observations of vendor documentation at a point in time, not obligations on the vendor, so a consumer MUST treat an absent store or capability as unknown rather than as absent-from-the-store.",
+  "type": "object",
+  "required": [
+    "commerceProtocolVersion",
+    "stores"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "commerceProtocolVersion": {
+      "description": "OpenIAP Commerce Protocol version this table was written against, as MAJOR.MINOR.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "stores": {
+      "description": "Keyed by store, using the same open value space as the event envelope. A table lists only the stores this version has examined.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/StoreFact"
+      }
+    }
+  },
+  "$defs": {
+    "StoreFact": {
+      "description": "One store's commerce surface, capability by capability. The axis names match the capability descriptor's, so a reader can put the two documents side by side. The container stays open, so a consumer ignores an axis it does not recognise; every axis named here is required, so adding one obliges this specification to answer it for every store it lists.",
+      "type": "object",
+      "required": [
+        "initialValidation",
+        "serverNotifications",
+        "subscriptions",
+        "renewalEvents",
+        "refundEvents",
+        "expiration",
+        "reconciliation",
+        "entitlements",
+        "revenueAmount"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "initialValidation": {
+          "description": "Server-side receipt or token validation on demand.",
+          "$ref": "#/$defs/Fact"
+        },
+        "serverNotifications": {
+          "description": "The store pushes lifecycle notifications to a backend.",
+          "$ref": "#/$defs/Fact"
+        },
+        "subscriptions": {
+          "description": "The store exposes a subscription resource a canonical record can be built from.",
+          "$ref": "#/$defs/Fact"
+        },
+        "renewalEvents": {
+          "description": "Renewal is reported as a distinct lifecycle signal.",
+          "$ref": "#/$defs/Fact"
+        },
+        "refundEvents": {
+          "description": "Refund or revocation of a subscription is reported as a distinct lifecycle signal.",
+          "$ref": "#/$defs/Fact"
+        },
+        "expiration": {
+          "description": "Expiry is reported, rather than only inferred from a timestamp having passed.",
+          "$ref": "#/$defs/Fact"
+        },
+        "reconciliation": {
+          "description": "An authoritative endpoint can be re-read on a schedule, so a lost notification can be repaired.",
+          "$ref": "#/$defs/Fact"
+        },
+        "entitlements": {
+          "description": "Current entitlement is answerable for access gating.",
+          "$ref": "#/$defs/Fact"
+        },
+        "revenueAmount": {
+          "description": "The store asserts an amount that can be attributed to revenue with `store` provenance.",
+          "$ref": "#/$defs/Fact"
+        }
+      }
+    },
+    "FactDelivery": {
+      "description": "How a store makes a capability reachable. This is the detail a boolean cannot carry, and the reason two stores that both answer \"yes\" can still need different integrations: one store pushes an amount on the notification, another returns it from a follow-up read, a third publishes it only in a periodic export. A surface is a server-reachable API; a report a human downloads from a vendor console is not one, and belongs in `notes` under an `available: false`. Where more than one surface offers the fact, `delivery` and `surface` name the most immediate: push before pull before batch.",
+      "type": "string",
+      "enum": [
+        "push",
+        "pull",
+        "batch",
+        "none"
+      ]
+    },
+    "Fact": {
+      "description": "One store's answer for one capability. `available` is the value a capability descriptor's `provider` axis copies; `delivery` and `surface` carry the shape that boolean cannot.",
+      "type": "object",
+      "required": [
+        "available",
+        "delivery"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "description": "Whether the store offers this at all. A fact about the store, independent of any backend. False means no documented surface exists, which is a far stronger statement than \"no backend has built it\".",
+          "type": "boolean"
+        },
+        "delivery": {
+          "description": "How the store makes it reachable. `none` exactly when `available` is false.",
+          "$ref": "#/$defs/FactDelivery"
+        },
+        "surface": {
+          "description": "The store's own name for the endpoint, channel, report or field that provides it, verbatim enough for a reader to find the vendor page. Required whenever `available` is true, and forbidden when it is false: a surface on a false would qualify it in a form a validator accepts and a consumer ignores.",
+          "type": "string",
+          "minLength": 1
+        },
+        "notes": {
+          "description": "Required whenever `available` is false, and wherever the surface carries a caveat an implementer would otherwise get wrong. A false MUST say which surfaces were examined.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "available": {
+                "const": true
+              }
+            },
+            "required": [
+              "available"
+            ]
+          },
+          "then": {
+            "properties": {
+              "delivery": {
+                "not": {
+                  "const": "none"
+                }
+              },
+              "surface": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "surface"
+            ]
+          },
+          "else": {
+            "properties": {
+              "delivery": {
+                "const": "none"
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "notes"
+            ],
+            "not": {
+              "required": [
+                "surface"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

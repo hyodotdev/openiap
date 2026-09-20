@@ -783,7 +783,7 @@ function throwUnsupportedFeature(feature: string): never {
 type VegaRnIapModule = Partial<RnIap> & {
   acknowledgePurchaseAndroid(purchaseToken: string): Promise<boolean>;
   consumePurchaseAndroid(purchaseToken: string): Promise<boolean>;
-  /** @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0. */
+  /** @deprecated Use openRedeemOfferCode. Scheduled for removal in client protocol 1.0.0. */
   openRedeemOfferCodeAndroid(): Promise<boolean>;
   restorePurchases(): Promise<void>;
 };

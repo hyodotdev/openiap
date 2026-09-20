@@ -23,6 +23,7 @@ This document provides an overview for AI agents working across the OpenIAP mono
 ```text
 openiap/
 ├── packages/
+│   ├── cli/           # `openiap init` + `doctor` CLI (npm)
 │   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation site (React/Vite/Vercel)
 │   ├── google/        # Android library
@@ -179,12 +180,12 @@ investigation narrative, no thanking-and-summarising. Canonical rules in
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
-- `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
-  and Apple are CI-managed. `spec` must equal the lower semantic version of
-  `google` and `apple`; it is never bumped directly in a feature PR or docs
-  deployment. Native version writers update their native key and the derived
-  `spec` atomically, then the sync workflow propagates package metadata.
-  Release-state, docs, parity, and sync audits reject floor drift.
+- `openiap-versions.json` - Tracks only `clientProtocol`, `google`, and `apple`.
+  `clientProtocol` mirrors `specs/client/package.json`, the single source for the
+  Client Protocol version; bump it there and let the sync propagate. `google` and
+  `apple` are CI-managed native package versions and constrain nothing about the
+  protocol. Release-state, docs, parity, and sync audits reject drift between the
+  mirror and the publishing manifest.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add
@@ -251,8 +252,8 @@ bun run compile
 
 ## Shared Agent Configuration
 
-`AGENTS.md` is the root project instruction SSOT. Codex and Grok read it
-directly; `CLAUDE.md` and `GEMINI.md` are compatibility symlinks to the same
+`AGENTS.md` is the root project instruction SSOT. Codex, Grok, and Muse read
+it directly; `CLAUDE.md` and `GEMINI.md` are compatibility symlinks to the same
 file. Every framework library follows the same pattern with a local canonical
 `AGENTS.md`. The `.claude/commands/`, `.claude/skills/`, `.codex/skills/`, and
 `.cursor/rules/` files remain thin tool-discovery adapters where their host
@@ -295,6 +296,25 @@ Grok Build reads the repository's `AGENTS.md` hierarchy directly and supports
 the Claude Code command, skill, plugin, and marketplace layout. Do not add a
 parallel `GROK.md`; keep shared rules in `AGENTS.md` and tool-specific adapters
 thin. See the [xAI skills and plugins documentation](https://docs.x.ai/build/features/skills-plugins-marketplaces).
+
+## Muse Compatibility
+
+Muse reads the repository's `AGENTS.md` hierarchy directly (`muse init`
+scaffolds `AGENTS.md` as the project-rules file) and auto-discovers
+`.codex/skills/*/SKILL.md` as project skills — verify with
+`muse skills list --source project`; no `muse skills import` step is needed.
+Do not add a parallel `MUSE.md` or a `.muse/skills/` mirror. Keep the
+canonical `.codex/skills/` bodies agent-neutral so Codex, Muse, and the
+Claude adapters read the same text; where a skill names a Codex-only tool
+(Chrome extension, Codex fallback reviewer), Muse reads it as the
+host-surface equivalent, or stops and asks the maintainer when none exists.
+
+To give Muse the IAPKit MCP server, add the endpoint to
+`${XDG_CONFIG_HOME:-$HOME/.config}/muse/settings.json` under `mcpServers`, as
+`type: "streamable-http"` with the same `url` as the repo's `.mcp.json` and
+your literal key in `headers.Authorization`. That file then holds a secret
+admin key in plaintext, so `chmod 600` it and never commit the key or paste it
+anywhere else. Do not point Muse at `.mcp.json`.
 
 ## Claude Code Compatibility
 

@@ -261,6 +261,61 @@ inspect the generated key value. After building, install with
 `VEGA_DEVICE_ID="$VEGA_DEVICE_ID" bun run run:vega:firetv`, then require the
 same local-server and purchases-view evidence as the other live lanes.
 
+## Device and Workspace State That Silently Breaks a Row
+
+Every item below has cost a full debugging session. Check them before
+concluding that a store, an account, or the code is at fault.
+
+**The Android project keeps the last store it was prebuilt for.** The FireOS
+and Horizon rows run `expo prebuild --platform android --clean` with
+`EXPO_IAP_FIREOS=1` or `EXPO_IAP_HORIZON=1`, and the generated `android/`
+directory keeps that store afterwards. A later Play run then links the wrong
+`openiap-google` flavor, so the example sits on `Connecting to Store...` with
+`initConnection failed: Failed to initialize connection` and
+`getStorefront failed: Billing client not ready`. Re-run
+`bunx expo prebuild --platform android --clean` with no store variable before
+the Play row, then confirm `horizonEnabled=false` and `fireOsEnabled=false` in
+`android/gradle.properties` and `missingDimensionStrategy "platform", "play"`
+in `android/app/build.gradle`.
+
+**A Play "not compatible with your device" banner does not block billing.** The
+Martie production listing sets `minSdkVersion 31`, so Play marks an Android 11
+device incompatible and refuses to install that artifact. The examples this
+repository builds declare a lower minimum and install fine: `packages/google`
+Example inherits `minSdk = 23` from the library, and the Expo example ships 24.
+Both use the `dev.hyo.martie` application id, so a license tester buys and
+verifies through them normally despite the banner. Confirm with the
+`packages/google` Example, whose subscription screen enables `OpenIapLog` and
+prints the real `BillingResult`, before blaming the store.
+
+**iOS keeps a scene session per bundle id.** Any other app built with
+`dev.hyo.martie` — the SwiftUI `packages/apple/Example`, or the Godot and
+Flutter Martie examples — leaves a scene session behind. Installing the Expo
+example over it restores that session, so UIKit attaches the previous app's
+scene delegate and the example's own `SceneDelegate`, which is what starts
+React Native, never runs. The process stays alive, the screen is black, Metro
+receives no bundle request, and nothing crashes. Run
+`xcrun devicectl device uninstall app --device "$IOS_UDID" dev.hyo.martie`
+before installing; an upgrade install does not clear it.
+
+**Prebuilt React Native has no packager support.** Expo links React Native as a
+prebuilt binary by default, and that slice compiles without `DEBUG`, so
+`RCTBundleURLProvider` returns no bundle URL and a Debug build never contacts
+Metro whatever host `ip.txt` holds. Set `"ios.buildReactNativeFromSource"` to
+`"true"` and `"EXPO_USE_PRECOMPILED_MODULES"` to `"false"` in
+`ios/Podfile.properties.json`, then run `pod install` and rebuild.
+
+**Reinstalling resets the iOS local-network permission.** Allow it again when
+the prompt appears, otherwise both Metro and the local server are unreachable.
+
+**The local origin differs per platform and is baked in at bundle time.**
+Android reaches the server through an `adb reverse` rule on `127.0.0.1`; iOS
+needs the Mac's LAN address. `EXPO_PUBLIC_*` values are inlined when Metro
+starts, so restart Metro and relaunch the app after editing the environment
+file. A stale value sends verification to the hosted service instead, which
+surfaces as `Unable to parse verification response` while the local server log
+stays empty.
+
 ## Martie Catalog
 
 - `dev.hyo.martie.10bulbs`: consumable; preferred repeatable receipt fixture

@@ -1,7 +1,7 @@
 import Ajv from "ajv/dist/2020";
 import type { ValidateFunction } from "ajv/dist/2020";
-import HTTP_BINDING from "openiap-commerce-protocol/generated/bindings/http-binding.json";
-import bundleSchema from "openiap-commerce-protocol/generated/schemas/commerce-protocol.bundle.schema.json";
+import HTTP_BINDING from "@hyodotdev/openiap-commerce-protocol/generated/bindings/http-binding.json";
+import bundleSchema from "@hyodotdev/openiap-commerce-protocol/generated/schemas/commerce-protocol.bundle.schema.json";
 
 // One compiled validator set for the whole process. The bundle resolves no
 // external reference, so compilation is offline and deterministic.

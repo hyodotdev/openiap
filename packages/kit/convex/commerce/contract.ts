@@ -9,17 +9,25 @@
 // inventing a parallel taxonomy — one semantic model, two spellings would drift.
 //
 // Store-specific detail lives under `extensions`, never in the canonical fields.
+//
+// Contract values are imported from the protocol, never restated, and the ones
+// a receiver decodes are pinned as goldens in kit's own tests so a protocol
+// rename fails on purpose. The event version below is the single exception: it
+// stays a literal because its type narrows CommerceEvent.eventVersion, and
+// spec.conformance.test.ts is what fails when the protocol bumps it.
+
+import { $defs } from "@hyodotdev/openiap-commerce-protocol/generated/schemas/primitives.schema.json";
 
 import type { SubscriptionState } from "../webhooks/shared";
 import type { SubscriptionTransitionKind } from "../subscriptions/stateMachine";
 
 /**
- * Bumped only when a field changes meaning or disappears. Additive optional
- * fields keep the same major version, so consumers can pin on the major and
- * still receive new data.
+ * Version of the emitted body. Consumers pin on the major, so a bump is a
+ * deliberate decision: spec.conformance.test.ts fails until this literal moves.
  */
 export const COMMERCE_EVENT_SCHEMA_VERSION = "1.0" as const;
 
+/** Event types IAPKit emits today; the protocol's own list is open. */
 export const COMMERCE_EVENT_TYPES = [
   "subscription.started",
   "subscription.renewed",
@@ -102,7 +110,7 @@ export function commerceEventTypesToEmit(args: {
   );
 }
 
-/** Where a monetary or temporal value came from. Never mix these silently. */
+/** The protocol's closed provenance enumeration. Never mix these silently. */
 export const DATA_PROVENANCE_VALUES = [
   "store", // the store asserted it in a signed notification or API response
   "catalog", // resolved from the project's own product catalog
@@ -116,6 +124,7 @@ export type CommerceMoney = {
   provenance: DataProvenance;
 };
 
+/** Stores IAPKit integrates; the protocol's store space is open. */
 export const COMMERCE_STORES = [
   "apple",
   "google",
@@ -124,6 +133,7 @@ export const COMMERCE_STORES = [
 ] as const;
 export type CommerceStore = (typeof COMMERCE_STORES)[number];
 
+/** Environments IAPKit's receivers observe; the protocol's space is open. */
 export const COMMERCE_ENVIRONMENTS = [
   "production",
   "sandbox",
@@ -175,10 +185,14 @@ export type CommerceEvent = {
   extensions?: Record<string, string>;
 };
 
-/** Extensions are attacker-influenced in the limit; keep them small and flat. */
-export const MAX_EXTENSION_ENTRIES = 24;
-export const MAX_EXTENSION_KEY_LENGTH = 64;
-export const MAX_EXTENSION_VALUE_LENGTH = 512;
+// Extensions are attacker-influenced in the limit. The bounds are a constraint
+// the sanitizer must satisfy, not something receivers decode, so they follow the
+// protocol: tightening or loosening them keeps kit schema-valid either way.
+const extensionBounds = $defs.Extensions;
+export const MAX_EXTENSION_ENTRIES = extensionBounds.maxProperties;
+export const MAX_EXTENSION_KEY_LENGTH = extensionBounds.propertyNames.maxLength;
+export const MAX_EXTENSION_VALUE_LENGTH =
+  extensionBounds.additionalProperties.maxLength;
 
 export function sanitizeExtensions(
   input: Record<string, string> | undefined,

@@ -1,7 +1,17 @@
-import { internalMutation, MutationCtx } from "../_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  MutationCtx,
+} from "../_generated/server";
 import { v, ConvexError, Infer } from "convex/values";
 import { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
+import schema from "../schema";
+import {
+  isValidSubscriptionUserId,
+  MAX_BOUND_PURCHASES_PER_USER,
+} from "../subscriptions/limits";
+import { isUserErasureRequested } from "../subscriptions/erasure";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
@@ -48,6 +58,7 @@ export type SavePurchaseArgs = {
   environment?: ReceiptEnvironment;
   requestIp?: string;
   verificationDurationMs?: number;
+  persistIfChanged?: boolean;
 };
 
 export async function savePurchaseInternal({
@@ -63,6 +74,7 @@ export async function savePurchaseInternal({
   environment,
   requestIp,
   verificationDurationMs,
+  persistIfChanged,
 }: SavePurchaseArgs) {
   // Verification runs as an action and can outlive the request that resolved
   // its API key. Recheck deletion state in this final write transaction so an
@@ -104,9 +116,20 @@ export async function savePurchaseInternal({
       .withIndex("by_project_and_remote", (q) =>
         q.eq("projectId", projectId).eq("remoteId", remoteId),
       )
+      .filter((q) => q.eq(q.field("store"), store))
       .first();
 
     if (existing) {
+      // A recheck that confirms the stored verdict is a read, not a write: the
+      // raw store body may move (renewal dates), and the reconciler keeps its
+      // own cadence, so only the verdict decides.
+      if (
+        persistIfChanged &&
+        existing.state === state &&
+        (existing.isValid ?? false) === isValid &&
+        (existing.productId ?? null) === productId
+      )
+        return existing._id;
       // Defensive orderId-conflict resolution:
       //
       // If this patch transitions the row from "no orderId" (or a
@@ -472,6 +495,7 @@ export const saveReceiptInternal = internalMutation({
     environment: v.optional(receiptEnvironmentValidator),
     requestIp: v.optional(v.string()),
     verificationDurationMs: v.optional(v.number()),
+    persistIfChanged: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     assertStoreMatchesRequest(args.store, args.requestData);
@@ -489,6 +513,7 @@ export const saveReceiptInternal = internalMutation({
       environment: args.environment,
       requestIp: args.requestIp,
       verificationDurationMs: args.verificationDurationMs,
+      persistIfChanged: args.persistIfChanged,
     });
   },
 });
@@ -634,5 +659,38 @@ export const applyAmazonReconciliationVerdict = internalMutation({
       verificationDurationMs: args.verificationDurationMs,
     });
     return true;
+  },
+});
+
+export const boundPurchasesForUser = internalQuery({
+  args: { projectId: v.id("projects"), userId: v.string() },
+  returns: v.array(schema.doc("purchases")),
+  handler: async (ctx, args) => {
+    if (!isValidSubscriptionUserId(args.userId))
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Invalid user identity",
+      });
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.pendingDeletion)
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: "Project unavailable",
+      });
+    if (await isUserErasureRequested(ctx, project, args.userId)) return [];
+    const rows = await ctx.db
+      .query("purchases")
+      .withIndex("by_project_and_app_user", (q) =>
+        q.eq("projectId", args.projectId).eq("appUserId", args.userId),
+      )
+      .take(MAX_BOUND_PURCHASES_PER_USER + 1);
+    // Binding enforces the cap, so passing it here means the stored rows drifted.
+    // That is ours, not the caller's: never answer INVALID_REQUEST for it.
+    if (rows.length > MAX_BOUND_PURCHASES_PER_USER)
+      throw new ConvexError({
+        code: "INTERNAL_ERROR",
+        message: "Bound purchase read limit exceeded",
+      });
+    return rows.filter((row) => !row.accountErased);
   },
 });

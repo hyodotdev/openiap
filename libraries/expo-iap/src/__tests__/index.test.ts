@@ -611,7 +611,7 @@ describe('Public API (index.ts)', () => {
           new Error(
             `Call rejected.\n→ Caused by: OPENIAP_ERROR_JSON:${JSON.stringify(
               payload,
-            )}`,
+            )} (at ExpoIap/ExpoIapHelper.swift:21)`,
           ),
         );
 

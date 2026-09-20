@@ -5,6 +5,7 @@ import type { androidpublisher_v3 } from "googleapis";
 
 import { internalAction, type ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Doc } from "../_generated/dataModel";
 import {
   BASE_LISTING_LOCALE,
   listingRowsForProduct,
@@ -549,69 +550,79 @@ async function performAndroidSync(
     }
 
     try {
+      const offersByProduct = await listPlaySubscriptionOffers(
+        androidpublisher,
+        packageName,
+        checkCancelled,
+      );
       let token: string | undefined;
       let pageCount = 0;
       do {
+        await checkCancelled();
         const subs = await androidpublisher.monetization.subscriptions.list({
           packageName,
           ...(token ? { pageToken: token } : {}),
         });
         for (const sub of subs.data.subscriptions ?? []) {
           if (!sub.productId) continue;
-          const { priceAmountMicros, currency, basePlanId } =
-            pickSubBasePlanPrice(
+          await checkCancelled();
+          try {
+            const { priceAmountMicros, currency, basePlanId } =
+              pickSubBasePlanPrice(
+                sub,
+                existingCurrencyByProductId.get(sub.productId ?? ""),
+              );
+            const offers = collectPlaySubscriptionOffers(
               sub,
               existingCurrencyByProductId.get(sub.productId ?? ""),
+              offersByProduct.get(sub.productId),
             );
-          const offers = collectPlaySubscriptionOffers(
-            sub,
-            existingCurrencyByProductId.get(sub.productId ?? ""),
-          );
-          // Pick the billingPeriod from the *same* base plan whose
-          // price we just selected (`basePlanId` returned by
-          // pickSubBasePlanPrice). If we can't find that exact plan
-          // in `offers`, fall back to the first BasePlan row — but
-          // this fallback only triggers when basePlanId is missing,
-          // which means the subscription has no price at all.
-          // Without the basePlanId match, mixed monthly + yearly
-          // products would pair the yearly USD price with the
-          // monthly duration and break MRR normalization.
-          const billingPeriod = (
-            basePlanId
-              ? offers.find((o) => o.kind === "BasePlan" && o.id === basePlanId)
-              : offers.find((o) => o.kind === "BasePlan")
-          )?.duration;
-          await ctx.runMutation(internal.products.sync.upsertFromStore, {
-            projectId: project._id,
-            productId: sub.productId,
-            platform: "Android",
-            type: "Subscription",
-            ...splitStoreListings(
-              (sub.listings ?? []).map((entry) => ({
-                locale: entry.languageCode,
-                title: entry.title,
-                description: entry.description,
-              })),
-              sub.productId,
-            ),
-            priceAmountMicros,
-            currency,
-            storeRef: sub.productId,
-            state: "Active",
-            billingPeriod: coerceBillingPeriod(billingPeriod),
-            // Play has no first-class subscription "group" — base
-            // plans on a single subscription product play that role,
-            // and we surface them as `offers[].kind === "BasePlan"`
-            // rows. Leave the ASC-only group fields unset.
-            offers: offers.length ? offers : undefined,
-          });
-          pulled += 1;
+            // Price and billing period must come from the same base plan.
+            const billingPeriod = (
+              basePlanId
+                ? offers.find(
+                    (o) => o.kind === "BasePlan" && o.id === basePlanId,
+                  )
+                : offers.find((o) => o.kind === "BasePlan")
+            )?.duration;
+            await ctx.runMutation(internal.products.sync.upsertFromStore, {
+              projectId: project._id,
+              productId: sub.productId,
+              platform: "Android",
+              type: "Subscription",
+              ...splitStoreListings(
+                (sub.listings ?? []).map((entry) => ({
+                  locale: entry.languageCode,
+                  title: entry.title,
+                  description: entry.description,
+                })),
+                sub.productId,
+              ),
+              priceAmountMicros,
+              currency,
+              storeRef: sub.productId,
+              state: mapModernPlayOneTimeState(sub.basePlans),
+              billingPeriod: coerceBillingPeriod(billingPeriod),
+              // Play has no first-class subscription "group" — base
+              // plans on a single subscription product play that role,
+              // and we surface them as `offers[].kind === "BasePlan"`
+              // rows. Leave the ASC-only group fields unset.
+              offers,
+            });
+            pulled += 1;
+          } catch (error) {
+            failures.push({
+              productId: sub.productId,
+              reason: `subscription import: ${error instanceof Error ? error.message : String(error)}`,
+            });
+          }
         }
         token = subs.data.nextPageToken ?? undefined;
         pageCount += 1;
         if (pageCount > 50) break;
       } while (token);
     } catch (error) {
+      if (error instanceof ProductSyncCancelledError) throw error;
       failures.push({
         productId: "(play list subscriptions)",
         reason: error instanceof Error ? error.message : String(error),
@@ -2278,6 +2289,7 @@ export function pickPlayRegionalPrice<
   );
 }
 
+/** Selects the best regional base-plan price while preserving its plan ID. */
 export function pickSubBasePlanPrice(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
@@ -2295,12 +2307,22 @@ export function pickSubBasePlanPrice(
   type Candidate = {
     price: androidpublisher_v3.Schema$Money;
     basePlanId?: string;
+    regionCode?: string | null;
+    currencyCode?: string | null;
   };
   const candidates: Candidate[] = [];
   for (const plan of sub.basePlans ?? []) {
+    if (plan.state !== "ACTIVE") continue;
     const basePlanId = plan.basePlanId ?? undefined;
     for (const region of plan.regionalConfigs ?? []) {
-      if (region.price) candidates.push({ price: region.price, basePlanId });
+      if (region.newSubscriberAvailability === true && region.price) {
+        candidates.push({
+          price: region.price,
+          basePlanId,
+          regionCode: region.regionCode,
+          currencyCode: region.price.currencyCode,
+        });
+      }
     }
   }
   if (candidates.length === 0) return {};
@@ -2310,12 +2332,8 @@ export function pickSubBasePlanPrice(
   // amount and the next push would convert from that already-converted
   // number. Falls back to USD — the most universally recognizable
   // dashboard value — for rows kit hasn't priced yet.
-  const preferred =
-    (preferredCurrency
-      ? candidates.find((c) => c.price.currencyCode === preferredCurrency)
-      : undefined) ??
-    candidates.find((c) => c.price.currencyCode === "USD") ??
-    candidates[0];
+  const preferred = pickPlayRegionalPrice(candidates, preferredCurrency);
+  if (!preferred) return {};
   return {
     priceAmountMicros: moneyToMicros(preferred.price),
     currency: preferred.price.currencyCode ?? undefined,
@@ -2323,126 +2341,213 @@ export function pickSubBasePlanPrice(
   };
 }
 
-// Flatten a Play subscription's basePlans + (per base plan) offers
-// into kit's uniform `offers[]` shape. Each base plan becomes a
-// `kind: "BasePlan"` row carrying its billing period + USD price; each
-// associated subscription offer (free trial / intro discount, set up
-// in Play Console) becomes a Free-Trial / IntroPay* row. Prefers the
-// currency the kit row already carries, then USD, so a KRW/JPY-authored
-// subscription doesn't show its base plan in one currency and its
-// offers in another.
-function collectPlaySubscriptionOffers(
+type ProductOffer = NonNullable<Doc<"products">["offers"]>[number];
+
+/** Flattens active Play base plans and their separately listed offers. */
+export function collectPlaySubscriptionOffers(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
-): Array<{
-  id: string;
-  kind:
-    | "BasePlan"
-    | "FreeTrial"
-    | "IntroPayUpFront"
-    | "IntroPayAsYouGo"
-    | "PromotionalOffer";
-  duration?: string;
-  numberOfPeriods?: number;
-  priceAmountMicros?: number;
-  currency?: string;
-}> {
-  const out: Array<{
-    id: string;
-    kind:
-      | "BasePlan"
-      | "FreeTrial"
-      | "IntroPayUpFront"
-      | "IntroPayAsYouGo"
-      | "PromotionalOffer";
-    duration?: string;
-    numberOfPeriods?: number;
-    priceAmountMicros?: number;
-    currency?: string;
-  }> = [];
-  // Local shape for `basePlans[].offers[]` — googleapis' generated
-  // `Schema$BasePlan` doesn't expose offers despite the underlying
-  // REST resource carrying them, and we don't want to depend on the
-  // SDK regenerating to surface this. Mirrors the relevant fields
-  // from Play's `SubscriptionOffer` proto.
-  type PlanOfferShape = {
-    offerId?: string;
-    phases?: Array<{
-      duration?: string;
-      recurrenceCount?: number;
-      regionalConfigs?: Array<{
-        regionCode?: string;
-        price?: androidpublisher_v3.Schema$Money;
-      }>;
-    }>;
-  };
-  type PlanWithOffers = androidpublisher_v3.Schema$BasePlan & {
-    offers?: PlanOfferShape[];
-  };
-  for (const plan of (sub.basePlans ?? []) as PlanWithOffers[]) {
-    if (!plan.basePlanId) continue;
-    const planRegions = plan.regionalConfigs ?? [];
-    const planPrice =
-      (preferredCurrency
-        ? planRegions.find((r) => r.price?.currencyCode === preferredCurrency)
-            ?.price
-        : undefined) ??
-      planRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
-      planRegions[0]?.price;
+  subscriptionOffers: androidpublisher_v3.Schema$SubscriptionOffer[] = [],
+): ProductOffer[] {
+  function phasePrice(
+    plan: androidpublisher_v3.Schema$BasePlan,
+    phase: androidpublisher_v3.Schema$SubscriptionOfferPhase,
+    region: androidpublisher_v3.Schema$RegionalSubscriptionOfferPhaseConfig,
+  ): { isFree: boolean; priceAmountMicros?: number; currency?: string } {
+    if (region.free != null) return { isFree: true };
+    if (region.price) {
+      const priceAmountMicros = moneyToMicros(region.price);
+      if (priceAmountMicros === undefined || !region.price.currencyCode) {
+        throw new Error("Invalid Play offer phase price");
+      }
+      return {
+        isFree: priceAmountMicros === 0,
+        priceAmountMicros:
+          priceAmountMicros === 0 ? undefined : priceAmountMicros,
+        currency:
+          priceAmountMicros === 0 ? undefined : region.price.currencyCode,
+      };
+    }
+    if (region.relativeDiscount == null && !region.absoluteDiscount) {
+      throw new Error("Play offer phase has no price override");
+    }
+    const basePrice = plan.regionalConfigs?.find(
+      (base) => base.regionCode === region.regionCode,
+    )?.price;
+    const baseMicros = moneyToMicros(basePrice);
+    const currency = basePrice?.currencyCode;
+    if (baseMicros === undefined || !currency) {
+      throw new Error(`Missing base-plan price for ${region.regionCode}`);
+    }
+    const discount = region.relativeDiscount;
+    const absoluteMicros = moneyToMicros(region.absoluteDiscount);
+    if (discount != null) {
+      if (!Number.isFinite(discount) || discount <= 0 || discount >= 1) {
+        throw new Error("Invalid Play relative discount");
+      }
+    } else if (
+      absoluteMicros === undefined ||
+      region.absoluteDiscount?.currencyCode !== currency
+    ) {
+      throw new Error("Invalid Play absolute discount currency or amount");
+    }
+
+    function periodUnits(
+      period: string | null | undefined,
+    ): { family: "months" | "days"; count: number } | undefined {
+      const match = /^P([1-9]\d*)([DWMY])$/.exec(period ?? "");
+      if (!match) return undefined;
+      const count = Number(match[1]);
+      const unit = match[2];
+      return unit === "M" || unit === "Y"
+        ? { family: "months", count: count * (unit === "Y" ? 12 : 1) }
+        : { family: "days", count: count * (unit === "W" ? 7 : 1) };
+    }
+    const basePeriod = periodUnits(
+      plan.autoRenewingBasePlanType?.billingPeriodDuration ??
+        plan.installmentsBasePlanType?.billingPeriodDuration ??
+        plan.prepaidBasePlanType?.billingPeriodDuration,
+    );
+    const offerPeriod = periodUnits(phase.duration);
+    // Calendar months cannot be converted to an exact day count from catalog data.
+    if (
+      !basePeriod ||
+      !offerPeriod ||
+      basePeriod.family !== offerPeriod.family
+    ) {
+      return { isFree: false, currency };
+    }
+    const prorated = (baseMicros * offerPeriod.count) / basePeriod.count;
+    const discounted =
+      discount != null ? prorated * discount : prorated - absoluteMicros!;
+    const digits =
+      new Intl.NumberFormat("en", {
+        style: "currency",
+        currency,
+      }).resolvedOptions().maximumFractionDigits ?? 2;
+    const billableMicros = 10 ** (6 - digits);
+    const priceAmountMicros =
+      Math.round(discounted / billableMicros) * billableMicros;
+    if (!Number.isSafeInteger(priceAmountMicros) || priceAmountMicros <= 0) {
+      throw new Error("Invalid discounted Play offer phase price");
+    }
+    return { isFree: false, priceAmountMicros, currency };
+  }
+
+  const out: ProductOffer[] = [];
+  for (const plan of sub.basePlans ?? []) {
+    if (!plan.basePlanId || plan.state !== "ACTIVE") continue;
+    const planRegions = (plan.regionalConfigs ?? []).filter(
+      (region) => region.newSubscriberAvailability === true,
+    );
+    const planPrice = pickPlayRegionalPrice(
+      planRegions
+        .filter((region) => region.price)
+        .map((region) => ({
+          regionCode: region.regionCode,
+          currencyCode: region.price?.currencyCode,
+          price: region.price,
+        })),
+      preferredCurrency,
+    )?.price;
     out.push({
       id: plan.basePlanId,
       kind: "BasePlan",
       duration:
-        plan.autoRenewingBasePlanType?.billingPeriodDuration ?? undefined,
-      priceAmountMicros: moneyToMicros(planPrice ?? undefined),
+        plan.autoRenewingBasePlanType?.billingPeriodDuration ??
+        plan.installmentsBasePlanType?.billingPeriodDuration ??
+        plan.prepaidBasePlanType?.billingPeriodDuration ??
+        undefined,
+      priceAmountMicros: moneyToMicros(planPrice),
       currency: planPrice?.currencyCode ?? undefined,
     });
-    for (const offer of plan.offers ?? []) {
-      if (!offer.offerId) continue;
-      // Walk the offer's phases. A FREE phase becomes FreeTrial; a
-      // DISCOUNTED phase with a single occurrence becomes
-      // IntroPayUpFront; multi-occurrence becomes IntroPayAsYouGo.
-      // Most offers only have one of these; if multiple, we emit
-      // multiple rows tagged with the same composite id so the
-      // dashboard can dedupe by basePlanId+offerId+phaseIndex.
-      const phases = offer.phases ?? [];
-      phases.forEach((phase, i) => {
-        const phaseRegions = phase.regionalConfigs ?? [];
-        const phasePrice =
-          (preferredCurrency
-            ? phaseRegions.find(
-                (r) => r.price?.currencyCode === preferredCurrency,
-              )?.price
-            : undefined) ??
-          phaseRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
-          phaseRegions[0]?.price;
-        // Phase with no price = free trial; with `recurrenceCount > 1`
-        // = pay-as-you-go intro; otherwise = pay-up-front intro.
-        let kind: "FreeTrial" | "IntroPayUpFront" | "IntroPayAsYouGo" =
-          "FreeTrial";
-        const isFree =
-          !phasePrice ||
-          (phasePrice.units === "0" && (phasePrice.nanos ?? 0) === 0);
-        if (!isFree) {
-          kind =
-            (phase.recurrenceCount ?? 1) > 1
-              ? "IntroPayAsYouGo"
-              : "IntroPayUpFront";
-        }
+    for (const offer of subscriptionOffers) {
+      if (
+        offer.productId !== sub.productId ||
+        offer.basePlanId !== plan.basePlanId ||
+        !offer.offerId ||
+        offer.state !== "ACTIVE"
+      )
+        continue;
+      for (const [index, phase] of (offer.phases ?? []).entries()) {
+        const candidates = (phase.regionalConfigs ?? [])
+          .filter(
+            (region) =>
+              planRegions.some(
+                (base) => base.regionCode === region.regionCode,
+              ) &&
+              offer.regionalConfigs?.some(
+                (availability) =>
+                  availability.regionCode === region.regionCode &&
+                  availability.newSubscriberAvailability === true,
+              ),
+          )
+          .map((region) => ({
+            regionCode: region.regionCode,
+            currencyCode:
+              region.price?.currencyCode ??
+              planRegions.find((base) => base.regionCode === region.regionCode)
+                ?.price?.currencyCode,
+            region,
+          }));
+        const selected = pickPlayRegionalPrice(candidates, preferredCurrency);
+        if (!selected) continue;
+        const { isFree, priceAmountMicros, currency } = phasePrice(
+          plan,
+          phase,
+          selected.region,
+        );
         out.push({
-          id: `${plan.basePlanId}/${offer.offerId}#${i}`,
-          kind,
+          id: `${plan.basePlanId}/${offer.offerId}#${index}`,
+          kind: isFree
+            ? "FreeTrial"
+            : (phase.recurrenceCount ?? 1) > 1
+              ? "IntroPayAsYouGo"
+              : "IntroPayUpFront",
           duration: phase.duration ?? undefined,
           numberOfPeriods: phase.recurrenceCount ?? undefined,
-          priceAmountMicros: isFree ? undefined : moneyToMicros(phasePrice),
-          currency: isFree
-            ? undefined
-            : (phasePrice?.currencyCode ?? undefined),
+          priceAmountMicros,
+          currency,
         });
-      });
+      }
     }
   }
   return out;
+}
+
+/** Fetch the complete app offer catalog before writing any subscription rows. */
+export async function listPlaySubscriptionOffers(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  packageName: string,
+  checkCancelled: () => Promise<void>,
+): Promise<Map<string, androidpublisher_v3.Schema$SubscriptionOffer[]>> {
+  const byProduct = new Map<
+    string,
+    androidpublisher_v3.Schema$SubscriptionOffer[]
+  >();
+  let pageToken: string | undefined;
+  for (let page = 0; page < 50; page += 1) {
+    await checkCancelled();
+    const response =
+      await androidpublisher.monetization.subscriptions.basePlans.offers.list({
+        packageName,
+        productId: "-",
+        basePlanId: "-",
+        pageSize: 1000,
+        ...(pageToken ? { pageToken } : {}),
+      });
+    for (const offer of response.data.subscriptionOffers ?? []) {
+      if (!offer.productId || !offer.basePlanId) {
+        throw new Error("Play offer is missing its product or base-plan ID");
+      }
+      const offers = byProduct.get(offer.productId) ?? [];
+      offers.push(offer);
+      byProduct.set(offer.productId, offers);
+    }
+    pageToken = response.data.nextPageToken ?? undefined;
+    if (!pageToken) return byProduct;
+  }
+  throw new Error("Play offer pagination exceeded 50 pages");
 }
 
 /**

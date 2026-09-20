@@ -68,7 +68,7 @@ esac
 
 echo "New version: $NEW_VERSION"
 
-# Update the native key and derived spec floor atomically.
+# Update the native package version; it constrains no protocol version.
 node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
     update-native apple "$NEW_VERSION"
 
@@ -79,7 +79,7 @@ node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
 # Commit changes
 cd "$REPO_ROOT"
 git add openiap-versions.json packages/*/openiap-versions.json
-git add specs/client/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+git add packages/docs/package.json packages/google/package.json packages/apple/package.json
 git commit -m "chore(release): openiap-apple@$NEW_VERSION"
 
 # Push commits

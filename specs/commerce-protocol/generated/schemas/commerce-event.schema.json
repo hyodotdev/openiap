@@ -91,7 +91,7 @@
       "minLength": 1
     },
     "originalTransactionId": {
-      "description": "Store identity of the first transaction in this subscription chain, where the store exposes one.",
+      "description": "Store identity of the first transaction in this subscription chain, or the store's own stable identity for the chain where it numbers subscriptions rather than transactions. Present where the store exposes either.",
       "type": "string",
       "minLength": 1
     },

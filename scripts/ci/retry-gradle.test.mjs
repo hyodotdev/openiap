@@ -34,6 +34,8 @@ function withCounterTest(callback) {
   }
 }
 
+const FIXTURE_COMMAND = "printf '%s\\n' \"$FIXTURE\" >&2";
+
 function incrementScript(counter, body) {
   return [
     `count=$(cat "${counter}")`,
@@ -137,6 +139,81 @@ for (const [name, output] of [
     });
   });
 }
+
+// These fixtures carry quotes, which the table-driven loop's double-quoted
+// printf would strip — leaving an anchor that can never match and a test that
+// passes no matter what the pattern says. Pass them through the environment.
+for (const [name, fixture] of [
+  [
+    "a wrapper download rejected for a client error",
+    'Exception in thread "main" java.io.IOException: Server returned HTTP response code: 404 for URL: https://services.example/gradle.zip',
+  ],
+  [
+    "a wrapper download whose checksum did not match",
+    'Exception in thread "main" java.lang.RuntimeException: Verification of Gradle distribution failed!',
+  ],
+  [
+    "a test that prints a socket timeout from its own thread",
+    'Exception in thread "pool-1" java.net.SocketTimeoutException: fixture',
+  ],
+  [
+    "a test that asserts on a gateway status",
+    "expected status 200 but was 503",
+  ],
+]) {
+  test(`does not retry ${name}`, () => {
+    withCounterTest((counter) => {
+      const command = incrementScript(counter, FIXTURE_COMMAND + "; exit 31");
+      const result = runRetry(command, { FIXTURE: fixture });
+
+      assert.equal(result.status, 31);
+      assert.equal(readFileSync(counter, "utf8"), "1");
+    });
+  });
+}
+
+test("retries a wrapper distribution download that hits a gateway error", () => {
+  // The wrapper fetches Gradle before Gradle exists, so this failure carries
+  // none of the paired "could not get ... <cause>" lines the matcher wants.
+  withCounterTest((counter) => {
+    const command = incrementScript(
+      counter,
+      "printf '%s\\n' 'Exception in thread \"main\" java.io.IOException: Server returned HTTP response code: 504 for URL: https://services.example/gradle-9.1.0-all.zip' >&2; exit 1",
+    );
+    const result = runRetry(command);
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
+
+test("retries a wrapper download the wrapper itself timed out on", () => {
+  // The wrapper catches the socket timeout and rethrows this, so the plain
+  // SocketTimeoutException never reaches the main thread's own stack line.
+  withCounterTest((counter) => {
+    const command = incrementScript(counter, FIXTURE_COMMAND + "; exit 1");
+    const result = runRetry(command, {
+      FIXTURE:
+        'Exception in thread "main" java.lang.RuntimeException: Downloading from https://services.example/gradle.zip failed: timeout (30000ms)',
+    });
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
+
+test("retries a wrapper download that cannot resolve its host", () => {
+  withCounterTest((counter) => {
+    const command = incrementScript(
+      counter,
+      "printf '%s\\n' 'Exception in thread \"main\" java.net.UnknownHostException: services.example' >&2; exit 1",
+    );
+    const result = runRetry(command);
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
 
 test("stops after the configured number of transient attempts", () => {
   withCounterTest((counter) => {

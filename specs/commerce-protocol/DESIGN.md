@@ -1,8 +1,9 @@
 # Why the Commerce Protocol Draws Its Boundaries Where It Does
 
-Version 1.0, 6 September 2026. A whitepaper for engineers who verify
+Version 1.1, 7 September 2026. A whitepaper for engineers who verify
 purchases on a server: why the OpenIAP Commerce Protocol draws its decision
-boundaries where it does, and what each one costs you to get wrong. It
+boundaries where it does, how to implement those boundaries in a backend, and how specialist products
+connect around them. It
 reports no measured result and has not been peer reviewed. [SPEC.md](SPEC.md)
 is authoritative for the normative wording; this explains the reasoning behind
 it.
@@ -10,9 +11,9 @@ it.
 Published as a PDF at <https://www.openiap.dev/commerce-protocol-rationale.pdf>.
 Released under the MIT License, like the rest of the project. Cite it as:
 OpenIAP contributors, _Why the Commerce Protocol Draws Its Boundaries Where
-It Does_, version 1.0, 6 September 2026.
+It Does_, version 1.1, 7 September 2026.
 
-## In short
+## Abstract
 
 A provider accepting purchase evidence does not authorize a particular user's
 current access. Evidence acceptance, account ownership, subscription
@@ -29,7 +30,7 @@ defines the behavior, and the conformance vectors encode those rules by hand
 against the generated schemas. That hand step is where drift is most likely
 to enter.
 
-The sections below cover the six boundaries, the two roles, the temporal
+The sections below cover the six boundaries, the two authorization roles, the temporal
 meaning of an entitlement snapshot, event identity and recovery, and what the
 contract still leaves to you. What the current checks do and do not establish
 is recorded in the
@@ -376,7 +377,412 @@ and overlapping deliveries remain operational responsibilities. Emitter
 identifiers are not globally interchangeable, and this version does not
 guarantee deduplication across a provider cutover.
 
-## 5. What this does not give you
+## 5. Implementation blueprint
+
+This section turns the boundaries into a buildable provider design. It is
+non-normative: the module layout, record names, locking strategy, and work
+queues are implementation choices, not new protocol requirements. The wire
+contract remains version 1.0. A service with a transactional database and a
+background worker can realize this layout; separate services are unnecessary.
+
+The accompanying [implementation guide](https://openiap.dev/commerce-protocol/implementation)
+provides the build milestones and acceptance checklist, and the
+[local example](https://openiap.dev/commerce-protocol/implementation#local-example)
+exercises the contract without store credentials. The example uses fixture
+evidence; it does not validate a real purchase.
+
+### 5.1 Components and responsibilities
+
+```mermaid
+flowchart TB
+  caller["App: verification role<br/>Developer backend: server role"]
+  api["REST or GraphQL binding<br/>authorization and input validation"]
+  domain["Shared domain handlers<br/>verify, bind, read, erase"]
+  adapter["Store adapters<br/>verify evidence and obtain authoritative facts"]
+  inbox["Authenticated store inbox<br/>deduplicate and normalize observations"]
+  db["One transaction boundary<br/>purchase state + binding + event outbox"]
+  worker["Delivery worker<br/>sign, retry, dead-letter"]
+  consumer["Developer backend<br/>durable inbox and idempotent effects"]
+  caller --> api --> domain
+  domain <--> adapter
+  adapter --> inbox
+  domain --> db
+  inbox --> db
+  db --> worker --> consumer
+```
+
+**Figure 4.** A possible provider decomposition. Store notifications enter
+through store-specific verification, while outgoing deliveries use the
+protocol's signing contract. Domain handlers are shared by both bindings.
+The diagram names logical responsibilities; it does not require one service
+per box.
+
+The store adapter owns store credentials, application and environment checks,
+evidence verification, and the translation from store observations into domain
+facts. It does not decide which app user owns a purchase. The authenticated
+developer backend supplies that association through `bindPurchase`. A provider
+still verifies and scopes the evidenced purchase before accepting a binding.
+
+Transport code maps requests onto the same operations and maps results back
+onto the selected binding. The generated OpenAPI document and executable
+GraphQL projection supply the external structure. The offline JSON Schema
+bundle supplies structural validators. Neither the schema nor a JSON-valid
+receipt establishes authenticity; that work stays in the store adapter.
+
+For server operations, role checks precede operation-input validation. A
+GraphQL implementation checks all executable root fields, including aliases
+and fragments, before variable coercion; it can instead reject document
+shapes it does not support without executing them, while still accepting the
+canonical documents. Authorizing one resolver or trusting a client-supplied
+`operationName` is not a sufficient boundary.
+
+### 5.2 Persistence model and invariants
+
+Every private key below includes the provider's trusted scope: tenant or
+project, and application and store environment where applicable. That scope
+comes from credential and store configuration. A submitted user identifier
+does not select a tenant. A private purchase key is deliberately not a new
+wire identifier: store-specific correlation remains an implementation duty.
+
+| Record                    | Suggested key and contents                                                                                                        | Invariant it protects                                                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Purchase and subscription | Scoped store purchase key; verified evidence reference, current product, state, expiry, renewal intent, authoritative observation | Product changes do not change purchase identity; late observations do not blindly overwrite current state. |
+| Account binding           | Unique scoped purchase key; caller-owned user ID and retained occurrence                                                          | A purchase has at most one bound owner; retries cannot transfer it.                                        |
+| Store inbox               | Scoped source observation identity; verified fact and processing status                                                           | Redelivery and no-op transitions do not create new lifecycle activity.                                     |
+| Event outbox              | Unique event ID; serialized event bytes and routing scope                                                                         | The state transition and its derived events commit together.                                               |
+| Delivery job              | Event and destination; stable delivery-chain ID, attempts, next attempt, terminal status                                          | A retry preserves event bytes and identity while refreshing the signature.                                 |
+| Consumer inbox            | Trusted emitter context and signed body event ID; durable processing state                                                        | Duplicate delivery cannot duplicate an application effect.                                                 |
+
+The model separates immutable observations from mutable current state. It
+also separates a store purchase from an app account and a product: a user may
+hold multiple purchases, a purchase may predate its binding, and a subscription
+can change products. A table keyed only by `(userId, productId)` cannot retain
+those distinctions.
+
+Raw evidence belongs in restricted storage when the provider needs to retain
+it. Tokenless account results are explicit projections of permitted fields,
+validated before serialization. Copying a database record into a response and
+then deleting known secrets is fragile because a later private field can escape
+that deletion list.
+
+### 5.3 Purchase-to-access path
+
+The following sequences follow one subscription purchase. The app team wires
+the paywall callbacks and its authenticated backend API. Configuring a commerce
+provider means giving that backend the provider's endpoint, supported app/store
+configuration, and server credentials; it does not automatically install those
+connections. A Paywall Service and Commerce Provider may be the same business
+or separate businesses. Callback labels below are illustrative; client library
+names differ by framework.
+
+<!-- commerce-diagram: app-purchase -->
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant Paywall as Paywall Service
+  participant App as App code
+  participant SDK as OpenIAP SDK
+  participant Store as Apple / Google
+  Note over Paywall,App: App team wires purchase and result callbacks
+  User->>Paywall: Select a subscription
+  Paywall->>App: Product selection callback
+  App->>SDK: requestPurchase with store-fetched product / offer
+  SDK->>Store: Store purchase request
+  Store-->>SDK: Purchase result and evidence
+  SDK-->>App: Purchase callback
+  Note over App: Next: send evidence to the app backend
+  Note over App,Store: Pending, canceled or failed purchase: no new access
+```
+
+**Figure 5a.** The paywall selects a product; the store processes the purchase.
+A click or a client callback is not an entitlement grant. The app keeps its
+existing pending, cancellation, and failure handling.
+
+<!-- commerce-diagram: purchase-access -->
+
+```mermaid
+sequenceDiagram
+  participant App as App code
+  participant Backend as App backend
+  participant Provider as Commerce Provider
+  participant Store as Apple / Google
+  Note over Backend,Provider: Configure provider URL and server credentials
+  App->>Backend: Evidence via authenticated API
+  Backend->>Backend: Authorize session user
+  Backend->>Provider: verifyPurchase(evidence)
+  Provider->>Store: Verify in app / store scope
+  Store-->>Provider: Store verdict
+  Provider-->>Backend: Require isValid: true
+  Backend->>Provider: bindPurchase(evidence, userId)
+  Provider-->>Backend: Require bound: true
+  Backend->>Provider: entitlements(userId)
+  Provider-->>Backend: Current productIds and records
+  Backend->>Backend: Durably record fulfillment
+  Backend-->>App: Fulfillment result and access
+  App->>App: finishTransaction via OpenIAP
+  App->>App: Report result to paywall
+```
+
+**Figure 5b.** Verdict, ownership, and current access are separate decisions.
+This is the successful path: rejected evidence, a failed binding, or an
+operation error stops the attempt without a new grant. An empty entitlement
+result grants no access. An operation outage is not a
+revocation of previously established access; apply the existing access and
+retry policy. The backend records the handling outcome before the app finishes
+the store transaction, including the chosen store's acknowledgement or consumption
+responsibility. These diagrams illustrate subscriptions, not consumable grants.
+The app may also request account-free verification directly with its distinct
+verification credential; that does not authorize the binding step.
+
+Verification dispatches by the evidence's store and yields either a verdict
+or an operation error. It does not touch account state. The authenticated
+backend establishes that it may associate the purchase with its user; a token
+and a user ID received from an app do not establish that authority by themselves.
+
+Binding resolves evidence to a verified, scoped purchase and uses a unique
+constraint or equivalent atomic comparison. If no owner exists it creates the
+binding; if the same owner exists it returns success; otherwise it returns the
+same `bound: false` result used for other non-binding outcomes. No API response
+identifies the competing owner. Expired purchases can still have an owner;
+the existence of the binding does not grant access.
+
+At first binding, any entitlement event reflects the current gate, not the
+history of unbound transitions. In the same transaction, retain an attributable
+occurrence and enqueue a current grant only if access is still open. A grant
+that expired before binding is not replayed. Where no attributable occurrence
+was retained, the specification permits deferring the grant until the next
+store observation; it does not permit inventing one.
+
+Account reads enumerate the complete bounded record set, evaluate each gate
+at provider read time, and form the aggregate answer. A second active purchase
+can keep a product accessible when the first expires. An unknown record
+contributes nothing; failure to classify or enumerate the required set causes
+an operation error, not a partial success. A complete empty set is a valid
+answer. The contract has no pagination mechanism in this version.
+
+### 5.4 Store transition and recovery path
+
+<!-- commerce-diagram: lifecycle-delivery -->
+
+```mermaid
+sequenceDiagram
+  participant Store as Apple / Google
+  participant Provider as Commerce Provider
+  participant Receiver as Event consumer
+  Note over Provider,Receiver: Register an app backend or external service receiver
+  Store->>Provider: Lifecycle notification
+  Provider->>Provider: Authenticate and reconcile
+  Provider->>Provider: Commit state and event outbox
+  Provider->>Receiver: Signed event over HTTPS
+  Receiver->>Receiver: Verify signature and schema
+  Receiver->>Receiver: Persist and deduplicate
+  Receiver-->>Provider: 2xx after durable acceptance
+  Note over Provider,Receiver: On retryable failure: same event/body, fresh signature
+  Receiver->>Receiver: Apply durable work idempotently
+```
+
+**Figure 5c.** Lifecycle delivery is server to server. An event consumer registers
+its receiver with the provider; it does not need to implement the provider APIs.
+Receiving events does not grant server-role credentials. The app's authenticated
+backend owns any current-access query.
+A successful acknowledgement
+ends retries for that delivery; exhausting the budget requires operational
+recovery. No webhook goes to a shipped mobile app.
+
+After authenticating a store observation and obtaining the authoritative facts
+it needs, the provider reconciles against the latest stored purchase revision.
+The mapping table selects the normalized event using store wire values,
+subtypes, and history conditions. A receipt-created record is not evidence of
+prior store-notification history. An informational or unmatched notification
+does not justify an invented lifecycle event.
+
+One transaction claims the observation, compares or locks the purchase
+revision, derives the new state and its events, validates and serializes the
+event bodies, and commits the state and delivery jobs together. A conflict
+requires another reconciliation against current state. Store network calls
+need not hold a database lock, but their results must not overwrite a newer
+revision without that reconciliation. Store-specific corrections cannot be
+reduced to “last arrival wins.”
+
+An unchanged transition creates no event. A changed transition can create a
+lifecycle event and, if bound and justified by a gate change, an entitlement
+event. Event `active` uses derivation time, `processedAt`; the business
+occurrence stays in `occurredAt`. The provider also arranges expiry handling
+or evaluates access on reads so a known deadline takes effect without waiting
+for another notification.
+
+The delivery worker sends only committed event bytes. For each retry it
+retains the body, event ID and delivery-chain ID, obtains the current signing
+timestamp, and recalculates the signature. A finite retry budget ends in a
+dead-letter record. Registration and connection-time destination checks keep
+outbound delivery from becoming a path into private networks; redirects are
+not followed. These operational obligations need implementation-owned tests,
+because the portable event adapter does not test the full worker.
+
+On the receiving side, select the emitter and valid secrets from trusted
+endpoint configuration. Check the single timestamp and allowed skew, then
+verify the signature over the raw bytes before interpreting the event. After
+schema, version, and scope checks, take the event ID from the signed body and
+commit a unique inbox record with durable work. Only then acknowledge. A crash
+after acceptance can resume that work; a failure to persist remains retryable.
+
+An inbox flag alone does not make an external effect atomic. Commit local
+effects and completion together; for a remote effect use the destination's
+idempotency mechanism or an outbox. A retried delivery can then repeat transport
+without necessarily repeating the substantive effect. This is an implementation
+strategy, not an exactly-once delivery claim.
+
+### 5.5 Acceptance and remaining decisions
+
+The implementation is ready to declare a profile when its full obligations
+are exercised, not when all routes return a JSON document. Begin with core and
+one-store verification over REST. Add account lifecycle and entitlements as a
+complete slice, then events. Add another binding over the same domain handlers
+when needed, and run both together for parity.
+
+| Injected condition                                         | Result to demonstrate                                                                                  |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Rejected evidence versus verifier outage                   | A negative verdict differs from `VERIFICATION_FAILED`; neither binds a user.                           |
+| Two users race to bind one purchase                        | At most one owner; same-owner retries succeed without revealing the other identity.                    |
+| Cancellation followed by known expiry                      | Access continues through the paid window and closes at the exclusive deadline.                         |
+| Late, repeated, or equal-time events                       | No repeated effect or older overwrite; no invented ordering rule for equal timestamps.                 |
+| Crash between state and delivery, or acceptance and effect | Committed work survives; no acknowledgement precedes durable acceptance.                               |
+| Partial read, overflow, or unavailable authoritative state | An error remains an error; no fabricated complete entitlement result.                                  |
+| Erasure during queued delivery                             | Removed identity is not restored by concurrent work; downstream copies have an explicit erasure owner. |
+
+Use an isolated instance with disposable users for conformance: operation
+vectors exercise binding and erasure. Then use real store sandbox evidence for
+verification and lifecycle tests. Keep the report's scope explicit; passing a
+fixture verifier cannot establish that the real adapter verifies signatures,
+selects the right environment, or maps store transitions correctly.
+
+Some decisions intentionally stay outside the wire contract. Document store
+setup and credential issuance, observation correlation, time-based freshness,
+multi-purchase grant attribution, product replacement, bounded reads, retry
+budgets, dead-letter recovery, and account recovery. During erasure coordinate
+identities in records, queued work, and retained evidence with concurrent
+workers. Do not rewrite an already delivered event under its old identity;
+remove owned identity according to the erasure process and coordinate the
+receiver's copies separately. During provider migration compare authoritative
+reads and plan the overlap rather than assuming event IDs are shared.
+
+### 5.6 A recorded implementation and review process
+
+The [implementation walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
+records six build milestones and a reviewed final source revision in a separate
+[example project](https://github.com/hyodotdev/openiap-commerce-protocol-example),
+adapted from an earlier internal prototype replaced by the example project. Each checkpoint includes the
+AI task, code changes, an independently runnable source archive, checks, and a
+capture of that version running:
+
+| Milestone                | Observable result                                                                |
+| ------------------------ | -------------------------------------------------------------------------------- |
+| Contract and persistence | A running HTTP server and an empty SQLite database                               |
+| Verification             | Accepted evidence creates an unbound purchase; account access remains empty      |
+| Binding                  | The server binds the purchase to Alice; a competing user cannot take it          |
+| Cancellation             | Renewal stops while the remaining paid access stays open                         |
+| Delivery                 | A failed receiver retries after restart; redelivery has one durable inbox effect |
+| Expiry and recovery      | Access closes at the exact deadline; reopening storage preserves state           |
+
+The [review log](https://openiap.dev/commerce-example/REVIEW.md) records an actual
+schema failure and a response-viewer correction. The early backend returned
+500 because package 0.1.0 (protocol 1.0) requires a nonempty event-type list. Its temporary
+`UNSUPPORTED_PROFILE` response also violated core discovery, as the external
+review identified. These unfinished snapshots remain as history; discovery
+works from checkpoint 4. The reviewed final revision adds the first-binding
+grant event omitted by earlier versions. Long response lists were changed to
+individual disclosures and checked on desktop and mobile. This records
+implementation and review, not one-prompt generation. An [AI build brief](https://openiap.dev/commerce-example/build-brief.md)
+sets the same milestones for an adopter's repository.
+
+Install `openiap-commerce-protocol` with that repository's package manager. The
+[final source checkpoint](https://openiap.dev/commerce-example/source.tar.gz)
+installs the published contract package. The [archive verification report](https://openiap.dev/commerce-example/verification.json)
+records extraction, source hashes, patch application from an empty directory,
+and npm install/test results outside the OpenIAP workspace for every revision.
+No IAPKit checkout is required.
+
+This example uses a fictional store and a controlled clock. HTTP, SQLite,
+signatures, and loopback delivery execute locally. It implements five REST
+operations and a narrow lifecycle; it does not advertise protocol profiles or
+bindings. Real store validation, login, erasure, GraphQL, public HTTPS delivery,
+and production operations remain outside this example. Recovery reopens SQLite
+within the same HTTP process; it does not test process-crash recovery.
+
+The [checkpoint reports](https://openiap.dev/commerce-example/run.json) link the
+checks, requests, and source hashes. A separate
+[IAPKit comparison](https://openiap.dev/commerce-lab/run.json) runs IAPKit's
+REST/GraphQL and commerce-helper tests with Convex and store I/O substituted,
+and compares signatures with IAPKit's signer. These runs exercise local
+behavior; they do not establish store validity or production conformance.
+
+### 5.7 An ecosystem of specialist and integrated products
+
+A business need not own the whole purchase stack to serve apps that use OpenIAP.
+A paywall specialist provides presentation and product selection. A commerce
+provider owns verification, purchase ownership, and current access. An analytics
+or automation service consumes normalized events. An integrated platform can
+supply several of these roles. These are product roles, not new conformance
+profiles or centrally registered classes of provider.
+
+```mermaid
+flowchart TB
+  experience["Experience service<br/>paywalls, offers, experiments"]
+  app["App + OpenIAP client<br/>store products and purchase flow"]
+  store["App store<br/>purchase evidence"]
+  backend["Authenticated app backend<br/>session identity and fulfillment"]
+  commerce["Commerce service<br/>verification, ownership, access"]
+  data["Data and automation service<br/>analytics, attribution, CRM"]
+  experience -->|product selection| app
+  app <-->|store API| store
+  app <-->|evidence and access| backend
+  backend <-->|Commerce Protocol operations| commerce
+  commerce -->|signed events| data
+  commerce -.->|optional signed events| experience
+```
+
+**Figure 6.** Business roles compose around the app. One platform may own several
+boxes; the app can also connect specialists. OpenIAP distributes client libraries
+and the commerce contract without operating a central commerce runtime.
+
+| Role                | Minimum integration deliverable                                                                     | Evidence the adopter can run                                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Experience          | Product selection and purchase/result callbacks for the host app                                    | Selected product reaches the OpenIAP purchase flow; pending, canceled, failed, and fulfilled outcomes are displayed     |
+| Commerce            | Core discovery and complete advertised profiles/bindings; supported stores and server configuration | Profile checks, ownership isolation, time-based access, lifecycle and erasure checks; store sandbox evidence separately |
+| Data and automation | Authenticated webhook endpoint, durable inbox, emitter/project scope                                | Signed delivery, retry, duplicate, malformed-input and optional-field handling                                          |
+| Integrated platform | The deliverables for each owned role with one owner per state transition                            | The same checks across its combined integration                                                                         |
+
+The paywall uses products fetched from the store and the app's existing purchase
+callback; it cannot grant access from a selection or impression. Layouts,
+targeting, product catalogs, and paywall UI APIs remain product-specific. A
+consumer that only receives events implements receiver rules, not the `events`
+emitter profile. Optional transaction and price fields remain unknown when
+absent; lifecycle events alone do not supply a complete revenue ledger,
+refund allocation, trial model, or attribution system.
+
+The current OpenIAP client `verifyPurchaseWithProvider` helper supports IAPKit's
+own API. Another provider connects through the app's authenticated backend,
+which calls Commerce Protocol operations over REST or GraphQL. A provider name
+or base URL change in that client helper is not a portable integration. The
+example's `client-bridge.mjs` maps Apple/Google purchase fields into the installed
+verification input schema on the backend; it does not validate store evidence.
+Amazon and Horizon need explicit adapters for their store user identifiers.
+
+Choose one authoritative ownership and entitlement service per app/project,
+even when verification is delegated. Connected parties agree on opaque user
+identity, issuer/project scope, credentials, stores, and versions. Compatibility
+does not perform onboarding or ownership migration. The app still enforces
+access and coordinates durable fulfillment and transaction finishing.
+
+The [interactive role map](https://openiap.dev/commerce-protocol#architecture)
+shows specialist and integrated arrangements. The [AI integration brief](https://openiap.dev/commerce-example/integration-brief.md)
+starts from the role being delivered. The example provides executable request
+mapping and a ready receiver, with a [signed HTTP ingestion report](https://openiap.dev/commerce-example/consumer-run.json).
+These local fixture checks do not establish a real mobile checkout, a revenue
+model, or full provider conformance.
+
+## 6. What this does not give you
 
 The same person wrote the specification, the generators, the tests, the
 reference implementation and this document. Consistency among them proves
@@ -415,7 +821,7 @@ universal purchase correlation, or historical-data migration. Where an expiry
 or an event is missing you need an authoritative read; no envelope makes an
 old observation current.
 
-## 6. When this is worth adopting
+## 7. When this is worth adopting
 
 Start by reading Table 1 against the code you already have. That costs an
 hour and needs no adoption at all. Find where your verification call fails

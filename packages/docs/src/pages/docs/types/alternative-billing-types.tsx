@@ -86,8 +86,7 @@ function AlternativeBillingTypes() {
                 choice, <code>EXTERNAL_OFFER</code> for alternative only, or{' '}
                 <code>EXTERNAL_PAYMENTS</code> for Japan external payments
                 (8.3.0+). Use <code>BILLING_CHOICE</code> for Billing Choice
-                (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; Play Billing
-                9.1.0+).
+                (OpenIAP 2.1.0 / openiap-google 2.3.0; Play Billing 9.1.0+).
               </td>
             </tr>
             <tr>
@@ -97,12 +96,11 @@ function AlternativeBillingTypes() {
                 </Link>
               </td>
               <td>
-                Billing Choice renderer in OpenIAP Spec 2.1.0 / openiap-google
-                2.3.0 (Play Billing 9.1.0+). Defaults to{' '}
-                <code>GOOGLE_RENDERED</code>. Set{' '}
-                <code>DEVELOPER_RENDERED</code> when your app renders the choice
-                screen; this controls whether OpenIAP registers Play&apos;s
-                developer-provided billing listener.
+                Billing Choice renderer in OpenIAP 2.1.0 / openiap-google 2.3.0
+                (Play Billing 9.1.0+). Defaults to <code>GOOGLE_RENDERED</code>.
+                Set <code>DEVELOPER_RENDERED</code> when your app renders the
+                choice screen; this controls whether OpenIAP registers
+                Play&apos;s developer-provided billing listener.
               </td>
             </tr>
           </tbody>

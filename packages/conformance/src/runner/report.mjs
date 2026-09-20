@@ -16,7 +16,7 @@ export function formatReport(report) {
     `  implementation : ${report.implementation}`,
     `  store          : ${report.store}`,
     `  suite version  : ${report.suiteVersion}`,
-    `  spec version   : ${report.specVersion}`,
+    `  client protocol: ${report.clientProtocolVersion}`,
     `  scope          : ${report.scope.complete ? "full" : "partial"} (${report.results.length}/${report.scope.totalBehaviorCount})`,
     "",
   ];
@@ -47,7 +47,7 @@ export function formatReport(report) {
     );
   } else if (report.conformant) {
     lines.push(
-      `  RESULT: conformant with OpenIAP ${report.specVersion} (suite ${report.suiteVersion})`,
+      `  RESULT: conformant with OpenIAP ${report.clientProtocolVersion} (suite ${report.suiteVersion})`,
     );
   } else {
     lines.push(
@@ -63,7 +63,7 @@ export function toJsonReport(report) {
   return JSON.stringify(
     {
       suiteVersion: report.suiteVersion,
-      specVersion: report.specVersion,
+      clientProtocolVersion: report.clientProtocolVersion,
       implementation: report.implementation,
       store: report.store,
       conformant: report.conformant,

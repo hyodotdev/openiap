@@ -268,6 +268,14 @@ export function parseOsvIgnoredVulnerabilities(source) {
 // `bun audit` reaches a remote advisory service, and that call fails
 // intermittently. The failure is a transport error rather than a verdict, so it
 // is retried; anything else, including a real advisory, still fails the audit.
+// OSV-Scanner treats `ignoreUntil` as the first day an exception no longer
+// applies, so a window dated today is already expired there. This audit used
+// `>=`/`<`, which called that same day live — the split that let a lapsed
+// exception fail CI while this audit stayed silent. One definition, matching
+// the scanner, so the four comparison sites cannot drift again.
+const isExpired = (ignoreUntil, now) =>
+  ignoreUntil <= now.toISOString().slice(0, 10);
+
 const TRANSPORT_FAILURE =
   /ConnectionClosed|ConnectionRefused|Timeout|ECONNRESET|ETIMEDOUT|socket hang up|audit request failed/i;
 
@@ -345,7 +353,7 @@ export function auditDependencies(
       const exception = ignored.get(advisory.id);
       if (
         exception &&
-        exception.ignoreUntil >= now.toISOString().slice(0, 10)
+        !isExpired(exception.ignoreUntil, now)
       ) {
         used.add(advisory.id);
         ignoredCount += 1;
@@ -356,7 +364,7 @@ export function auditDependencies(
     for (const [id, exception] of ignored) {
       if (used.has(id)) continue;
       const state =
-        exception.ignoreUntil < now.toISOString().slice(0, 10)
+        isExpired(exception.ignoreUntil, now)
           ? "expired"
           : "unused";
       findings.push({
@@ -433,8 +441,7 @@ export function auditDependencies(
           const acceptedId = ids.find((id) => {
             const exception = ignored.get(id);
             return (
-              exception &&
-              exception.ignoreUntil >= now.toISOString().slice(0, 10)
+              exception && !isExpired(exception.ignoreUntil, now)
             );
           });
           if (acceptedId) {
@@ -459,7 +466,7 @@ export function auditDependencies(
       throw new Error(`${lockfile}: OSV-Scanner exited 1 without findings`);
     }
     for (const [id, exception] of ignored) {
-      const expired = exception.ignoreUntil < now.toISOString().slice(0, 10);
+      const expired = isExpired(exception.ignoreUntil, now);
       if (!expired && used.has(id)) continue;
       const state = expired ? "expired" : "unused";
       findings.push({

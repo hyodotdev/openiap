@@ -152,6 +152,10 @@ libraries/*/docs/build/
 # Build outputs — every csproj writes here; tens of thousands of files.
 **/bin/
 **/obj/
+# packages/cli ships its executable from bin/; the .NET rule above is about
+# build output and would otherwise drop the entry point from the package.
+!packages/cli/bin/
+!packages/cli/bin/**
 # IDE / Visual Studio scratch
 .vs/
 *.user

@@ -7,6 +7,7 @@ import {
   mapAmazonReceiptState,
   parseAmazonReceiptResponse,
   reconcileAmazonPurchases,
+  verifyAmazonReceipt,
   verifyAmazonReceiptInternalV1,
   waitForAmazonRateSlot,
   type AmazonReceiptData,
@@ -735,5 +736,59 @@ describe("waitForAmazonRateSlot", () => {
       }),
     ).resolves.toBe(1_200);
     expect(sleep).toHaveBeenCalledWith(100);
+  });
+});
+
+describe("entitlement rechecks", () => {
+  test("skip verification admission and only persist a changed verdict", async () => {
+    const { ctx, runMutation } = actionContext();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(validReceipt()))),
+    );
+    try {
+      await expect(
+        verifyAmazonReceipt(
+          ctx,
+          { apiKey: "iapkit_test_key", userId: USER_ID, receiptId: RECEIPT_ID },
+          { recheck: true },
+        ),
+      ).resolves.toMatchObject({ isValid: true });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation.mock.calls[0]?.[1]).toMatchObject({
+      state: HarmonizedPurchaseState.ENTITLED,
+      persistIfChanged: true,
+    });
+  });
+});
+
+describe("entitlement rechecks of a rejected receipt", () => {
+  test("persist the negative verdict with the recheck flag", async () => {
+    const { ctx, runMutation } = actionContext();
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(new Response("invalid receipt", { status: 400 })),
+    );
+    try {
+      await expect(
+        verifyAmazonReceipt(
+          ctx,
+          { apiKey: "iapkit_test_key", userId: USER_ID, receiptId: RECEIPT_ID },
+          { recheck: true },
+        ),
+      ).resolves.toMatchObject({ isValid: false });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    expect(runMutation.mock.calls[0]?.[1]).toMatchObject({
+      isValid: false,
+      persistIfChanged: true,
+    });
   });
 });

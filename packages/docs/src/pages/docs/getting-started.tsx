@@ -12,96 +12,105 @@ function GettingStarted() {
     <div className="doc-page">
       <SEO
         title="Getting Started"
-        description="Five-minute walkthrough of OpenIAP — pick a framework, install the SDK, run your first purchase flow."
+        description="Add in-app purchases to your existing app with AI, or follow the store and framework setup guides yourself."
         path="/docs/getting-started"
         keywords="OpenIAP, getting started, in-app purchase, IAP setup, react-native, expo, flutter, kotlin multiplatform, godot"
       />
       <h1>Getting Started</h1>
       <p>
-        OpenIAP is a unified spec for in-app purchases on Apple, Google Play,
-        Meta Horizon, and Amazon Appstore targets. One GraphQL schema generates
-        type-safe SDKs for TypeScript, Swift, Kotlin, Dart, C#, and GDScript —
-        so the same purchase flow works across every framework you ship in.
+        Add purchases to your existing app with the OpenIAP SDK for your
+        framework. Customers can buy products, restore purchases, and use the
+        features they paid for.
       </p>
 
       <p>
-        This page is a five-minute walkthrough. If you'd rather jump straight
-        into your stack, head to <Link to="/docs/setup">Framework Setup</Link>.
+        <Link to="/docs/guides/ai-assistants">Build with AI →</Link> Give your
+        assistant the references and a product request; review its running
+        result. For manual integration, start with{' '}
+        <Link to="/docs/setup">your framework’s setup guide</Link>.
       </p>
+      <ol>
+        <li>Choose your store, products, and what each purchase unlocks.</li>
+        <li>Connect purchases to your existing login and paid features.</li>
+        <li>Try buying, restoring, and canceling in the store sandbox.</li>
+      </ol>
 
-      <section>
-        <AnchorLink id="1-pick-platform" level="h2">
-          1. Configure the store
-        </AnchorLink>
-        <p>
-          Every framework wraps the same store APIs, so the platform setup comes
-          first. Finish these before installing any SDK:
-        </p>
-        <ul>
-          <li>
-            <Link to="/docs/ios-setup">iOS Setup</Link> — App Store Connect
-            agreement, capability, sandbox testers
-          </li>
-          <li>
-            <Link to="/docs/android-setup">Android Setup</Link> — Play Console
-            account, license testers, billing permission
-          </li>
-          <li>
-            <Link to="/docs/setup/store">Store Setup</Link> — Horizon OS, Fire
-            OS, Vega OS, and alternative marketplaces
-          </li>
-        </ul>
-      </section>
+      <details open>
+        <summary>Manual setup, code examples, and reference</summary>
+        <section>
+          <AnchorLink id="1-pick-platform" level="h2">
+            1. Configure the store
+          </AnchorLink>
+          <p>
+            Every framework wraps the same store APIs, so the platform setup
+            comes first. Finish these before installing any SDK:
+          </p>
+          <ul>
+            <li>
+              <Link to="/docs/ios-setup">iOS Setup</Link> — App Store Connect
+              agreement, capability, sandbox testers
+            </li>
+            <li>
+              <Link to="/docs/android-setup">Android Setup</Link> — Play Console
+              account, license testers, billing permission
+            </li>
+            <li>
+              <Link to="/docs/setup/store">Store Setup</Link> — Horizon OS, Fire
+              OS, Vega OS, and alternative marketplaces
+            </li>
+          </ul>
+        </section>
 
-      <section>
-        <AnchorLink id="2-pick-framework" level="h2">
-          2. Pick a framework
-        </AnchorLink>
-        <p>
-          OpenIAP ships official SDKs for six frameworks. Pick the one your app
-          uses — the API surface is identical across all of them.
-        </p>
-        <ul>
-          <li>
-            <Link to="/docs/setup/expo">expo-iap</Link> — Expo SDK projects
-          </li>
-          <li>
-            <Link to="/docs/setup/react-native">react-native-iap</Link> — bare
-            React Native CLI projects (RN 0.79+)
-          </li>
-          <li>
-            <Link to="/docs/setup/flutter">flutter_inapp_purchase</Link> —
-            Flutter / Dart
-          </li>
-          <li>
-            <Link to="/docs/setup/kmp">kmp-iap</Link> — Kotlin Multiplatform /
-            Compose Multiplatform
-          </li>
-          <li>
-            <Link to="/docs/setup/maui">maui-iap</Link> — .NET MAUI / C#
-          </li>
-          <li>
-            <Link to="/docs/setup/godot">godot-iap</Link> — Godot 4.x
-          </li>
-        </ul>
-      </section>
+        <section>
+          <AnchorLink id="2-pick-framework" level="h2">
+            2. Pick a framework
+          </AnchorLink>
+          <p>
+            Use your app’s existing framework. SDKs share the purchase contract;
+            types and lifecycle patterns follow each language.
+          </p>
+          <ul>
+            <li>
+              <Link to="/docs/setup/expo">expo-iap</Link> — Expo SDK projects
+            </li>
+            <li>
+              <Link to="/docs/setup/react-native">react-native-iap</Link> — bare
+              React Native CLI projects (RN 0.79+)
+            </li>
+            <li>
+              <Link to="/docs/setup/flutter">flutter_inapp_purchase</Link> —
+              Flutter / Dart
+            </li>
+            <li>
+              <Link to="/docs/setup/kmp">kmp-iap</Link> — Kotlin Multiplatform /
+              Compose Multiplatform
+            </li>
+            <li>
+              <Link to="/docs/setup/maui">maui-iap</Link> — .NET MAUI / C#
+            </li>
+            <li>
+              <Link to="/docs/setup/godot">godot-iap</Link> — Godot 4.x
+            </li>
+          </ul>
+        </section>
 
-      <section>
-        <AnchorLink id="3-first-purchase" level="h2">
-          3. Your first purchase flow
-        </AnchorLink>
-        <p>
-          The four-step flow below is the same on every framework — only the
-          imports differ. Read{' '}
-          <Link to="/docs/features/purchase">Features → Purchase</Link> for a
-          full walkthrough with verification, error handling, and
-          consumable/non-consumable nuances.
-        </p>
+        <section>
+          <AnchorLink id="3-first-purchase" level="h2">
+            3. Your first purchase flow
+          </AnchorLink>
+          <p>
+            Connect, load products, listen for results, then request a purchase.
+            The examples below outline that flow; add your backend verification
+            and access logic. Read{' '}
+            <Link to="/docs/features/purchase">Features → Purchase</Link> for a
+            full walkthrough with verification, error handling, and
+            consumable/non-consumable nuances.
+          </p>
 
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`import {
+          <LanguageTabs>
+            {{
+              typescript: (
+                <CodeBlock language="typescript">{`import {
   initConnection,
   fetchProducts,
   requestPurchase,
@@ -146,9 +155,9 @@ await requestPurchase({
   },
   type: 'in-app',
 });`}</CodeBlock>
-            ),
-            swift: (
-              <CodeBlock language="swift">{`import OpenIap
+              ),
+              swift: (
+                <CodeBlock language="swift">{`import OpenIap
 
 let store = OpenIapModule.shared
 
@@ -189,9 +198,9 @@ try await store.requestPurchase(
         type: .inApp
     )
 )`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
+              ),
+              kotlin: (
+                <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.*
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 
@@ -233,9 +242,9 @@ store.requestPurchase(
 fun disposePurchaseListener() {
     store.removePurchaseUpdateListener(purchaseListener)
 }`}</CodeBlock>
-            ),
-            kmp: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
+              ),
+              kmp: (
+                <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
 
 val kmpIAP = KmpIAP()
@@ -290,9 +299,9 @@ kmpIAP.finishTransaction(
     purchase = purchase.toPurchaseInput(),
     isConsumable = false
 )`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'dart:async';
+              ),
+              dart: (
+                <CodeBlock language="dart">{`import 'dart:async';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 final iap = FlutterInappPurchase.instance;
@@ -341,9 +350,9 @@ await iap.requestPurchaseWithBuilder(
 
 // Call from State.dispose().
 Future<void> disposePurchaseListener() => purchaseSubscription.cancel();`}</CodeBlock>
-            ),
-            csharp: (
-              <CodeBlock language="csharp">{`using OpenIap;
+              ),
+              csharp: (
+                <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
 var query = (QueryResolver)OpenIapClient.Instance;
@@ -393,9 +402,9 @@ await mutation.RequestPurchaseAsync(new RequestPurchaseProps
 
 // Call when the page goes away.
 void DisposePurchaseListener() => subscription.Dispose();`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.
+              ),
+              gdscript: (
+                <CodeBlock language="gdscript">{`# 1. Open the store connection on app start.
 if not await iap.init_connection():
     push_error("Store connection failed")
     return
@@ -419,176 +428,171 @@ props.request.apple = RequestPurchaseIosProps.new()
 props.request.apple.sku = "com.app.premium"
 props.type = ProductQueryType.IN_APP
 await iap.request_purchase(props)`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
-      </section>
+              ),
+            }}
+          </LanguageTabs>
+        </section>
 
-      <section>
-        <AnchorLink id="4-key-concepts" level="h2">
-          4. Key concepts
-        </AnchorLink>
-        <p>
-          Two background reads make every framework guide easier to follow —
-          skim them before you wire anything into production.
-        </p>
-        <ul>
-          <li>
-            <Link to="/docs/ecosystem">Ecosystem</Link> — how OpenIAP, the
-            native packages (Apple / Google), and each framework SDK fit
-            together. Read this first if you're choosing a stack.
-          </li>
-          <li>
-            <Link to="/docs/lifecycle">Life Cycle</Link> — when to call{' '}
-            <code>initConnection</code>, where to mount listeners, and when to
-            call <code>finishTransaction</code>. Getting this wrong is the #1
-            cause of "purchase succeeded but the user didn't get the
-            entitlement" reports, so read it once even if you skip everything
-            else.
-          </li>
-        </ul>
-      </section>
+        <section>
+          <AnchorLink id="4-key-concepts" level="h2">
+            4. Key concepts
+          </AnchorLink>
+          <p>
+            References for choosing an SDK and managing the purchase lifecycle:
+          </p>
+          <ul>
+            <li>
+              <Link to="/docs/ecosystem">Ecosystem</Link> — how OpenIAP, the
+              native packages (Apple / Google), and each framework SDK fit
+              together. Read this first if you're choosing a stack.
+            </li>
+            <li>
+              <Link to="/docs/lifecycle">Life Cycle</Link> — when to call{' '}
+              <code>initConnection</code>, where to mount listeners, and when to
+              call <code>finishTransaction</code> after verification and
+              delivery.
+            </li>
+          </ul>
+        </section>
 
-      <section>
-        <AnchorLink id="5-how-the-docs-are-organized" level="h2">
-          5. How the docs are organized
-        </AnchorLink>
-        <p>
-          The sidebar groups content by intent. Once you know which group fits
-          the question you're answering, navigation becomes muscle memory.
-        </p>
-        <ul>
-          <li>
-            <strong>
-              <Link to="/docs/setup">Setup Guide</Link>
-            </strong>{' '}
-            — install + native config per framework (
-            <Link to="/docs/setup/expo">Expo</Link>,{' '}
-            <Link to="/docs/setup/react-native">React Native</Link>,{' '}
-            <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
-            <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>,{' '}
-            <Link to="/docs/setup/maui">.NET MAUI</Link>,{' '}
-            <Link to="/docs/setup/godot">Godot</Link>) plus the store-side
-            configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
-            <Link to="/docs/android-setup">Android</Link>,{' '}
-            <Link to="/docs/setup/store">store setup</Link>
-            ).
-          </li>
-          <li>
-            <strong>
-              <Link to="/docs/features/purchase">Features</Link>
-            </strong>{' '}
-            — task-oriented walkthroughs, not reference. Each page covers a real
-            flow end-to-end (<Link to="/docs/features/purchase">Purchase</Link>,{' '}
-            <Link to="/docs/features/subscription">Subscription</Link>,{' '}
-            <Link to="/docs/features/refund">Refund</Link>,{' '}
-            <Link to="/docs/features/validation">Validation</Link>,{' '}
-            <Link to="/docs/features/offer-code-redemption">
-              Offer Code Redemption
-            </Link>
-            , …) with verification, edge cases, and platform notes. Open a
-            Features page when you're shipping a flow, not just calling a
-            function.
-          </li>
-          <li>
-            <strong>
-              <Link to="/docs/apis">APIs</Link>
-            </strong>{' '}
-            — flat reference, one page per function (<code>initConnection</code>
-            , <code>fetchProducts</code>, <code>requestPurchase</code>, …).
-            Cross-platform symbols live at the root; iOS- and Android-only
-            symbols are grouped under{' '}
-            <Link to="/docs/apis#ios-functions">iOS Specific</Link> /{' '}
-            <Link to="/docs/apis#android-functions">Android Specific</Link>.
-            Open a function page when you need its exact signature, params, and
-            a copy-pasteable example.
-          </li>
-          <li>
-            <strong>
-              <Link to="/docs/types">Types</Link>
-            </strong>{' '}
-            — flat reference, one page per type (
-            <Link to="/docs/types/product">
-              <code>Product</code>
-            </Link>
-            ,{' '}
-            <Link to="/docs/types/purchase">
-              <code>Purchase</code>
-            </Link>
-            ,{' '}
-            <Link to="/docs/types/request-purchase-props">
-              <code>RequestPurchaseProps</code>
-            </Link>
-            , …). Same iOS / Android grouping as APIs. Field tables auto-link to
-            related types so you can chase a shape without leaving the docs.
-          </li>
-          <li>
-            <strong>
-              <Link to="/docs/events">Events</Link> &{' '}
-              <Link to="/docs/errors">Errors</Link>
-            </strong>{' '}
-            — listener patterns and the unified{' '}
-            <Link to="/docs/errors">
-              <code>PurchaseError</code>
-            </Link>{' '}
-            codes that every SDK normalizes to.
-          </li>
-        </ul>
-        <p>
-          <strong>Rule of thumb:</strong> "How does this function work?" → APIs.
-          "What does this object look like?" → Types. "How do I ship
-          subscription upgrades?" → Features.
-        </p>
-      </section>
+        <section>
+          <AnchorLink id="5-how-the-docs-are-organized" level="h2">
+            5. How the docs are organized
+          </AnchorLink>
+          <p>
+            Use a feature guide for a complete flow, APIs for calls, and Types
+            for data fields.
+          </p>
+          <ul>
+            <li>
+              <strong>
+                <Link to="/docs/setup">Setup Guide</Link>
+              </strong>{' '}
+              — install + native config per framework (
+              <Link to="/docs/setup/expo">Expo</Link>,{' '}
+              <Link to="/docs/setup/react-native">React Native</Link>,{' '}
+              <Link to="/docs/setup/flutter">Flutter</Link>,{' '}
+              <Link to="/docs/setup/kmp">Kotlin Multiplatform</Link>,{' '}
+              <Link to="/docs/setup/maui">.NET MAUI</Link>,{' '}
+              <Link to="/docs/setup/godot">Godot</Link>) plus the store-side
+              configuration (<Link to="/docs/ios-setup">iOS</Link>,{' '}
+              <Link to="/docs/android-setup">Android</Link>,{' '}
+              <Link to="/docs/setup/store">store setup</Link>
+              ).
+            </li>
+            <li>
+              <strong>
+                <Link to="/docs/features/purchase">Features</Link>
+              </strong>{' '}
+              — task-oriented walkthroughs, not reference. Each page covers a
+              real flow end-to-end (
+              <Link to="/docs/features/purchase">Purchase</Link>,{' '}
+              <Link to="/docs/features/subscription">Subscription</Link>,{' '}
+              <Link to="/docs/features/refund">Refund</Link>,{' '}
+              <Link to="/docs/features/validation">Validation</Link>,{' '}
+              <Link to="/docs/features/offer-code-redemption">
+                Offer Code Redemption
+              </Link>
+              , …) with verification, edge cases, and platform notes. Open a
+              Features page when you're shipping a flow, not just calling a
+              function.
+            </li>
+            <li>
+              <strong>
+                <Link to="/docs/apis">APIs</Link>
+              </strong>{' '}
+              — flat reference, one page per function (
+              <code>initConnection</code>, <code>fetchProducts</code>,{' '}
+              <code>requestPurchase</code>, …). Cross-platform symbols live at
+              the root; iOS- and Android-only symbols are grouped under{' '}
+              <Link to="/docs/apis#ios-functions">iOS Specific</Link> /{' '}
+              <Link to="/docs/apis#android-functions">Android Specific</Link>.
+              Open a function page when you need its exact signature, params,
+              and a copy-pasteable example.
+            </li>
+            <li>
+              <strong>
+                <Link to="/docs/types">Types</Link>
+              </strong>{' '}
+              — flat reference, one page per type (
+              <Link to="/docs/types/product">
+                <code>Product</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/types/purchase">
+                <code>Purchase</code>
+              </Link>
+              ,{' '}
+              <Link to="/docs/types/request-purchase-props">
+                <code>RequestPurchaseProps</code>
+              </Link>
+              , …). Same iOS / Android grouping as APIs. Field tables auto-link
+              to related types so you can chase a shape without leaving the
+              docs.
+            </li>
+            <li>
+              <strong>
+                <Link to="/docs/events">Events</Link> &{' '}
+                <Link to="/docs/errors">Errors</Link>
+              </strong>{' '}
+              — listener patterns and the unified{' '}
+              <Link to="/docs/errors">
+                <code>PurchaseError</code>
+              </Link>{' '}
+              codes that every SDK normalizes to.
+            </li>
+          </ul>
+        </section>
 
-      <section>
-        <AnchorLink id="6-where-next" level="h2">
-          6. Where to go next
-        </AnchorLink>
-        <ul>
-          <li>
-            <Link to="/docs/features/purchase">Purchase</Link>,{' '}
-            <Link to="/docs/features/subscription">Subscription</Link>,{' '}
-            <Link to="/docs/features/refund">Refund</Link> — full feature
-            walkthroughs
-          </li>
-          <li>
-            <Link to="/docs/features/validation">Validation</Link> — server-side
-            verification (your own backend or IAPKit — open source under MIT,
-            with hosted validation and analytics free at{' '}
-            <a
-              href="https://kit.openiap.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              kit.openiap.dev
-            </a>{' '}
-            or self-host from{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <code>packages/kit</code>
-            </a>
-            {`)`}
-          </li>
-          <li>
-            <Link to="/docs/apis">API Reference</Link> — every function with
-            cross-platform signatures
-          </li>
-          <li>
-            <Link to="/docs/types">Types</Link> — every type with field tables
-          </li>
-          <li>
-            <Link to="/docs/errors">Errors</Link> — unified{' '}
-            <Link to="/docs/errors">
-              <code>PurchaseError</code>
-            </Link>{' '}
-            codes
-          </li>
-        </ul>
-      </section>
+        <section>
+          <AnchorLink id="6-where-next" level="h2">
+            6. Where to go next
+          </AnchorLink>
+          <ul>
+            <li>
+              <Link to="/docs/features/purchase">Purchase</Link>,{' '}
+              <Link to="/docs/features/subscription">Subscription</Link>,{' '}
+              <Link to="/docs/features/refund">Refund</Link> — full feature
+              walkthroughs
+            </li>
+            <li>
+              <Link to="/docs/features/validation">Validation</Link> —
+              server-side verification (your own backend or IAPKit — open source
+              under MIT, with hosted validation and analytics free at{' '}
+              <a
+                href="https://kit.openiap.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                kit.openiap.dev
+              </a>{' '}
+              or self-host from{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/kit"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>packages/kit</code>
+              </a>
+              {`)`}
+            </li>
+            <li>
+              <Link to="/docs/apis">API Reference</Link> — every function with
+              cross-platform signatures
+            </li>
+            <li>
+              <Link to="/docs/types">Types</Link> — every type with field tables
+            </li>
+            <li>
+              <Link to="/docs/errors">Errors</Link> — unified{' '}
+              <Link to="/docs/errors">
+                <code>PurchaseError</code>
+              </Link>{' '}
+              codes
+            </li>
+          </ul>
+        </section>
+      </details>
     </div>
   );
 }

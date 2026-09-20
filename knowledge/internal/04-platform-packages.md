@@ -26,9 +26,9 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "spec": "2.4.2",
-  "google": "2.5.0",
-  "apple": "2.4.2"
+  "clientProtocol": "0.1.0",
+  "google": "3.5.2",
+  "apple": "3.4.0"
 }
 ```
 
@@ -38,11 +38,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd specs/client && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-`"spec"` must always equal the lower semantic version of `"google"` and
-`"apple"`. Do not bump or edit it directly in feature work or for type
-regeneration. Native version writers derive the floor atomically when Google or
-Apple changes; sync only verifies and propagates that value. Release-state,
-docs, and parity audits reject drift.
+`"clientProtocol"` is a mirror of `specs/client/package.json`. Bump the Client
+Protocol there and let `./scripts/sync-versions.sh` propagate; do not edit the
+mirror by hand. `"google"` and `"apple"` are native package versions and do not
+constrain it. Release-state, docs, and parity audits reject drift between the
+mirror and the publishing manifest.
 
 **To bump Apple package version:**
 
@@ -122,7 +122,7 @@ swift build  # Verifies ObjC bridge compiles
 
 For newly exposed platform features, public schema and API documentation must
 name the OpenIAP versions first and the upstream SDK requirement second. Use the
-format `OpenIAP Spec <version> / openiap-google <version> (requires Play Billing
+format `OpenIAP <version> / openiap-google <version> (requires Play Billing
 <version>+)`. Upstream-only labels such as `Billing 9.1.0+` do not tell OpenIAP
 consumers which library release contains the API.
 
@@ -319,6 +319,13 @@ The Google package supports **three build flavors**:
    locally publishes and compiles the Play, Horizon, and Amazon artifacts from
    independent Kotlin 2.1.20 Android consumers. CI and the Google release workflow
    run the same guard before Maven Central publication.
+7. **A flavor that adds a listener set must also fire it.** Accepting
+   `addConnectionStateListener` and never notifying is the "declared but not
+   implemented" pattern above, and the bridge that subscribes goes blind. Play
+   and Horizon both notify from `handleBillingServiceDisconnected`; Amazon has
+   no connection to drop, so its implementation is a documented no-op
+   ([#408](https://github.com/hyodotdev/openiap/issues/408)). `bun audit:parity`
+   pins the notification in both flavors.
 
 ### Build Commands
 
@@ -399,12 +406,31 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 - Appstore SDK 3.0.9 adds `EXISTING_PURCHASE` and `NOT_ELIGIBLE` fulfillment
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
+- `AmazonEarlyRegistrationProvider` registers a placeholder listener at
+  process start so the SDK's lifecycle callbacks see the first Activity
+  resume; without it the live Appstore purchase Intent is parked until the
+  next onResume ([#460](https://github.com/hyodotdev/openiap/issues/460)).
+  Keep the provider; `ensureRegistered()` in `initConnection` only swaps the
+  placeholder for the module listener.
+- A sideloaded build cannot verify that fix end to end. With the sandbox
+  property cleared, the live Appstore rejects an unrecognised binary
+  (`IAP_CMD_3P_COMP_FAILED`) before any purchase starts, so the dialog itself
+  is only observable from a Live App Testing or Appstore install. The
+  registration order a sideloaded build does show is asserted by
+  `scripts/verify-amazon-registration-order.sh`; run that rather than reading
+  `adb logcat -s Kiwi` by hand.
+- Signing is not a blocker for that upload. Amazon strips the developer
+  signature on ingestion and re-signs with a certificate tied to the developer
+  account, so a test build may use any keystore
+  ([Understanding Amazon Appstore Submission](https://developer.amazon.com/docs/app-submission/understanding-submission.html)).
+  Version code still has to exceed the live one.
 
-### Updating `@hyodotdev/openiap` Types and the Derived Version
+### Updating Client Protocol Types and Native Compatibility
 
-1. Update the canonical schema without directly changing the `spec` version.
-   Native version writers keep `spec` equal to the lower semantic version of
-   `google` and `apple`; sync fails instead of silently repairing drift.
+1. Update the canonical schema. A schema change that alters the contract is a
+   Client Protocol version bump in `specs/client/package.json`; sync then
+   mirrors it into `openiap-versions.json` and fails instead of silently
+   repairing drift.
 2. Run `cd specs/client && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
@@ -414,6 +440,19 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
    ```
 
 ---
+
+## Example App Identity
+
+Every example builds as `dev.hyo.martie` and requests that app's real SKUs on
+purpose: they are the store-test harness for a published app, and sandbox,
+receipt, and Live App Testing work depends on it. The one exception is the
+Flutter example's macOS runner, `dev.hyo.flutterInappPurchaseExample`.
+
+What belongs to `hyodotdev/Martie` alone is the release side: its EAS project,
+the remote version counter, its production environment variables, and anything
+uploaded to a store listing. Never point an example at that EAS project. With a
+remote app version source, one `eas build` there consumes the product's next
+version code and loads its production environment — both have happened.
 
 ## Cross-Library Verification for Shared-Package Changes (MANDATORY)
 
@@ -496,7 +535,7 @@ Before writing or editing anything, **ALWAYS** review:
 
 ### Code Generation Architecture
 
-The `@hyodotdev/openiap` package uses two guarded generation lanes over one
+The `@hyodotdev/openiap-client-protocol` package uses two guarded generation lanes over one
 authored schema inventory:
 
 ```text

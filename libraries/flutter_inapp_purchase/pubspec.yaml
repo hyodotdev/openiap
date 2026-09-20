@@ -2,7 +2,7 @@ name: flutter_inapp_purchase
 description: In App Purchase plugin for flutter. This project has been forked by
   react-native-iap and we are willing to share same experience with that on
   react-native.
-version: 10.6.0
+version: 10.6.1
 homepage: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 repository: https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase
 environment:
@@ -14,7 +14,8 @@ dependencies:
     sdk: flutter
   http: ^1.2.0
   meta: ^1.11.0
-  platform: ^3.1.4
+  # Keep the legacy Platform API while supporting Dart 3.0.
+  platform: ">=3.1.4 <3.2.0"
 
 dev_dependencies:
   flutter_test:

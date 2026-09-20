@@ -517,7 +517,7 @@ bun install --frozen-lockfile                           # catches lockfile drift
 bun run --filter @hyodotdev/openiap-kit lint            # tsc + eslint
 bunx prettier --check src/** server/** convex/**        # prettier check
 bun run --filter @hyodotdev/openiap-kit test            # vitest
-bun run --filter openiap-commerce-protocol test         # spec suite + drift check
+bun run --filter @hyodotdev/openiap-commerce-protocol test         # spec suite + drift check
 bun run --filter @hyodotdev/openiap-kit smoke:server    # bun compile + boot probe
 bun run --filter @hyodotdev/openiap-mcp-server lint     # served at /mcp
 bun run --filter @hyodotdev/openiap-mcp-server test

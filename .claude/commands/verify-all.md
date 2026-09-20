@@ -40,6 +40,10 @@ set -euo pipefail
 # Docs formatting, typecheck, and production bundle
 (cd packages/docs && bun run format:check && bun run build)
 
+# Advisory: recorded IAPKit interop evidence versus the current sources
+bun test ./scripts/audit-commerce-evidence.test.mjs
+bun run audit:commerce-evidence || echo "commerce evidence differs from current sources; re-record before deploying docs"
+
 # Swift build and unit tests (packages/apple)
 (cd packages/apple && swift test)
 
@@ -293,7 +297,6 @@ All release workflows exist and have valid YAML:
 set -euo pipefail
 
 ls .github/workflows/release-{apple,google,react-native,expo,flutter,godot,kmp,maui}.yml
-test -f .github/workflows/release.yml
 ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.safe_load(File.read(f), [], [], true) }'
 ```
 

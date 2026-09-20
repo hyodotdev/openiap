@@ -14,6 +14,7 @@ import { compileProtocolContract } from "../scripts/build-json-schemas.mjs";
 import { bundleSchema } from "../src/index.mjs";
 
 const at = (path) => fileURLToPath(new URL(`../${path}`, import.meta.url));
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const source = readFileSync(at("generated/commerce-protocol.graphql"), "utf8");
 const { ir } = compileProtocolContract(source);
 
@@ -461,7 +462,7 @@ describe("SPEC.md stays in agreement with the generated contract", () => {
     );
     for (const operation of manifest.operations) {
       const row = new RegExp(
-        `\\| \`${operation.name}\` +\\| ${operation.method} +\\| \`${operation.path.replaceAll("/", "/")}\``,
+        `\\| \`${escapeRegExp(operation.name)}\` +\\| ${escapeRegExp(operation.method)} +\\| \`${escapeRegExp(operation.path)}\``,
         "u",
       );
       expect(spec, `${operation.name} row`).toMatch(row);

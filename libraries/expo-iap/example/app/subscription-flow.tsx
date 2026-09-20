@@ -470,6 +470,7 @@ function SubscriptionFlow({
   const getSubscriptionDisplayPrice = (
     subscription: ProductSubscription,
   ): string => {
+    if (subscription.platform === 'ios') return subscription.displayPrice;
     if (
       'subscriptionOffers' in subscription &&
       subscription.subscriptionOffers
@@ -500,6 +501,7 @@ function SubscriptionFlow({
   const getIntroductoryOffer = (
     subscription: ProductSubscription,
   ): string | null => {
+    if (subscription.platform === 'android') return null;
     const offer = subscription.subscriptionOffers?.find(
       (candidate) => candidate.type === 'introductory',
     );
@@ -521,6 +523,15 @@ function SubscriptionFlow({
   };
 
   const getSubscriptionPeriod = (subscription: ProductSubscription): string => {
+    if (
+      subscription.platform === 'ios' &&
+      subscription.subscriptionPeriodNumberIOS &&
+      subscription.subscriptionPeriodUnitIOS
+    ) {
+      return `${
+        subscription.subscriptionPeriodNumberIOS
+      } ${subscription.subscriptionPeriodUnitIOS.toLowerCase()}`;
+    }
     if (
       'subscriptionOffers' in subscription &&
       subscription.subscriptionOffers
@@ -886,7 +897,7 @@ function SubscriptionFlow({
             {Platform.OS === 'android' &&
             activeSubscriptions.some((s) => !s.autoRenewingAndroid) ? (
               <Text style={styles.warningText}>
-                ⚠️ Your subscription will not auto-renew. You'll lose access
+                ⚠️ Your subscription will not auto-renew. You will lose access
                 when the current period ends.
               </Text>
             ) : null}
@@ -1067,7 +1078,7 @@ function SubscriptionFlow({
                         </View>
                       ) : null}
                       <Text style={styles.cancellationNote}>
-                        💡 Your subscription will not auto-renew. You'll have
+                        💡 Your subscription will not auto-renew. You will have
                         access until the expiration date.
                       </Text>
 
@@ -2044,58 +2055,95 @@ function SubscriptionFlowContainer() {
 
       const subscription = subscriptions.find((sub) => sub.id === itemId);
 
-      // Extract Android subscription offers with offerToken
       const androidOffers =
         subscription?.platform === 'android' &&
         Array.isArray(subscription.subscriptionOffers)
-          ? subscription.subscriptionOffers
-              .map((offer) =>
-                offer.offerTokenAndroid
-                  ? {
-                      sku: itemId,
-                      offerToken: offer.offerTokenAndroid,
-                    }
-                  : null,
-              )
-              .filter((offer): offer is {sku: string; offerToken: string} =>
-                Boolean(offer?.offerToken),
-              )
+          ? subscription.subscriptionOffers.filter((offer) =>
+              Boolean(offer.offerTokenAndroid),
+            )
           : [];
 
-      void requestPurchase({
-        request: {
-          // Apple subscription request
-          apple: {
-            sku: itemId,
+      const purchaseWithOffer = (offerToken?: string | null): void => {
+        if (!mountedRef.current) return;
+        void requestPurchase({
+          request: {
+            // Apple subscription request
+            apple: {
+              sku: itemId,
+            },
+            // Google subscription request (requires subscriptionOffers)
+            google: {
+              skus: [itemId],
+              subscriptionOffers: offerToken
+                ? [{sku: itemId, offerToken}]
+                : undefined,
+            },
           },
-          // Google subscription request (requires subscriptionOffers)
-          google: {
-            skus: [itemId],
-            subscriptionOffers:
-              androidOffers.length > 0 ? androidOffers : undefined,
-          },
-        },
-        type: 'subs',
-      }).catch((error: PurchaseError) => {
-        console.log('requestPurchase failed:', {
-          code: error.code,
-          message: error.message,
-        });
-        setIsProcessing(false);
-        if (error.code === ErrorCode.UserCancelled) {
-          setPurchaseResult('Subscription cancelled by user');
-          return;
-        }
+          type: 'subs',
+        }).catch((error: PurchaseError) => {
+          console.log('requestPurchase failed:', {
+            code: error.code,
+            message: error.message,
+          });
+          setIsProcessing(false);
+          if (error.code === ErrorCode.UserCancelled) {
+            setPurchaseResult('Subscription cancelled by user');
+            return;
+          }
 
-        setPurchaseResult(
-          `Subscription failed: ${formatErrorForDisplay(
-            error,
-            ErrorCode.PurchaseError,
-          )}`,
+          setPurchaseResult(
+            `Subscription failed: ${formatErrorForDisplay(
+              error,
+              ErrorCode.PurchaseError,
+            )}`,
+          );
+        });
+      };
+
+      if (androidOffers.length > 1) {
+        const options = androidOffers.map((offer) => {
+          const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+          const recurring = phases.some((phase) => phase.recurrenceMode === 1);
+          const prepaid =
+            phases.length > 0 &&
+            phases.every((phase) => phase.recurrenceMode === 3);
+          const planType = offer.installmentPlanDetailsAndroid
+            ? 'Installments'
+            : recurring
+            ? 'Auto-renewing'
+            : prepaid
+            ? 'Prepaid'
+            : 'Subscription';
+          const pricing = phases
+            .map((phase) => `${phase.formattedPrice} / ${phase.billingPeriod}`)
+            .join(' → ');
+          return `${offer.basePlanIdAndroid ?? offer.id} · ${planType} · ${
+            pricing || offer.displayPrice
+          }`;
+        });
+        showActionSheetWithOptions(
+          {
+            title: 'Choose a subscription plan',
+            options: [...options, 'Cancel'],
+            cancelButtonIndex: options.length,
+          },
+          (index) => {
+            if (!mountedRef.current) return;
+            const offer =
+              index === undefined ? undefined : androidOffers[index];
+            if (!offer) {
+              setIsProcessing(false);
+              setPurchaseResult('Subscription plan selection canceled.');
+              return;
+            }
+            purchaseWithOffer(offer.offerTokenAndroid);
+          },
         );
-      });
+      } else {
+        purchaseWithOffer(androidOffers[0]?.offerTokenAndroid);
+      }
     },
-    [activeSubscriptions, subscriptions],
+    [activeSubscriptions, showActionSheetWithOptions, subscriptions],
   );
 
   const handleRetryLoadSubscriptions = useCallback(() => {

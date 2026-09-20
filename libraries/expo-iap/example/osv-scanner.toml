@@ -1,14 +1,14 @@
 [[IgnoredVulns]]
 id = "GHSA-5p2g-fcmc-qvqq"
-ignoreUntil = 2026-09-14
-reason = "No patched image-size release exists; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-14
+reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-w3rx-r6r6-pgpr"
-ignoreUntil = 2026-09-14
-reason = "No patched image-size release exists; Metro uses it only during trusted local builds."
+ignoreUntil = 2026-10-14
+reason = "OSV still records no fixed image-size release for this advisory; Metro uses it only during trusted local builds."
 
 [[IgnoredVulns]]
 id = "GHSA-vcc3-ghjq-m6fr"
-ignoreUntil = 2026-09-16
-reason = "The patched package is ESM-only and incompatible with upstream query-string 7; this lockfile belongs to the example app while upstream navigation packages migrate."
+ignoreUntil = 2026-12-15
+reason = "decode-uri-component 0.5.0 is the only patched release and is ESM-only, so query-string 7 cannot take it; query-string 9, which can, is ESM-only too. expo-router 57.0.21 still depends on query-string ^7.1.3, so this example app cannot break the chain. Revisit when expo-router drops query-string 7, as @react-navigation/core did in 7.22.1."

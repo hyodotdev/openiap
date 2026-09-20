@@ -1,0 +1,163 @@
+{
+  "step": 2,
+  "id": "02-verify",
+  "title": "Verify a purchase",
+  "built": "Fixture store adapter + purchase persistence",
+  "result": "Valid evidence is saved. Alice still has no access.",
+  "previous": "01-contract",
+  "startedAt": "2026-09-16T00:53:52.557Z",
+  "recordedAt": "2026-09-16T00:53:53.254Z",
+  "packageVersion": "0.3.0",
+  "task": "# Verify a purchase\n\nAdd a fictional store adapter and verification. Persist accepted evidence without granting access. Invalid evidence must be a negative verdict; an upstream outage must be an error. Prove that binding is still unimplemented.\n\nUse the existing reviewed prototype where it satisfies the installed contract.\nRun the backend, inspect the result, correct problems, and rerun the affected check.\nKeep all work uncommitted.\n",
+  "sourceHashes": {
+    "verify-erasure.mjs": "5d6864387941a103d1f92b441eb34c96a50026068ead13c8b669ba06f7b7be4f",
+    "checkpoint.json": "f296f8a43757874e98eb981bfbb4a6c126aa28bc10284b8dda7507134ce557ef",
+    "LICENSE": "243adbe048bbec60be2faf9ae1e62c5221327d20ffbc13b1c80e82fa98127af1",
+    "export-docs.mjs": "47cf25c7ba1942fb833ac6b496c1e06b4ae06a61f6328330c6a6a4337c164f84",
+    "erasure.mjs": "2dddb3ffd929c9d05333e88193f7cb3e5874ef5b29e68c68a1b25997d09788ea",
+    "client-bridge.mjs": "a6760f1a9059e650fa19ef96403b16f7860390fce390262276020bd2cc7d5078",
+    "provider.mjs": "92591dde34d4043e10524ffed5afa2aa8a9b5c0d1095bb89844629cbb869b65f",
+    "capture.mjs": "a6e95d6708fb9965a6b7c6d8bc1b6590f2c208c6a32a5a0029a05cfea702469b",
+    "ai-task.md": "5f7bfaf63ca4fc04d88a2d60b1004e1bcab06a8077c0d367110e74e442c2f000",
+    "contract.mjs": "474dfee661cf00617872f6f50c3f4f5e88706e80d2fd6fcdda9304f489268c73",
+    "dashboard.html": "a375bc19ff6e419a4dedd8680d0baf50d8a5336cfe2e0ba4036463329fd8e076",
+    "verify.mjs": "8c33fba5e6dff85457c6154dbb5e0825ae9c299a193903fb40eda87be9a68211",
+    "README.md": "ea83c0f24a18005c4e86aa3a951f4a7ac0f605537a7aa0e8fe2a179564a25771",
+    "verify-stores.mjs": "6a9ea6071aebddac158435b8577f4b31914d902191f6cc1476683ea6d9bac3dd",
+    ".gitignore": "50b276cb902abd8b3018e368cd251db0a5c36b289b00a7fffd18e0e399c7f637",
+    "package-lock.json": "ef250412311d92295bed891735036a0d9bec1f8a24774316573f13699ab71cec",
+    "package.json": "a32429c9bb82d7f9cb1ea6ed4f022d46eea6364477572e63f7cc4a854b799ec2",
+    "consumer.mjs": "f9cdc5eff17f322dd2ae146546cfc5ed9b5f1a02495294b83bc17ec227aff18f",
+    "BUILD.md": "a21280d90624e644da240d309b726bc8c7d07c1eddcafe7e3c2333d8451e6643",
+    "webhooks.mjs": "e6da4eb939244f1b05ad61307f717a2214bf830da9d27993beb969676cc936a6",
+    "server.mjs": "3b4813c7907026488b29c163a8a2ce066402fe0bc2336e126c709e582af7a455",
+    "scenario.mjs": "7d0f12cadb632feed2164ba0ef793adfff1e0b3b70711761898fe232b8076873",
+    "verify-checkpoints.mjs": "ece22b0480bafa41ad8c65e37a5705eaf67c3f8b47c62339f9b1b33a90edd6d2",
+    "checkpoint-tools.mjs": "137fb2798a7e73e2db9a716d8cd3ea78fe3155ab0651ecae39f1e629634ec19c",
+    "AGENTS.md": "38764ea47552533ab5db55f7ade8c0025e2d7af9163715ce89f2d719f5475712",
+    "INTEGRATE.md": "ed3851d6432deedb85d2d0cc3edcca8fe52f58c79c99b68a9aa54616b010949b",
+    "checkpoint-tools.test.mjs": "1ea348330db8dab85694ac79cfec76e9d3af1729263a6a05cae61e10e41b2175"
+  },
+  "checks": [
+    "Fixture request matches the installed schema",
+    "Discovery remains unsupported until an event can be emitted",
+    "Purchase storage starts empty",
+    "Unready discovery returns a portable error",
+    "Fixture evidence is accepted",
+    "Verification does not grant access",
+    "Invalid evidence produces a negative verdict",
+    "An upstream outage is not a negative verdict",
+    "An unimplemented operation is explicitly refused",
+    "Untrusted browser origins are refused"
+  ],
+  "history": [
+    {
+      "step": 1,
+      "title": "Start with the contract",
+      "built": "HTTP routes + schema validation + SQLite",
+      "result": "A running server, an empty purchase table, and no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 501,
+          "body": {
+            "error": {
+              "code": "UNSUPPORTED_PROFILE",
+              "message": "unsupported profile"
+            }
+          }
+        },
+        {
+          "operation": "providerCapabilities",
+          "httpStatus": 501,
+          "body": {
+            "error": {
+              "code": "UNSUPPORTED_PROFILE",
+              "message": "unsupported profile"
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture request matches the installed schema",
+        "Discovery remains unsupported until an event can be emitted",
+        "Purchase storage starts empty",
+        "Unready discovery returns a portable error"
+      ],
+      "totalChecks": 4
+    },
+    {
+      "step": 2,
+      "title": "Verify a purchase",
+      "built": "Fixture store adapter + purchase persistence",
+      "result": "Valid evidence is saved. Alice still has no access.",
+      "simulatedTime": "2026-09-07T09:00:00.000Z",
+      "purchases": [
+        {
+          "userId": null,
+          "productId": "premium.monthly",
+          "state": "Active",
+          "willRenew": 1
+        }
+      ],
+      "access": {
+        "userId": "demo_alice",
+        "productIds": [],
+        "subscriptions": []
+      },
+      "deliveries": [],
+      "inboxCount": 0,
+      "responses": [
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": true,
+            "state": "ENTITLED",
+            "productId": "premium.monthly",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 200,
+          "body": {
+            "store": "fixture",
+            "isValid": false,
+            "state": "INAUTHENTIC",
+            "environment": "local-fixture"
+          }
+        },
+        {
+          "operation": "verifyPurchase",
+          "httpStatus": 502,
+          "body": {
+            "error": {
+              "code": "VERIFICATION_FAILED",
+              "message": "verification failed"
+            }
+          }
+        }
+      ],
+      "checks": [
+        "Fixture evidence is accepted",
+        "Verification does not grant access",
+        "Invalid evidence produces a negative verdict",
+        "An upstream outage is not a negative verdict"
+      ],
+      "totalChecks": 8
+    }
+  ],
+  "screenshot": "screen.png",
+  "scope": "Incremental source checkpoint adapted from the reviewed Commerce Lab prototype. HTTP and SQLite execute locally; store and clock are fixtures. No full profile claim."
+}

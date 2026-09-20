@@ -14,7 +14,9 @@ type ProjectPrivateField =
   | "amazonSharedSecret"
   | "userErasureHashKey"
   | "verificationAdmissionTokens"
-  | "verificationAdmissionRefilledAt";
+  | "verificationAdmissionRefilledAt"
+  | "entitlementRecheckTokens"
+  | "entitlementRecheckRefilledAt";
 
 function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
@@ -29,11 +31,15 @@ function projectWithSecretState(project: Doc<"projects">): Omit<
     userErasureHashKey: _userErasureHashKey,
     verificationAdmissionTokens: _verificationAdmissionTokens,
     verificationAdmissionRefilledAt: _verificationAdmissionRefilledAt,
+    entitlementRecheckTokens: _entitlementRecheckTokens,
+    entitlementRecheckRefilledAt: _entitlementRecheckRefilledAt,
     ...rest
   } = project;
   void _userErasureHashKey;
   void _verificationAdmissionTokens;
   void _verificationAdmissionRefilledAt;
+  void _entitlementRecheckTokens;
+  void _entitlementRecheckRefilledAt;
   return {
     ...rest,
     hasHorizonAppSecret:

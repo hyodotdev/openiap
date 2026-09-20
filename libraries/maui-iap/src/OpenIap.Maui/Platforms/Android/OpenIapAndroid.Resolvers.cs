@@ -171,7 +171,7 @@ internal sealed partial class OpenIapAndroid
     /// client to be initialized. Returns false on unsupported store flavors.
     /// See https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
     /// </summary>
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.0.")]
     public Task<bool> OpenRedeemOfferCodeAndroidAsync()
     {
         RefreshCurrentActivity();
@@ -185,7 +185,7 @@ internal sealed partial class OpenIapAndroid
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
     public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
-    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in OpenIAP 4.0.")]
+    [Obsolete("Use OpenRedeemOfferCodeAsync. Scheduled for removal in client protocol 1.0.0.")]
     public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<PurchaseIOS?>("presentCodeRedemptionSheetIOS");
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");

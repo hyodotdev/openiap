@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Regenerate and stage every generated file that embeds release version
-# metadata (docs version-metadata.json via sync-versions.sh, llms.txt /
-# llms-full.txt / context.md via scripts/agent compile:ai). Release workflows
+# metadata: the openiap-versions.json mirror and its copies, docs
+# version-metadata.json (sync-versions.sh), and llms.txt / llms-full.txt /
+# context.md (scripts/agent compile:ai). Release workflows
 # call this inside their version-bump commit step so the bump and its derived
 # files land in the same commit; otherwise CI's clean-worktree audits
 # (Audit SDK Parity, Test Agent Scripts) fail on every later PR.
@@ -22,6 +23,9 @@ cd "$REPO_ROOT"
 (cd scripts/agent && bun install --frozen-lockfile && bun run compile:ai)
 
 git add \
+  openiap-versions.json \
+  packages/docs/openiap-versions.json \
+  packages/apple/Sources/OpenIapGeneratedVersion.swift \
   packages/conformance/src/spec/generated-spec.mjs \
   packages/docs/src/generated/version-metadata.json \
   packages/docs/public/llms.txt \

@@ -8,7 +8,7 @@ import {
   Webhook,
   type LucideIcon,
 } from 'lucide-react';
-import { OPENIAP_VERSIONS } from '../lib/versioning';
+import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../lib/versioning';
 import {
   IAPKIT_LOGO_PATH,
   IAPKIT_URL,
@@ -71,7 +71,7 @@ function Home() {
   return (
     <div className="home">
       <SEO
-        title="Unified In-App Purchase Specification"
+        title="Open protocols for in-app purchases"
         description="OpenIAP standardizes in-app purchases across iOS, Android, Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot. One API, every platform. StoreKit 2, Google Play Billing, Vision Pro, Horizon OS, Fire OS, and Vega OS."
         path="/"
         keywords="in-app purchase, IAP, StoreKit 2, Google Play Billing, Expo IAP, React Native IAP, Flutter IAP, Kotlin Multiplatform, .NET MAUI, Amazon Fire OS, Vega OS, cross-platform payments, mobile monetization"
@@ -84,7 +84,8 @@ function Home() {
               <div className="hero-kicker">
                 <span>The open IAP standard</span>
                 <Link to="/docs/updates/versions" title="View versions">
-                  Spec v{OPENIAP_VERSIONS.spec}
+                  openiap-apple {OPENIAP_VERSIONS.apple} &middot; openiap-google{' '}
+                  {OPENIAP_VERSIONS.google}
                 </Link>
               </div>
               <h1 className="hero-brand-heading">
@@ -126,6 +127,32 @@ function Home() {
                 <span>
                   <strong>{LIBRARIES.length}</strong> framework libraries
                 </span>
+              </div>
+              <div className="hero-protocols">
+                <p className="hero-protocols-label">
+                  OpenIAP governs two protocols
+                </p>
+                <div className="hero-protocols-grid">
+                  {Object.values(OPENIAP_PROTOCOLS).map((protocol) => (
+                    <Link
+                      key={protocol.package}
+                      to={protocol.to}
+                      className="hero-protocol"
+                    >
+                      <span className="hero-protocol-head">
+                        <span className="hero-protocol-name">
+                          {protocol.name}
+                        </span>
+                        <span className="hero-protocol-version">
+                          v{protocol.version}
+                        </span>
+                      </span>
+                      <span className="hero-protocol-blurb">
+                        {protocol.blurb}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
 

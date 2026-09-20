@@ -36,6 +36,7 @@ import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
 import dev.hyo.openiap.VerifyPurchaseResultHorizon
 import dev.hyo.openiap.InitConnectionConfig as OpenIapInitConnectionConfig
+import dev.hyo.openiap.listener.OpenIapConnectionStateListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
@@ -299,6 +300,16 @@ class HybridRnIap : HybridRnIapSpec() {
             try {
                 if (!listenersAttached) {
                     RnIapLog.payload("listeners.attach", null)
+                    // Service drop: clear the cached flag so requestPurchase fails
+                    // fast (#408). JS still learns of it only from the next call.
+                    openIap.addConnectionStateListener(
+                        OpenIapConnectionStateListener {
+                            isInitialized = false
+                            RnIapLog.warn(
+                                "billing service disconnected; connection must be re-initialized"
+                            )
+                        }
+                    )
                     openIap.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { p ->
                         runCatching {
                             RnIapLog.result(
@@ -435,12 +446,9 @@ class HybridRnIap : HybridRnIapSpec() {
                 if (!ok) {
                     val error = OpenIapError.InitConnection
                     RnIapLog.failure("initConnection.native", Exception(error.message))
-                    throw OpenIapException(
-                        toErrorJson(
-                            error = error,
-                            messageOverride = "Failed to initialize connection"
-                        )
-                    )
+                    // No override: the error names the store this binary links,
+                    // which a fixed string here would throw away.
+                    throw OpenIapException(toErrorJson(error = error))
                 }
                 true
             } catch (e: Exception) {
@@ -592,7 +600,7 @@ class HybridRnIap : HybridRnIapSpec() {
             }
 
             if (rejectDisconnectedPurchase(isInitialized) { error ->
-                RnIapLog.warn("requestPurchase called before initConnection")
+                RnIapLog.warn("requestPurchase without an active billing connection")
                 sendPurchaseError(toErrorResult(error))
             }) {
                 return@async defaultResult

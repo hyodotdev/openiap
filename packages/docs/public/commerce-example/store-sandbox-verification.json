@@ -1,0 +1,382 @@
+{
+  "recordedDate": "2026-09-13",
+  "status": "partial",
+  "environment": "Development backend; Apple Sandbox and Google Play license-test purchases; no production deployment writes",
+  "sources": {
+    "iapkitCommit": "baabc401cc1dd2489c8407de3c0ea1c928053b22",
+    "iapkitUnchangedThrough": "b48a790d51ed7e8b166f26d9447c3df0ff9a61ed",
+    "exampleCommit": "b41facb1bf648d6c0aeea80745371dcc25482f8c",
+    "expoFixCommit": "10ae84dc0498f9e226c33e44fa4e6852ca124a27"
+  },
+  "native": {
+    "apple": {
+      "device": "iPhone 13 mini",
+      "build": "Expo development-signed Release",
+      "verification": "ENTITLED",
+      "finishTransaction": "completed",
+      "priceDisplayFollowup": "Monthly KRW 14000 and yearly period displayed on the rebuilt device"
+    },
+    "google": {
+      "device": "Pixel 2, Android 11",
+      "build": "Expo development client",
+      "selectedBasePlan": "premium-year",
+      "verificationStates": ["PENDING_ACKNOWLEDGMENT", "ENTITLED"],
+      "finishTransaction": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+      "testPurchase": true
+    }
+  },
+  "canonicalPurchases": {
+    "apple": {
+      "newCanonicalRows": 1,
+      "canonicalRowsAfterRepeatVerification": 1,
+      "purchaseCounterBefore": 16,
+      "purchaseCounterAfter": 17,
+      "purchaseCounterAfterRepeatVerification": 17
+    },
+    "google": {
+      "newCanonicalRows": 1,
+      "canonicalRowsAfterRepeatVerification": 1,
+      "purchaseCounterBefore": 19,
+      "purchaseCounterAfter": 20,
+      "purchaseCounterAfterRepeatVerification": 20
+    }
+  },
+  "exampleRequests": {
+    "apple": {
+      "at": "2026-09-13T10:16:08.272Z",
+      "status": 200,
+      "result": "fulfilled",
+      "trace": [
+        {
+          "method": "POST",
+          "path": "/commerce/v1/purchases/verify",
+          "status": 200,
+          "response": {
+            "store": "apple",
+            "isValid": true,
+            "state": "ENTITLED",
+            "productId": "dev.hyo.martie.premium"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/commerce/v1/purchases/bind",
+          "status": 200,
+          "response": {
+            "bound": true
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/commerce/v1/entitlements",
+          "status": 200,
+          "response": {
+            "userId": "commerce_e2e_20260913_apple",
+            "productIds": ["dev.hyo.martie.premium"],
+            "subscriptions": [
+              {
+                "productId": "dev.hyo.martie.premium",
+                "state": "Active",
+                "active": true,
+                "store": "apple",
+                "expiresAt": 1789294709000,
+                "startedAt": 1789294423710,
+                "updatedAt": 1789294562902
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "google": {
+      "at": "2026-09-13T10:40:21.821Z",
+      "status": 200,
+      "result": "fulfilled",
+      "trace": [
+        {
+          "method": "POST",
+          "path": "/commerce/v1/purchases/verify",
+          "status": 200,
+          "response": {
+            "store": "google",
+            "isValid": true,
+            "state": "ENTITLED",
+            "productId": "dev.hyo.martie.premium"
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/commerce/v1/purchases/bind",
+          "status": 200,
+          "response": {
+            "bound": true
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/commerce/v1/entitlements",
+          "status": 200,
+          "response": {
+            "userId": "commerce_e2e_20260913_google",
+            "productIds": ["dev.hyo.martie.premium"],
+            "subscriptions": [
+              {
+                "productId": "dev.hyo.martie.premium",
+                "state": "Active",
+                "active": true,
+                "store": "google",
+                "expiresAt": 1789297733339,
+                "renewsAt": 1789297733339,
+                "willRenew": true,
+                "startedAt": 1789295937340,
+                "updatedAt": 1789296020663
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "appleLiveNotifications": [
+    {
+      "at": "2026-09-13T10:17:42.558Z",
+      "bodySha256": "66317a0627606bd284746266418a51aa02916ff5b0d1a6159fe4828c78f49b40",
+      "type": "TEST",
+      "notificationId": "3fc76af6-7f58-4bf4-aa72-341021c6721e",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:18:06.211Z",
+      "bodySha256": "38b2e94d0598fdab5d010a6421952968e451afda3b7907bd18e843944470fbf4",
+      "type": "DID_RENEW",
+      "notificationId": "2ad5d324-7cef-4bd2-8810-f61f2a258f09",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:21:36.859Z",
+      "bodySha256": "a0db35eb60474e9b9b891485801617be0acefd559a49367be2eb6bade4024841",
+      "type": "DID_CHANGE_RENEWAL_STATUS",
+      "subtype": "AUTO_RENEW_DISABLED",
+      "notificationId": "058fe66c-4bbe-41e3-a3fb-374f725a9d91",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:25:28.243Z",
+      "bodySha256": "22fcf523da45a762ee8ce07db91ba31cc85f6f929b27102f2144e21e92f716fc",
+      "type": "EXPIRED",
+      "subtype": "VOLUNTARY",
+      "notificationId": "d3e7ee0c-c75d-47df-88b9-c904dec61181",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:44:16.683Z",
+      "bodySha256": "d42589eaa397fb79e2bbb1d42cc411f058029811b80cbfde390154746ee79340",
+      "type": "SUBSCRIBED",
+      "subtype": "RESUBSCRIBE",
+      "notificationId": "c2a07139-b016-4414-9dd2-580c2325e833",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:47:35.960Z",
+      "bodySha256": "9756387b1522a93ee31976c7ead823cf8951472404a58faf7cc5ac90cce13186",
+      "type": "DID_CHANGE_RENEWAL_STATUS",
+      "subtype": "AUTO_RENEW_DISABLED",
+      "notificationId": "803ed647-9fdb-4dcc-b3b7-94f33c5676b9",
+      "status": 200
+    },
+    {
+      "at": "2026-09-13T10:50:29.417Z",
+      "bodySha256": "1217832c8d2fd981ed4e993213d4feab819347b9d6652fcafc9b2181ff3ff7ec",
+      "type": "EXPIRED",
+      "subtype": "VOLUNTARY",
+      "notificationId": "6e6ba136-2acd-4e05-807d-7fc892768c51",
+      "status": 200
+    }
+  ],
+  "outboundHttpAttempts": [
+    {
+      "at": "2026-09-13T10:02:57.973Z",
+      "bodySha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "status": 401
+    },
+    {
+      "at": "2026-09-13T10:19:03.978Z",
+      "bodySha256": "2dfe5ad220b8260cfa9b6f2cac31f14727151ce09cd1a481e5951e7fbf1e533a",
+      "status": 503
+    },
+    {
+      "at": "2026-09-13T10:19:04.385Z",
+      "bodySha256": "8edd9e95782c60eb66a924630853f795fe1bd5710a128454ae92d085e05a8c4e",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:20:04.187Z",
+      "bodySha256": "2dfe5ad220b8260cfa9b6f2cac31f14727151ce09cd1a481e5951e7fbf1e533a",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:22:03.792Z",
+      "bodySha256": "61a9119849aca72186bc49f1a560640a48e2cb9762bc923e8cd13cfbf520090b",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:26:03.821Z",
+      "bodySha256": "86aa3856ea2d4af00f1581c4dcdde9d64b3908242091efc3ef41d8af1a2e0ad9",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:26:04.209Z",
+      "bodySha256": "044dbc68aa9384733e123f3da20f8c59d556d4e250aac362787b8ce1c0c5e1c2",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:45:03.752Z",
+      "bodySha256": "5ac7c68cc86caf70d7062c12ccce6eccdce9a29e48e5776125733ba26677852c",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:45:04.105Z",
+      "bodySha256": "e86ad3418ab08286efe223401829918e4c2bd2127f3fd9b091689f8bd342962e",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:48:03.802Z",
+      "bodySha256": "f6ee43442f6f4c560f2f9245c26a529d244b7972cbe375f4a7a49a0074c77baa",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:51:03.675Z",
+      "bodySha256": "e0b703e0290b916f29848d04e451ced798f222b5d409bc550d1010d50f9ddd6c",
+      "status": 202
+    },
+    {
+      "at": "2026-09-13T10:51:04.045Z",
+      "bodySha256": "e0fc7c5b646a7ee179e732ad28f0ff17b9a9f576855386bc03d735fb1bbf32f5",
+      "status": 202
+    }
+  ],
+  "receiverRestart": {
+    "savedEvents": 7,
+    "reportUnchanged": true
+  },
+  "appleFinal": {
+    "access": false,
+    "receivedEventTypes": [
+      "subscription.renewed",
+      "entitlement.granted",
+      "subscription.canceled",
+      "subscription.expired",
+      "entitlement.revoked",
+      "subscription.recovered",
+      "entitlement.granted",
+      "subscription.canceled",
+      "subscription.expired",
+      "entitlement.revoked"
+    ],
+    "knownAmounts": [
+      {
+        "currency": "KRW",
+        "experiment": "onboarding",
+        "variant": "A",
+        "amountMicros": 14000000000
+      }
+    ],
+    "reconciliationRequired": 1
+  },
+  "googleCancellation": {
+    "at": "2026-09-13T10:50:03.968Z",
+    "testPurchase": true,
+    "subscriptionState": "SUBSCRIPTION_STATE_CANCELED",
+    "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+    "lineItems": [
+      {
+        "productId": "dev.hyo.martie.premium",
+        "expiryTime": "2026-09-13T11:08:53.339Z",
+        "basePlanId": "premium-year"
+      }
+    ]
+  },
+  "beforeGoogleExpiry": {
+    "status": 200,
+    "response": {
+      "userId": "commerce_e2e_20260913_google",
+      "productIds": ["dev.hyo.martie.premium"],
+      "subscriptions": [
+        {
+          "productId": "dev.hyo.martie.premium",
+          "state": "Active",
+          "active": true,
+          "store": "google",
+          "expiresAt": 1789297733339,
+          "renewsAt": 1789297733339,
+          "willRenew": true,
+          "startedAt": 1789295937340,
+          "updatedAt": 1789296020663
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Google real-time developer notifications were not connected: operator reauthentication is required; no push authentication was bypassed.",
+    "The first Apple INITIAL_BUY notification was not captured; the later SUBSCRIBED/RESUBSCRIBE notification was captured.",
+    "Native checkout and finish ran in Expo before the server harness replayed its receipt through the example. This verifies the backend connection, not one integrated native-to-fulfillment flow; browser checkout controls remain fixtures.",
+    "Recovered and refunded events require store reconciliation; the displayed amount is not net revenue, MRR or ARPU.",
+    "No third-party analytics product, production store purchase, refund, or chargeback was exercised."
+  ],
+  "cleanup": {
+    "temporaryKeyRevoked": true,
+    "temporaryDestinationDisabled": true,
+    "deliveredEvents": 10,
+    "sandboxSettingsRestored": true,
+    "productionSettingsUnchanged": true,
+    "publicTunnelStopped": true,
+    "localTestServersStopped": true,
+    "temporaryDeviceReverseRulesRemoved": true,
+    "completedAt": "2026-09-13T11:12:53.745529+00:00"
+  },
+  "checks": {
+    "expoLibraryTests": 82,
+    "expoExampleTests": 146,
+    "purchaseIdempotencyAndStatsTests": 43,
+    "expoLibraryTypecheck": "passed",
+    "expoExampleTypecheck": "passed",
+    "iosReleaseBuild": "passed",
+    "sdkParity": "passed"
+  },
+  "googleExpiry": {
+    "at": "2026-09-13T11:09:21.696Z",
+    "testPurchase": true,
+    "subscriptionState": "SUBSCRIPTION_STATE_EXPIRED",
+    "acknowledgementState": "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+    "lineItems": [
+      {
+        "productId": "dev.hyo.martie.premium",
+        "expiryTime": "2026-09-13T11:08:53.339Z",
+        "basePlanId": "premium-year"
+      }
+    ]
+  },
+  "afterGoogleExpiry": {
+    "at": "2026-09-13T11:09:17.974Z",
+    "apple": {
+      "status": 200,
+      "response": {
+        "userId": "commerce_e2e_20260913_apple",
+        "productIds": [],
+        "subscriptions": []
+      }
+    },
+    "google": {
+      "status": 200,
+      "response": {
+        "userId": "commerce_e2e_20260913_google",
+        "productIds": [],
+        "subscriptions": []
+      }
+    }
+  },
+  "googleFinal": {
+    "access": false,
+    "verificationScope": "Expiry-time access filtering; no RTDN or Google lifecycle event delivery"
+  }
+}

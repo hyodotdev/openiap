@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant App as App code
+  participant Backend as App backend
+  participant Provider as Commerce Provider
+  participant Store as Apple / Google
+  Note over Backend,Provider: Configure provider URL and server credentials
+  App->>Backend: Evidence via authenticated API
+  Backend->>Backend: Authorize session user
+  Backend->>Provider: verifyPurchase(evidence)
+  Provider->>Store: Verify in app / store scope
+  Store-->>Provider: Store verdict
+  Provider-->>Backend: Require isValid: true
+  Backend->>Provider: bindPurchase(evidence, userId)
+  Provider-->>Backend: Require bound: true
+  Backend->>Provider: entitlements(userId)
+  Provider-->>Backend: Current productIds and records
+  Backend->>Backend: Durably record fulfillment
+  Backend-->>App: Fulfillment result and access
+  App->>App: finishTransaction via OpenIAP
+  App->>App: Report result to paywall

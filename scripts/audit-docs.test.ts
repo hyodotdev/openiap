@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
+  auditReleaseNoteVersionAnchors,
   auditSubscriptionFailureDocs,
   auditVerifyPurchaseDocs,
   findWebhookTransportDrift,
@@ -1468,5 +1469,67 @@ ${responseRows}
   test("reports a missing header table", () => {
     const drift = audit("<p>nothing here</p>");
     expect(drift.some((d) => d.message.includes("HEADER_ROWS"))).toBe(true);
+  });
+});
+
+describe("release note version anchors", () => {
+  const card = (id: string, extra = "") => `    {
+      id: '${id}',
+${extra}      date: new Date('2026-09-17'),
+      element: (
+        <div key="${id}">
+          <h5>Package Releases</h5>
+        </div>
+      ),
+    },
+`;
+  const aliasLine =
+    "      aliases: MY_RELEASES.map((release) => release.tag),\n";
+
+  test("flags a card that lists releases without registering its tags", () => {
+    const drifts = auditReleaseNoteVersionAnchors(
+      "releases.tsx",
+      card("new-card-2026-09-17"),
+      new Set(),
+    );
+    expect(drifts).toHaveLength(1);
+    expect(drifts[0].message).toContain("new-card-2026-09-17");
+    expect(drifts[0].line).toBeGreaterThan(0);
+  });
+
+  test("accepts a card that derives its aliases from the release list", () => {
+    expect(
+      auditReleaseNoteVersionAnchors(
+        "releases.tsx",
+        card("new-card-2026-09-17", aliasLine),
+        new Set(),
+      ),
+    ).toEqual([]);
+  });
+
+  test("ignores a card with no Package Releases list", () => {
+    const prose = `    {
+      id: 'prose-only-2026-09-17',
+      date: new Date('2026-09-17'),
+      element: (
+        <div key="prose-only-2026-09-17">
+          <p>No packages here.</p>
+        </div>
+      ),
+    },
+`;
+    expect(
+      auditReleaseNoteVersionAnchors("releases.tsx", prose, new Set()),
+    ).toEqual([]);
+  });
+
+  test("respects the grandfathered set", () => {
+    expect(
+      auditReleaseNoteVersionAnchors(
+        "releases.tsx",
+        card("old-card-2026-01-01"),
+        new Set(["old-card-2026-01-01"]),
+      ),
+    ).toEqual([]);
   });
 });

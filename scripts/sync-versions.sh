@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Sync version files from root to packages
-# Uses symlinks for native packages, copies for docs (Vercel requirement)
+# Write the Client Protocol version into openiap-versions.json, then sync that
+# manifest out to packages. Symlinks for native packages, copies for docs
+# (Vercel requirement).
 
 set -euo pipefail
 
@@ -10,10 +11,23 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
-# Version propagation must never normalize an invalid manifest implicitly.
-# Native version writers update their native key and the derived spec together;
-# every other caller must fix the canonical manifest before syncing copies.
-node scripts/release-branch-policy.mjs assert-floor
+# specs/client publishes the Client Protocol, so its manifest is the source and
+# openiap-versions.json is a generated mirror. Propagate before anything reads
+# the manifest; the audits gate the committed state.
+python3 - <<'PROPAGATE'
+import json
+from pathlib import Path
+
+manifest = Path("openiap-versions.json")
+versions = json.loads(manifest.read_text(encoding="utf-8"))
+published = json.loads(
+    Path("specs/client/package.json").read_text(encoding="utf-8")
+)["version"]
+if versions.get("clientProtocol") != published:
+    versions["clientProtocol"] = published
+    manifest.write_text(json.dumps(versions, indent=2) + "\n", encoding="utf-8")
+    print(f"  ✓ openiap-versions.json clientProtocol -> {published}")
+PROPAGATE
 
 echo "📦 Syncing version files..."
 
@@ -47,8 +61,7 @@ PY
 
 echo ""
 echo "📦 Syncing package metadata..."
-sync_package_json_version "specs/client/package.json" "spec"
-sync_package_json_version "packages/docs/package.json" "spec"
+# packages/docs is not versioned; its version stays pinned at 0.0.0.
 sync_package_json_version "packages/google/package.json" "google"
 sync_package_json_version "packages/apple/package.json" "apple"
 
@@ -116,6 +129,8 @@ def required_xml_text(path: str, tag: str, label: str) -> str:
 
 metadata = {
     "_generatedBy": "scripts/sync-versions.sh",
+    "clientProtocolPackageVersion": read_json("specs/client/package.json")["version"],
+    "commerceProtocolPackageVersion": read_json("specs/commerce-protocol/package.json")["version"],
     "expoPackageVersion": read_json("libraries/expo-iap/package.json")["version"],
     "reactNativePackageVersion": read_json("libraries/react-native-iap/package.json")["version"],
     "flutterPackageVersion": required_match(
@@ -207,7 +222,7 @@ lines = [
     "",
     "enum OpenIapGeneratedVersion {",
 ]
-for key in ("spec", "apple", "google"):
+for key in ("clientProtocol", "apple", "google"):
     value = versions[key]
     lines.append(f'    static let {key} = "{value}"')
 lines.append("}")

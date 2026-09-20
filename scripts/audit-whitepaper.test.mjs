@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import {
   BUILT_FROM,
   PUBLISHED_PDF,
+  PUBLISHED_DIAGRAMS,
+  publishedDiagrams,
   parseManifest,
   staleEntries,
   unexpectedFiles,
@@ -33,15 +35,34 @@ test("a malformed manifest fails loudly instead of passing empty", () => {
 
 test("a manifest missing a required path is reported", () => {
   const entries = [{ hash: HASH_A, file: "scripts/whitepaper.css" }];
-  assert.deepEqual(unrecordedFiles(entries, ["a.md", "scripts/whitepaper.css"]), [
-    "a.md",
-  ]);
+  assert.deepEqual(
+    unrecordedFiles(entries, ["a.md", "scripts/whitepaper.css"]),
+    ["a.md"],
+  );
   assert.deepEqual(unrecordedFiles(entries), [
     "specs/commerce-protocol/DESIGN.md",
     "scripts/mermaid.json",
     "scripts/build-whitepaper.sh",
     PUBLISHED_PDF,
+    ...PUBLISHED_DIAGRAMS,
   ]);
+});
+
+test("named source diagrams require both their rendered image and editable source", () => {
+  assert.deepEqual(
+    publishedDiagrams(
+      "<!-- commerce-diagram: purchase -->\n\n```mermaid\nsequenceDiagram\n```",
+    ),
+    [
+      "packages/docs/public/commerce-diagrams/purchase.svg",
+      "packages/docs/public/commerce-diagrams/purchase.mmd",
+    ],
+  );
+  const recordedInputs = [...BUILT_FROM, PUBLISHED_PDF].map((file) => ({
+    file,
+    hash: HASH_A,
+  }));
+  assert.deepEqual(unrecordedFiles(recordedInputs), PUBLISHED_DIAGRAMS);
 });
 
 test("a manifest naming something the build never reads is reported", () => {

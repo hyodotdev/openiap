@@ -13,6 +13,7 @@ const artifactDigest = "d".repeat(128);
 const artifactIntegrity = `sha512-${Buffer.from(artifactDigest, "hex").toString("base64")}`;
 
 function fixture({
+  packageName = "expo-iap",
   gitHead = expectedCommit,
   workflowRef = `refs/tags/${expectedTag}`,
   dependencyCommit = expectedCommit,
@@ -49,7 +50,7 @@ function fixture({
       dist: { integrity },
     },
     verifiedEntry: {
-      name: "expo-iap",
+      name: packageName,
       version: "5.1.0",
       registry: "https://registry.npmjs.org",
       attestations: {
@@ -71,11 +72,11 @@ function fixture({
   };
 }
 
-function verify(overrides, signatureVerifier) {
+function verify(overrides = {}, signatureVerifier) {
   const { metadata, verifiedEntry } = fixture(overrides);
   return verifyNpmReleaseProvenance({
     metadata,
-    packageName: "expo-iap",
+    packageName: overrides.packageName ?? "expo-iap",
     version: "5.1.0",
     expectedCommit,
     expectedTag,
@@ -104,6 +105,34 @@ test("rejects a failed Sigstore signature and attestation audit", async () => {
       }),
     /invalid Sigstore bundle/,
   );
+});
+
+test("accepts npm's percent-encoded scoped package subject", async () => {
+  for (const name of [
+    "openiap-client-protocol",
+    "openiap-commerce-protocol",
+    "openiap",
+  ]) {
+    await assert.doesNotReject(() =>
+      verify({
+        packageName: `@hyodotdev/${name}`,
+        subjectName: `pkg:npm/%40hyodotdev/${name}@5.1.0`,
+      }),
+    );
+  }
+});
+
+test("rejects another scope and noncanonical scoped subjects", async () => {
+  for (const subjectName of [
+    "pkg:npm/%40another/openiap@5.1.0",
+    "pkg:npm/@hyodotdev/openiap@5.1.0",
+    "pkg:npm/%2540hyodotdev/openiap@5.1.0",
+  ]) {
+    await assert.rejects(
+      () => verify({ packageName: "@hyodotdev/openiap", subjectName }),
+      /does not attest/,
+    );
+  }
 });
 
 test("requires npm to report verified provenance for the exact package", () => {

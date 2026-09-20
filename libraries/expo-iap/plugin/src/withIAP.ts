@@ -476,12 +476,18 @@ export function computeAutolinkModules(
 }
 
 const syncAutolinking = (state: AutolinkState) => {
-  if (!fs.existsSync(AUTOLINKING_CONFIG_PATH)) {
-    return;
-  }
+  const readAutolinkingConfig = (): string | null => {
+    try {
+      return fs.readFileSync(AUTOLINKING_CONFIG_PATH, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
+      throw error;
+    }
+  };
 
   try {
-    const raw = fs.readFileSync(AUTOLINKING_CONFIG_PATH, 'utf8');
+    const raw = readAutolinkingConfig();
+    if (raw === null) return;
     const config = JSON.parse(raw);
     const iosConfig = config.ios ?? (config.ios = {});
     const existingModules: string[] = Array.isArray(iosConfig.modules)

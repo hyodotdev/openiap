@@ -137,10 +137,9 @@ permission. This operator tool does not accept API keys and is not part of
 
 Hosted `/v1` responses evolve additively. Existing fields keep their meaning,
 new response data is optional or request-gated, and a breaking contract would
-use `/v2` while `/v1` keeps serving. SDKs report their compile-time spec in
-`X-OpenIAP-Spec` for rollout measurement only; the header never changes receipt
-verification. Gate on `isValid`, require the store-verified `productId`, and
-allow optional metadata to be absent or unknown.
+use `/v2` while `/v1` keeps serving. Gate on `isValid`, require the
+store-verified `productId`, and allow optional metadata to be absent or
+unknown.
 
 ## Status codes
 
@@ -190,7 +189,7 @@ assuming DAU implies safe request volume.
 - [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
 - [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
-- [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/docs/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
+- [OpenIAP Commerce Protocol webhook contract](https://openiap.dev/commerce-protocol/webhooks) — vendor-neutral signed outbound delivery semantics; IAPKit setup remains in the local guide above
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
 - [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)

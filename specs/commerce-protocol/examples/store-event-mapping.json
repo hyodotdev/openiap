@@ -1,5 +1,5 @@
 {
-  "specVersion": "1.0",
+  "commerceProtocolVersion": "1.0",
   "stores": {
     "apple": {
       "notificationChannel": "App Store Server Notifications V2",
@@ -272,14 +272,14 @@
       ]
     },
     "horizon": {
-      "notificationChannel": null,
-      "notes": "Meta publishes no server-to-server commerce notification channel. Its Graph commerce surface answers whether a user currently owns a SKU, plus an endpoint that performs a refund but reports none — no amount, currency, expiry, state, or transaction identity. Nothing can therefore be mapped from a notification, and no canonical subscription record can be maintained. A backend that re-asks the entitlement question on a schedule can still observe the answer changing, which is enough for the entitlement events below but never for subscription lifecycle: it learns that access ended, never why or when. This version specifies no cadence for that polling, so those events remain implementation-defined; the capability descriptor is where an implementation states whether it does it at all. A consumer MUST read that descriptor rather than infer absence of a subscription from absence of events.",
+      "notificationChannel": "Meta Horizon Webhooks",
+      "notes": "Meta publishes webhook fields for part of this lifecycle — subscription_started, subscription_renewal_success, subscription_canceled, subscription_uncanceled and subscription_expired, and nothing for grace period, billing retry, refund, revocation, product or price change, pause or resume — plus order_status, whose notification_type reports PURCHASED, REFUNDED and CHARGEBACKED for add-on orders only. This version of the specification defines no mapping for them and the reference implementation subscribes to none, which is why the table below is empty. That is a gap in this document and in that backend, not a limitation of the store — the capability descriptor's `implementation` axis is where a backend records its own side. A backend that instead re-asks the Graph verify_entitlement question on a schedule observes the answer changing without attributing the change to a lifecycle event, which is enough for the entitlement events below and never for subscription lifecycle: it learns that access ended, never why or when. This version specifies no cadence for that polling, so those events remain implementation-defined. A consumer MUST read the capability descriptor rather than infer absence of a subscription from absence of events.",
       "derivableByPolling": ["entitlement.granted", "entitlement.revoked"],
       "mappings": []
     },
     "amazon": {
       "notificationChannel": "Amazon Real-Time Notifications",
-      "notes": "Amazon publishes this channel, but this version of the specification defines no mapping for it and the reference implementation integrates no receiver. That is a gap in this document and in that backend, not a limitation of the store — the capability descriptor's `implementation` axis is where a backend records its own side. Receipt Verification Service, which some backends poll instead, reports current validity rather than transitions, so polling it reveals that entitlement changed without attributing the change to a lifecycle event.",
+      "notes": "Amazon publishes this channel — sixteen notification types spanning subscription purchase, renewal, auto-renew changes, grace period, expiry and cancellation — but this version of the specification defines no mapping for it and the reference implementation integrates no receiver. That is a gap in this document and in that backend, not a limitation of the store — the capability descriptor's `implementation` axis is where a backend records its own side. Receipt Verification Service, which some backends poll instead, reports the current receipt state including cancelDate, cancelReason, renewalDate and gracePeriodEndDate, so a poller learns the outcome at its next read but never as an event.",
       "derivableByPolling": ["entitlement.granted", "entitlement.revoked"],
       "mappings": []
     }

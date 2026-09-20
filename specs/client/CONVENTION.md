@@ -2,7 +2,7 @@
 
 `specs/client` is the authored source of truth for the OpenIAP client API and
 multiplatform type system. Its publishable npm package is
-`@hyodotdev/openiap`; the private repository root is not that package.
+`@hyodotdev/openiap-client-protocol`; the private repository root is not that package.
 
 This directory is a specification and code-generation toolchain, not a hosted
 service. It may publish generated types and portable client source artifacts,
@@ -84,7 +84,7 @@ directory's `schema-files.mjs` or merge the two generation pipelines.
 
 - Lead with the OpenIAP release that exposes the API, then state the upstream
   platform requirement as compatibility context.
-- Android example: `Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+- Android example: `Available in OpenIAP 2.1.0 / openiap-google 2.3.0
 (requires Play Billing 9.1.0+).`
 - Do not document a new OpenIAP field only as `Play Billing 9.1.0+`; consumers
   need the spec and platform-package versions to know which SDK release contains

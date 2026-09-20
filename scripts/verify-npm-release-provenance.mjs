@@ -173,7 +173,7 @@ export async function verifyNpmReleaseProvenance({
   const expectedWorkflowPath = `.github/workflows/${workflowFilename}`;
   const expectedRepository = `${serverUrl}/${repository}`;
   const expectedUri = `git+${serverUrl}/${repository}@${expectedRef}`;
-  const expectedSubject = `pkg:npm/${packageName}@${version}`;
+  const expectedSubject = `pkg:npm/${packageName.replaceAll("@", "%40")}@${version}`;
   const expectedArtifactDigest = sha512HexFromIntegrity(
     metadata?.dist?.integrity,
   );

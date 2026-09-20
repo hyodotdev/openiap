@@ -1,6 +1,6 @@
 {
-  "name": "openiap-commerce-protocol",
-  "version": "0.1.0",
+  "name": "@hyodotdev/openiap-commerce-protocol",
+  "version": "0.3.0",
   "type": "module",
   "types": "./src/index.d.ts",
   "main": "./src/index.mjs",
@@ -25,7 +25,8 @@
   },
   "scripts": {
     "build": "node scripts/assemble-schema.mjs && node scripts/build-json-schemas.mjs && node scripts/build-bundle.mjs && node scripts/build-lifecycle-vectors.mjs && node scripts/build-operations.mjs",
-    "test": "node scripts/assemble-schema.mjs --check && node scripts/build-json-schemas.mjs --check && node scripts/build-bundle.mjs --check && node scripts/build-lifecycle-vectors.mjs --check && node scripts/build-operations.mjs --check && prettier --check \"**/*.{graphql,json,md,mjs,ts}\" && vitest run test"
+    "test": "node scripts/assemble-schema.mjs --check && node scripts/build-json-schemas.mjs --check && node scripts/build-bundle.mjs --check && node scripts/build-lifecycle-vectors.mjs --check && node scripts/build-operations.mjs --check && prettier --check \"**/*.{graphql,json,md,mjs,ts}\" && vitest run test && node scripts/quickstart.mjs",
+    "quickstart": "node scripts/quickstart.mjs"
   },
   "keywords": [
     "openiap",
@@ -66,5 +67,5 @@
     "url": "git+https://github.com/hyodotdev/openiap.git",
     "directory": "specs/commerce-protocol"
   },
-  "homepage": "https://openiap.dev/docs/commerce-protocol"
+  "homepage": "https://openiap.dev/commerce-protocol"
 }
