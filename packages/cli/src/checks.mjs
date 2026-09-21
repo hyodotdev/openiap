@@ -121,17 +121,23 @@ export function androidStoreChecks(root, framework) {
       : (STORE_ALIASES[pinValue] ?? "unknown");
   const findings = [];
 
-  // Gradle refuses these combinations outright, so a project carrying one
-  // cannot build at all — reporting it clean would send someone to the build to
-  // find out. `auto` and a blank value are absent to Gradle, so they are not a
-  // conflict here either.
-  if (platformEntry && pin) {
+  // Gradle refuses this outright, so a project carrying it cannot build at all
+  // — reporting it clean would send someone to the build to find out. It only
+  // objects when openiapStore names a store the opt-out contradicts: the
+  // legacy key alone, or `auto` and a blank value beside it, all build.
+  if (
+    platformEntry &&
+    platformValue === "none" &&
+    pinSource === "openiapStore" &&
+    pin &&
+    pin !== "none"
+  ) {
     findings.push(
       finding(
         "android-store-flavor-conflict",
         "error",
         "android/gradle.properties",
-        "openiapStore and openiapPlatform are both set.",
+        `openiapStore=${pin} disagrees with openiapPlatform=none.`,
         "Keep openiapStore; openiapPlatform is the legacy spelling of the opt-out.",
         { line: platformEntry.line },
       ),
@@ -150,8 +156,9 @@ export function androidStoreChecks(root, framework) {
     );
   }
 
-  // Gradle accepts only the opt-out value under the legacy key.
-  if (pinSource === "openiapPlatform" && pin !== null && pin !== "none") {
+  // Gradle accepts only the opt-out value under the legacy key, whether or not
+  // openiapStore is set beside it.
+  if (platformEntry && platformValue !== "none") {
     findings.push(
       finding(
         "android-store-unknown",

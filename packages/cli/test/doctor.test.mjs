@@ -275,6 +275,50 @@ test("the opt-out is an error on a wrapper that cannot build it", () => {
   );
 });
 
+// Probed against the real resolver fixture: the doctor must not object to a
+// combination Gradle builds, nor stay quiet about one it refuses.
+test("the opt-out key is judged exactly as Gradle judges it", () => {
+  const conflicts = (properties) => {
+    let ids;
+    withProject(
+      {
+        "pubspec.yaml":
+          "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+        "android/gradle.properties": properties,
+      },
+      (root) => {
+        ids = doctor(root).findings.map((one) => one.id);
+      },
+    );
+    return ids;
+  };
+
+  // Gradle builds these three.
+  for (const properties of [
+    "openiapPlatform=none\n",
+    "openiapStore=auto\nopeniapPlatform=none\n",
+    "openiapStore=none\nopeniapPlatform=none\n",
+  ]) {
+    assert.ok(
+      !conflicts(properties).includes("android-store-flavor-conflict"),
+      `${JSON.stringify(properties)} builds, so it is not a conflict`,
+    );
+  }
+
+  // Gradle refuses these three.
+  assert.ok(
+    conflicts("openiapStore=play\nopeniapPlatform=none\n").includes(
+      "android-store-flavor-conflict",
+    ),
+  );
+  for (const properties of ["openiapPlatform=auto\n", "openiapPlatform=\n"]) {
+    assert.ok(
+      conflicts(properties).includes("android-store-unknown"),
+      `${JSON.stringify(properties)} fails the build`,
+    );
+  }
+});
+
 test("the legacy opt-out key is read, and only accepts none", () => {
   withProject(
     {
