@@ -52,7 +52,7 @@ Notes:
   Appstore's purchase Activity on the live store (issue #460). When an Amazon
   change touches connection, listener registration, or the purchase request,
   run one purchase through Live App Testing and confirm the `START u0 ...
-  com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
+com.amazon.mas.client.iap.purchase.PurchaseActivity` line (tag
   `ActivityManager` on Fire OS 7, `ActivityTaskManager` on Fire OS 8).
   `adb logcat -s Kiwi` shows the SDK's own log (verified on a debug build):
   `No UI visible to execute task` means the SDK inside the app is holding the
@@ -69,6 +69,23 @@ Notes:
 - Godot is required only on Android and iOS.
 - Horizon is build-only unless the user explicitly provides a Horizon device and
   the library has a runnable Horizon example.
+- **A connected Quest never needs to be worn.** `screencap` and plain `scrcpy`
+  return black because Quest blocks capture of the VR compositor, which means
+  display 0 is the wrong target, not that the device is undriveable. Hold a
+  virtual display with the app on it:
+  `scrcpy -s "$QUEST_SERIAL" --new-display=1080x1920/320 --start-app=dev.hyo.martie --no-audio --no-playback --record=hold.mp4`
+  (scrcpy needs a sink, so keep `--record`; the log prints `New display ... (id=N)`,
+  and the display dies with the process). Screenshot it with a second short
+  `scrcpy --display-id=N --record=x.mp4 --time-limit=3` plus
+  `ffmpeg -sseof -0.6 -i x.mp4 -frames:v 1 out.png` — `screencap -d N` is ignored
+  and still returns display 0. Tap the app with `adb shell input -d N tap X Y`,
+  1:1 with the captured frame.
+- The Horizon purchase dialog is `com.oculus.store/.IAPActivity` on **display 0**,
+  so it never appears on the virtual display. Read its buttons with
+  `adb shell uiautomator dump /sdcard/ui.xml`, pull and parse the node `bounds`,
+  then `adb shell input -d 0 tap` the centre of `Confirm`. Horizon purchases are
+  real money, so treat that tap as a purchase approval and take it only when the
+  current request authorizes one.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
 - KMP and MAUI must still appear in the final report for FireOS/Horizon. Use
   the store-specific commands below; do not count the Play Android build as
