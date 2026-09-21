@@ -2994,8 +2994,14 @@ function checkMaui() {
   );
   expectIncludes(
     rel(base, "Platforms/Android/AndroidManifest.xml"),
-    ['android:usesCleartextTraffic="true"'],
+    ['android:networkSecurityConfig="@xml/network_security_config"'],
     "MAUI example Android manifest must allow local IAPKit E2E endpoints",
+  );
+  // Blanket cleartext would reach any host; the local vertical only needs loopback.
+  expectNotIncludes(
+    rel(base, "Platforms/Android/AndroidManifest.xml"),
+    ["usesCleartextTraffic"],
+    "MAUI example must not permit cleartext to every host",
   );
   expectIncludes(
     rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
