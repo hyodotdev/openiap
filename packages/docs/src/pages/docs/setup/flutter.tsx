@@ -228,10 +228,11 @@ function FlutterSetup() {
           Without the property the build resolves the store itself (see{' '}
           <Link to="/docs/setup/store#selection">Store Setup</Link>); the legacy{' '}
           <code>openiapPlatform=none</code> spelling still works with a
-          deprecation warning. Do not set both spellings to different values, or
+          deprecation warning. Do not pin a store while the opt-out is set, or
           keep a legacy <code>horizonEnabled</code>/<code>fireOsEnabled</code>{' '}
           flag alongside a pin — the build fails rather than guess which one you
-          meant.
+          meant. <code>openiapStore=auto</code> is the exception: it means
+          &quot;no pin&quot;, so the opt-out beside it still applies.
         </p>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>

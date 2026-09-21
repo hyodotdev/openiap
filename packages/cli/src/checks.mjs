@@ -119,6 +119,9 @@ export function androidStoreChecks(root, framework) {
     pinValue === "" || pinValue === "auto"
       ? null
       : (STORE_ALIASES[pinValue] ?? "unknown");
+  // openIapExplicitStore falls back to the legacy value when openiapStore is
+  // auto or blank, so `auto` beside the opt-out still selects none.
+  const effectivePin = pin ?? (platformValue === "none" ? "none" : null);
   const findings = [];
 
   // Gradle refuses this outright, so a project carrying it cannot build at all
@@ -184,7 +187,7 @@ export function androidStoreChecks(root, framework) {
 
   // Only flutter_inapp_purchase compiles a no-op Android implementation; every
   // other wrapper fails the build on this value.
-  if (pin === "none" && framework && framework !== "flutter") {
+  if (effectivePin === "none" && framework && framework !== "flutter") {
     findings.push(
       finding(
         "android-store-unknown",
@@ -243,7 +246,13 @@ export function androidStoreChecks(root, framework) {
     : stores.find((one) => one !== "play");
   const hasStoreFlags =
     properties?.has("fireOsEnabled") || properties?.has("horizonEnabled");
-  const selects = pinned ? pin : hasStoreFlags ? (legacy ?? "play") : null;
+  const selects = pinned
+    ? pin
+    : effectivePin === "none"
+      ? "none"
+      : hasStoreFlags
+        ? (legacy ?? "play")
+        : null;
   // A computed flavor may well resolve to the selected store, so a mismatch is
   // only provable when every strategy names a store and none of them is it.
   // `none` links no store, so a leftover literal is inert rather than wrong.

@@ -92,8 +92,9 @@ fun normalizeOpenIapStore(value: String?): String =
 // that, " horizon " fails here while it resolves there, from one build's input.
 val requestedOpenIapStore = listOf("openiapStore", "openIapAndroidStore", "OpenIapAndroidStore")
     .firstNotNullOfOrNull { providers.gradleProperty(it).orNull?.trim()?.takeIf(String::isNotEmpty) }
-val requestedOpenIapPlatform = providers.gradleProperty("openiapPlatform").orNull
-    ?.trim()?.takeIf(String::isNotEmpty)
+// Blank is not absent here: the Groovy resolver and the doctor both reject an
+// empty openiapPlatform, so folding it away would accept what they refuse.
+val requestedOpenIapPlatform = providers.gradleProperty("openiapPlatform").orNull?.trim()
 if (requestedOpenIapPlatform != null && requestedOpenIapPlatform.lowercase(Locale.ROOT) != "none") {
     error("maui-iap Android: openiapPlatform only supports the opt-out value 'none'")
 }

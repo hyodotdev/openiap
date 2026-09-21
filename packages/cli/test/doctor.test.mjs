@@ -319,6 +319,28 @@ test("the opt-out key is judged exactly as Gradle judges it", () => {
   }
 });
 
+// `auto` is absent to the resolver, so the legacy opt-out still applies and a
+// wrapper that cannot build without a store SDK must hear about it.
+test("an opt-out masked by auto still fails a non-Flutter wrapper", () => {
+  for (const pin of ["openiapStore=auto\n", "openiapStore=\n"]) {
+    withProject(
+      {
+        "package.json": JSON.stringify({
+          dependencies: {"react-native-iap": "^16.0.0"},
+        }),
+        "android/gradle.properties": `${pin}openiapPlatform=none\n`,
+      },
+      (root) => {
+        const ids = doctor(root).findings.map((one) => one.id);
+        assert.ok(
+          ids.includes("android-store-unknown"),
+          `${JSON.stringify(pin)} beside the opt-out is unsupported here`,
+        );
+      },
+    );
+  }
+});
+
 test("the legacy opt-out key is read, and only accepts none", () => {
   withProject(
     {
