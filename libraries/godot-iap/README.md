@@ -98,9 +98,12 @@ Copy `Example/iapkit.cfg.example` to `Example/iapkit.cfg` (untracked) and fill i
 the local server must target the same Convex deployment. An Android device on
 USB reaches the host through
 `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100` and
-`http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address. Only
-`GodotIap.debug.aar` permits cleartext to loopback, so release exports keep the
-platform default.
+`http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address, which
+the iOS export permits in every configuration. In a repo checkout only
+`GodotIap.debug.aar` permits Android cleartext to loopback, so release exports
+keep the platform default; the published addon ships the release AAR under both
+names, so add your own debug `networkSecurityConfig` if you need the local
+vertical there.
 
 The store panel's top button cycles verification in this order:
 

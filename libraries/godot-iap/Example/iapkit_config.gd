@@ -27,7 +27,8 @@ static func _ensure_loaded() -> void:
 		return
 
 	_api_key = str(config.get_value("iapkit", "api_key", "")).strip_edges()
-	# A secret admin key must never reach a build; refuse it rather than ship it.
+	# Refuse a secret key rather than send it. It is still bundled into a debug
+	# export, so keep it out of iapkit.cfg in the first place.
 	if _api_key.begins_with("openiap-kit_sk_"):
 		push_error("[IapkitConfig] api_key is a secret sk_ key; use an openiap-kit_pk_ key")
 		_api_key = ""

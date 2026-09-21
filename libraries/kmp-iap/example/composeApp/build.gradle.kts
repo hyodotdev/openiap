@@ -3,10 +3,14 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 import java.util.Properties
 
-// Load .env file
+// Load .env file. The example builds from two Gradle roots — the outer
+// libraries/kmp-iap build and its own — so look beside both.
 fun loadEnvProperties(): Properties {
     val properties = Properties()
-    val envFile = rootProject.file(".env")
+    val envFile = listOf(
+        rootProject.file(".env"),
+        projectDir.resolve("../.env"),
+    ).firstOrNull { it.isFile } ?: rootProject.file(".env")
     if (envFile.exists()) {
         envFile.readLines().forEach { line ->
             if (line.isNotBlank() && !line.startsWith("#") && line.contains("=")) {

@@ -32,7 +32,8 @@ class IapConstants {
             .trim(),
       );
 
-  /// A secret admin key must never reach a build or a Bearer header.
+  /// Refuses a secret key rather than sending it. A --dart-define value is still
+  /// compiled in, so keep it out of the define in the first place.
   static String _rejectSecretKey(String apiKey) {
     if (!apiKey.startsWith('openiap-kit_sk_')) return apiKey;
     debugPrint('[IapConstants] api key is a secret sk_ key; use an openiap-kit_pk_ key');

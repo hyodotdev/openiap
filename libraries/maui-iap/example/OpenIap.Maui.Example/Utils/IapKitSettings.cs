@@ -26,7 +26,8 @@ internal static class IapKitSettings
                 Environment.GetEnvironmentVariable("IAPKIT_API_KEY"),
                 FromBuild("IapkitApiKey")));
 
-    /// <summary>A secret admin key must never reach a build or a Bearer header.</summary>
+    /// <summary>Refuses a secret key rather than sending it. The key is still baked
+    /// into assembly metadata, so keep it out of iapkit.props in the first place.</summary>
     private static string? RejectSecretKey(string? apiKey)
     {
         if (apiKey is null || !apiKey.StartsWith("openiap-kit_sk_", StringComparison.Ordinal))

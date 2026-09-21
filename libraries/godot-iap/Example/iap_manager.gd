@@ -31,6 +31,7 @@ var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
 var _processed_transactions: Dictionary = {}  # transactionId -> bool (to prevent duplicate processing)
+var _verifying_transactions: Dictionary = {}  # transactionId -> bool (in-flight verification)
 var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 
 
@@ -228,10 +229,21 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		print("[IAPManager] Transaction already processed, skipping: %s" % transaction_id)
 		return
 
+	# A redelivery can arrive while the first verification is still in flight.
+	if transaction_id != "" and _verifying_transactions.has(transaction_id):
+		print("[IAPManager] Transaction already verifying, skipping: %s" % transaction_id)
+		return
+
 	if purchase_state == "Purchased" or purchase_state == "purchased":
+		if transaction_id != "":
+			_verifying_transactions[transaction_id] = true
+
 		# An unverified purchase is left unfinished so the store retries it.
 		# Marking it processed here would drop that redelivery for the session.
-		if not await _verify_purchase(purchase, product_id):
+		var verified := await _verify_purchase(purchase, product_id)
+		if transaction_id != "":
+			_verifying_transactions.erase(transaction_id)
+		if not verified:
 			return
 
 		if transaction_id != "":

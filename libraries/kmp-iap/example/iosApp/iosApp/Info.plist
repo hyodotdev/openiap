@@ -23,8 +23,9 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<false/>
-		<!-- Local network only, so a Local (IAPKit) server on the Mac's LAN
-		     address is reachable without opening arbitrary plaintext loads. -->
+		<!-- Reaches a Local (IAPKit) server on the Mac's LAN address. This
+		     permits cleartext to local-network hosts and bare IPs in every
+		     configuration, but not to named internet hosts. -->
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>

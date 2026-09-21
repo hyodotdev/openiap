@@ -4,7 +4,11 @@ import dev.hyo.martie.BuildConfig
 
 /** IAPKit settings the example reads from local.properties or Gradle properties. */
 object IapkitConfig {
-    /** Sent as `Bearer {apiKey}`; null when unset or when a secret key was pasted. */
+    /**
+     * Sent as `Bearer {apiKey}`; null when unset or when a secret key was pasted.
+     * The guard stops the key reaching a request, not the build — an sk_ key is
+     * still compiled into BuildConfig, so keep it out of local.properties.
+     */
     val apiKey: String? = BuildConfig.IAPKIT_API_KEY.trim()
         .takeIf { it.isNotEmpty() && !it.startsWith("openiap-kit_sk_") }
 
