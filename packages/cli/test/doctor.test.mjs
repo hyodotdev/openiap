@@ -161,6 +161,106 @@ test("the store the flags selected is the line cited as evidence", () => {
   );
 });
 
+test("an openiapStore pin selects the store and is the evidence line", () => {
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties":
+        "org.gradle.jvmargs=-Xmx2048m\nopeniapStore=horizon\n",
+      "android/app/src/main/AndroidManifest.xml":
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+    },
+    (root) => {
+      const result = doctor(root);
+      assert.deepEqual(
+        result.findings.map((one) => one.id),
+        ["android-store-not-play"],
+      );
+      assert.equal(result.findings[0].actual, "horizon");
+      assert.equal(result.findings[0].line, 2);
+    },
+  );
+});
+
+test("store aliases resolve the way the Gradle resolver reads them", () => {
+  for (const [alias, store] of [
+    ["quest", "horizon"],
+    ["fire-os", "amazon"],
+    ["GooglePlay", "play"],
+  ]) {
+    withProject(
+      {
+        ...RN,
+        "android/gradle.properties": `openiapStore=${alias}\n`,
+        "android/app/src/main/AndroidManifest.xml":
+          '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+      },
+      (root) => {
+        const notPlay = doctor(root).findings.find(
+          (one) => one.id === "android-store-not-play",
+        );
+        assert.equal(notPlay?.actual, store === "play" ? undefined : store);
+      },
+    );
+  }
+});
+
+test("openiapStore=auto pins nothing", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=auto\n" },
+    (root) => assert.deepEqual(ids(root), []),
+  );
+});
+
+test("a pin that disagrees with a legacy flag is a conflict", () => {
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties": "openiapStore=play\nfireOsEnabled=true\n",
+    },
+    (root) => {
+      const conflict = doctor(root).findings.find(
+        (one) => one.id === "android-store-flavor-conflict",
+      );
+      assert.equal(conflict.level, "error");
+      assert.equal(conflict.line, 1);
+    },
+  );
+});
+
+test("a value that is not a store is an error", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=bogus\n" },
+    (root) => {
+      const result = doctor(root);
+      const unknown = result.findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.ok(result.errors >= 1);
+    },
+  );
+});
+
+test("the Flutter opt-out is reported like another store, without a mismatch", () => {
+  withProject(
+    {
+      ...RN,
+      "android/gradle.properties": "openiapStore=none\n",
+      "android/app/build.gradle":
+        'missingDimensionStrategy "platform", "play"\n',
+    },
+    (root) => {
+      const result = doctor(root);
+      assert.deepEqual(
+        result.findings.map((one) => one.id),
+        ["android-store-not-play"],
+      );
+      assert.equal(result.findings[0].actual, "none");
+    },
+  );
+});
+
 test("both stores enabled is a conflict", () => {
   withProject(
     {

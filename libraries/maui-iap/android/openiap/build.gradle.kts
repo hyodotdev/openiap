@@ -71,15 +71,17 @@ if (horizonEnabled && fireOsEnabled) {
     error("maui-iap Android: horizonEnabled and fireOsEnabled cannot both be true")
 }
 
+// Same alias table as packages/google/gradle/openiap-store.gradle.
 fun normalizeOpenIapStore(value: String?): String =
     when (value?.lowercase()) {
-        null, "", "play", "google", "gms", "googleplay", "google-play" -> "play"
+        null, "", "auto", "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
         "horizon", "meta", "quest" -> "horizon"
         "amazon", "fire", "fireos", "fire-os" -> "amazon"
-        else -> error("maui-iap Android: unsupported openIapAndroidStore '$value'")
+        else -> error("maui-iap Android: unsupported openiapStore '$value'")
     }
 
-val requestedOpenIapStore = providers.gradleProperty("openIapAndroidStore").orNull
+val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull
+    ?: providers.gradleProperty("openIapAndroidStore").orNull
     ?: providers.gradleProperty("OpenIapAndroidStore").orNull
 val openIapAndroidStore = when {
     fireOsEnabled -> "amazon"

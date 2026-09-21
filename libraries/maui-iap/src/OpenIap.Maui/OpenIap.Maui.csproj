@@ -65,6 +65,8 @@
   </ItemGroup>
 
   <PropertyGroup>
+    <!-- OpenIapStore is the name every OpenIAP build system shares; OpenIapAndroidStore stays as the alias. -->
+    <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == '' and '$(OpenIapStore)' != ''">$(OpenIapStore)</OpenIapAndroidStore>
     <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == ''">play</OpenIapAndroidStore>
     <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'amazon' or '$(OpenIapAndroidStore)' == 'fire' or '$(OpenIapAndroidStore)' == 'fireos' or '$(OpenIapAndroidStore)' == 'fire-os'">amazon</OpenIapGoogleAarFlavor>
     <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'horizon' or '$(OpenIapAndroidStore)' == 'meta' or '$(OpenIapAndroidStore)' == 'quest'">horizon</OpenIapGoogleAarFlavor>

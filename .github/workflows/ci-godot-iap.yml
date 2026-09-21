@@ -123,6 +123,9 @@ jobs:
       - name: Test wrapper mapping
         run: godot --headless --path Example --script res://tests/test_godot_iap.gd
 
+      - name: Test export store mapping
+        run: godot --headless --path Example --script res://tests/test_android_store.gd
+
   swift-test:
     name: Swift Test
     # SwiftGodot v0.79.0 declares a Swift 6.3 package manifest. Keep this

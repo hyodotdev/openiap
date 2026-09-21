@@ -72,55 +72,49 @@ flutter run
 flutter build apk --release
 ```
 
+### Store selection
+
+The build picks the Android store; nothing in the project changes between
+stores. First match wins:
+
+1. `-PopeniapStore=horizon|amazon|play` (or the same key in
+   `android/gradle.properties`) pins it.
+2. A flavor names it: `flutter build apk --flavor horizon`.
+3. On debug builds, the single connected Quest or Fire device names it.
+4. Google Play otherwise.
+
+Gradle prints `openiap: store=... (source=...)` once per build.
+
 ### Meta Horizon (Meta Quest)
 
-To use Meta Horizon billing:
-
-1. **Enable Horizon** in `android/gradle.properties`:
-
-   ```properties
-   horizonEnabled=true
-   ```
-
-2. **Add Horizon App ID** to `android/local.properties`:
+1. **Add the Horizon App ID** to `android/local.properties`; it is inert on
+   other stores, so it stays there permanently:
 
    ```properties
    HORIZON_APP_ID=your_horizon_app_id_here
    ```
 
-3. **Run on Quest**:
-   ```bash
-   flutter run -d Quest
-   flutter build apk --release
-   ```
-
-**No flavor specification needed!** The build system automatically selects the correct billing platform based on `horizonEnabled` or `fireOsEnabled`.
-
-### Fire OS
-
-To use Fire OS IAP through the Amazon Appstore SDK:
-
-1. **Enable Fire OS** in `android/gradle.properties`:
-
-   ```properties
-   fireOsEnabled=true
-   ```
-
-2. **Keep Horizon disabled** in the same build:
-
-   ```properties
-   horizonEnabled=false
-   ```
-
-3. **Test with Amazon App Tester** on a Fire OS or compatible Android test device:
+2. **Run on Quest** with the headset as the only connected device, or pin the
+   store for a release build through the Gradle property:
 
    ```bash
    flutter run
-   flutter build apk --release
+   ORG_GRADLE_PROJECT_openiapStore=horizon flutter build apk --release
    ```
 
-The build system automatically selects the Fire OS `amazon` flavor based on
-`fireOsEnabled`.
+### Fire OS
+
+1. **Add the Amazon public key** `AppstoreAuthenticationKey.pem` to
+   `android/app/src/main/assets/` (download it from the Amazon Developer
+   Console); it is inert on other stores.
+
+2. **Test with Amazon App Tester** on a Fire device as the only connected
+   device, or pin the store for the release build:
+
+   ```bash
+   flutter run
+   ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk --release
+   ```
 
 ### No Android IAP
 
@@ -128,14 +122,11 @@ To keep the Flutter package for iOS or macOS while excluding Android store
 SDKs, set this in `android/gradle.properties`:
 
 ```properties
-openiapPlatform=none
+openiapStore=none
 ```
 
-Run `flutter clean` before rebuilding after changing this property.
-
-`openiapPlatform=none` cannot be combined with `horizonEnabled` or
-`fireOsEnabled`; disable both legacy store flags first, or the Android build
-fails with `openiapPlatform=none conflicts with legacy store flags`.
+Run `flutter clean` before rebuilding after changing this property. The legacy
+`openiapPlatform=none` spelling still works with a deprecation warning.
 
 `initConnection()` then returns `false`, and Android store operations report
 `ErrorCode.IapNotAvailable`. The APK contains no Play Billing, Horizon, or

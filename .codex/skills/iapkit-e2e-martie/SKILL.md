@@ -274,9 +274,11 @@ directory keeps that store afterwards. A later Play run then links the wrong
 `initConnection failed: Failed to initialize connection` and
 `getStorefront failed: Billing client not ready`. Re-run
 `bunx expo prebuild --platform android --clean` with no store variable before
-the Play row, then confirm `horizonEnabled=false` and `fireOsEnabled=false` in
-`android/gradle.properties` and `missingDimensionStrategy "platform", "play"`
-in `android/app/build.gradle`.
+the Play row, then confirm `android/gradle.properties` carries no
+`openiapStore` pin (and none of the legacy `horizonEnabled` / `fireOsEnabled`
+flags) and that `android/app/build.gradle` has no fixed
+`missingDimensionStrategy`; the Gradle build then resolves the store from the
+connected device or defaults to Play.
 
 **A Play "not compatible with your device" banner does not block billing.** The
 Martie production listing sets `minSdkVersion 31`, so Play marks an Android 11

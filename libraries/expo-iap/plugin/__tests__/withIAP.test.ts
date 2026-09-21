@@ -8,9 +8,11 @@ import plugin, {
   normalizeGeneratedGroovyAppBuildGradle,
   normalizeGeneratedGroovyProjectBuildGradle,
   resolveAlternativeBillingIOS,
+  resolveAmazonAppstoreKey,
   resolveAmazonPlatformFlags,
   resolveHorizonAppId,
   resolveModuleSelection,
+  resolvePinnedAndroidStore,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
@@ -84,73 +86,13 @@ jest.mock('expo/config-plugins', () => {
 });
 
 describe('android configuration', () => {
-  const dependencyVersion = require('../../openiap-versions.json').google;
-  const dependencyRegex = new RegExp(
-    `io\\.github\\.hyochan\\.openiap:openiap-google:${dependencyVersion}`,
-    'g',
-  );
-
-  it('adds OpenIAP dependency when missing', () => {
-    const baseGradle = 'dependencies {\n}\n';
-    const result = modifyAppBuildGradle(baseGradle, 'groovy');
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
-    );
-    const matches = result.match(dependencyRegex) ?? [];
-    expect(matches).toHaveLength(1);
+  it('leaves an app build file without OpenIAP lines untouched', () => {
+    const baseGradle =
+      'android {\n    defaultConfig {\n    }\n}\ndependencies {\n}\n';
+    expect(modifyAppBuildGradle(baseGradle, 'groovy')).toBe(baseGradle);
   });
 
-  it('keeps existing dependency untouched', () => {
-    const baseGradle = `dependencies {\n    implementation "io.github.hyochan.openiap:openiap-google:0.0.1"\n}\n`;
-    const result = modifyAppBuildGradle(baseGradle, 'groovy');
-    const matches = result.match(dependencyRegex) ?? [];
-    expect(matches).toHaveLength(1);
-    expect(result).not.toContain('openiap-google:0.0.1');
-  });
-
-  it('uses Fire OS artifact and flavor when Fire OS is enabled', () => {
-    const baseGradle = [
-      'android {',
-      '    defaultConfig {',
-      '    }',
-      '}',
-      'dependencies {',
-      '    implementation "io.github.hyochan.openiap:openiap-google-horizon:0.0.1"',
-      '}',
-      '',
-    ].join('\n');
-    const result = modifyAppBuildGradle(baseGradle, 'groovy', false, true);
-
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}"`,
-    );
-    expect(result).toContain(
-      '        missingDimensionStrategy "platform", "amazon"',
-    );
-    expect(result).not.toContain('openiap-google-horizon:0.0.1');
-  });
-
-  it('prefers Fire OS over Horizon when both store flags are enabled', () => {
-    const baseGradle = [
-      'android {',
-      '    defaultConfig {',
-      '    }',
-      '}',
-      'dependencies {',
-      '}',
-      '',
-    ].join('\n');
-    const result = modifyAppBuildGradle(baseGradle, 'kotlin', true, true);
-
-    expect(result).toContain(
-      `    implementation("io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}")`,
-    );
-    expect(result).toContain(
-      '        missingDimensionStrategy("platform", "amazon")',
-    );
-  });
-
-  it('replaces stale platform strategy when returning to Play', () => {
+  it('strips the dependency and fixed strategy that older plugin versions wrote', () => {
     const baseGradle = [
       'android {',
       '    defaultConfig {',
@@ -159,16 +101,65 @@ describe('android configuration', () => {
       '}',
       'dependencies {',
       '    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"',
+      '    implementation "io.github.hyochan.openiap:openiap-google:0.0.1"',
       '}',
       '',
     ].join('\n');
     const result = modifyAppBuildGradle(baseGradle, 'groovy');
 
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
-    );
-    expect(result).not.toContain('openiap-google-amazon:0.0.1');
-    expect(result).toContain('missingDimensionStrategy "platform", "play"');
+    expect(result).not.toContain('openiap-google');
+    expect(result).not.toContain('missingDimensionStrategy');
+    expect(result).toContain('dependencies {');
+  });
+
+  it('strips Kotlin DSL dependency and strategy lines too', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '        missingDimensionStrategy("platform", "horizon")',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation("io.github.hyochan.openiap:openiap-google-horizon:0.0.1")',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'kotlin');
+
+    expect(result).not.toContain('openiap-google');
+    expect(result).not.toContain('missingDimensionStrategy');
+  });
+
+  it('pins the store only when a module flag asks for it', () => {
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: false,
+        isHorizonEnabled: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: false,
+        isHorizonEnabled: true,
+      }),
+    ).toBe('horizon');
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: true,
+        isHorizonEnabled: true,
+      }),
+    ).toBe('amazon');
+  });
+
+  it('reads the Amazon Appstore key path from android.amazon', () => {
+    expect(
+      resolveAmazonAppstoreKey({
+        android: {
+          amazon: {appstoreKey: './keys/AppstoreAuthenticationKey.pem'},
+        },
+      }),
+    ).toBe('./keys/AppstoreAuthenticationKey.pem');
+    expect(resolveAmazonAppstoreKey({})).toBeUndefined();
   });
 
   it('normalizes Expo generated Groovy root Gradle syntax', () => {
@@ -480,7 +471,7 @@ describe('android configuration', () => {
     ).toBeUndefined();
   });
 
-  it('removes Horizon App ID metadata outside Horizon builds', () => {
+  it('removes Horizon App ID metadata when no app id is configured', () => {
     const manifest = {
       manifest: {
         application: [
@@ -510,7 +501,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('removed');
+    expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('removed');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -527,13 +518,13 @@ describe('android configuration', () => {
     ]);
   });
 
-  it('adds Horizon App ID metadata only for Horizon builds', () => {
+  it('adds Horizon App ID metadata whenever an app id is configured', () => {
     const manifest = {manifest: {}};
 
-    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('unchanged');
+    expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('unchanged');
     expect(manifest.manifest).not.toHaveProperty('application');
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application?.[0]?.['meta-data']).toEqual([
       {
         $: {
@@ -568,7 +559,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -607,7 +598,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -673,7 +664,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
+    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

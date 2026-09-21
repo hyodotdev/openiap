@@ -33,6 +33,8 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	# Untracked developer settings. The example includes it so a debug export can
 	# reach a local IAPKit server; a release export must never carry the key.
 	const LOCAL_SETTINGS_PATH = "res://iapkit.cfg"
+	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
+	const ANDROID_STORE_OPTION = "openiap/android_store"
 	const IOS_FRAMEWORKS: Array[String] = [
 		"res://addons/godot-iap/bin/ios/GodotIap.framework",
 		"res://addons/godot-iap/bin/ios/SwiftGodotRuntime.framework",
@@ -93,8 +95,28 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		else:
 			return PackedStringArray(["res://addons/godot-iap/android/GodotIap.release.aar"])
 
+	func _get_export_options(platform: EditorExportPlatform) -> Array[Dictionary]:
+		if not (platform is EditorExportPlatformAndroid):
+			return []
+		return [{
+			"option": {
+				"name": ANDROID_STORE_OPTION,
+				"type": TYPE_STRING,
+				"hint": PROPERTY_HINT_ENUM,
+				"hint_string": ",".join(AndroidStore.STORES),
+			},
+			"default_value": "auto",
+		}]
+
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
-		return _read_android_remote_dependencies()
+		var store := AndroidStore.normalize(get_option(ANDROID_STORE_OPTION))
+		if store.is_empty():
+			push_error("[GodotIap] %s must be one of: %s" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
+			store = "auto"
+		var dependencies := PackedStringArray()
+		for dependency in _read_android_remote_dependencies():
+			dependencies.append(AndroidStore.artifact(dependency, store))
+		return dependencies
 
 	func _read_android_remote_dependencies() -> PackedStringArray:
 		if not FileAccess.file_exists(ANDROID_GDAP_PATH):

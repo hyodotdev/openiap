@@ -579,7 +579,7 @@ FireOS/Amazon Android build and launch smoke:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PfireOsEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=amazon
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
@@ -590,7 +590,7 @@ Horizon Android build-only path:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PhorizonEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=horizon
 ```
 
 Normal iOS physical-device build and launch smoke:
@@ -666,7 +666,7 @@ FireOS/Amazon Android build and launch smoke:
 
 ```bash
 cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PfireOsEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=amazon
 # Build-only regression can stop here.
 # Flutter redirects its gradle output to `example/build/app/outputs/flutter-apk/`,
 # so this path is not the `android/app/build/...` layout the other examples use.
@@ -679,7 +679,7 @@ Horizon Android build-only path:
 
 ```bash
 cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PhorizonEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=horizon
 ```
 
 iOS physical-device build and launch smoke:

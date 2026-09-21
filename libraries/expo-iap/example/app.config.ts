@@ -42,16 +42,16 @@ export default ({config}: ConfigContext): ExpoConfig => {
     modules: {
       // Onside module: iOS only (alternative billing for Korea)
       onside: isOnsideEnabled,
-      // Horizon module: Android only (Meta Quest/VR devices)
+      // Pins every Android build of this prebuild to Horizon; unset, Gradle picks the store
       horizon: isHorizonEnabled,
-      // Amazon modules: Fire OS Android flavor and Vega OS runtime target
+      // fireOS pins the Android store the same way; vegaOS generates the Vega target
       amazon: {
         fireOS: isFireOsEnabled,
         vegaOS: isVegaEnabled,
       },
     },
     android: {
-      // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
+      // Horizon App ID, written on every prebuild and inert outside Quest
       horizon: {
         appId: '31705015229097839',
       },

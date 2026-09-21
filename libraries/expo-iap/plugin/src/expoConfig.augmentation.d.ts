@@ -10,7 +10,9 @@ export type ExpoIapModuleOverrides = {
    */
   onside?: boolean;
   /**
-   * Enable Horizon OS support for Meta Quest devices
+   * Pin every Android build of this prebuild to the Horizon (Meta Quest) store.
+   * Leave it unset to let Gradle pick the store from the task flavor or the
+   * connected debug device; `android.horizon.appId` is required either way.
    * @platform android
    * @default false
    */
@@ -24,8 +26,9 @@ export type ExpoIapModuleOverrides = {
 
 export type AmazonPlatformOptions = {
   /**
-   * Enable Fire OS support for Amazon-distributed Android builds.
-   * This selects the Android `amazon` flavor.
+   * Pin every Android build of this prebuild to the Amazon Appstore.
+   * Leave it unset to let Gradle pick the store from the task flavor or the
+   * connected debug device; `android.amazon.appstoreKey` is required either way.
    * @platform android
    * @default false
    */
@@ -77,6 +80,13 @@ type BaseExpoIapOptions = {
      */
     amazon?: {
       /**
+       * Path, relative to the project root, of the Amazon Appstore public key
+       * (`AppstoreAuthenticationKey.pem`) downloaded from the Amazon Developer
+       * Console. Copied into `android/app/src/main/assets` on every prebuild;
+       * Fire OS builds cannot verify receipts without it, other stores ignore it.
+       */
+      appstoreKey?: string;
+      /**
        * Vega OS project generation overrides used when modules.amazon.vegaOS is true.
        * packageId defaults to android.package, title defaults to expo.name,
        * appName defaults from title, and icon defaults to expo.icon.
@@ -97,7 +107,8 @@ type ExplicitModuleOptions = BaseExpoIapOptions & {
 };
 
 export type ExpoIapPluginCommonOptions =
-  AutoModuleOptions | ExplicitModuleOptions;
+  | AutoModuleOptions
+  | ExplicitModuleOptions;
 
 declare module '@expo/config-types' {
   interface IOS {

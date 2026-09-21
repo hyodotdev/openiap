@@ -107,7 +107,7 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase/example
         run: |
           flutter pub get
-          ./android/gradlew -p android :app:processDebugManifest -PhorizonEnabled=true
+          ./android/gradlew -p android :app:processDebugManifest -PopeniapStore=horizon
           node "$GITHUB_WORKSPACE/scripts/verify-horizon-merged-manifest.mjs" \
             build/app/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
 

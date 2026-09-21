@@ -131,7 +131,7 @@ fi
 
   flutter build apk --debug
 
-  printf '\nopeniapPlatform=none\n' >> android/gradle.properties
+  printf '\nopeniapStore=none\n' >> android/gradle.properties
   flutter clean
   flutter pub get
   flutter build apk --debug

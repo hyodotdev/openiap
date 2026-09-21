@@ -7285,6 +7285,44 @@ function checkFrameworkDependencyHygiene() {
       ],
       "Google example overlapping Android versions must not drift from openiap module",
     );
+    // One store resolver, copied byte for byte: a Gradle script cannot ship in
+    // the AAR, so each wrapper carries the SSOT file and reads it the same way.
+    for (const wrapper of [
+      "libraries/react-native-iap/android",
+      "libraries/expo-iap/android",
+      "libraries/flutter_inapp_purchase/android",
+    ]) {
+      expectSameFile(
+        "packages/google/gradle/openiap-store.gradle",
+        `${wrapper}/openiap-store.gradle`,
+        `${wrapper}/openiap-store.gradle`,
+      );
+      expectIncludes(
+        `${wrapper}/build.gradle`,
+        ["apply from: project.file('openiap-store.gradle')", "openIapResolveStore("],
+        "Android wrappers must select the store through openiap-store.gradle",
+      );
+      expectNotIncludes(
+        `${wrapper}/build.gradle`,
+        ["findProperty('horizonEnabled')", "findProperty('fireOsEnabled')"],
+        "Android wrappers must not read the legacy store flags themselves",
+      );
+    }
+    for (const app of [
+      "libraries/react-native-iap/example/android/app/build.gradle",
+      "libraries/flutter_inapp_purchase/example/android/app/build.gradle",
+    ]) {
+      expectIncludes(
+        app,
+        ["openiap-store.gradle", "openIapResolveStore('app'"],
+        "Example apps must apply the same store resolver as the library",
+      );
+      expectNotIncludes(
+        app,
+        ["findProperty('horizonEnabled')", "findProperty('fireOsEnabled')"],
+        "Example apps must not read the legacy store flags themselves",
+      );
+    }
     expectIncludes(
       "libraries/expo-iap/android/build.gradle",
       [

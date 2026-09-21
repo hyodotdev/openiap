@@ -217,22 +217,19 @@ function FlutterSetup() {
           If the app uses this package only on iOS or macOS, add the following
           to <code>android/gradle.properties</code>:
         </p>
-        <CodeBlock language="properties">{`openiapPlatform=none`}</CodeBlock>
+        <CodeBlock language="properties">{`openiapStore=none`}</CodeBlock>
         <p>
           Run <code>flutter clean</code> before rebuilding. This keeps the
           Android plugin registered with a no-op implementation while excluding
           OpenIAP Google, Play Billing, Horizon, and Amazon IAP SDK dependencies
           and the billing manifest entries supplied by them.{' '}
           <code>initConnection()</code> returns <code>false</code>; Android
-          store operations report <code>ErrorCode.IapNotAvailable</code>. Omit
-          the property to keep Google Play as the default.
+          store operations report <code>ErrorCode.IapNotAvailable</code>.
+          Without the property the build resolves the store itself (see{' '}
+          <Link to="/docs/setup/store#selection">Store Setup</Link>); the legacy{' '}
+          <code>openiapPlatform=none</code> spelling still works with a
+          deprecation warning.
         </p>
-        <Callout kind="warning">
-          <code>openiapPlatform=none</code> cannot be combined with{' '}
-          <code>horizonEnabled</code> or <code>fireOsEnabled</code>. Disable
-          both legacy store flags first, or the Android build fails with{' '}
-          <code>openiapPlatform=none conflicts with legacy store flags</code>.
-        </Callout>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
         <p>

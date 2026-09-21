@@ -62,10 +62,32 @@ const APP_BUILD_FILES = [
   "android/app/build.gradle.kts",
 ];
 
+// Same table as packages/google/gradle/openiap-store.gradle.
+const STORE_ALIASES = {
+  play: "play",
+  google: "play",
+  gplay: "play",
+  googleplay: "play",
+  "google-play": "play",
+  gms: "play",
+  horizon: "horizon",
+  meta: "horizon",
+  quest: "horizon",
+  amazon: "amazon",
+  fire: "amazon",
+  fireos: "amazon",
+  "fire-os": "amazon",
+  none: "none",
+};
+
 /**
- * A generated Android project is written in one pass, so its store flag and
- * its flavor literal always agree when they are fresh. A disagreement means a
- * half-finished regeneration, and the app links a store the device may not run.
+ * gradle.properties pins the store with `openiapStore`, or with the legacy
+ * flags a generated project used to carry. Without a pin the Gradle resolver
+ * picks the store per build from the task flavor or the connected debug
+ * device, which no file records. A literal flavor in app/build.gradle comes
+ * from an older generated project; when it disagrees with the pin, the
+ * regeneration was half-finished and the app links a store the device may not
+ * run.
  */
 export function androidStoreChecks(root) {
   const propertiesText = read(root, "android/gradle.properties");
@@ -81,7 +103,26 @@ export function androidStoreChecks(root) {
     );
   const horizon = enabled("horizonEnabled");
   const fireOs = enabled("fireOsEnabled");
+  const pinEntry = properties?.get("openiapStore");
+  const pinValue = pinEntry?.value.trim().toLowerCase() ?? "";
+  const pin =
+    pinValue === "" || pinValue === "auto"
+      ? null
+      : (STORE_ALIASES[pinValue] ?? "unknown");
   const findings = [];
+
+  if (pin === "unknown") {
+    findings.push(
+      finding(
+        "android-store-unknown",
+        "error",
+        "android/gradle.properties",
+        `openiapStore=${oneLine(pinEntry.value)} is not a store.`,
+        "Use play, horizon, amazon, or auto; none is the Flutter opt-out.",
+        { line: pinEntry.line },
+      ),
+    );
+  }
 
   if (horizon && fireOs) {
     findings.push(
@@ -92,6 +133,21 @@ export function androidStoreChecks(root) {
         "horizonEnabled and fireOsEnabled are both true.",
         "Leave one store enabled and regenerate the Android project.",
         { line: properties.get("horizonEnabled")?.line },
+      ),
+    );
+  }
+
+  const legacy = fireOs ? "amazon" : horizon ? "horizon" : null;
+  const pinned = pin !== null && pin !== "unknown";
+  if (pinned && legacy && legacy !== pin) {
+    findings.push(
+      finding(
+        "android-store-flavor-conflict",
+        "error",
+        "android/gradle.properties",
+        `openiapStore=${pin} disagrees with ${fireOs ? "fireOsEnabled" : "horizonEnabled"}=true.`,
+        "Keep the openiapStore pin and delete the legacy flags.",
+        { line: pinEntry.line },
       ),
     );
   }
@@ -112,29 +168,22 @@ export function androidStoreChecks(root) {
   const linksNonPlay = stores.includes("play")
     ? undefined
     : stores.find((one) => one !== "play");
-  // Build types may legitimately link different stores, so a mismatch is not
-  // about how many are declared: it is that none of them is the one the flags
-  // selected, which only a half-finished regeneration produces.
   const hasStoreFlags =
     properties?.has("fireOsEnabled") || properties?.has("horizonEnabled");
-  const selects = hasStoreFlags
-    ? fireOs
-      ? "amazon"
-      : horizon
-        ? "horizon"
-        : "play"
-    : null;
+  const selects = pinned ? pin : hasStoreFlags ? (legacy ?? "play") : null;
   // A computed flavor may well resolve to the selected store, so a mismatch is
   // only provable when every strategy names a store and none of them is it.
+  // `none` links no store, so a leftover literal is inert rather than wrong.
   const missing =
     selects !== null &&
+    selects !== "none" &&
     !computed &&
     stores.length > 0 &&
     !stores.includes(selects);
   const declared = stores.length === 1 && !computed ? stores[0] : null;
   const line = strategies[0]?.number;
 
-  // With both flags true `selected` is this tool's own tiebreak, not something
+  // With both flags true `selects` is this tool's own tiebreak, not something
   // gradle.properties states, and the conflict finding already covers it.
   if (missing && !(horizon && fireOs)) {
     findings.push(
@@ -149,27 +198,32 @@ export function androidStoreChecks(root) {
     );
   }
 
-  const store = linksNonPlay ?? declared ?? selects;
+  // A none pin links no store however the app file reads, so it wins over a literal.
+  const store =
+    selects === "none" ? "none" : (linksNonPlay ?? declared ?? selects);
   if (store && store !== "play") {
     const evidence =
       declared || linksNonPlay ? app.file : "android/gradle.properties";
-    const enabledFlag = fireOs ? "fireOsEnabled" : "horizonEnabled";
+    const propertyLine = pinned
+      ? pinEntry.line
+      : properties?.get(fireOs ? "fireOsEnabled" : "horizonEnabled")?.line;
+    const message =
+      computed && !linksNonPlay
+        ? `gradle.properties selects the ${store} store, and the build computes its flavor from it.`
+        : store === "none"
+          ? "This Android project links no store SDK (openiapStore=none)."
+          : `This Android project is built for the ${store} store.`;
+    const fix =
+      store === "none"
+        ? "Drop the openiapStore=none pin before testing purchases on a device."
+        : `Google Play billing will not connect from this build. Remove the ${pinned ? "openiapStore pin" : `${store} flags`} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
     findings.push(
-      finding(
-        "android-store-not-play",
-        "warning",
-        evidence,
-        computed && !linksNonPlay
-          ? `gradle.properties selects the ${store} store, and the build computes its flavor from it.`
-          : `This Android project is built for the ${store} store.`,
-        `Google Play billing will not connect from this build. Regenerate without the ${store} flags before testing on a Play device.`,
-        {
-          line: linksNonPlay
-            ? strategies.find((one) => one.match[1] === linksNonPlay)?.number
-            : properties?.get(enabledFlag)?.line,
-          actual: store,
-        },
-      ),
+      finding("android-store-not-play", "warning", evidence, message, fix, {
+        line: linksNonPlay
+          ? strategies.find((one) => one.match[1] === linksNonPlay)?.number
+          : propertyLine,
+        actual: store,
+      }),
     );
   }
 

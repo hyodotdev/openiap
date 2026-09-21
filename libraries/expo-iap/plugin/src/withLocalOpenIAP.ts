@@ -19,7 +19,7 @@ import {ensureOnsidePodIOS} from './onsidePodfile';
  */
 export type LocalPathOption = string | {ios?: string; android?: string};
 type GradleLanguage = 'groovy' | 'kotlin';
-type OpenIapAndroidFlavor = 'play' | 'horizon' | 'amazon';
+type AndroidStorePin = 'horizon' | 'amazon' | null;
 
 export const getAndroidLocalPathInput = (
   raw?: LocalPathOption,
@@ -109,9 +109,22 @@ const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
 const normalizeGradleLanguage = (language?: string): GradleLanguage =>
   language === 'kotlin' ? 'kotlin' : 'groovy';
 
+// Consumers hold the resolver under node_modules; the monorepo example sits next
+// to the library and falls back to that copy.
+const OPENIAP_STORE_SCRIPT_CANDIDATES = [
+  '../node_modules/expo-iap/android/openiap-store.gradle',
+  '../../android/openiap-store.gradle',
+];
+
+export const LOCAL_STRATEGY_LINE_GROOVY =
+  '        missingDimensionStrategy "platform", rootProject.openIapResolveStore("expo-iap").store';
+export const LOCAL_STRATEGY_LINE_KOTLIN =
+  '        missingDimensionStrategy("platform", ((rootProject.extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String)';
+
+// Every Android library module in a local build links the flavor the resolver
+// picks when Gradle runs, so the app and expo-iap always agree on one store.
 export const ensureLocalOpenIapFlavorStrategy = (
   contents: string,
-  flavor: OpenIapAndroidFlavor,
   language: GradleLanguage = 'groovy',
 ): string => {
   const existingBlockPattern = new RegExp(
@@ -127,7 +140,13 @@ export const ensureLocalOpenIapFlavorStrategy = (
 
   const strategyBlock =
     language === 'kotlin'
-      ? `project(":openiap-google") {
+      ? `apply(from = listOf(
+${OPENIAP_STORE_SCRIPT_CANDIDATES.map((candidate) => `  "${candidate}",`).join(
+  '\n',
+)}
+).map { file(it) }.first { it.isFile })
+
+project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
@@ -135,12 +154,18 @@ subprojects {
   plugins.withId("com.android.library") {
     extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
       defaultConfig {
-        missingDimensionStrategy("platform", "${flavor}")
+${LOCAL_STRATEGY_LINE_KOTLIN}
       }
     }
   }
 }`
-      : `project(":openiap-google") {
+      : `apply from: [
+${OPENIAP_STORE_SCRIPT_CANDIDATES.map((candidate) => `  "${candidate}",`).join(
+  '\n',
+)}
+].collect { file(it) }.find { it.isFile() }
+
+project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
@@ -148,7 +173,7 @@ subprojects { subproject ->
   subproject.plugins.withId("com.android.library") {
     subproject.android {
       defaultConfig {
-        missingDimensionStrategy "platform", "${flavor}"
+${LOCAL_STRATEGY_LINE_GROOVY}
       }
     }
   }
@@ -167,10 +192,8 @@ const withLocalOpenIAP: ConfigPlugin<
     localPath?: LocalPathOption;
     iosAlternativeBilling?: IOSAlternativeBillingConfig;
     horizonAppId?: string;
-    /** Resolved from modules.horizon by withIAP */
-    isHorizonEnabled?: boolean;
-    /** Resolved from modules.amazon.fireOS by withIAP */
-    isFireOsEnabled?: boolean;
+    /** Explicit pin from modules.horizon or modules.amazon.fireOS; null lets Gradle resolve the store */
+    pinnedStore?: AndroidStorePin;
     /** Resolved from modules.onside by withIAP */
     enableOnside?: boolean;
   } | void
@@ -423,15 +446,10 @@ const withLocalOpenIAP: ConfigPlugin<
       appLanguage === 'kotlin'
         ? `    implementation(project(":openiap-google"))`
         : `    implementation project(':openiap-google')`;
-    const flavor = props?.isFireOsEnabled
-      ? 'amazon'
-      : props?.isHorizonEnabled
-      ? 'horizon'
-      : 'play';
     const strategyLine =
       appLanguage === 'kotlin'
-        ? `        missingDimensionStrategy("platform", "${flavor}")`
-        : `        missingDimensionStrategy "platform", "${flavor}"`;
+        ? LOCAL_STRATEGY_LINE_KOTLIN
+        : LOCAL_STRATEGY_LINE_GROOVY;
 
     let contents = gradle.contents;
 
@@ -449,22 +467,18 @@ const withLocalOpenIAP: ConfigPlugin<
     // Add missingDimensionStrategy (required for flavored module)
     // Remove any existing platform strategies first to avoid duplicates
     const strategyPattern =
-      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
+      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*(?:["'](?:play|horizon|amazon)["']|.*openIapResolveStore.*)\)?\s*$/gm;
     if (strategyPattern.test(contents)) {
       contents = contents.replace(strategyPattern, '');
       logOnce('🧹 Removed existing missingDimensionStrategy for platform');
     }
 
-    if (!contents.includes(strategyLine)) {
-      const lines = contents.split('\n');
-      const idx = lines.findIndex((line) => line.match(/defaultConfig\s*\{/));
-      if (idx !== -1) {
-        lines.splice(idx + 1, 0, strategyLine);
-        contents = lines.join('\n');
-        logOnce(
-          `🛠️ expo-iap: Added missingDimensionStrategy for ${flavor} flavor`,
-        );
-      }
+    const lines = contents.split('\n');
+    const idx = lines.findIndex((line) => line.match(/defaultConfig\s*\{/));
+    if (idx !== -1) {
+      lines.splice(idx + 1, 0, strategyLine);
+      contents = lines.join('\n');
+      logOnce('🛠️ expo-iap: Added the build-time platform strategy');
     }
 
     // Add project dependency
@@ -497,17 +511,11 @@ const withLocalOpenIAP: ConfigPlugin<
       return config;
     }
 
-    const flavor = props?.isFireOsEnabled
-      ? 'amazon'
-      : props?.isHorizonEnabled
-      ? 'horizon'
-      : 'play';
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
-      flavor,
       normalizeGradleLanguage(config.modResults.language),
     );
-    logOnce(`🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`);
+    logOnce('🛠️ expo-iap: Added the local OpenIAP build-time flavor strategy');
     return config;
   });
 
@@ -530,21 +538,22 @@ const withLocalOpenIAP: ConfigPlugin<
         }
         return config;
       }
-      const isHorizon = props?.isHorizonEnabled ?? false;
-      const isFireOS = props?.isFireOsEnabled ?? false;
+      const pinnedStore = props?.pinnedStore ?? null;
 
-      contents = contents.replace(/^horizonEnabled=.*$/gm, '');
-      contents = contents.replace(/^fireOsEnabled=.*$/gm, '');
-      if (!contents.endsWith('\n')) contents += '\n';
-      contents += `horizonEnabled=${isHorizon}\n`;
-      contents += `fireOsEnabled=${isFireOS}\n`;
+      contents = contents.replace(
+        /^(?:openiapStore|horizonEnabled|fireOsEnabled)=.*\n?/gm,
+        '',
+      );
+      if (pinnedStore) {
+        if (!contents.endsWith('\n')) contents += '\n';
+        contents += `openiapStore=${pinnedStore}\n`;
+      }
 
       fs.writeFileSync(gradlePropertiesPath, contents);
       logOnce(
-        `🛠️ expo-iap: Set horizonEnabled=${isHorizon} in gradle.properties`,
-      );
-      logOnce(
-        `🛠️ expo-iap: Set fireOsEnabled=${isFireOS} in gradle.properties`,
+        pinnedStore
+          ? `🛠️ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`
+          : 'ℹ️ expo-iap: No store pin in gradle.properties; Gradle resolves the store per build',
       );
 
       return config;

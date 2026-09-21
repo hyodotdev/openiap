@@ -1,0 +1,169 @@
+// OpenIAP store resolver. Source of truth: packages/google/gradle/openiap-store.gradle.
+// Each framework's android/ copy must stay byte-identical (bun audit:parity).
+// Apply it, then call openIapResolveStore('<label>'), or ('<label>', [allowNone: true])
+// where opting out of Android IAP is supported.
+//
+// First match wins:
+//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
+//                horizonEnabled / fireOsEnabled / openiapPlatform=none still work, with a warning.
+//   2. variant   a requested task carries a store flavor (assembleHorizonRelease, installAmazonDebug).
+//   3. device    debug tasks only: the single connected adb device is a Quest or Fire device.
+//   4. play
+// Two stores in one invocation, or explicit values that disagree, fail the build; a release
+// build never consults a device.
+
+ext.openIapStoreAliases = [
+  play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
+  horizon: 'horizon', meta: 'horizon', quest: 'horizon',
+  amazon: 'amazon', fire: 'amazon', fireos: 'amazon', 'fire-os': 'amazon',
+  none: 'none', auto: 'auto',
+]
+
+ext.openIapNormalizeStore = { Object value, String label ->
+  def key = value?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  if (!key) {
+    return null
+  }
+  def store = openIapStoreAliases[key]
+  if (store == null) {
+    throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, or auto")
+  }
+  return store
+}
+
+// assembleHorizonRelease -> [assemble, horizon, release]
+ext.openIapTaskTokens = { String taskPath ->
+  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
+  return name.split(/(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+}
+
+ext.openIapExplicitStore = { String label, boolean allowNone ->
+  def explicit = openIapNormalizeStore(project.findProperty('openiapStore'), label)
+  def horizon = project.findProperty('horizonEnabled')?.toString()?.toBoolean() ?: false
+  def fireOs = project.findProperty('fireOsEnabled')?.toString()?.toBoolean() ?: false
+  def platform = project.findProperty('openiapPlatform')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  if (platform != null && platform != 'none') {
+    throw new GradleException("${label}: openiapPlatform only supports the opt-out value 'none'; use openiapStore to pick a store")
+  }
+  if (horizon && fireOs) {
+    throw new GradleException("${label}: horizonEnabled and fireOsEnabled cannot both be true")
+  }
+  if (platform == 'none' && (horizon || fireOs)) {
+    throw new GradleException("${label}: openiapPlatform=none conflicts with legacy store flags")
+  }
+  def legacy = platform == 'none' ? 'none' : (fireOs ? 'amazon' : (horizon ? 'horizon' : null))
+  if (legacy != null) {
+    logger.warn("${label}: horizonEnabled, fireOsEnabled, and openiapPlatform are deprecated; use openiapStore=${legacy}")
+  }
+  def store = (explicit != null && explicit != 'auto') ? explicit : legacy
+  if (explicit != null && explicit != 'auto' && legacy != null && legacy != explicit) {
+    throw new GradleException("${label}: openiapStore=${explicit} conflicts with legacy flags selecting ${legacy}")
+  }
+  if (store == 'none' && !allowNone) {
+    throw new GradleException("${label}: openiapStore=none is not supported by this library")
+  }
+  return store
+}
+
+ext.openIapTaskStore = { String label ->
+  def stores = [] as LinkedHashSet
+  gradle.startParameter.taskNames.each { String taskPath ->
+    openIapTaskTokens(taskPath).each { token ->
+      if (token in ['play', 'horizon', 'amazon']) {
+        stores << token
+      }
+    }
+  }
+  if (stores.size() > 1) {
+    throw new GradleException("${label}: the requested tasks name more than one store (${stores.join(', ')}); build one store per invocation or set openiapStore")
+  }
+  return stores ? stores.first() : null
+}
+
+ext.openIapDebugTasksOnly = {
+  def names = gradle.startParameter.taskNames
+  return names && names.every { openIapTaskTokens(it).contains('debug') }
+}
+
+ext.openIapAdb = {
+  def roots = [System.getenv('ANDROID_HOME'), System.getenv('ANDROID_SDK_ROOT')]
+  def localProperties = rootProject.file('local.properties')
+  if (localProperties.isFile()) {
+    def properties = new Properties()
+    localProperties.withInputStream { properties.load(it) }
+    roots << properties.getProperty('sdk.dir')
+  }
+  def adb = roots.findResult { root ->
+    if (!root) {
+      return null
+    }
+    def candidate = new File(root, 'platform-tools/adb')
+    return candidate.isFile() ? candidate.absolutePath : null
+  }
+  return adb
+}
+
+// providers.exec keeps the probe legal under the configuration cache.
+ext.openIapAdbText = { List<String> command ->
+  try {
+    return providers.exec {
+      commandLine(command)
+      ignoreExitValue = true
+    }.standardOutput.asText.get()
+  } catch (Throwable ignored) {
+    return null
+  }
+}
+
+ext.openIapDeviceStore = {
+  def adb = openIapAdb()
+  if (adb == null) {
+    return null
+  }
+  def listing = openIapAdbText([adb, 'devices'])
+  if (listing == null) {
+    return null
+  }
+  def serials = listing.readLines().findAll { it ==~ /^\S+\s+device$/ }.collect { it.split(/\s+/)[0] }
+  if (serials.size() != 1) {
+    return null
+  }
+  def serial = serials[0]
+  def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features']) ?: ''
+  def manufacturer = (openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer']) ?: '').trim()
+  def store = 'play'
+  if (features.contains('feature:horizonos.software.horizon_os') || features.contains('feature:oculus.hardware.standalone_vr')) {
+    store = 'horizon'
+  } else if (features.contains('feature:amazon.hardware.fire_tv') || manufacturer.equalsIgnoreCase('Amazon')) {
+    store = 'amazon'
+  }
+  return [store: store, reason: "device ${serial}, manufacturer ${manufacturer ?: 'unknown'}"]
+}
+
+ext.openIapResolveStore = { String label, Map options = [:] ->
+  if (rootProject.ext.has('openIapStoreResolution')) {
+    return rootProject.ext.openIapStoreResolution
+  }
+  def allowNone = options.allowNone == true
+  def resolution = null
+  def explicit = openIapExplicitStore(label, allowNone)
+  if (explicit != null) {
+    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
+  } else {
+    def variant = openIapTaskStore(label)
+    if (variant != null) {
+      resolution = [store: variant, source: 'variant', reason: "task ${gradle.startParameter.taskNames.join(' ')}"]
+    } else if (openIapDebugTasksOnly()) {
+      def device = openIapDeviceStore()
+      if (device != null) {
+        resolution = [store: device.store, source: 'device', reason: device.reason]
+      }
+    }
+  }
+  if (resolution == null) {
+    resolution = [store: 'play', source: 'default', reason: 'no store signal']
+  }
+  rootProject.ext.openIapStoreResolution = resolution
+  logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
+  return resolution
+}

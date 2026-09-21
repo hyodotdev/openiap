@@ -28,6 +28,53 @@ function StoreSetup() {
       </p>
 
       <section>
+        <AnchorLink id="selection" level="h2">
+          How the Store Is Selected
+        </AnchorLink>
+        <p>
+          Keep every store credential in the project — the Horizon app id and
+          the Amazon <code>AppstoreAuthenticationKey.pem</code> are inert on the
+          other stores — and let the build pick the store. Every OpenIAP build
+          system applies the same rule; the first match wins:
+        </p>
+        <ol>
+          <li>
+            <strong>Explicit</strong> —{' '}
+            <code>openiapStore=play|horizon|amazon</code> as a Gradle property:{' '}
+            <code>-PopeniapStore=horizon</code>,{' '}
+            <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in an EAS
+            profile, or <code>gradle.properties</code>. The legacy{' '}
+            <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
+            <code>openiapPlatform=none</code> still work with a deprecation
+            warning.
+          </li>
+          <li>
+            <strong>Variant</strong> — the requested task names a store flavor:{' '}
+            <code>assembleHorizonRelease</code>, <code>installAmazonDebug</code>
+            , <code>flutter build apk --flavor amazon</code>.
+          </li>
+          <li>
+            <strong>Device</strong> — debug tasks only: the single connected adb
+            device is a Quest or a Fire device. Release builds never look at a
+            device, and two connected devices select nothing.
+          </li>
+          <li>
+            <strong>Play</strong> otherwise.
+          </li>
+        </ol>
+        <p>
+          Gradle logs the decision once per build as{' '}
+          <code>openiap: store=horizon (source=device; ...)</code>. Two stores
+          in one invocation, or explicit values that disagree, fail the build.
+          The aliases <code>google</code>, <code>meta</code>/<code>quest</code>,
+          and <code>fire</code>/<code>fireos</code> normalize to the three store
+          ids. KMP apps declare a <code>platform</code> flavor dimension and get
+          the matching library variant automatically; MAUI passes{' '}
+          <code>-p:OpenIapStore=horizon</code>; Godot sets the{' '}
+          <code>openiap/android_store</code> export option.
+        </p>
+      </section>
+      <section>
         <AnchorLink id="targets" level="h2">
           Store Targets
         </AnchorLink>
@@ -43,8 +90,9 @@ function StoreSetup() {
             <tr>
               <td>Horizon OS</td>
               <td>
-                Build the Android Gradle <code>horizon</code> product flavor for
-                Meta Quest devices.
+                Resolved at build time: an <code>openiapStore=horizon</code>{' '}
+                pin, a <code>horizon</code> flavor, or a connected Quest on a
+                debug build.
               </td>
               <td>
                 <Link to="/docs/setup/store/horizon">Horizon OS Setup</Link>
@@ -53,7 +101,9 @@ function StoreSetup() {
             <tr>
               <td>Amazon Fire OS</td>
               <td>
-                Android <code>amazon</code> flavor for Amazon Appstore builds.
+                Resolved at build time: an <code>openiapStore=amazon</code> pin,
+                an <code>amazon</code> flavor, or a connected Fire device on a
+                debug build.
               </td>
               <td>
                 <Link to="/docs/setup/store/amazon#fire-os">

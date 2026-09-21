@@ -138,25 +138,10 @@ apply from: project.file('openiap-android-sdk.gradle')
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
 def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
-def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-if (horizonEnabled && fireOsEnabled) {
-    throw new GradleException("flutter_inapp_purchase: horizonEnabled and fireOsEnabled cannot both be true")
-}
-
-def legacyOpenIapPlatform = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
-def requestedOpenIapPlatform = project.findProperty('openiapPlatform')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
-if (requestedOpenIapPlatform != null && requestedOpenIapPlatform != 'none') {
-    throw new GradleException(
-        "flutter_inapp_purchase: openiapPlatform only supports the opt-out value 'none'"
-    )
-}
-if (requestedOpenIapPlatform == 'none' && (horizonEnabled || fireOsEnabled)) {
-    throw new GradleException(
-        "flutter_inapp_purchase: openiapPlatform=none conflicts with legacy store flags"
-    )
-}
-def openiapPlatform = requestedOpenIapPlatform ?: legacyOpenIapPlatform
+// Store selection: explicit property > task flavor > connected debug device > play.
+// openiapStore=none (legacy openiapPlatform=none) builds without any Android IAP SDK.
+apply from: project.file('openiap-store.gradle')
+def openiapPlatform = openIapResolveStore('flutter_inapp_purchase', [allowNone: true]).store
 def androidIapDisabled = openiapPlatform == 'none'
 
 android {

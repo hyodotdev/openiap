@@ -302,7 +302,7 @@ jobs:
       - name: The doctor exits 1 on a project it proves is broken
         run: |
           mkdir -p /tmp/doctor-fixture/android/app
-          printf 'horizonEnabled=false\nfireOsEnabled=false\n' \
+          printf 'openiapStore=play\n' \
             > /tmp/doctor-fixture/android/gradle.properties
           printf 'missingDimensionStrategy "platform", "horizon"\n' \
             > /tmp/doctor-fixture/android/app/build.gradle

@@ -63,6 +63,23 @@ const OPENIAP_TOOLING_CHANGES: readonly ReleaseChange[] = [
   },
 ];
 
+const STORE_RESOLVER_RELEASES: readonly ReleaseMetadata[] = [
+  {
+    name: 'react-native-iap',
+    version: '16.7.0',
+    tag: 'react-native-iap-16.7.0',
+  },
+  { name: 'expo-iap', version: '5.7.0', tag: 'expo-iap-5.7.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.0',
+    tag: 'flutter-iap-10.7.0',
+  },
+  { name: 'godot-iap', version: '3.6.0', tag: 'godot-iap-3.6.0' },
+  { name: 'maui-iap', version: '2.6.0', tag: 'maui-iap-2.6.0' },
+  { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
+];
+
 const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   {
     name: 'react-native-iap',
@@ -408,6 +425,115 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'build-time-store-selection-2026-09-21',
+      aliases: STORE_RESOLVER_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-21'),
+      element: (
+        <div key="build-time-store-selection-2026-09-21" style={noteCardStyle}>
+          {STORE_RESOLVER_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="build-time-store-selection-2026-09-21" level="h4">
+            September 21, 2026 - The build picks the Android store
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Store credentials stay in the project and nothing is toggled to move
+            between Google Play, Meta Quest, and the Amazon Appstore. The Gradle
+            build resolves the store — an explicit <code>openiapStore</code>{' '}
+            pin, a store flavor in the requested task, or on debug builds the
+            single connected Quest or Fire device — and logs the choice once.
+            The legacy <code>horizonEnabled</code>, <code>fireOsEnabled</code>,
+            and <code>openiapPlatform=none</code> properties still work with a
+            deprecation warning.
+          </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Common changes</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              One resolver script, <code>openiap-store.gradle</code>, ships in
+              every Gradle wrapper and is applied by the app build file, so the
+              app and the library always link the same store. The alias table is
+              shared everywhere: <code>google</code> is Play, <code>meta</code>{' '}
+              and <code>quest</code> are Horizon, <code>fire</code> and{' '}
+              <code>fireos</code> are Amazon.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              <strong>react-native-iap 16.7.0</strong> and{' '}
+              <strong>flutter_inapp_purchase 10.7.0</strong> - the app build
+              file applies the library's resolver instead of mapping flags to a
+              flavor itself; the store setup pages carry the new snippets.
+            </li>
+            <li>
+              <strong>expo-iap 5.7.0</strong> - the config plugin no longer
+              writes a store into <code>app/build.gradle</code>.{' '}
+              <code>modules.horizon</code> and{' '}
+              <code>modules.amazon.fireOS</code> become explicit pins written as{' '}
+              <code>openiapStore</code>, <code>android.horizon.appId</code> is
+              written on every prebuild, and the new{' '}
+              <code>android.amazon.appstoreKey</code> copies{' '}
+              <code>AppstoreAuthenticationKey.pem</code> into the Android
+              assets.
+            </li>
+            <li>
+              <strong>godot-iap 3.6.0</strong> - the{' '}
+              <code>openiap/android_store</code> export option selects the Play,
+              Horizon, or Amazon artifact.
+            </li>
+            <li>
+              <strong>maui-iap 2.6.0</strong> - the <code>OpenIapStore</code>{' '}
+              MSBuild property joins <code>OpenIapAndroidStore</code> with the
+              shared alias table.
+            </li>
+            <li>
+              <strong>@hyodotdev/openiap 0.2.0</strong> - <code>doctor</code>{' '}
+              reads <code>openiapStore</code> pins, reports a value that names
+              no store as <code>android-store-unknown</code>, and no longer
+              expects a fixed flavor in generated projects.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Integration notes</h5>
+          <ul style={{ margin: 0 }}>
+            <li>
+              A release build never probes a device. Pin release trains and CI
+              with <code>openiapStore</code>, or with{' '}
+              <code>ORG_GRADLE_PROJECT_openiapStore</code> in an EAS profile.
+            </li>
+            <li>
+              Two connected devices select nothing, and two stores in one
+              invocation or a pin that disagrees with a legacy flag fail the
+              build.
+            </li>
+            <li>
+              Fire OS builds need <code>AppstoreAuthenticationKey.pem</code> in{' '}
+              <code>android/app/src/main/assets</code>; it is inert on the other
+              stores.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {STORE_RESOLVER_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    },
     {
       id: 'framework-build-play-offers-2026-09-20',
       aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),

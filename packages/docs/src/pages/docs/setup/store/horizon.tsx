@@ -147,24 +147,27 @@ function HorizonStoreSetup() {
             <tr>
               <td>Expo</td>
               <td>
-                <code>modules.horizon</code> plus{' '}
-                <code>android.horizon.appId</code> in the <code>expo-iap</code>{' '}
-                config plugin.
+                Resolved at build time; <code>modules.horizon</code> in the{' '}
+                <code>expo-iap</code> config plugin only pins it.
               </td>
-              <td>The config plugin writes manifest meta-data.</td>
+              <td>
+                <code>android.horizon.appId</code>; the config plugin writes
+                manifest meta-data.
+              </td>
             </tr>
             <tr>
               <td>React Native</td>
               <td>
-                <code>horizonEnabled=true</code> in Gradle properties.
+                Resolved at build time by the shared Gradle resolver;{' '}
+                <code>openiapStore=horizon</code> pins it.
               </td>
               <td>The app writes Android manifest meta-data directly.</td>
             </tr>
             <tr>
               <td>Flutter</td>
               <td>
-                <code>horizonEnabled=true</code> and app-level{' '}
-                <code>missingDimensionStrategy</code>.
+                Resolved at build time by the shared Gradle resolver;{' '}
+                <code>openiapStore=horizon</code> pins it.
               </td>
               <td>
                 Gradle manifest placeholder, usually from local properties.
@@ -180,18 +183,18 @@ function HorizonStoreSetup() {
             <tr>
               <td>MAUI</td>
               <td>
-                Build Android with <code>OpenIapAndroidStore=horizon</code>,{' '}
-                <code>meta</code>, or <code>quest</code>.
+                Build Android with <code>OpenIapStore=horizon</code> (
+                <code>OpenIapAndroidStore</code> still works).
               </td>
               <td>The Android manifest in the MAUI app owns the app id.</td>
             </tr>
             <tr>
               <td>Godot</td>
               <td>
-                No dedicated Horizon flavor switch yet, so there is no Godot
-                section below.
+                Export option <code>openiap/android_store</code> set to{' '}
+                <code>horizon</code>.
               </td>
-              <td>Not applicable.</td>
+              <td>Android manifest meta-data in the export template.</td>
             </tr>
           </tbody>
         </table>
@@ -225,16 +228,17 @@ android {
           Expo
         </AnchorLink>
         <p>
-          Expo apps should let the <code>expo-iap</code> config plugin write the
-          Gradle flavor, dependency, and manifest app id during prebuild:
+          Keep the app id in the config plugin; the plugin writes the manifest
+          meta-data on every prebuild and the Gradle build picks the store. Add{' '}
+          <code>modules.horizon: true</code> only to pin every build of that
+          prebuild to Horizon — an EAS profile can do the same with{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in its{' '}
+          <code>env</code>.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
     'expo-iap',
     {
-      modules: {
-        horizon: true,
-      },
       android: {
         horizon: {
           appId: 'YOUR_HORIZON_APP_ID',
@@ -250,27 +254,20 @@ android {
           React Native
         </AnchorLink>
         <p>
-          <code>react-native-iap</code> has no Expo config plugin, so select the
-          Horizon flavor in the app Gradle build and write the app id in the
-          manifest yourself. <code>fireOsEnabled</code> is the switch for{' '}
-          <Link to="/docs/setup/store/amazon">Amazon Fire OS</Link> builds; the
-          two flavors are mutually exclusive, so keep it <code>false</code> for
-          Quest artifacts:
+          <code>react-native-iap</code> has no Expo config plugin, so the app
+          applies the same resolver script the library uses and writes the app
+          id into the manifest itself. Nothing below changes between Play and
+          Quest builds: a <code>horizon</code> flavor, a connected Quest on a
+          debug build, or <code>-PopeniapStore=horizon</code> picks the store.
         </p>
         <CodeBlock language="properties">{`# android/gradle.properties
-horizonEnabled=true
-fireOsEnabled=false
 horizonAppId=YOUR_HORIZON_APP_ID`}</CodeBlock>
         <CodeBlock language="groovy">{`// android/app/build.gradle
+apply from: new File(project(':react-native-iap').projectDir, 'openiap-store.gradle')
+
 android {
     defaultConfig {
-        def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-        def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-        if (horizonEnabled && fireOsEnabled) {
-            throw new GradleException("horizonEnabled and fireOsEnabled cannot both be true")
-        }
-        def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
-        missingDimensionStrategy "platform", flavor
+        missingDimensionStrategy "platform", openIapResolveStore('app').store
 
         manifestPlaceholders = [
             HORIZON_APP_ID: project.findProperty('horizonAppId') ?: ''
@@ -287,24 +284,22 @@ android {
           Flutter
         </AnchorLink>
         <p>
-          Flutter uses the same Gradle property model as bare React Native. The
-          app module maps the property into the plugin flavor and injects the
-          app id through a manifest placeholder; <code>localProperties</code> is
-          the loader the Flutter Android template already defines in{' '}
-          <code>android/app/build.gradle</code>:
+          Flutter uses the same resolver as bare React Native. The app module
+          applies it from the plugin project and injects the app id through a
+          manifest placeholder; <code>localProperties</code> is the loader the
+          Flutter Android template already defines in{' '}
+          <code>android/app/build.gradle</code>. Pin a release build with{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore=horizon flutter build apk</code>
+          .
         </p>
-        <CodeBlock language="properties">{`# android/gradle.properties
-horizonEnabled=true
-fireOsEnabled=false`}</CodeBlock>
         <CodeBlock language="properties">{`# android/local.properties
 HORIZON_APP_ID=YOUR_HORIZON_APP_ID`}</CodeBlock>
-        <CodeBlock language="groovy">{`def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
+        <CodeBlock language="groovy">{`apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
+def openIapStore = openIapResolveStore('app', [allowNone: true]).store
 
 android {
     defaultConfig {
-        missingDimensionStrategy 'platform', flavor
+        missingDimensionStrategy 'platform', openIapStore == 'none' ? 'play' : openIapStore
         manifestPlaceholders = [
             HORIZON_APP_ID: localProperties.getProperty("HORIZON_APP_ID") ?: ""
         ]
@@ -329,7 +324,19 @@ android {
         </p>
         <CodeBlock language="bash">{`./gradlew :library:assembleHorizonRelease`}</CodeBlock>
         <p>MAUI selects the Horizon AAR flavor with an MSBuild property:</p>
-        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapAndroidStore=horizon`}</CodeBlock>
+        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapStore=horizon`}</CodeBlock>
+      </section>
+
+      <section>
+        <AnchorLink id="godot" level="h2">
+          Godot
+        </AnchorLink>
+        <p>
+          Set the <code>openiap/android_store</code> export option to{' '}
+          <code>horizon</code> in the Android export preset; the plugin then
+          exports the Horizon artifact instead of the Play one. Declare the app
+          id as manifest meta-data in the Android build template.
+        </p>
       </section>
 
       <section>

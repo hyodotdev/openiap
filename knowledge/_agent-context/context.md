@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-18T18:47:47.947Z
+> Last updated: 2026-09-21T14:05:10.230Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1329,6 +1329,51 @@ The Google package supports **three build flavors**:
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
 - `src/amazon/` - Amazon Appstore specific implementations
+
+### Store Selection
+
+One rule picks the Android store everywhere, and the developer never edits a
+file to switch. Credentials (the Horizon app id, the Amazon
+`AppstoreAuthenticationKey.pem`) stay in the project permanently and are inert
+on the other stores; they never select anything.
+
+```text
+1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
+             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read, deprecation warning)
+2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
+3. device    debug tasks only, exactly one adb device: Quest -> horizon, Fire -> amazon
+4. play
+```
+
+Two stores in one invocation, or explicit values that disagree, fail the build.
+A release build never consults a device. The choice is logged once:
+`openiap: store=<id> (source=explicit|variant|device|default; <reason>)`.
+
+**Vocabulary.** Store ids are `play`, `horizon`, `amazon`, plus `auto` (the
+default) and `none` (the Flutter opt-out that links no Android IAP SDK). Aliases
+are normalized at the input boundary only: `google`, `gplay`, `googleplay`,
+`google-play`, `gms` → `play`; `meta`, `quest` → `horizon`; `fire`, `fireos`,
+`fire-os` → `amazon`. `IapStore` in the schema is the *runtime* store on a
+purchase and keeps its own names.
+
+**SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule.
+`libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
+`libraries/flutter_inapp_purchase/android` carry byte-identical copies because
+a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
+drift. Every other build system reads the same names:
+
+| Consumer                          | Input                                                                 |
+| --------------------------------- | --------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same     |
+| expo-iap config plugin            | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto |
+| kmp-iap                           | library flavors match an app `platform` dimension; `openiapStore` pins otherwise |
+| maui-iap                          | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`), same alias table  |
+| godot-iap                         | export option `openiap/android_store` (`auto` = play; an export has no device) |
+| `openiap doctor`                  | reads the pin and the legacy flags with the same table                 |
+
+**iOS.** There is one store axis (App Store vs. an alternative marketplace such
+as Onside). Marketplace SDKs are linked at build time by an explicit opt-in and
+the runtime routes by install source; nothing is guessed at build time.
 
 ### Critical Rules
 
