@@ -184,6 +184,8 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                                 amazon = if (purchase.store == IapStore.Amazon) RequestVerifyPurchaseWithIapkitAmazonProps(
                                                                     receiptId = jwsOrToken,
                                                                     sandbox = AppConfig.amazonRvsSandbox,
+                                                                    // IAPKit rejects an Amazon receipt without the buyer's id.
+                                                                    userId = (purchase as? PurchaseAndroid)?.userIdAmazon,
                                                                 ) else null,
                                                                 apiKey = apiKey,
                                                                 apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,

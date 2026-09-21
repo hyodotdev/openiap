@@ -72,6 +72,9 @@ origin, not the verify path. For **Local (IAPKit)** the key and the local server
 must target the same Convex deployment. An Android device on USB reaches the
 host through `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`
 and `http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address.
+Unlike the other examples this one permits loopback cleartext in every build
+type, because .NET for Android has no per-configuration manifest merge; the
+network security config still allows nothing beyond loopback.
 
 The verification button cycles in this order:
 

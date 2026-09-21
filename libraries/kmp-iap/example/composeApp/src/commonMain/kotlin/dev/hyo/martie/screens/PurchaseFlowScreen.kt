@@ -38,6 +38,7 @@ import io.github.hyochan.kmpiap.openiap.VerifyPurchaseGoogleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
+import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
@@ -188,6 +189,8 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                                 amazon = if (purchase.store == IapStore.Amazon) RequestVerifyPurchaseWithIapkitAmazonProps(
                                                                     receiptId = jwsOrToken,
                                                                     sandbox = AppConfig.amazonRvsSandbox,
+                                                                    // IAPKit rejects an Amazon receipt without the buyer's id.
+                                                                    userId = (purchase as? PurchaseAndroid)?.userIdAmazon,
                                                                 ) else null,
                                                                 apiKey = apiKey,
                                                                 apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,

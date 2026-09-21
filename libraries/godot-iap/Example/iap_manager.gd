@@ -107,6 +107,12 @@ func _clear_pending_purchases() -> void:
 		# Determine if consumable
 		var is_consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
+		# The sweep finishes purchases the same way the live path does, so it
+		# must clear the same verification gate first.
+		if not await _verify_purchase(purchase_dict, product_id):
+			print("[IAPManager] Leaving pending purchase unverified: %s" % product_id)
+			continue
+
 		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
 
 		var result = await GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
@@ -223,13 +229,13 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		return
 
 	if purchase_state == "Purchased" or purchase_state == "purchased":
-		# Mark transaction as processed to prevent duplicates
-		if transaction_id != "":
-			_processed_transactions[transaction_id] = true
-
 		# An unverified purchase is left unfinished so the store retries it.
+		# Marking it processed here would drop that redelivery for the session.
 		if not await _verify_purchase(purchase, product_id):
 			return
+
+		if transaction_id != "":
+			_processed_transactions[transaction_id] = true
 
 		# Finish transaction (consumables: 10bulbs, 30bulbs)
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
@@ -283,9 +289,11 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 		"apple":
 			iapkit["apple"] = {"jws": token}
 		"amazon":
+			# IAPKit rejects an Amazon receipt without the buyer's id.
 			iapkit["amazon"] = {
 				"receiptId": token,
 				"sandbox": IapkitConfig.amazon_rvs_sandbox(),
+				"userId": str(purchase.get("userIdAmazon", "")),
 			}
 		"horizon":
 			# Horizon identifies the entitlement by SKU, not a token.

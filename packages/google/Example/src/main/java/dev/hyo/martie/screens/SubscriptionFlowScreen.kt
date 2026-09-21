@@ -1488,13 +1488,12 @@ fun SubscriptionFlowScreen(
                         println("SubscriptionFlow: IAPKit verification error: ${e.message}")
                         verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
                         iapStore.postStatusMessage(
-                            message = "Verification error: ${e.message}. Finishing transaction anyway for testing.",
+                            message = "Verification error: ${e.message}. Transaction left unfinished for retry.",
                             status = PurchaseResultStatus.Error,
                             productId = purchase.productId
                         )
-                        // For testing: return true to continue with finishTransaction
-                        println("SubscriptionFlow: [TEST MODE] Continuing with finishTransaction despite verification error")
-                        true
+                        println("SubscriptionFlow: Transaction left unfinished for verification retry")
+                        false
                     } finally {
                         isVerifying = false
                     }

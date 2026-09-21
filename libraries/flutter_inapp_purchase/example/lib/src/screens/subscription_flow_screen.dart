@@ -15,9 +15,9 @@ class SubscriptionFlowScreen extends StatefulWidget {
   State<SubscriptionFlowScreen> createState() => _SubscriptionFlowScreenState();
 }
 
-/// Verification method options. Mirrors the same enum on
-/// `purchase_flow_screen.dart` so the subscription flow can demonstrate the
-/// same Ignore / Local / IAPKit choices for renewals and upgrades.
+/// Verification method options. Mirrors the enum on `purchase_flow_screen.dart`;
+/// `local` stays for that parity but the subscription picker omits it, because
+/// renewal state comes from the server, not the device.
 enum VerificationMethod { ignore, local, iapkitLocalhost, iapkit }
 
 extension VerificationMethodX on VerificationMethod {
@@ -360,6 +360,8 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
               ? RequestVerifyPurchaseWithIapkitAmazonProps(
                   receiptId: jwsOrToken,
                   sandbox: IapConstants.amazonRvsSandbox,
+                  // IAPKit rejects an Amazon receipt without the buyer's id.
+                  userId: (purchase as PurchaseAndroid?)?.userIdAmazon,
                 )
               : null,
           apiKey: apiKey.isNotEmpty ? apiKey : null,

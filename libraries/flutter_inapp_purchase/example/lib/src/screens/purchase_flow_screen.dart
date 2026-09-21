@@ -474,6 +474,8 @@ Auto Renewing: ${androidResult.autoRenewing}
               ? RequestVerifyPurchaseWithIapkitAmazonProps(
                   receiptId: jwsOrToken,
                   sandbox: IapConstants.amazonRvsSandbox,
+                  // IAPKit rejects an Amazon receipt without the buyer's id.
+                  userId: (purchase as PurchaseAndroid?)?.userIdAmazon,
                 )
               : null,
           apiKey: apiKey.isNotEmpty ? apiKey : null,

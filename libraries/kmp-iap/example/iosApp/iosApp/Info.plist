@@ -15,5 +15,18 @@
 	<string>kmp-iap-example</string>
 	<key>IAPKIT_API_KEY</key>
 	<string>$(IAPKIT_API_KEY)</string>
+	<key>IAPKIT_BASE_URL</key>
+	<string>$(IAPKIT_BASE_URL)</string>
+	<key>AMAZON_RVS_SANDBOX</key>
+	<string>$(AMAZON_RVS_SANDBOX)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<!-- Local network only, so a Local (IAPKit) server on the Mac's LAN
+		     address is reachable without opening arbitrary plaintext loads. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

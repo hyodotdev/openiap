@@ -10,7 +10,6 @@ internal static class IapKitSettings
     // place an openiap-kit_sk_ secret admin key in this app configuration.
     private const string ApiKeyPreferenceKey = "openiap.example.iapkit.apiKey";
     private const string BaseUrlPreferenceKey = "openiap.example.iapkit.baseUrl";
-    private const string DefaultBaseUrl = "https://kit.openiap.dev";
 
     // Baked in from iapkit.props at build time; a device has no environment.
     private static readonly IReadOnlyDictionary<string, string> BuildMetadata =
@@ -47,14 +46,6 @@ internal static class IapKitSettings
             "true",
             StringComparison.OrdinalIgnoreCase);
 
-    public static string BaseUrl => LocalBaseUrl ?? DefaultBaseUrl;
-
-    public static void Save(string? apiKey, string? baseUrl)
-    {
-        SavePreference(ApiKeyPreferenceKey, apiKey);
-        SavePreference(BaseUrlPreferenceKey, baseUrl);
-    }
-
     /// <param name="baseUrl">Local origin for Local (IAPKit); null uses the hosted server.</param>
     public static RequestVerifyPurchaseWithIapkitProps CreateVerifyProps(
         Purchase purchase,
@@ -67,7 +58,8 @@ internal static class IapKitSettings
             throw new InvalidOperationException("No purchase token available for IAPKit verification");
         }
 
-        var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl : baseUrl.Trim();
+        // Null leaves the SDK on its hosted default, matching the other examples.
+        var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
 
         return common.Store switch
         {
@@ -120,17 +112,5 @@ internal static class IapKitSettings
         }
 
         return null;
-    }
-
-    private static void SavePreference(string key, string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            Preferences.Default.Remove(key);
-        }
-        else
-        {
-            Preferences.Default.Set(key, value.Trim());
-        }
     }
 }

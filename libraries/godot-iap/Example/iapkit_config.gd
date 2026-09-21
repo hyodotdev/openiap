@@ -27,6 +27,10 @@ static func _ensure_loaded() -> void:
 		return
 
 	_api_key = str(config.get_value("iapkit", "api_key", "")).strip_edges()
+	# A secret admin key must never reach a build; refuse it rather than ship it.
+	if _api_key.begins_with("openiap-kit_sk_"):
+		push_error("[IapkitConfig] api_key is a secret sk_ key; use an openiap-kit_pk_ key")
+		_api_key = ""
 	_base_url = str(config.get_value("iapkit", "base_url", "")).strip_edges()
 	_amazon_rvs_sandbox = bool(config.get_value("iapkit", "amazon_rvs_sandbox", false))
 
