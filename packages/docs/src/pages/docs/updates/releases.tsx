@@ -947,6 +947,14 @@ function Releases() {
               <strong>maui-iap 2.5.1</strong> carry the regenerated deprecation
               messages that name the client protocol 1.0.0 removal train.
             </p>
+            <p style={{ margin: '0.5rem 0 0 0' }}>
+              <strong>kmp-iap 3.5.2</strong> also adds{' '}
+              <code>Store.HORIZON</code>, and Horizon builds now report it from{' '}
+              <code>getStore()</code> instead of <code>Store.PLAY_STORE</code>.
+              A new enum case makes an exhaustive <code>when</code> over{' '}
+              <code>Store</code> fail to compile, so add a Horizon branch or an{' '}
+              <code>else</code>.
+            </p>
           </Callout>
 
           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
