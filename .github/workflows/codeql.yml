@@ -538,7 +538,12 @@ jobs:
         if: matrix.component == 'flutter'
         working-directory: libraries/flutter_inapp_purchase
         env:
-          EXPECTED_XCODE_MAJOR: ${{ github.event_name == 'pull_request' && '26' || '27' }}
+          # The self-hosted Mac ships one Xcode and manages it itself, so a PR
+          # routed there matches that machine, not the hosted pin.
+          EXPECTED_XCODE_MAJOR: >-
+            ${{ (github.event_name == 'pull_request'
+                 && needs.pick-mac-runner.outputs.runner != 'self-mac')
+                && '26' || '27' }}
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
       - name: Build Godot Swift wrapper
