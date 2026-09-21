@@ -17,7 +17,7 @@ readonly transient_transport_pattern='read timed out|connect timed out|connectio
 # its exceptions from a worker thread, so build output cannot reach these.
 # A checksum mismatch is deliberately absent — the wrapper reports it as
 # possible tampering, and retrying that would be wrong.
-readonly wrapper_download_pattern='exception in thread "main" java\.(lang\.runtimeexception: downloading from .* failed|io\.ioexception: server returned http response code[^0-9]*('"$retryable_http_status"') for url|net\.(sockettimeout|unknownhost|connect|socket)exception)'
+readonly wrapper_download_pattern='exception in thread "main" java\.((lang\.runtimeexception|io\.ioexception): downloading from .* failed|io\.ioexception: server returned http response code[^0-9]*('"$retryable_http_status"') for url|net\.(sockettimeout|unknownhost|connect|socket)exception)'
 
 has_wrapper_download_failure() {
   grep -qiE "$wrapper_download_pattern" "$1"

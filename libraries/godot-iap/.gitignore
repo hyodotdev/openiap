@@ -13,6 +13,9 @@ Example/ios/*
 !Example/ios/.gitkeep
 Example/android/*
 !Example/android/.gitkeep
+# Keeps Godot from scanning its own Android build output, which otherwise
+# recursively copies the project into assets/ and breaks the next export.
+!Example/android/.gdignore
 
 # Build output
 bin/
@@ -81,3 +84,6 @@ addons/godot-iap/bin/android/
 
 # TestProject - for testing release builds locally (not tracked in git)
 TestProject/
+
+# Example - untracked IAPKit settings
+Example/iapkit.cfg

@@ -352,7 +352,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # The self-hosted Mac ships one Xcode and manages it itself, so pinning a
+      # version there fails the job instead of selecting anything.
       - name: Set up Xcode
+        if: needs.pick-mac-runner.outputs.runner != 'self-mac'
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
@@ -466,7 +469,9 @@ jobs:
           cache: true
 
       - name: Set up Godot Xcode
-        if: matrix.component == 'godot'
+        if: >-
+          matrix.component == 'godot' &&
+          needs.pick-mac-runner.outputs.runner != 'self-mac'
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.6"
@@ -533,7 +538,12 @@ jobs:
         if: matrix.component == 'flutter'
         working-directory: libraries/flutter_inapp_purchase
         env:
-          EXPECTED_XCODE_MAJOR: ${{ github.event_name == 'pull_request' && '26' || '27' }}
+          # The self-hosted Mac ships one Xcode and manages it itself, so a PR
+          # routed there matches that machine, not the hosted pin.
+          EXPECTED_XCODE_MAJOR: >-
+            ${{ (github.event_name == 'pull_request'
+                 && needs.pick-mac-runner.outputs.runner != 'self-mac')
+                && '26' || '27' }}
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
       - name: Build Godot Swift wrapper

@@ -807,9 +807,10 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     /github\.event_name != 'pull_request'\s+&& \(matrix\.component == 'godot' && 'macos-26' \|\| 'xcode-27'\)/u,
   );
   assert.match(wrappers, /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u);
+  // A PR routed to the self-hosted Mac must match that machine's own Xcode.
   assert.match(
     wrappers,
-    /EXPECTED_XCODE_MAJOR: \$\{\{ github\.event_name == 'pull_request' && '26' \|\| '27' \}\}/u,
+    /EXPECTED_XCODE_MAJOR: >-\s+\$\{\{ \(github\.event_name == 'pull_request'\s+&& needs\.pick-mac-runner\.outputs\.runner != 'self-mac'\)\s+&& '26' \|\| '27' \}\}/u,
   );
   assert.match(
     wrappers,

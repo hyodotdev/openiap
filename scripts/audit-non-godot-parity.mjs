@@ -2783,7 +2783,7 @@ function checkIapkitAmazonContractWiring() {
     "KMP Android IAPKit Amazon contract",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["androidResult.toKmpIapkitResult()"],
     "KMP Amazon store IAPKit response contract",
   );
@@ -2798,7 +2798,7 @@ function checkIapkitAmazonContractWiring() {
     "KMP Android IAPKit result mapping degrades unknown values",
   );
   expectNotIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
     "KMP Amazon store must not round-trip through the generated decoder",
   );
@@ -2980,21 +2980,28 @@ function checkMaui() {
   expectIncludes(
     rel(base, "Utils/IapKitSettings.cs"),
     [
-      "CreateVerifyProps(Purchase purchase)",
-      "BaseUrl = BaseUrl",
+      "CreateVerifyProps(",
+      "string? baseUrl = null",
+      "BaseUrl = endpoint",
       "IapStore.Apple",
       "IapStore.Google",
       "IapStore.Amazon",
       "RequestVerifyPurchaseWithIapkitAmazonProps",
       "UserId = (purchase as PurchaseAndroid)?.UserIdAmazon",
-      "ReceiptId = token",
+      "ReceiptId = storeToken",
     ],
     "MAUI IAPKit verification must select one store payload and preserve the configured endpoint",
   );
   expectIncludes(
     rel(base, "Platforms/Android/AndroidManifest.xml"),
-    ['android:usesCleartextTraffic="true"'],
+    ['android:networkSecurityConfig="@xml/network_security_config"'],
     "MAUI example Android manifest must allow local IAPKit E2E endpoints",
+  );
+  // Blanket cleartext would reach any host; the local vertical only needs loopback.
+  expectNotIncludes(
+    rel(base, "Platforms/Android/AndroidManifest.xml"),
+    ["usesCleartextTraffic"],
+    "MAUI example must not permit cleartext to every host",
   );
   expectIncludes(
     rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
@@ -3695,14 +3702,14 @@ function checkBillingChoiceFieldBindings() {
     "KMP BillingResult sub-response tests",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     [
       'failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")',
     ],
     "KMP non-Play in-app message behavior",
   );
   expectNotIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["InAppMessageResponseCodeAndroid.NoActionNeeded"],
     "KMP non-Play in-app messages must not report success",
   );

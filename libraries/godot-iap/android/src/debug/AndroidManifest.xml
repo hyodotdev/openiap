@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ships only in GodotIap.debug.aar, which the export plugin selects for
+     debug exports, so release builds keep the platform cleartext default. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:networkSecurityConfig="@xml/openiap_network_security_config" />
+</manifest>

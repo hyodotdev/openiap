@@ -244,7 +244,7 @@ const packageCompatibilityMigrations = [
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
         'OpenIapVersion.gqlVersion / OpenIapVersionInfo.gqlVersion',
-        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.4.0 ships it as specVersion; renamed in the next release)',
+        'OpenIapVersion.clientProtocolVersion (openiap-apple 3.5.0; specVersion stays as a deprecated alias until client protocol 1.0.0)',
       ],
     ],
   },

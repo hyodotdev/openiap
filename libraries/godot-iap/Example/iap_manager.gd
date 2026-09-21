@@ -10,9 +10,12 @@ extends Node
 
 # Load OpenIAP types
 const Types = preload("res://addons/godot-iap/types.gd")
+const IapkitConfig = preload("res://iapkit_config.gd")
 
 signal purchase_completed(product_id: String)
 signal purchase_failed(product_id: String, error: String)
+signal verification_changed(label: String)
+signal verification_result(message: String, ok: bool)
 signal purchases_restored
 signal products_loaded
 signal connection_changed(connected: bool)
@@ -28,6 +31,8 @@ var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
 var _processed_transactions: Dictionary = {}  # transactionId -> bool (to prevent duplicate processing)
+var _verifying_transactions: Dictionary = {}  # transactionId -> bool (in-flight verification)
+var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 
 
 func _ready() -> void:
@@ -102,6 +107,12 @@ func _clear_pending_purchases() -> void:
 
 		# Determine if consumable
 		var is_consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
+
+		# The sweep finishes purchases the same way the live path does, so it
+		# must clear the same verification gate first.
+		if not await _verify_purchase(purchase_dict, product_id):
+			print("[IAPManager] Leaving pending purchase unverified: %s" % product_id)
+			continue
 
 		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
 
@@ -218,8 +229,23 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		print("[IAPManager] Transaction already processed, skipping: %s" % transaction_id)
 		return
 
+	# A redelivery can arrive while the first verification is still in flight.
+	if transaction_id != "" and _verifying_transactions.has(transaction_id):
+		print("[IAPManager] Transaction already verifying, skipping: %s" % transaction_id)
+		return
+
 	if purchase_state == "Purchased" or purchase_state == "purchased":
-		# Mark transaction as processed to prevent duplicates
+		if transaction_id != "":
+			_verifying_transactions[transaction_id] = true
+
+		# An unverified purchase is left unfinished so the store retries it.
+		# Marking it processed here would drop that redelivery for the session.
+		var verified := await _verify_purchase(purchase, product_id)
+		if transaction_id != "":
+			_verifying_transactions.erase(transaction_id)
+		if not verified:
+			return
+
 		if transaction_id != "":
 			_processed_transactions[transaction_id] = true
 
@@ -230,6 +256,90 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
 
 		purchase_completed.emit(product_id)
+
+
+func cycle_verification_method() -> void:
+	verification_method = IapkitConfig.next_method(verification_method)
+	verification_changed.emit(IapkitConfig.method_label(verification_method))
+
+
+func verification_label() -> String:
+	return IapkitConfig.method_label(verification_method)
+
+
+func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
+	var label := IapkitConfig.method_label(verification_method)
+
+	match verification_method:
+		IapkitConfig.Method.NONE:
+			verification_result.emit("%s — skipped" % label, true)
+			return true
+		IapkitConfig.Method.LOCAL_DEVICE:
+			# Trust the store's own purchase state; no server round trip.
+			verification_result.emit("%s — purchase state accepted" % label, true)
+			return true
+
+	var api_key := IapkitConfig.api_key()
+	if api_key.is_empty():
+		verification_result.emit("%s — api_key not set in iapkit.cfg" % label, false)
+		return false
+
+	var base_url := ""
+	if verification_method == IapkitConfig.Method.IAPKIT_LOCAL:
+		base_url = IapkitConfig.local_base_url()
+		if base_url.is_empty():
+			verification_result.emit("%s — base_url not set in iapkit.cfg" % label, false)
+			return false
+
+	var iapkit := {"apiKey": api_key}
+	if not base_url.is_empty():
+		iapkit["baseUrl"] = base_url
+
+	var token := str(purchase.get("purchaseToken", ""))
+	var store := str(purchase.get("store", "")).to_lower()
+	match store:
+		"apple":
+			iapkit["apple"] = {"jws": token}
+		"amazon":
+			# IAPKit rejects an Amazon receipt without the buyer's id.
+			var amazon_user_id := str(purchase.get("userIdAmazon", "")).strip_edges()
+			iapkit["amazon"] = {
+				"receiptId": token,
+				"sandbox": IapkitConfig.amazon_rvs_sandbox(),
+			}
+			if not amazon_user_id.is_empty():
+				iapkit["amazon"]["userId"] = amazon_user_id
+		"horizon":
+			# Horizon identifies the entitlement by SKU, not a token.
+			iapkit["horizon"] = {"sku": product_id}
+		_:
+			iapkit["google"] = {"purchaseToken": token}
+
+	if store != "horizon" and token.is_empty():
+		verification_result.emit("%s — no purchase token" % label, false)
+		return false
+
+	var result = await GodotIapPlugin.verify_purchase_with_provider({
+		"provider": "iapkit",
+		"iapkit": iapkit,
+	})
+
+	var verified = result.iapkit if result != null else null
+	if verified == null or not verified.is_valid:
+		var reason := "invalid" if verified != null else "no response"
+		verification_result.emit("%s — %s" % [label, reason], false)
+		purchase_failed.emit(product_id, "%s failed" % label)
+		return false
+
+	verification_result.emit(
+		"%s — valid, %s" % [label, _iapkit_state_name(verified.state)], true
+	)
+	return true
+
+
+func _iapkit_state_name(state: int) -> String:
+	var names := Types.IapkitPurchaseState.keys()
+	return str(names[state]) if state >= 0 and state < names.size() else "UNKNOWN"
 
 
 func _on_purchase_error(error: Dictionary) -> void:

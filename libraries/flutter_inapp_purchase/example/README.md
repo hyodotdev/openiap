@@ -12,6 +12,48 @@ flutter run
 flutter build apk --release
 ```
 
+## Purchase verification
+
+Pass these as `--dart-define`, which overrides the bundled `env.example`:
+
+| Key                  | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `IAPKIT_API_KEY`     | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `IAPKIT_BASE_URL`    | Origin of a local IAPKit server; empty uses the host.  |
+| `AMAZON_RVS_SANDBOX` | `true` for Amazon App Tester receipts.                 |
+
+```bash
+flutter run \
+  --dart-define=IAPKIT_API_KEY=openiap-kit_pk_... \
+  --dart-define=IAPKIT_BASE_URL=http://127.0.0.1:3100
+```
+
+`env.example` is the only declared asset, so it is the only file the bundle
+carries; keep real keys out of it. A define wins even when its value is empty,
+so `--dart-define=IAPKIT_BASE_URL=` forces the hosted server.
+`IAPKIT_BASE_URL` is an origin, not the verify path. For **Local (IAPKit)** the key and the local
+server must target the same Convex deployment. An Android device on USB reaches
+the host through
+`adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100` and
+`http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address. Debug
+builds permit cleartext to loopback only; iOS allows cleartext to local-network hosts and bare IPs in every configuration, which is what the LAN flow needs.
+
+The purchase screen lists verification in this order:
+
+1. **Ignore** — skip verification.
+2. **Local (Device)** — Apple-only; on Android it reports that server-side
+   verification needs an OAuth token the example does not carry.
+3. **Local (IAPKit)** — IAPKit routed to `IAPKIT_BASE_URL`.
+4. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
+
+The subscription screen offers **Ignore**, **Local (IAPKit)**, and **IAPKit**.
+It omits Local (Device) because renewal state comes from
+`purchases.subscriptionsv2.get` server-side, which the device cannot answer.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With
+only the key, it defaults to **IAPKit**; without a key, it defaults to
+**Ignore**.
+
 ## Building with Different Billing Platforms
 
 This example supports multiple billing platforms:

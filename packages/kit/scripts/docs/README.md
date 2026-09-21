@@ -67,3 +67,23 @@ its published dependencies with npm, compares signature vectors with IAPKit,
 and runs the existing IAPKit commerce tests with Convex/store I/O mocked.
 It writes `packages/docs/public/commerce-lab/run.json` without contacting
 production or making a store purchase.
+
+## Re-recording the interop evidence
+
+`bun audit:commerce-evidence` reports drift whenever `packages/kit/package.json`
+or the root `bun.lock` changes. The docs build then needs a fresh recording,
+and `packages/docs/scripts/check-commerce-composition.mjs` only accepts one
+that ran end to end, from a clean committed tree:
+
+```sh
+# Two clean clones of openiap-commerce-protocol-example, dependencies installed:
+#   <original>  codex/commerce-protocol-review tip
+#   <fresh>     codex/commerce-protocol-from-scratch tip
+bun --conditions=openiap-source packages/kit/scripts/docs/run-commerce-interop.mjs <original> <out> <fresh>
+bun packages/kit/scripts/docs/export-commerce-interop.mjs <out> <original>
+(cd <fresh> && npm run verify && node export-paywall.mjs <repo>/packages/docs/public/commerce-example .runtime/verification.json <out>/report.json)
+```
+
+Then point the first `git checkout` in
+`packages/docs/public/commerce-example/paywall-provider-reproduction.md` at the
+openiap commit the harness ran from, and run `cd packages/docs && bun run build`.

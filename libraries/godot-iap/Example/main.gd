@@ -24,6 +24,8 @@ var difficulty_timer: float = 0.0
 @onready var loading_label: Label = $UI/LoadingLabel
 @onready var status_label: Label = $UI/StatusLabel
 
+var verification_button: Button
+
 const VIEWPORT_WIDTH := 720
 const VIEWPORT_HEIGHT := 1280
 
@@ -90,6 +92,38 @@ func _setup_store_panel() -> void:
 	var restore_btn = store_panel.get_node_or_null("VBoxContainer/RestoreButton")
 	if restore_btn:
 		restore_btn.pressed.connect(_on_restore_pressed)
+
+	_setup_verification_button()
+
+
+func _setup_verification_button() -> void:
+	var container = store_panel.get_node_or_null("VBoxContainer")
+	if container == null:
+		return
+
+	verification_button = Button.new()
+	verification_button.name = "VerificationButton"
+	verification_button.text = IapManager.verification_label()
+	verification_button.pressed.connect(_on_verification_pressed)
+	container.add_child(verification_button)
+	container.move_child(verification_button, 0)
+
+	IapManager.verification_changed.connect(_on_verification_changed)
+	IapManager.verification_result.connect(_on_verification_result)
+
+
+func _on_verification_pressed() -> void:
+	IapManager.cycle_verification_method()
+
+
+func _on_verification_changed(label: String) -> void:
+	if verification_button:
+		verification_button.text = label
+
+
+func _on_verification_result(message: String, ok: bool) -> void:
+	status_label.text = ("✅ " if ok else "❌ ") + message
+	print("[Main] %s" % message)
 
 
 func _process(delta: float) -> void:

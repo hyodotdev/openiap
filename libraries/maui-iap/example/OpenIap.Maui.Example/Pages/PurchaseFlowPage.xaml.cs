@@ -11,11 +11,11 @@ namespace OpenIap.Maui.Example.Pages;
 // App Transaction probe.
 public partial class PurchaseFlowPage : ContentPage
 {
-    private enum VerificationMethod { Ignore, Local, Iapkit }
+    private enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
 
     private readonly List<Product> _products = new();
     private readonly List<Purchase> _availablePurchases = new();
-    private VerificationMethod _verification = VerificationMethod.Ignore;
+    private VerificationMethod _verification = DefaultVerificationMethod();
     private string? _purchaseResult;
     private Purchase? _lastPurchase;
     private bool _isProcessing;
@@ -25,9 +25,26 @@ public partial class PurchaseFlowPage : ContentPage
     private bool _storefrontLoading;
     private bool _didFetch;
 
+    // Mirrors the other examples: no key skips, a local origin prefers it.
+    private static VerificationMethod DefaultVerificationMethod() =>
+        string.IsNullOrWhiteSpace(IapKitSettings.ApiKey)
+            ? VerificationMethod.Ignore
+            : string.IsNullOrWhiteSpace(IapKitSettings.LocalBaseUrl)
+                ? VerificationMethod.Iapkit
+                : VerificationMethod.IapkitLocal;
+
+    private static string VerificationLabel(VerificationMethod method) => method switch
+    {
+        VerificationMethod.Local => "📱 Local (Device)",
+        VerificationMethod.IapkitLocal => "🖥️ Local (IAPKit)",
+        VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
+        _ => "❌ None (Skip)",
+    };
+
     public PurchaseFlowPage()
     {
         InitializeComponent();
+        VerificationButton.Text = VerificationLabel(_verification);
 #if IOS || MACCATALYST
         AppTransactionButton.IsVisible = true;
 #endif
@@ -409,12 +426,21 @@ public partial class PurchaseFlowPage : ContentPage
                     });
                     Console.WriteLine("[PurchaseFlow] local verification completed");
                 }
-                else if (_verification == VerificationMethod.Iapkit)
+                else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
                 {
                     var token = common.PurchaseToken ?? string.Empty;
-                    if (string.IsNullOrEmpty(token))
+                    var localBaseUrl = _verification == VerificationMethod.IapkitLocal
+                        ? IapKitSettings.LocalBaseUrl
+                        : null;
+                    // Horizon identifies the entitlement by SKU and carries no token.
+                    if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
                     {
                         await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
+                        verificationPassed = false;
+                    }
+                    else if (_verification == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
+                    {
+                        await DisplayAlertAsync("Verification Failed", "IAPKit base URL not configured for Local (IAPKit)", "OK");
                         verificationPassed = false;
                     }
                     else
@@ -422,14 +448,14 @@ public partial class PurchaseFlowPage : ContentPage
                         var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                         {
                             Provider = PurchaseVerificationProvider.Iapkit,
-                            Iapkit = IapKitSettings.CreateVerifyProps(purchase),
+                            Iapkit = IapKitSettings.CreateVerifyProps(purchase, localBaseUrl),
                         });
                         if (result.Iapkit is { } ik)
                         {
                             verificationPassed = ik.IsValid;
                             var emoji = ik.IsValid ? "✅" : "⚠️";
                             await DisplayAlertAsync(
-                                $"{emoji} IAPKit Verification",
+                                $"{emoji} {VerificationLabel(_verification)} Verification",
                                 $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                                 "OK");
                         }
@@ -518,15 +544,11 @@ public partial class PurchaseFlowPage : ContentPage
         _verification = _verification switch
         {
             VerificationMethod.Ignore => VerificationMethod.Local,
-            VerificationMethod.Local => VerificationMethod.Iapkit,
+            VerificationMethod.Local => VerificationMethod.IapkitLocal,
+            VerificationMethod.IapkitLocal => VerificationMethod.Iapkit,
             _ => VerificationMethod.Ignore,
         };
-        VerificationButton.Text = _verification switch
-        {
-            VerificationMethod.Local => "📱 Local (Device)",
-            VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
-            _ => "❌ None (Skip)",
-        };
+        VerificationButton.Text = VerificationLabel(_verification);
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)

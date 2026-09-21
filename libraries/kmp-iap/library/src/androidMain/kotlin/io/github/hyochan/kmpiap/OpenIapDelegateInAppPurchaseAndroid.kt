@@ -1,4 +1,5 @@
-// The Amazon implementation overrides the shared 2.x compatibility methods.
+// The delegate serves the Amazon and Horizon flavors through OpenIapModule and
+// overrides the shared 2.x compatibility methods.
 // Consumer call sites retain warnings; remove the overrides in kmp-iap 3.
 @file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 
@@ -74,7 +75,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-internal suspend fun endAmazonConnectionWithCleanup(
+internal suspend fun endDelegatedConnectionWithCleanup(
     endConnection: suspend () -> Boolean,
     cleanup: () -> Unit,
 ): Boolean = try {
@@ -83,7 +84,7 @@ internal suspend fun endAmazonConnectionWithCleanup(
     cleanup()
 }
 
-internal class AmazonInAppPurchaseAndroid(
+internal class OpenIapDelegateInAppPurchaseAndroid(
     private val storeName: String = "amazon",
     private val store: Store = Store.AMAZON,
     private val versionPlatform: String = "Android Amazon"
@@ -135,7 +136,7 @@ internal class AmazonInAppPurchaseAndroid(
             // pending purchase disconnects synchronously before returning, so
             // KMP receives the typed error and can then release the old module.
             try {
-                endAmazonConnectionWithCleanup(
+                endDelegatedConnectionWithCleanup(
                     endConnection = { openModule.endConnection() },
                     cleanup = {
                     try {
@@ -162,7 +163,7 @@ internal class AmazonInAppPurchaseAndroid(
                     PurchaseError(
                         code = ErrorCode.ServiceError,
                         debugMessage = error.message,
-                        message = error.message ?: "Failed to end Amazon billing connection",
+                        message = error.message ?: "Failed to end $storeName billing connection",
                     )
                 )
             }
@@ -219,11 +220,11 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun getStorefront(): String =
         withMappedOpenIapError {
             val handler = requireModule().queryHandlers.getStorefront
-                ?: failUnsupported("Amazon storefront query is unavailable.")
+                ?: failUnsupported("$storeName storefront query is unavailable.")
             authoritativeStorefrontCountryOrNull(handler()) ?: failWith(
                 PurchaseError(
                     code = ErrorCode.ServiceError,
-                    message = "Amazon returned no authoritative storefront country code",
+                    message = "$storeName returned no authoritative storefront country code",
                 )
             )
         }
@@ -277,16 +278,16 @@ internal class AmazonInAppPurchaseAndroid(
         BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false)
 
     override suspend fun getBillingChoiceInfoAndroid(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid =
-        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+        failUnsupported("Google Play Billing Choice is unavailable on $storeName.")
 
     override suspend fun createBillingProgramReportingDetailsAndroid(
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid =
-        failUnsupported("Amazon Appstore does not support Google Play billing programs.")
+        failUnsupported("Google Play billing programs are unavailable on $storeName.")
 
     override suspend fun showBillingProgramInformationDialogAndroid(params: BillingProgramInformationDialogParamsAndroid): BillingResultAndroid =
-        failUnsupported("Amazon Appstore does not support Google Play Billing Choice.")
+        failUnsupported("Google Play Billing Choice is unavailable on $storeName.")
 
     override suspend fun showInAppMessagesAndroid(params: InAppMessageParamsAndroid?): InAppMessageResultAndroid =
         failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")

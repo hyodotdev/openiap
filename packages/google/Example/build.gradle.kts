@@ -78,6 +78,18 @@ android {
             ?: (project.findProperty("IAPKIT_API_KEY") as String?)
             ?: ""
         buildConfigField("String", "IAPKIT_API_KEY", "\"${iapkitApiKey}\"")
+
+        // Empty routes verification at kit.openiap.dev; set it to reach a local server.
+        val iapkitBaseUrl = localProperties.getProperty("iapkit.base.url")
+            ?: (project.findProperty("IAPKIT_BASE_URL") as String?)
+            ?: ""
+        buildConfigField("String", "IAPKIT_BASE_URL", "\"${iapkitBaseUrl}\"")
+
+        // App Tester receipts are only valid against Amazon's RVS Cloud Sandbox.
+        val amazonRvsSandbox = localProperties.getProperty("amazon.rvs.sandbox")
+            ?: (project.findProperty("AMAZON_RVS_SANDBOX") as String?)
+            ?: "false"
+        buildConfigField("boolean", "AMAZON_RVS_SANDBOX", amazonRvsSandbox.toBoolean().toString())
     }
 
     flavorDimensions += "platform"

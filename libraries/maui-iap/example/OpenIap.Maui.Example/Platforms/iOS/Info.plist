@@ -27,5 +27,15 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<!-- Reaches a Local (IAPKit) server on the Mac's LAN address. This
+		     permits cleartext to local-network hosts and bare IPs in every
+		     configuration, but not to named internet hosts. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

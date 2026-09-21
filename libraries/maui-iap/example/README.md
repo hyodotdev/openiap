@@ -31,6 +31,10 @@ sudo dotnet workload install maui
 # refresh the iOS workload to the version that matches your Xcode:
 sudo dotnet workload update
 
+# The stable iOS workload trails new Xcode releases, so an update alone may
+# still pin an older Xcode. Build past the guard when only the check is stale:
+dotnet build -f net10.0-ios -p:ValidateXcodeVersion=false
+
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # iOS Simulator
@@ -50,6 +54,43 @@ top-level workspace launcher in
 [`.vscode/launch.json`](../../../.vscode/launch.json) also exposes
 **🟣 MAUI IAP: iOS** and **🟣 MAUI IAP: Android** entries that run from
 this example project.
+
+## Purchase verification
+
+A device has no environment variables, so IAPKit settings are baked in at build
+time. Copy `iapkit.props.example` to `iapkit.props` (untracked) and fill in:
+
+| Property           | Purpose                                                |
+| ------------------ | ------------------------------------------------------ |
+| `IapkitApiKey`     | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `IapkitBaseUrl`    | Origin of a local IAPKit server; empty uses the host.  |
+| `AmazonRvsSandbox` | `true` for Amazon App Tester receipts.                 |
+
+Each is also settable as an MSBuild property, for example
+`dotnet build -p:IapkitBaseUrl=http://127.0.0.1:3100`. `IapkitBaseUrl` is an
+origin, not the verify path. For **Local (IAPKit)** the key and the local server
+must target the same Convex deployment. An Android device on USB reaches the
+host through `adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100`
+and `http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address.
+Unlike the other examples this one permits loopback cleartext in every build
+type, because .NET for Android has no per-configuration manifest merge; the
+network security config still allows nothing beyond loopback.
+
+The verification button cycles in this order:
+
+1. **None (Skip)** — skip verification.
+2. **Local (Device)** — verify on device.
+3. **Local (IAPKit)** — IAPKit routed to `IapkitBaseUrl`.
+4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With
+only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
+**None (Skip)**.
+
+An Android debug build installed with plain `adb install` aborts at launch with
+`No assemblies found ... Assuming this is part of Fast Deployment`. Either
+deploy with `dotnet build -t:Run`, or build the APK with
+`-p:EmbedAssembliesIntoApk=true` first.
 
 ## Status
 

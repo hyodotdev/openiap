@@ -49,7 +49,7 @@ import android.content.Context
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-// OpenIapModule is loaded via reflection to support both Play and Horizon flavors
+import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderResult
@@ -792,82 +792,29 @@ sealed class IapOperationResult {
     object Cancelled : IapOperationResult()
 }
 
+private val storeAliases = mapOf(
+    "google" to "play", "gplay" to "play", "googleplay" to "play", "gms" to "play",
+    "meta" to "horizon", "quest" to "horizon",
+    "fire" to "amazon", "fireos" to "amazon",
+)
+
+/**
+ * The store is fixed by the linked flavor; [store] only checks the caller's expectation.
+ * Horizon reads its app id from manifest meta-data, so [appId] is accepted for source
+ * compatibility and otherwise unused.
+ */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    // Get default store from BuildConfig if available
-    val defaultStore = try {
-        val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
-        val storeValue = buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
-        OpenIapLog.info("BuildConfig.OPENIAP_STORE = $storeValue", "OpenIapStore")
-        storeValue
-    } catch (e: Throwable) {
-        OpenIapLog.warn("Failed to read BuildConfig.OPENIAP_STORE: ${e.message}", "OpenIapStore")
-        "play"
+    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase()
+    val requested = store?.trim()?.lowercase()?.let { storeAliases[it] ?: it }
+    if (requested != null && requested != linked) {
+        OpenIapLog.warn(
+            "Requested store '$store' but this binary links the $linked flavor; using $linked",
+            "OpenIapStore",
+        )
     }
-
-    val selected = (store ?: defaultStore).lowercase()
-
-    OpenIapLog.debug("buildModule: selected=$selected, defaultStore=$defaultStore", "OpenIapStore")
-
-    return when (selected) {
-        "horizon", "meta", "quest" -> {
-            OpenIapLog.debug("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
-            loadHorizonModule(context)
-        }
-        "amazon", "fireos", "fire" -> {
-            OpenIapLog.debug("Loading OpenIapModule (Amazon flavor)", "OpenIapStore")
-            loadAmazonModule(context)
-        }
-        else -> {
-            // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
-            OpenIapLog.debug("Loading OpenIapModule (Play flavor)", "OpenIapStore")
-            loadPlayModule(context)
-        }
+    if (appId != null) {
+        OpenIapLog.debug("Horizon app id comes from AndroidManifest meta-data; constructor value ignored", "OpenIapStore")
     }
-}
-
-/**
- * Load OpenIapModule (Horizon flavor) via reflection
- * Note: Horizon flavor now uses the same package and class name as Play flavor
- * App ID is read from AndroidManifest.xml by the Horizon module
- */
-private fun loadHorizonModule(context: Context): OpenIapProtocol {
-    return try {
-        // Both Play and Horizon flavors now use the same class name: dev.hyo.openiap.OpenIapModule
-        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val constructor = clazz.getConstructor(Context::class.java)
-        val instance = constructor.newInstance(context) as OpenIapProtocol
-        OpenIapLog.debug("Successfully loaded OpenIapModule (Horizon flavor)", "OpenIapStore")
-        instance
-    } catch (e: Throwable) {
-        throw IllegalStateException("Failed to load OpenIapModule (Horizon flavor). Make sure you're using the Horizon flavor.", e)
-    }
-}
-
-/**
- * Load OpenIapModule (Amazon flavor) via reflection
- * Note: Amazon flavor uses the same package and class name as Play flavor
- */
-private fun loadAmazonModule(context: Context): OpenIapProtocol {
-    return try {
-        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val constructor = clazz.getConstructor(Context::class.java)
-        val instance = constructor.newInstance(context) as OpenIapProtocol
-        OpenIapLog.debug("Successfully loaded OpenIapModule (Amazon flavor)", "OpenIapStore")
-        instance
-    } catch (e: Throwable) {
-        throw IllegalStateException("Failed to load OpenIapModule (Amazon flavor). Make sure you're using the Amazon flavor.", e)
-    }
-}
-
-/**
- * Load OpenIapModule (Play flavor) via reflection
- */
-private fun loadPlayModule(context: Context): OpenIapProtocol {
-    return try {
-        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val constructor = clazz.getConstructor(Context::class.java)
-        constructor.newInstance(context) as OpenIapProtocol
-    } catch (e: Throwable) {
-        throw IllegalStateException("Failed to load OpenIapModule. Make sure you're using the Play flavor.", e)
-    }
+    OpenIapLog.info("BuildConfig.OPENIAP_STORE = $linked", "OpenIapStore")
+    return OpenIapModule(context)
 }

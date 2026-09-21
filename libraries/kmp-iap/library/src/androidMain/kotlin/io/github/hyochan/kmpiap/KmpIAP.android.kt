@@ -5,12 +5,12 @@ package io.github.hyochan.kmpiap
  */
 actual fun createPlatformInAppPurchase(): KmpInAppPurchase =
     when (BuildConfig.OPENIAP_STORE.lowercase()) {
-        "horizon", "meta", "quest" -> AmazonInAppPurchaseAndroid(
+        "horizon", "meta", "quest" -> OpenIapDelegateInAppPurchaseAndroid(
             storeName = "horizon",
-            store = Store.PLAY_STORE,
+            store = Store.HORIZON,
             versionPlatform = "Android Horizon"
         )
-        "amazon", "fire", "fireos" -> AmazonInAppPurchaseAndroid(
+        "amazon", "fire", "fireos" -> OpenIapDelegateInAppPurchaseAndroid(
             storeName = "amazon",
             store = Store.AMAZON,
             versionPlatform = "Android Amazon"

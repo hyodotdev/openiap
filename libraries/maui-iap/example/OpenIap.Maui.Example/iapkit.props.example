@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!-- openiap-kit_pk_ publishable key; never an openiap-kit_sk_ admin key. -->
+    <IapkitApiKey></IapkitApiKey>
+    <!-- Origin of a local IAPKit server for Local (IAPKit); empty uses
+         kit.openiap.dev. An Android device on USB reaches the host through
+         `adb reverse tcp:3100 tcp:3100`, so http://127.0.0.1:3100. -->
+    <IapkitBaseUrl></IapkitBaseUrl>
+    <!-- true only for Amazon App Tester receipts. -->
+    <AmazonRvsSandbox>false</AmazonRvsSandbox>
+  </PropertyGroup>
+</Project>

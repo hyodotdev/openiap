@@ -202,6 +202,21 @@ test("retries a wrapper download the wrapper itself timed out on", () => {
   });
 });
 
+test("retries a wrapper download that timed out as an IOException", () => {
+  // Gradle 9's wrapper reports the read timeout as java.io.IOException, not the
+  // RuntimeException above, and CI lost a job to exactly this line.
+  withCounterTest((counter) => {
+    const command = incrementScript(counter, FIXTURE_COMMAND + "; exit 1");
+    const result = runRetry(command, {
+      FIXTURE:
+        'Exception in thread "main" java.io.IOException: Downloading from https://services.gradle.org/distributions/gradle-9.3.0-all.zip failed: timeout (10000ms)',
+    });
+
+    assert.equal(result.status, 1);
+    assert.equal(readFileSync(counter, "utf8"), "3");
+  });
+});
+
 test("retries a wrapper download that cannot resolve its host", () => {
   withCounterTest((counter) => {
     const command = incrementScript(

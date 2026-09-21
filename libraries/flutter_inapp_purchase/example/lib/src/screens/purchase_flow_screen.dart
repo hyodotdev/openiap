@@ -16,7 +16,27 @@ class PurchaseFlowScreen extends StatefulWidget {
 }
 
 /// Verification method options
-enum VerificationMethod { ignore, local, iapkit }
+enum VerificationMethod { ignore, local, iapkitLocalhost, iapkit }
+
+extension VerificationMethodX on VerificationMethod {
+  bool get isIapkit =>
+      this == VerificationMethod.iapkitLocalhost ||
+      this == VerificationMethod.iapkit;
+
+  String get label => switch (this) {
+        VerificationMethod.ignore => 'Ignore',
+        VerificationMethod.local => 'Local (Device)',
+        VerificationMethod.iapkitLocalhost => 'Local (IAPKit)',
+        VerificationMethod.iapkit => 'IAPKit',
+      };
+}
+
+/// Mirrors the other examples: no key skips, a local origin prefers it.
+VerificationMethod defaultVerificationMethod(String apiKey, String localBaseUrl) {
+  if (apiKey.trim().isEmpty) return VerificationMethod.ignore;
+  if (localBaseUrl.trim().isNotEmpty) return VerificationMethod.iapkitLocalhost;
+  return VerificationMethod.iapkit;
+}
 
 class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
   final FlutterInappPurchase _iap = FlutterInappPurchase.instance;
@@ -38,7 +58,10 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       {}; // Track processed transactions
   final Set<String> _processedErrorMessages =
       {}; // Track processed error messages
-  VerificationMethod _verificationMethod = VerificationMethod.ignore;
+  VerificationMethod _verificationMethod = defaultVerificationMethod(
+    IapConstants.iapkitApiKey,
+    IapConstants.iapkitBaseUrl,
+  );
 
   @override
   void initState() {
@@ -261,7 +284,7 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
     });
 
     // Perform verification based on selected method
-    if (_verificationMethod == VerificationMethod.iapkit) {
+    if (_verificationMethod.isIapkit) {
       final verificationOk = await _verifyPurchaseWithIAPKit(purchase);
       if (!verificationOk) {
         debugPrint(
@@ -423,7 +446,21 @@ Auto Renewing: ${androidResult.autoRenewing}
   /// Verify purchase with IAPKit provider
   Future<bool> _verifyPurchaseWithIAPKit(Purchase purchase) async {
     final apiKey = IapConstants.iapkitApiKey;
+    final label = _verificationMethod.label;
+    final baseUrl = _verificationMethod == VerificationMethod.iapkitLocalhost
+        ? IapConstants.iapkitBaseUrl.trim()
+        : '';
     debugPrint('IAPKit API key configured: ${apiKey.isNotEmpty}');
+    if (_verificationMethod == VerificationMethod.iapkitLocalhost &&
+        baseUrl.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _purchaseResult =
+              '$_purchaseResult\n\n❌ IAPKIT_BASE_URL not configured for $label';
+        });
+      }
+      return false;
+    }
 
     try {
       debugPrint('Verifying purchase with IAPKit...');
@@ -433,10 +470,19 @@ Auto Renewing: ${androidResult.autoRenewing}
       final result = await _iap.verifyPurchaseWithProvider(
         provider: PurchaseVerificationProvider.Iapkit,
         iapkit: RequestVerifyPurchaseWithIapkitProps(
+          amazon: purchase.store == IapStore.Amazon
+              ? RequestVerifyPurchaseWithIapkitAmazonProps(
+                  receiptId: jwsOrToken,
+                  sandbox: IapConstants.amazonRvsSandbox,
+                  // IAPKit rejects an Amazon receipt without the buyer's id.
+                  userId: (purchase as PurchaseAndroid?)?.userIdAmazon,
+                )
+              : null,
           apiKey: apiKey.isNotEmpty ? apiKey : null,
           apple: purchase.store == IapStore.Apple
               ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
               : null,
+          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
           google: purchase.store == IapStore.Google
               ? RequestVerifyPurchaseWithIapkitGoogleProps(
                   purchaseToken: jwsOrToken,
@@ -463,7 +509,7 @@ Auto Renewing: ${androidResult.autoRenewing}
             _purchaseResult = '''
 $_purchaseResult
 
-$statusEmoji IAPKit Verification
+$statusEmoji $label Verification
 Valid: ${iapkitResult.isValid}
 State: $stateText
 Store: ${iapkitResult.store.value}
@@ -514,11 +560,26 @@ Store: ${iapkitResult.store.value}
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
                 ),
-                title: const Text('Local'),
+                title: const Text('Local (Device)'),
                 subtitle: const Text('Basic local verification'),
                 onTap: () {
                   setState(() {
                     _verificationMethod = VerificationMethod.local;
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _verificationMethod == VerificationMethod.iapkitLocalhost
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: const Text('Local (IAPKit)'),
+                subtitle: const Text('IAPKit routed to IAPKIT_BASE_URL'),
+                onTap: () {
+                  setState(() {
+                    _verificationMethod = VerificationMethod.iapkitLocalhost;
                   });
                   Navigator.pop(context);
                 },
@@ -545,16 +606,7 @@ Store: ${iapkitResult.store.value}
     );
   }
 
-  String _getVerificationMethodLabel() {
-    switch (_verificationMethod) {
-      case VerificationMethod.ignore:
-        return 'Ignore';
-      case VerificationMethod.local:
-        return 'Local';
-      case VerificationMethod.iapkit:
-        return 'IAPKit';
-    }
-  }
+  String _getVerificationMethodLabel() => _verificationMethod.label;
 
   Future<void> _loadProducts() async {
     if (!_connected) return;
