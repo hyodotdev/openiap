@@ -10,9 +10,12 @@ extends Node
 
 # Load OpenIAP types
 const Types = preload("res://addons/godot-iap/types.gd")
+const IapkitConfig = preload("res://iapkit_config.gd")
 
 signal purchase_completed(product_id: String)
 signal purchase_failed(product_id: String, error: String)
+signal verification_changed(label: String)
+signal verification_result(message: String, ok: bool)
 signal purchases_restored
 signal products_loaded
 signal connection_changed(connected: bool)
@@ -28,6 +31,7 @@ var store_connected := false
 var products: Dictionary = {}  # product_id -> Types.ProductAndroid or Types.ProductIOS
 var is_loading := false
 var _processed_transactions: Dictionary = {}  # transactionId -> bool (to prevent duplicate processing)
+var verification_method: IapkitConfig.Method = IapkitConfig.default_method()
 
 
 func _ready() -> void:
@@ -223,6 +227,10 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		if transaction_id != "":
 			_processed_transactions[transaction_id] = true
 
+		# An unverified purchase is left unfinished so the store retries it.
+		if not await _verify_purchase(purchase, product_id):
+			return
+
 		# Finish transaction (consumables: 10bulbs, 30bulbs)
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
@@ -230,6 +238,86 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
 
 		purchase_completed.emit(product_id)
+
+
+func cycle_verification_method() -> void:
+	verification_method = IapkitConfig.next_method(verification_method)
+	verification_changed.emit(IapkitConfig.method_label(verification_method))
+
+
+func verification_label() -> String:
+	return IapkitConfig.method_label(verification_method)
+
+
+func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
+	var label := IapkitConfig.method_label(verification_method)
+
+	match verification_method:
+		IapkitConfig.Method.NONE:
+			verification_result.emit("%s — skipped" % label, true)
+			return true
+		IapkitConfig.Method.LOCAL_DEVICE:
+			# Trust the store's own purchase state; no server round trip.
+			verification_result.emit("%s — purchase state accepted" % label, true)
+			return true
+
+	var api_key := IapkitConfig.api_key()
+	if api_key.is_empty():
+		verification_result.emit("%s — api_key not set in iapkit.cfg" % label, false)
+		return false
+
+	var base_url := ""
+	if verification_method == IapkitConfig.Method.IAPKIT_LOCAL:
+		base_url = IapkitConfig.local_base_url()
+		if base_url.is_empty():
+			verification_result.emit("%s — base_url not set in iapkit.cfg" % label, false)
+			return false
+
+	var iapkit := {"apiKey": api_key}
+	if not base_url.is_empty():
+		iapkit["baseUrl"] = base_url
+
+	var token := str(purchase.get("purchaseToken", ""))
+	var store := str(purchase.get("store", "")).to_lower()
+	match store:
+		"apple":
+			iapkit["apple"] = {"jws": token}
+		"amazon":
+			iapkit["amazon"] = {
+				"receiptId": token,
+				"sandbox": IapkitConfig.amazon_rvs_sandbox(),
+			}
+		"horizon":
+			# Horizon identifies the entitlement by SKU, not a token.
+			iapkit["horizon"] = {"sku": product_id}
+		_:
+			iapkit["google"] = {"purchaseToken": token}
+
+	if store != "horizon" and token.is_empty():
+		verification_result.emit("%s — no purchase token" % label, false)
+		return false
+
+	var result = await GodotIapPlugin.verify_purchase_with_provider({
+		"provider": "iapkit",
+		"iapkit": iapkit,
+	})
+
+	var verified = result.iapkit if result != null else null
+	if verified == null or not verified.is_valid:
+		var reason := "invalid" if verified != null else "no response"
+		verification_result.emit("%s — %s" % [label, reason], false)
+		purchase_failed.emit(product_id, "%s failed" % label)
+		return false
+
+	verification_result.emit(
+		"%s — valid, %s" % [label, _iapkit_state_name(verified.state)], true
+	)
+	return true
+
+
+func _iapkit_state_name(state: int) -> String:
+	var names := Types.IapkitPurchaseState.keys()
+	return str(names[state]) if state >= 0 and state < names.size() else "UNKNOWN"
 
 
 func _on_purchase_error(error: Dictionary) -> void:

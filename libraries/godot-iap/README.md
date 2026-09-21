@@ -84,6 +84,36 @@ Quick links:
 
 See the [Quick Start Guide](https://openiap.dev/docs/setup/godot) for complete code examples and setup instructions.
 
+### Example purchase verification
+
+Copy `Example/iapkit.cfg.example` to `Example/iapkit.cfg` (untracked) and fill in:
+
+| Key                  | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `api_key`            | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `base_url`           | Origin of a local IAPKit server; empty uses the host.  |
+| `amazon_rvs_sandbox` | `true` for Amazon App Tester receipts.                 |
+
+`base_url` is an origin, not the verify path. For **Local (IAPKit)** the key and
+the local server must target the same Convex deployment. An Android device on
+USB reaches the host through
+`adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100` and
+`http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address. Only
+`GodotIap.debug.aar` permits cleartext to loopback, so release exports keep the
+platform default.
+
+The store panel's top button cycles verification in this order:
+
+1. **None (Skip)** — skip verification.
+2. **Local (Device)** — trust the store's own purchase state.
+3. **Local (IAPKit)** — IAPKit routed to `base_url`.
+4. **IAPKit (Server)** — hosted IAPKit; the local URL is deliberately omitted.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With
+only the key, it defaults to **IAPKit (Server)**; without a key, it defaults to
+**None (Skip)**. A purchase that fails verification is left unfinished, so the
+store redelivers it instead of the app granting an unverified entitlement.
+
 ## Powered by OpenIAP
 
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
