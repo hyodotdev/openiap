@@ -121,10 +121,11 @@ export function androidStoreChecks(root, framework) {
       : (STORE_ALIASES[pinValue] ?? "unknown");
   const findings = [];
 
-  // Gradle refuses these three combinations outright, so a project carrying one
+  // Gradle refuses these combinations outright, so a project carrying one
   // cannot build at all — reporting it clean would send someone to the build to
-  // find out.
-  if (platformEntry && properties?.get("openiapStore")) {
+  // find out. `auto` and a blank value are absent to Gradle, so they are not a
+  // conflict here either.
+  if (platformEntry && pin) {
     findings.push(
       finding(
         "android-store-flavor-conflict",

@@ -40,7 +40,7 @@ ext.openIapNormalizeStore = { Object value, String label ->
 // assembleHorizonRelease -> [assemble, horizon, release]
 ext.openIapTaskTokens = { String taskPath ->
   def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
-  return name.split(/(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+  return name.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
 }
 
 ext.openIapExplicitStore = { String label, boolean allowNone ->
@@ -92,38 +92,57 @@ ext.openIapAbbreviatedStore = { String taskPath ->
 }
 
 ext.openIapTaskStore = { String label ->
-  def stores = [] as LinkedHashSet
-  def abbreviated = [] as LinkedHashSet
+  // Abbreviation is a per-task fallback: a task that spells its flavor out is
+  // never also fragmented, or `assemblePLAYRelease` would collide with itself.
+  def named = [] as LinkedHashSet
   gradle.startParameter.taskNames.each { String taskPath ->
+    def exact = [] as LinkedHashSet
     openIapTaskTokens(taskPath).each { token ->
       if (token in ['play', 'horizon', 'amazon']) {
-        stores << token
+        exact << token
       }
     }
-    openIapAbbreviatedStore(taskPath).each { abbreviated << it }
+    if (exact) {
+      exact.each { named << it }
+    } else {
+      openIapAbbreviatedStore(taskPath).each { named << it }
+    }
   }
-  if (stores.size() > 1) {
-    throw new GradleException("${label}: the requested tasks name more than one store (${stores.join(', ')}); build one store per invocation or set openiapStore")
+  // Picking one of two named stores would link the wrong billing SDK in silence.
+  if (named.size() > 1) {
+    throw new GradleException("${label}: cannot tell which store the requested tasks '${gradle.startParameter.taskNames.join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
   }
-  if (stores) {
-    return stores.first()
-  }
-  // Guessing here would link the wrong billing SDK without a word of warning.
-  if (abbreviated.size() > 1) {
-    throw new GradleException("${label}: cannot tell which store the abbreviated tasks '${gradle.startParameter.taskNames.join(' ')}' select (${abbreviated.join(', ')}); spell the task out or set openiapStore")
-  }
-  return abbreviated ? abbreviated.first() : null
+  return named ? named.first() : null
 }
 
 // `clean assembleDebug` is still a debug build, but anything naming a release
 // task is not: a release artifact must never depend on what is plugged in.
+ext.openIapBuildTypes = { String taskPath ->
+  def types = [] as LinkedHashSet
+  openIapTaskTokens(taskPath).each { token ->
+    if (token in ['debug', 'release']) {
+      types << token
+    }
+  }
+  if (types) {
+    return types
+  }
+  // `aD` is assembleDebug, so the device rule has to see it as one.
+  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
+  def segments = name.split(/(?=[A-Z])/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+  segments.drop(1).each { segment ->
+    ['debug', 'release'].findAll { it.startsWith(segment) }.each { types << it }
+  }
+  return types
+}
+
 ext.openIapDebugBuild = {
   def names = gradle.startParameter.taskNames
   if (!names) {
     return false
   }
-  def tokens = names.collectMany { openIapTaskTokens(it) }
-  return tokens.contains('debug') && !tokens.contains('release')
+  def types = names.collectMany { openIapBuildTypes(it) } as LinkedHashSet
+  return types.contains('debug') && !types.contains('release')
 }
 
 ext.openIapEnv = { String name ->
@@ -210,7 +229,9 @@ ext.openIapDeviceStore = {
   // reported as a device signal that happened to mean play.
   def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features'])
   def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
-  if (features == null && manufacturerText == null) {
+  // A dropped device answers with empty output and a swallowed exit, not null,
+  // so treat blank-on-both as gone rather than reporting a device signal.
+  if (!features?.trim() && !manufacturerText?.trim()) {
     logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
     return null
   }

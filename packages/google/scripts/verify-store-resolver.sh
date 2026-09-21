@@ -93,7 +93,7 @@ echo "task flavor"
 run "assembleHorizonRelease"               horizon/variant  assembleHorizonRelease
 run "assembleAmazonDebug"                  amazon/variant   assembleAmazonDebug
 run "installPlayDebug"                     play/variant     installPlayDebug
-run "two flavors in one invocation fail"   "fail:more than one store" assembleHorizonRelease assembleAmazonDebug
+run "two flavors in one invocation fail"   "fail:cannot tell which store" assembleHorizonRelease assembleAmazonDebug
 run "a pin against another flavor fails"   "fail:conflicts with the horizon flavor" assembleHorizonRelease -PopeniapStore=play
 run "a pin that agrees is kept"            horizon/explicit assembleHorizonRelease -PopeniapStore=horizon
 
@@ -105,6 +105,11 @@ run "aPD is assemblePlayDebug"             play/variant     aPD
 run "aD names no flavor"                   play/default     aD
 run "iHD is installHorizonDebug"           horizon/variant  iHD
 run "an ambiguous abbreviation fails"      "fail:cannot tell which store" aHAR
+run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
+# An exact flavor plus an abbreviation of another still names two stores.
+run "exact plus abbreviated fails"         "fail:cannot tell which store" assembleHorizonRelease aAR
+run "abbreviated plus exact fails"         "fail:cannot tell which store" aHR assembleAmazonDebug
+run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
@@ -113,6 +118,11 @@ run "a release build ignores the device"   play/default     assembleRelease
 run "clean keeps it a debug build"         horizon/device   clean assembleDebug
 run "the configuration cache skips it"     play/default     assembleDebug --configuration-cache
 run "an explicit pin still wins"           play/explicit    assembleDebug -PopeniapStore=play
+# An abbreviated debug task is still a debug build, so the device rule applies.
+run "aD still reaches the device"          horizon/device   aD
+run "aR still ignores it"                  play/default     aR
+with_device GHOST1 "" ""
+run "a device that stops answering"        play/default     assembleDebug
 
 with_device FIRE1 "feature:amazon.hardware.fire_tv" Amazon
 run "a Fire device selects amazon"         amazon/device    assembleDebug

@@ -793,9 +793,10 @@ sealed class IapOperationResult {
 }
 
 private val storeAliases = mapOf(
-    "google" to "play", "gplay" to "play", "googleplay" to "play", "gms" to "play",
+    "google" to "play", "gplay" to "play", "googleplay" to "play",
+    "google-play" to "play", "gms" to "play",
     "meta" to "horizon", "quest" to "horizon",
-    "fire" to "amazon", "fireos" to "amazon",
+    "fire" to "amazon", "fireos" to "amazon", "fire-os" to "amazon",
 )
 
 /**
@@ -804,8 +805,8 @@ private val storeAliases = mapOf(
  * compatibility and otherwise unused.
  */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase()
-    val requested = store?.trim()?.lowercase()?.let { storeAliases[it] ?: it }
+    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase(java.util.Locale.ROOT)
+    val requested = store?.trim()?.lowercase(java.util.Locale.ROOT)?.let { storeAliases[it] ?: it }
     if (requested != null && requested != linked) {
         OpenIapLog.warn(
             "Requested store '$store' but this binary links the $linked flavor; using $linked",

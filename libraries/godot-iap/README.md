@@ -105,6 +105,11 @@ keep the platform default; the published addon ships the release AAR under both
 names, so add your own debug `networkSecurityConfig` if you need the local
 vertical there.
 
+An export preset carrying a store value the addon does not recognise logs an
+error and falls back to Play, rather than failing the export as the Gradle and
+MAUI builds do; the export UI only offers valid values, so this is reachable by
+hand-editing the preset.
+
 The store panel's top button cycles verification in this order:
 
 1. **None (Skip)** — skip verification.

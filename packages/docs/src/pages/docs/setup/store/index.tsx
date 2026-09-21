@@ -57,8 +57,12 @@ function StoreSetup() {
             that declares those flavors. Gradle&apos;s camelCase abbreviations
             work too: <code>aHR</code> is <code>assembleHorizonRelease</code>.
             One store per invocation — an aggregate task such as{' '}
-            <code>assemble</code> names no flavor and falls through to the
-            default.
+            <code>assemble</code> names no flavor and falls through past this
+            step, to the device rule on a debug build and otherwise to the
+            default. In an app whose own flavors share initials with a store,
+            spell the task out or pin <code>openiapStore</code>: an abbreviation
+            like <code>aPR</code> reads as Play here even when it runs a{' '}
+            <code>preview</code> task.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}

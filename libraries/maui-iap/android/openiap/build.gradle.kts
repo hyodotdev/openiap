@@ -66,11 +66,12 @@ val googleMinSdk = readGoogleAndroidInt("minSdk")
 val mauiAndroidMinSdk = readMauiAndroidMinSdk()
 val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
-// Groovy's toBoolean() accepts true/y/yes/1, so parse the same set here or the
-// one gradle.properties selects different stores in the two resolvers.
+// Groovy's toBoolean() accepts exactly true/y/1, case-insensitive, and the
+// doctor asserts the same set. Parsing a wider or narrower one here would make
+// the same gradle.properties select different stores in the two resolvers.
 fun legacyFlag(name: String): Boolean =
     providers.gradleProperty(name).orNull?.trim()?.lowercase(Locale.ROOT) in
-        setOf("true", "y", "yes", "on", "1")
+        setOf("true", "y", "1")
 val horizonEnabled = legacyFlag("horizonEnabled")
 val fireOsEnabled = legacyFlag("fireOsEnabled")
 if (horizonEnabled && fireOsEnabled) {
