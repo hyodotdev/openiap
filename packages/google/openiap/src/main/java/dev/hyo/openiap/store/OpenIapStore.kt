@@ -49,7 +49,6 @@ import android.content.Context
 import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
-// OpenIapModule is loaded via reflection to support both Play and Horizon flavors
 import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps

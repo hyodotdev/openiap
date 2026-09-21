@@ -5,11 +5,11 @@ import platform.Foundation.NSProcessInfo
 
 // Info.plist first so a build can pin a value; the environment stays for local runs.
 private fun readSetting(key: String): String {
-    val bundleValue = NSBundle.mainBundle.objectForInfoDictionaryKey(key) as? String
+    val bundleValue = (NSBundle.mainBundle.objectForInfoDictionaryKey(key) as? String)?.trim()
     if (!bundleValue.isNullOrEmpty()) {
         return bundleValue
     }
-    val envValue = NSProcessInfo.processInfo.environment[key] as? String
+    val envValue = (NSProcessInfo.processInfo.environment[key] as? String)?.trim()
     if (!envValue.isNullOrEmpty()) {
         return envValue
     }
