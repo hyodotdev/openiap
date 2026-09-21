@@ -35,9 +35,9 @@ function StoreSetup() {
           Keep every store credential in the project — the Horizon app id and
           the Amazon <code>AppstoreAuthenticationKey.pem</code> are inert on the
           other stores — and let the build pick the store. The Gradle wrappers
-          (React Native, Expo, Flutter, and packages/google) apply the whole
-          rule, first match wins; MAUI, Godot, and KMP share the vocabulary but
-          take an explicit selection only:
+          (React Native, Expo, and Flutter) apply the whole rule, first match
+          wins; MAUI, Godot, and KMP share the vocabulary but take an explicit
+          selection only:
         </p>
         <ol>
           <li>
