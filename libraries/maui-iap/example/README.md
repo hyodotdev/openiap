@@ -31,6 +31,10 @@ sudo dotnet workload install maui
 # refresh the iOS workload to the version that matches your Xcode:
 sudo dotnet workload update
 
+# The stable iOS workload trails new Xcode releases, so an update alone may
+# still pin an older Xcode. Build past the guard when only the check is stale:
+dotnet build -f net10.0-ios -p:ValidateXcodeVersion=false
+
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # iOS Simulator
