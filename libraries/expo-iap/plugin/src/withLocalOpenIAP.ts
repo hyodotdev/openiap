@@ -218,7 +218,6 @@ const withLocalOpenIAP: ConfigPlugin<
   {
     localPath?: LocalPathOption;
     iosAlternativeBilling?: IOSAlternativeBillingConfig;
-    horizonAppId?: string;
     /** Explicit pin from modules.horizon or modules.amazon.fireOS; null lets Gradle resolve the store */
     pinnedStore?: AndroidStorePin;
     /** Resolved from modules.onside by withIAP */
@@ -589,7 +588,7 @@ const withLocalOpenIAP: ConfigPlugin<
       const pinnedStore = props?.pinnedStore ?? null;
 
       contents = contents.replace(
-        /^[ \t]*(?:openiapStore|horizonEnabled|fireOsEnabled)[ \t]*=.*\n?/gm,
+        /^[ \t]*(?:openiapStore|openiapPlatform|horizonEnabled|fireOsEnabled)[ \t]*=.*\n?/gm,
         '',
       );
       if (pinnedStore) {

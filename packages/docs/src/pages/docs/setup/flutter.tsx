@@ -228,7 +228,10 @@ function FlutterSetup() {
           Without the property the build resolves the store itself (see{' '}
           <Link to="/docs/setup/store#selection">Store Setup</Link>); the legacy{' '}
           <code>openiapPlatform=none</code> spelling still works with a
-          deprecation warning.
+          deprecation warning. Do not set both spellings to different values, or
+          keep a legacy <code>horizonEnabled</code>/<code>fireOsEnabled</code>{' '}
+          flag alongside a pin — the build fails rather than guess which one you
+          meant.
         </p>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>

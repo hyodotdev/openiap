@@ -32,7 +32,7 @@ ext.openIapNormalizeStore = { Object value, String label ->
   }
   def store = openIapStoreAliases[key]
   if (store == null) {
-    throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, or auto")
+    throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it")
   }
   return store
 }
@@ -71,19 +71,48 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
   return store
 }
 
+// Gradle accepts camelCase abbreviations, so `aHR` runs assembleHorizonRelease.
+// Every capital starts a segment; the first one is the verb.
+ext.openIapAbbreviatedStore = { String taskPath ->
+  def flavors = ['play', 'horizon', 'amazon']
+  def buildTypes = ['debug', 'release']
+  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
+  def segments = name.split(/(?=[A-Z])/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+  if (segments.size() < 2) {
+    return [] as LinkedHashSet
+  }
+  def matches = [] as LinkedHashSet
+  segments.drop(1).each { segment ->
+    if (buildTypes.any { it.startsWith(segment) }) {
+      return
+    }
+    flavors.findAll { it.startsWith(segment) }.each { matches << it }
+  }
+  return matches
+}
+
 ext.openIapTaskStore = { String label ->
   def stores = [] as LinkedHashSet
+  def abbreviated = [] as LinkedHashSet
   gradle.startParameter.taskNames.each { String taskPath ->
     openIapTaskTokens(taskPath).each { token ->
       if (token in ['play', 'horizon', 'amazon']) {
         stores << token
       }
     }
+    openIapAbbreviatedStore(taskPath).each { abbreviated << it }
   }
   if (stores.size() > 1) {
     throw new GradleException("${label}: the requested tasks name more than one store (${stores.join(', ')}); build one store per invocation or set openiapStore")
   }
-  return stores ? stores.first() : null
+  if (stores) {
+    return stores.first()
+  }
+  // Guessing here would link the wrong billing SDK without a word of warning.
+  if (abbreviated.size() > 1) {
+    throw new GradleException("${label}: cannot tell which store the abbreviated tasks '${gradle.startParameter.taskNames.join(' ')}' select (${abbreviated.join(', ')}); spell the task out or set openiapStore")
+  }
+  return abbreviated ? abbreviated.first() : null
 }
 
 // `clean assembleDebug` is still a debug build, but anything naming a release
@@ -177,8 +206,16 @@ ext.openIapDeviceStore = {
   } else {
     return null
   }
-  def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features']) ?: ''
-  def manufacturer = (openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer']) ?: '').trim()
+  // A device that drops between the listing and these probes must not be
+  // reported as a device signal that happened to mean play.
+  def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features'])
+  def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
+  if (features == null && manufacturerText == null) {
+    logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
+    return null
+  }
+  features = features ?: ''
+  def manufacturer = (manufacturerText ?: '').trim()
   def store = 'play'
   if (features.contains('feature:horizonos.software.horizon_os') || features.contains('feature:oculus.hardware.standalone_vr')) {
     store = 'horizon'

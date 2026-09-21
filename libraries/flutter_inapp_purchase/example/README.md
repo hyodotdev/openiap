@@ -79,7 +79,9 @@ stores. First match wins:
 
 1. `-PopeniapStore=horizon|amazon|play` (or the same key in
    `android/gradle.properties`) pins it.
-2. A flavor names it: `flutter build apk --flavor horizon`.
+2. A flavor names it, in an app that declares those flavors:
+   `flutter build apk --flavor horizon`. This example declares none, so pin
+   the store or let the device pick it.
 3. On debug builds, the connected Quest or Fire device names it — the one
    `ANDROID_SERIAL` selects, or the only one attached.
 4. Google Play otherwise.
@@ -138,7 +140,8 @@ SDKs.
 
 ### Android Studio
 
-Just click **Run** - the build system automatically selects the right platform based on `horizonEnabled` or `fireOsEnabled` in `gradle.properties`.
+Just click **Run** — on a debug build the connected Quest or Fire device
+selects the store, and `openiapStore` in `gradle.properties` overrides it.
 
 ### VS Code
 
@@ -146,6 +149,10 @@ Press F5 or click **Start Debugging** - works out of the box!
 
 ## Testing
 
-- **Google Play**: Test on any Android device with Google Play Store (default)
-- **Meta Horizon**: Set `horizonEnabled=true` and test on Meta Quest devices
-- **Fire OS**: Set `fireOsEnabled=true` and test with Amazon App Tester
+- **Google Play**: test on any Android device with the Play Store (default)
+- **Meta Horizon**: plug in a Quest, or set `openiapStore=horizon`
+- **Fire OS**: plug in a Fire device, or set `openiapStore=amazon`, and test
+  with Amazon App Tester
+
+`horizonEnabled` and `fireOsEnabled` are deprecated; the app no longer reads
+them.

@@ -34,8 +34,10 @@ function StoreSetup() {
         <p>
           Keep every store credential in the project — the Horizon app id and
           the Amazon <code>AppstoreAuthenticationKey.pem</code> are inert on the
-          other stores — and let the build pick the store. Every OpenIAP build
-          system applies the same rule; the first match wins:
+          other stores — and let the build pick the store. The Gradle wrappers
+          (React Native, Expo, Flutter, and packages/google) apply the whole
+          rule, first match wins; MAUI, Godot, and KMP share the vocabulary but
+          take an explicit selection only:
         </p>
         <ol>
           <li>
@@ -51,7 +53,12 @@ function StoreSetup() {
           <li>
             <strong>Variant</strong> — the requested task names a store flavor:{' '}
             <code>assembleHorizonRelease</code>, <code>installAmazonDebug</code>
-            , <code>flutter build apk --flavor amazon</code>.
+            , or <code>flutter build apk --flavor amazon</code> in a Flutter app
+            that declares those flavors. Gradle&apos;s camelCase abbreviations
+            work too: <code>aHR</code> is <code>assembleHorizonRelease</code>.
+            One store per invocation — an aggregate task such as{' '}
+            <code>assemble</code> names no flavor and falls through to the
+            default.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}
@@ -73,10 +80,12 @@ function StoreSetup() {
           fallback rather than a competing signal: a pin or a flavor simply
           outranks it. The configuration cache turns the device step off,
           because a cached answer outlives the device that produced it. The
-          aliases <code>google</code>, <code>meta</code>/<code>quest</code>, and{' '}
-          <code>fire</code>/<code>fireos</code> normalize to the three store
-          ids. KMP apps declare a <code>platform</code> flavor dimension and get
-          the matching library variant automatically; MAUI passes{' '}
+          aliases <code>google</code>/<code>gplay</code>/<code>googleplay</code>
+          /<code>google-play</code>/<code>gms</code>, <code>meta</code>/
+          <code>quest</code>, and <code>fire</code>/<code>fireos</code>/
+          <code>fire-os</code> normalize to the three store ids. KMP apps
+          declare a <code>platform</code> flavor dimension and get the matching
+          library variant automatically; MAUI passes{' '}
           <code>-p:OpenIapStore=horizon</code>; Godot sets the{' '}
           <code>openiap/android_store</code> export option.
         </p>

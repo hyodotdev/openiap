@@ -97,6 +97,15 @@ run "two flavors in one invocation fail"   "fail:more than one store" assembleHo
 run "a pin against another flavor fails"   "fail:conflicts with the horizon flavor" assembleHorizonRelease -PopeniapStore=play
 run "a pin that agrees is kept"            horizon/explicit assembleHorizonRelease -PopeniapStore=horizon
 
+echo "abbreviated task names"
+# Gradle accepts these, so missing the flavor here links the wrong billing SDK.
+run "aHR is assembleHorizonRelease"        horizon/variant  aHR
+run "aAR is assembleAmazonRelease"         amazon/variant   aAR
+run "aPD is assemblePlayDebug"             play/variant     aPD
+run "aD names no flavor"                   play/default     aD
+run "iHD is installHorizonDebug"           horizon/variant  iHD
+run "an ambiguous abbreviation fails"      "fail:cannot tell which store" aHAR
+
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
 run "a Quest selects horizon"              horizon/device   assembleDebug

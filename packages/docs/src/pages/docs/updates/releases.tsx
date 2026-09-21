@@ -454,11 +454,15 @@ function Releases() {
           <ul style={{ margin: 0 }}>
             <li>
               One resolver script, <code>openiap-store.gradle</code>, ships in
-              every Gradle wrapper and is applied by the app build file, so the
-              app and the library always link the same store. The alias table is
-              shared everywhere: <code>google</code> is Play, <code>meta</code>{' '}
-              and <code>quest</code> are Horizon, <code>fire</code> and{' '}
-              <code>fireos</code> are Amazon.
+              the React Native, Expo, and Flutter Gradle wrappers and is applied
+              by the app build file, so the app and the library always link the
+              same store. MAUI&apos;s Gradle module carries an equivalent Kotlin
+              resolver rather than the script. The alias table is shared
+              everywhere: <code>google</code>, <code>gplay</code>,{' '}
+              <code>googleplay</code>, <code>google-play</code>, and{' '}
+              <code>gms</code> are Play; <code>meta</code> and{' '}
+              <code>quest</code> are Horizon; <code>fire</code>,{' '}
+              <code>fireos</code>, and <code>fire-os</code> are Amazon.
             </li>
           </ul>
 

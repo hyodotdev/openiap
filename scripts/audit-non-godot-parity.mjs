@@ -7321,7 +7321,7 @@ function checkFrameworkDependencyHygiene() {
       "packages/google/gradle/openiap-store.gradle": (text) => {
         const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/'?([A-Za-z-]+)'?\s*:\s*'([a-z]+)'/g)].map(
+          ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
               (one) => [one[1], one[2]],
             )
           : null;
@@ -7329,15 +7329,30 @@ function checkFrameworkDependencyHygiene() {
       "packages/cli/src/checks.mjs": (text) => {
         const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"?([A-Za-z-]+)"?\s*:\s*"([a-z]+)"/g)].map(
+          ? [...block.matchAll(/"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z]+)"/g)].map(
               (one) => [one[1], one[2]],
             )
           : null;
       },
+      "libraries/maui-iap/android/openiap/build.gradle.kts": (text) => {
+        const block = /fun normalizeOpenIapStore\(value: String\?\): String =\s*when \(value\?\.lowercase\(Locale\.ROOT\)\) \{([\s\S]*?)\n    \}/.exec(
+          text,
+        )?.[1];
+        if (!block) return null;
+        const entries = [];
+        for (const line of block.split("\n")) {
+          const arm = /^\s*(.+?)\s*->\s*"([a-z]+)"\s*$/.exec(line);
+          if (!arm || arm[1].startsWith("else")) continue;
+          for (const key of arm[1].matchAll(/"([A-Za-z0-9._-]+)"/g)) {
+            entries.push([key[1], arm[2]]);
+          }
+        }
+        return entries.length ? entries : null;
+      },
       "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
         const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"([A-Za-z-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
+          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
               one[1],
               one[2],
             ])
@@ -7357,6 +7372,7 @@ function checkFrameworkDependencyHygiene() {
     }
     // Godot has no runtime device, so `none` is the one id it may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
+    const mauiKotlinFile = "libraries/maui-iap/android/openiap/build.gradle.kts";
     const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
     if (reference) {
       for (const [file, table] of Object.entries(parsedAliases)) {
@@ -7364,6 +7380,11 @@ function checkFrameworkDependencyHygiene() {
         for (const [alias, store] of reference) {
           if (file === godotFile && store === "none") continue;
           const mine = table.get(alias);
+          // MAUI has no device to probe, so `auto` can only mean Play there,
+          // exactly as in the csproj conditions below.
+          if (file === mauiKotlinFile && store === "auto" && mine === "play") {
+            continue;
+          }
           if (mine === undefined) {
             fail(`${file}: store alias ${JSON.stringify(alias)} is missing`);
           } else if (mine !== store) {

@@ -177,7 +177,8 @@ dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
 ```
 
 Use `horizon` for Meta Horizon and `play` for Google Play; the aliases
-`meta`/`quest` and `fire`/`fireos`/`fire-os` work too, and a value that names
+`google`/`gplay`/`googleplay`/`google-play`/`gms`, `meta`/`quest`, and
+`fire`/`fireos`/`fire-os` work too, and a value that names
 no store fails the build rather than falling back to Play. The older
 `openIapAndroidStore` / `OpenIapAndroidStore` spellings still work. MAUI keeps
 each store's intermediate and output directories separate, preventing a prior

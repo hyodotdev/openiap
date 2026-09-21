@@ -158,6 +158,8 @@ describe('android configuration', () => {
     const properties = [
       {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
       {type: 'property', key: 'openiapStore', value: 'horizon'},
+      // A leftover opt-out would make Gradle refuse the pin outright.
+      {type: 'property', key: 'openiapPlatform', value: 'none'},
       {type: 'property', key: 'horizonEnabled', value: 'true'},
       {type: 'property', key: 'fireOsEnabled', value: 'false'},
     ];

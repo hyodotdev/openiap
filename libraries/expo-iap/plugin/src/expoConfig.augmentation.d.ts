@@ -12,7 +12,9 @@ export type ExpoIapModuleOverrides = {
   /**
    * Pin every Android build of this prebuild to the Horizon (Meta Quest) store.
    * Leave it unset to let Gradle pick the store from the task flavor or the
-   * connected debug device; `android.horizon.appId` is required either way.
+   * connected debug device. `android.horizon.appId` is inert on the other
+   * stores, so keep it set; the build succeeds without it and the store
+   * rejects the app at runtime.
    * @platform android
    * @default false
    */
@@ -28,7 +30,9 @@ export type AmazonPlatformOptions = {
   /**
    * Pin every Android build of this prebuild to the Amazon Appstore.
    * Leave it unset to let Gradle pick the store from the task flavor or the
-   * connected debug device; `android.amazon.appstoreKey` is required either way.
+   * connected debug device. `android.amazon.appstoreKey` is inert on the other
+   * stores, so keep it set; the build succeeds without it and the store
+   * rejects the app at runtime.
    * @platform android
    * @default false
    */

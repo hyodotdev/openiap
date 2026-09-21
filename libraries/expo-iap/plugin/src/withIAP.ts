@@ -217,11 +217,17 @@ export const modifyAppBuildGradle = (
 
 export type AndroidStorePin = 'horizon' | 'amazon' | null;
 
-const STORE_PROPERTY_KEYS = ['openiapStore', 'horizonEnabled', 'fireOsEnabled'];
+const STORE_PROPERTY_KEYS = [
+  'openiapStore',
+  'openiapPlatform',
+  'horizonEnabled',
+  'fireOsEnabled',
+];
 
 type GradleProperty = {type: string; key?: string; value?: string};
 
-// The only writer of the pin: `withGradleProperties` below calls this, and the
+// Writes the pin for a published build; `withLocalOpenIAP` writes it again for
+// a local one. `withGradleProperties` below calls this, and the
 // tests exercise it. A pin outranks the task flavor and the connected device,
 // so a stale key from an earlier prebuild would keep selecting a store nobody
 // asked for.
@@ -879,7 +885,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
         result = withLocalOpenIAP(result, {
           localPath: resolved,
           iosAlternativeBilling,
-          horizonAppId,
           pinnedStore,
           enableOnside: includeOnside,
         });
