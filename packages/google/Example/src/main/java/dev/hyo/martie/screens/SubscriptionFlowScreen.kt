@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.IapConstants
-import dev.hyo.martie.BuildConfig
+import dev.hyo.martie.util.IapkitConfig
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
@@ -38,6 +38,7 @@ import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -60,7 +61,7 @@ import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-private const val IAPKIT_BASE_URL = "https://kit.openiap.dev"
+private const val IAPKIT_HOSTED_BASE_URL = "https://kit.openiap.dev"
 private const val IAPKIT_EXAMPLE_USER_ID = "martie-e2e-user"
 
 private data class IapkitSubscriptionBindResult(
@@ -133,7 +134,9 @@ fun SubscriptionFlowScreen(
     var isInitializing by remember { mutableStateOf(true) }
 
     // Verification states
-    var verificationMethod by remember { mutableStateOf(VerificationMethod.None) }
+    var verificationMethod by remember {
+        mutableStateOf(defaultVerificationMethod(IapkitConfig.apiKey, IapkitConfig.localBaseUrl))
+    }
     var isVerifying by remember { mutableStateOf(false) }
     var verificationResultMessage by remember { mutableStateOf<String?>(null) }
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
@@ -144,10 +147,8 @@ fun SubscriptionFlowScreen(
     // openiap-google. See https://openiap.dev/docs/features/subscription-billing-issue
     var billingIssuePurchase by remember { mutableStateOf<dev.hyo.openiap.PurchaseAndroid?>(null) }
 
-    // IAPKit API Key from BuildConfig
-    val iapkitApiKey: String? = remember {
-        runCatching { BuildConfig.IAPKIT_API_KEY.takeIf { it.isNotBlank() } }.getOrNull()
-    }
+    val iapkitApiKey: String? = IapkitConfig.apiKey
+    val iapkitLocalBaseUrl: String? = IapkitConfig.localBaseUrl
 
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
@@ -540,7 +541,7 @@ fun SubscriptionFlowScreen(
                             }
                         }
 
-                        if (verificationMethod == VerificationMethod.IAPKit) {
+                        if (verificationMethod.isIapkit) {
                             if (iapkitApiKey != null) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1334,17 +1335,31 @@ fun SubscriptionFlowScreen(
     }
 
     // Verification helper functions
-    suspend fun verifyWithIapkit(purchase: PurchaseAndroid, apiKey: String): Boolean {
-        val token = purchase.purchaseToken
+    suspend fun verifyWithIapkit(
+        purchase: PurchaseAndroid,
+        apiKey: String,
+        baseUrl: String?
+    ): Boolean {
+        // Horizon identifies the entitlement by SKU; the other stores need the token.
+        fun requireToken(): String = purchase.purchaseToken
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("SubscriptionFlow: IAPKit verification params:")
-        println("  - purchaseToken: present")
+        println("  - store: ${purchase.store.rawValue}")
+        println("  - endpoint: ${baseUrl ?: IAPKIT_HOSTED_BASE_URL}")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
+            amazon = if (purchase.store == IapStore.Amazon) {
+                RequestVerifyPurchaseWithIapkitAmazonProps(
+                    receiptId = requireToken(),
+                    sandbox = IapkitConfig.amazonRvsSandbox,
+                    userId = purchase.userIdAmazon
+                )
+            } else null,
             apiKey = apiKey,
+            baseUrl = baseUrl,
             google = if (purchase.store == IapStore.Google) {
-                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token)
+                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = requireToken())
             } else null,
             horizon = if (purchase.store == IapStore.Horizon) {
                 RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId)
@@ -1402,7 +1417,8 @@ fun SubscriptionFlowScreen(
                         isVerifying = false
                     }
                 }
-                VerificationMethod.IAPKit -> {
+                VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
+                    val label = verificationMethod.displayName
                     val apiKey = iapkitApiKey
                     if (apiKey == null) {
                         verificationResultMessage = "❌ IAPKit API Key not configured"
@@ -1415,17 +1431,30 @@ fun SubscriptionFlowScreen(
                         processedPurchaseKey = purchaseKey
                         return@LaunchedEffect
                     }
+                    val baseUrl = if (verificationMethod == VerificationMethod.IAPKitLocal) {
+                        iapkitLocalBaseUrl ?: run {
+                            verificationResultMessage =
+                                "❌ IAPKIT_BASE_URL not configured for Local (IAPKit)"
+                            iapStore.postStatusMessage(
+                                message = "Set iapkit.base.url in local.properties to verify locally",
+                                status = PurchaseResultStatus.Error,
+                                productId = purchase.productId
+                            )
+                            processedPurchaseKey = purchaseKey
+                            return@LaunchedEffect
+                        }
+                    } else null
                     isVerifying = true
-                    verificationResultMessage = "☁️ Verifying with IAPKit..."
-                    println("SubscriptionFlow: Starting IAPKit verification for ${purchase.productId}")
+                    verificationResultMessage = "☁️ Verifying with $label..."
+                    println("SubscriptionFlow: Starting $label verification for ${purchase.productId}")
                     try {
-                        val result = verifyWithIapkit(purchase, apiKey)
-                        println("SubscriptionFlow: IAPKit verification result: $result")
+                        val result = verifyWithIapkit(purchase, apiKey, baseUrl)
+                        println("SubscriptionFlow: $label verification result: $result")
                         verificationResultMessage = if (result) {
                             val bindResult = runCatching {
                                 val token = purchase.purchaseToken
                                     ?: throw IllegalStateException("Purchase token is required for IAPKit bindUser")
-                                bindIapkitSubscriptionUser(apiKey, token)
+                                bindIapkitSubscriptionUser(apiKey, token, baseUrl)
                             }.getOrElse { error ->
                                 println("SubscriptionFlow: IAPKit bindUser error: ${error.message}")
                                 null
@@ -1579,19 +1608,21 @@ fun SubscriptionFlowScreen(
 
 private suspend fun bindIapkitSubscriptionUser(
     apiKey: String,
-    purchaseToken: String
+    purchaseToken: String,
+    baseUrl: String?
 ): IapkitSubscriptionBindResult = withContext(Dispatchers.IO) {
+    val origin = (baseUrl ?: IAPKIT_HOSTED_BASE_URL).trimEnd('/')
     val bindPayload = JSONObject()
         .put("purchaseToken", purchaseToken)
         .put("userId", IAPKIT_EXAMPLE_USER_ID)
         .toString()
     val bindResponse = requestIapkitJson(
-        url = "$IAPKIT_BASE_URL/v1/subscriptions/bind-user/${apiKey.urlEncode()}",
+        url = "$origin/v1/subscriptions/bind-user/${apiKey.urlEncode()}",
         method = "POST",
         body = bindPayload
     )
     val statusResponse = requestIapkitJson(
-        url = "$IAPKIT_BASE_URL/v1/subscriptions/status/${apiKey.urlEncode()}" +
+        url = "$origin/v1/subscriptions/status/${apiKey.urlEncode()}" +
             "?userId=${IAPKIT_EXAMPLE_USER_ID.urlEncode()}",
         method = "GET"
     )

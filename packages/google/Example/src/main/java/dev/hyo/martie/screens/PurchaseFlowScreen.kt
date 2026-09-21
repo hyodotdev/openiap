@@ -37,6 +37,7 @@ import dev.hyo.openiap.RequestPurchasePropsByPlatforms
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.utils.toPurchaseInput
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
@@ -44,12 +45,22 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.IapStore
 import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
-import dev.hyo.martie.BuildConfig
+import dev.hyo.martie.util.IapkitConfig
 
 enum class VerificationMethod(val displayName: String) {
     None("❌ None (Skip)"),
     Local("📱 Local (Device)"),
-    IAPKit("☁️ IAPKit (Server)")
+    IAPKitLocal("🖥️ Local (IAPKit)"),
+    IAPKit("☁️ IAPKit (Server)");
+
+    val isIapkit: Boolean get() = this == IAPKitLocal || this == IAPKit
+}
+
+/** Mirrors the framework examples: no key skips, a local origin prefers it. */
+fun defaultVerificationMethod(apiKey: String?, localBaseUrl: String?): VerificationMethod = when {
+    apiKey.isNullOrBlank() -> VerificationMethod.None
+    !localBaseUrl.isNullOrBlank() -> VerificationMethod.IAPKitLocal
+    else -> VerificationMethod.IAPKit
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,17 +90,16 @@ fun PurchaseFlowScreen(
     var isInitializing by remember { mutableStateOf(true) }
 
     // Verification states
-    var verificationMethod by remember { mutableStateOf(VerificationMethod.None) }
+    val iapkitApiKey: String? = IapkitConfig.apiKey
+    val iapkitLocalBaseUrl: String? = IapkitConfig.localBaseUrl
+    var verificationMethod by remember {
+        mutableStateOf(defaultVerificationMethod(iapkitApiKey, iapkitLocalBaseUrl))
+    }
     var isVerifying by remember { mutableStateOf(false) }
     var verificationResultMessage by remember { mutableStateOf<String?>(null) }
     var verificationDropdownExpanded by remember { mutableStateOf(false) }
     // Track which purchase IDs have been processed (to allow re-purchase after failure)
     var processedPurchaseKey by remember { mutableStateOf<String?>(null) }
-
-    // IAPKit API Key from BuildConfig
-    val iapkitApiKey: String? = remember {
-        runCatching { BuildConfig.IAPKIT_API_KEY.takeIf { it.isNotBlank() } }.getOrNull()
-    }
 
     fun purchasePropsFor(product: ProductAndroid): RequestPurchaseProps =
         if (product.type == ProductType.Subs) {
@@ -317,7 +327,7 @@ fun PurchaseFlowScreen(
                             }
                         }
 
-                        if (verificationMethod == VerificationMethod.IAPKit) {
+                        if (verificationMethod.isIapkit) {
                             if (iapkitApiKey != null) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -524,18 +534,29 @@ fun PurchaseFlowScreen(
     // Verification helper functions
     suspend fun verifyWithIapkit(
         purchase: PurchaseAndroid,
-        apiKey: String
+        apiKey: String,
+        baseUrl: String?
     ): RequestVerifyPurchaseWithIapkitResult {
-        val token = purchase.purchaseToken
+        // Horizon identifies the entitlement by SKU; the other stores need the token.
+        fun requireToken(): String = purchase.purchaseToken
             ?: throw IllegalStateException("Purchase token is required for IAPKit verification")
 
         println("PurchaseFlow: IAPKit verification params:")
-        println("  - purchaseToken: present")
+        println("  - store: ${purchase.store.rawValue}")
+        println("  - endpoint: ${baseUrl ?: "kit.openiap.dev"}")
 
         val props = RequestVerifyPurchaseWithIapkitProps(
+            amazon = if (purchase.store == IapStore.Amazon) {
+                RequestVerifyPurchaseWithIapkitAmazonProps(
+                    receiptId = requireToken(),
+                    sandbox = IapkitConfig.amazonRvsSandbox,
+                    userId = purchase.userIdAmazon
+                )
+            } else null,
             apiKey = apiKey,
+            baseUrl = baseUrl,
             google = if (purchase.store == IapStore.Google) {
-                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token)
+                RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = requireToken())
             } else null,
             horizon = if (purchase.store == IapStore.Horizon) {
                 RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId)
@@ -597,7 +618,8 @@ fun PurchaseFlowScreen(
                         isVerifying = false
                     }
                 }
-                VerificationMethod.IAPKit -> {
+                VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
+                    val label = verificationMethod.displayName
                     val apiKey = iapkitApiKey
                     if (apiKey == null) {
                         verificationResultMessage = "❌ IAPKit API Key not configured"
@@ -610,11 +632,24 @@ fun PurchaseFlowScreen(
                         processedPurchaseKey = purchaseKey
                         return@LaunchedEffect
                     }
+                    val baseUrl = if (verificationMethod == VerificationMethod.IAPKitLocal) {
+                        iapkitLocalBaseUrl ?: run {
+                            verificationResultMessage =
+                                "❌ IAPKIT_BASE_URL not configured for Local (IAPKit)"
+                            iapStore.postStatusMessage(
+                                message = "Set iapkit.base.url in local.properties to verify locally",
+                                status = PurchaseResultStatus.Error,
+                                productId = purchase.productId
+                            )
+                            processedPurchaseKey = purchaseKey
+                            return@LaunchedEffect
+                        }
+                    } else null
                     isVerifying = true
-                    verificationResultMessage = "☁️ Verifying with IAPKit..."
-                    println("PurchaseFlow: Starting IAPKit verification for ${purchase.productId}")
+                    verificationResultMessage = "☁️ Verifying with $label..."
+                    println("PurchaseFlow: Starting $label verification for ${purchase.productId}")
                     try {
-                        val result = verifyWithIapkit(purchase, apiKey)
+                        val result = verifyWithIapkit(purchase, apiKey, baseUrl)
                         val storeProductId = result.productId ?: "not returned"
                         val hasAllowedState =
                             result.state == IapkitPurchaseState.Entitled ||
@@ -635,7 +670,7 @@ fun PurchaseFlowScreen(
                                 "Preview: $preview"
                         } ?: "Client payload: not returned"
 
-                        println("PurchaseFlow: IAPKit verification result:")
+                        println("PurchaseFlow: $label verification result:")
                         println("  - isValid: ${result.isValid}")
                         println("  - storeProductId: $storeProductId")
                         println(
@@ -645,7 +680,7 @@ fun PurchaseFlowScreen(
                                 } ?: "not returned")
                         )
                         verificationResultMessage = """
-                            ${if (isVerifiedPurchase) "✅ IAPKit verification passed" else "❌ IAPKit verification failed"}
+                            ${if (isVerifiedPurchase) "✅ $label verification passed" else "❌ $label verification failed"}
                             Store product: $storeProductId
                             $payloadSummary
                         """.trimIndent()
@@ -659,8 +694,8 @@ fun PurchaseFlowScreen(
                         }
                         isVerifiedPurchase
                     } catch (e: Exception) {
-                        println("PurchaseFlow: IAPKit verification error: ${e.message}")
-                        verificationResultMessage = "❌ IAPKit verification error: ${e.message}"
+                        println("PurchaseFlow: $label verification error: ${e.message}")
+                        verificationResultMessage = "❌ $label verification error: ${e.message}"
                         iapStore.postStatusMessage(
                             message = "Verification error: ${e.message}. Transaction left unfinished for retry.",
                             status = PurchaseResultStatus.Error,
