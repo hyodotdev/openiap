@@ -744,7 +744,8 @@ public partial class SubscriptionFlowPage : ContentPage
             else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
             {
                 var token = common.PurchaseToken ?? string.Empty;
-                if (string.IsNullOrEmpty(token))
+                // Horizon identifies the entitlement by SKU and carries no token.
+                if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
                 {
                     await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
                     return false;

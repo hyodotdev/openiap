@@ -40,7 +40,8 @@ device on USB reaches the host through
 `http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address. Debug
 builds permit cleartext to loopback only. On iOS the same three keys come from
 `iosApp/Configuration/Secrets.xcconfig` (copy `Secrets.xcconfig.example`),
-which Info.plist reads; a scheme environment variable overrides them.
+which Info.plist reads; a scheme environment variable is the fallback when a
+key is absent from the plist.
 
 The purchase and subscription screens list verification in this order:
 

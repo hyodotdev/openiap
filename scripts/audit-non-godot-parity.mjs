@@ -2988,7 +2988,7 @@ function checkMaui() {
       "IapStore.Amazon",
       "RequestVerifyPurchaseWithIapkitAmazonProps",
       "UserId = (purchase as PurchaseAndroid)?.UserIdAmazon",
-      "ReceiptId = token",
+      "ReceiptId = storeToken",
     ],
     "MAUI IAPKit verification must select one store payload and preserve the configured endpoint",
   );

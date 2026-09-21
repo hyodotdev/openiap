@@ -20,3 +20,10 @@ expect object AppConfig {
     /** App Tester receipts only verify against Amazon's RVS Cloud Sandbox. */
     val amazonRvsSandbox: Boolean
 }
+
+/** A secret admin key must never reach a build or a Bearer header. */
+fun rejectSecretKey(apiKey: String): String {
+    if (!apiKey.startsWith("openiap-kit_sk_")) return apiKey
+    println("[AppConfig] api key is a secret sk_ key; use an openiap-kit_pk_ key")
+    return ""
+}

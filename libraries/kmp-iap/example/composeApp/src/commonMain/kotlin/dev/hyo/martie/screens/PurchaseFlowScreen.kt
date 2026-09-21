@@ -170,11 +170,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                                             ) {
                                                 iapkitVerificationOk = false
                                                 verificationResult = "❌ IAPKIT_BASE_URL not configured.\n" +
-                                                    "Set IAPKIT_BASE_URL in .env for Local (IAPKit)."
-                                            } else if (apiKey.isEmpty()) {
+                                                    "Set IAPKIT_BASE_URL in .env (Android) or Secrets.xcconfig (iOS)."
+                                            } else if (apiKey.isBlank()) {
                                                 iapkitVerificationOk = false
                                                 verificationResult = "❌ IAPKit API key not configured.\n" +
-                                                    "Set IAPKIT_API_KEY in .env file."
+                                                    "Set IAPKIT_API_KEY in .env (Android) or Secrets.xcconfig (iOS)."
                                             } else {
                                                 val jwsOrToken = purchase.purchaseToken ?: ""
                                                 if (jwsOrToken.isEmpty() && purchase.store != IapStore.Horizon) {

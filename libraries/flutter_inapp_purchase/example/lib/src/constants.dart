@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Product IDs for testing in the example app
@@ -24,9 +25,19 @@ class IapConstants {
     }
   }
 
-  static String get iapkitApiKey => _hasIapkitApiKeyDefine
-      ? _iapkitApiKeyFromEnvironment
-      : _fromDotenv('IAPKIT_API_KEY');
+  static String get iapkitApiKey => _rejectSecretKey(
+        (_hasIapkitApiKeyDefine
+                ? _iapkitApiKeyFromEnvironment
+                : _fromDotenv('IAPKIT_API_KEY'))
+            .trim(),
+      );
+
+  /// A secret admin key must never reach a build or a Bearer header.
+  static String _rejectSecretKey(String apiKey) {
+    if (!apiKey.startsWith('openiap-kit_sk_')) return apiKey;
+    debugPrint('[IapConstants] api key is a secret sk_ key; use an openiap-kit_pk_ key');
+    return '';
+  }
   /// Origin of a local IAPKit server; empty selects the hosted default.
   static String get iapkitBaseUrl => _hasIapkitBaseUrlDefine
       ? _iapkitBaseUrlFromEnvironment

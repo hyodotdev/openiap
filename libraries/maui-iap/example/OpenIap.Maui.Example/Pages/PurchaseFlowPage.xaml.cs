@@ -432,7 +432,8 @@ public partial class PurchaseFlowPage : ContentPage
                     var localBaseUrl = _verification == VerificationMethod.IapkitLocal
                         ? IapKitSettings.LocalBaseUrl
                         : null;
-                    if (string.IsNullOrEmpty(token))
+                    // Horizon identifies the entitlement by SKU and carries no token.
+                    if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
                     {
                         await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
                         verificationPassed = false;

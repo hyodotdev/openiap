@@ -8,8 +8,6 @@ internal static class IapKitSettings
 {
     // Mobile verification must use an openiap-kit_pk_ publishable key. Never
     // place an openiap-kit_sk_ secret admin key in this app configuration.
-    private const string ApiKeyPreferenceKey = "openiap.example.iapkit.apiKey";
-    private const string BaseUrlPreferenceKey = "openiap.example.iapkit.baseUrl";
 
     // Baked in from iapkit.props at build time; a device has no environment.
     private static readonly IReadOnlyDictionary<string, string> BuildMetadata =
@@ -23,19 +21,28 @@ internal static class IapKitSettings
         BuildMetadata.TryGetValue(key, out var value) ? value : null;
 
     public static string? ApiKey =>
-        FirstNonBlank(
-            Environment.GetEnvironmentVariable("EXPO_PUBLIC_IAPKIT_API_KEY"),
-            Environment.GetEnvironmentVariable("IAPKIT_API_KEY"),
-            FromBuild("IapkitApiKey"),
-            Preferences.Default.Get(ApiKeyPreferenceKey, string.Empty));
+        RejectSecretKey(
+            FirstNonBlank(
+                Environment.GetEnvironmentVariable("IAPKIT_API_KEY"),
+                FromBuild("IapkitApiKey")));
+
+    /// <summary>A secret admin key must never reach a build or a Bearer header.</summary>
+    private static string? RejectSecretKey(string? apiKey)
+    {
+        if (apiKey is null || !apiKey.StartsWith("openiap-kit_sk_", StringComparison.Ordinal))
+        {
+            return apiKey;
+        }
+
+        Console.WriteLine("[IapKitSettings] api key is a secret sk_ key; use an openiap-kit_pk_ key");
+        return null;
+    }
 
     /// <summary>Configured local origin, or null when none is set.</summary>
     public static string? LocalBaseUrl =>
         FirstNonBlank(
-            Environment.GetEnvironmentVariable("EXPO_PUBLIC_IAPKIT_BASE_URL"),
             Environment.GetEnvironmentVariable("IAPKIT_BASE_URL"),
-            FromBuild("IapkitBaseUrl"),
-            Preferences.Default.Get(BaseUrlPreferenceKey, string.Empty));
+            FromBuild("IapkitBaseUrl"));
 
     /// <summary>App Tester receipts only verify against Amazon's RVS Cloud Sandbox.</summary>
     public static bool AmazonRvsSandbox =>
@@ -53,10 +60,14 @@ internal static class IapKitSettings
     {
         var common = (PurchaseCommon)purchase;
         var token = common.PurchaseToken?.Trim();
-        if (string.IsNullOrEmpty(token))
+        // Horizon identifies the entitlement by SKU and carries no token.
+        if (string.IsNullOrEmpty(token) && common.Store != IapStore.Horizon)
         {
             throw new InvalidOperationException("No purchase token available for IAPKit verification");
         }
+
+        // Every store but Horizon passed the guard above, so its token is set.
+        var storeToken = token ?? string.Empty;
 
         // Null leaves the SDK on its hosted default, matching the other examples.
         var endpoint = string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim();
@@ -67,13 +78,13 @@ internal static class IapKitSettings
             {
                 ApiKey = ApiKey,
                 BaseUrl = endpoint,
-                Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
+                Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = storeToken },
             },
             IapStore.Google => new RequestVerifyPurchaseWithIapkitProps
             {
                 ApiKey = ApiKey,
                 BaseUrl = endpoint,
-                Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+                Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = storeToken },
             },
             IapStore.Horizon => new RequestVerifyPurchaseWithIapkitProps
             {
@@ -91,7 +102,7 @@ internal static class IapKitSettings
                 Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
                 {
                     ExpectedProductId = common.ProductId,
-                    ReceiptId = token,
+                    ReceiptId = storeToken,
                     UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
                     Sandbox = AmazonRvsSandbox,
                 },

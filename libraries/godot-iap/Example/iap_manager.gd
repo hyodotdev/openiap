@@ -290,11 +290,13 @@ func _verify_purchase(purchase: Dictionary, product_id: String) -> bool:
 			iapkit["apple"] = {"jws": token}
 		"amazon":
 			# IAPKit rejects an Amazon receipt without the buyer's id.
+			var amazon_user_id := str(purchase.get("userIdAmazon", "")).strip_edges()
 			iapkit["amazon"] = {
 				"receiptId": token,
 				"sandbox": IapkitConfig.amazon_rvs_sandbox(),
-				"userId": str(purchase.get("userIdAmazon", "")),
 			}
+			if not amazon_user_id.is_empty():
+				iapkit["amazon"]["userId"] = amazon_user_id
 		"horizon":
 			# Horizon identifies the entitlement by SKU, not a token.
 			iapkit["horizon"] = {"sku": product_id}

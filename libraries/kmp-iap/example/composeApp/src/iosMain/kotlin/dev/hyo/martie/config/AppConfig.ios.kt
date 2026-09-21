@@ -18,7 +18,7 @@ private fun readSetting(key: String): String {
 
 actual object AppConfig {
     actual val iapkitApiKey: String
-        get() = readSetting("IAPKIT_API_KEY")
+        get() = rejectSecretKey(readSetting("IAPKIT_API_KEY"))
 
     actual val iapkitBaseUrl: String
         get() = readSetting("IAPKIT_BASE_URL")
