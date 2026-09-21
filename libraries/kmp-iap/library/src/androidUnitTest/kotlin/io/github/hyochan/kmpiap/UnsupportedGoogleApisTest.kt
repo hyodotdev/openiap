@@ -11,9 +11,9 @@ class UnsupportedGoogleApisTest {
     fun `non-Play stores reject Google in-app messages and unsupported event resolvers without waiting`() = runTest {
         for ((storeName, store) in listOf(
             "amazon" to Store.AMAZON,
-            "horizon" to Store.PLAY_STORE,
+            "horizon" to Store.HORIZON,
         )) {
-            val implementation = AmazonInAppPurchaseAndroid(
+            val implementation = OpenIapDelegateInAppPurchaseAndroid(
                 storeName = storeName,
                 store = store,
                 versionPlatform = "Android $storeName",

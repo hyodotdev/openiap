@@ -2783,7 +2783,7 @@ function checkIapkitAmazonContractWiring() {
     "KMP Android IAPKit Amazon contract",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["androidResult.toKmpIapkitResult()"],
     "KMP Amazon store IAPKit response contract",
   );
@@ -2798,7 +2798,7 @@ function checkIapkitAmazonContractWiring() {
     "KMP Android IAPKit result mapping degrades unknown values",
   );
   expectNotIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
     "KMP Amazon store must not round-trip through the generated decoder",
   );
@@ -3695,14 +3695,14 @@ function checkBillingChoiceFieldBindings() {
     "KMP BillingResult sub-response tests",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     [
       'failUnsupported("Google Play billing in-app messages are unavailable on $storeName.")',
     ],
     "KMP non-Play in-app message behavior",
   );
   expectNotIncludes(
-    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
     ["InAppMessageResponseCodeAndroid.NoActionNeeded"],
     "KMP non-Play in-app messages must not report success",
   );

@@ -50,10 +50,10 @@ class AmazonErrorMappingTest {
     }
 
     @Test
-    fun `Amazon end preserves false and always cleans up`() = runTest {
+    fun `delegated end preserves false and always cleans up`() = runTest {
         var cleanedUp = false
 
-        val ended = endAmazonConnectionWithCleanup(
+        val ended = endDelegatedConnectionWithCleanup(
             endConnection = { false },
             cleanup = { cleanedUp = true },
         )
@@ -63,11 +63,11 @@ class AmazonErrorMappingTest {
     }
 
     @Test
-    fun `Amazon end exception still cleans up`() = runTest {
+    fun `delegated end exception still cleans up`() = runTest {
         var cleanedUp = false
 
         assertFailsWith<IllegalStateException> {
-            endAmazonConnectionWithCleanup(
+            endDelegatedConnectionWithCleanup(
                 endConnection = { error("native end failed") },
                 cleanup = { cleanedUp = true },
             )
@@ -77,11 +77,11 @@ class AmazonErrorMappingTest {
     }
 
     @Test
-    fun `Amazon end cancellation remains cancellation and still cleans up`() = runTest {
+    fun `delegated end cancellation remains cancellation and still cleans up`() = runTest {
         var cleanedUp = false
 
         assertFailsWith<CancellationException> {
-            endAmazonConnectionWithCleanup(
+            endDelegatedConnectionWithCleanup(
                 endConnection = { throw CancellationException("cancelled") },
                 cleanup = { cleanedUp = true },
             )

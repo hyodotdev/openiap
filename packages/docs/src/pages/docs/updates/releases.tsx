@@ -88,6 +88,18 @@ const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
+const PROTOCOL_SPLIT_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '3.5.0', tag: '3.5.0' },
+  { name: 'openiap-google', version: '3.5.3', tag: 'google-3.5.3' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.6.2',
+    tag: 'flutter-iap-10.6.2',
+  },
+  { name: 'kmp-iap', version: '3.5.2', tag: 'kmp-iap-3.5.2' },
+  { name: 'maui-iap', version: '2.5.1', tag: 'maui-iap-2.5.1' },
+];
+
 const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.5.2', tag: 'google-3.5.2' },
   {
@@ -848,12 +860,16 @@ function Releases() {
     },
     {
       id: 'spec-splits-into-two-protocols-2026-09-15',
+      aliases: PROTOCOL_SPLIT_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
       element: (
         <div
           key="spec-splits-into-two-protocols-2026-09-15"
           style={noteCardStyle}
         >
+          {PROTOCOL_SPLIT_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
           <AnchorLink id="spec-splits-into-two-protocols-2026-09-15" level="h4">
             September 15, 2026 - &quot;Spec&quot; splits into the Client
             Protocol and the Commerce Protocol
@@ -920,11 +936,16 @@ function Releases() {
               optional telemetry that IAPKit only wrote to a log line, and
               nothing ever branched on it, so verification is unaffected. With
               it go the symbols that fed it:{' '}
-              <code>OpenIapVersion.specVersion</code> is now{' '}
-              <code>OpenIapVersion.clientProtocolVersion</code> in{' '}
-              <code>openiap-apple</code>, and{' '}
-              <code>BuildConfig.OPENIAP_SPEC_VERSION</code> is gone from{' '}
-              <code>openiap-google</code>. Both ship in the next native release.
+              <strong>openiap-apple 3.5.0</strong> renames{' '}
+              <code>OpenIapVersion.specVersion</code> to{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code> and keeps{' '}
+              <code>specVersion</code> as a deprecated alias until client
+              protocol 1.0.0, and <strong>openiap-google 3.5.3</strong> drops{' '}
+              <code>BuildConfig.OPENIAP_SPEC_VERSION</code>.{' '}
+              <strong>flutter_inapp_purchase 10.6.2</strong>,{' '}
+              <strong>kmp-iap 3.5.2</strong>, and{' '}
+              <strong>maui-iap 2.5.1</strong> carry the regenerated deprecation
+              messages that name the client protocol 1.0.0 removal train.
             </p>
           </Callout>
 
@@ -934,6 +955,21 @@ function Releases() {
             and the server-side contract has its own{' '}
             <Link to="/commerce-protocol">Commerce Protocol</Link> section.
           </p>
+
+          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
+          <ul style={{ margin: 0 }}>
+            {PROTOCOL_SPLIT_RELEASES.map((release) => (
+              <li key={release.tag}>
+                <a
+                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>{getReleaseLabel(release)}</strong>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       ),
     },
