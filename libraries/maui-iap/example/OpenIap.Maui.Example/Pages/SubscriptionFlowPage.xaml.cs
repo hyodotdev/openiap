@@ -10,7 +10,7 @@ namespace OpenIap.Maui.Example.Pages;
 // active subscription state, and exposes verification / management actions.
 public partial class SubscriptionFlowPage : ContentPage
 {
-    private enum VerificationMethod { Ignore, Local, Iapkit }
+    private enum VerificationMethod { Ignore, Local, IapkitLocal, Iapkit }
 
     private sealed record UpgradeInfo(
         bool CanUpgrade,
@@ -27,7 +27,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
     private readonly List<ProductSubscription> _subscriptions = new();
     private readonly List<ActiveSubscription> _active = new();
-    private VerificationMethod _verification = VerificationMethod.Ignore;
+    private VerificationMethod _verification = DefaultVerificationMethod();
     private Purchase? _lastPurchase;
     private string? _purchaseResult;
     private bool _isProcessing;
@@ -40,9 +40,26 @@ public partial class SubscriptionFlowPage : ContentPage
     private IDisposable? _purchaseSub;
     private IDisposable? _errorSub;
 
+    // Mirrors the other examples: no key skips, a local origin prefers it.
+    private static VerificationMethod DefaultVerificationMethod() =>
+        string.IsNullOrWhiteSpace(IapKitSettings.ApiKey)
+            ? VerificationMethod.Ignore
+            : string.IsNullOrWhiteSpace(IapKitSettings.LocalBaseUrl)
+                ? VerificationMethod.Iapkit
+                : VerificationMethod.IapkitLocal;
+
+    private static string VerificationLabel(VerificationMethod method) => method switch
+    {
+        VerificationMethod.Local => "📱 Local (Device)",
+        VerificationMethod.IapkitLocal => "🖥️ Local (IAPKit)",
+        VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
+        _ => "❌ None (Skip)",
+    };
+
     public SubscriptionFlowPage()
     {
         InitializeComponent();
+        VerificationButton.Text = VerificationLabel(_verification);
     }
 
     protected override async void OnAppearing()
@@ -724,7 +741,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 Console.WriteLine("[SubscriptionFlow] local verification completed");
                 return true;
             }
-            else if (_verification == VerificationMethod.Iapkit)
+            else if (_verification is VerificationMethod.IapkitLocal or VerificationMethod.Iapkit)
             {
                 var token = common.PurchaseToken ?? string.Empty;
                 if (string.IsNullOrEmpty(token))
@@ -733,17 +750,26 @@ public partial class SubscriptionFlowPage : ContentPage
                     return false;
                 }
 
+                var localBaseUrl = _verification == VerificationMethod.IapkitLocal
+                    ? IapKitSettings.LocalBaseUrl
+                    : null;
+                if (_verification == VerificationMethod.IapkitLocal && string.IsNullOrWhiteSpace(localBaseUrl))
+                {
+                    await DisplayAlertAsync("Verification Failed", "IAPKit base URL not configured for Local (IAPKit)", "OK");
+                    return false;
+                }
+
                 var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                 {
                     Provider = PurchaseVerificationProvider.Iapkit,
-                    Iapkit = IapKitSettings.CreateVerifyProps(purchase),
+                    Iapkit = IapKitSettings.CreateVerifyProps(purchase, localBaseUrl),
                 });
 
                 if (result.Iapkit is { } ik)
                 {
                     var status = ik.IsValid ? "✅" : "⚠";
                     await DisplayAlertAsync(
-                        $"{status} IAPKit Verification",
+                        $"{status} {VerificationLabel(_verification)} Verification",
                         $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                         "OK");
                     return ik.IsValid;
@@ -835,23 +861,20 @@ public partial class SubscriptionFlowPage : ContentPage
             "Cancel",
             null,
             "Ignore Verification",
-            "Local Verification",
-            "IAPKit Verification");
+            "Local (Device) Verification",
+            "Local (IAPKit) Verification",
+            "IAPKit (Server) Verification");
 
         _verification = choice switch
         {
-            "Local Verification" => VerificationMethod.Local,
-            "IAPKit Verification" => VerificationMethod.Iapkit,
+            "Local (Device) Verification" => VerificationMethod.Local,
+            "Local (IAPKit) Verification" => VerificationMethod.IapkitLocal,
+            "IAPKit (Server) Verification" => VerificationMethod.Iapkit,
             _ when choice != "Cancel" => VerificationMethod.Ignore,
             _ => _verification,
         };
 
-        VerificationButton.Text = _verification switch
-        {
-            VerificationMethod.Local => "📱 Local (Device)",
-            VerificationMethod.Iapkit => "☁️ IAPKit (Server)",
-            _ => "❌ None (Skip)",
-        };
+        VerificationButton.Text = VerificationLabel(_verification);
     }
 
     private async void OnCopyResultClicked(object sender, EventArgs e)

@@ -2980,8 +2980,9 @@ function checkMaui() {
   expectIncludes(
     rel(base, "Utils/IapKitSettings.cs"),
     [
-      "CreateVerifyProps(Purchase purchase)",
-      "BaseUrl = BaseUrl",
+      "CreateVerifyProps(",
+      "string? baseUrl = null",
+      "BaseUrl = endpoint",
       "IapStore.Apple",
       "IapStore.Google",
       "IapStore.Amazon",

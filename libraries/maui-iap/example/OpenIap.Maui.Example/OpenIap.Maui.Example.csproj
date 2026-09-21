@@ -30,6 +30,17 @@
     <MauiIcon Include="Resources\AppIcon\appicon.png" Color="#000000" />
   </ItemGroup>
 
+  <!-- IAPKit settings. Environment variables do not exist on a device, so the
+       values are baked into assembly metadata. Copy iapkit.props.example to
+       iapkit.props (untracked), or pass -p:IapkitApiKey=... on the build. -->
+  <Import Project="iapkit.props" Condition="Exists('$(MSBuildProjectDirectory)/iapkit.props')" />
+
+  <ItemGroup>
+    <AssemblyMetadata Include="IapkitApiKey" Value="$(IapkitApiKey)" Condition="'$(IapkitApiKey)' != ''" />
+    <AssemblyMetadata Include="IapkitBaseUrl" Value="$(IapkitBaseUrl)" Condition="'$(IapkitBaseUrl)' != ''" />
+    <AssemblyMetadata Include="AmazonRvsSandbox" Value="$(AmazonRvsSandbox)" Condition="'$(AmazonRvsSandbox)' != ''" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-android' or '$(TargetFramework)' == 'net10.0-ios' or '$(TargetFramework)' == 'net10.0-maccatalyst'">
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="$(MicrosoftExtensionsLoggingDebugVersion)" />
