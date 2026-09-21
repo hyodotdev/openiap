@@ -66,11 +66,12 @@ function StoreSetup() {
         </ol>
         <p>
           Gradle logs the decision once per build as{' '}
-          <code>openiap: store=horizon (source=device; ...)</code>. Any two
-          signals that name different stores fail the build — a pin against a
-          different task flavor, two flavors in one invocation, or a pin against
-          a legacy flag — so a pinned release train cannot quietly ship the
-          wrong billing SDK. The configuration cache turns the device step off,
+          <code>openiap: store=horizon (source=device; ...)</code>. A pin
+          against a different task flavor, two flavors in one invocation, and a
+          pin against a legacy flag each fail the build, so a pinned release
+          train cannot quietly ship the wrong billing SDK. The device is a
+          fallback rather than a competing signal: a pin or a flavor simply
+          outranks it. The configuration cache turns the device step off,
           because a cached answer outlives the device that produced it. The
           aliases <code>google</code>, <code>meta</code>/<code>quest</code>, and{' '}
           <code>fire</code>/<code>fireos</code> normalize to the three store

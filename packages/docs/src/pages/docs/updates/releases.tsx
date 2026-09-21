@@ -509,12 +509,13 @@ function Releases() {
               <code>ORG_GRADLE_PROJECT_openiapStore</code> in an EAS profile.
             </li>
             <li>
-              Any two signals that name different stores fail the build: a pin
-              against a different task flavor, two flavors in one invocation, or
-              a pin against a legacy flag. Several attached devices select
-              nothing unless <code>ANDROID_SERIAL</code> names one, and the
-              configuration cache turns the device step off because a cached
-              answer outlives the device that produced it.
+              A pin against a different task flavor, two flavors in one
+              invocation, and a pin against a legacy flag each fail the build;
+              the device is a fallback that a pin or a flavor simply outranks.
+              Several attached devices select nothing unless{' '}
+              <code>ANDROID_SERIAL</code> names one, and the configuration cache
+              turns the device step off because a cached answer outlives the
+              device that produced it.
             </li>
             <li>
               Fire OS builds need <code>AppstoreAuthenticationKey.pem</code> in{' '}

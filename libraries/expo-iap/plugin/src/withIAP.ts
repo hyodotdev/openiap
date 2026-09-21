@@ -221,8 +221,10 @@ const STORE_PROPERTY_KEYS = ['openiapStore', 'horizonEnabled', 'fireOsEnabled'];
 
 type GradleProperty = {type: string; key?: string; value?: string};
 
-// A pin outranks the task flavor and the connected device, so a stale key from
-// an earlier prebuild would keep selecting a store nobody asked for.
+// The only writer of the pin: `withGradleProperties` below calls this, and the
+// tests exercise it. A pin outranks the task flavor and the connected device,
+// so a stale key from an earlier prebuild would keep selecting a store nobody
+// asked for.
 export function storeGradleProperties<T extends GradleProperty>(
   properties: T[],
   pinnedStore: AndroidStorePin,
@@ -299,27 +301,13 @@ const withIapAndroid: ConfigPlugin<
     return config;
   });
 
-  // An explicit pin outranks the task flavor and the connected device; without
-  // one, drop stale keys so a previous prebuild cannot keep selecting a store.
   config = withGradleProperties(config, (config) => {
-    config.modResults = config.modResults.filter(
-      (item) =>
-        item.type !== 'property' || !STORE_PROPERTY_KEYS.includes(item.key),
+    config.modResults = storeGradleProperties(config.modResults, pinnedStore);
+    logOnce(
+      pinnedStore
+        ? `✅ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`
+        : 'ℹ️ expo-iap: No store pin; Gradle picks the store from the task flavor or the connected debug device',
     );
-    if (pinnedStore) {
-      config.modResults.push({
-        type: 'property',
-        key: 'openiapStore',
-        value: pinnedStore,
-      });
-      logOnce(
-        `✅ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`,
-      );
-    } else {
-      logOnce(
-        'ℹ️ expo-iap: No store pin; Gradle picks the store from the task flavor or the connected debug device',
-      );
-    }
     return config;
   });
 

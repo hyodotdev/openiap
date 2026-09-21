@@ -75,26 +75,38 @@ if (horizonEnabled && fireOsEnabled) {
 fun normalizeOpenIapStore(value: String?): String =
     when (value?.lowercase()) {
         null, "", "auto", "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
+        "none" -> "none"
         "horizon", "meta", "quest" -> "horizon"
         "amazon", "fire", "fireos", "fire-os" -> "amazon"
         else -> error("maui-iap Android: unsupported openiapStore '$value'")
     }
 
-val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull
-    ?: providers.gradleProperty("openIapAndroidStore").orNull
-    ?: providers.gradleProperty("OpenIapAndroidStore").orNull
+// Trim and treat blank as absent exactly as the Groovy resolver does; without
+// that, " horizon " fails here while it resolves there, from one build's input.
+val requestedOpenIapStore = listOf("openiapStore", "openIapAndroidStore", "OpenIapAndroidStore")
+    .firstNotNullOfOrNull { providers.gradleProperty(it).orNull?.trim()?.takeIf(String::isNotEmpty) }
+val requestedOpenIapPlatform = providers.gradleProperty("openiapPlatform").orNull
+    ?.trim()?.takeIf(String::isNotEmpty)
+if (requestedOpenIapPlatform != null && requestedOpenIapPlatform.lowercase() != "none") {
+    error("maui-iap Android: openiapPlatform only supports the opt-out value 'none'")
+}
 val legacyOpenIapStore = when {
+    requestedOpenIapPlatform != null -> "none"
     fireOsEnabled -> "amazon"
     horizonEnabled -> "horizon"
     else -> null
 }
 // Same rule as packages/google/gradle/openiap-store.gradle: two signals that
-// name different stores stop the build instead of one quietly winning.
+// name different stores stop the build instead of one quietly winning. `auto`
+// is not a pin there either.
 val pinnedOpenIapStore = requestedOpenIapStore
+    ?.takeIf { it.lowercase() != "auto" }
     ?.let(::normalizeOpenIapStore)
-    ?.takeIf { it != "play" || requestedOpenIapStore.lowercase() != "auto" }
 if (pinnedOpenIapStore != null && legacyOpenIapStore != null && pinnedOpenIapStore != legacyOpenIapStore) {
     error("maui-iap Android: openiapStore=$pinnedOpenIapStore conflicts with the legacy flags selecting $legacyOpenIapStore")
+}
+if (legacyOpenIapStore == "none" || pinnedOpenIapStore == "none") {
+    error("maui-iap Android: openiapStore=none is not supported by this library")
 }
 val openIapAndroidStore = when {
     pinnedOpenIapStore != null -> pinnedOpenIapStore

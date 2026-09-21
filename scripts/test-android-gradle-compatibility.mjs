@@ -141,6 +141,11 @@ tasks.register('verifyCompatibility') {
       join(source, "android/build.gradle"),
       `${packageName}/android/build.gradle`,
     );
+    // The wrapper applies the store resolver, so the probe project needs it too.
+    copy(
+      join(source, "android/openiap-store.gradle"),
+      `${packageName}/android/openiap-store.gradle`,
+    );
     copy(join(source, "package.json"), `${packageName}/package.json`);
     copy(
       join(repo, "openiap-versions.json"),

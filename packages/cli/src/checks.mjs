@@ -121,6 +121,34 @@ export function androidStoreChecks(root, framework) {
       : (STORE_ALIASES[pinValue] ?? "unknown");
   const findings = [];
 
+  // Gradle refuses these three combinations outright, so a project carrying one
+  // cannot build at all — reporting it clean would send someone to the build to
+  // find out.
+  if (platformEntry && properties?.get("openiapStore")) {
+    findings.push(
+      finding(
+        "android-store-flavor-conflict",
+        "error",
+        "android/gradle.properties",
+        "openiapStore and openiapPlatform are both set.",
+        "Keep openiapStore; openiapPlatform is the legacy spelling of the opt-out.",
+        { line: platformEntry.line },
+      ),
+    );
+  }
+  if (platformValue === "none" && (horizon || fireOs)) {
+    findings.push(
+      finding(
+        "android-store-flavor-conflict",
+        "error",
+        "android/gradle.properties",
+        `openiapPlatform=none conflicts with ${fireOs ? "fireOsEnabled" : "horizonEnabled"}=true.`,
+        "Drop the legacy store flag, or drop the opt-out.",
+        { line: platformEntry.line },
+      ),
+    );
+  }
+
   // Gradle accepts only the opt-out value under the legacy key.
   if (pinSource === "openiapPlatform" && pin !== null && pin !== "none") {
     findings.push(
@@ -251,9 +279,9 @@ export function androidStoreChecks(root, framework) {
           ? `This Android project links no store SDK (${pinSource}=none).`
           : pinned
             ? `This Android project is pinned to the ${store} store.`
-            : // Without a pin the store comes from the task flavor or the
-              // connected device, so a literal here is only the last run's.
-              `This Android project last linked the ${store} store; without a pin, each build resolves its own.`;
+            : // gradle.properties is the only pin channel a checkout records;
+              // -P and ORG_GRADLE_PROJECT_ pins are invisible here.
+              `This Android project last linked the ${store} store; with no pin in gradle.properties, each build resolves its own.`;
     const fix =
       store === "none"
         ? "Drop the openiapStore=none pin before testing purchases on a device."

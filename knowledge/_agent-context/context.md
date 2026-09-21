@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-21T14:59:52.264Z
+> Last updated: 2026-09-21T16:08:13.537Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1346,9 +1346,10 @@ on the other stores; they never select anything.
 4. play
 ```
 
-Any two signals that name different stores fail the build: an `openiapStore`
-pin against a different task flavor, two store flavors in one invocation, or a
-pin against a legacy flag. A release build never consults a device, several
+A pin against a different task flavor, two store flavors in one invocation, and
+a pin against a legacy flag each fail the build. The device is a fallback, not a
+competing signal — a pin or a flavor outranks it without complaint. A release
+build never consults a device, several
 attached devices select nothing unless `ANDROID_SERIAL` names one, and the
 configuration cache turns the device step off because a cached answer outlives
 the device that produced it. The choice is logged once:

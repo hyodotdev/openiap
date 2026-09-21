@@ -306,6 +306,30 @@ test("the legacy opt-out key is read, and only accepts none", () => {
   );
 });
 
+test("the combinations Gradle refuses are errors, not a clean bill", () => {
+  // Each of these fails the Android build outright, so reporting it clean sends
+  // someone to the build to discover it.
+  for (const [properties, line] of [
+    ["openiapStore=play\nopeniapPlatform=none\n", 2],
+    ["openiapPlatform=none\nhorizonEnabled=true\n", 1],
+  ]) {
+    withProject(
+      {
+        "pubspec.yaml":
+          "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+        "android/gradle.properties": properties,
+      },
+      (root) => {
+        const conflict = doctor(root).findings.find(
+          (one) => one.id === "android-store-flavor-conflict",
+        );
+        assert.equal(conflict.level, "error");
+        assert.equal(conflict.line, line);
+      },
+    );
+  }
+});
+
 test("an unpinned project does not state a leftover literal as its store", () => {
   withProject(
     {
@@ -319,7 +343,10 @@ test("an unpinned project does not state a leftover literal as its store", () =>
       const notPlay = doctor(root).findings.find(
         (one) => one.id === "android-store-not-play",
       );
-      assert.match(notPlay.message, /without a pin, each build resolves its own/u);
+      assert.match(
+        notPlay.message,
+        /with no pin in gradle\.properties, each build resolves its own/u,
+      );
     },
   );
 });
