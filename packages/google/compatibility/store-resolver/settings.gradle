@@ -1,0 +1,3 @@
+// Standalone fixture for the store resolver. No Android plugin: the rule under
+// test runs entirely at configuration time.
+rootProject.name = 'store-resolver-fixture'

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" InitialTargets="_OpenIapValidateStore">
 
   <PropertyGroup>
     <TargetFrameworks>net10.0-android</TargetFrameworks>
@@ -35,9 +35,13 @@
     <!-- OpenIapStore is the name every OpenIAP build system shares; OpenIapAndroidStore stays as the alias. -->
     <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == '' and '$(OpenIapStore)' != ''">$(OpenIapStore)</OpenIapAndroidStore>
     <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == ''">play</OpenIapAndroidStore>
-    <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'amazon' or '$(OpenIapAndroidStore)' == 'fire' or '$(OpenIapAndroidStore)' == 'fireos' or '$(OpenIapAndroidStore)' == 'fire-os'">amazon</OpenIapGoogleAarFlavor>
-    <OpenIapGoogleAarFlavor Condition="'$(OpenIapAndroidStore)' == 'horizon' or '$(OpenIapAndroidStore)' == 'meta' or '$(OpenIapAndroidStore)' == 'quest'">horizon</OpenIapGoogleAarFlavor>
-    <OpenIapGoogleAarFlavor Condition="'$(OpenIapGoogleAarFlavor)' == ''">play</OpenIapGoogleAarFlavor>
+    <!-- Every other layer lowercases before matching; without this, Horizon and
+         horizon would select different stores in the same build. -->
+    <OpenIapStoreKey>$(OpenIapAndroidStore.Trim().ToLowerInvariant())</OpenIapStoreKey>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapStoreKey)' == 'amazon' or '$(OpenIapStoreKey)' == 'fire' or '$(OpenIapStoreKey)' == 'fireos' or '$(OpenIapStoreKey)' == 'fire-os'">amazon</OpenIapGoogleAarFlavor>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapStoreKey)' == 'horizon' or '$(OpenIapStoreKey)' == 'meta' or '$(OpenIapStoreKey)' == 'quest'">horizon</OpenIapGoogleAarFlavor>
+    <OpenIapGoogleAarFlavor Condition="'$(OpenIapStoreKey)' == 'play' or '$(OpenIapStoreKey)' == 'google' or '$(OpenIapStoreKey)' == 'gplay' or '$(OpenIapStoreKey)' == 'googleplay' or '$(OpenIapStoreKey)' == 'google-play' or '$(OpenIapStoreKey)' == 'gms' or '$(OpenIapStoreKey)' == 'auto'">play</OpenIapGoogleAarFlavor>
+    <!-- Empty means no condition matched: a typo must stop the build, not ship Play. -->
     <OpenIapGoogleAarPath>..\..\..\..\packages\google\openiap\build\outputs\aar\openiap-$(OpenIapGoogleAarFlavor)-release.aar</OpenIapGoogleAarPath>
   </PropertyGroup>
 
@@ -96,5 +100,13 @@
     <TransformFile Include="Transforms\EnumFields.xml" />
     <TransformFile Include="Transforms\EnumMethods.xml" />
   </ItemGroup>
+
+  <!-- InitialTargets, not BeforeTargets="Build": the AAR is copied while Build
+       resolves its references, so a later check reports a missing file instead
+       of the typo that caused it. Only an Android build links a store. -->
+  <Target Name="_OpenIapValidateStore"
+          Condition="'$(OpenIapGoogleAarFlavor)' == '' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <Error Text="OpenIapStore='$(OpenIapAndroidStore)' is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
+  </Target>
 
 </Project>

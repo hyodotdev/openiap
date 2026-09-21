@@ -1,4 +1,5 @@
 import {
+  appStoreLines,
   ensureLocalOpenIapFlavorStrategy,
   LOCAL_STRATEGY_LINE_GROOVY,
   LOCAL_STRATEGY_LINE_KOTLIN,
@@ -75,6 +76,20 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
       ) ?? [],
     ).toHaveLength(1);
     expect(second.match(/openIapResolveStore/g) ?? []).toHaveLength(1);
+  });
+
+  it('gives the app its own apply and resolver call', () => {
+    // `:app` evaluates before the root build file, so it cannot read a value
+    // the root computed.
+    const groovy = appStoreLines('../x/openiap-store.gradle', 'groovy');
+    expect(groovy.apply).toBe('apply from: "../x/openiap-store.gradle"');
+    expect(groovy.strategy).toContain('openIapResolveStore("app").store');
+    expect(groovy.strategy).not.toContain('rootProject');
+
+    const kotlin = appStoreLines('../x/openiap-store.gradle', 'kotlin');
+    expect(kotlin.apply).toBe('apply(from = "../x/openiap-store.gradle")');
+    expect(kotlin.strategy).toContain('openIapResolveStore');
+    expect(kotlin.strategy).not.toContain('rootProject');
   });
 
   it('points at the resolver that ships beside this plugin', () => {

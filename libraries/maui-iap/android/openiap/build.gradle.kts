@@ -83,10 +83,23 @@ fun normalizeOpenIapStore(value: String?): String =
 val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull
     ?: providers.gradleProperty("openIapAndroidStore").orNull
     ?: providers.gradleProperty("OpenIapAndroidStore").orNull
-val openIapAndroidStore = when {
+val legacyOpenIapStore = when {
     fireOsEnabled -> "amazon"
     horizonEnabled -> "horizon"
-    else -> normalizeOpenIapStore(requestedOpenIapStore)
+    else -> null
+}
+// Same rule as packages/google/gradle/openiap-store.gradle: two signals that
+// name different stores stop the build instead of one quietly winning.
+val pinnedOpenIapStore = requestedOpenIapStore
+    ?.let(::normalizeOpenIapStore)
+    ?.takeIf { it != "play" || requestedOpenIapStore.lowercase() != "auto" }
+if (pinnedOpenIapStore != null && legacyOpenIapStore != null && pinnedOpenIapStore != legacyOpenIapStore) {
+    error("maui-iap Android: openiapStore=$pinnedOpenIapStore conflicts with the legacy flags selecting $legacyOpenIapStore")
+}
+val openIapAndroidStore = when {
+    pinnedOpenIapStore != null -> pinnedOpenIapStore
+    legacyOpenIapStore != null -> legacyOpenIapStore
+    else -> "play"
 }
 val openIapGoogleArtifact = when (openIapAndroidStore) {
     "amazon" -> "openiap-google-amazon"

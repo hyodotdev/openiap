@@ -108,15 +108,18 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20260719"
 
-    // Use OpenIAP Google module only; avoid direct BillingClient dependency
+    // Use OpenIAP Google module only; avoid direct BillingClient dependency.
+    // `api`, not `implementation`: the config plugin no longer writes the
+    // coordinate into the app, so an app with its own native code needs
+    // dev.hyo.openiap on its compile classpath through this module.
     if (findProject(":openiap-google") != null) {
-      implementation project(":openiap-google")
+      api project(":openiap-google")
     } else if (openiapFlavor == 'amazon') {
-      implementation "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
     } else if (openiapFlavor == 'horizon') {
-      implementation "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
     } else {
       // Fallback to published artifact when local project isn't linked
-      implementation "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
     }
 }

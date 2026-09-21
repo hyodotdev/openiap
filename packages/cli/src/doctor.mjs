@@ -138,7 +138,7 @@ export function doctor(root) {
     );
   }
   findings.push(
-    ...androidStoreChecks(root),
+    ...androidStoreChecks(root, framework),
     ...secretKeyChecks(root, framework),
     ...envNameChecks(root, framework),
     ...baseUrlChecks(root, framework),

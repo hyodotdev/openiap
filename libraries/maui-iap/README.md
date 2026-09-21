@@ -169,15 +169,18 @@ Play. Build the matching native facade immediately before the .NET build:
 
 ```bash
 cd libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
+../../../packages/google/gradlew :openiap:assembleRelease -PopeniapStore=amazon
 cd ..
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
   -f net10.0-android \
-  -p:OpenIapAndroidStore=amazon
+  -p:OpenIapStore=amazon
 ```
 
-Use `horizon` for Meta Horizon and `play` for Google Play. MAUI keeps each
-store's intermediate and output directories separate, preventing a prior
+Use `horizon` for Meta Horizon and `play` for Google Play; the aliases
+`meta`/`quest` and `fire`/`fireos`/`fire-os` work too, and a value that names
+no store fails the build rather than falling back to Play. The older
+`openIapAndroidStore` / `OpenIapAndroidStore` spellings still work. MAUI keeps
+each store's intermediate and output directories separate, preventing a prior
 store build from leaking its AAR or manifest into the next variant.
 
 ## What's generated vs. hand-written

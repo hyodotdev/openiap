@@ -1,0 +1,19 @@
+#!/bin/sh
+# Stands in for adb so the device rule can be tested without hardware.
+# FAKE_ADB_DEVICES: space-separated serials that report as "device".
+# FAKE_ADB_<serial>_FEATURES / _MANUFACTURER: what that serial reports.
+serial=""
+if [ "$1" = "-s" ]; then serial="$2"; shift 2; fi
+case "$1" in
+  devices)
+    echo "List of devices attached"
+    for one in ${FAKE_ADB_DEVICES:-}; do printf '%s\tdevice\n' "$one"; done
+    ;;
+  shell)
+    key=$(printf '%s' "$serial" | tr -c 'A-Za-z0-9' '_')
+    case "$*" in
+      *"pm list features"*) eval "printf '%s\n' \"\${FAKE_ADB_${key}_FEATURES:-}\"" ;;
+      *"ro.product.manufacturer"*) eval "printf '%s\n' \"\${FAKE_ADB_${key}_MANUFACTURER:-}\"" ;;
+    esac
+    ;;
+esac

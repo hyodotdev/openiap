@@ -315,9 +315,12 @@ on the other stores; they never select anything.
 4. play
 ```
 
-Two stores in one invocation, or explicit values that disagree, fail the build.
-A release build never consults a device, and several attached devices select
-nothing unless `ANDROID_SERIAL` names one. The choice is logged once:
+Any two signals that name different stores fail the build: an `openiapStore`
+pin against a different task flavor, two store flavors in one invocation, or a
+pin against a legacy flag. A release build never consults a device, several
+attached devices select nothing unless `ANDROID_SERIAL` names one, and the
+configuration cache turns the device step off because a cached answer outlives
+the device that produced it. The choice is logged once:
 `openiap: store=<id> (source=explicit|variant|device|default; <reason>)`.
 
 **Vocabulary.** Store ids are `play`, `horizon`, `amazon`, plus `auto` (the
@@ -337,10 +340,39 @@ drift. Every other build system reads the same names:
 | ----------------------------------- | ------------------------------------------------------------------------------------------ |
 | react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                        |
 | expo-iap config plugin              | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto |
-| kmp-iap                             | library flavors match an app `platform` dimension; `openiapStore` pins otherwise           |
-| maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`), same alias table                     |
+| kmp-iap                             | library flavors match an app `platform` dimension. It does **not** read `openiapStore`     |
+| maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`); `auto` means play, nothing to probe  |
 | godot-iap                           | export option `openiap/android_store` (`auto` = play; an export has no device)             |
-| `openiap doctor`                    | reads the pin and the legacy flags with the same table                                     |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table           |
+
+`bun audit:parity` compares the alias tables in the resolver, the doctor, the
+Godot helper and both MAUI csproj files, because a store that resolves
+differently in two layers of one build is exactly what this mechanism exists to
+prevent.
+
+**Regression suite.** Every rule above is asserted by
+`packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
+Android job:
+
+```bash
+cd packages/google && bash scripts/verify-store-resolver.sh
+```
+
+It applies the real resolver to the fixture in
+`packages/google/compatibility/store-resolver`, so no Android SDK, device, or
+network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
+reports whatever device the case declares. Each case asserts a resolved
+`store/source` pair, or that the build fails with a named message. The suite
+covers pins and their aliases, the legacy flags and their conflicts, the
+`none` opt-out, task flavors, every conflict that must fail, device selection
+for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
+devices, release builds, `clean`, and the configuration cache.
+
+**Add a case whenever the rule changes.** A wrong store is invisible on the
+machine that built it — it only appears when the artifact reaches a device that
+cannot serve that billing SDK, which is after release. The suite is the only
+thing standing between a rule change and that outcome, so a new signal, alias,
+or conflict lands with its case in the same commit.
 
 **iOS.** There is one store axis (App Store vs. an alternative marketplace such
 as Onside). Marketplace SDKs are linked at build time by an explicit opt-in and

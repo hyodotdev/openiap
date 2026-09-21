@@ -218,6 +218,26 @@ export const modifyAppBuildGradle = (
 export type AndroidStorePin = 'horizon' | 'amazon' | null;
 
 const STORE_PROPERTY_KEYS = ['openiapStore', 'horizonEnabled', 'fireOsEnabled'];
+
+type GradleProperty = {type: string; key?: string; value?: string};
+
+// A pin outranks the task flavor and the connected device, so a stale key from
+// an earlier prebuild would keep selecting a store nobody asked for.
+export function storeGradleProperties<T extends GradleProperty>(
+  properties: T[],
+  pinnedStore: AndroidStorePin,
+): T[] {
+  const kept = properties.filter(
+    (item) =>
+      item.type !== 'property' || !STORE_PROPERTY_KEYS.includes(item.key ?? ''),
+  );
+  return pinnedStore
+    ? [
+        ...kept,
+        {type: 'property', key: 'openiapStore', value: pinnedStore} as T,
+      ]
+    : kept;
+}
 export const AMAZON_APPSTORE_KEY_FILE = 'AppstoreAuthenticationKey.pem';
 
 // Amazon reads the key from assets to verify receipts; it is inert elsewhere.

@@ -7,12 +7,14 @@
 //   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
 //                horizonEnabled / fireOsEnabled / openiapPlatform=none still work, with a warning.
 //   2. variant   a requested task carries a store flavor (assembleHorizonRelease, installAmazonDebug).
-//   3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the
+//   3. device    debug builds only: the adb device ANDROID_SERIAL names, or the
 //                single connected one, is a Quest or Fire device.
 //   4. play
-// Two stores in one invocation, or explicit values that disagree, fail the build. A release
-// build never consults a device, and several attached devices select nothing unless
-// ANDROID_SERIAL names one.
+// Any two signals that name different stores fail the build, so a pinned release train
+// cannot quietly ship the wrong billing SDK. A release build never consults a device,
+// several attached devices select nothing unless ANDROID_SERIAL names one, and the
+// configuration cache disables the device probe because a cached answer outlives the
+// device that produced it.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -82,27 +84,54 @@ ext.openIapTaskStore = { String label ->
   return stores ? stores.first() : null
 }
 
-ext.openIapDebugTasksOnly = {
+// `clean assembleDebug` is still a debug build, but anything naming a release
+// task is not: a release artifact must never depend on what is plugged in.
+ext.openIapDebugBuild = {
   def names = gradle.startParameter.taskNames
-  return names && names.every { openIapTaskTokens(it).contains('debug') }
+  if (!names) {
+    return false
+  }
+  def tokens = names.collectMany { openIapTaskTokens(it) }
+  return tokens.contains('debug') && !tokens.contains('release')
+}
+
+ext.openIapEnv = { String name ->
+  // providers.environmentVariable is a tracked configuration-cache input;
+  // System.getenv is not.
+  return providers.environmentVariable(name).orNull
 }
 
 ext.openIapAdb = {
-  def roots = [System.getenv('ANDROID_HOME'), System.getenv('ANDROID_SDK_ROOT')]
+  def roots = [openIapEnv('ANDROID_HOME'), openIapEnv('ANDROID_SDK_ROOT')]
   def localProperties = rootProject.file('local.properties')
   if (localProperties.isFile()) {
     def properties = new Properties()
     localProperties.withInputStream { properties.load(it) }
     roots << properties.getProperty('sdk.dir')
   }
+  def names = ['adb', 'adb.exe']
   def adb = roots.findResult { root ->
     if (!root) {
       return null
     }
-    def candidate = new File(root, 'platform-tools/adb')
-    return candidate.isFile() ? candidate.absolutePath : null
+    return names.findResult { name ->
+      def candidate = new File(root, "platform-tools/${name}")
+      return candidate.isFile() ? candidate.absolutePath : null
+    }
   }
-  return adb
+  if (adb != null) {
+    return adb
+  }
+  // A developer with adb only on PATH still gets device selection.
+  return (openIapEnv('PATH') ?: '').split(File.pathSeparator).findResult { entry ->
+    if (!entry) {
+      return null
+    }
+    return names.findResult { name ->
+      def candidate = new File(entry, name)
+      return candidate.isFile() ? candidate.absolutePath : null
+    }
+  }
 }
 
 // providers.exec keeps the probe legal under the configuration cache.
@@ -128,11 +157,16 @@ ext.openIapDeviceStore = {
   if (listing == null) {
     return null
   }
-  def serials = listing.readLines().findAll { it ==~ /^\S+\s+device$/ }.collect { it.split(/\s+/)[0] }
-  def requested = System.getenv('ANDROID_SERIAL')?.trim()
+  // Windows adb terminates lines with CR, which the serial would otherwise keep.
+  def serials = listing.readLines()
+      .collect { it.replace('\r', '').trim() }
+      .findAll { it ==~ /^\S+\s+device$/ }
+      .collect { it.split(/\s+/)[0] }
+  def requested = openIapEnv('ANDROID_SERIAL')?.trim()
   def serial
   if (requested) {
     if (!serials.contains(requested)) {
+      logger.warn("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
       return null
     }
     serial = requested
@@ -157,15 +191,31 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     return rootProject.ext.openIapStoreResolution
   }
   def allowNone = options.allowNone == true
-  def resolution = null
   def explicit = openIapExplicitStore(label, allowNone)
+  def variant = openIapTaskStore(label)
+  // A pin that disagrees with the requested flavor is the case that ships the
+  // wrong billing SDK from a correct-looking release task, so it fails here.
+  if (explicit != null && variant != null && explicit != variant) {
+    throw new GradleException(
+      "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${gradle.startParameter.taskNames.join(' ')}'"
+    )
+  }
+  def resolution = null
   if (explicit != null) {
     resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
-  } else {
-    def variant = openIapTaskStore(label)
-    if (variant != null) {
-      resolution = [store: variant, source: 'variant', reason: "task ${gradle.startParameter.taskNames.join(' ')}"]
-    } else if (openIapDebugTasksOnly()) {
+  } else if (variant != null) {
+    resolution = [store: variant, source: 'variant', reason: "task ${gradle.startParameter.taskNames.join(' ')}"]
+  } else if (openIapDebugBuild()) {
+    def ccRequested = false
+    try {
+      ccRequested = gradle.startParameter.isConfigurationCacheRequested()
+    } catch (Throwable ignored) {
+    }
+    if (ccRequested) {
+      // A cached configuration keeps the store the probe saw, long after that
+      // device is gone. Pin the store instead of shipping a stale answer.
+      logger.warn("openiap: the configuration cache is on, so the connected device does not select a store; set openiapStore")
+    } else {
       def device = openIapDeviceStore()
       if (device != null) {
         resolution = [store: device.store, source: 'device', reason: device.reason]

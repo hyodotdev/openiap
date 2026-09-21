@@ -245,7 +245,8 @@ test("a value that is not a store is an error", () => {
 test("the Flutter opt-out is reported like another store, without a mismatch", () => {
   withProject(
     {
-      ...RN,
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
       "android/gradle.properties": "openiapStore=none\n",
       "android/app/build.gradle":
         'missingDimensionStrategy "platform", "play"\n',
@@ -257,6 +258,68 @@ test("the Flutter opt-out is reported like another store, without a mismatch", (
         ["android-store-not-play"],
       );
       assert.equal(result.findings[0].actual, "none");
+    },
+  );
+});
+
+test("the opt-out is an error on a wrapper that cannot build it", () => {
+  withProject(
+    { ...RN, "android/gradle.properties": "openiapStore=none\n" },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.match(unknown.message, /not supported by react-native/u);
+    },
+  );
+});
+
+test("the legacy opt-out key is read, and only accepts none", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapPlatform=none\n",
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.equal(notPlay.actual, "none");
+      assert.match(notPlay.message, /openiapPlatform=none/u);
+    },
+  );
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapPlatform=horizon\n",
+    },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.match(unknown.message, /only supports the opt-out value none/u);
+    },
+  );
+});
+
+test("an unpinned project does not state a leftover literal as its store", () => {
+  withProject(
+    {
+      ...RN,
+      "android/app/build.gradle":
+        'missingDimensionStrategy "platform", "horizon"\n',
+      "android/app/src/main/AndroidManifest.xml":
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.match(notPlay.message, /without a pin, each build resolves its own/u);
     },
   );
 });

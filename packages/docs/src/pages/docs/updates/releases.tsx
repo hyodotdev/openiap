@@ -493,9 +493,11 @@ function Releases() {
             </li>
             <li>
               <strong>@hyodotdev/openiap 0.2.0</strong> - <code>doctor</code>{' '}
-              reads <code>openiapStore</code> pins, reports a value that names
-              no store as <code>android-store-unknown</code>, and no longer
-              expects a fixed flavor in generated projects.
+              reads <code>openiapStore</code> and <code>openiapPlatform</code>,
+              reports a value that names no store as{' '}
+              <code>android-store-unknown</code>, says the store is per-build
+              when nothing is pinned, and flags the Flutter-only opt-out on a
+              wrapper that cannot build it.
             </li>
           </ul>
 
@@ -507,10 +509,12 @@ function Releases() {
               <code>ORG_GRADLE_PROJECT_openiapStore</code> in an EAS profile.
             </li>
             <li>
-              Several attached devices select nothing unless{' '}
-              <code>ANDROID_SERIAL</code> names one, and two stores in one
-              invocation or a pin that disagrees with a legacy flag fail the
-              build.
+              Any two signals that name different stores fail the build: a pin
+              against a different task flavor, two flavors in one invocation, or
+              a pin against a legacy flag. Several attached devices select
+              nothing unless <code>ANDROID_SERIAL</code> names one, and the
+              configuration cache turns the device step off because a cached
+              answer outlives the device that produced it.
             </li>
             <li>
               Fire OS builds need <code>AppstoreAuthenticationKey.pem</code> in{' '}

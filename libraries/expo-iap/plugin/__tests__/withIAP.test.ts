@@ -13,6 +13,7 @@ import plugin, {
   resolveHorizonAppId,
   resolveModuleSelection,
   resolvePinnedAndroidStore,
+  storeGradleProperties,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
@@ -149,6 +150,24 @@ describe('android configuration', () => {
         isHorizonEnabled: true,
       }),
     ).toBe('amazon');
+  });
+
+  it('writes the pin gradle.properties carries, and clears a stale one', () => {
+    // The pin is the only file the prebuild leaves behind that selects a store,
+    // so a stale key from an earlier prebuild would outrank the device.
+    const properties = [
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+      {type: 'property', key: 'openiapStore', value: 'horizon'},
+      {type: 'property', key: 'horizonEnabled', value: 'true'},
+      {type: 'property', key: 'fireOsEnabled', value: 'false'},
+    ];
+    expect(storeGradleProperties(properties, 'amazon')).toEqual([
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+      {type: 'property', key: 'openiapStore', value: 'amazon'},
+    ]);
+    expect(storeGradleProperties(properties, null)).toEqual([
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+    ]);
   });
 
   it('reads the Amazon Appstore key path from android.amazon', () => {

@@ -7304,9 +7304,102 @@ function checkFrameworkDependencyHygiene() {
       );
       expectNotIncludes(
         `${wrapper}/build.gradle`,
-        ["findProperty('horizonEnabled')", "findProperty('fireOsEnabled')"],
-        "Android wrappers must not read the legacy store flags themselves",
+        [
+          "findProperty('horizonEnabled')",
+          "findProperty('fireOsEnabled')",
+          "findProperty('openiapStore')",
+          "findProperty('openiapPlatform')",
+        ],
+        "Android wrappers must read the store only through openiap-store.gradle",
       );
+    }
+    // The store vocabulary is implemented five times over. They cannot share
+    // code across Groovy, JS, GDScript, Kotlin DSL and MSBuild, so compare the
+    // tables instead: a store that resolves differently in two layers of one
+    // build is the failure this whole mechanism exists to prevent.
+    const aliasTables = {
+      "packages/google/gradle/openiap-store.gradle": (text) => {
+        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/'?([A-Za-z-]+)'?\s*:\s*'([a-z]+)'/g)].map(
+              (one) => [one[1], one[2]],
+            )
+          : null;
+      },
+      "packages/cli/src/checks.mjs": (text) => {
+        const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/"?([A-Za-z-]+)"?\s*:\s*"([a-z]+)"/g)].map(
+              (one) => [one[1], one[2]],
+            )
+          : null;
+      },
+      "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
+        const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/"([A-Za-z-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
+              one[1],
+              one[2],
+            ])
+          : null;
+      },
+    };
+    const parsedAliases = {};
+    for (const [file, parse] of Object.entries(aliasTables)) {
+      expectFile(file);
+      if (!exists(file)) continue;
+      const entries = parse(read(file));
+      if (!entries || entries.length === 0) {
+        fail(`${file}: the store alias table could not be read`);
+        continue;
+      }
+      parsedAliases[file] = new Map(entries);
+    }
+    // Godot has no runtime device, so `none` is the one id it may omit.
+    const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
+    const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
+    if (reference) {
+      for (const [file, table] of Object.entries(parsedAliases)) {
+        if (file === "packages/google/gradle/openiap-store.gradle") continue;
+        for (const [alias, store] of reference) {
+          if (file === godotFile && store === "none") continue;
+          const mine = table.get(alias);
+          if (mine === undefined) {
+            fail(`${file}: store alias ${JSON.stringify(alias)} is missing`);
+          } else if (mine !== store) {
+            fail(
+              `${file}: store alias ${JSON.stringify(alias)} resolves to ${mine}, not ${store}`,
+            );
+          }
+        }
+        for (const alias of table.keys()) {
+          if (!reference.has(alias)) {
+            fail(`${file}: store alias ${JSON.stringify(alias)} is not in the resolver`);
+          }
+        }
+      }
+    }
+    // MSBuild cannot hold a table, so check every alias appears in a condition.
+    for (const csproj of [
+      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
+    ]) {
+      expectFile(csproj);
+      if (!exists(csproj) || !reference) continue;
+      const text = read(csproj);
+      for (const [alias, store] of reference) {
+        if (store === "none") continue;
+        // MSBuild has no device to probe, so `auto` can only mean Play there.
+        const expected = store === "auto" ? "play" : store;
+        const condition = new RegExp(
+          `'\\$\\(OpenIapStoreKey\\)' == '${alias}'[^>]*>${expected}<`,
+        );
+        if (!condition.test(text.replace(/\n\s*/g, " "))) {
+          fail(
+            `${csproj}: store alias ${JSON.stringify(alias)} does not select ${expected}`,
+          );
+        }
+      }
     }
     for (const app of [
       "libraries/react-native-iap/example/android/app/build.gradle",

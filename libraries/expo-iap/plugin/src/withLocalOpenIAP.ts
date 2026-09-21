@@ -1,5 +1,6 @@
 import {
   ConfigPlugin,
+  WarningAggregator,
   withDangerousMod,
   withSettingsGradle,
   withAppBuildGradle,
@@ -122,14 +123,30 @@ export const storeScriptPathFrom = (platformProjectRoot: string): string =>
     .split(path.sep)
     .join('/');
 
-// Only the root build file applies the resolver, and it hands every Android
-// module the resolved id through a captured local. Reading it across projects
-// would depend on the root script finishing first, and React Native's root
-// plugin evaluates `:app` before that.
+// Every module that links the flavored project applies the resolver itself and
+// calls it. The resolver caches its answer on the root project, so they all get
+// the same store. Reading a value the root build file computed does not work:
+// React Native's root plugin evaluates `:app` before the root script runs.
 export const LOCAL_STRATEGY_LINE_GROOVY =
   '          missingDimensionStrategy "platform", openIapStore';
 export const LOCAL_STRATEGY_LINE_KOTLIN =
   '            missingDimensionStrategy("platform", openIapStore)';
+
+export const appStoreLines = (
+  storeScriptPath: string,
+  language: GradleLanguage,
+): {apply: string; strategy: string} =>
+  language === 'kotlin'
+    ? {
+        apply: `apply(from = "${storeScriptPath}")`,
+        strategy:
+          '        missingDimensionStrategy("platform", ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["store"] as String)',
+      }
+    : {
+        apply: `apply from: "${storeScriptPath}"`,
+        strategy:
+          '        missingDimensionStrategy "platform", openIapResolveStore("app").store',
+      };
 
 // Every Android library module in a local build links the flavor the resolver
 // picks when Gradle runs, so the app and expo-iap always agree on one store.
@@ -469,13 +486,44 @@ const withLocalOpenIAP: ConfigPlugin<
       );
     }
 
-    // The root build file gives every Android module the strategy now, so drop
-    // whatever an earlier prebuild wrote here.
+    // `:app` is evaluated before the root build file, so it applies the
+    // resolver itself; the resolver caches its answer and every module agrees.
+    const {apply: applyLine, strategy: strategyLine} = appStoreLines(
+      storeScriptPathFrom(
+        path.join(
+          (config.modRequest as any).platformProjectRoot as string,
+          'app',
+        ),
+      ),
+      appLanguage,
+    );
     const strategyPattern =
       /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*\n?/gm;
-    if (strategyPattern.test(contents)) {
-      contents = contents.replace(strategyPattern, '');
-      logOnce('🧹 Removed a platform strategy from app/build.gradle');
+    contents = contents.replace(strategyPattern, '');
+    contents = contents.replace(
+      /^[ \t]*apply\s*(?:from:|\(from = )\s*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?/gm,
+      '',
+    );
+
+    const androidBlock = /^(\s*)android\s*\{/m;
+    if (androidBlock.test(contents)) {
+      contents = contents.replace(androidBlock, (m) => `${applyLine}\n\n${m}`);
+    } else {
+      contents = `${applyLine}\n\n${contents}`;
+    }
+    const lines = contents.split('\n');
+    const defaultConfigIndex = lines.findIndex((line) =>
+      /defaultConfig\s*\{/.test(line),
+    );
+    if (defaultConfigIndex !== -1) {
+      lines.splice(defaultConfigIndex + 1, 0, strategyLine);
+      contents = lines.join('\n');
+      logOnce('🛠️ expo-iap: Wired app/build.gradle to the store resolver');
+    } else {
+      WarningAggregator.addWarningAndroid(
+        'expo-iap',
+        'app/build.gradle has no defaultConfig block, so the local OpenIAP flavor is unselected.',
+      );
     }
 
     // Add project dependency
@@ -541,7 +589,7 @@ const withLocalOpenIAP: ConfigPlugin<
       const pinnedStore = props?.pinnedStore ?? null;
 
       contents = contents.replace(
-        /^(?:openiapStore|horizonEnabled|fireOsEnabled)=.*\n?/gm,
+        /^[ \t]*(?:openiapStore|horizonEnabled|fireOsEnabled)[ \t]*=.*\n?/gm,
         '',
       );
       if (pinnedStore) {
