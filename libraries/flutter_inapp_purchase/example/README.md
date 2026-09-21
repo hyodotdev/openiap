@@ -12,6 +12,36 @@ flutter run
 flutter build apk --release
 ```
 
+## Purchase verification
+
+Copy `env.example` to `env` and fill in:
+
+| Key                  | Purpose                                                |
+| -------------------- | ------------------------------------------------------ |
+| `IAPKIT_API_KEY`     | `openiap-kit_pk_` publishable key, never an `sk_` key. |
+| `IAPKIT_BASE_URL`    | Origin of a local IAPKit server; empty uses the host.  |
+| `AMAZON_RVS_SANDBOX` | `true` for Amazon App Tester receipts.                 |
+
+`env` is untracked and wins over `env.example`. Each key also accepts a
+`--dart-define` of the same name, which takes precedence. `IAPKIT_BASE_URL` is
+an origin, not the verify path. For **Local (IAPKit)** the key and the local
+server must target the same Convex deployment. An Android device on USB reaches
+the host through
+`adb -s "$ANDROID_SERIAL" reverse --no-rebind tcp:3100 tcp:3100` and
+`http://127.0.0.1:3100`; a physical iPhone needs the Mac's LAN address. Debug
+builds permit cleartext to loopback only.
+
+The purchase and subscription screens list verification in this order:
+
+1. **Ignore** — skip verification.
+2. **Local (Device)** — basic local verification.
+3. **Local (IAPKit)** — IAPKit routed to `IAPKIT_BASE_URL`.
+4. **IAPKit** — hosted IAPKit; the local URL is deliberately omitted.
+
+With both values configured, the example defaults to **Local (IAPKit)**. With
+only the key, it defaults to **IAPKit**; without a key, it defaults to
+**Ignore**.
+
 ## Building with Different Billing Platforms
 
 This example supports multiple billing platforms:

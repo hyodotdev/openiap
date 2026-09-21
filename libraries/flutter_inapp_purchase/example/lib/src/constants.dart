@@ -11,12 +11,34 @@ class IapConstants {
     'IAPKIT_BASE_URL',
   );
 
+  /// dotenv throws until `load()` runs, which widget tests never do.
+  static String _fromDotenv(String key) {
+    try {
+      return dotenv.env[key] ?? '';
+    } on Object {
+      return '';
+    }
+  }
+
   static String get iapkitApiKey => _iapkitApiKeyFromEnvironment.isNotEmpty
       ? _iapkitApiKeyFromEnvironment
-      : dotenv.env['IAPKIT_API_KEY'] ?? '';
+      : _fromDotenv('IAPKIT_API_KEY');
+  /// Origin of a local IAPKit server; empty selects the hosted default.
   static String get iapkitBaseUrl => _iapkitBaseUrlFromEnvironment.isNotEmpty
       ? _iapkitBaseUrlFromEnvironment
-      : dotenv.env['IAPKIT_BASE_URL'] ?? 'https://kit.openiap.dev';
+      : _fromDotenv('IAPKIT_BASE_URL');
+
+  static const _amazonRvsSandboxFromEnvironment = String.fromEnvironment(
+    'AMAZON_RVS_SANDBOX',
+  );
+
+  /// App Tester receipts only verify against Amazon's RVS Cloud Sandbox.
+  static bool get amazonRvsSandbox =>
+      (_amazonRvsSandboxFromEnvironment.isNotEmpty
+              ? _amazonRvsSandboxFromEnvironment
+              : _fromDotenv('AMAZON_RVS_SANDBOX'))
+          .toLowerCase() ==
+      'true';
 
   // Consumable Product IDs
   static const List<String> consumableProductIds = [

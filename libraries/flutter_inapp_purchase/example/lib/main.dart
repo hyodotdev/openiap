@@ -4,6 +4,12 @@ import 'src/app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: 'env.example');
+  // `env` is the developer's untracked copy; fall back to the committed
+  // template so a fresh checkout still runs.
+  try {
+    await dotenv.load(fileName: 'env');
+  } catch (_) {
+    await dotenv.load(fileName: 'env.example');
+  }
   runApp(const App());
 }
