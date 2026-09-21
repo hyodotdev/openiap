@@ -207,7 +207,6 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                 }
                                             }
                                         }
-                                        else -> {}
                                     }
                                 } catch (e: Exception) {
                                     if (verificationMethodAtStart.isIapkit) {

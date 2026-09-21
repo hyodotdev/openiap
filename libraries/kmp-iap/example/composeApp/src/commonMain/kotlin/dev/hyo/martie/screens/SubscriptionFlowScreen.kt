@@ -203,7 +203,6 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                 }
                                             }
                                         }
-                                        else -> {}
                                     }
                                 } catch (e: Exception) {
                                     if (verificationMethodAtStart.isIapkit) {
