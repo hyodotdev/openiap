@@ -38,6 +38,7 @@ import io.github.hyochan.kmpiap.openiap.VerifyPurchaseGoogleOptions
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseWithProviderProps
 import io.github.hyochan.kmpiap.openiap.PurchaseVerificationProvider
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitProps
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAmazonProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitAppleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitHorizonProps
@@ -60,7 +61,17 @@ private val PRODUCT_IDS = InAppProductIds
 enum class VerificationMethod(val label: String, val icon: String) {
     None("None (Skip)", "❌"),
     Local("Local (Device)", "📱"),
-    IAPKit("IAPKit (Server)", "☁️")
+    IAPKitLocal("Local (IAPKit)", "🖥️"),
+    IAPKit("IAPKit (Server)", "☁️");
+
+    val isIapkit: Boolean get() = this == IAPKitLocal || this == IAPKit
+}
+
+/** Mirrors the other examples: no key skips, a local origin prefers it. */
+fun defaultVerificationMethod(apiKey: String, localBaseUrl: String): VerificationMethod = when {
+    apiKey.isBlank() -> VerificationMethod.None
+    localBaseUrl.isNotBlank() -> VerificationMethod.IAPKitLocal
+    else -> VerificationMethod.IAPKit
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +95,9 @@ fun PurchaseFlowScreen(navController: NavController) {
     var currentPurchase by remember { mutableStateOf<Purchase?>(null) }
 
     // Verification method selection
-    var verificationMethod by remember { mutableStateOf(VerificationMethod.None) }
+    var verificationMethod by remember {
+        mutableStateOf(defaultVerificationMethod(AppConfig.iapkitApiKey, AppConfig.iapkitBaseUrl))
+    }
     var showVerificationDialog by remember { mutableStateOf(false) }
     var verificationResult by remember { mutableStateOf<String?>(null) }
     
@@ -147,9 +160,17 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                     "Grant Time: ${result.grantTime ?: "N/A"}"
                                             }
                                         }
-                                        VerificationMethod.IAPKit -> {
+                                        VerificationMethod.IAPKitLocal, VerificationMethod.IAPKit -> {
                                             val apiKey = AppConfig.iapkitApiKey
-                                            if (apiKey.isEmpty()) {
+                                            val localBaseUrl = AppConfig.iapkitBaseUrl
+                                            val label = verificationMethodAtStart.label
+                                            if (verificationMethodAtStart == VerificationMethod.IAPKitLocal &&
+                                                localBaseUrl.isBlank()
+                                            ) {
+                                                iapkitVerificationOk = false
+                                                verificationResult = "❌ IAPKIT_BASE_URL not configured.\n" +
+                                                    "Set IAPKIT_BASE_URL in .env for Local (IAPKit)."
+                                            } else if (apiKey.isEmpty()) {
                                                 iapkitVerificationOk = false
                                                 verificationResult = "❌ IAPKit API key not configured.\n" +
                                                     "Set IAPKIT_API_KEY in .env file."
@@ -164,8 +185,13 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                         VerifyPurchaseWithProviderProps(
                                                             provider = PurchaseVerificationProvider.Iapkit,
                                                             iapkit = RequestVerifyPurchaseWithIapkitProps(
+                                                                amazon = if (purchase.store == IapStore.Amazon) RequestVerifyPurchaseWithIapkitAmazonProps(
+                                                                    receiptId = jwsOrToken,
+                                                                    sandbox = AppConfig.amazonRvsSandbox,
+                                                                ) else null,
                                                                 apiKey = apiKey,
                                                                 apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = jwsOrToken) else null,
+                                                                baseUrl = if (verificationMethodAtStart == VerificationMethod.IAPKitLocal) localBaseUrl else null,
                                                                 google = if (!isIos && purchase.store == IapStore.Google) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = jwsOrToken) else null,
                                                                 horizon = if (purchase.store == IapStore.Horizon) RequestVerifyPurchaseWithIapkitHorizonProps(sku = purchase.productId) else null,
                                                             )
@@ -174,7 +200,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                                     val iapkitResult = result.iapkit
                                                     iapkitVerificationOk = iapkitResult?.isValid == true
                                                     val statusEmoji = if (iapkitResult?.isValid == true) "✅" else "⚠️"
-                                                    verificationResult = "$statusEmoji IAPKit Verification:\n" +
+                                                    verificationResult = "$statusEmoji $label Verification:\n" +
                                                         "Valid: ${iapkitResult?.isValid ?: false}\n" +
                                                         "State: ${iapkitResult?.state?.rawValue ?: "unknown"}\n" +
                                                         "Store: ${iapkitResult?.store?.rawValue ?: "unknown"}"
@@ -184,14 +210,14 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         else -> {}
                                     }
                                 } catch (e: Exception) {
-                                    if (verificationMethodAtStart == VerificationMethod.IAPKit) {
+                                    if (verificationMethodAtStart.isIapkit) {
                                         iapkitVerificationOk = false
                                     }
                                     verificationResult = "❌ Verification failed: ${e.message}"
                                 }
                             }
 
-                            if (verificationMethodAtStart == VerificationMethod.IAPKit && !iapkitVerificationOk) {
+                            if (verificationMethodAtStart.isIapkit && !iapkitVerificationOk) {
                                 purchaseResult = "$purchaseResult\n\n⚠️ Transaction left unfinished because IAPKit verification failed"
                                 return@launch
                             }
@@ -646,6 +672,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                                         text = when (method) {
                                             VerificationMethod.None -> "Skip verification"
                                             VerificationMethod.Local -> "Verify on device (iOS only)"
+                                            VerificationMethod.IAPKitLocal -> "IAPKit routed to IAPKIT_BASE_URL"
                                             VerificationMethod.IAPKit -> "Server-side verification via IAPKit"
                                         },
                                         fontSize = 12.sp,

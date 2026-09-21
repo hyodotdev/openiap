@@ -13,4 +13,10 @@ expect object AppConfig {
      * Get an openiap-kit_pk_ key from https://kit.openiap.dev
      */
     val iapkitApiKey: String
+
+    /** Origin of a local IAPKit server; blank selects the hosted default. */
+    val iapkitBaseUrl: String
+
+    /** App Tester receipts only verify against Amazon's RVS Cloud Sandbox. */
+    val amazonRvsSandbox: Boolean
 }

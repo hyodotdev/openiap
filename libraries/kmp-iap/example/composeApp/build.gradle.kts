@@ -110,11 +110,23 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Load IAPKit API key from .env
+        // Load IAPKit settings from .env
         buildConfigField(
             "String",
             "IAPKIT_API_KEY",
             "\"${envProperties.getProperty("IAPKIT_API_KEY", "")}\""
+        )
+        // Empty routes verification at kit.openiap.dev; set it to reach a local server.
+        buildConfigField(
+            "String",
+            "IAPKIT_BASE_URL",
+            "\"${envProperties.getProperty("IAPKIT_BASE_URL", "")}\""
+        )
+        // App Tester receipts are only valid against Amazon's RVS Cloud Sandbox.
+        buildConfigField(
+            "boolean",
+            "AMAZON_RVS_SANDBOX",
+            envProperties.getProperty("AMAZON_RVS_SANDBOX", "false").toBoolean().toString()
         )
     }
 
