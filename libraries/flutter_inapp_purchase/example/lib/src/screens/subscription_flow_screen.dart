@@ -366,6 +366,7 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
           apple: purchase.store == IapStore.Apple
               ? RequestVerifyPurchaseWithIapkitAppleProps(jws: jwsOrToken)
               : null,
+          baseUrl: baseUrl.isNotEmpty ? baseUrl : null,
           google: purchase.store == IapStore.Google
               ? RequestVerifyPurchaseWithIapkitGoogleProps(
                   purchaseToken: jwsOrToken,

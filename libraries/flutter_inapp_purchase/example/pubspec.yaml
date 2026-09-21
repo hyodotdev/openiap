@@ -46,9 +46,6 @@ flutter:
 
   assets:
     - env.example
-    # Optional untracked override; `flutter run` tolerates a missing entry only
-    # when the directory itself is listed.
-    - env
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.io/assets-and-images/#resolution-aware.

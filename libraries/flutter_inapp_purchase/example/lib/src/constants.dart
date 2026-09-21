@@ -4,9 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class IapConstants {
   // IAPKit openiap-kit_pk_ publishable key for purchase verification.
   // Never put an openiap-kit_sk_ secret admin key in a Flutter app.
+  // `String.fromEnvironment` returns '' for both an absent and an explicitly
+  // empty define, so `bool.hasEnvironment` decides which source wins.
+  static const _hasIapkitApiKeyDefine = bool.hasEnvironment('IAPKIT_API_KEY');
   static const _iapkitApiKeyFromEnvironment = String.fromEnvironment(
     'IAPKIT_API_KEY',
   );
+  static const _hasIapkitBaseUrlDefine = bool.hasEnvironment('IAPKIT_BASE_URL');
   static const _iapkitBaseUrlFromEnvironment = String.fromEnvironment(
     'IAPKIT_BASE_URL',
   );
@@ -20,21 +24,23 @@ class IapConstants {
     }
   }
 
-  static String get iapkitApiKey => _iapkitApiKeyFromEnvironment.isNotEmpty
+  static String get iapkitApiKey => _hasIapkitApiKeyDefine
       ? _iapkitApiKeyFromEnvironment
       : _fromDotenv('IAPKIT_API_KEY');
   /// Origin of a local IAPKit server; empty selects the hosted default.
-  static String get iapkitBaseUrl => _iapkitBaseUrlFromEnvironment.isNotEmpty
+  static String get iapkitBaseUrl => _hasIapkitBaseUrlDefine
       ? _iapkitBaseUrlFromEnvironment
       : _fromDotenv('IAPKIT_BASE_URL');
 
+  static const _hasAmazonRvsSandboxDefine =
+      bool.hasEnvironment('AMAZON_RVS_SANDBOX');
   static const _amazonRvsSandboxFromEnvironment = String.fromEnvironment(
     'AMAZON_RVS_SANDBOX',
   );
 
   /// App Tester receipts only verify against Amazon's RVS Cloud Sandbox.
   static bool get amazonRvsSandbox =>
-      (_amazonRvsSandboxFromEnvironment.isNotEmpty
+      (_hasAmazonRvsSandboxDefine
               ? _amazonRvsSandboxFromEnvironment
               : _fromDotenv('AMAZON_RVS_SANDBOX'))
           .toLowerCase() ==

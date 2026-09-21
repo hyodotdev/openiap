@@ -4,12 +4,8 @@ import 'src/app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // `env` is the developer's untracked copy; fall back to the committed
-  // template so a fresh checkout still runs.
-  try {
-    await dotenv.load(fileName: 'env');
-  } catch (_) {
-    await dotenv.load(fileName: 'env.example');
-  }
+  // Only env.example is a declared asset, so it is the only file the bundle
+  // carries. Per-developer values come from --dart-define, which wins over it.
+  await dotenv.load(fileName: 'env.example');
   runApp(const App());
 }
