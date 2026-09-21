@@ -443,9 +443,10 @@ function Releases() {
             between Google Play, Meta Quest, and the Amazon Appstore. The Gradle
             build resolves the store — an explicit <code>openiapStore</code>{' '}
             pin, a store flavor in the requested task, or on debug builds the
-            single connected Quest or Fire device — and logs the choice once.
-            The legacy <code>horizonEnabled</code>, <code>fireOsEnabled</code>,
-            and <code>openiapPlatform=none</code> properties still work with a
+            connected Quest or Fire device (the one <code>ANDROID_SERIAL</code>{' '}
+            names, or the only one attached) — and logs the choice once. The
+            legacy <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
+            <code>openiapPlatform=none</code> properties still work with a
             deprecation warning.
           </p>
 
@@ -506,7 +507,8 @@ function Releases() {
               <code>ORG_GRADLE_PROJECT_openiapStore</code> in an EAS profile.
             </li>
             <li>
-              Two connected devices select nothing, and two stores in one
+              Several attached devices select nothing unless{' '}
+              <code>ANDROID_SERIAL</code> names one, and two stores in one
               invocation or a pin that disagrees with a legacy flag fail the
               build.
             </li>

@@ -7,10 +7,12 @@
 //   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
 //                horizonEnabled / fireOsEnabled / openiapPlatform=none still work, with a warning.
 //   2. variant   a requested task carries a store flavor (assembleHorizonRelease, installAmazonDebug).
-//   3. device    debug tasks only: the single connected adb device is a Quest or Fire device.
+//   3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the
+//                single connected one, is a Quest or Fire device.
 //   4. play
-// Two stores in one invocation, or explicit values that disagree, fail the build; a release
-// build never consults a device.
+// Two stores in one invocation, or explicit values that disagree, fail the build. A release
+// build never consults a device, and several attached devices select nothing unless
+// ANDROID_SERIAL names one.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -115,6 +117,8 @@ ext.openIapAdbText = { List<String> command ->
   }
 }
 
+// ANDROID_SERIAL is how every Android tool picks among attached devices, so a
+// developer with several plugged in still gets the one they are targeting.
 ext.openIapDeviceStore = {
   def adb = openIapAdb()
   if (adb == null) {
@@ -125,10 +129,18 @@ ext.openIapDeviceStore = {
     return null
   }
   def serials = listing.readLines().findAll { it ==~ /^\S+\s+device$/ }.collect { it.split(/\s+/)[0] }
-  if (serials.size() != 1) {
+  def requested = System.getenv('ANDROID_SERIAL')?.trim()
+  def serial
+  if (requested) {
+    if (!serials.contains(requested)) {
+      return null
+    }
+    serial = requested
+  } else if (serials.size() == 1) {
+    serial = serials[0]
+  } else {
     return null
   }
-  def serial = serials[0]
   def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features']) ?: ''
   def manufacturer = (openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer']) ?: '').trim()
   def store = 'play'

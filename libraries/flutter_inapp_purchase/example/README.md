@@ -80,7 +80,8 @@ stores. First match wins:
 1. `-PopeniapStore=horizon|amazon|play` (or the same key in
    `android/gradle.properties`) pins it.
 2. A flavor names it: `flutter build apk --flavor horizon`.
-3. On debug builds, the single connected Quest or Fire device names it.
+3. On debug builds, the connected Quest or Fire device names it — the one
+   `ANDROID_SERIAL` selects, or the only one attached.
 4. Google Play otherwise.
 
 Gradle prints `openiap: store=... (source=...)` once per build.

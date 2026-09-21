@@ -54,9 +54,11 @@ function StoreSetup() {
             , <code>flutter build apk --flavor amazon</code>.
           </li>
           <li>
-            <strong>Device</strong> — debug tasks only: the single connected adb
-            device is a Quest or a Fire device. Release builds never look at a
-            device, and two connected devices select nothing.
+            <strong>Device</strong> — debug tasks only: the adb device{' '}
+            <code>ANDROID_SERIAL</code> names, or the single attached one, is a
+            Quest or a Fire device. Release builds never look at a device, and
+            several attached devices select nothing unless{' '}
+            <code>ANDROID_SERIAL</code> picks one.
           </li>
           <li>
             <strong>Play</strong> otherwise.

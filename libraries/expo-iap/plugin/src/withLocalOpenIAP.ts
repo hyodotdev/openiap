@@ -109,22 +109,33 @@ const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
 const normalizeGradleLanguage = (language?: string): GradleLanguage =>
   language === 'kotlin' ? 'kotlin' : 'groovy';
 
-// Consumers hold the resolver under node_modules; the monorepo example sits next
-// to the library and falls back to that copy.
-const OPENIAP_STORE_SCRIPT_CANDIDATES = [
-  '../node_modules/expo-iap/android/openiap-store.gradle',
+// The resolver ships beside this plugin, so locate it from here instead of
+// guessing where the consumer hoisted node_modules.
+const OPENIAP_STORE_SCRIPT = path.resolve(
+  __dirname,
   '../../android/openiap-store.gradle',
-];
+);
 
+export const storeScriptPathFrom = (platformProjectRoot: string): string =>
+  path
+    .relative(platformProjectRoot, OPENIAP_STORE_SCRIPT)
+    .split(path.sep)
+    .join('/');
+
+// Only the root build file applies the resolver, and it hands every Android
+// module the resolved id through a captured local. Reading it across projects
+// would depend on the root script finishing first, and React Native's root
+// plugin evaluates `:app` before that.
 export const LOCAL_STRATEGY_LINE_GROOVY =
-  '        missingDimensionStrategy "platform", rootProject.openIapResolveStore("expo-iap").store';
+  '          missingDimensionStrategy "platform", openIapStore';
 export const LOCAL_STRATEGY_LINE_KOTLIN =
-  '        missingDimensionStrategy("platform", ((rootProject.extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String)';
+  '            missingDimensionStrategy("platform", openIapStore)';
 
 // Every Android library module in a local build links the flavor the resolver
 // picks when Gradle runs, so the app and expo-iap always agree on one store.
 export const ensureLocalOpenIapFlavorStrategy = (
   contents: string,
+  storeScriptPath: string,
   language: GradleLanguage = 'groovy',
 ): string => {
   const existingBlockPattern = new RegExp(
@@ -140,40 +151,39 @@ export const ensureLocalOpenIapFlavorStrategy = (
 
   const strategyBlock =
     language === 'kotlin'
-      ? `apply(from = listOf(
-${OPENIAP_STORE_SCRIPT_CANDIDATES.map((candidate) => `  "${candidate}",`).join(
-  '\n',
-)}
-).map { file(it) }.first { it.isFile })
+      ? `apply(from = "${storeScriptPath}")
+val openIapStore =
+  ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String
 
 project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
 subprojects {
-  plugins.withId("com.android.library") {
-    extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
-      defaultConfig {
+  listOf("com.android.library", "com.android.application").forEach { pluginId ->
+    plugins.withId(pluginId) {
+      extensions.configure<com.android.build.gradle.BaseExtension>("android") {
+        defaultConfig {
 ${LOCAL_STRATEGY_LINE_KOTLIN}
+        }
       }
     }
   }
 }`
-      : `apply from: [
-${OPENIAP_STORE_SCRIPT_CANDIDATES.map((candidate) => `  "${candidate}",`).join(
-  '\n',
-)}
-].collect { file(it) }.find { it.isFile() }
+      : `apply from: "${storeScriptPath}"
+def openIapStore = openIapResolveStore("expo-iap").store
 
 project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
 subprojects { subproject ->
-  subproject.plugins.withId("com.android.library") {
-    subproject.android {
-      defaultConfig {
+  ["com.android.library", "com.android.application"].each { pluginId ->
+    subproject.plugins.withId(pluginId) {
+      subproject.android {
+        defaultConfig {
 ${LOCAL_STRATEGY_LINE_GROOVY}
+        }
       }
     }
   }
@@ -446,11 +456,6 @@ const withLocalOpenIAP: ConfigPlugin<
       appLanguage === 'kotlin'
         ? `    implementation(project(":openiap-google"))`
         : `    implementation project(':openiap-google')`;
-    const strategyLine =
-      appLanguage === 'kotlin'
-        ? LOCAL_STRATEGY_LINE_KOTLIN
-        : LOCAL_STRATEGY_LINE_GROOVY;
-
     let contents = gradle.contents;
 
     // Remove Maven deps for all openiap-google flavors
@@ -464,21 +469,13 @@ const withLocalOpenIAP: ConfigPlugin<
       );
     }
 
-    // Add missingDimensionStrategy (required for flavored module)
-    // Remove any existing platform strategies first to avoid duplicates
+    // The root build file gives every Android module the strategy now, so drop
+    // whatever an earlier prebuild wrote here.
     const strategyPattern =
-      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*(?:["'](?:play|horizon|amazon)["']|.*openIapResolveStore.*)\)?\s*$/gm;
+      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*\n?/gm;
     if (strategyPattern.test(contents)) {
       contents = contents.replace(strategyPattern, '');
-      logOnce('🧹 Removed existing missingDimensionStrategy for platform');
-    }
-
-    const lines = contents.split('\n');
-    const idx = lines.findIndex((line) => line.match(/defaultConfig\s*\{/));
-    if (idx !== -1) {
-      lines.splice(idx + 1, 0, strategyLine);
-      contents = lines.join('\n');
-      logOnce('🛠️ expo-iap: Added the build-time platform strategy');
+      logOnce('🧹 Removed a platform strategy from app/build.gradle');
     }
 
     // Add project dependency
@@ -513,6 +510,9 @@ const withLocalOpenIAP: ConfigPlugin<
 
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
+      storeScriptPathFrom(
+        (config.modRequest as any).platformProjectRoot as string,
+      ),
       normalizeGradleLanguage(config.modResults.language),
     );
     logOnce('🛠️ expo-iap: Added the local OpenIAP build-time flavor strategy');
