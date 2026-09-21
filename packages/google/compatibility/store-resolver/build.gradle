@@ -12,4 +12,11 @@ tasks.register('assembleDebug') { doLast { } }
 tasks.register('assembleRelease') { doLast { } }
 tasks.register('assembleHorizonRelease') { doLast { } }
 tasks.register('assembleAmazonDebug') { doLast { } }
+tasks.register('assembleAmazonRelease') { doLast { } }
 tasks.register('installPlayDebug') { doLast { } }
+// Lets the suite prove the graph guard: Gradle resolves these to the real
+// names above, which the configuration-time rule cannot see.
+tasks.register('assembleEverything') {
+  dependsOn 'assembleHorizonRelease', 'assembleAmazonDebug'
+  doLast { }
+}

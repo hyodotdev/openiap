@@ -100,16 +100,29 @@ run "a pin that agrees is kept"            horizon/explicit assembleHorizonRelea
 echo "abbreviated task names"
 # Gradle accepts these, so missing the flavor here links the wrong billing SDK.
 run "aHR is assembleHorizonRelease"        horizon/variant  aHR
-run "aAR is assembleAmazonRelease"         amazon/variant   aAR
+# `A` opens AndroidTest and All as readily as Amazon, so the abbreviation is
+# not read as a store; the graph check turns that into a failed build.
+run "aAR is too ambiguous to read"         "fail:but the requested tasks build amazon" aAR
 run "aPD is assemblePlayDebug"             play/variant     aPD
 run "aD names no flavor"                   play/default     aD
 run "iHD is installHorizonDebug"           horizon/variant  iHD
-run "an ambiguous abbreviation fails"      "fail:cannot tell which store" aHAR
+run "AGP own segments are not stores"      play/default     cAT
 run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
 # An exact flavor plus an abbreviation of another still names two stores.
-run "exact plus abbreviated fails"         "fail:cannot tell which store" assembleHorizonRelease aAR
+run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
 run "abbreviated plus exact fails"         "fail:cannot tell which store" aHR assembleAmazonDebug
 run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
+
+echo "task graph"
+# Gradle matches names case-insensitively and by prefix, which configuration
+# time never sees; the graph does.
+run "a lower-case task name is caught"     "fail:but the requested tasks build horizon" assemblehorizonrelease
+run "a case-mixed name is caught"          "fail:but the requested tasks build horizon" assembleHorizonrelease
+run "a prefix match is caught"             "fail:but the requested tasks build horizon" assemblehorizonr
+run "an aggregate over two stores fails"   "fail:build more than one store" assembleEverything
+run "a pin that the graph contradicts"     "fail:but the requested tasks build horizon" assemblehorizonrelease -PopeniapStore=play
+# taskNames flattens task options; a filter naming a store is not a flavor.
+run "a task option is not a store"         play/default     assembleDebug --tests com.app.AmazonTest
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus

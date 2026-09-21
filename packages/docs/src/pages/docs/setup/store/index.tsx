@@ -55,14 +55,12 @@ function StoreSetup() {
             <code>assembleHorizonRelease</code>, <code>installAmazonDebug</code>
             , or <code>flutter build apk --flavor amazon</code> in a Flutter app
             that declares those flavors. Gradle&apos;s camelCase abbreviations
-            work too: <code>aHR</code> is <code>assembleHorizonRelease</code>.
-            One store per invocation — an aggregate task such as{' '}
-            <code>assemble</code> names no flavor and falls through past this
-            step, to the device rule on a debug build and otherwise to the
-            default. In an app whose own flavors share initials with a store,
-            spell the task out or pin <code>openiapStore</code>: an abbreviation
-            like <code>aPR</code> reads as Play here even when it runs a{' '}
-            <code>preview</code> task.
+            are read where they are unambiguous — <code>aHR</code> is{' '}
+            <code>assembleHorizonRelease</code> — and where they are not, the
+            build fails rather than guess: once the task graph is ready it is
+            compared against the store that was linked, so a lower-cased name, a
+            prefix match, or an aggregate task covering two flavors stops the
+            build instead of shipping the wrong SDK. One store per invocation.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}

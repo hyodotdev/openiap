@@ -75,15 +75,21 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
 // Every capital starts a segment; the first one is the verb.
 ext.openIapAbbreviatedStore = { String taskPath ->
   def flavors = ['play', 'horizon', 'amazon']
-  def buildTypes = ['debug', 'release']
+  // AGP names its own segments too, and `A` opens AndroidTest and All as
+  // readily as Amazon. A segment that could be either is not a store: the
+  // graph check below turns a missed flavor into a failed build, while a
+  // wrong guess here would link the wrong SDK.
+  def notFlavors = ['debug', 'release', 'android', 'androidtest', 'all', 'test',
+                    'unit', 'connected', 'clean', 'check', 'lint']
+  def verbs = ['assemble', 'bundle', 'install']
   def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
   def segments = name.split(/(?=[A-Z])/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
-  if (segments.size() < 2) {
+  if (segments.size() < 2 || !verbs.any { it.startsWith(segments[0]) }) {
     return [] as LinkedHashSet
   }
   def matches = [] as LinkedHashSet
   segments.drop(1).each { segment ->
-    if (buildTypes.any { it.startsWith(segment) }) {
+    if (notFlavors.any { it.startsWith(segment) }) {
       return
     }
     flavors.findAll { it.startsWith(segment) }.each { matches << it }
@@ -91,11 +97,35 @@ ext.openIapAbbreviatedStore = { String taskPath ->
   return matches
 }
 
+// taskNames flattens task options into the list, so `--tests *AmazonTest*`
+// reads as a store. Each request's first argument is the task itself.
+ext.openIapRequestedTasks = {
+  try {
+    def requested = gradle.startParameter.taskRequests.collectMany { request ->
+      // Options follow the task they belong to, so the names run until the
+      // first one. A request may carry several tasks: `clean assembleDebug`.
+      def names = []
+      for (arg in request.args) {
+        if (arg?.startsWith('-')) {
+          break
+        }
+        names << arg
+      }
+      return names
+    }
+    if (requested) {
+      return requested
+    }
+  } catch (Throwable ignored) {
+  }
+  return gradle.startParameter.taskNames
+}
+
 ext.openIapTaskStore = { String label ->
   // Abbreviation is a per-task fallback: a task that spells its flavor out is
   // never also fragmented, or `assemblePLAYRelease` would collide with itself.
   def named = [] as LinkedHashSet
-  gradle.startParameter.taskNames.each { String taskPath ->
+  openIapRequestedTasks().each { String taskPath ->
     def exact = [] as LinkedHashSet
     openIapTaskTokens(taskPath).each { token ->
       if (token in ['play', 'horizon', 'amazon']) {
@@ -110,7 +140,7 @@ ext.openIapTaskStore = { String label ->
   }
   // Picking one of two named stores would link the wrong billing SDK in silence.
   if (named.size() > 1) {
-    throw new GradleException("${label}: cannot tell which store the requested tasks '${gradle.startParameter.taskNames.join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
+    throw new GradleException("${label}: cannot tell which store the requested tasks '${openIapRequestedTasks().join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
   }
   return named ? named.first() : null
 }
@@ -137,12 +167,56 @@ ext.openIapBuildTypes = { String taskPath ->
 }
 
 ext.openIapDebugBuild = {
-  def names = gradle.startParameter.taskNames
+  def names = openIapRequestedTasks()
   if (!names) {
     return false
   }
   def types = names.collectMany { openIapBuildTypes(it) } as LinkedHashSet
   return types.contains('debug') && !types.contains('release')
+}
+
+// Gradle 9 deprecated StartParameter.isConfigurationCacheRequested, and calling
+// it warns on every build that reaches the device step. Prefer the supported
+// build feature and fall back only where that is missing.
+ext.openIapConfigurationCacheRequested = {
+  try {
+    def features = project.services.get(org.gradle.api.configuration.BuildFeatures)
+    return features.configurationCache.requested.getOrElse(false)
+  } catch (Throwable ignored) {
+  }
+  try {
+    return gradle.startParameter.isConfigurationCacheRequested()
+  } catch (Throwable ignored) {
+  }
+  return false
+}
+
+// The requested names are whatever the developer typed: Gradle resolves
+// abbreviations and matches case-insensitively, and one aggregate task can
+// build every flavor. Only the finished graph carries the real names, so the
+// answer chosen during configuration is checked against it before any task
+// runs.
+ext.openIapVerifyTaskGraph = { String label, String resolved ->
+  gradle.taskGraph.whenReady { graph ->
+    def named = [] as LinkedHashSet
+    graph.allTasks.each { task ->
+      openIapTaskTokens(task.name).each { token ->
+        if (token in ['play', 'horizon', 'amazon']) {
+          named << token
+        }
+      }
+    }
+    if (!named) {
+      return
+    }
+    if (named.size() > 1) {
+      throw new GradleException("${label}: the requested tasks build more than one store (${named.join(', ')}) but a build links one; build one store per invocation or set openiapStore")
+    }
+    def actual = named.first()
+    if (actual != resolved) {
+      throw new GradleException("${label}: linked ${resolved} but the requested tasks build ${actual}; spell the task out or set openiapStore=${actual}")
+    }
+  }
 }
 
 ext.openIapEnv = { String name ->
@@ -257,20 +331,16 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   // wrong billing SDK from a correct-looking release task, so it fails here.
   if (explicit != null && variant != null && explicit != variant) {
     throw new GradleException(
-      "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${gradle.startParameter.taskNames.join(' ')}'"
+      "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${openIapRequestedTasks().join(' ')}'"
     )
   }
   def resolution = null
   if (explicit != null) {
     resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
   } else if (variant != null) {
-    resolution = [store: variant, source: 'variant', reason: "task ${gradle.startParameter.taskNames.join(' ')}"]
+    resolution = [store: variant, source: 'variant', reason: "task ${openIapRequestedTasks().join(' ')}"]
   } else if (openIapDebugBuild()) {
-    def ccRequested = false
-    try {
-      ccRequested = gradle.startParameter.isConfigurationCacheRequested()
-    } catch (Throwable ignored) {
-    }
+    def ccRequested = openIapConfigurationCacheRequested()
     if (ccRequested) {
       // A cached configuration keeps the store the probe saw, long after that
       // device is gone. Pin the store instead of shipping a stale answer.
@@ -287,5 +357,6 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   }
   rootProject.ext.openIapStoreResolution = resolution
   logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
+  openIapVerifyTaskGraph(label, resolution.store)
   return resolution
 }
