@@ -111,8 +111,10 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		var store := AndroidStore.normalize(get_option(ANDROID_STORE_OPTION))
 		if store.is_empty():
-			push_error("[GodotIap] %s must be one of: %s" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
-			store = "auto"
+			# Godot's export API cannot abort here, so drop the dependencies
+			# instead: a misspelled store must not quietly ship the Play SDK.
+			push_error("[GodotIap] %s must be one of: %s; exporting no OpenIAP dependency" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
+			return PackedStringArray()
 		var dependencies := PackedStringArray()
 		for dependency in _read_android_remote_dependencies():
 			dependencies.append(AndroidStore.artifact(dependency, store))

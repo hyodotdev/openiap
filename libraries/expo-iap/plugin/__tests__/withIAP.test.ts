@@ -286,20 +286,25 @@ describe('android configuration', () => {
     });
   });
 
-  it('lets Fire OS take precedence over Horizon for Android flavor selection', () => {
-    expect(
-      resolveAmazonPlatformFlags({
-        modules: {
-          horizon: true,
-          amazon: {fireOS: true, vegaOS: false},
-        },
-      }),
-    ).toEqual({
+  it('reports Fire OS and Horizon as both set so the pin can refuse them', () => {
+    const flags = resolveAmazonPlatformFlags({
+      modules: {
+        horizon: true,
+        amazon: {fireOS: true, vegaOS: false},
+      },
+    });
+
+    expect(flags).toEqual({
       isFireOsEnabled: true,
       isVegaEnabled: false,
-      isHorizonEnabled: false,
+      isHorizonEnabled: true,
       isOnsideEnabled: false,
     });
+    // Gradle and the doctor both fail this combination; silently preferring
+    // Fire OS here would ship a store the config never asked for.
+    expect(() => resolvePinnedAndroidStore(flags)).toThrow(
+      /both enabled/,
+    );
   });
 
   it('uses Expo IAP platform env flags when module options are absent', () => {
@@ -319,7 +324,7 @@ describe('android configuration', () => {
       expect(resolveAmazonPlatformFlags(undefined)).toEqual({
         isFireOsEnabled: true,
         isVegaEnabled: true,
-        isHorizonEnabled: false,
+        isHorizonEnabled: true,
         isOnsideEnabled: true,
       });
     } finally {

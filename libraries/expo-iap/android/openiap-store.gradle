@@ -100,7 +100,8 @@ ext.openIapAbbreviatedStore = { String taskPath ->
 }
 
 // taskNames flattens task options into the list, so `--tests *AmazonTest*`
-// reads as a store. Each request's first argument is the task itself.
+// reads as a store. Configuration time cannot know which options take a value,
+// so it stops at the first one and leaves the rest to the graph guard.
 ext.openIapRequestedTasks = {
   try {
     def requested = gradle.startParameter.taskRequests.collectMany { request ->
@@ -121,6 +122,13 @@ ext.openIapRequestedTasks = {
   } catch (Throwable ignored) {
   }
   return gradle.startParameter.taskNames
+}
+
+// The graph guard can afford every token, because a token only counts when it
+// names a task the build actually scheduled: an option's value matches nothing,
+// while a task that follows an option matches itself.
+ext.openIapRequestedTokens = {
+  return gradle.startParameter.taskNames.findAll { it && !it.startsWith('-') }
 }
 
 ext.openIapTaskStore = { String label ->
@@ -212,7 +220,7 @@ ext.openIapSelectedTasks = { graph, String request ->
       return true
     }
     def taskSegments = name.split(/(?=[A-Z])/).findAll { it }
-    if (segments.size() < 2 || segments.size() != taskSegments.size()) {
+    if (segments.size() < 2 || segments.size() > taskSegments.size()) {
       return false
     }
     return (0..<segments.size()).every {
@@ -232,7 +240,7 @@ ext.openIapVerifyTaskGraph = { String label, String resolved ->
   }
   gradle.taskGraph.whenReady { graph ->
     def named = [] as LinkedHashSet
-    openIapRequestedTasks().each { String request ->
+    openIapRequestedTokens().each { String request ->
       openIapSelectedTasks(graph, request).each { String taskName ->
         openIapTaskTokens(taskName).each { token ->
           if (token in ['play', 'horizon', 'amazon']) {

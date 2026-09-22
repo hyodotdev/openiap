@@ -697,9 +697,9 @@ export function resolveAmazonPlatformFlags(
     ? moduleAmazon?.vegaOS === true
     : isEnvFlagEnabled('EXPO_IAP_VEGA');
   const modules = options?.modules;
-  const isHorizonEnabled = isFireOsEnabled
-    ? false
-    : hasOwnKey(modules, 'horizon')
+  // Reported as set, not silently dropped: resolvePinnedAndroidStore refuses
+  // two stores rather than letting Fire OS quietly win.
+  const isHorizonEnabled = hasOwnKey(modules, 'horizon')
     ? modules?.horizon === true
     : isEnvFlagEnabled('EXPO_IAP_HORIZON');
   const isOnsideEnabled = hasOwnKey(modules, 'onside')

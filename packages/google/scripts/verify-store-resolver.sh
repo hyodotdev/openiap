@@ -41,7 +41,13 @@ run() {
         actual=$(printf '%s\n' "$output" \
             | sed -n 's/.*FIXTURE store=\([a-z]*\) source=\([a-z]*\).*/\1\/\2/p' \
             | tail -1)
-        [[ -n "$actual" ]] || actual="no resolution (exit=$status): ${output//$'\n'/ }"
+        if [[ -z "$actual" ]]; then
+            actual="no resolution (exit=$status): ${output//$'\n'/ }"
+        elif [[ $status -ne 0 ]]; then
+            # The resolution is printed during configuration, so a case that
+            # only greps it passes even when the build fails.
+            actual="$actual but exit=$status: ${output//$'\n'/ }"
+        fi
     fi
 
     if [[ "$actual" == "$expected" ]]; then
@@ -88,6 +94,8 @@ run "pin against a legacy flag fails"      "fail:conflicts with fireOsEnabled=tr
 run "openiapPlatform only takes none"      "fail:only supports the opt-out" assembleDebug -PopeniapPlatform=horizon
 run "none needs the opt-out to be allowed" "fail:is not supported by this library" assembleDebug -PopeniapStore=none
 run "none where it is supported"           none/explicit    assembleDebug -PopeniapStore=none -PfixtureAllowNone=true
+run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -PopeniapStore=horizon -PhorizonEnabled=true
+run "a pin is trimmed and lower-cased"     horizon/explicit assembleDebug "-PopeniapStore= Horizon "
 
 echo "task flavor"
 run "assembleHorizonRelease"               horizon/variant  assembleHorizonRelease
@@ -112,6 +120,9 @@ run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
 run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
 run "abbreviated plus exact fails"         "fail:cannot tell which store" aHR assembleAmazonDebug
 run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
+run "bHR is bundleHorizonRelease"          horizon/variant  bHR
+# Gradle matches an abbreviation with fewer humps than the task name has.
+run "aH is assembleHorizonRelease"         horizon/variant  aH
 
 echo "task graph"
 # Gradle matches names case-insensitively and by prefix, which configuration
@@ -124,16 +135,23 @@ run "a prefix match is caught"             "fail:but the requested tasks build h
 # openiap-google and all three of its flavors. Only what the request selected
 # can say which store this build links.
 run "an anchor over flavors is allowed"    play/default     assembleEverything
+run "AGP's own assemble anchor is allowed" play/default     assemble
+run "no task at all"                       play/default
 run "a pin under an anchor is kept"        horizon/explicit assembleEverything -PopeniapStore=horizon
 run "opting out ignores the graph"         none/explicit    assembleEverything -PopeniapStore=none -PfixtureAllowNone=true
 run "a pin that the graph contradicts"     "fail:but the requested tasks build horizon" assemblehorizonrelease -PopeniapStore=play
-# taskNames flattens task options; a filter naming a store is not a flavor.
-run "a task option is not a store"         play/default     assembleDebug --tests com.app.AmazonTest
+# taskNames flattens task options; a filter naming a store is not a flavor, and
+# the graph guard sees the value too but it matches no task.
+run "a task option is not a store"         play/default     testDebugUnitTest --tests com.app.AmazonTest
+# Configuration time stops at the first option, so only the graph sees the task
+# that follows one. Missing it links play while horizon is what gets built.
+run "a task after an option is caught"     "fail:but the requested tasks build horizon" help --task clean assembleHorizonRelease
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
 run "a Quest selects horizon"              horizon/device   assembleDebug
 run "a release build ignores the device"   play/default     assembleRelease
+run "a flavor outranks the device"         amazon/variant   assembleAmazonDebug
 run "clean keeps it a debug build"         horizon/device   clean assembleDebug
 run "the configuration cache skips it"     play/default     assembleDebug --configuration-cache
 run "an explicit pin still wins"           play/explicit    assembleDebug -PopeniapStore=play

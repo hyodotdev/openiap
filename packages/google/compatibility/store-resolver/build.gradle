@@ -1,5 +1,7 @@
 // Applies the resolver exactly as a wrapper does and prints its answer in one
 // machine-readable line. verify-store-resolver.sh asserts against that line.
+import org.gradle.api.tasks.options.Option
+
 apply from: new File(rootDir, '../../gradle/openiap-store.gradle')
 
 def allowNone = (project.findProperty('fixtureAllowNone') ?: 'false').toBoolean()
@@ -7,16 +9,40 @@ def resolution = openIapResolveStore('fixture', [allowNone: allowNone])
 // println, not logger: --quiet keeps the run readable but drops lifecycle logs.
 println("FIXTURE store=${resolution.store} source=${resolution.source}")
 
-tasks.register('clean') { doLast { } }
-tasks.register('assembleDebug') { doLast { } }
-tasks.register('assembleRelease') { doLast { } }
-tasks.register('assembleHorizonRelease') { doLast { } }
-tasks.register('assembleAmazonDebug') { doLast { } }
-tasks.register('assembleAmazonRelease') { doLast { } }
-tasks.register('installPlayDebug') { doLast { } }
-// Lets the suite prove the graph guard: Gradle resolves these to the real
-// names above, which the configuration-time rule cannot see.
+// Every name Gradle would resolve has to exist, or a case asserts a resolution
+// for a build that never ran.
+['clean', 'assembleDebug', 'assembleRelease',
+ 'assemblePlayDebug', 'assemblePlayRelease',
+ 'assembleAmazonDebug', 'assembleAmazonRelease',
+ 'assembleHorizonRelease', 'bundleHorizonRelease',
+ 'installPlayDebug', 'installHorizonDebug',
+ 'connectedAndroidTest'].each { name ->
+  tasks.register(name) { doLast { } }
+}
+
+// AGP's lifecycle anchor: one name that builds every flavor.
+tasks.register('assemble') {
+  dependsOn 'assemblePlayRelease', 'assembleAmazonRelease', 'assembleHorizonRelease'
+  doLast { }
+}
+
+// A custom anchor over two stores, which the graph guard must still allow.
 tasks.register('assembleEverything') {
   dependsOn 'assembleHorizonRelease', 'assembleAmazonDebug'
   doLast { }
 }
+
+// Owns --tests so the filter case is a real invocation, not an unknown option.
+abstract class FixtureTestTask extends DefaultTask {
+  @Input
+  @Optional
+  String tests
+
+  @Option(option = 'tests', description = 'Test filter, as Gradle Test declares it')
+  void setTests(String value) { tests = value }
+
+  @TaskAction
+  void run() { }
+}
+
+tasks.register('testDebugUnitTest', FixtureTestTask)
