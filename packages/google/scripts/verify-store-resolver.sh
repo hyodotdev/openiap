@@ -194,6 +194,39 @@ ANDROID_SERIAL=ABSENT run "an absent serial selects nothing" play/default   asse
 clear_device
 run "no adb at all"                        play/default     assembleDebug
 
+# The list of value-taking options was twice written from memory, and twice
+# wrong: once naming an option Gradle does not have, once missing one whose
+# value spelled a store. Ask Gradle instead. A flag is the option Gradle prints
+# a `--no-` twin for; `--rerun` is the lone built-in flag without one.
+echo "value-option drift"
+declared=$(sed -n "/openIapValueOptions = \[/,/\] as Set/p" \
+    "$google_root/gradle/openiap-store.gradle" \
+    | grep -oE "'--[a-z0-9-]+'" | tr -d "'" | sort -u)
+derived=$(
+    cd "$fixture" && "$gradlew" --quiet tasks --all 2>/dev/null \
+        | grep -oE '^[a-zA-Z][a-zA-Z0-9]*( |$)' | tr -d ' ' | sort -u \
+        | while IFS= read -r task; do
+            "$gradlew" --quiet help --task "$task" 2>/dev/null \
+                | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d ' ' | sort -u
+        done
+)
+missing=$(
+    printf '%s\n' "$derived" | sort -u | while IFS= read -r option; do
+        [[ -n "$option" ]] || continue
+        # Balanced parens: inside $( ) an unmatched `)` ends the substitution.
+        case "$option" in (--no-*|--rerun) continue ;; esac
+        printf '%s\n' "$derived" | grep -qx -- "--no-${option#--}" && continue
+        printf '%s\n' "$declared" | grep -qx -- "$option" || printf '%s ' "$option"
+    done
+)
+if [[ -z "$missing" ]]; then
+    printf '  ok   %-58s %s\n' "every option Gradle takes a value for is listed" "$(printf '%s\n' "$declared" | wc -l | tr -d ' ') listed"
+    passed=$((passed + 1))
+else
+    printf '  FAIL %-58s %s\n' "openIapValueOptions is missing options" "$missing"
+    failed=$((failed + 1))
+fi
+
 echo
 echo "Store resolver: $passed passed, $failed failed"
 [[ $failed -eq 0 ]]

@@ -99,20 +99,28 @@ ext.openIapAbbreviatedStore = { String taskPath ->
   return matches
 }
 
-// Gradle task options that take a separate value, read off `help --task` for
-// every built-in task: an option Gradle publishes with a `--no-` twin is a flag,
-// and the rest take one. Anything not listed is treated as a flag, so a flag
-// never eats the task after it -- `Test` alone declares three, which is why
+// Gradle task options that take a separate value, derived from `help --task`
+// over `tasks --all` on both Gradle majors the CI matrix covers: Gradle prints
+// a `--no-` twin for a flag and not for a value option. `--rerun` is the one
+// exception, a built-in flag appended to every task without a twin, so it is
+// excluded by hand; adding it here would silently drop the task after it.
+// verify-store-resolver.sh re-derives this list and fails when Gradle grows an
+// option it does not name.
+//
+// Anything unlisted is treated as a flag, so a flag never eats the task after
+// it -- `Test` alone declares three, which is why
 // `test --fail-fast assembleHorizonRelease` has to keep the assemble. The cost
-// is the other direction: a value of some option not listed here, a plugin's
-// own among them, is read as a task, and one that spells a store picks it.
+// runs the other way: a value of an option missing here, a plugin's own among
+// them, is read as a task, and one that spells a store picks it.
 // `--option=value` is a single token and never reaches this list.
 ext.openIapValueOptions = [
-  '--args', '--configuration', '--dependency', '--distribution-type', '--dsl',
+  '--args', '--component', '--configuration', '--dependency',
+  '--distribution-type', '--dsl', '--format',
   '--gradle-distribution-sha256-sum', '--gradle-distribution-url',
   '--gradle-version', '--group', '--groups', '--insecure-protocol',
-  '--java-version', '--network-timeout', '--package', '--project-name',
-  '--property', '--task', '--test-framework', '--tests', '--type', '--variant',
+  '--java-version', '--jvm-vendor', '--jvm-version', '--network-timeout',
+  '--package', '--project-name', '--property', '--task', '--test-framework',
+  '--tests', '--type', '--variant',
 ] as Set
 
 // Gradle flattens a whole invocation into one list, options included, so
