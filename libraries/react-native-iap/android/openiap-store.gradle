@@ -99,36 +99,32 @@ ext.openIapAbbreviatedStore = { String taskPath ->
   return matches
 }
 
-// taskNames flattens task options into the list, so `--tests *AmazonTest*`
-// reads as a store. Configuration time cannot know which options take a value,
-// so it stops at the first one and leaves the rest to the graph guard.
+// Gradle flattens a whole invocation into one list, options included, so
+// `--tests *AmazonTest*` would read as a store. Drop each option and the value
+// it consumes and keep every remaining name, which is what the developer asked
+// to build. A boolean task option takes no value, but nothing here can tell it
+// from one that does, so a task written directly after one is read as its value
+// and missed; write tasks before options, or pin the store.
 ext.openIapRequestedTasks = {
-  try {
-    def requested = gradle.startParameter.taskRequests.collectMany { request ->
-      // Options follow the task they belong to, so the names run until the
-      // first one. A request may carry several tasks: `clean assembleDebug`.
-      def names = []
-      for (arg in request.args) {
-        if (arg?.startsWith('-')) {
-          break
-        }
-        names << arg
-      }
-      return names
+  def names = []
+  def previous = null
+  gradle.startParameter.taskNames.each { String token ->
+    if (!token) {
+      return
     }
-    if (requested) {
-      return requested
+    if (token.startsWith('-')) {
+      previous = token
+      return
     }
-  } catch (Throwable ignored) {
+    // `--option value` consumes the next token; `--option=value` carries its own.
+    if (previous?.startsWith('-') && !previous.contains('=')) {
+      previous = token
+      return
+    }
+    names << token
+    previous = token
   }
-  return gradle.startParameter.taskNames
-}
-
-// The graph guard can afford every token, because a token only counts when it
-// names a task the build actually scheduled: an option's value matches nothing,
-// while a task that follows an option matches itself.
-ext.openIapRequestedTokens = {
-  return gradle.startParameter.taskNames.findAll { it && !it.startsWith('-') }
+  return names
 }
 
 ext.openIapTaskStore = { String label ->
@@ -240,7 +236,7 @@ ext.openIapVerifyTaskGraph = { String label, String resolved ->
   }
   gradle.taskGraph.whenReady { graph ->
     def named = [] as LinkedHashSet
-    openIapRequestedTokens().each { String request ->
+    openIapRequestedTasks().each { String request ->
       openIapSelectedTasks(graph, request).each { String taskName ->
         openIapTaskTokens(taskName).each { token ->
           if (token in ['play', 'horizon', 'amazon']) {

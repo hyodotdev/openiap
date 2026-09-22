@@ -143,9 +143,16 @@ run "a pin that the graph contradicts"     "fail:but the requested tasks build h
 # taskNames flattens task options; a filter naming a store is not a flavor, and
 # the graph guard sees the value too but it matches no task.
 run "a task option is not a store"         play/default     testDebugUnitTest --tests com.app.AmazonTest
-# Configuration time stops at the first option, so only the graph sees the task
-# that follows one. Missing it links play while horizon is what gets built.
-run "a task after an option is caught"     "fail:but the requested tasks build horizon" help --task clean assembleHorizonRelease
+# A whole invocation arrives as one flat list, so a task written after another
+# task's option still has to be read, and in either order.
+run "a task after an option is read"       horizon/variant  help --task clean assembleHorizonRelease
+run "a task before its own option"         horizon/variant  assembleHorizonRelease testDebugUnitTest --tests com.app.Foo
+run "a task after another task's option"   horizon/variant  testDebugUnitTest --tests com.app.Foo assembleHorizonRelease
+# An option's value is not a task, even when it names or prefixes one that the
+# requested anchor pulled into the graph.
+run "an option value naming a real task"   play/default     assembleEverything help --task assembleAmazonDebug
+run "an option value prefixing tasks"      play/default     assemble testDebugUnitTest --tests ass
+run "an option value before a task"        play/default     help --task assemb assemble
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
