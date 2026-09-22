@@ -58,9 +58,13 @@ function StoreSetup() {
             are read where they are unambiguous — <code>aHR</code> is{' '}
             <code>assembleHorizonRelease</code> — and where they are not, the
             build fails rather than guess: once the task graph is ready it is
-            compared against the store that was linked, so a lower-cased name, a
-            prefix match, or an aggregate task covering two flavors stops the
-            build instead of shipping the wrong SDK. One store per invocation.
+            compared against the store that was linked, so a lower-cased name or
+            a prefix match stops the build instead of shipping the wrong SDK.
+            Name one store per invocation, and name it <code>play</code>,{' '}
+            <code>horizon</code> or <code>amazon</code> — the aliases work in{' '}
+            <code>openiapStore</code>, not in a flavor name. An anchor task such
+            as <code>assembleDebug</code> is not a second store: it builds every
+            flavor a project has, and each one links what it declares.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}

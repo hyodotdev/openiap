@@ -95,6 +95,9 @@ run "openiapPlatform only takes none"      "fail:only supports the opt-out" asse
 run "none needs the opt-out to be allowed" "fail:is not supported by this library" assembleDebug -PopeniapStore=none
 run "none where it is supported"           none/explicit    assembleDebug -PopeniapStore=none -PfixtureAllowNone=true
 run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -PopeniapStore=horizon -PhorizonEnabled=true
+# Opting out links nothing, so a store flavor kept for packaging is no conflict.
+run "none beside a store flavor"           none/explicit    assembleAmazonRelease -PopeniapStore=none -PfixtureAllowNone=true
+run "the legacy opt-out beside one too"    none/explicit    assembleAmazonRelease -PopeniapPlatform=none -PfixtureAllowNone=true
 run "a pin is trimmed and lower-cased"     horizon/explicit assembleDebug "-PopeniapStore= Horizon "
 
 echo "task flavor"
@@ -263,6 +266,10 @@ else
             printf '%s\n' "$declared" | grep -qx -- "$option" \
                 && printf 'flag-listed:%s ' "$option"
         done
+        # A `--no-` name is a flag by construction, and the loop above skips
+        # every `--no-` before it can say so.
+        printf '%s\n' "$declared" | grep -E '^--no-' \
+            | while IFS= read -r option; do printf 'flag-listed:%s ' "$option"; done
         # An option Gradle does not publish anywhere was once listed from
         # memory; Gradle rejects it before a build, so it only hides a typo.
         printf '%s\n' "$declared" | while IFS= read -r option; do

@@ -112,7 +112,9 @@ ext.openIapAbbreviatedStore = { String taskPath ->
 // it -- `Test` alone declares three, which is why
 // `test --fail-fast assembleHorizonRelease` has to keep the assemble. The cost
 // runs the other way: a value of an option missing here, a plugin's own among
-// them, is read as a task, and one that spells a store picks it.
+// them, is read as a task, and one that spells a store picks it. AGP's
+// `--serial` is the known instance, harmless because a device serial does not
+// spell a store.
 // `--option=value` is a single token and never reaches this list.
 ext.openIapValueOptions = [
   '--args', '--component', '--configuration', '--dependency',
@@ -395,7 +397,9 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   def variant = openIapTaskStore(label)
   // A pin that disagrees with the requested flavor is the case that ships the
   // wrong billing SDK from a correct-looking release task, so it fails here.
-  if (explicit != null && variant != null && explicit != variant) {
+  // Opting out is not that case: it links nothing, so an app that keeps a store
+  // flavor for its own packaging can still build without an Android IAP SDK.
+  if (explicit != null && explicit != 'none' && variant != null && explicit != variant) {
     throw new GradleException(
       "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${openIapRequestedTasks().join(' ')}'"
     )
