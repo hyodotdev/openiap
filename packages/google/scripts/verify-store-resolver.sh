@@ -159,6 +159,10 @@ run "a flag does not eat the next task"    horizon/variant  testDebugUnitTest --
 run "a flag after the task it belongs to"  horizon/variant  assembleHorizonRelease testDebugUnitTest --fail-fast
 # --option=value is one token and carries its own value.
 run "an inline option value"               horizon/variant  testDebugUnitTest --tests=com.app.Foo assembleHorizonRelease
+# A value that spells a store is still a value. Reading it as a task picked
+# amazon for a build that never named one.
+run "an option value spelling a store"     play/default     properties --property amazon
+run "the same value after an anchor"       play/default     assemble properties --property amazon
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus

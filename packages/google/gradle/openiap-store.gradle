@@ -99,15 +99,20 @@ ext.openIapAbbreviatedStore = { String taskPath ->
   return matches
 }
 
-// Gradle task options that take a separate value. Anything else is read as a
-// flag, because the two mistakes are not symmetric: dropping a task links the
-// wrong billing SDK and ships, while reading a value as a task at worst fails
-// the build with a message naming the store. `Test` alone declares three
-// flags, so `test --fail-fast assembleHorizonRelease` has to keep the assemble.
-// `--option=value` is one token and never reaches this list.
+// Gradle task options that take a separate value, read off `help --task` for
+// every built-in task: an option Gradle publishes with a `--no-` twin is a flag,
+// and the rest take one. Anything not listed is treated as a flag, so a flag
+// never eats the task after it -- `Test` alone declares three, which is why
+// `test --fail-fast assembleHorizonRelease` has to keep the assemble. The cost
+// is the other direction: a value of some option not listed here, a plugin's
+// own among them, is read as a task, and one that spells a store picks it.
+// `--option=value` is a single token and never reaches this list.
 ext.openIapValueOptions = [
-  '--tests', '--task', '--configuration', '--dependency', '--args', '--type',
-  '--dsl', '--package-name', '--project-name', '--variant', '--group',
+  '--args', '--configuration', '--dependency', '--distribution-type', '--dsl',
+  '--gradle-distribution-sha256-sum', '--gradle-distribution-url',
+  '--gradle-version', '--group', '--groups', '--insecure-protocol',
+  '--java-version', '--network-timeout', '--package', '--project-name',
+  '--property', '--task', '--test-framework', '--tests', '--type', '--variant',
 ] as Set
 
 // Gradle flattens a whole invocation into one list, options included, so
