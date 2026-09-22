@@ -323,10 +323,16 @@ ext.openIapDeviceStore = {
 }
 
 ext.openIapResolveStore = { String label, Map options = [:] ->
-  if (rootProject.ext.has('openIapStoreResolution')) {
-    return rootProject.ext.openIapStoreResolution
-  }
   def allowNone = options.allowNone == true
+  if (rootProject.ext.has('openIapStoreResolution')) {
+    def cached = rootProject.ext.openIapStoreResolution
+    // The opt-out is per caller, so a library that cannot build without a
+    // store SDK must still refuse it even when an earlier caller allowed it.
+    if (cached.store == 'none' && !allowNone) {
+      throw new GradleException("${label}: openiapStore=none is not supported by this library")
+    }
+    return cached
+  }
   def explicit = openIapExplicitStore(label, allowNone)
   def variant = openIapTaskStore(label)
   // A pin that disagrees with the requested flavor is the case that ships the

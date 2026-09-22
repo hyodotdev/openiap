@@ -188,14 +188,17 @@ export function androidStoreChecks(root, framework) {
   // Only flutter_inapp_purchase compiles a no-op Android implementation; every
   // other wrapper fails the build on this value.
   if (effectivePin === "none" && framework && framework !== "flutter") {
+    // The opt-out may have come from the legacy key while openiapStore said
+    // auto, so point at the line the developer would have to edit.
+    const optOutFromLegacy = pin !== "none";
     findings.push(
       finding(
         "android-store-unknown",
         "error",
         "android/gradle.properties",
-        `${pinSource}=none is not supported by ${framework}.`,
+        `${optOutFromLegacy ? "openiapPlatform" : pinSource}=none is not supported by ${framework}.`,
         "Remove the opt-out; only flutter_inapp_purchase builds without an Android store SDK.",
-        { line: pinEntry.line },
+        { line: (optOutFromLegacy ? platformEntry : pinEntry).line },
       ),
     );
   }

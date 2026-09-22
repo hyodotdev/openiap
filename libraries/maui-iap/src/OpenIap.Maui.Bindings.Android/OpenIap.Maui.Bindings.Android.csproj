@@ -36,7 +36,7 @@
          over the OpenIapAndroidStore alias here exactly as openiapStore wins in
          the Gradle layer. Preferring different spellings would let one build
          link two stores without either layer complaining. -->
-    <OpenIapAndroidStore Condition="'$(OpenIapStore)' != ''">$(OpenIapStore)</OpenIapAndroidStore>
+    <OpenIapAndroidStore Condition="'$(OpenIapStore.Trim())' != ''">$(OpenIapStore)</OpenIapAndroidStore>
     <OpenIapAndroidStore Condition="'$(OpenIapAndroidStore)' == ''">play</OpenIapAndroidStore>
     <!-- Every other layer lowercases before matching; without this, Horizon and
          horizon would select different stores in the same build. -->

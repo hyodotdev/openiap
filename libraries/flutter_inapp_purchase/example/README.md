@@ -154,5 +154,6 @@ Press F5 or click **Start Debugging** - works out of the box!
 - **Fire OS**: plug in a Fire device, or set `openiapStore=amazon`, and test
   with Amazon App Tester
 
-`horizonEnabled` and `fireOsEnabled` are deprecated; the app no longer reads
-them.
+`horizonEnabled` and `fireOsEnabled` are deprecated but still read, with a
+warning, so a stale one still selects a store and fails the build if it
+disagrees with `openiapStore`. Delete them rather than leaving them set.

@@ -331,10 +331,15 @@ test("an opt-out masked by auto still fails a non-Flutter wrapper", () => {
         "android/gradle.properties": `${pin}openiapPlatform=none\n`,
       },
       (root) => {
-        const ids = doctor(root).findings.map((one) => one.id);
+        const ids = doctor(root).findings;
         assert.ok(
-          ids.includes("android-store-unknown"),
+          ids.some((one) => one.id === "android-store-unknown"),
           `${JSON.stringify(pin)} beside the opt-out is unsupported here`,
+        );
+        // The opt-out lives on the legacy key, so that is the line to edit.
+        assert.match(
+          ids.find((one) => one.id === "android-store-unknown").message,
+          /openiapPlatform=none/u,
         );
       },
     );
