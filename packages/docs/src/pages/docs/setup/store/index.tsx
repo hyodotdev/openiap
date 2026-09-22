@@ -66,8 +66,8 @@ function StoreSetup() {
             as <code>assembleDebug</code> or <code>bundleRelease</code> is not a
             second store, and it does not give each flavor its own: the build
             links the one store this rule chose into every flavor the anchor
-            produces. To ship a different store per flavor, name one flavor per
-            invocation, or pin it.
+            produces. To ship a different store per flavor, name one flavor — or
+            one pin — per invocation.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}

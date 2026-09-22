@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-22T15:45:20.532Z
+> Last updated: 2026-09-22T16:04:56.979Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1348,7 +1348,9 @@ on the other stores; they never select anything.
 
 A store pin against a different task flavor, two store flavors named by the
 requested tasks, and a pin against a legacy flag each fail the build. Opting out
-with `openiapStore=none` is not a store pin and does not conflict with one. An anchor task that
+with `openiapStore=none` never conflicts with a task flavor, because it links
+nothing; it does still conflict with a legacy flag that names a store. An anchor
+task that
 builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release
