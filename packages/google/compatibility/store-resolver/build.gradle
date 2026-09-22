@@ -9,6 +9,11 @@ def resolution = openIapResolveStore('fixture', [allowNone: allowNone])
 // println, not logger: --quiet keeps the run readable but drops lifecycle logs.
 println("FIXTURE store=${resolution.store} source=${resolution.source}")
 
+// A second caller reaches the cached branch, which a single caller never does.
+if ((project.findProperty('fixtureSecondCaller') ?: 'false').toBoolean()) {
+  openIapResolveStore('second', [allowNone: false])
+}
+
 // Every name Gradle would resolve has to exist, or a case asserts a resolution
 // for a build that never ran.
 ['clean', 'assembleDebug', 'assembleRelease',

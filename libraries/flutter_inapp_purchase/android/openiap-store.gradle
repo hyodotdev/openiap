@@ -43,6 +43,12 @@ ext.openIapTaskTokens = { String taskPath ->
   return name.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
 }
 
+// Which key asked for the opt-out, so every refusal names the one that was set.
+ext.openIapOptOutKey = {
+  def explicit = project.findProperty('openiapStore')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  return explicit == 'none' ? 'openiapStore=none' : 'openiapPlatform=none'
+}
+
 ext.openIapExplicitStore = { String label, boolean allowNone ->
   def explicit = openIapNormalizeStore(project.findProperty('openiapStore'), label)
   def horizon = project.findProperty('horizonEnabled')?.toString()?.toBoolean() ?: false
@@ -67,8 +73,7 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
     throw new GradleException("${label}: openiapStore=${explicit} conflicts with ${legacyKey}")
   }
   if (store == 'none' && !allowNone) {
-    def optOutKey = (explicit == 'none') ? 'openiapStore=none' : 'openiapPlatform=none'
-    throw new GradleException("${label}: ${optOutKey} is not supported by this library")
+    throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
   }
   return store
 }
@@ -389,7 +394,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     // The opt-out is per caller, so a library that cannot build without a
     // store SDK must still refuse it even when an earlier caller allowed it.
     if (cached.store == 'none' && !allowNone) {
-      throw new GradleException("${label}: openiapStore=none is not supported by this library")
+      throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
     }
     return cached
   }

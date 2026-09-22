@@ -98,6 +98,10 @@ run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -Popen
 # Opting out links nothing, so a store flavor kept for packaging is no conflict.
 run "none beside a store flavor"           none/explicit    assembleAmazonRelease -PopeniapStore=none -PfixtureAllowNone=true
 run "the legacy opt-out beside one too"    none/explicit    assembleAmazonRelease -PopeniapPlatform=none -PfixtureAllowNone=true
+# A library that cannot build without a store SDK refuses the cached opt-out
+# too, and the refusal has to name the key the build actually set.
+run "a later caller refuses the opt-out"   "fail:second: openiapStore=none is not supported" assembleDebug -PopeniapStore=none -PfixtureAllowNone=true -PfixtureSecondCaller=true
+run "and names the legacy key when used"   "fail:second: openiapPlatform=none is not supported" assembleDebug -PopeniapPlatform=none -PfixtureAllowNone=true -PfixtureSecondCaller=true
 run "a pin is trimmed and lower-cased"     horizon/explicit assembleDebug "-PopeniapStore= Horizon "
 
 echo "task flavor"
