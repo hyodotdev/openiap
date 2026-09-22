@@ -9360,6 +9360,23 @@ function checkXcode27StoreKitCoverage() {
     ["<key>_UIApplicationSceneManifest</key>"],
     "Flutter Xcode 27 scene manifest must use the canonical key",
   );
+  for (const platform of ["iOS", "MacCatalyst"]) {
+    expectIncludes(
+      `libraries/maui-iap/example/OpenIap.Maui.Example/Platforms/${platform}/Info.plist`,
+      [
+        "<key>UIApplicationSceneManifest</key>",
+        "<key>UIWindowSceneSessionRoleApplication</key>",
+        "<string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>",
+        "<string>SceneDelegate</string>",
+      ],
+      `MAUI Xcode 27 ${platform} scene manifest`,
+    );
+    expectIncludes(
+      `libraries/maui-iap/example/OpenIap.Maui.Example/Platforms/${platform}/SceneDelegate.cs`,
+      ['[Register("SceneDelegate")]', ": MauiUISceneDelegate"],
+      `MAUI Xcode 27 ${platform} scene delegate`,
+    );
+  }
   for (const workflowPath of [
     ".github/workflows/ci-react-native-iap.yml",
     ".github/workflows/ci-expo-iap.yml",

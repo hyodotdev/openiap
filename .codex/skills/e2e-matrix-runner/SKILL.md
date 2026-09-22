@@ -16,13 +16,13 @@ Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 `kmp-iap`, `maui-iap`, `godot-iap`, plus the native `packages/google` and
 `packages/apple` rows.
 
-| Store        | Frameworks                         | Device                |
-| ------------ | ---------------------------------- | --------------------- |
-| iOS          | all six                            | iPhone (physical)     |
-| Google Play  | all six                            | Pixel                 |
-| Amazon       | all six                            | Fire tablet           |
-| Meta Horizon | all six                            | Quest 3               |
-| VegaOS       | react-native-iap and expo-iap only | Vega device           |
+| Store        | Frameworks                         | Device            |
+| ------------ | ---------------------------------- | ----------------- |
+| iOS          | all six                            | iPhone (physical) |
+| Google Play  | all six                            | Pixel             |
+| Amazon       | all six                            | Fire tablet       |
+| Meta Horizon | all six                            | Quest 3           |
+| VegaOS       | react-native-iap and expo-iap only | Vega device       |
 
 That is 6 iOS + 18 Android + 2 VegaOS cells. Do not silently drop a cell.
 
@@ -31,12 +31,12 @@ That is 6 iOS + 18 Android + 2 VegaOS cells. Do not silently drop a cell.
 Discover them rather than trusting this list, with `adb devices -l` and
 `xcrun devicectl list devices`. At the time of writing:
 
-| Role        | Serial / UDID                          |
-| ----------- | -------------------------------------- |
-| Pixel       | `HT79F1A00473`                         |
-| Fire tablet | `GN43T503515200BA`                     |
-| Quest 3     | `2G0YC5ZG480381`                       |
-| iPhone      | `00008110-0004081E1A79801E`            |
+| Role        | Serial / UDID               |
+| ----------- | --------------------------- |
+| Pixel       | `HT79F1A00473`              |
+| Fire tablet | `GN43T503515200BA`          |
+| Quest 3     | `2G0YC5ZG480381`            |
+| iPhone      | `00008110-0004081E1A79801E` |
 
 Every example shares the application id `dev.hyo.martie`, so only one framework
 can be installed at a time per device. Uninstall before installing the next, and
@@ -69,9 +69,44 @@ parse the node `bounds`, and tap the centre of `Confirm` on display 0.
 
 **iOS.** Build with `xcodebuild -destination "id=$UDID"`, install with
 `xcrun devicectl device install app`, launch with
-`xcrun devicectl device process launch`. There is no supported way to tap a
-physical iPhone's UI from the command line. Drive everything up to the purchase
-sheet, then hand that cell back rather than inventing a result.
+`xcrun devicectl device process launch`.
+
+A physical iPhone _can_ be driven, through XCUITest. Build a UI-test bundle once
+and point it at any installed app with `XCUIApplication(bundleIdentifier:)`, then
+run it with `xcodebuild test-without-building -xctestrun`, passing the flow in
+environment variables so one signed runner serves every framework. Without an
+Xcode account, build with `CODE_SIGNING_ALLOWED=NO` and hand-sign the runner and
+its nested `.xctest` with a wildcard development profile.
+
+Two gates need a human, roughly once a day each: the device asks for its passcode
+to _Enable UI Automation_, and a sandbox purchase can demand a hardware
+**side-button double-click**. Neither is automatable. Report that cell as
+`BLOCKED: needs <which>` and keep going.
+
+Traps that look like code bugs:
+
+- **Reinstalling resets Local Network permission.** Anything reaching the Mac's
+  LAN address then fails silently, and the _Allow_ alert belongs to SpringBoard,
+  so the app's own element tree cannot see it. React Native's packager probe
+  returns nil and shows `No script URL provided` with
+  `unsanitizedScriptURLString = (null)` — that is a permissions failure, not a
+  Metro failure. Drive `XCUIApplication(bundleIdentifier: "com.apple.springboard")`
+  and tap _Allow_.
+- **The phone cannot reach `127.0.0.1`.** iOS has no `adb reverse`. Use the Mac's
+  LAN address for both Metro and the IAPKit server, and start the packager with
+  `REACT_NATIVE_PACKAGER_HOSTNAME=<lan-ip> ... --host lan`.
+- **Expo bakes `extra` into the binary at native build time.** Editing `.env` and
+  restarting with `--clear` changes nothing; confirm the value in the installed
+  app's `EXConstants.bundle/app.config` and rebuild natively.
+- **Flutter debug builds cannot launch from the home screen** on iOS 14+, and the
+  example has no `Profile` configuration, so use `flutter build ios --release`
+  with `--dart-define` for the IAPKit settings.
+- **Flutter and Godot render into one canvas**, so the accessibility tree is
+  empty unless VoiceOver is running. Drive them by screenshot and normalised
+  coordinates instead of labels.
+- **`dotnet build` ships a stale `Info.plist` incrementally.** After editing it,
+  delete `bin/` and `obj/` for that target framework or the device keeps running
+  the old plist.
 
 **VegaOS.** Source `~/vega/env` first. `vega exec vda devices -l` is transport
 visibility only; `kepler device list` is the install source of truth. Screen

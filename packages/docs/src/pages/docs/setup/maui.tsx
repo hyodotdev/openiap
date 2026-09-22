@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
@@ -189,6 +190,57 @@ function MauiSetup() {
             purchases.
           </li>
         </ul>
+
+        <Callout kind="important" title="Building with Xcode 27?">
+          <p>
+            iOS 27 and Mac Catalyst 27 terminate an app built with that SDK
+            unless it adopts the UIScene lifecycle, before OpenIAP or StoreKit
+            can run. See the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              Xcode 27 UIScene checklist
+            </Link>
+            . MAUI supplies the delegate, but the linker keeps it only when a
+            registered subclass names it, so add one per Apple platform folder:
+          </p>
+          <CodeBlock language="csharp">
+            {`// Platforms/iOS/SceneDelegate.cs (mirror in Platforms/MacCatalyst)
+using Foundation;
+
+[Register("SceneDelegate")]
+public class SceneDelegate : MauiUISceneDelegate
+{
+}`}
+          </CodeBlock>
+          <p>
+            Then point <code>Info.plist</code> at it in both folders:
+          </p>
+          <CodeBlock language="xml">
+            {`<key>UIApplicationSceneManifest</key>
+<dict>
+  <key>UIApplicationSupportsMultipleScenes</key>
+  <false/>
+  <key>UISceneConfigurations</key>
+  <dict>
+    <key>UIWindowSceneSessionRoleApplication</key>
+    <array>
+      <dict>
+        <key>UISceneConfigurationName</key>
+        <string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>
+        <key>UISceneDelegateClassName</key>
+        <string>SceneDelegate</string>
+      </dict>
+    </array>
+  </dict>
+</dict>`}
+          </CodeBlock>
+          <p>
+            An empty <code>UISceneConfigurations</code> stops the crash but
+            leaves a black screen, and an incremental <code>dotnet build</code>{' '}
+            reuses the old <code>Info.plist</code> &mdash; delete{' '}
+            <code>bin/</code> and <code>obj/</code> for that target framework
+            after editing it.
+          </p>
+        </Callout>
 
         <h3 id="android-config" className="anchor-heading">
           Android
