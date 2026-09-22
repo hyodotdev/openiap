@@ -63,8 +63,11 @@ function StoreSetup() {
             Name one store per invocation, and name it <code>play</code>,{' '}
             <code>horizon</code> or <code>amazon</code> — the aliases work in{' '}
             <code>openiapStore</code>, not in a flavor name. An anchor task such
-            as <code>assembleDebug</code> is not a second store: it builds every
-            flavor a project has, and each one links what it declares.
+            as <code>assembleDebug</code> or <code>bundleRelease</code> is not a
+            second store, and it does not give each flavor its own: the build
+            links the one store this rule chose into every flavor the anchor
+            produces. To ship a different store per flavor, name one flavor per
+            invocation, or pin it.
           </li>
           <li>
             <strong>Device</strong> — debug tasks only: the adb device{' '}

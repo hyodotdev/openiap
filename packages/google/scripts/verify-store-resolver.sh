@@ -268,7 +268,8 @@ else
         done
         # A `--no-` name is a flag by construction, and the loop above skips
         # every `--no-` before it can say so.
-        printf '%s\n' "$declared" | grep -E '^--no-' \
+        # `|| :` so a no-match does not leave the pipeline failing under pipefail.
+        { printf '%s\n' "$declared" | grep -E '^--no-' || :; } \
             | while IFS= read -r option; do printf 'flag-listed:%s ' "$option"; done
         # An option Gradle does not publish anywhere was once listed from
         # memory; Gradle rejects it before a build, so it only hides a typo.
