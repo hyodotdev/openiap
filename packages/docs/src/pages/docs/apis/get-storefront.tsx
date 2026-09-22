@@ -41,6 +41,14 @@ function GetStorefront() {
         </a>
         .
       </p>
+      <p>
+        On a Meta Horizon build the billing client answers{' '}
+        <code>getBillingConfigAsync</code> with{' '}
+        <code>FEATURE_NOT_SUPPORTED</code>, so <code>getStorefront</code>{' '}
+        rejects with that code rather than returning a country. Observed on a
+        Quest 3 with <code>horizon-billing-compatibility</code> 2.0.0. Read the
+        region from your own backend on that store.
+      </p>
 
       <StoreConnectionCallout />
 

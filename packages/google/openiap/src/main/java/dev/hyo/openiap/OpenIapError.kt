@@ -357,7 +357,8 @@ sealed class OpenIapError : Exception() {
 
         companion object {
             val CODE = ErrorCode.FeatureNotSupported.rawValue
-            const val MESSAGE = "Requested feature is not supported by Play Store"
+            // Shared by the play, horizon and amazon flavors, so it cannot name one store.
+            const val MESSAGE = "Requested feature is not supported by the store"
         }
     }
 

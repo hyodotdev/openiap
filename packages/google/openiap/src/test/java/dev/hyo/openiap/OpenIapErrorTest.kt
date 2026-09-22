@@ -336,7 +336,7 @@ class OpenIapErrorTest {
     fun `FeatureNotSupported has correct code and message`() {
         val error = OpenIapError.FeatureNotSupported()
         assertEquals(ErrorCode.FeatureNotSupported.rawValue, error.code)
-        assertEquals("Requested feature is not supported by Play Store", error.message)
+        assertEquals("Requested feature is not supported by the store", error.message)
     }
 
     @Test
