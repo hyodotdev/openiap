@@ -200,13 +200,16 @@ run "no adb at all"                        play/default     assembleDebug
 echo "value-option drift"
 # Gradle prints a `--no-` twin for a flag and not for a value option. `--rerun`
 # is the one built-in flag it appends to every task without a twin, so a new
-# twinless flag would read as a value option here: confirm with `help --task`
-# before listing one, because listing a flag drops the task written after it.
+# twinless flag reads as a value option here. Confirm whether it takes one by
+# running the task with the option and nothing after it, then add a flag to
+# this line rather than to openIapValueOptions, where it would drop the task
+# written after it.
 twinless_flags="--rerun"
 # `--args` needs a JavaExec task and `--component` / `--format` belong to
 # Gradle 8 tasks that Gradle 9 removed, so no single Gradle shows all three.
-# They come from the same derivation run by hand on each major, and are
-# asserted by name here so they cannot be dropped unnoticed.
+# They come from the same derivation run by hand on each major. Naming them
+# here detects a change to the list; it cannot tell whether the list was right
+# to begin with, which only a second Gradle could.
 undetectable_options="--args --component --format"
 
 declared=$(sed -n '/openIapValueOptions = \[/,/\] as Set/p' \
@@ -215,20 +218,26 @@ declared=$(sed -n '/openIapValueOptions = \[/,/\] as Set/p' \
 # A task prints as `name` or `name - description`. Every heading and banner
 # carries a space without that separator, so neither form matches one.
 fixture_tasks=$(cd "$fixture" && "$gradlew" --quiet tasks --all 2>/dev/null \
-    | sed -nE 's/^([a-zA-Z][A-Za-z0-9_.:-]*)( - .*)?$/\1/p' | sort -u)
+    | sed -nE 's/^:?([a-zA-Z][A-Za-z0-9_.:-]*)( - .*)?[[:space:]]*$/\1/p' | sort -u)
 published=$(
     cd "$fixture" || exit
     printf '%s\n' "$fixture_tasks" | while IFS= read -r task; do
         [[ -n "$task" ]] || continue
         "$gradlew" --quiet help --task "$task" 2>/dev/null \
-            | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d ' '
+            | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d '[:blank:]'
     done | sort -u
 )
 
-# A derivation that saw nothing agrees with any list at all, so prove it ran.
+# A derivation that saw little agrees with almost any list, and every per-task
+# failure is swallowed, so name one described task and one undescribed one --
+# the parser has already dropped the undescribed kind once.
 if ! printf '%s\n' "$fixture_tasks" | grep -qx help \
-    || ! printf '%s\n' "$published" | grep -qx -- --task; then
-    drift="derivation saw no tasks or no options"
+    || ! printf '%s\n' "$fixture_tasks" | grep -qx testDebugUnitTest; then
+    drift="derivation saw no tasks"
+elif ! printf '%s\n' "$published" | grep -qx -- --task \
+    || ! printf '%s\n' "$published" | grep -qx -- --property \
+    || ! printf '%s\n' "$published" | grep -qx -- --tests; then
+    drift="derivation saw no options"
 else
     drift=$(
         printf '%s\n' "$published" | while IFS= read -r option; do
@@ -247,6 +256,20 @@ else
         for option in $undetectable_options; do
             printf '%s\n' "$declared" | grep -qx -- "$option" \
                 || printf 'dropped:%s ' "$option"
+        done
+        # Listing a flag is the mistake the comments warn about, and the loop
+        # above skips flags before it can notice one.
+        for option in $twinless_flags; do
+            printf '%s\n' "$declared" | grep -qx -- "$option" \
+                && printf 'flag-listed:%s ' "$option"
+        done
+        # An option Gradle does not publish anywhere was once listed from
+        # memory; Gradle rejects it before a build, so it only hides a typo.
+        printf '%s\n' "$declared" | while IFS= read -r option; do
+            [[ -n "$option" ]] || continue
+            printf '%s\n' "$published" | grep -qx -- "$option" && continue
+            case " $undetectable_options " in (*" $option "*) continue ;; esac
+            printf 'unpublished:%s ' "$option"
         done
     )
 fi

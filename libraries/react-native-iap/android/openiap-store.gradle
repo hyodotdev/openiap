@@ -105,7 +105,8 @@ ext.openIapAbbreviatedStore = { String taskPath ->
 // a value option. `--rerun` is the one exception, a built-in flag appended to
 // every task without a twin, so it is excluded by hand; adding it here would
 // silently drop the task after it. verify-store-resolver.sh redoes the
-// derivation on its own Gradle and fails on anything this list misses.
+// derivation on the one Gradle it runs and fails on what that Gradle publishes
+// and this list misses; the rest of the list it can only detect changes to.
 //
 // Anything unlisted is treated as a flag, so a flag never eats the task after
 // it -- `Test` alone declares three, which is why
