@@ -315,8 +315,9 @@ on the other stores; they never select anything.
 4. play
 ```
 
-A pin against a different task flavor, two store flavors named by the requested
-tasks, and a pin against a legacy flag each fail the build. An anchor task that
+A store pin against a different task flavor, two store flavors named by the
+requested tasks, and a pin against a legacy flag each fail the build. Opting out
+with `openiapStore=none` is not a store pin and does not conflict with one. An anchor task that
 builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release

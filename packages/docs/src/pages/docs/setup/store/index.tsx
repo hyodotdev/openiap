@@ -79,7 +79,7 @@ function StoreSetup() {
         </ol>
         <p>
           Gradle logs the decision once per build as{' '}
-          <code>openiap: store=horizon (source=device; ...)</code>. A pin
+          <code>openiap: store=horizon (source=device; ...)</code>. A store pin
           against a different task flavor, two flavors in one invocation, and a
           pin against a legacy flag each fail the build, so a pinned release
           train cannot quietly ship the wrong billing SDK. The device is a

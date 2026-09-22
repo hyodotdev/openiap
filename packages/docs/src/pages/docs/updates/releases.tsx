@@ -513,7 +513,7 @@ function Releases() {
               <code>ORG_GRADLE_PROJECT_openiapStore</code> in an EAS profile.
             </li>
             <li>
-              A pin against a different task flavor, two flavors in one
+              A store pin against a different task flavor, two flavors in one
               invocation, and a pin against a legacy flag each fail the build;
               the device is a fallback that a pin or a flavor simply outranks.
               Several attached devices select nothing unless{' '}
