@@ -84,7 +84,7 @@ echo "legacy flags"
 run "horizonEnabled=true"                  horizon/explicit assembleDebug -PhorizonEnabled=true
 run "fireOsEnabled=true"                   amazon/explicit  assembleDebug -PfireOsEnabled=true
 run "both legacy flags fail"               "fail:cannot both be true" assembleDebug -PhorizonEnabled=true -PfireOsEnabled=true
-run "pin against a legacy flag fails"      "fail:conflicts with legacy flags" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
+run "pin against a legacy flag fails"      "fail:conflicts with fireOsEnabled=true" assembleDebug -PopeniapStore=play -PfireOsEnabled=true
 run "openiapPlatform only takes none"      "fail:only supports the opt-out" assembleDebug -PopeniapPlatform=horizon
 run "none needs the opt-out to be allowed" "fail:is not supported by this library" assembleDebug -PopeniapStore=none
 run "none where it is supported"           none/explicit    assembleDebug -PopeniapStore=none -PfixtureAllowNone=true

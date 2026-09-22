@@ -144,12 +144,17 @@ describe('android configuration', () => {
         isHorizonEnabled: true,
       }),
     ).toBe('horizon');
-    expect(
+  });
+
+  it('refuses two modules naming different stores', () => {
+    // An APK links one billing SDK, so picking one silently would ship the
+    // other store's users a build that cannot talk to their store.
+    expect(() =>
       resolvePinnedAndroidStore({
         isFireOsEnabled: true,
         isHorizonEnabled: true,
       }),
-    ).toBe('amazon');
+    ).toThrow(/both enabled/u);
   });
 
   it('writes the pin gradle.properties carries, and clears a stale one', () => {

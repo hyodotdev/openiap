@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-18T18:47:47.958Z
+> Generated: 2026-09-22T09:49:12.233Z
 
 ## Reading instructions for coding assistants
 
@@ -255,8 +255,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   `packages/google`.
 - Public surface: generated OpenIAP types plus `useIAP`, listener helpers,
   and platform-suffixed iOS/Android APIs.
-- Android builds select Play, Horizon, or Fire OS with Gradle properties
-  (`horizonEnabled`, `fireOsEnabled`). Vega OS uses a separate React Native
+- Android builds resolve the store at build time: an `openiapStore` pin, the
+  store flavor in the requested task, or on debug builds the connected device.
+  `horizonEnabled` and `fireOsEnabled` are deprecated. Vega OS uses a separate React Native
   for Vega target that resolves the `kepler` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in `react-native-iap`; use `expo-iap` for Onside.
@@ -328,9 +329,11 @@ Canonical setup docs live under `/docs/setup/store`:
 - Google Play: default Android artifact, `openiap-google`.
 - Meta Horizon: Android `horizon` flavor, `openiap-google-horizon`.
   Expo uses `modules.horizon=true` and `android.horizon.appId`.
-  React Native and Flutter use `horizonEnabled=true` plus app-owned manifest
-  metadata. KMP exposes `horizonRelease`. MAUI uses
-  `OpenIapAndroidStore=horizon`. Godot has no dedicated Horizon selector.
+  React Native and Flutter resolve it from `openiapStore=horizon`, an
+  `assembleHorizon*` task, or a connected Quest on a debug build, plus
+  app-owned manifest metadata. KMP exposes `horizonRelease`. MAUI uses
+  `OpenIapStore=horizon`. Godot sets the `openiap/android_store` export
+  option.
   Required values: Horizon app id from Meta Horizon Developer Hub
   (Expo: `android.horizon.appId`; bare RN/Flutter examples commonly pass a
   Gradle property named `horizonAppId` into manifest meta-data), product SKUs,
@@ -344,8 +347,8 @@ Canonical setup docs live under `/docs/setup/store`:
   React Native / Flutter app Gradle config.
   Runtime adapters are wired for native Android, `react-native-iap`,
   `expo-iap`, `flutter_inapp_purchase`, KMP `amazonRelease`, and MAUI
-  `OpenIapAndroidStore=amazon`. Godot has shared Amazon types and
-  verification payloads but no dedicated Fire OS flavor switch.
+  `OpenIapStore=amazon`. Godot selects it through the
+  `openiap/android_store` export option.
   Required values: Android `applicationId` matching the Amazon Developer
   Console app, Amazon Appstore product ids / App Tester catalog entries, and
   the Amazon public key for Fire OS Android builds. Receipt verification and

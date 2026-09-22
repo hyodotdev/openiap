@@ -525,8 +525,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`packages/google\`.
 - Public surface: generated OpenIAP types plus \`useIAP\`, listener helpers,
   and platform-suffixed iOS/Android APIs.
-- Android builds select Play, Horizon, or Fire OS with Gradle properties
-  (\`horizonEnabled\`, \`fireOsEnabled\`). Vega OS uses a separate React Native
+- Android builds resolve the store at build time: an \`openiapStore\` pin, the
+  store flavor in the requested task, or on debug builds the connected device.
+  \`horizonEnabled\` and \`fireOsEnabled\` are deprecated. Vega OS uses a separate React Native
   for Vega target that resolves the \`kepler\` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in \`react-native-iap\`; use \`expo-iap\` for Onside.
@@ -598,9 +599,11 @@ Canonical setup docs live under \`/docs/setup/store\`:
 - Google Play: default Android artifact, \`openiap-google\`.
 - Meta Horizon: Android \`horizon\` flavor, \`openiap-google-horizon\`.
   Expo uses \`modules.horizon=true\` and \`android.horizon.appId\`.
-  React Native and Flutter use \`horizonEnabled=true\` plus app-owned manifest
-  metadata. KMP exposes \`horizonRelease\`. MAUI uses
-  \`OpenIapAndroidStore=horizon\`. Godot has no dedicated Horizon selector.
+  React Native and Flutter resolve it from \`openiapStore=horizon\`, an
+  \`assembleHorizon*\` task, or a connected Quest on a debug build, plus
+  app-owned manifest metadata. KMP exposes \`horizonRelease\`. MAUI uses
+  \`OpenIapStore=horizon\`. Godot sets the \`openiap/android_store\` export
+  option.
   Required values: Horizon app id from Meta Horizon Developer Hub
   (Expo: \`android.horizon.appId\`; bare RN/Flutter examples commonly pass a
   Gradle property named \`horizonAppId\` into manifest meta-data), product SKUs,
@@ -614,8 +617,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   React Native / Flutter app Gradle config.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
   \`expo-iap\`, \`flutter_inapp_purchase\`, KMP \`amazonRelease\`, and MAUI
-  \`OpenIapAndroidStore=amazon\`. Godot has shared Amazon types and
-  verification payloads but no dedicated Fire OS flavor switch.
+  \`OpenIapStore=amazon\`. Godot selects it through the
+  \`openiap/android_store\` export option.
   Required values: Android \`applicationId\` matching the Amazon Developer
   Console app, Amazon Appstore product ids / App Tester catalog entries, and
   the Amazon public key for Fire OS Android builds. Receipt verification and

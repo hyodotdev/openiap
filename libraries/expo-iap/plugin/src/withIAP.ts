@@ -731,6 +731,14 @@ export function resolveAmazonAppstoreKey(
 export function resolvePinnedAndroidStore(
   flags: Pick<AmazonPlatformFlags, 'isFireOsEnabled' | 'isHorizonEnabled'>,
 ): AndroidStorePin {
+  // One APK links one billing SDK, so two modules naming different stores is
+  // not a preference order to resolve — it is a config the build cannot honour.
+  if (flags.isFireOsEnabled && flags.isHorizonEnabled) {
+    throw new Error(
+      'expo-iap: modules.amazon.fireOS and modules.horizon are both enabled; ' +
+        'an Android build links one store, so enable one of them.',
+    );
+  }
   return flags.isFireOsEnabled
     ? 'amazon'
     : flags.isHorizonEnabled

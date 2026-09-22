@@ -63,10 +63,12 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
   }
   def store = (explicit != null && explicit != 'auto') ? explicit : legacy
   if (explicit != null && explicit != 'auto' && legacy != null && legacy != explicit) {
-    throw new GradleException("${label}: openiapStore=${explicit} conflicts with legacy flags selecting ${legacy}")
+    def legacyKey = platform == 'none' ? 'openiapPlatform=none' : (fireOs ? 'fireOsEnabled=true' : 'horizonEnabled=true')
+    throw new GradleException("${label}: openiapStore=${explicit} conflicts with ${legacyKey}")
   }
   if (store == 'none' && !allowNone) {
-    throw new GradleException("${label}: openiapStore=none is not supported by this library")
+    def optOutKey = (explicit == 'none') ? 'openiapStore=none' : 'openiapPlatform=none'
+    throw new GradleException("${label}: ${optOutKey} is not supported by this library")
   }
   return store
 }
