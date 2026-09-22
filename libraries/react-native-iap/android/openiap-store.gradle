@@ -100,12 +100,12 @@ ext.openIapAbbreviatedStore = { String taskPath ->
 }
 
 // Gradle task options that take a separate value, derived from `help --task`
-// over `tasks --all` on both Gradle majors the CI matrix covers: Gradle prints
-// a `--no-` twin for a flag and not for a value option. `--rerun` is the one
-// exception, a built-in flag appended to every task without a twin, so it is
-// excluded by hand; adding it here would silently drop the task after it.
-// verify-store-resolver.sh re-derives this list and fails when Gradle grows an
-// option it does not name.
+// over `tasks --all` under a Gradle 8 and a Gradle 9, because each major has
+// tasks the other does not: Gradle prints a `--no-` twin for a flag and not for
+// a value option. `--rerun` is the one exception, a built-in flag appended to
+// every task without a twin, so it is excluded by hand; adding it here would
+// silently drop the task after it. verify-store-resolver.sh redoes the
+// derivation on its own Gradle and fails on anything this list misses.
 //
 // Anything unlisted is treated as a flag, so a flag never eats the task after
 // it -- `Test` alone declares three, which is why

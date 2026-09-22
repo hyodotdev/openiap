@@ -196,34 +196,67 @@ run "no adb at all"                        play/default     assembleDebug
 
 # The list of value-taking options was twice written from memory, and twice
 # wrong: once naming an option Gradle does not have, once missing one whose
-# value spelled a store. Ask Gradle instead. A flag is the option Gradle prints
-# a `--no-` twin for; `--rerun` is the lone built-in flag without one.
+# value spelled a store. Ask Gradle instead.
 echo "value-option drift"
-declared=$(sed -n "/openIapValueOptions = \[/,/\] as Set/p" \
+# Gradle prints a `--no-` twin for a flag and not for a value option. `--rerun`
+# is the one built-in flag it appends to every task without a twin, so a new
+# twinless flag would read as a value option here: confirm with `help --task`
+# before listing one, because listing a flag drops the task written after it.
+twinless_flags="--rerun"
+# `--args` needs a JavaExec task and `--component` / `--format` belong to
+# Gradle 8 tasks that Gradle 9 removed, so no single Gradle shows all three.
+# They come from the same derivation run by hand on each major, and are
+# asserted by name here so they cannot be dropped unnoticed.
+undetectable_options="--args --component --format"
+
+declared=$(sed -n '/openIapValueOptions = \[/,/\] as Set/p' \
     "$google_root/gradle/openiap-store.gradle" \
     | grep -oE "'--[a-z0-9-]+'" | tr -d "'" | sort -u)
-derived=$(
-    cd "$fixture" && "$gradlew" --quiet tasks --all 2>/dev/null \
-        | grep -oE '^[a-zA-Z][a-zA-Z0-9]*( |$)' | tr -d ' ' | sort -u \
-        | while IFS= read -r task; do
-            "$gradlew" --quiet help --task "$task" 2>/dev/null \
-                | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d ' ' | sort -u
+# A task prints as `name` or `name - description`. Every heading and banner
+# carries a space without that separator, so neither form matches one.
+fixture_tasks=$(cd "$fixture" && "$gradlew" --quiet tasks --all 2>/dev/null \
+    | sed -nE 's/^([a-zA-Z][A-Za-z0-9_.:-]*)( - .*)?$/\1/p' | sort -u)
+published=$(
+    cd "$fixture" || exit
+    printf '%s\n' "$fixture_tasks" | while IFS= read -r task; do
+        [[ -n "$task" ]] || continue
+        "$gradlew" --quiet help --task "$task" 2>/dev/null \
+            | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d ' '
+    done | sort -u
+)
+
+# A derivation that saw nothing agrees with any list at all, so prove it ran.
+if ! printf '%s\n' "$fixture_tasks" | grep -qx help \
+    || ! printf '%s\n' "$published" | grep -qx -- --task; then
+    drift="derivation saw no tasks or no options"
+else
+    drift=$(
+        printf '%s\n' "$published" | while IFS= read -r option; do
+            [[ -n "$option" ]] || continue
+            # Balanced parens: inside $( ) an unmatched `)` ends the substitution.
+            case "$option" in (--no-*) continue ;; esac
+            case " $twinless_flags " in (*" $option "*) continue ;; esac
+            if printf '%s\n' "$published" | grep -qx -- "--no-${option#--}"; then
+                printf '%s\n' "$declared" | grep -qx -- "$option" \
+                    && printf 'now-a-flag:%s ' "$option"
+                continue
+            fi
+            printf '%s\n' "$declared" | grep -qx -- "$option" \
+                || printf 'unlisted:%s ' "$option"
         done
-)
-missing=$(
-    printf '%s\n' "$derived" | sort -u | while IFS= read -r option; do
-        [[ -n "$option" ]] || continue
-        # Balanced parens: inside $( ) an unmatched `)` ends the substitution.
-        case "$option" in (--no-*|--rerun) continue ;; esac
-        printf '%s\n' "$derived" | grep -qx -- "--no-${option#--}" && continue
-        printf '%s\n' "$declared" | grep -qx -- "$option" || printf '%s ' "$option"
-    done
-)
-if [[ -z "$missing" ]]; then
-    printf '  ok   %-58s %s\n' "every option Gradle takes a value for is listed" "$(printf '%s\n' "$declared" | wc -l | tr -d ' ') listed"
+        for option in $undetectable_options; do
+            printf '%s\n' "$declared" | grep -qx -- "$option" \
+                || printf 'dropped:%s ' "$option"
+        done
+    )
+fi
+
+if [[ -z "$drift" ]]; then
+    printf '  ok   %-58s %s\n' "the list matches what Gradle publishes" \
+        "$(printf '%s\n' "$declared" | wc -l | tr -d ' ') listed"
     passed=$((passed + 1))
 else
-    printf '  FAIL %-58s %s\n' "openIapValueOptions is missing options" "$missing"
+    printf '  FAIL %-58s %s\n' "the list drifted from Gradle" "$drift"
     failed=$((failed + 1))
 fi
 
