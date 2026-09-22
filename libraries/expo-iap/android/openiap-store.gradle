@@ -99,12 +99,20 @@ ext.openIapAbbreviatedStore = { String taskPath ->
   return matches
 }
 
+// Gradle task options that take a separate value. Anything else is read as a
+// flag, because the two mistakes are not symmetric: dropping a task links the
+// wrong billing SDK and ships, while reading a value as a task at worst fails
+// the build with a message naming the store. `Test` alone declares three
+// flags, so `test --fail-fast assembleHorizonRelease` has to keep the assemble.
+// `--option=value` is one token and never reaches this list.
+ext.openIapValueOptions = [
+  '--tests', '--task', '--configuration', '--dependency', '--args', '--type',
+  '--dsl', '--package-name', '--project-name', '--variant', '--group',
+] as Set
+
 // Gradle flattens a whole invocation into one list, options included, so
-// `--tests *AmazonTest*` would read as a store. Drop each option and the value
-// it consumes and keep every remaining name, which is what the developer asked
-// to build. A boolean task option takes no value, but nothing here can tell it
-// from one that does, so a task written directly after one is read as its value
-// and missed; write tasks before options, or pin the store.
+// `--tests *AmazonTest*` would otherwise read as a store. Drop each option and
+// the value it consumes; every remaining name is a task the developer asked for.
 ext.openIapRequestedTasks = {
   def names = []
   def previous = null
@@ -116,8 +124,7 @@ ext.openIapRequestedTasks = {
       previous = token
       return
     }
-    // `--option value` consumes the next token; `--option=value` carries its own.
-    if (previous?.startsWith('-') && !previous.contains('=')) {
+    if (previous != null && openIapValueOptions.contains(previous)) {
       previous = token
       return
     }

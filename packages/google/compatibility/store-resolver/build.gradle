@@ -41,6 +41,13 @@ abstract class FixtureTestTask extends DefaultTask {
   @Option(option = 'tests', description = 'Test filter, as Gradle Test declares it')
   void setTests(String value) { tests = value }
 
+  @Input
+  boolean failFast = false
+
+  // Gradle's own Test task declares this one; it takes no value.
+  @Option(option = 'fail-fast', description = 'Stop at the first failure')
+  void setFailFast(boolean value) { failFast = value }
+
   @TaskAction
   void run() { }
 }

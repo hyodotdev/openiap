@@ -153,6 +153,12 @@ run "a task after another task's option"   horizon/variant  testDebugUnitTest --
 run "an option value naming a real task"   play/default     assembleEverything help --task assembleAmazonDebug
 run "an option value prefixing tasks"      play/default     assemble testDebugUnitTest --tests ass
 run "an option value before a task"        play/default     help --task assemb assemble
+# A flag takes no value, so the task after it is still a task. Reading it as a
+# value linked play and shipped a horizon build, quietly.
+run "a flag does not eat the next task"    horizon/variant  testDebugUnitTest --fail-fast assembleHorizonRelease
+run "a flag after the task it belongs to"  horizon/variant  assembleHorizonRelease testDebugUnitTest --fail-fast
+# --option=value is one token and carries its own value.
+run "an inline option value"               horizon/variant  testDebugUnitTest --tests=com.app.Foo assembleHorizonRelease
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
