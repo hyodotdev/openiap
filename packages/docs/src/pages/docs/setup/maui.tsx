@@ -193,9 +193,9 @@ function MauiSetup() {
 
         <Callout kind="important" title="Building with Xcode 27?">
           <p>
-            iOS 27 and Mac Catalyst 27 terminate an app built with that SDK
-            unless it adopts the UIScene lifecycle, before OpenIAP or StoreKit
-            can run. See the{' '}
+            iOS 27 terminates an app built with that SDK unless it adopts the
+            UIScene lifecycle, before OpenIAP or StoreKit can run. Apple states
+            the same requirement for Mac Catalyst 27. See the{' '}
             <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
               Xcode 27 UIScene checklist
             </Link>
@@ -205,6 +205,7 @@ function MauiSetup() {
           <CodeBlock language="csharp">
             {`// Platforms/iOS/SceneDelegate.cs (mirror in Platforms/MacCatalyst)
 using Foundation;
+using Microsoft.Maui;
 
 [Register("SceneDelegate")]
 public class SceneDelegate : MauiUISceneDelegate
