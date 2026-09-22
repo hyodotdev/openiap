@@ -366,6 +366,7 @@ Cursor-specific files.
 | `$opencollective-steward` | Manage OpenCollective profile and updates          | `$opencollective-steward`             |
 | `$iapkit-e2e-petgu`       | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
 | `$iapkit-e2e-martie`      | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
+| `$e2e-matrix-runner`      | Full device matrix: 6 frameworks x iOS/Play/Amazon/Horizon/Vega | `$e2e-matrix-runner`    |
 | `/review-pr`              | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`             | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/audit-security`         | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
