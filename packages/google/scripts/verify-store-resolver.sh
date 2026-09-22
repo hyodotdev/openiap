@@ -119,7 +119,13 @@ echo "task graph"
 run "a lower-case task name is caught"     "fail:but the requested tasks build horizon" assemblehorizonrelease
 run "a case-mixed name is caught"          "fail:but the requested tasks build horizon" assembleHorizonrelease
 run "a prefix match is caught"             "fail:but the requested tasks build horizon" assemblehorizonr
-run "an aggregate over two stores fails"   "fail:build more than one store" assembleEverything
+# An anchor task builds every flavor of whatever it reaches, and an unqualified
+# name reaches every project, so `flutter build apk` pulls in a source-included
+# openiap-google and all three of its flavors. Only what the request selected
+# can say which store this build links.
+run "an anchor over flavors is allowed"    play/default     assembleEverything
+run "a pin under an anchor is kept"        horizon/explicit assembleEverything -PopeniapStore=horizon
+run "opting out ignores the graph"         none/explicit    assembleEverything -PopeniapStore=none -PfixtureAllowNone=true
 run "a pin that the graph contradicts"     "fail:but the requested tasks build horizon" assemblehorizonrelease -PopeniapStore=play
 # taskNames flattens task options; a filter naming a store is not a flavor.
 run "a task option is not a store"         play/default     assembleDebug --tests com.app.AmazonTest

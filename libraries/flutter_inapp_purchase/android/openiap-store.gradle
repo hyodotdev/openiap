@@ -193,18 +193,51 @@ ext.openIapConfigurationCacheRequested = {
   return false
 }
 
-// The requested names are whatever the developer typed: Gradle resolves
-// abbreviations and matches case-insensitively, and one aggregate task can
-// build every flavor. Only the finished graph carries the real names, so the
-// answer chosen during configuration is checked against it before any task
-// runs.
+// Gradle resolves a typed name to real tasks: an exact, case-insensitive match
+// when one exists, otherwise a unique prefix or a camelCase abbreviation.
+ext.openIapSelectedTasks = { graph, String request ->
+  def wanted = request.substring(request.lastIndexOf(':') + 1)
+  if (!wanted) {
+    return []
+  }
+  def lower = wanted.toLowerCase(Locale.ROOT)
+  def names = graph.allTasks.collect { it.name } as LinkedHashSet
+  def exact = names.findAll { it.toLowerCase(Locale.ROOT) == lower }
+  if (exact) {
+    return exact
+  }
+  def segments = wanted.split(/(?=[A-Z])/).findAll { it }
+  return names.findAll { String name ->
+    if (name.toLowerCase(Locale.ROOT).startsWith(lower)) {
+      return true
+    }
+    def taskSegments = name.split(/(?=[A-Z])/).findAll { it }
+    if (segments.size() < 2 || segments.size() != taskSegments.size()) {
+      return false
+    }
+    return (0..<segments.size()).every {
+      taskSegments[it].toLowerCase(Locale.ROOT).startsWith(segments[it].toLowerCase(Locale.ROOT))
+    }
+  }
+}
+
+// The requested names are whatever the developer typed, and only the finished
+// graph carries the real ones, so the answer chosen during configuration is
+// checked against them before any task runs. Only the tasks the request
+// selected count: an unqualified name reaches every project, and an anchor
+// like assembleDebug legitimately builds every flavor of a library it names.
 ext.openIapVerifyTaskGraph = { String label, String resolved ->
+  if (resolved == 'none') {
+    return
+  }
   gradle.taskGraph.whenReady { graph ->
     def named = [] as LinkedHashSet
-    graph.allTasks.each { task ->
-      openIapTaskTokens(task.name).each { token ->
-        if (token in ['play', 'horizon', 'amazon']) {
-          named << token
+    openIapRequestedTasks().each { String request ->
+      openIapSelectedTasks(graph, request).each { String taskName ->
+        openIapTaskTokens(taskName).each { token ->
+          if (token in ['play', 'horizon', 'amazon']) {
+            named << token
+          }
         }
       }
     }
