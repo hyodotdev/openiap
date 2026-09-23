@@ -32,6 +32,18 @@ static func normalize(value: Variant) -> String:
 	return ALIASES.get(key, "")
 
 
+const HORIZON_APP_ID_META_DATA := "com.meta.horizon.platform.HORIZON_APP_ID"
+
+
+## The manifest entry the Horizon SDK reads the app id from, or "" unless the
+## value is the numeric id from Meta Horizon Developer Hub.
+static func horizon_app_id_meta_data(app_id: Variant) -> String:
+	var id := "" if app_id == null else str(app_id).strip_edges()
+	if RegEx.create_from_string("^[0-9]+$").search(id) == null:
+		return ""
+	return '<meta-data android:name="%s" android:value="%s" />' % [HORIZON_APP_ID_META_DATA, id]
+
+
 ## Rewrites the openiap-google coordinate for the store; other coordinates pass through.
 static func artifact(coordinate: String, store: String) -> String:
 	var resolved := "play" if store == "auto" else store

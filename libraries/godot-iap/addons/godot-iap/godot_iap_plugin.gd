@@ -35,6 +35,7 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	const LOCAL_SETTINGS_PATH = "res://iapkit.cfg"
 	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
 	const ANDROID_STORE_OPTION = "openiap/android_store"
+	const HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"
 	const IOS_FRAMEWORKS: Array[String] = [
 		"res://addons/godot-iap/bin/ios/GodotIap.framework",
 		"res://addons/godot-iap/bin/ios/SwiftGodotRuntime.framework",
@@ -106,7 +107,23 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 				"hint_string": ",".join(AndroidStore.STORES),
 			},
 			"default_value": "auto",
+		}, {
+			"option": {
+				"name": HORIZON_APP_ID_OPTION,
+				"type": TYPE_STRING,
+			},
+			"default_value": "",
 		}]
+
+	func _get_android_manifest_application_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
+		var value = get_option(HORIZON_APP_ID_OPTION)
+		var app_id := "" if value == null else str(value).strip_edges()
+		if app_id.is_empty():
+			return ""
+		var meta_data := AndroidStore.horizon_app_id_meta_data(app_id)
+		if meta_data.is_empty():
+			push_error("[GodotIap] %s must be the numeric app id from Meta Horizon Developer Hub" % HORIZON_APP_ID_OPTION)
+		return meta_data
 
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
 		var store := AndroidStore.normalize(get_option(ANDROID_STORE_OPTION))

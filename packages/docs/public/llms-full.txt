@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-23T12:56:47.117Z
+> Generated: 2026-09-23T15:29:24.203Z
 
 ## Reading instructions for coding assistants
 
@@ -340,7 +340,8 @@ Canonical setup docs live under `/docs/setup/store`:
   follows a connected Quest on a debug export,
   or pins `openiap/android_store=horizon`.
   Required values: Horizon app id from Meta Horizon Developer Hub
-  (Expo: `android.horizon.appId`; bare RN/Flutter examples commonly pass a
+  (Expo: `android.horizon.appId`; Godot: the `openiap/horizon_app_id` export
+  option; bare RN/Flutter examples commonly pass a
   Gradle property named `horizonAppId` into manifest meta-data), product SKUs,
   and verification
   values such as `horizon.sku`, `horizon.userId`, and

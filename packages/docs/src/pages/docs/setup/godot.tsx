@@ -838,11 +838,10 @@ func _on_purchase_error(error):
             multi-language examples
           </li>
           <li>
-            <a href="/docs/setup/store">Store Setup</a> — support boundaries for
-            alternative stores such as{' '}
-            <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
-            <a href="/docs/setup/store/amazon">Fire OS / Vega OS</a> (Amazon);
-            godot-iap does not yet ship dedicated flavors for these targets
+            <a href="/docs/setup/store">Store Setup</a> — ship to{' '}
+            <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) or{' '}
+            <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon) with the{' '}
+            <code>openiap/android_store</code> export option
           </li>
           <li>
             <a

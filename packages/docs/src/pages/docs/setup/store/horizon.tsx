@@ -53,8 +53,9 @@ function HorizonStoreSetup() {
                 Expo uses <code>android.horizon.appId</code>. Bare React Native
                 reads a Gradle property named <code>horizonAppId</code>; Flutter
                 reads <code>HORIZON_APP_ID</code> from{' '}
-                <code>android/local.properties</code>. Both write Android
-                manifest meta-data{' '}
+                <code>android/local.properties</code>; Godot reads the{' '}
+                <code>openiap/horizon_app_id</code> export option. Each writes
+                Android manifest meta-data{' '}
                 <code>com.meta.horizon.platform.HORIZON_APP_ID</code>.
               </td>
             </tr>
@@ -193,7 +194,9 @@ function HorizonStoreSetup() {
                 Quest; for release, set <code>openiap/android_store</code> to{' '}
                 <code>horizon</code>.
               </td>
-              <td>Android manifest meta-data in the export template.</td>
+              <td>
+                The <code>openiap/horizon_app_id</code> export option.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -346,9 +349,13 @@ android {
           export option exports the Horizon artifact for a debug export when one
           Quest is connected, or the one <code>ANDROID_SERIAL</code> names. A
           release export ignores the device, so set the option to{' '}
-          <code>horizon</code> for release. Declare the app id as manifest
-          meta-data in the Android build template.
+          <code>horizon</code> for release. Put the app id in the{' '}
+          <code>openiap/horizon_app_id</code> export option; the plugin writes
+          the manifest meta-data.
         </p>
+        <CodeBlock language="text">{`[preset.1.options]
+openiap/android_store="horizon"
+openiap/horizon_app_id="YOUR_HORIZON_APP_ID"`}</CodeBlock>
       </section>
 
       <section>

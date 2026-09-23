@@ -35,6 +35,18 @@ func _run() -> void:
 	var other := "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0"
 	_check("other dependencies pass through", AndroidStore.artifact(other, "horizon") == other)
 
+	_check(
+		"a Horizon app id becomes manifest meta-data",
+		AndroidStore.horizon_app_id_meta_data(" 31705015229097839 ")
+			== '<meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="31705015229097839" />'
+	)
+	_check("a blank Horizon app id adds nothing", AndroidStore.horizon_app_id_meta_data("") == "")
+	_check("a null Horizon app id adds nothing", AndroidStore.horizon_app_id_meta_data(null) == "")
+	_check(
+		"a non-numeric Horizon app id adds nothing",
+		AndroidStore.horizon_app_id_meta_data('1" android:exported="true') == ""
+	)
+
 	var one := "List of devices attached\r\nAAA\tdevice\r\nCCC\tunauthorized\r\nDDD\toffline\r\n"
 	var two := "List of devices attached\nAAA\tdevice\nBBB\tdevice\n"
 	_check("the one ready device is selected", AndroidStore.pick_serial(one, "") == "AAA")

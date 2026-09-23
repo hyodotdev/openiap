@@ -610,7 +610,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   follows a connected Quest on a debug export,
   or pins \`openiap/android_store=horizon\`.
   Required values: Horizon app id from Meta Horizon Developer Hub
-  (Expo: \`android.horizon.appId\`; bare RN/Flutter examples commonly pass a
+  (Expo: \`android.horizon.appId\`; Godot: the \`openiap/horizon_app_id\` export
+  option; bare RN/Flutter examples commonly pass a
   Gradle property named \`horizonAppId\` into manifest meta-data), product SKUs,
   and verification
   values such as \`horizon.sku\`, \`horizon.userId\`, and

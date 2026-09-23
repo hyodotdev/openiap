@@ -3274,7 +3274,10 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
-    ["openIap.addConnectionStateListener(", "openIap.removeConnectionStateListener("],
+    [
+      "openIap.addConnectionStateListener(",
+      "openIap.removeConnectionStateListener(",
+    ],
     "expo-iap subscribes to billing disconnect (#408)",
   );
   expectNotIncludes(
@@ -3765,10 +3768,38 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Expo Horizon App ID removed metadata aliases",
   );
+  // Godot has no tracked manifest; the export option writes the meta-data.
+  expectIncludes(
+    "libraries/godot-iap/addons/godot-iap/godot_iap_plugin.gd",
+    [
+      'HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"',
+      "func _get_android_manifest_application_element_contents(",
+      "AndroidStore.horizon_app_id_meta_data(",
+    ],
+    "Godot Horizon App ID export option",
+  );
+  // The Godot example uses the same Martie app id as the other examples.
+  const exampleHorizonAppId = /HORIZON_APP_ID"\s+android:value="(\d+)"/.exec(
+    read(
+      "libraries/react-native-iap/example/android/app/src/main/AndroidManifest.xml",
+    ),
+  )?.[1];
+  if (!exampleHorizonAppId) {
+    fail(
+      "react-native-iap example manifest: the Horizon app id could not be read",
+    );
+  } else {
+    expectIncludes(
+      "libraries/godot-iap/Example/export_presets.cfg",
+      [`openiap/horizon_app_id="${exampleHorizonAppId}"`],
+      "Godot example Horizon App ID",
+    );
+  }
   for (const file of [
     "packages/google/Example/src/main/AndroidManifest.xml",
     "libraries/react-native-iap/example/android/app/src/main/AndroidManifest.xml",
     "libraries/flutter_inapp_purchase/example/android/app/src/main/AndroidManifest.xml",
+    "libraries/godot-iap/addons/godot-iap/android_store.gd",
     "packages/docs/src/pages/docs/setup/store/horizon.tsx",
   ]) {
     expectIncludes(
@@ -4129,9 +4160,11 @@ function checkFrameworkDependencyHygiene() {
     );
     const expectedDocsVersionMetadata = {
       _generatedBy: "scripts/sync-versions.sh",
-      clientProtocolPackageVersion: readJson("specs/client/package.json").version,
-      commerceProtocolPackageVersion: readJson("specs/commerce-protocol/package.json")
+      clientProtocolPackageVersion: readJson("specs/client/package.json")
         .version,
+      commerceProtocolPackageVersion: readJson(
+        "specs/commerce-protocol/package.json",
+      ).version,
       expoPackageVersion: readJson("libraries/expo-iap/package.json").version,
       reactNativePackageVersion: readJson(
         "libraries/react-native-iap/package.json",
@@ -7298,7 +7331,10 @@ function checkFrameworkDependencyHygiene() {
       );
       expectIncludes(
         `${wrapper}/build.gradle`,
-        ["apply from: project.file('openiap-store.gradle')", "openIapResolveStore("],
+        [
+          "apply from: project.file('openiap-store.gradle')",
+          "openIapResolveStore(",
+        ],
         "Android wrappers must select the store through openiap-store.gradle",
       );
       expectNotIncludes(
@@ -7318,7 +7354,9 @@ function checkFrameworkDependencyHygiene() {
     // build is the failure this whole mechanism exists to prevent.
     const aliasTables = {
       "packages/google/gradle/openiap-store.gradle": (text) => {
-        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
+        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(
+          text,
+        )?.[1];
         return block
           ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
               (one) => [one[1], one[2]],
@@ -7333,24 +7371,22 @@ function checkFrameworkDependencyHygiene() {
             )
           : null;
       },
-      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt": (
-        text,
-      ) => {
-        const block = /private val storeAliases = mapOf\(([\s\S]*?)\n\)/.exec(
-          text,
-        )?.[1];
-        return block
-          ? [
-              ...block.matchAll(
-                /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z]+)"/g,
-              ),
-            ].map((one) => [one[1], one[2]])
-          : null;
-      },
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt":
+        (text) => {
+          const block = /private val storeAliases = mapOf\(([\s\S]*?)\n\)/.exec(
+            text,
+          )?.[1];
+          return block
+            ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*to\s*"([a-z]+)"/g)].map(
+                (one) => [one[1], one[2]],
+              )
+            : null;
+        },
       "libraries/maui-iap/android/openiap/build.gradle.kts": (text) => {
-        const block = /fun normalizeOpenIapStore\(value: String\?\): String =\s*when \(value\?\.lowercase\(Locale\.ROOT\)\) \{([\s\S]*?)\n    \}/.exec(
-          text,
-        )?.[1];
+        const block =
+          /fun normalizeOpenIapStore\(value: String\?\): String =\s*when \(value\?\.lowercase\(Locale\.ROOT\)\) \{([\s\S]*?)\n    \}/.exec(
+            text,
+          )?.[1];
         if (!block) return null;
         const entries = [];
         for (const line of block.split("\n")) {
@@ -7365,10 +7401,9 @@ function checkFrameworkDependencyHygiene() {
       "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
         const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
         return block
-          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
-              one[1],
-              one[2],
-            ])
+          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map(
+              (one) => [one[1], one[2]],
+            )
           : null;
       },
     };
@@ -7385,13 +7420,15 @@ function checkFrameworkDependencyHygiene() {
     }
     // Godot has no opt-out build, so `none` is the one id it may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
-    const mauiKotlinFile = "libraries/maui-iap/android/openiap/build.gradle.kts";
+    const mauiKotlinFile =
+      "libraries/maui-iap/android/openiap/build.gradle.kts";
     // The facade maps aliases onto the three ids; the ids and the opt-out are
     // not keys there, and it has no device so `auto` never reaches it.
     const facadeFile =
       "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt";
     const facadeSkips = new Set(["play", "horizon", "amazon", "auto", "none"]);
-    const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
+    const reference =
+      parsedAliases["packages/google/gradle/openiap-store.gradle"];
     if (reference) {
       for (const [file, table] of Object.entries(parsedAliases)) {
         if (file === "packages/google/gradle/openiap-store.gradle") continue;
@@ -7414,7 +7451,9 @@ function checkFrameworkDependencyHygiene() {
         }
         for (const alias of table.keys()) {
           if (!reference.has(alias)) {
-            fail(`${file}: store alias ${JSON.stringify(alias)} is not in the resolver`);
+            fail(
+              `${file}: store alias ${JSON.stringify(alias)} is not in the resolver`,
+            );
           }
         }
       }
@@ -7430,7 +7469,10 @@ function checkFrameworkDependencyHygiene() {
       if (!expected) {
         fail(`${resolverFile}: the device feature checks could not be read`);
       } else {
-        for (const probe of [godotFile, "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+        for (const probe of [
+          godotFile,
+          "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+        ]) {
           if (exists(probe) && features(probe) !== expected) {
             fail(
               `${probe}: device features [${features(probe)}] differ from the resolver's [${expected}]`,
@@ -7441,7 +7483,9 @@ function checkFrameworkDependencyHygiene() {
     }
     // MSBuild cannot hold a table, so check every alias appears in a condition.
     // The app build resolves the store there, device step included.
-    for (const csproj of ["libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+    for (const csproj of [
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+    ]) {
       expectFile(csproj);
       if (!exists(csproj) || !reference) continue;
       const text = read(csproj);
@@ -8225,7 +8269,9 @@ function checkFrameworkDependencyHygiene() {
 
   const mauiProps = read("libraries/maui-iap/src/Directory.Build.props");
   // The app build reads the store SDK versions from the package itself.
-  const mauiStoreProps = read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props");
+  const mauiStoreProps = read(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
+  );
   const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];
@@ -8250,7 +8296,10 @@ function checkFrameworkDependencyHygiene() {
     "MauiPlayServicesLocationVersion",
     "MauiPlayServicesTasksVersion",
     "MauiDataTransportVersion",
-  ].map((name) => [name, mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1]]);
+  ].map((name) => [
+    name,
+    mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1],
+  ]);
   const mauiGoogleGsonNuGetVersion = mauiProps.match(
     /<MauiGoogleGsonNuGetVersion>([^<]+)<\/MauiGoogleGsonNuGetVersion>/,
   )?.[1];
@@ -8411,8 +8460,12 @@ function checkFrameworkDependencyHygiene() {
     // Billing's POM dependencies are exempted from verification by exact
     // version, so a Billing bump has to revisit that list.
     if (
-      exists("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets") &&
-      !read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets").includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
+      exists(
+        "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      ) &&
+      !read(
+        "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+      ).includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
     ) {
       fail(
         `libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets: the Billing dependency exemptions must be revisited for billing ${googleBillingVersions[0]}`,
@@ -8617,7 +8670,11 @@ function checkFrameworkDependencyHygiene() {
   );
   expectNotIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    ["Xamarin.Android.Google.BillingClient", "OpenIapGoogleAarFlavor", "AndroidMavenLibrary"],
+    [
+      "Xamarin.Android.Google.BillingClient",
+      "OpenIapGoogleAarFlavor",
+      "AndroidMavenLibrary",
+    ],
     "MAUI package must not link Billing through its NuGet binding, whose Java wrappers need it in every store's build",
   );
   expectIncludes(
