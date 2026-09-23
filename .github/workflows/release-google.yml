@@ -270,27 +270,23 @@ jobs:
           # plugins { id(...) } resolves the marker, so the plugin counts as
           # published only when both it and its jar's POM are there.
           BASE="https://repo1.maven.org/maven2/io/github/hyochan/openiap"
-          STATUSES=""
-          for POM in "openiap-gradle-plugin/$VERSION/openiap-gradle-plugin-$VERSION.pom" \
-                     "io.github.hyochan.openiap.gradle.plugin/$VERSION/io.github.hyochan.openiap.gradle.plugin-$VERSION.pom"; do
-            HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/$POM" || true)
-            STATUSES="$STATUSES ${HTTP_STATUS:-000}"
-          done
-          case "$STATUSES" in
-            " 200 200")
+          pom_status() { curl -sS -o /dev/null -w "%{http_code}" "$BASE/$1/$VERSION/$1-$VERSION.pom" || true; }
+          STATUS="$(pom_status openiap-gradle-plugin)/$(pom_status io.github.hyochan.openiap.gradle.plugin)"
+          case "$STATUS" in
+            200/200)
               echo "exists=true" >> $GITHUB_OUTPUT
               echo "⚠️ openiap-gradle-plugin $VERSION and its marker already exist on Maven Central"
               ;;
-            " 404 404")
+            404/404)
               echo "exists=false" >> $GITHUB_OUTPUT
               echo "✓ openiap-gradle-plugin $VERSION does not exist, will publish"
               ;;
-            " 200 404"|" 404 200")
-              echo "❌ openiap-gradle-plugin $VERSION is only partly on Maven Central (plugin, marker:$STATUSES); release a new version"
+            200/404|404/200)
+              echo "❌ openiap-gradle-plugin $VERSION is only partly on Maven Central (plugin/marker: $STATUS); release a new version"
               exit 1
               ;;
             *)
-              echo "❌ Unable to verify openiap-gradle-plugin $VERSION on Maven Central (HTTP$STATUSES)"
+              echo "❌ Unable to verify openiap-gradle-plugin $VERSION on Maven Central (plugin/marker: HTTP $STATUS)"
               exit 1
               ;;
           esac
