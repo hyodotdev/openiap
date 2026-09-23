@@ -17,6 +17,6 @@ are agent-agnostic and apply as written.
   Chrome) with the user's signed-in session. If OpenCollective asks for
   sign-in, hand control back to the user; never infer or extract auth tokens
   from browser state.
-- The Trix-editor guardrail applies verbatim: verify the hidden form input
-  matches the visible editor content before pressing Save, and abort the save
-  when they disagree.
+- The canonical Live Edit Guardrails apply verbatim: confirm the form will
+  submit the new copy before pressing Save, and read it back from the public
+  API afterwards.
