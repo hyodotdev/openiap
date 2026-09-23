@@ -82,13 +82,9 @@ const STORE_ALIASES = {
 };
 
 /**
- * gradle.properties pins the store with `openiapStore`, or with the legacy
- * flags a generated project used to carry. Without a pin the Gradle resolver
- * picks the store per build from the task flavor or the connected debug
- * device, which no file records. A literal flavor in app/build.gradle comes
- * from an older generated project; when it disagrees with the pin, the
- * regeneration was half-finished and the app links a store the device may not
- * run.
+ * Reports the store gradle.properties pins (openiapStore or a legacy flag) and
+ * a leftover platform strategy in app/build.gradle that disagrees with it.
+ * Without a pin Gradle picks the store per build, which no file records.
  */
 export function androidStoreChecks(root, framework) {
   const propertiesText = read(root, "android/gradle.properties");

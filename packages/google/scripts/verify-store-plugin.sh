@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Regression suite for the OpenIAP Gradle plugin (packages/google/gradle-plugin).
-#
-# The resolver's rules are covered by verify-store-resolver.sh. This suite
-# covers what the plugin adds: that the store it resolves reaches the published
-# openiap-google and kmp-iap artifacts an app outside this repo links.
+# Regression suite for the OpenIAP Gradle plugin: the resolved store must reach
+# the published openiap-google and kmp-iap artifacts. The resolver's own rules
+# are in verify-store-resolver.sh.
 set -euo pipefail
 
 google_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

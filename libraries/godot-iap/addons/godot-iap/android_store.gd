@@ -1,6 +1,5 @@
-## Android store selection for exports. Same store names, aliases and device
-## rules as packages/google/gradle/openiap-store.gradle: auto follows the one
-## connected device for a debug export, and anything else is Play.
+## Android store selection for exports, by the same rules as
+## packages/google/gradle/openiap-store.gradle.
 extends RefCounted
 
 const STORES: PackedStringArray = ["auto", "play", "horizon", "amazon"]

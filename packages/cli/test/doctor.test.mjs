@@ -326,7 +326,7 @@ test("an opt-out masked by auto still fails a non-Flutter wrapper", () => {
     withProject(
       {
         "package.json": JSON.stringify({
-          dependencies: {"react-native-iap": "^16.0.0"},
+          dependencies: { "react-native-iap": "^16.0.0" },
         }),
         "android/gradle.properties": `${pin}openiapPlatform=none\n`,
       },
@@ -377,9 +377,7 @@ test("the legacy opt-out key is read, and only accepts none", () => {
   );
 });
 
-// Each row was run through the resolver fixture too: a build Gradle refuses gets
-// the error alone, never a store it would supposedly link, and a pin is named by
-// the key that set it, legacy keys included.
+// Each row matches what the resolver fixture does with the same gradle.properties.
 test("gradle.properties is judged the way Gradle judges it", () => {
   const FLUTTER = {
     "pubspec.yaml":

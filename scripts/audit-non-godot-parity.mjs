@@ -7340,10 +7340,8 @@ function checkFrameworkDependencyHygiene() {
         "Android wrappers must read the store only through openiap-store.gradle",
       );
     }
-    // The store vocabulary is implemented five times over, in Groovy, JS,
-    // Kotlin, GDScript and MSBuild, which cannot share code, so compare the
-    // tables instead: a store that resolves differently in two layers of one
-    // build is the failure this whole mechanism exists to prevent.
+    // Five store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild) cannot
+    // share code, so they must match entry for entry.
     const aliasTables = {
       "packages/google/gradle/openiap-store.gradle": (text) => {
         const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];

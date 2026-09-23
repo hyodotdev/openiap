@@ -107,8 +107,7 @@ const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
 const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
   '// End expo-iap local openiap-google flavor selection';
 
-// The resolver ships beside this plugin, so locate it from here instead of
-// guessing where the consumer hoisted node_modules.
+// The resolver ships beside this plugin, wherever node_modules put it.
 const OPENIAP_STORE_SCRIPT = path.resolve(
   __dirname,
   '../../android/openiap-store.gradle',
@@ -120,10 +119,8 @@ export const storeScriptPathFrom = (platformProjectRoot: string): string =>
     .split(path.sep)
     .join('/');
 
-// Every module that links the flavored project applies the resolver itself and
-// calls it. The resolver caches its answer on the root project, so they all get
-// the same store. Reading a value the root build file computed does not work:
-// React Native's root plugin evaluates `:app` before the root script runs.
+// Each module applies the resolver itself; it caches its answer, so all agree.
+// `:app` cannot read a root value: React Native evaluates it before the root script.
 export const LOCAL_STRATEGY_LINE_GROOVY =
   '          missingDimensionStrategy "platform", openIapStore';
 export const LOCAL_STRATEGY_LINE_KOTLIN =
@@ -145,8 +142,8 @@ export const appStoreLines = (
           '        missingDimensionStrategy "platform", openIapResolveStore("app").store',
       };
 
-// Each removal also takes the blank line the local build wrote beside the line,
-// so switching between local and published builds leaves the file as it was.
+// Each removal also takes the blank line written beside the line, so a switch
+// back to published leaves the file as it was.
 export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
   contents.replace(
     new RegExp(
@@ -158,8 +155,8 @@ export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
     '',
   );
 
-// The expo-iap module links an included :openiap-google in place of Maven, so a
-// build that is not local must not keep an earlier local build's wiring.
+// expo-iap links an included :openiap-google over Maven, so a published build
+// drops what a local one wrote.
 export const removeLocalOpenIapSettings = (contents: string): string =>
   contents
     .replace(
@@ -196,8 +193,7 @@ export const setLocalOpenIapPodPath = (
     (_, prefix: string) => `${prefix}'${relativePath}'`,
   );
 
-// Every Android library module in a local build links the flavor the resolver
-// picks when Gradle runs, so the app and expo-iap always agree on one store.
+// Every Android module in a local build links the flavor the resolver picks.
 export const ensureLocalOpenIapFlavorStrategy = (
   contents: string,
   storeScriptPath: string,
@@ -514,8 +510,7 @@ const withLocalOpenIAP: ConfigPlugin<
         : `    implementation project(':openiap-google')`;
     let contents = gradle.contents;
 
-    // `:app` is evaluated before the root build file, so it applies the
-    // resolver itself; the resolver caches its answer and every module agrees.
+    // `:app` runs before the root build file, so it applies the resolver itself.
     const {apply: applyLine, strategy: strategyLine} = appStoreLines(
       storeScriptPathFrom(
         path.join(config.modRequest.platformProjectRoot, 'app'),

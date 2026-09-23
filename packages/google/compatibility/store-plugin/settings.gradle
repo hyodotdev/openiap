@@ -1,6 +1,5 @@
-// Consumes openiap-google and kmp-iap as published artifacts, the way an app
-// outside this repo does, with the plugin built from source and applied once
-// here so it reaches every module.
+// Uses the published openiap-google and kmp-iap as an outside app does, with the
+// plugin built from source.
 pluginManagement {
   includeBuild('../../gradle-plugin')
   repositories {

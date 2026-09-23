@@ -51,8 +51,8 @@ function skippedChecks(root, framework) {
     skipped.push("Android store flavor: no android/ project was found here.");
   }
 
-  const iosDirs = listDir(root, "ios").filter((one) =>
-    !isGeneratedDir(one) && isDirectory(root, `ios/${one}`),
+  const iosDirs = listDir(root, "ios").filter(
+    (one) => !isGeneratedDir(one) && isDirectory(root, `ios/${one}`),
   );
   const iosPlists = [
     "ios/Info.plist",

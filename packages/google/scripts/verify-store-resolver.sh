@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # Regression suite for the Android store resolver
-# (packages/google/gradle/openiap-store.gradle).
-#
-# Every case below is a rule a release build depends on. They are asserted here
-# rather than on a device because each one is decided at configuration time,
-# and because a wrong store is only visible in the artifact, never at runtime
-# on the machine that built it.
+# (packages/google/gradle/openiap-store.gradle). The store is decided at
+# configuration time, so each rule is checked here without a device.
 set -euo pipefail
 
 google_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -135,10 +131,8 @@ echo "task graph"
 run "a lower-case task name is caught"     "fail:but the requested tasks build horizon" assemblehorizonrelease
 run "a case-mixed name is caught"          "fail:but the requested tasks build horizon" assembleHorizonrelease
 run "a prefix match is caught"             "fail:but the requested tasks build horizon" assemblehorizonr
-# An anchor task builds every flavor of whatever it reaches, and an unqualified
-# name reaches every project, so `flutter build apk` pulls in a source-included
-# openiap-google and all three of its flavors. Only what the request selected
-# can say which store this build links.
+# An anchor such as `assemble` builds every flavor it reaches; only the tasks the
+# request selected decide the store.
 run "an anchor over flavors is allowed"    play/default     assembleEverything
 run "AGP's own assemble anchor is allowed" play/default     assemble
 run "no task at all"                       play/default

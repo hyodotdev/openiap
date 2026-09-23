@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
-# Regression suite for the MAUI store selection
-# (src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets).
-#
-# Runs the targets against the example app with the Gradle resolver suite's
-# fake adb, so the device rule is checked without hardware. Each store also
-# runs through Java dependency verification, which fails when the targets'
-# ignore list falls behind a Billing or Horizon SDK bump.
-#
-# Needs the packages/google release AARs for all three stores, the MAUI
-# facade AAR, an Android SDK, and the maui-android workload.
+# Regression suite for the MAUI store selection (buildTransitive/OpenIap.Maui.targets),
+# using the resolver suite's fake adb and Java dependency verification per store.
+# Needs the three store AARs, the MAUI facade AAR, an Android SDK and the
+# maui-android workload.
 set -euo pipefail
 
 maui_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

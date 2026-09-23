@@ -17,11 +17,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Meta answers a GetViewerPurchases it could not reach with the client-side
- * durable cache and SERVICE_UNAVAILABLE together — on a Quest 3 the log reads
- * "Returning purchases from the client-side durable cache because the
- * underlying call to GetViewerPurchases did not return results." Reading the
- * code alone dropped those purchases and failed every restore.
+ * Meta returns its durable purchase cache with SERVICE_UNAVAILABLE when it
+ * cannot reach the store, as seen on a Quest 3.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [29])

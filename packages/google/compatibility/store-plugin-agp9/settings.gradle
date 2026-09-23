@@ -1,6 +1,5 @@
-// AGP 9 replaced the Kotlin Multiplatform library plugin's dependency
-// selection API, so the store plugin's KMP cases run here on AGP 9 as well,
-// against the same modules as ../store-plugin.
+// ../store-plugin's KMP modules on AGP 9, which changed how the KMP library
+// plugin selects dependencies.
 pluginManagement {
   includeBuild('../../gradle-plugin')
   repositories {

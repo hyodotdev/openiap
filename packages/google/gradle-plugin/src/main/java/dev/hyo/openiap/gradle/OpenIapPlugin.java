@@ -14,10 +14,9 @@ import org.gradle.api.Project;
 import org.gradle.api.initialization.Settings;
 
 /**
- * Applies the OpenIAP store resolver and wires its answer into Android modules.
- * Both are Groovy scripts compiled by the consumer's own Gradle, so the plugin
- * works on whichever Groovy that Gradle ships. Applied in settings, it reaches
- * every module, including an app that sees kmp-iap only through a shared module.
+ * Applies the OpenIAP store resolver to Android modules and links the store it
+ * picks. The logic ships as Groovy scripts the consumer's Gradle compiles, so any
+ * Gradle version works. Applied in settings, it reaches every module.
  */
 public final class OpenIapPlugin implements Plugin<Object> {
     private static final String[] ANDROID_PLUGINS = {

@@ -112,9 +112,7 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui-android --skip-sign-check
 
-      # The binding binds only the MAUI-owned OpenIapMauiModule facade; the app
-      # build links one store's Google AAR (buildTransitive/OpenIap.Maui.targets),
-      # so every store's AAR is built for the selection suite below.
+      # The app build links one store's AAR, so build all three for the suite below.
       - name: Build Google AARs
         working-directory: packages/google
         run: |

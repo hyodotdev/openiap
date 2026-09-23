@@ -1,6 +1,6 @@
-// Applied by the io.github.hyochan.openiap plugin after openiap-store.gradle, once
-// the module applies an Android plugin. Links the store the resolver picks into a
-// module that consumes openiap-google or kmp-iap as a published artifact.
+// Applied by the io.github.hyochan.openiap plugin after openiap-store.gradle. Links
+// the store the resolver picks into a module that uses the published openiap-google
+// or kmp-iap.
 
 def openIapGroup = 'io.github.hyochan.openiap'
 // openiap-google publishes each store as its own artifact.
@@ -10,8 +10,7 @@ def openIapArtifactStores = [
   'openiap-google-amazon': 'amazon',
 ]
 
-// Links the store's build of openiap-google in the given configurations, or in
-// every one of this module's when none are given.
+// Swaps openiap-google for the store's artifact, in the given configurations or all.
 def openIapUseStore = { String store, Collection targets = null ->
   def swap = { configuration ->
     configuration.resolutionStrategy.eachDependency { details ->
@@ -19,13 +18,13 @@ def openIapUseStore = { String store, Collection targets = null ->
       if (named == null || named == store) {
         return
       }
-      // As in the resolver, two signals that name different stores stop the build.
+      // A store artifact that names another store fails, as in the resolver.
       if (named != 'play') {
         throw new GradleException(
           "openiap: ${details.requested.name} is declared but this build's store is ${store}; depend on openiap-google, or set openiapStore=${named}"
         )
       }
-      // useTarget needs a version, and a BOM's would not carry over to the store's coordinates.
+      // useTarget needs a version; a BOM's does not carry over to the store's artifact.
       def version = details.requested.version
       if (!version) {
         throw new GradleException(
@@ -43,9 +42,8 @@ def openIapUseStore = { String store, Collection targets = null ->
   }
 }
 
-// The DSL has no getter for a dimension strategy; AGP's flavor class keeps them.
-// A product flavor's request opens with its own name and lists the values after
-// it, and AGP takes the first one the dependency has, so that is the store.
+// The store a flavor's `missingDimensionStrategy 'platform', ...` asks for. The DSL
+// has no getter, so read AGP's flavor class; the first store listed wins.
 def openIapRequestedPlatform = { flavor ->
   if (!flavor.hasProperty('missingDimensionStrategies')) {
     return null
@@ -59,8 +57,7 @@ def openIapRequestedPlatform = { flavor ->
 
 ['com.android.application', 'com.android.library', 'com.android.dynamic-feature', 'com.android.test'].each { id ->
   pluginManager.withPlugin(id) {
-    // A module's own platform flavor names each variant's store, so one plain
-    // openiap-google dependency links that store's build in each variant.
+    // With its own platform flavors, each variant links its flavor's store.
     androidComponents.onVariants(androidComponents.selector().all()) { variant ->
       def flavor = variant.productFlavors.find { it.first == 'platform' }?.second
       if (flavor in openIapArtifactStores.values()) {
@@ -68,7 +65,6 @@ def openIapRequestedPlatform = { flavor ->
       }
     }
     androidComponents.finalizeDsl { android ->
-      // Its own platform flavors choose the store per variant.
       if (android.flavorDimensions.contains('platform')) {
         if (project.findProperty('openiapStore')) {
           logger.lifecycle("openiap: ${project.path} declares platform flavors, so openiapStore does not apply to it")
@@ -76,8 +72,7 @@ def openIapRequestedPlatform = { flavor ->
         return
       }
       def store = openIapResolveStore('openiap').store
-      // A platform the module or one of its flavors already requests is a second
-      // signal, and as in the resolver one that disagrees stops the build.
+      // A platform the module or a flavor already asks for must match the store.
       ([android.defaultConfig] + android.productFlavors.toList()).each { flavor ->
         def requested = openIapRequestedPlatform(flavor)
         if (requested != null && requested != store) {

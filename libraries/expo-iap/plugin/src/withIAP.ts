@@ -125,8 +125,7 @@ export const normalizeGeneratedGroovyAppBuildGradle = (
   return modified;
 };
 
-// The app id is inert outside Quest, so it stays in every build and the store
-// is picked when Gradle runs, not at prebuild.
+// The app id is inert outside Quest, so every build carries it.
 export function syncHorizonAppIdMetaData(
   manifest: AndroidManifestLike,
   horizonAppId?: string,
@@ -184,9 +183,8 @@ const OPENIAP_DEPENDENCY_LINE =
 const PLATFORM_STRATEGY_LINE =
   /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
 
-// The expo-iap module owns the OpenIAP dependency and resolves the store when
-// Gradle runs, so the app build file carries neither. Earlier plugin versions
-// wrote both, and a stale copy would pin the wrong store.
+// The expo-iap module owns the OpenIAP dependency and the store choice, so the
+// app build file carries neither; a copy an older plugin wrote is removed.
 export const modifyAppBuildGradle = (
   gradle: string,
   language: 'groovy' | 'kt',
@@ -226,8 +224,7 @@ const STORE_PROPERTY_KEYS = [
 
 type GradleProperty = {type: string; key?: string; value?: string};
 
-// A pin outranks the task flavor and the connected device, so a key an earlier
-// prebuild left would keep selecting a store nobody asked for.
+// A pin outranks everything else, so a key an earlier prebuild left is removed.
 export function storeGradleProperties<T extends GradleProperty>(
   properties: T[],
   pinnedStore: AndroidStorePin,
@@ -245,8 +242,7 @@ export function storeGradleProperties<T extends GradleProperty>(
 }
 export const AMAZON_APPSTORE_KEY_FILE = 'AppstoreAuthenticationKey.pem';
 
-// Copies the key, or removes the copy an earlier prebuild left when the source
-// is gone: that copy would keep verifying with a key the config no longer has.
+// Copies the key into the app, or removes the old copy when the source is gone.
 export function syncAmazonAppstoreKey(source: string, target: string): boolean {
   if (!fs.existsSync(source)) {
     fs.rmSync(target, {force: true});
@@ -704,8 +700,7 @@ export function resolveAmazonPlatformFlags(
     ? moduleAmazon?.vegaOS === true
     : isEnvFlagEnabled('EXPO_IAP_VEGA');
   const modules = options?.modules;
-  // Reported as set, not silently dropped: resolvePinnedAndroidStore refuses
-  // two stores rather than letting Fire OS quietly win.
+  // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
     ? modules?.horizon === true
     : isEnvFlagEnabled('EXPO_IAP_HORIZON');
@@ -733,15 +728,12 @@ export function resolveAmazonAppstoreKey(
   return options?.android?.amazon?.appstoreKey ?? undefined;
 }
 
-// A module flag pins the store for every build of this prebuild; without one
-// the Gradle resolver picks it from the task flavor or the connected device.
-// The flags are deprecated but still pin: dropping them silently would move an
-// existing Quest or Fire release build to Play.
+// A module flag pins the store for every build; without one, Gradle picks it.
+// The flags are deprecated but still pin, so a Quest or Fire release keeps its store.
 export function resolvePinnedAndroidStore(
   flags: Pick<AmazonPlatformFlags, 'isFireOsEnabled' | 'isHorizonEnabled'>,
 ): AndroidStorePin {
-  // One APK links one billing SDK, so two modules naming different stores is
-  // not a preference order to resolve — it is a config the build cannot honour.
+  // An APK links one billing SDK.
   if (flags.isFireOsEnabled && flags.isHorizonEnabled) {
     throw new Error(
       'expo-iap: modules.amazon.fireOS and modules.horizon are both enabled; ' +
@@ -828,8 +820,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 ) => {
   const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
-  // Outside the try: its catch would turn a store conflict into a warning and
-  // a prebuild with no expo-iap changes at all.
+  // Outside the try, whose catch would turn this error into a warning.
   const pinnedStore = resolvePinnedAndroidStore({
     isFireOsEnabled,
     isHorizonEnabled,

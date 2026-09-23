@@ -10,10 +10,9 @@ export type ExpoIapModuleOverrides = {
    */
   onside?: boolean;
   /**
-   * @deprecated Leave it out: a local debug build follows the connected Quest.
-   * Pin every EAS or release build that must target Horizon with
-   * `ORG_GRADLE_PROJECT_openiapStore=horizon` in the build profile's `env`.
-   * Still honored as a pin, with a warning.
+   * @deprecated A debug build follows the connected Quest. Pin EAS and release
+   * builds with `ORG_GRADLE_PROJECT_openiapStore=horizon` in the profile's `env`.
+   * Still pins, with a warning.
    * @platform android
    */
   horizon?: boolean;
@@ -26,10 +25,9 @@ export type ExpoIapModuleOverrides = {
 
 export type AmazonPlatformOptions = {
   /**
-   * @deprecated Leave it out: a local debug build follows the connected Fire
-   * device. Pin every EAS or release build that must target Fire OS with
-   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in the build profile's `env`.
-   * Still honored as a pin, with a warning.
+   * @deprecated A debug build follows the connected Fire device. Pin EAS and
+   * release builds with `ORG_GRADLE_PROJECT_openiapStore=amazon` in the
+   * profile's `env`. Still pins, with a warning.
    * @platform android
    */
   fireOS?: boolean;
@@ -80,10 +78,9 @@ type BaseExpoIapOptions = {
      */
     amazon?: {
       /**
-       * Path, relative to the project root, of the Amazon Appstore public key
-       * (`AppstoreAuthenticationKey.pem`) downloaded from the Amazon Developer
-       * Console. Copied into `android/app/src/main/assets` on every prebuild;
-       * Fire OS builds cannot verify receipts without it, other stores ignore it.
+       * Path to the Amazon Appstore public key (`AppstoreAuthenticationKey.pem`),
+       * relative to the project root. Copied into the app's assets on every
+       * prebuild; Fire OS needs it to verify receipts.
        */
       appstoreKey?: string;
       /**

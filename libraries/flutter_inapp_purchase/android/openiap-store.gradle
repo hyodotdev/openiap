@@ -1,22 +1,18 @@
-// OpenIAP store resolver. Source of truth: packages/google/gradle/openiap-store.gradle.
-// Each framework's android/ copy must stay byte-identical (bun audit:parity).
+// OpenIAP store resolver. Source of truth: packages/google/gradle/openiap-store.gradle;
+// each framework's android/ copy must stay byte-identical (bun audit:parity).
 // Apply it, then call openIapResolveStore('<label>'), or ('<label>', [allowNone: true])
-// where opting out of Android IAP is supported.
+// where the library can build without a store SDK.
 //
 // First match wins:
 //   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
-//                horizonEnabled / fireOsEnabled / openiapPlatform=none still work, with a warning.
-//   2. variant   a requested task carries a store flavor (assembleHorizonRelease, installAmazonDebug).
-//   3. device    debug builds only: the adb device ANDROID_SERIAL names, or the
-//                single connected one, is a Quest or Fire device.
+//                The legacy horizonEnabled, fireOsEnabled and openiapPlatform=none still work.
+//   2. variant   a requested task names a store flavor (assembleHorizonRelease).
+//   3. device    debug builds only: the Quest or Fire device that ANDROID_SERIAL
+//                names, or the only one connected.
 //   4. play
-// A pin and a task flavor that name different stores fail the build, as do two flavors
-// in one invocation and a pin against a legacy flag, so a pinned release train cannot
-// quietly ship the wrong billing SDK. The device is a fallback, not a competing signal:
-// a pin or a flavor simply outranks it. A release build never consults a device,
-// and several attached devices select nothing unless ANDROID_SERIAL names one.
-// Only spelled-out task names are read; once the task graph is ready, a task
-// that builds another store (an abbreviation like aHR, say) fails the build.
+// Two signals naming different stores fail the build. Only spelled-out task names
+// are read; a task that builds another store (an abbreviation such as aHR) fails
+// once the task graph is ready.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -43,7 +39,7 @@ ext.openIapTaskTokens = { String taskPath ->
   return name.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
 }
 
-// Which key asked for the opt-out, so every refusal names the one that was set.
+// The key that set the opt-out, for error messages.
 ext.openIapOptOutKey = {
   def explicit = project.findProperty('openiapStore')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
   return explicit == 'none' ? 'openiapStore=none' : 'openiapPlatform=none'
@@ -119,15 +115,15 @@ ext.openIapRequestedTasks = {
 ext.openIapTaskStore = { String label ->
   def named = openIapRequestedTasks().collectMany { openIapTaskTokens(it) }
       .findAll { it in ['play', 'horizon', 'amazon'] } as LinkedHashSet
-  // Picking one of two named stores would link the wrong billing SDK in silence.
+  // Two stores in one build: refuse rather than guess.
   if (named.size() > 1) {
     throw new GradleException("${label}: cannot tell which store the requested tasks '${openIapRequestedTasks().join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
   }
   return named ? named.first() : null
 }
 
-// `clean assembleDebug` is still a debug build, but anything naming a release
-// task is not: a release artifact must never depend on what is plugged in.
+// `clean assembleDebug` is a debug build; any release task makes it a release
+// build, which never depends on the attached device.
 ext.openIapBuildTypes = { String taskPath ->
   def types = [] as LinkedHashSet
   openIapTaskTokens(taskPath).each { token ->
@@ -184,11 +180,9 @@ ext.openIapSelectedTasks = { graph, String request ->
   }
 }
 
-// The requested names are whatever the developer typed, and only the finished
-// graph carries the real ones, so the answer chosen during configuration is
-// checked against them before any task runs. Only the tasks the request
-// selected count: an unqualified name reaches every project, and an anchor
-// like assembleDebug legitimately builds every flavor of a library it names.
+// Checks the store picked at configuration against the tasks that will run.
+// Only tasks the request selected count: an anchor such as assembleDebug also
+// builds every flavor of a library it reaches.
 ext.openIapVerifyTaskGraph = { String label, Map resolution ->
   def resolved = resolution.store
   if (resolved == 'none') {
@@ -206,8 +200,7 @@ ext.openIapVerifyTaskGraph = { String label, Map resolution ->
       }
     }
     if (!named) {
-      // A store read from something no task confirms, such as an unlisted
-      // option's value, is not trusted.
+      // The store came from something that is not a task, such as an option's value.
       if (resolution.source == 'variant') {
         throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but no task it runs names a store; set openiapStore")
       }
@@ -275,8 +268,7 @@ ext.openIapAdbText = { List<String> command ->
   }
 }
 
-// ANDROID_SERIAL is how every Android tool picks among attached devices, so a
-// developer with several plugged in still gets the one they are targeting.
+// Like every Android tool, target the device ANDROID_SERIAL names.
 ext.openIapDeviceStore = {
   def adb = openIapAdb()
   if (adb == null) {
@@ -304,12 +296,9 @@ ext.openIapDeviceStore = {
   } else {
     return null
   }
-  // A device that drops between the listing and these probes must not be
-  // reported as a device signal that happened to mean play.
   def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features'])
   def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
-  // A dropped device answers with empty output and a swallowed exit, not null,
-  // so treat blank-on-both as gone rather than reporting a device signal.
+  // A device that dropped after the listing answers with nothing; that is not Play.
   if (!features?.trim() && !manufacturerText?.trim()) {
     logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
     return null
@@ -329,8 +318,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   def allowNone = options.allowNone == true
   if (rootProject.ext.has('openIapStoreResolution')) {
     def cached = rootProject.ext.openIapStoreResolution
-    // The opt-out is per caller, so a library that cannot build without a
-    // store SDK must still refuse it even when an earlier caller allowed it.
+    // The opt-out is per caller: a library that needs a store SDK still refuses it.
     if (cached.store == 'none' && !allowNone) {
       throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
     }
@@ -339,10 +327,8 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   def explicit = openIapExplicitStore(label, allowNone)
   // Opting out links nothing, so the tasks may build several store flavors.
   def variant = explicit == 'none' ? null : openIapTaskStore(label)
-  // A pin that disagrees with the requested flavor is the case that ships the
-  // wrong billing SDK from a correct-looking release task, so it fails here.
-  // Opting out is not that case: it links nothing, so an app that keeps a store
-  // flavor for its own packaging can still build without an Android IAP SDK.
+  // A pin against the task's flavor would ship the wrong SDK. The opt-out links
+  // nothing, so it may sit beside any flavor.
   if (explicit != null && explicit != 'none' && variant != null && explicit != variant) {
     throw new GradleException(
       "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${openIapRequestedTasks().join(' ')}'"

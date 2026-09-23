@@ -108,10 +108,7 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20260719"
 
-    // Use OpenIAP Google module only; avoid direct BillingClient dependency.
-    // `api`, not `implementation`: the config plugin no longer writes the
-    // coordinate into the app, so an app with its own native code needs
-    // dev.hyo.openiap on its compile classpath through this module.
+    // `api`, so an app's own native code can use dev.hyo.openiap through this module.
     if (findProject(":openiap-google") != null) {
       api project(":openiap-google")
     } else if (openiapFlavor == 'amazon') {
