@@ -177,7 +177,7 @@ run "a Quest selects horizon"              horizon/device   assembleDebug
 run "a release build ignores the device"   play/default     assembleRelease
 run "a flavor outranks the device"         amazon/variant   assembleAmazonDebug
 run "clean keeps it a debug build"         horizon/device   clean assembleDebug
-run "the configuration cache skips it"     play/default     assembleDebug --configuration-cache
+run "the configuration cache reads it too" horizon/device   assembleDebug --configuration-cache
 run "an explicit pin still wins"           play/explicit    assembleDebug -PopeniapStore=play
 # An abbreviated debug task is still a debug build, so the device rule applies.
 run "aD still reaches the device"          horizon/device   aD
@@ -191,6 +191,9 @@ with_device FIRE2 "" Amazon
 run "Amazon without the TV feature"        amazon/device    assembleDebug
 with_device PIXEL1 "feature:android.hardware.nfc" Google
 run "anything else is play"                play/device      assembleDebug
+# Gradle re-runs the probe before reusing the entry the Quest case stored, so a
+# different device must reconfigure instead of inheriting horizon.
+run "a new device invalidates that cache"  play/device      assembleDebug --configuration-cache
 
 export FAKE_ADB_DEVICES="QUEST1 PIXEL1"
 export FAKE_ADB_QUEST1_FEATURES="feature:oculus.hardware.standalone_vr"

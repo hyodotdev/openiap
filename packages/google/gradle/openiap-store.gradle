@@ -14,9 +14,7 @@
 // in one invocation and a pin against a legacy flag, so a pinned release train cannot
 // quietly ship the wrong billing SDK. The device is a fallback, not a competing signal:
 // a pin or a flavor simply outranks it. A release build never consults a device,
-// several attached devices select nothing unless ANDROID_SERIAL names one, and the
-// configuration cache disables the device probe because a cached answer outlives the
-// device that produced it.
+// and several attached devices select nothing unless ANDROID_SERIAL names one.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -209,22 +207,6 @@ ext.openIapDebugBuild = {
   return types.contains('debug') && !types.contains('release')
 }
 
-// Gradle 9 deprecated StartParameter.isConfigurationCacheRequested, and calling
-// it warns on every build that reaches the device step. Prefer the supported
-// build feature and fall back only where that is missing.
-ext.openIapConfigurationCacheRequested = {
-  try {
-    def features = project.services.get(org.gradle.api.configuration.BuildFeatures)
-    return features.configurationCache.requested.getOrElse(false)
-  } catch (Throwable ignored) {
-  }
-  try {
-    return gradle.startParameter.isConfigurationCacheRequested()
-  } catch (Throwable ignored) {
-  }
-  return false
-}
-
 // Gradle resolves a typed name to real tasks: an exact, case-insensitive match
 // when one exists, otherwise a unique prefix or a camelCase abbreviation.
 ext.openIapSelectedTasks = { graph, String request ->
@@ -325,7 +307,8 @@ ext.openIapAdb = {
   }
 }
 
-// providers.exec keeps the probe legal under the configuration cache.
+// providers.exec keeps the probe legal under the configuration cache, and Gradle
+// re-runs it before reusing a cached configuration, so a new device reconfigures.
 ext.openIapAdbText = { List<String> command ->
   try {
     return providers.exec {
@@ -415,16 +398,9 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   } else if (variant != null) {
     resolution = [store: variant, source: 'variant', reason: "task ${openIapRequestedTasks().join(' ')}"]
   } else if (openIapDebugBuild()) {
-    def ccRequested = openIapConfigurationCacheRequested()
-    if (ccRequested) {
-      // A cached configuration keeps the store the probe saw, long after that
-      // device is gone. Pin the store instead of shipping a stale answer.
-      logger.warn("openiap: the configuration cache is on, so the connected device does not select a store; set openiapStore")
-    } else {
-      def device = openIapDeviceStore()
-      if (device != null) {
-        resolution = [store: device.store, source: 'device', reason: device.reason]
-      }
+    def device = openIapDeviceStore()
+    if (device != null) {
+      resolution = [store: device.store, source: 'device', reason: device.reason]
     }
   }
   if (resolution == null) {
