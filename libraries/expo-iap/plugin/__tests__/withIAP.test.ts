@@ -14,6 +14,7 @@ import plugin, {
   resolveModuleSelection,
   resolvePinnedAndroidStore,
   storeGradleProperties,
+  syncAmazonAppstoreKey,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
@@ -150,7 +151,9 @@ describe('android configuration', () => {
     // Dropping the pin silently would move an existing Quest release to Play.
     const warn = WarningAggregator.addWarningAndroid as jest.Mock;
     warn.mockClear();
-    plugin({name: 'app', slug: 'app'} as ExpoConfig, {modules: {horizon: true}});
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      modules: {horizon: true},
+    });
 
     expect(warn).toHaveBeenCalledWith(
       'expo-iap',
@@ -166,7 +169,9 @@ describe('android configuration', () => {
     plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
 
     expect(
-      warn.mock.calls.some(([, message]) => /deprecated/u.test(String(message))),
+      warn.mock.calls.some(([, message]) =>
+        /deprecated/u.test(String(message)),
+      ),
     ).toBe(false);
   });
 
@@ -220,6 +225,32 @@ describe('android configuration', () => {
       }),
     ).toBe('./keys/AppstoreAuthenticationKey.pem');
     expect(resolveAmazonAppstoreKey({})).toBeUndefined();
+  });
+
+  it('removes a copied Amazon key once its source is gone', () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-key-'));
+    const source = path.join(dir, 'AppstoreAuthenticationKey.pem');
+    const target = path.join(
+      dir,
+      'android',
+      'assets',
+      'AppstoreAuthenticationKey.pem',
+    );
+    try {
+      fs.writeFileSync(source, 'key');
+      expect(syncAmazonAppstoreKey(source, target)).toBe(true);
+      expect(fs.readFileSync(target, 'utf8')).toBe('key');
+
+      // A stale copy would keep verifying with a key the config no longer finds.
+      fs.rmSync(source);
+      expect(syncAmazonAppstoreKey(source, target)).toBe(false);
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
   });
 
   it('normalizes Expo generated Groovy root Gradle syntax', () => {
@@ -336,9 +367,7 @@ describe('android configuration', () => {
     });
     // Gradle and the doctor both fail this combination; silently preferring
     // Fire OS here would ship a store the config never asked for.
-    expect(() => resolvePinnedAndroidStore(flags)).toThrow(
-      /both enabled/,
-    );
+    expect(() => resolvePinnedAndroidStore(flags)).toThrow(/both enabled/);
   });
 
   it('uses Expo IAP platform env flags when module options are absent', () => {

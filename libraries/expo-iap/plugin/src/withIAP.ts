@@ -248,6 +248,18 @@ export function storeGradleProperties<T extends GradleProperty>(
 }
 export const AMAZON_APPSTORE_KEY_FILE = 'AppstoreAuthenticationKey.pem';
 
+// Copies the key, or removes the copy an earlier prebuild left when the source
+// is gone: that copy would keep verifying with a key the config no longer has.
+export function syncAmazonAppstoreKey(source: string, target: string): boolean {
+  if (!fs.existsSync(source)) {
+    fs.rmSync(target, {force: true});
+    return false;
+  }
+  fs.mkdirSync(path.dirname(target), {recursive: true});
+  fs.copyFileSync(source, target);
+  return true;
+}
+
 // Amazon reads the key from assets to verify receipts; it is inert elsewhere.
 const withAmazonAppstoreKey: ConfigPlugin<string> = (config, keyPath) =>
   withDangerousMod(config, [
@@ -255,13 +267,6 @@ const withAmazonAppstoreKey: ConfigPlugin<string> = (config, keyPath) =>
     async (config) => {
       const {projectRoot, platformProjectRoot} = config.modRequest;
       const source = path.resolve(projectRoot, keyPath);
-      if (!fs.existsSync(source)) {
-        WarningAggregator.addWarningAndroid(
-          'expo-iap',
-          `Amazon Appstore key not found at ${source}; Fire OS builds cannot verify receipts without it.`,
-        );
-        return config;
-      }
       const target = path.join(
         platformProjectRoot,
         'app',
