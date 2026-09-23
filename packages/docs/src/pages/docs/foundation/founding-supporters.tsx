@@ -22,10 +22,8 @@ function FoundingSupporters() {
         as the governance structure is finalized.
       </Callout>
       <p>
-        We're building OpenIAP into a vendor-neutral, open standard for in-app
-        purchases — and we're looking for organizations to join as Founding
-        Supporters. This isn't just sponsorship. It's an invitation to help
-        shape the standard from day one.
+        We are looking for organizations to join as Founding Supporters and help
+        shape OpenIAP while its governance is being set up.
       </p>
 
       <section>

@@ -292,8 +292,8 @@ Empirical Software Engineering, 2022.
 
 - Finding: 20.1% of non-major upgrades contain breaking changes; 7.9% of
   clients are actually impacted.
-- OpenIAP relevance: quantifies the risk our floor policy in
-  `openiap-versions.json` and release-state audits exist to prevent.
+- OpenIAP relevance: quantifies the risk the schema semver guard and the
+  Client Protocol version check exist to prevent.
 - Applied: `specs/client/scripts/audit-schema-semver.mjs` (backlog R1).
 
 ### raemaekers2017semver

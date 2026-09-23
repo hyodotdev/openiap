@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
@@ -20,11 +21,7 @@ function Governance() {
         The Foundation section is currently being prepared. Content may change
         as the governance structure is finalized.
       </Callout>
-      <p>
-        OpenIAP is an open-source project providing a neutral interoperability
-        standard for in-app purchase APIs and verification across platforms.
-        This page describes the governance model for the project.
-      </p>
+      <p>How decisions are made in OpenIAP, and who makes them.</p>
 
       <section>
         <AnchorLink id="mission" level="h2">
@@ -179,8 +176,16 @@ function Governance() {
         <p>These require broader discussion and explicit approval:</p>
         <ul>
           <li>
-            <strong>Specification changes</strong> (GraphQL schema modifications
-            affecting generated types)
+            <strong>Specification changes</strong> to either protocol: the
+            Client Protocol GraphQL schema, or the Commerce Protocol, which
+            follows its own{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/CONVENTION.md#changing-the-contract"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              change rules
+            </a>
           </li>
           <li>
             <strong>New platform support</strong> (adding a new language plugin
@@ -260,9 +265,9 @@ function Governance() {
           process above. Reports identify their authors and actual reviewers; a
           project-authored fixture does not count as independent company
           validation. The{' '}
-          <a href="/commerce-protocol/ecosystem#composition-proof">
+          <Link to="/commerce-protocol/ecosystem#composition-proof">
             runnable composition example
-          </a>{' '}
+          </Link>{' '}
           provides a starting point for another implementer to reproduce and
           challenge the expected results.
         </p>
@@ -291,42 +296,11 @@ function Governance() {
           </li>
         </ul>
 
-        <h4>Release Artifacts</h4>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Package</th>
-              <th>Distribution</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Apple</td>
-              <td>CocoaPods + Swift Package Manager</td>
-            </tr>
-            <tr>
-              <td>Google</td>
-              <td>Maven Central</td>
-            </tr>
-            <tr>
-              <td>Documentation</td>
-              <td>
-                <a
-                  href="https://openiap.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap.dev
-                </a>{' '}
-                (Vercel)
-              </td>
-            </tr>
-            <tr>
-              <td>Versions</td>
-              <td>Synchronized by CI/CD (never manual)</td>
-            </tr>
-          </tbody>
-        </table>
+        <p>
+          Versions are set by CI, never by hand. Every package and where it is
+          published is listed on{' '}
+          <Link to="/docs/updates/versions">Versions</Link>.
+        </p>
       </section>
 
       <section>
@@ -348,9 +322,6 @@ function Governance() {
           Contributions
         </AnchorLink>
         <ul>
-          <li>
-            All contributors must agree to the project's contribution terms
-          </li>
           <li>
             <strong>DCO (Developer Certificate of Origin)</strong>: adoption is
             planned as part of foundation onboarding. Until CI enforcement is
@@ -459,7 +430,15 @@ function Governance() {
         </AnchorLink>
         <p>
           All participants in the OpenIAP project are expected to follow the
-          project's Code of Conduct. Violations should be reported to{' '}
+          project&apos;s{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/CODE_OF_CONDUCT.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Code of Conduct
+          </a>
+          . Violations should be reported to{' '}
           <a href="mailto:conduct@hyo.dev">conduct@hyo.dev</a> (or the
           designated conduct committee, when formed).
         </p>
@@ -474,17 +453,6 @@ function Governance() {
           Decisions process described above. Changes require a minimum 14-day
           review period and explicit approval from the Project Lead (or TSC
           majority, when formed).
-        </p>
-        <p
-          style={{
-            marginTop: '2rem',
-            fontStyle: 'italic',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          This governance model is designed to evolve. As OpenIAP grows, we are
-          committed to transitioning toward broader community governance while
-          maintaining the project's technical integrity and mission.
         </p>
       </section>
     </div>

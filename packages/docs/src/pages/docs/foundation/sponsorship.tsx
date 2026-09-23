@@ -48,8 +48,8 @@ function Sponsorship() {
                 <strong>Reduced bus factor</strong>
               </td>
               <td>
-                Multiple maintainers and a governance structure ensure the
-                project doesn't depend on one person
+                The project has one maintainer today; sponsorship funds the
+                maintainer time and governance meant to reduce that risk
               </td>
             </tr>
             <tr>
@@ -73,11 +73,12 @@ function Sponsorship() {
             </tr>
             <tr>
               <td>
-                <strong>Security verification profiles</strong>
+                <strong>Verification profile</strong>
               </td>
               <td>
-                Industry-standard receipt validation and fraud prevention
-                patterns you don't have to build yourself
+                A standard server-side purchase verification contract, the
+                Commerce Protocol, that your backend or provider can implement
+                instead of building its own
               </td>
             </tr>
             <tr>
@@ -403,35 +404,11 @@ function Sponsorship() {
           The Security Value
         </AnchorLink>
         <p>
-          OpenIAP is more than developer experience — it's purchase
-          infrastructure with a security layer:
-        </p>
-        <ul>
-          <li>
-            <strong>Purchase verification profiles</strong> — standardized
-            server-side validation
-          </li>
-          <li>
-            <strong>Receipt validation best practices</strong> — cross-platform
-            guidance to prevent manipulation
-          </li>
-          <li>
-            <strong>Transaction integrity</strong> — audit-friendly schemas with
-            structured logging
-          </li>
-          <li>
-            <strong>Secure provider interoperability</strong> — safe handoffs
-            between stores and apps
-          </li>
-          <li>
-            <strong>Fraud reduction</strong> — shared patterns to detect and
-            prevent purchase fraud
-          </li>
-        </ul>
-        <p>
-          By building security into the standard itself, every library in the
-          OpenIAP ecosystem inherits these protections — reducing risk for the
-          entire community.
+          Purchase verification is standardized in the Commerce Protocol{' '}
+          <Link to="/commerce-protocol/profiles">verification profile</Link>,
+          with <Link to="/docs/features/validation">validation guidance</Link>{' '}
+          for each store. Integrity and fraud guidance is on the{' '}
+          <Link to="/docs/foundation/roadmap-budget#roadmap">roadmap</Link>.
         </p>
       </section>
 

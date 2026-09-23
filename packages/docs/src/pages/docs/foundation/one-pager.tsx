@@ -1,8 +1,78 @@
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
-import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { LIBRARIES } from '../../../lib/images';
 import { CURRENT_SPONSORS, FUNDING_LINKS } from '../../../lib/sponsors';
+import {
+  GOOGLE_PLAY_BILLING,
+  OPENIAP_PROTOCOLS,
+} from '../../../lib/versioning';
+
+interface Component {
+  name: string;
+  description: ReactNode;
+}
+
+const COMPONENTS: Component[] = [
+  {
+    name: 'Code generation',
+    description:
+      'Typed bindings for TypeScript, Swift, Kotlin, Dart, GDScript and C# from the Client Protocol schema',
+  },
+  {
+    name: 'Native implementations',
+    description: `openiap-apple (StoreKit 2) and openiap-google (Play Billing ${GOOGLE_PLAY_BILLING.version}, Amazon Appstore, Meta Horizon)`,
+  },
+  {
+    name: 'Conformance',
+    description: (
+      <>
+        A versioned behavioral contract. Expo, React Native, Android, Apple and
+        IAPKit each cover documented subsets; Flutter, KMP, MAUI and Godot do
+        not have adapters yet. See{' '}
+        <Link to="/docs/security/compliance#conformance">
+          behavioral conformance
+        </Link>
+        .
+      </>
+    ),
+  },
+];
+
+interface Sdk {
+  ecosystem: string;
+  name: string;
+  url: string;
+}
+
+const SDKS: Sdk[] = [
+  ...LIBRARIES.map((library) => ({
+    ecosystem: library.frameworkName,
+    name: library.displayName,
+    url: library.url,
+  })),
+  {
+    ecosystem: 'Native iOS and macOS',
+    name: 'openiap-apple (StoreKit 2)',
+    url: 'https://github.com/hyodotdev/openiap/tree/main/packages/apple',
+  },
+  {
+    ecosystem: 'Native Android',
+    name: 'openiap-google (Play Billing, Amazon Appstore, Meta Horizon)',
+    url: 'https://github.com/hyodotdev/openiap/tree/main/packages/google',
+  },
+];
+
+function StoreLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
 
 function OnePager() {
   useScrollToHash();
@@ -19,99 +89,52 @@ function OnePager() {
         OpenIAP: Neutral Interoperability Layer for In-App Purchase APIs and
         Verification
       </h1>
-      <Callout kind="note" title="Draft">
-        The Foundation section is currently being prepared. Content may change
-        as the governance structure is finalized.
-      </Callout>
 
       <section>
         <AnchorLink id="problem" level="h2">
           The Problem
         </AnchorLink>
         <p>
-          In-app purchase (IAP) implementations are fragmented across platforms.
-          Every framework — React Native, Expo, Flutter, KMP, Godot, native iOS,
-          native Android — reinvents the same wheel: different type definitions,
-          different error models, different verification flows, different
-          edge-case handling.
+          Every framework — React Native, Expo, Flutter, Kotlin Multiplatform,
+          .NET MAUI, Godot, native iOS and Android — implements in-app purchases
+          on its own: its own types, error model, verification flow and edge
+          cases.
         </p>
         <p>
-          The landscape is expanding rapidly. New platforms like{' '}
-          <a
-            href="https://developer.meta.com/horizon/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          And the stores keep multiplying.{' '}
+          <StoreLink href="https://developer.meta.com/horizon/">
             Meta Horizon OS
-          </a>
+          </StoreLink>
           ,{' '}
-          <a
-            href="https://developer.amazon.com/apps-and-games/vega"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <StoreLink href="https://developer.amazon.com/apps-and-games/vega">
             Vega OS
-          </a>
+          </StoreLink>
           ,{' '}
-          <a
-            href="https://consumer.huawei.com/en/harmonyos/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <StoreLink href="https://consumer.huawei.com/en/harmonyos/">
             HarmonyOS
-          </a>
-          , and{' '}
-          <a
-            href="https://developer.amazon.com/apps-and-games"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Amazon Fire OS
-          </a>{' '}
-          continue to emerge and grow, while stores beyond Google Play and the
-          App Store — such as{' '}
-          <a
-            href="https://galaxystore.samsung.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Galaxy Store
-          </a>
-          ,{' '}
-          <a
-            href="https://consumer.huawei.com/en/mobileservices/appgallery/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Huawei AppGallery
-          </a>
-          , and alternative marketplaces like{' '}
-          <a
-            href="https://onside.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Onside
-          </a>{' '}
-          — each bring their own billing APIs. Even the established stores like{' '}
-          <a
-            href="https://play.google.com/console"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Google Play
-          </a>{' '}
+          </StoreLink>{' '}
           and{' '}
-          <a
-            href="https://developer.apple.com/app-store/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Apple App Store
-          </a>{' '}
-          evolve their billing APIs with every major release. As this
-          fragmentation accelerates with every new platform and marketplace, a
-          unified standard becomes not just useful but essential. This leads to:
+          <StoreLink href="https://developer.amazon.com/apps-and-games">
+            Amazon Fire OS
+          </StoreLink>{' '}
+          each have their own billing API, as do{' '}
+          <StoreLink href="https://galaxystore.samsung.com/">
+            Galaxy Store
+          </StoreLink>
+          ,{' '}
+          <StoreLink href="https://consumer.huawei.com/en/mobileservices/appgallery/">
+            Huawei AppGallery
+          </StoreLink>{' '}
+          and alternative marketplaces such as{' '}
+          <StoreLink href="https://onside.io/">Onside</StoreLink>, while{' '}
+          <StoreLink href="https://play.google.com/console">
+            Google Play
+          </StoreLink>{' '}
+          and the{' '}
+          <StoreLink href="https://developer.apple.com/app-store/">
+            App Store
+          </StoreLink>{' '}
+          change theirs with every major release. The result:
         </p>
         <ul>
           <li>
@@ -138,244 +161,89 @@ function OnePager() {
           What OpenIAP Is
         </AnchorLink>
         <p>
-          OpenIAP is an{' '}
-          <strong>
-            open cross-platform purchase interoperability standard
-          </strong>{' '}
-          — not just a library, but a shared specification layer that ensures
-          consistent, secure, and verifiable in-app purchase behavior across all
-          platforms and frameworks.
+          OpenIAP is an open standard for in-app purchases: two specifications,
+          and the SDKs and tests that hold implementations to them.
         </p>
+        <ul>
+          {Object.values(OPENIAP_PROTOCOLS).map((protocol) => (
+            <li key={protocol.name}>
+              <strong>
+                <Link to={protocol.to}>{protocol.name}</Link>
+              </strong>{' '}
+              {protocol.version} — {protocol.blurb}
+            </li>
+          ))}
+        </ul>
 
         <AnchorLink id="core-components" level="h3">
-          Core Components
+          Around the specifications
         </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Component</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>GraphQL Schema</strong>
-              </td>
-              <td>
-                Single source of truth for all purchase types, operations, and
-                error codes
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>IR-Based Code Generation</strong>
-              </td>
-              <td>
-                Intermediate Representation system generating type-safe bindings
-                for Swift, Kotlin, Dart, GDScript, and C#
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Platform Implementations</strong>
-              </td>
-              <td>
-                Reference implementations for Apple StoreKit 2 and Google Play
-                Billing 9.1.0
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Verification Profiles</strong>
-              </td>
-              <td>
-                Standardized purchase verification and receipt validation
-                patterns
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Conformance Tests</strong>
-              </td>
-              <td>
-                Shared behavioral suites executed against every Android store
-                implementation and every IAPKit verification provider, plus a
-                machine-checked store capability matrix. Framework binding
-                coverage is in progress.
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          rows={COMPONENTS}
+          rowKey={(row) => row.name}
+          columns={[
+            {
+              header: 'Component',
+              cell: (row) => <strong>{row.name}</strong>,
+            },
+            { header: 'Description', cell: (row) => row.description },
+          ]}
+        />
       </section>
 
       <section>
         <AnchorLink id="vendor-neutral" level="h2">
-          Why It Must Be Vendor-Neutral
+          What Neutral Means Here
         </AnchorLink>
-        <p>
-          In-app purchase infrastructure touches <strong>every</strong> mobile
-          and game developer. When a single entity controls the standard:
-        </p>
         <ul>
-          <li>Competing frameworks hesitate to adopt it</li>
-          <li>Platform-specific biases creep into the specification</li>
-          <li>Security guidance becomes secondary to feature velocity</li>
-          <li>Breaking changes happen without ecosystem consensus</li>
+          <li>Everything is open source: MIT, and Apache-2.0 for kmp-iap.</li>
+          <li>
+            Neither protocol routes a purchase through a service the project
+            runs: an app, its backend and the store talk to each other directly.
+          </li>
+          <li>
+            IAPKit, the maintainer&apos;s hosted verification service, is held
+            to the same schema and conformance checks as any other
+            implementation.
+          </li>
         </ul>
         <p>
-          A neutral home ensures that Apple developers, Android developers, game
-          studios, cross-platform framework teams, and verification service
-          providers all have equal voice in shaping the standard.
+          <Link to="/docs/foundation/governance">Governance</Link> describes how
+          decisions are made today and how that opens up as maintainers and
+          sponsors join.
         </p>
       </section>
 
       <section>
         <AnchorLink id="who-uses-it" level="h2">
-          Who Uses It Today
+          Official SDKs
         </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Ecosystem</th>
-              <th>Integration</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>React Native</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  react-native-iap
-                </a>{' '}
-                (4.2M+ total downloads)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Expo</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  expo-iap
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Flutter</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  flutter_inapp_purchase
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Kotlin Multiplatform</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  kmp-iap
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>.NET MAUI</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  maui-iap
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Godot Engine</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  godot-iap
-                </a>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Native iOS/macOS</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-apple
-                </a>{' '}
-                (StoreKit 2)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Native Android</strong>
-              </td>
-              <td>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-google
-                </a>{' '}
-                (Play Billing + Amazon Appstore + Meta Horizon)
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <p>
+          Apps built on them are listed in the{' '}
+          <Link to="/showcase">showcase</Link>.
+        </p>
+        <DataTable
+          rows={SDKS}
+          rowKey={(row) => row.name}
+          columns={[
+            {
+              header: 'Ecosystem',
+              cell: (row) => <strong>{row.ecosystem}</strong>,
+            },
+            {
+              header: 'SDK',
+              cell: (row) => <StoreLink href={row.url}>{row.name}</StoreLink>,
+            },
+          ]}
+        />
 
         <AnchorLink id="traction" level="h3">
-          Current Traction
+          Adoption
         </AnchorLink>
         <ul>
           <li>
-            <strong>Platforms</strong>: iOS, macOS, tvOS, watchOS, Android,
-            Amazon Fire OS, Vega OS, Meta Quest/Horizon
-          </li>
-          <li>
-            <strong>Languages Generated</strong>: TypeScript, Swift, Kotlin,
-            Dart, C#, GDScript
-          </li>
-          <li>
-            <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play
-            Billing 9.1.0, Amazon Appstore SDK, Meta Horizon Billing
-            Compatibility 2.0.0
+            <strong>Downloads</strong>: react-native-iap 14M+ and expo-iap 4M+
+            on npm (September 2026)
           </li>
           <li>
             <strong>Sponsors</strong>:{' '}
@@ -383,72 +251,37 @@ function OnePager() {
               (sponsor) => `${sponsor.name} (${sponsor.tier})`
             ).join(', ')}
           </li>
-          <li>
-            <strong>Maintainer</strong>: Hyo (
-            <a href="https://hyo.dev" target="_blank" rel="noopener noreferrer">
-              hyo.dev
-            </a>
-            ) — 500+ commits, 80+ merged PRs
-          </li>
         </ul>
       </section>
 
       <section>
         <AnchorLink id="roadmap" level="h2">
-          What We're Building Next
+          What We&apos;re Building Next
         </AnchorLink>
-
-        <h4>Near-term (0–6 months)</h4>
-        <ul>
-          <li>Purchase verification profile specification</li>
-          <li>Receipt validation best practices document</li>
-          <li>Conformance test suite across all supported platforms</li>
-          <li>Security guidance for transaction integrity</li>
-        </ul>
-
-        <h4>Mid-term (6–12 months)</h4>
-        <ul>
-          <li>Audit-friendly purchase schema with structured logging</li>
-          <li>Secure provider interoperability specification</li>
-          <li>Additional platform support (Unity, Unreal Engine)</li>
-          <li>Formal specification versioning process</li>
-        </ul>
-
-        <h4>Long-term (12–24 months)</h4>
-        <ul>
-          <li>Industry-wide conformance certification</li>
-          <li>Third-party auditor integration guidelines</li>
-          <li>
-            Emerging store API support (alternative app stores, regulatory
-            compliance)
-          </li>
-        </ul>
+        <p>
+          The roadmap, with each item&apos;s status, is on{' '}
+          <Link to="/docs/foundation/roadmap-budget#roadmap">
+            Roadmap &amp; Budget
+          </Link>
+          .
+        </p>
       </section>
 
       <section>
         <AnchorLink id="why-now" level="h2">
           Why Now
         </AnchorLink>
-        <ol>
+        <ul>
           <li>
-            <strong>AI code generation era</strong>: Standardized APIs are
-            critical — AI assistants need consistent, well-typed interfaces to
-            generate correct purchase code
+            <strong>Regulation</strong>: the EU Digital Markets Act and Epic v.
+            Apple opened alternative payment paths that apps may now offer next
+            to store billing.
           </li>
           <li>
-            <strong>Regulatory changes</strong>: EU DMA, Epic v. Apple —
-            alternative payment systems need interoperability standards
+            <strong>Platform API churn</strong>: Apple (StoreKit 2) and Google
+            (Billing 8 and 9) have both made breaking changes in recent years.
           </li>
-          <li>
-            <strong>Platform API churn</strong>: Both Apple (StoreKit 2) and
-            Google (Billing 8.x/9.x) have made breaking changes in recent years
-          </li>
-          <li>
-            <strong>Security scrutiny</strong>: App store fraud and receipt
-            manipulation are growing concerns requiring industry-standard
-            verification
-          </li>
-        </ol>
+        </ul>
       </section>
 
       <section>
@@ -457,30 +290,17 @@ function OnePager() {
         </AnchorLink>
         <ul>
           <li>
-            <strong>Project Lead</strong>: Hyo —{' '}
+            <strong>Project Lead</strong>: Hyo (
+            <StoreLink href="https://hyo.dev">hyo.dev</StoreLink>) —{' '}
             <a href={FUNDING_LINKS.companyContactUrl}>
               contact the project lead
             </a>
           </li>
           <li>
             <strong>GitHub</strong>:{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <StoreLink href="https://github.com/hyodotdev/openiap">
               github.com/hyodotdev/openiap
-            </a>
-          </li>
-          <li>
-            <strong>Website</strong>:{' '}
-            <a
-              href="https://openiap.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              openiap.dev
-            </a>
+            </StoreLink>
           </li>
         </ul>
       </section>

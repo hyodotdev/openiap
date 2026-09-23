@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-23T19:12:49.971Z
+> Last updated: 2026-09-23T21:08:24.116Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2306,8 +2306,8 @@ the `next` branch. Preserve the change evidence, then write one concise,
 package-grouped entry after stable promotion on `main`.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
-Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
-`apple`.
+Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
+`google`, and `apple`.
 
 
 ---
