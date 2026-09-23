@@ -1286,7 +1286,7 @@ Future<void> handleDeveloperBilling(DeveloperProvidedBillingDetailsAndroid detai
       print('External payment completed and reported!');
     }
   } catch (e) {
-    print('External payment error: \$e');
+    print('External payment error: $e');
   }
 }
 
@@ -1325,7 +1325,7 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
     // If user selects Google Play → purchaseUpdatedListener callback
     // If user selects developer billing → developerProvidedBillingAndroid callback
   } catch (e) {
-    print('Purchase error: \$e');
+    print('Purchase error: $e');
   }
 }`}</CodeBlock>
                     ),

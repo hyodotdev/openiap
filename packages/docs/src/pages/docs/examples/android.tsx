@@ -1,6 +1,4 @@
-import StoreExampleTemplate, {
-  type StoreExampleConfig,
-} from '../../../components/StoreExampleTemplate';
+import type { StoreExampleConfig } from '../../../components/StoreExampleTemplate';
 
 const ANDROID_VIDEO_BASE = '/examples/google/videos';
 const ANDROID_POSTER = '/examples/google/home.webp';
@@ -333,9 +331,3 @@ adb shell monkey -p dev.hyo.martie -c android.intent.category.LAUNCHER 1`,
     },
   },
 };
-
-function AndroidExample() {
-  return <StoreExampleTemplate config={ANDROID_CONFIG} />;
-}
-
-export default AndroidExample;

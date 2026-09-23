@@ -470,7 +470,7 @@ function highlightCode(element: HTMLElement, language: string) {
       // Opening/closing tags with attributes
       result = result.replace(
         /(&lt;\/?)([a-zA-Z][a-zA-Z0-9-]*)(.*?)(&gt;)/g,
-        (_match, open, tag, attrs, close) => {
+        (_match, open: string, tag: string, attrs: string, close: string) => {
           let tagHtml = '<span class="token punctuation">' + open + '</span>';
           tagHtml += '<span class="token tag">' + tag + '</span>';
 
@@ -880,7 +880,13 @@ function highlightCode(element: HTMLElement, language: string) {
 
         return fieldProcessed.replace(
           /:\s*(\[?)([A-Za-z_][A-Za-z0-9_]*)(\]?)(!?)/g,
-          (_match, bracket1, type, bracket2, exclaim) => {
+          (
+            _match,
+            bracket1: string,
+            type: string,
+            bracket2: string,
+            exclaim: string
+          ) => {
             let result = ':<span class="token punctuation"> </span>';
             if (bracket1) result += '<span class="token punctuation">[</span>';
 

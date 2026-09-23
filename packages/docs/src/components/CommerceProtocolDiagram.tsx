@@ -121,7 +121,7 @@ function CommerceProtocolDiagram({
         part: PARTS[id as PartId],
         onShowExample,
         onClose: () =>
-          navigate('#architecture', {
+          void navigate('#architecture', {
             replace: true,
             state: { commerceKeepScroll: true },
           }),
@@ -141,7 +141,7 @@ function CommerceProtocolDiagram({
       aria-controls="commerce-architecture-detail"
       onClick={(event) => {
         event.currentTarget.focus({ preventScroll: true });
-        navigate(`#architecture-${id}`);
+        void navigate(`#architecture-${id}`);
       }}
     >
       {icon}

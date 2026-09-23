@@ -1,16 +1,5 @@
-import {
-  createContext,
-  useContext,
-  type ReactElement,
-  type ReactNode,
-} from 'react';
-
-// Nested tabs share one fallback so noscript elements never nest.
-const StaticExamplesContext = createContext(false);
-
-export function useStaticExamples(): boolean {
-  return useContext(StaticExamplesContext);
-}
+import type { ReactElement, ReactNode } from 'react';
+import { StaticExamplesContext } from '../hooks/useStaticExamples';
 
 export default function StaticExamples({
   children,

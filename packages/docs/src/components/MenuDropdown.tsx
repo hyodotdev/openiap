@@ -14,7 +14,7 @@ export interface MenuGroup {
 export type MenuEntry = MenuItem | MenuGroup;
 
 function isGroup(entry: MenuEntry): entry is MenuGroup {
-  return 'items' in entry && Array.isArray((entry as MenuGroup).items);
+  return 'items' in entry && Array.isArray(entry.items);
 }
 
 interface MenuDropdownProps {
@@ -161,7 +161,7 @@ export function MenuDropdown({
   const handleTitleClick = () => {
     if (!titleTo) return;
     setIsExpanded(true);
-    navigate(titleTo);
+    void navigate(titleTo);
     onItemClick?.();
   };
 

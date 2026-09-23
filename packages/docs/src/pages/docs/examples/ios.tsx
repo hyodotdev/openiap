@@ -1,6 +1,4 @@
-import StoreExampleTemplate, {
-  type StoreExampleConfig,
-} from '../../../components/StoreExampleTemplate';
+import type { StoreExampleConfig } from '../../../components/StoreExampleTemplate';
 
 const APPLE_ASSET_BASE = '/examples/apple';
 const APPLE_VIDEO_BASE = `${APPLE_ASSET_BASE}/videos`;
@@ -333,9 +331,3 @@ open Martie.xcodeproj`,
     },
   },
 };
-
-function IosExample() {
-  return <StoreExampleTemplate config={IOS_CONFIG} />;
-}
-
-export default IosExample;

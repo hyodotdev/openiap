@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ReactElement, type ReactNode } from 'react';
-import StaticExamples, { useStaticExamples } from './StaticExamples';
+import StaticExamples from './StaticExamples';
+import { useStaticExamples } from '../hooks/useStaticExamples';
 import {
   CODE_LANGUAGES,
   DEFAULT_CODE_LANGUAGE,

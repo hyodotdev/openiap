@@ -18,7 +18,7 @@ import {
   UserRound,
   UserRoundX,
 } from 'lucide-react';
-import { Link, useNavigationType } from 'react-router-dom';
+import { Link, NavigationType, useNavigationType } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
 import CommerceImplementationComparison from './CommerceImplementationComparison';
 import {
@@ -307,7 +307,7 @@ function requestCommand(request: ExampleRequest): string {
 }
 
 function responseValue(body: unknown, path: string): string {
-  let value = Array.isArray(body) ? body[0] : body;
+  let value: unknown = Array.isArray(body) ? body[0] : body;
   for (const key of path.split('.')) {
     value =
       value && typeof value === 'object'
@@ -386,7 +386,7 @@ function CommerceBuildWalkthrough({
       tabsRef.current?.scrollIntoView({
         block: 'start',
         behavior:
-          navigationType === 'POP' ||
+          navigationType === NavigationType.Pop ||
           window.matchMedia('(prefers-reduced-motion: reduce)').matches
             ? 'instant'
             : 'smooth',

@@ -264,7 +264,7 @@ val userChoiceListener = object : OpenIapUserChoiceBillingListener {
     override fun onUserChoiceBilling(details: UserChoiceBillingDetails) {
         Log.d("IAP", "User chose alternative billing")
         for (productId in details.products) {
-            Log.d("IAP", "Product: \$productId")
+            Log.d("IAP", "Product: $productId")
         }
         Log.d("IAP", "External transaction token received; send it to your backend without logging it.")
 
@@ -333,7 +333,7 @@ import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 Future<void> handleUserChoiceBilling(UserChoiceBillingDetails details) async {
   print('User chose alternative billing');
   for (final productId in details.products) {
-    print('Product: \$productId');
+    print('Product: $productId');
   }
   print('External transaction token received; send it to your backend without logging it.');
 
@@ -351,7 +351,7 @@ Future<void> handleUserChoiceBilling(UserChoiceBillingDetails details) async {
 final userChoiceSubscription = FlutterInappPurchase.instance.userChoiceBillingAndroid
     .listen((details) {
   unawaited(handleUserChoiceBilling(details).catchError(
-    (Object error) => print('Alternative billing failed: \$error'),
+    (Object error) => print('Alternative billing failed: $error'),
   ));
 });
 

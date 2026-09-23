@@ -686,7 +686,7 @@ npm run demo:experience`}</CodeBlock>
           <CommerceBuildWalkthrough
             selected={exampleStep}
             onSelect={(step) =>
-              navigate(`#build-step-${step}`, {
+              void navigate(`#build-step-${step}`, {
                 state: { commerceKeepScroll: true },
               })
             }

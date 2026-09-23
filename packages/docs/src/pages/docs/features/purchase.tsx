@@ -324,7 +324,7 @@ class PurchaseManager {
     _purchaseSubscription = _iap.purchaseUpdatedListener.listen((purchase) {
       print('Purchase received: \${purchase.productId}');
       unawaited(_handlePurchase(purchase).catchError((Object error) {
-        print('Purchase processing failed: \$error');
+        print('Purchase processing failed: $error');
       }));
     });
 
@@ -346,7 +346,7 @@ class PurchaseManager {
       _iap.endConnection().then<void>((ended) {
         if (!ended) print('Store teardown did not complete');
       }).catchError((Object error) {
-        print('Store teardown failed: \$error');
+        print('Store teardown failed: $error');
       }),
     );
   }

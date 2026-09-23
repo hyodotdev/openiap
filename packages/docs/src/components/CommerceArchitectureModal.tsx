@@ -115,7 +115,7 @@ function CommerceArchitectureModal(): React.JSX.Element {
                 )
                   return;
                 event.preventDefault();
-                close(() => navigate(part.reference));
+                close(() => void navigate(part.reference));
               }}
             >
               {part.referenceLabel}

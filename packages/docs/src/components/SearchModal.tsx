@@ -49,7 +49,7 @@ function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   const handleApiSelect = useCallback(
     (api: ApiItem) => {
-      navigate(api.path);
+      void navigate(api.path);
       onClose();
     },
     [navigate, onClose]

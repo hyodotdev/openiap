@@ -1,6 +1,4 @@
-import StoreExampleTemplate, {
-  type StoreExampleConfig,
-} from '../../../components/StoreExampleTemplate';
+import type { StoreExampleConfig } from '../../../components/StoreExampleTemplate';
 
 const HORIZON_VIDEO_BASE = '/examples/horizon/videos';
 const HORIZON_POSTER = '/examples/horizon/home.webp';
@@ -343,9 +341,3 @@ adb shell monkey -p dev.hyo.martie -c android.intent.category.LAUNCHER 1`,
     },
   },
 };
-
-function HorizonExample() {
-  return <StoreExampleTemplate config={HORIZON_CONFIG} />;
-}
-
-export default HorizonExample;
