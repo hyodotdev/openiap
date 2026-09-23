@@ -125,19 +125,40 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 			push_error("[GodotIap] %s must be the numeric app id from Meta Horizon Developer Hub" % HORIZON_APP_ID_OPTION)
 		return meta_data
 
-	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+	# One answer per export: the dependencies and the feature tag must agree, and
+	# the device is probed once.
+	var _android_stores := {}
+
+	func _export_end() -> void:
+		_android_stores.clear()
+
+	## The store this Android export links, or "" when the option names none.
+	func _android_store(debug: bool) -> String:
+		if _android_stores.has(debug):
+			return _android_stores[debug]
 		var store := AndroidStore.normalize(get_option(ANDROID_STORE_OPTION))
+		if store == "auto":
+			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
+			store = resolution.store
+			print("[GodotIap] openiap: store=%s (source=%s; %s)" % [resolution.store, resolution.source, resolution.reason])
+		elif not store.is_empty():
+			print("[GodotIap] openiap: store=%s (source=explicit; %s)" % [store, ANDROID_STORE_OPTION])
+		_android_stores[debug] = store
+		return store
+
+	func _get_export_features(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+		if not (platform is EditorExportPlatformAndroid):
+			return PackedStringArray()
+		var feature := AndroidStore.store_feature(_android_store(debug))
+		return PackedStringArray([feature]) if not feature.is_empty() else PackedStringArray()
+
+	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+		var store := _android_store(debug)
 		if store.is_empty():
 			# Godot's export API cannot abort here, so drop the dependencies
 			# instead: a misspelled store must not quietly ship the Play SDK.
 			push_error("[GodotIap] %s must be one of: %s; exporting no OpenIAP dependency" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
 			return PackedStringArray()
-		if store == "auto":
-			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
-			store = resolution.store
-			print("[GodotIap] openiap: store=%s (source=%s; %s)" % [resolution.store, resolution.source, resolution.reason])
-		else:
-			print("[GodotIap] openiap: store=%s (source=explicit; %s)" % [store, ANDROID_STORE_OPTION])
 		var dependencies := PackedStringArray()
 		for dependency in _read_android_remote_dependencies():
 			dependencies.append(AndroidStore.artifact(dependency, store))

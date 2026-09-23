@@ -11,6 +11,7 @@ class_name GodotIapWrapper
 
 # Types from OpenIAP spec
 const Types = preload("types.gd")
+const AndroidStore = preload("android_store.gd")
 
 const APPLE_PLATFORMS := ["iOS", "macOS"]
 const APPLE_ASYNC_RESULT_CACHE_LIMIT := 64
@@ -77,6 +78,8 @@ var _apple_async_ui_timeout_seconds := 300.0
 
 # Platform detection
 var _platform: String = ""
+## OS.has_feature, swappable in tests: an editor run carries no export tags.
+var _has_feature: Callable = Callable(OS, "has_feature")
 
 
 func _is_apple() -> bool:
@@ -2160,6 +2163,11 @@ func is_stub_mode() -> bool:
 ## Returns Types.IapStore enum value
 func get_store() -> Variant:
 	if _platform == "Android":
+		# Every store is an Android build; the export tags the one it linked.
+		if _has_feature.call(AndroidStore.store_feature("horizon")):
+			return Types.IapStore.HORIZON
+		if _has_feature.call(AndroidStore.store_feature("amazon")):
+			return Types.IapStore.AMAZON
 		return Types.IapStore.GOOGLE
 	elif _is_apple():
 		return Types.IapStore.APPLE

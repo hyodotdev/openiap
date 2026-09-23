@@ -40,6 +40,9 @@ func _run() -> void:
 		AndroidStore.horizon_app_id_meta_data(" 31705015229097839 ")
 			== '<meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="31705015229097839" />'
 	)
+	_check("a Horizon export is tagged", AndroidStore.store_feature("horizon") == "openiap_store_horizon")
+	_check("an Amazon export is tagged", AndroidStore.store_feature("amazon") == "openiap_store_amazon")
+	_check("a Play export is untagged", AndroidStore.store_feature("play") == "")
 	_check("a blank Horizon app id adds nothing", AndroidStore.horizon_app_id_meta_data("") == "")
 	_check("a null Horizon app id adds nothing", AndroidStore.horizon_app_id_meta_data(null) == "")
 	_check(

@@ -34,6 +34,11 @@ static func normalize(value: Variant) -> String:
 
 const HORIZON_APP_ID_META_DATA := "com.meta.horizon.platform.HORIZON_APP_ID"
 
+## Export feature tag for the store an Android export linked, which get_store()
+## reads at runtime. Play is the untagged default.
+static func store_feature(store: String) -> String:
+	return "openiap_store_" + store if store in ["horizon", "amazon"] else ""
+
 
 ## The manifest entry the Horizon SDK reads the app id from, or "" unless the
 ## value is the numeric id from Meta Horizon Developer Hub.
