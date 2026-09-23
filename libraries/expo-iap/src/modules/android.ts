@@ -22,16 +22,6 @@ import type {
   QueryField,
 } from '../types';
 
-type NativeAndroidModule = {
-  deepLinkToSubscriptionsAndroid?: (params: {
-    skuAndroid?: string;
-    packageNameAndroid?: string;
-  }) => Promise<void> | void;
-  getStorefront?: () => Promise<string> | string;
-};
-
-const nativeAndroidModule = ExpoIapModule as NativeAndroidModule;
-
 /**
  * Enforce the documented Android-only contract. Vega OS is treated as an
  * Android store runtime (matching `isAndroidStoreRuntime` in src/index.ts),
@@ -54,8 +44,8 @@ export function isProductAndroid<T extends {platform?: string}>(
     item != null &&
     typeof item === 'object' &&
     'platform' in item &&
-    typeof (item as any).platform === 'string' &&
-    (item as any).platform.toLowerCase() === 'android'
+    typeof item.platform === 'string' &&
+    item.platform.toLowerCase() === 'android'
   );
 }
 
@@ -81,8 +71,8 @@ export const deepLinkToSubscriptionsAndroid = async (
   const packageName = options?.packageNameAndroid ?? undefined;
 
   // Prefer native deep link implementation via OpenIAP module
-  if (nativeAndroidModule?.deepLinkToSubscriptionsAndroid) {
-    return nativeAndroidModule.deepLinkToSubscriptionsAndroid({
+  if (ExpoIapModule.deepLinkToSubscriptionsAndroid) {
+    return ExpoIapModule.deepLinkToSubscriptionsAndroid({
       skuAndroid: sku,
       packageNameAndroid: packageName,
     });

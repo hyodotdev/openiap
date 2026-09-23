@@ -48,8 +48,8 @@ export function isProductIOS<T extends {platform?: string}>(
     item != null &&
     typeof item === 'object' &&
     'platform' in item &&
-    typeof (item as any).platform === 'string' &&
-    (item as any).platform.toLowerCase() === 'ios'
+    typeof item.platform === 'string' &&
+    item.platform.toLowerCase() === 'ios'
   );
 }
 
@@ -489,8 +489,9 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result =
-    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
+  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
+    tokenType,
+  );
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -515,8 +516,9 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result =
-    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
+  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType,
+  );
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

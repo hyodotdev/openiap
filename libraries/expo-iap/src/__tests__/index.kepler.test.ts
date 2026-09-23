@@ -6,12 +6,25 @@ import {
   requestPurchase,
 } from '../index.kepler';
 import * as Kepler from '../index.kepler';
-import {ErrorCode} from '../types';
+import {ErrorCode, type PurchaseAndroid} from '../types';
 import {getVegaIapModule} from '../vega';
 
 jest.mock('../vega', () => ({
   getVegaIapModule: jest.fn(),
 }));
+
+const vegaPurchase = (
+  overrides: Partial<PurchaseAndroid> = {},
+): PurchaseAndroid => ({
+  id: 'transaction',
+  productId: 'premium',
+  isAutoRenewing: false,
+  purchaseState: 'purchased',
+  quantity: 1,
+  store: 'amazon',
+  transactionDate: 1720000000000,
+  ...overrides,
+});
 
 describe('Amazon Vega public API', () => {
   const fetchProductsNative = jest.fn().mockResolvedValue([]);
@@ -37,7 +50,8 @@ describe('Amazon Vega public API', () => {
 
   it("rejects the removed 'inapp' product type", async () => {
     await expect(
-      fetchProducts({skus: ['coins'], type: 'inapp'} as any),
+      // @ts-expect-error the removed alias reaches the runtime check
+      fetchProducts({skus: ['coins'], type: 'inapp'}),
     ).rejects.toThrow(/Unsupported product type/);
     expect(fetchProductsNative).not.toHaveBeenCalled();
   });
@@ -56,8 +70,9 @@ describe('Amazon Vega public API', () => {
     const request = {
       request: {android: {skus: ['coins']}},
       type: 'in-app',
-    } as any;
+    };
 
+    // @ts-expect-error the removed alias reaches the runtime check
     await expect(requestPurchase(request)).rejects.toThrow(
       /request\.google\.skus/,
     );
@@ -69,10 +84,11 @@ describe('Amazon Vega public API', () => {
       requestPurchase({
         request: {
           google: null,
+          // @ts-expect-error the removed alias reaches the runtime check
           android: {skus: ['legacy-coins']},
         },
         type: 'in-app',
-      } as any),
+      }),
     ).rejects.toThrow(/request\.google\.skus/);
 
     expect(requestPurchaseNative).not.toHaveBeenCalled();
@@ -82,7 +98,8 @@ describe('Amazon Vega public API', () => {
     await expect(
       requestPurchase({
         request: {google: {skus: ['coins']}},
-        type: 'all' as any,
+        // @ts-expect-error query-only type reaches the runtime check
+        type: 'all',
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.DeveloperError,
@@ -167,17 +184,13 @@ describe('Amazon Vega public API', () => {
       verifyPurchaseWithProvider: jest.fn().mockResolvedValue({isValid: true}),
     };
     (getVegaIapModule as jest.Mock).mockReturnValue(module);
-    const purchase = {
-      id: 'transaction',
-      productId: 'premium',
-      purchaseToken: 'opaque-token',
-    } as any;
+    const purchase = vegaPurchase({purchaseToken: 'opaque-token'});
 
     await expect(
       Kepler.requestPurchase({
         request: {google: {skus: ['premium']}},
         type: 'subs',
-      } as any),
+      }),
     ).resolves.toEqual([]);
     await Kepler.finishTransaction({purchase, isConsumable: true});
     await Kepler.finishTransaction({purchase, isConsumable: false});
@@ -208,7 +221,7 @@ describe('Amazon Vega public API', () => {
   it('rejects transaction completion without a purchase token', async () => {
     await expect(
       Kepler.finishTransaction({
-        purchase: {productId: 'premium'} as any,
+        purchase: vegaPurchase(),
         isConsumable: false,
       }),
     ).rejects.toMatchObject({
@@ -217,21 +230,49 @@ describe('Amazon Vega public API', () => {
     });
   });
 
-  it.each([
-    'verifyPurchase',
-    'syncIOS',
-    'presentExternalPurchaseLinkIOS',
-    'deepLinkToSubscriptions',
-    'isBillingProgramAvailableAndroid',
-    'getBillingChoiceInfoAndroid',
-    'launchExternalLinkAndroid',
-    'createBillingProgramReportingDetailsAndroid',
-    'showBillingProgramInformationDialogAndroid',
-    'showInAppMessagesAndroid',
-  ])('rejects unsupported %s calls', async (api) => {
-    await expect((Kepler as any)[api]()).rejects.toThrow(
-      'not supported on Amazon Vega',
-    );
+  it.each<[string, () => Promise<unknown>]>([
+    ['verifyPurchase', () => Kepler.verifyPurchase({apple: {sku: 'premium'}})],
+    ['syncIOS', () => Kepler.syncIOS()],
+    [
+      'presentExternalPurchaseLinkIOS',
+      () => Kepler.presentExternalPurchaseLinkIOS('https://example.com'),
+    ],
+    ['deepLinkToSubscriptions', () => Kepler.deepLinkToSubscriptions()],
+    [
+      'isBillingProgramAvailableAndroid',
+      () => Kepler.isBillingProgramAvailableAndroid('external-offer'),
+    ],
+    [
+      'getBillingChoiceInfoAndroid',
+      () => Kepler.getBillingChoiceInfoAndroid({}),
+    ],
+    [
+      'launchExternalLinkAndroid',
+      () =>
+        Kepler.launchExternalLinkAndroid({
+          billingProgram: 'external-offer',
+          launchMode: 'launch-in-external-browser-or-app',
+          linkType: 'link-to-digital-content-offer',
+          linkUri: 'https://example.com',
+        }),
+    ],
+    [
+      'createBillingProgramReportingDetailsAndroid',
+      () =>
+        Kepler.createBillingProgramReportingDetailsAndroid({
+          program: 'external-offer',
+        }),
+    ],
+    [
+      'showBillingProgramInformationDialogAndroid',
+      () =>
+        Kepler.showBillingProgramInformationDialogAndroid({
+          externalTransactionToken: 'token',
+        }),
+    ],
+    ['showInAppMessagesAndroid', () => Kepler.showInAppMessagesAndroid()],
+  ])('rejects unsupported %s calls', async (_api, call) => {
+    await expect(call()).rejects.toThrow('not supported on Amazon Vega');
   });
 
   it('returns inert subscriptions for unavailable listener APIs', () => {

@@ -43,9 +43,9 @@ describe('Android Module Functions', () => {
 
   describe('Type Guards', () => {
     it('isProductAndroid should correctly identify Android products', () => {
-      const androidProduct = {platform: 'android', id: 'p1'} as any;
-      const iosProduct = {platform: 'ios', id: 'p1'} as any;
-      const invalidProduct = {id: 'p1'} as any;
+      const androidProduct = {platform: 'android', id: 'p1'};
+      const iosProduct = {platform: 'ios', id: 'p1'};
+      const invalidProduct = {id: 'p1'};
 
       expect(isProductAndroid(androidProduct)).toBe(true);
       expect(isProductAndroid(iosProduct)).toBe(false);
@@ -70,15 +70,15 @@ describe('Android Module Functions', () => {
       await expect(
         deepLinkToSubscriptionsAndroid({
           skuAndroid: 'id',
-          packageNameAndroid: '' as any,
+          packageNameAndroid: '',
         }),
       ).rejects.toThrow('packageName is required');
     });
 
     it('delegates to native module when available', async () => {
-      const original = (ExpoIapModule as any).deepLinkToSubscriptionsAndroid;
+      const original = ExpoIapModule.deepLinkToSubscriptionsAndroid;
       const nativeFn = jest.fn().mockResolvedValue(undefined);
-      (ExpoIapModule as any).deepLinkToSubscriptionsAndroid = nativeFn;
+      ExpoIapModule.deepLinkToSubscriptionsAndroid = nativeFn;
 
       await deepLinkToSubscriptionsAndroid({
         skuAndroid: 'monthly_premium',
@@ -90,7 +90,7 @@ describe('Android Module Functions', () => {
         packageNameAndroid: 'com.example.app',
       });
 
-      (ExpoIapModule as any).deepLinkToSubscriptionsAndroid = original;
+      ExpoIapModule.deepLinkToSubscriptionsAndroid = original;
     });
   });
 
@@ -316,7 +316,8 @@ describe('Android Module Functions', () => {
           ExpoIapModule.getBillingChoiceInfoAndroid as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await (getBillingChoiceInfoAndroid as any)();
+        // @ts-expect-error omitted params exercise the runtime defaults
+        const result = await getBillingChoiceInfoAndroid();
 
         expect(ExpoIapModule.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
           billingProgram: 'billing-choice',
@@ -414,7 +415,8 @@ describe('Android Module Functions', () => {
 
         await expect(
           launchExternalLinkAndroid({
-            billingProgram: '' as any,
+            // @ts-expect-error an empty program reaches the native validation
+            billingProgram: '',
             launchMode: 'launch-in-external-browser-or-app',
             linkType: 'link-to-digital-content-offer',
             linkUri: 'https://example.com/purchase',
@@ -435,7 +437,7 @@ describe('Android Module Functions', () => {
             billingProgram: 'external-offer',
             launchMode: 'launch-in-external-browser-or-app',
             linkType: 'link-to-digital-content-offer',
-            linkUri: '' as any,
+            linkUri: '',
           }),
         ).rejects.toThrow('`linkUri` is a required and non-empty parameter.');
       });
@@ -451,8 +453,9 @@ describe('Android Module Functions', () => {
           ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await createBillingProgramReportingDetailsAndroid('external-offer');
+        const result = await createBillingProgramReportingDetailsAndroid(
+          'external-offer',
+        );
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,

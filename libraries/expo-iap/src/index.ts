@@ -106,12 +106,6 @@ type ExpoIapEmitter = {
   ): void;
 };
 
-type NativePurchaseUpdatedOptionsModule = {
-  setPurchaseUpdatedListenerOptions?: (
-    options?: PurchaseUpdatedListenerOptions | null,
-  ) => Promise<void>;
-};
-
 const isStorePlatform = (): boolean =>
   Platform.OS === 'ios' || Platform.OS === 'android';
 
@@ -218,8 +212,7 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
 ) => {
   if (Platform.OS !== 'ios') return;
 
-  const nativeModule = getNativeModule() as NativePurchaseUpdatedOptionsModule;
-  const promise = nativeModule.setPurchaseUpdatedListenerOptions?.({
+  const promise = getNativeModule().setPurchaseUpdatedListenerOptions?.({
     dedupeTransactionIOS,
   });
   void promise?.catch((error: unknown) => {
@@ -756,12 +749,12 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 export const getAvailablePurchases: QueryField<
   'getAvailablePurchases'
 > = async (options) => {
-  const normalizedOptions: PurchaseOptions = {
+  const normalizedOptions = {
     alsoPublishToEventListenerIOS:
       options?.alsoPublishToEventListenerIOS ?? false,
     onlyIncludeActiveItemsIOS: options?.onlyIncludeActiveItemsIOS ?? true,
     includeSuspendedAndroid: options?.includeSuspendedAndroid ?? false,
-  };
+  } satisfies PurchaseOptions;
 
   if (isVegaOS()) {
     const purchases = await ExpoIapModule.getAvailableItems(normalizedOptions);

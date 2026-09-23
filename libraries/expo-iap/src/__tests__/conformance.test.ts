@@ -80,7 +80,7 @@ const nativeModule: Record<string, unknown> = {
     // fetchProducts(type, skus) on the legacy signature; support both.
     const skus: string[] = Array.isArray(legacySkus)
       ? legacySkus
-      : (params?.skus ?? []);
+      : params?.skus ?? [];
     const rawType = Array.isArray(legacySkus) ? params : params?.type;
     const type = rawType === 'all' ? undefined : rawType;
 
@@ -211,7 +211,7 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import * as IAP from '../index';
-import {ErrorCode} from '../types';
+import {ErrorCode, type Purchase} from '../types';
 
 /** Behavior ids from packages/conformance this suite verifies. */
 const COVERED_BEHAVIORS = [
@@ -236,11 +236,26 @@ const COVERED_BEHAVIORS = [
   'verification.infrastructure-error-is-not-a-verdict',
 ];
 
-const buy = (sku: string) =>
-  IAP.requestPurchase({
+type TokenizedPurchase = Purchase & {purchaseToken: string};
+
+const isTokenizedPurchase = (
+  purchase: Purchase | Purchase[] | null,
+): purchase is TokenizedPurchase =>
+  purchase != null &&
+  !Array.isArray(purchase) &&
+  typeof purchase.purchaseToken === 'string';
+
+// The fake store resolves one tokenized purchase per request.
+const buy = async (sku: string): Promise<TokenizedPurchase> => {
+  const purchase = await IAP.requestPurchase({
     request: {google: {skus: [sku]}},
     type: 'in-app',
-  } as never);
+  });
+  if (!isTokenizedPurchase(purchase)) {
+    throw new Error(`Expected one tokenized purchase for ${sku}`);
+  }
+  return purchase;
+};
 
 describe('conformance: expo-iap', () => {
   beforeEach(() => {
@@ -259,29 +274,29 @@ describe('conformance: expo-iap', () => {
       skus: ['dev.hyo.martie.10bulbs', 'not-a-real-sku'],
       type: 'in-app',
     });
-    expect((products as any[]).map((product) => product.id)).toEqual([
+    expect(products?.map((product) => product.id)).toEqual([
       'dev.hyo.martie.10bulbs',
     ]);
   });
 
   it('products.fetch-normalizes-required-fields', async () => {
-    const products = (await IAP.fetchProducts({
+    const products = await IAP.fetchProducts({
       skus: ['dev.hyo.martie.10bulbs'],
       type: 'in-app',
-    })) as any[];
-    const [product] = products;
-    expect(product.id).toBeTruthy();
-    expect(product.title).toBeTruthy();
-    expect(product.currency).toBeTruthy();
-    expect(product.displayPrice).toBeTruthy();
+    });
+    const product = products?.[0];
+    expect(product?.id).toBeTruthy();
+    expect(product?.title).toBeTruthy();
+    expect(product?.currency).toBeTruthy();
+    expect(product?.displayPrice).toBeTruthy();
   });
 
   it('products.fetch-separates-in-app-and-subscription-types', async () => {
-    const subs = (await IAP.fetchProducts({
+    const subs = await IAP.fetchProducts({
       skus: ['dev.hyo.martie.premium', 'dev.hyo.martie.10bulbs'],
       type: 'subs',
-    })) as any[];
-    expect(subs.map((product) => product.id)).toEqual([
+    });
+    expect(subs?.map((product) => product.id)).toEqual([
       'dev.hyo.martie.premium',
     ]);
   });
@@ -297,7 +312,7 @@ describe('conformance: expo-iap', () => {
   // --- purchases ----------------------------------------------------------
 
   it('purchases.request-emits-purchase-updated-on-success', async () => {
-    const purchase = (await buy('dev.hyo.martie.10bulbs')) as any;
+    const purchase = await buy('dev.hyo.martie.10bulbs');
     expect(purchase.productId).toBe('dev.hyo.martie.10bulbs');
     expect(purchase.purchaseState).toBe('purchased');
   });
@@ -311,7 +326,7 @@ describe('conformance: expo-iap', () => {
 
   it('purchases.pending-purchase-is-not-delivered-as-purchased', async () => {
     fakeStore.forced.set('dev.hyo.martie.10bulbs', 'pending');
-    const purchase = (await buy('dev.hyo.martie.10bulbs')) as any;
+    const purchase = await buy('dev.hyo.martie.10bulbs');
     expect(purchase.purchaseState).not.toBe('purchased');
     expect(purchase.purchaseState).toBe('pending');
   });
@@ -328,7 +343,7 @@ describe('conformance: expo-iap', () => {
     await buy('dev.hyo.martie.lifetime');
     await buy('dev.hyo.martie.premium');
 
-    const available = (await IAP.getAvailablePurchases()) as any[];
+    const available = await IAP.getAvailablePurchases();
     expect(available.map((item) => item.productId).sort()).toEqual([
       'dev.hyo.martie.lifetime',
       'dev.hyo.martie.premium',
@@ -336,10 +351,10 @@ describe('conformance: expo-iap', () => {
   });
 
   it('restoration.available-purchases-excludes-consumed-items', async () => {
-    const purchase = (await buy('dev.hyo.martie.10bulbs')) as any;
+    const purchase = await buy('dev.hyo.martie.10bulbs');
     await IAP.finishTransaction({purchase, isConsumable: true});
 
-    const available = (await IAP.getAvailablePurchases()) as any[];
+    const available = await IAP.getAvailablePurchases();
     expect(
       available.some((item) => item.purchaseToken === purchase.purchaseToken),
     ).toBe(false);
@@ -353,15 +368,15 @@ describe('conformance: expo-iap', () => {
 
   it('subscriptions.active-subscription-is-reported-active', async () => {
     await buy('dev.hyo.martie.premium');
-    const [subscription] = (await IAP.getActiveSubscriptions()) as any[];
-    expect(subscription.isActive).toBe(true);
+    const [subscription] = await IAP.getActiveSubscriptions();
+    expect(subscription?.isActive).toBe(true);
   });
 
   it('subscriptions.groups-keep-independent-identifiers', async () => {
     await buy('dev.hyo.martie.premium');
     await buy('dev.hyo.martie.pro');
 
-    const subscriptions = (await IAP.getActiveSubscriptions()) as any[];
+    const subscriptions = await IAP.getActiveSubscriptions();
     const premium = subscriptions.find(
       (item) => item.productId === 'dev.hyo.martie.premium',
     );
@@ -369,9 +384,9 @@ describe('conformance: expo-iap', () => {
       (item) => item.productId === 'dev.hyo.martie.pro',
     );
 
-    expect(premium.currentPlanId).toBe('dev.hyo.martie.premium');
-    expect(pro.currentPlanId).toBe('dev.hyo.martie.pro');
-    expect(premium.purchaseToken).not.toBe(pro.purchaseToken);
+    expect(premium?.currentPlanId).toBe('dev.hyo.martie.premium');
+    expect(pro?.currentPlanId).toBe('dev.hyo.martie.pro');
+    expect(premium?.purchaseToken).not.toBe(pro?.purchaseToken);
   });
 
   it('subscriptions.has-active-agrees-with-get-active', async () => {
@@ -383,17 +398,15 @@ describe('conformance: expo-iap', () => {
   // --- identifiers --------------------------------------------------------
 
   it('identifiers.purchase-carries-a-concrete-store', async () => {
-    const purchase = (await buy('dev.hyo.martie.10bulbs')) as any;
+    const purchase = await buy('dev.hyo.martie.10bulbs');
     expect(purchase.store).toBeTruthy();
     expect(purchase.store).not.toBe('unknown');
   });
 
   it('identifiers.purchase-token-is-stable-across-reads', async () => {
-    const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
-    const first = ((await IAP.getAvailablePurchases()) as any[])[0]
-      .purchaseToken;
-    const second = ((await IAP.getAvailablePurchases()) as any[])[0]
-      .purchaseToken;
+    const purchase = await buy('dev.hyo.martie.lifetime');
+    const first = (await IAP.getAvailablePurchases())[0]?.purchaseToken;
+    const second = (await IAP.getAvailablePurchases())[0]?.purchaseToken;
 
     expect(first).toBe(purchase.purchaseToken);
     expect(second).toBe(purchase.purchaseToken);
@@ -402,9 +415,9 @@ describe('conformance: expo-iap', () => {
   // --- verification -------------------------------------------------------
 
   it('verification.result-exposes-uniform-validity', async () => {
-    const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
+    const purchase = await buy('dev.hyo.martie.lifetime');
 
-    const valid = (await IAP.verifyPurchase({
+    const valid = await IAP.verifyPurchase({
       google: {
         sku: 'dev.hyo.martie.lifetime',
         packageName: 'dev.hyo.martie',
@@ -412,7 +425,7 @@ describe('conformance: expo-iap', () => {
         accessToken: 'test-access-token',
         isSub: false,
       },
-    } as never)) as any;
+    });
 
     expect(typeof valid.isValid).toBe('boolean');
     expect(valid.isValid).toBe(true);
@@ -421,7 +434,7 @@ describe('conformance: expo-iap', () => {
   it('verification.forged-token-is-invalid', async () => {
     await buy('dev.hyo.martie.lifetime');
 
-    const result = (await IAP.verifyPurchase({
+    const result = await IAP.verifyPurchase({
       google: {
         sku: 'dev.hyo.martie.lifetime',
         packageName: 'dev.hyo.martie',
@@ -429,13 +442,13 @@ describe('conformance: expo-iap', () => {
         accessToken: 'test-access-token',
         isSub: false,
       },
-    } as never)) as any;
+    });
 
     expect(result.isValid).toBe(false);
   });
 
   it('verification.infrastructure-error-is-not-a-verdict', async () => {
-    const purchase = (await buy('dev.hyo.martie.lifetime')) as any;
+    const purchase = await buy('dev.hyo.martie.lifetime');
 
     fakeStore.verifierAvailable = false;
     await expect(
@@ -447,7 +460,7 @@ describe('conformance: expo-iap', () => {
           accessToken: 'test-access-token',
           isSub: false,
         },
-      } as never),
+      }),
       // The statement requires a ServiceError/NetworkError surface, not just
       // any rejection.
     ).rejects.toMatchObject({

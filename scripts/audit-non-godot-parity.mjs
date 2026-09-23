@@ -2436,7 +2436,7 @@ function checkFlutter() {
   );
   expectIncludes(
     "libraries/expo-iap/src/utils/restorePurchases.ts",
-    ["nativeModule.USING_ONSIDE_SDK", "nativeModule.restorePurchases"],
+    ["ExpoIapModule.USING_ONSIDE_SDK", "ExpoIapModule.restorePurchases"],
     "Expo Onside restore routing",
   );
   expectNotIncludes(

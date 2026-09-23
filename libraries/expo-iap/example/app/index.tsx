@@ -7,12 +7,12 @@ import {
   View,
   Platform,
 } from 'react-native';
-import {useRouter} from 'expo-router';
+import {useRouter, type Href} from 'expo-router';
 import {getStorefront} from 'expo-iap';
 
 type MenuItem = {
   id: string;
-  href: string;
+  href: Href;
   icon: string;
   title: string;
   subtitle: string;
@@ -113,7 +113,7 @@ export default function Home() {
         focusable
         hasTVPreferredFocus={focusedIndex === index}
         onFocus={() => setFocusedIndex(index)}
-        onPress={() => router.push(item.href as any)}
+        onPress={() => router.push(item.href)}
         style={[
           styles.menuItem,
           focusedIndex === index && styles.menuItemFocused,
