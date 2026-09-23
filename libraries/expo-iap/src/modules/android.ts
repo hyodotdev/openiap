@@ -23,12 +23,9 @@ import type {
 } from '../types';
 
 /**
- * Enforce the documented Android-only contract. Vega OS is treated as an
- * Android store runtime (matching `isAndroidStoreRuntime` in src/index.ts),
- * so it passes through. Without this guard, calling a suffixed wrapper on
- * another platform falls through to the native proxy and surfaces as an
- * opaque `TypeError: ExpoIapModule.<name> is not a function` instead of the
- * promised platform error.
+ * Throws the documented Android-only error; Vega OS passes, as in
+ * `isAndroidStoreRuntime`. Without it, other platforms reach the native proxy
+ * and fail with an opaque `ExpoIapModule.<name> is not a function`.
  */
 const requireAndroidPlatform = (methodName: string): void => {
   if (Platform.OS !== 'android' && !isVegaOS()) {
@@ -158,12 +155,10 @@ export const acknowledgePurchaseAndroid: MutationField<
 };
 
 /**
- * Open the Google Play offer/promo code redemption flow so the user can enter a code (Android only).
- * On Play builds, launches the Play Store redeem page. A listener can receive
- * the purchase while the app has an active billing connection; reconcile
- * available purchases when the app resumes. Unsupported store flavors return false.
- * Does not require the billing client to be initialized (no Play Billing version requirement).
- * Android counterpart of presentCodeRedemptionSheetIOS.
+ * Open the Play Store offer/promo code redeem page; other store flavors return
+ * false. Needs no initialized billing client or Play Billing version. A listener
+ * can receive the purchase while billing is connected; reconcile available
+ * purchases on resume.
  *
  * @returns Promise resolving to true when launched, or false when unsupported
  *

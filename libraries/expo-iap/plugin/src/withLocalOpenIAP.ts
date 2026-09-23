@@ -14,10 +14,7 @@ import {
 } from './withIosAlternativeBilling';
 import {ensureOnsidePodIOS} from './onsidePodfile';
 
-/**
- * Plugin to add local OpenIAP pod dependency for development
- * This is only for local development with openiap-apple library
- */
+/** Adds the local OpenIAP pod dependency; for local openiap-apple development only. */
 export type LocalPathOption = string | {ios?: string; android?: string};
 // Expo's names for a .gradle and a .gradle.kts file.
 type GradleLanguage = 'groovy' | 'kt';
@@ -261,7 +258,6 @@ const withLocalOpenIAP: ConfigPlugin<
   if (props?.iosAlternativeBilling) {
     config = withIosAlternativeBilling(config, props.iosAlternativeBilling);
   }
-  // Helper to resolve Android module path
   const resolveAndroidModulePath = (p?: string): string | null => {
     if (!p) return null;
     // Prefer the module directory if it exists

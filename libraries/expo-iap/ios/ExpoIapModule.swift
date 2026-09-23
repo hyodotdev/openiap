@@ -43,8 +43,7 @@ public final class ExpoIapModule: Module {
         }
 
         AsyncFunction("initConnection") { (config: [String: Any]?) async throws -> Bool in
-            // Note: iOS doesn't support alternative billing config parameter
-            // Config is ignored on iOS platform
+            // iOS ignores the config; it has no alternative billing parameter.
             await ExpoIapHelper.waitForStoreCleanup()
             let isConnected = try await OpenIapModule.shared.initConnection()
             await MainActor.run { self.isInitialized = isConnected }

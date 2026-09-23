@@ -70,9 +70,8 @@ enum ExpoIapHelper {
         array
     }
 
-    // Keep Expo IAP compatible with the currently published OpenIAP native
-    // package while treating authoritative query serialization atomically.
-    // Its non-throwing helpers use an empty dictionary as the failure sentinel.
+    // The published OpenIAP package's serializers return an empty dictionary on
+    // failure instead of throwing; these throw, so a query fails as a whole.
     static func encodeRequired<T: Encodable>(_ value: T) throws -> [String: Any] {
         let encoded = OpenIapSerialization.encode(value)
         guard !encoded.isEmpty else {

@@ -7,13 +7,13 @@ import {useEffect, useState} from 'react';
 let installedFromOnside: InstalledFromOnside = null;
 
 /**
- * IMPORTANT:
- * Note: call it BEFORE initializing useIAP, for example during SplashScreen initialization.
+ * Detects an Onside marketplace install so the payment module can switch at runtime.
  *
- * 1) Call checkInstallationFromOnside BEFORE initializing useIAP.
- *    Reason: this is an asynchronous check and cannot run during module import/initialization.
- *    Always reference useIAP after this check to ensure the correct platform is being used.
- * 2) Make sure the Onside module is enabled in your Expo config plugin:
+ * Call it before initializing useIAP, for example during SplashScreen initialization:
+ * the check is asynchronous and cannot run at module import, and useIAP must be
+ * referenced only after it to use the correct platform.
+ *
+ * Enable the Onside module in your Expo config plugin:
  *
  *    plugins: [
  *      [
@@ -27,10 +27,8 @@ let installedFromOnside: InstalledFromOnside = null;
  *      ],
  *    ];
  *
- *    Without this, the Onside integration won’t be linked and the availability check will always be false.
+ * Without it, the Onside integration is not linked and the check always returns false.
  */
-
-// checkInstallationFromOnside is required to switch the payment module at runtime based on marketplace installation.
 async function checkInstallationFromOnside(): Promise<InstalledFromOnside> {
   const onsideInstallation =
     await ExpoOnsideMarketplaceAvailabilityModule.checkInstallationFromOnsideAsync();

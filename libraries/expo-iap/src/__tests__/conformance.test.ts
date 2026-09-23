@@ -1,12 +1,7 @@
 /**
- * expo-iap's binding into the OpenIAP conformance suite.
- *
- * The native module is replaced with a deterministic fake store so the real SDK
- * wrappers in src/index.ts run against controlled store responses. Purchase,
- * completion, and restoration behaviors are only testable this way — a real
- * purchase cannot happen in CI.
- *
- * Behavior ids match packages/conformance/src/spec/behaviors.mjs.
+ * expo-iap's binding into the OpenIAP conformance suite. A deterministic fake
+ * native store drives the real wrappers in src/index.ts, because CI cannot make
+ * a real purchase. Behavior ids match packages/conformance/src/spec/behaviors.mjs.
  */
 export {};
 

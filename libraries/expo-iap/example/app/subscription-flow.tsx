@@ -102,19 +102,13 @@ function isExpiringSoon(subscription: ActiveSubscription): boolean {
 }
 
 /**
- * Subscription Flow Example - Subscription Products
+ * Subscription Flow example: recurring subscriptions through the useIAP hook,
+ * with results delivered to its success and error callbacks.
  *
- * Demonstrates useIAP hook approach for subscriptions:
- * - Uses useIAP hook for subscription management
- * - Handles subscription callbacks with proper types
- * - No manual promise handling required
- * - Clean success/error pattern through hooks
- * - Focused on recurring subscriptions
- *
- * New subscription status checking API:
- * - getActiveSubscriptions() - gets all active subscriptions automatically
- * - getActiveSubscriptions(['id1', 'id2']) - gets specific subscriptions
- * - activeSubscriptions state - automatically updated subscription list
+ * Subscription status:
+ * - getActiveSubscriptions() - all active subscriptions
+ * - getActiveSubscriptions(['id1', 'id2']) - specific subscriptions
+ * - activeSubscriptions state - updated automatically
  */
 
 type SubscriptionFlowProps = {
@@ -156,7 +150,6 @@ function SubscriptionFlow({
   );
   const [purchaseDetailsVisible, setPurchaseDetailsVisible] = useState(false);
 
-  // Helper to get subscription title by product ID
   const getSubscriptionTitle = useCallback(
     (productId: string | null | undefined): string => {
       if (!productId) return 'Unknown';
@@ -165,9 +158,6 @@ function SubscriptionFlow({
     [subscriptions],
   );
 
-  // Note: getSubscriptionTier is now defined outside the component for better performance
-
-  // Get current active subscription
   const getCurrentSubscription = useCallback((): ActiveSubscription | null => {
     const activeSubs = activeSubscriptions.filter((sub) => sub.isActive);
     if (activeSubs.length === 0) return null;
@@ -914,9 +904,8 @@ function SubscriptionFlow({
                 const pendingProductId =
                   sub.renewalInfoIOS?.pendingUpgradeProductId;
 
-                // Show upgrade card if there's a pending upgrade product that's different
-                // from the current product. In production, you might want to also check
-                // willAutoRenew, but Apple Sandbox behavior can be inconsistent.
+                // Show the card when a different product is pending. Production code may
+                // also check willAutoRenew, but Apple Sandbox reports it inconsistently.
                 return pendingProductId && pendingProductId !== sub.productId;
               },
             );
@@ -1361,39 +1350,27 @@ function SubscriptionFlow({
 }
 
 /**
- * SubscriptionFlowContainer - Main Subscription IAP Flow Controller
- *
- * ============================================================
- * Subscription Flow Steps:
- * ============================================================
+ * SubscriptionFlowContainer: the subscription purchase flow. Steps, marked in
+ * the code below:
  * 1. initConnection     - Store connection (useIAP handles automatically)
  * 2. subscribeEvent     - Listen for purchase events (onPurchaseSuccess/Error)
  * 3. requestPurchase    - Apple: {sku}, Google: {skus, subscriptionOffers}
- * 4. verify purchase - local device | local IAPKit | hosted IAPKit | skip
+ * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
  * 5. grant entitlement  - Update activeSubscriptions state
  * 6. finish transaction - finishTransaction({purchase, isConsumable: false})
  *
- * ============================================================
- * Platform Comparison (Subscription Info Availability):
- * ============================================================
- * | Information              | iOS Client | Android Client | Server |
- * |--------------------------|------------|----------------|--------|
- * | Auto-renew status        | willAutoRenew | isAutoRenewing | Yes |
- * | Next renewal product     | autoRenewPreference | No      | Yes    |
- * | Pending upgrade/downgrade| pendingUpgradeProductId | No  | Yes    |
- * | Expiration reason        | expirationReason | No        | Yes    |
- * | Grace period status      | gracePeriodExpirationDate | No| Yes   |
- * | Billing retry status     | isInBillingRetry | No        | Yes    |
+ * Subscription info on the client (a server can read all of it):
+ * | Information               | iOS                       | Android        |
+ * |---------------------------|---------------------------|----------------|
+ * | Auto-renew status         | willAutoRenew             | isAutoRenewing |
+ * | Next renewal product      | autoRenewPreference       | No             |
+ * | Pending upgrade/downgrade | pendingUpgradeProductId   | No             |
+ * | Expiration reason         | expirationReason          | No             |
+ * | Grace period status       | gracePeriodExpirationDate | No             |
+ * | Billing retry status      | isInBillingRetry          | No             |
  *
- * Key: iOS provides rich client-side data, Android needs server calls
- *
- * ============================================================
- * When to Validate (Server-side recommended):
- * ============================================================
- * - After purchase: Verify the purchase is legitimate
- * - On restore: Check current status (active/cancelled/refunded/expired)
- * - Periodically: Detect refunds and cancellations
- * - On app launch: Sync subscription state with server
+ * Validate on the server after purchase, on restore (current status),
+ * periodically (refunds and cancellations), and on app launch (state sync).
  */
 function SubscriptionFlowContainer() {
   // ============================================================
@@ -1983,9 +1960,8 @@ function SubscriptionFlowContainer() {
   // ============================================================
   // On App Launch - Check Existing Subscriptions
   // ============================================================
-  // Check for existing subscriptions when the app starts.
-  // This handles purchases made while the app was closed.
-  // iOS: Transaction queue persists unfinished transactions
+  // Catches purchases made while the app was closed; iOS keeps unfinished
+  // transactions in its queue.
   // ============================================================
   useEffect(() => {
     if (connected && subscriptions.length > 0) {

@@ -52,9 +52,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
       },
     },
     ios: {
-      // iOS Alternative Billing configuration (optional)
-      // Uncomment and configure for external purchase support
-      // NOTE: Requires Apple approval and proper provisioning profile
+      // Optional: uncomment for external purchase support.
+      // Requires Apple approval and a matching provisioning profile.
       // alternativeBilling: {
       //   // Required: Countries where external purchases are supported (ISO 3166-1 alpha-2)
       //   countries: ['kr', 'nl'],

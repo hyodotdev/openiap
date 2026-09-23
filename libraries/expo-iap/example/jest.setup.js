@@ -13,12 +13,10 @@ jest.mock('expo-splash-screen', () => ({
   hideAsync: jest.fn(),
 }));
 
-// Mock react-native Animated API to avoid TouchableOpacity animation issues
-// Create a manual mock for Animated to prevent TouchableOpacity errors
+// Stub Animated.timing to avoid TouchableOpacity animation errors.
 jest.mock('react-native', () => {
   const RN = jest.requireActual('react-native');
 
-  // Override Animated.timing to return a simple mock
   RN.Animated.timing = () => ({
     start: (callback) => callback && callback({finished: true}),
     stop: jest.fn(),

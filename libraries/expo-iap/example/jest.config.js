@@ -5,8 +5,7 @@ process.env.EXPO_PUBLIC_USE_RN_FETCH ??= '1';
 
 module.exports = {
   preset: 'jest-expo',
-  // Remove testEnvironment override to let jest-expo handle it
-  // testEnvironment: 'node',
+  // No testEnvironment override: jest-expo handles it.
   // Disable watchman to avoid sandbox/permission issues in CI and sandboxes
   watchman: false,
   testMatch: ['**/__tests__/**/*.test.{ts,tsx,js,jsx}'],

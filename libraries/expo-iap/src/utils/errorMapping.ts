@@ -1,8 +1,4 @@
-/**
- * Error mapping utilities for expo-iap.
- * Provides helpers for working with platform-specific error codes
- * and constructing structured purchase errors.
- */
+/** Helpers for platform error codes and structured purchase errors. */
 
 import {
   ErrorCode,
@@ -271,13 +267,9 @@ export const createPurchaseErrorFromPlatform = (
 };
 
 /**
- * Rebuild a canonical PurchaseError from an Expo Modules Promise rejection.
- *
- * Native Expo async functions cannot attach arbitrary fields to the rejected
- * JavaScript Error. The iOS and Android bridges therefore place the complete
- * payload in a marked JSON envelope inside the rejection message. This helper
- * also accepts direct fields so the Vega/Onside adapters and older native
- * builds continue to work.
+ * Rebuild a canonical PurchaseError from an Expo Modules Promise rejection,
+ * read from the message envelope (see OPENIAP_ERROR_ENVELOPE_PREFIX). Direct
+ * fields are accepted too, for the Vega/Onside adapters and older native builds.
  */
 export const createPurchaseErrorFromNativeException = (
   error: unknown,

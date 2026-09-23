@@ -53,14 +53,12 @@ import {
   type PurchaseErrorProps,
 } from './utils/errorMapping';
 
-// Export all types
 export * from './types';
 export * from './modules/android';
 export * from './modules/ios';
 export * from './onside';
 export * from './vega';
 
-// Get the native constant value
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',
   PurchaseError = 'purchase-error',
@@ -71,11 +69,7 @@ export enum OpenIapEvent {
    * developer billing flows. Nullable fields depend on the selected flow.
    */
   DeveloperProvidedBillingAndroid = 'developer-provided-billing-android',
-  /**
-   * Fired when a subscription enters a billing-issue state (cross-platform).
-   * Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+
-   * `Purchase.isSuspended`. NOT fired on the Meta Horizon flavor.
-   */
+  /** Fired when a subscription enters a billing-issue state; see `subscriptionBillingIssueListener`. */
   SubscriptionBillingIssue = 'subscription-billing-issue',
 }
 
@@ -115,10 +109,8 @@ const isStoreRuntime = (): boolean =>
 const unsupportedPlatformError = (): Error =>
   new Error(`Unsupported platform: ${Platform.OS}`);
 
-// Use the raw native module for listener calls — JSI HostObjects require the
-// real native module as `this` when calling addListener. Using a Proxy as
-// `this` triggers "native state unsupported on Proxy" on New Architecture / Hermes.
-// Resolved lazily so importing this module doesn't throw on unsupported platforms.
+// Listener calls go to the raw native module (see getNativeModule), resolved
+// lazily so importing this module doesn't throw on unsupported platforms.
 export const emitter: ExpoIapEmitter = {
   addListener(eventName, listener) {
     const nativeModule = getNativeModule();
@@ -462,8 +454,6 @@ export const userChoiceBillingListenerAndroid = (
  * This fires when a user selects the developer's option in an External Payments
  * or Billing Choice purchase flow.
  *
- * Requires Google Play Billing Library 8.3.0+; Billing Choice fields require 9.1.0+.
- *
  * @param listener - Callback that receives selected products and flow details
  * @returns EventSubscription that can be used to unsubscribe
  *
@@ -480,7 +470,7 @@ export const userChoiceBillingListenerAndroid = (
  * subscription.remove();
  * ```
  *
- * @platform Android (8.3.0+; Billing Choice 9.1.0+)
+ * @platform Android (Play Billing Library 8.3.0+; Billing Choice 9.1.0+)
  */
 export const developerProvidedBillingListenerAndroid = (
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
@@ -504,7 +494,7 @@ export const developerProvidedBillingListenerAndroid = (
  * for a payment problem. Unifies:
  * - iOS / Mac Catalyst 16.4+ and visionOS 1.0+: StoreKit 2 `Message.Reason.billingIssue`.
  * - Android (Play Billing 8.1+): when `Purchase.isSuspendedAndroid === true`.
- * - Meta Horizon / iOS 17 / older platforms: never fires.
+ * - Meta Horizon, Amazon, macOS, tvOS, watchOS, and iOS before 16.4: never fires.
  *
  * Recommended UX: call `deepLinkToSubscriptions()` when this fires so the user
  * can update their payment method in the platform subscription center.
@@ -625,7 +615,7 @@ const invokeNativeWithPurchaseError = async <T>(
  * @returns Promise resolving to a `FetchProductsResult` union — `Product[]` for `'in-app'`,
  *   `ProductSubscription[]` for `'subs'`, or a mixed array for `'all'`.
  * @throws When the store rejects the request (empty `skus`, not connected,
- *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
+ *   network/store error). Unknown SKUs are omitted from the result, not thrown.
  *
  * @example
  * ```ts
@@ -635,8 +625,7 @@ const invokeNativeWithPurchaseError = async <T>(
  * });
  * ```
  *
- * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
- *   (`requestPurchase`), which are event-based.
+ * @remarks Promise-based, unlike the event-based `request*` APIs such as `requestPurchase`.
  *
  * @see {@link https://openiap.dev/docs/apis/fetch-products}
  */
@@ -691,8 +680,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
     if (canonical === 'subs') {
       return items as ProductSubscription[];
     }
-    // For 'all' type, items contain both Product and ProductSubscription
-    // Return as ProductOrSubscription[] to preserve discriminated union
+    // 'all' mixes products and subscriptions; returned as-is to keep the discriminated union.
     return items;
   };
 
@@ -728,8 +716,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 };
 
 /**
- * List the user's unfinished purchases — non-consumables, active subscriptions, and any
- * pending transactions not yet finished.
+ * List the user's unfinished purchases: non-consumables, active subscriptions,
+ * and pending transactions.
  *
  * @param options Optional `PurchaseOptions`. iOS-only flags:
  *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
@@ -782,13 +770,9 @@ export const getAvailablePurchases: QueryField<
 };
 
 /**
- * Get all active subscriptions with detailed information.
- * Uses native OpenIAP module for accurate subscription status and renewal info.
- *
- * On iOS: Returns subscriptions with renewalInfoIOS containing pendingUpgradeProductId,
- * willAutoRenew, autoRenewPreference, and other renewal details.
- *
- * On Android: Filters available purchases to find active subscriptions (fallback implementation).
+ * Get all active subscriptions. On iOS each entry carries `renewalInfoIOS`
+ * (e.g. pendingUpgradeProductId, willAutoRenew, autoRenewPreference); on
+ * Android they are filtered from the available purchases.
  *
  * @param subscriptionIds - Optional array of subscription product IDs to filter. If not provided, returns all active subscriptions.
  * @returns Promise resolving to array of active subscriptions with details
@@ -896,9 +880,6 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
   return storefront;
 };
 
-/**
- * Helper to normalize request props to platform-specific format
- */
 function normalizeRequestProps(
   request: RequestPurchasePropsByPlatforms,
   platform: 'ios',
@@ -953,14 +934,15 @@ function validateAndroidPurchaseBranchOptions(
 }
 
 /**
- * Initiate a purchase or subscription flow. The result is delivered through
- * `purchaseUpdatedListener` — NOT the return value.
+ * Initiate a purchase or subscription flow. The result arrives through
+ * `purchaseUpdatedListener` / `purchaseErrorListener` (or `useIAP`'s
+ * `onPurchaseSuccess` / `onPurchaseError`), not the return value.
  *
  * @param args `RequestPurchaseProps`, discriminated by `type`:
  *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
  *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
- * @returns The dispatched purchase payload. **Do not rely on it** for the actual outcome.
- * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+ * @returns The dispatched purchase payload; do not rely on it for the outcome.
+ * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
  *
  * @example
  * ```ts
@@ -972,9 +954,6 @@ function validateAndroidPurchaseBranchOptions(
  *   type: 'in-app',
  * });
  * ```
- *
- * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
- *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
  *
  * @see {@link https://openiap.dev/docs/apis/request-purchase}
  */
@@ -1202,7 +1181,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
  * }
  * ```
  *
- * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
+ * @remarks Android purchases must be finalized within 3 days or Google
  *   auto-refunds. iOS unfinished transactions replay on every app launch.
  *
  * @see {@link https://openiap.dev/docs/apis/finish-transaction}
@@ -1241,14 +1220,11 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
 };
 
 /**
- * Restore completed transactions (cross-platform behavior)
+ * Restore completed transactions. Returns nothing; read the restored items with
+ * `getAvailablePurchases` or from hook state.
  *
- * - iOS: perform a lightweight sync, or Onside restore when OnsideKit is active,
- *   then fetch available purchases to surface restored items to the app.
- * - Android: simply fetch available purchases (restoration happens via query).
- *
- * This helper triggers the refresh flows but does not return the purchases; consumers should
- * call `getAvailablePurchases` or rely on hook state to inspect the latest items.
+ * - iOS: sync (or Onside restore when OnsideKit is active), then fetch available purchases.
+ * - Android: fetch available purchases; the query itself restores them.
  *
  * @see {@link https://openiap.dev/docs/apis/restore-purchases}
  */
@@ -1328,10 +1304,7 @@ export const openRedeemOfferCode: MutationField<
 };
 
 /**
- * Verify purchase with the configured providers
- *
- * This function uses the native OpenIAP verifyPurchase implementation
- * which validates purchases using platform-specific methods.
+ * Verify purchase with the configured providers.
  *
  * @param options - Receipt validation options containing the SKU
  * @returns Promise resolving to receipt validation result
@@ -1349,10 +1322,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
 };
 
 /**
- * Verify purchase with a specific provider (e.g., IAPKit)
- *
- * This function allows you to verify purchases using external verification
- * services like IAPKit, which provide additional validation and security.
+ * Verify purchase with a specific provider (e.g., IAPKit).
  *
  * @param options - Verification options including provider and credentials
  * @returns Promise resolving to provider-specific verification result

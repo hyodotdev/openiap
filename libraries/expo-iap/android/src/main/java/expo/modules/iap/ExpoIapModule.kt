@@ -148,8 +148,8 @@ class ExpoIapModule : Module() {
                 scope.launch {
                     connectionMutex.withLock {
                         try {
-                            // CRITICAL: Set Activity BEFORE calling initConnection
-                            // Horizon SDK needs Activity to initialize OVRPlatform with proper returnComponent
+                            // Set the Activity before initConnection: the Horizon SDK needs it to
+                            // initialize OVRPlatform with the proper returnComponent.
                             // https://github.com/meta-quest/Meta-Spatial-SDK-Samples/issues/82#issuecomment-3452577530
                             runCatching { currentActivity }
                                 .onSuccess {
@@ -501,7 +501,6 @@ class ExpoIapModule : Module() {
                 }
             }
 
-            // New name: consumePurchaseAndroid
             AsyncFunction("consumePurchaseAndroid") { token: String, promise: Promise ->
                 ExpoIapLog.payload("consumePurchaseAndroid", mapOf("token" to token))
                 scope.launch {
@@ -610,9 +609,6 @@ class ExpoIapModule : Module() {
                 scope.launch {
                     try {
                         val openIapProgram = mapBillingProgram(program)
-                        // Note: enableBillingProgram should be called before initConnection
-                        // for proper BillingClient configuration. Here it's called as a fallback
-                        // but may have no effect if BillingClient is already initialized.
                         val result = openIapStore.isBillingProgramAvailable(openIapProgram)
                         val response =
                             mapOf(

@@ -1,8 +1,6 @@
-// Editor-only project for the Jest specs in this directory. The package
-// tsconfig excludes __tests__ so expo-module-scripts never emits test files
-// into build/, but that leaves VS Code without a project for them and every
-// jest global errors with ts(2708). This config re-attaches the directory to
-// the package compiler options; ts-jest still type-checks specs at test time.
+// Editor-only: gives VS Code a project for these specs, which the package
+// tsconfig excludes so expo-module-scripts keeps them out of build/. Without it,
+// every Jest global errors with ts(2708). ts-jest type-checks specs at test time.
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {

@@ -775,9 +775,8 @@ export function resolveVegaProjectOptions(
 }
 
 /**
- * Determines which modules to include based on configuration.
- * - ExpoIap: Always included (standard StoreKit 2 support)
- * - Onside: Only when modules.onside is true (iOS alternative billing)
+ * Determines which native modules to include: ExpoIap (StoreKit 2) and/or
+ * Onside (iOS alternative billing).
  */
 export function resolveModuleSelection(
   config: ExpoConfig,
