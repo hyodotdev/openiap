@@ -67,6 +67,20 @@ test("retries a recognized transient network failure", () => {
   });
 });
 
+test("retries an SDK component AGP failed to install", () => {
+  withCounterTest((counter) => {
+    const command = incrementScript(
+      counter,
+      `if [ "$count" -eq 1 ]; then printf '%s\\n' "Caused by: java.util.zip.ZipException: Archive is not a ZIP archive" "> com.android.builder.sdk.InstallFailedException: Failed to install the following SDK components:" "      ndk;27.1.12297006 NDK (Side by side) 27.1.12297006" >&2; exit 1; fi; printf 'recovered'`,
+    );
+    const result = runRetry(command);
+
+    assert.equal(result.status, 0);
+    assert.equal(readFileSync(counter, "utf8"), "2");
+    assert.match(result.stdout, /recovered/);
+  });
+});
+
 test("retries a fetch that receives a retryable HTTP status", () => {
   withCounterTest((counter) => {
     const command = incrementScript(

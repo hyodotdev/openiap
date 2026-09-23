@@ -262,9 +262,11 @@ gradle.projectsEvaluated {
 `,
   );
   console.log(`Checking AGP ${agp} (${mode}) in ${root}`);
+  // Through the CI retry wrapper: AGP's first-use NDK download is flaky.
   const result = spawnSync(
-    gradle,
+    join(repo, "scripts/ci/retry-gradle.sh"),
     [
+      gradle,
       "-p",
       root,
       "--no-daemon",

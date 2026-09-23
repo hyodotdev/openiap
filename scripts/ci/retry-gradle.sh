@@ -23,6 +23,15 @@ has_wrapper_download_failure() {
   grep -qiE "$wrapper_download_pattern" "$1"
 }
 
+# AGP downloads a missing NDK or SDK platform on first use. A corrupt download
+# ("Archive is not a ZIP archive") fails that install; the next attempt fetches
+# it again.
+readonly sdk_install_pattern='failed to install the following (android )?sdk components'
+
+has_sdk_install_failure() {
+  grep -qiE "$sdk_install_pattern" "$1"
+}
+
 has_retryable_dependency_failure() {
   awk \
     -v fetch_pattern="$fetch_pattern" \
@@ -96,7 +105,8 @@ for ((attempt = 1; attempt <= max_attempts; attempt += 1)); do
   fi
 
   if ! has_retryable_dependency_failure "$retry_log" &&
-    ! has_wrapper_download_failure "$retry_log"; then
+    ! has_wrapper_download_failure "$retry_log" &&
+    ! has_sdk_install_failure "$retry_log"; then
     echo "Gradle failed without a recognized transient network error; not retrying." >&2
     exit "$command_status"
   fi
