@@ -76,8 +76,9 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           _isProcessing = false;
         });
 
-        // Finish transaction
-        final bool isConsumable = !purchase.isAutoRenewing;
+        // Builder demo: finishes without verification (Purchase Flow shows the
+        // verified path). The badge does not renew but is not consumable.
+        final bool isConsumable = IapConstants.isConsumable(purchase.productId);
         _iap
             .finishTransaction(purchase: purchase, isConsumable: isConsumable)
             .then((_) {

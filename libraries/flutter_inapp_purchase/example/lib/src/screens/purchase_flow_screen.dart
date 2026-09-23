@@ -266,6 +266,14 @@ Has token: ${purchase.purchaseToken != null && purchase.purchaseToken!.isNotEmpt
     debugPrint('ID: ${purchase.id}'); // OpenIAP standard
     debugPrint('Transaction ID: ${transactionId ?? 'N/A'}');
 
+    // A redelivery can land while this attempt is still verifying, so claim
+    // the id now and release it only if this attempt does not finish.
+    if (transactionId != null &&
+        !_processedTransactionIds.add(transactionId)) {
+      debugPrint('⚠️ Transaction already in progress: $transactionId');
+      return;
+    }
+
     if (!mounted) return;
     setState(() {
       _isProcessing = false;
@@ -289,22 +297,20 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
       if (!verificationOk) {
         debugPrint(
             '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
+        _processedTransactionIds.remove(transactionId);
         return;
       }
     } else if (_verificationMethod == VerificationMethod.local) {
       await _verifyPurchaseLocally(purchase);
     }
 
-    // After verification, finish the transaction
-    // For consumable products (like bulb packs), set isConsumable to true
+    // Consuming the badge would drop its entitlement on Android, so only
+    // bulb packs are consumed.
     try {
       await _iap.finishTransaction(
         purchase: purchase,
-        isConsumable: true,
+        isConsumable: IapConstants.isConsumable(purchase.productId),
       );
-      if (transactionId != null) {
-        _processedTransactionIds.add(transactionId);
-      }
       debugPrint('Transaction finished successfully');
       if (!mounted) return;
       setState(() {
@@ -313,6 +319,7 @@ Purchase credential: ${purchase.purchaseToken?.isNotEmpty == true ? 'Present' : 
       });
     } catch (e) {
       debugPrint('Error finishing transaction: $e');
+      _processedTransactionIds.remove(transactionId);
       if (!mounted) return;
       setState(() {
         _purchaseResult =

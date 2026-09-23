@@ -75,17 +75,23 @@ func _fetch_products_delayed() -> void:
 ## Clear pending purchases that weren't finished (e.g., app crashed after purchase)
 func _clear_pending_purchases() -> void:
 	print("[IAPManager] Checking for pending purchases...")
-	var available_result = await GodotIapPlugin.get_available_purchases_result()
-	if not available_result.get("success", false):
-		push_warning(
-			"[IAPManager] Could not query pending purchases: %s (%s)"
-			% [
-				available_result.get("error", "Unknown store error"),
-				available_result.get("code", "unknown"),
-			]
-		)
-		return
-	var pending_purchases = available_result.get("purchases", [])
+	var pending_purchases: Array = []
+	if OS.get_name() == "iOS":
+		# Available purchases also lists every expired renewal; only an
+		# unfinished transaction is still pending on iOS.
+		pending_purchases = await GodotIapPlugin.get_pending_transactions_ios()
+	else:
+		var available_result = await GodotIapPlugin.get_available_purchases_result()
+		if not available_result.get("success", false):
+			push_warning(
+				"[IAPManager] Could not query pending purchases: %s (%s)"
+				% [
+					available_result.get("error", "Unknown store error"),
+					available_result.get("code", "unknown"),
+				]
+			)
+			return
+		pending_purchases = available_result.get("purchases", [])
 
 	if pending_purchases.size() == 0:
 		print("[IAPManager] No pending purchases found")
@@ -105,19 +111,9 @@ func _clear_pending_purchases() -> void:
 			print("[IAPManager] Skipping acknowledged purchase: %s" % product_id)
 			continue
 
-		# Determine if consumable
-		var is_consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
-
-		# The sweep finishes purchases the same way the live path does, so it
-		# must clear the same verification gate first.
-		if not await _verify_purchase(purchase_dict, product_id):
-			print("[IAPManager] Leaving pending purchase unverified: %s" % product_id)
-			continue
-
-		print("[IAPManager] Finishing pending purchase: %s (consumable: %s)" % [product_id, is_consumable])
-
-		var result = await GodotIapPlugin.finish_transaction_dict(purchase_dict, is_consumable)
-		print("[IAPManager] finish_transaction_dict result: success=%s" % result.success)
+		# A recovered purchase takes the live path, so it is handled like a
+		# live one.
+		await _on_purchase_updated(purchase_dict)
 
 	print("[IAPManager] Pending purchases cleared")
 
@@ -253,7 +249,14 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
 		var consumable = (product_id == PRODUCT_10_BULBS or product_id == PRODUCT_30_BULBS)
 
 		# Use the raw purchase dictionary directly to preserve transactionId
-		await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
+		var finished = await GodotIapPlugin.finish_transaction_dict(purchase, consumable)
+		if finished == null or not finished.success:
+			# The store redelivers an unfinished transaction; crediting now
+			# would credit it again on that redelivery.
+			if transaction_id != "":
+				_processed_transactions.erase(transaction_id)
+			push_warning("[IAPManager] Finish failed, leaving %s for redelivery" % product_id)
+			return
 
 		purchase_completed.emit(product_id)
 

@@ -352,6 +352,9 @@ fun AvailablePurchasesScreen(navController: NavController) {
 
                                 scope.launch {
                                     consumingPurchaseId = purchase.id
+                                    // Manual tool: finishes without verification to clear a stuck
+                                    // transaction. Consuming the badge would drop its entitlement.
+                                    val isConsumable = purchase.productId in ConsumableProductIds
                                     try {
                                         // Debug log
                                         when (purchase) {
@@ -363,9 +366,9 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                             }
                                         }
 
-                                        kmpIAP.finishTransaction(purchase.toPurchaseInput(), isConsumable = !isSubscription)
+                                        kmpIAP.finishTransaction(purchase.toPurchaseInput(), isConsumable = isConsumable)
 
-                                        val action = if (isSubscription) "acknowledged" else "consumed"
+                                        val action = if (isConsumable) "consumed" else "acknowledged"
                                         consumeResult = "✅ Purchase $action: ${purchase.productId}"
 
                                         // Wait a bit before refreshing to let the system process
@@ -380,7 +383,7 @@ fun AvailablePurchasesScreen(navController: NavController) {
                                             println("Failed to refresh purchases: ${e.message}")
                                         }
                                     } catch (e: Exception) {
-                                        val action = if (isSubscription) "acknowledge" else "consume"
+                                        val action = if (isConsumable) "consume" else "acknowledge"
                                         println("❌ Failed to finish transaction: ${e.message}")
                                         consumeResult = "❌ Failed to $action: ${e.message}"
                                     } finally {
@@ -684,13 +687,16 @@ fun PurchaseCard(
                                 color = Color.White
                             )
                         } else {
-                            val buttonText = if (isSubscription) {
-                                when (purchase) {
+                            val buttonText = when {
+                                isSubscription -> when (purchase) {
                                     is PurchaseAndroid -> "Acknowledge Subscription"
                                     is PurchaseIOS -> "Finish Transaction"
                                 }
-                            } else {
-                                "Consume Purchase"
+                                purchase.productId in ConsumableProductIds -> "Consume Purchase"
+                                else -> when (purchase) {
+                                    is PurchaseAndroid -> "Acknowledge Purchase"
+                                    is PurchaseIOS -> "Finish Transaction"
+                                }
                             }
                             Text(buttonText)
                         }

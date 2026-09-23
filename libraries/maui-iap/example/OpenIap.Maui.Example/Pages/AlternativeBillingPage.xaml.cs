@@ -418,6 +418,7 @@ public partial class AlternativeBillingPage : ContentPage
         LastPurchasePanel.IsVisible = true;
         LastPurchaseLabel.Text = $"Product: {common.ProductId}\nTransaction: {common.Id}\nDate: {FormatDate(common.TransactionDate)}";
 
+        // Demo: finishes without verification; only bulb packs are consumed.
         try
         {
             var mutate = (MutationResolver)OpenIapClient.Instance;

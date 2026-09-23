@@ -133,12 +133,13 @@ fun AlternativeBillingScreen(navController: NavController) {
                     Date: $dateText
                 """.trimIndent()
 
-                // Finish transaction
+                // Demo: finishes without verification; only bulb packs are consumed.
                 scope.launch {
                     try {
                         kmpIapInstance.finishTransaction(
                             purchase = purchase,
-                            isConsumable = true
+                            // The listener also receives a badge redelivered from elsewhere.
+                            isConsumable = purchase.productId in ConsumableProductIds
                         )
                     } catch (e: Exception) {
                         println("Failed to finish transaction: ${e.message}")
