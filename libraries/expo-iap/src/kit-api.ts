@@ -1,14 +1,11 @@
-// Tiny fetch wrapper around kit's `/v1` HTTP surface for use by the JS
-// SDK consumers (react-native-iap + expo-iap). Mirrors the shape of
-// `packages/mcp-server/src/kit-client.ts` so the same operations are
-// reachable from both LLM tools and end-user apps without each
-// duplicating the URL layout.
+// Fetch wrapper for kit's `/v1` API, used by react-native-iap and expo-iap.
+// It mirrors `packages/mcp-server/src/kit-client.ts`, so both share one URL
+// layout.
 
 export type KitApiOptions = {
   apiKey: string;
   baseUrl?: string;
-  // Optional fetch override for runtimes without a global (older RN
-  // builds) or for injection in tests.
+  // For runtimes without a global fetch, or for tests.
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
   /** Optional AsyncStorage-compatible persistent cache for direct client
    * payload reads. Cache failures never change a successful API result. */
@@ -95,11 +92,11 @@ export type KitProduct = {
   title: string;
   description?: string;
   baseLocale?: string;
-  localizations?: Array<{
+  localizations?: {
     locale: string;
     title: string;
     description?: string;
-  }>;
+  }[];
   regions?: "all" | string[];
   priceAmountMicros?: number;
   currency?: string;
@@ -154,7 +151,7 @@ export type KitMetricsResponse = {
 };
 
 export type KitRevenueMetricsResponse = {
-  days: Array<{
+  days: {
     day: string;
     currency: string;
     productId: string;
@@ -165,7 +162,7 @@ export type KitRevenueMetricsResponse = {
     cancellations: number;
     refunds: number;
     revenueMicros: number;
-  }>;
+  }[];
   currencies: string[];
   productIds: string[];
   platforms: KitProductPlatform[];
@@ -208,19 +205,19 @@ export type KitProductSyncJobResponse = {
     pulled: number;
     pushed: number;
     deleted?: number;
-    failures: Array<{ productId: string; reason: string }>;
+    failures: { productId: string; reason: string }[];
     failuresTruncated?: boolean;
-    plannedWrites?: Array<{
+    plannedWrites?: {
       productId: string;
       step: string;
       detail?: string;
-    }>;
+    }[];
     plannedWritesTruncated?: boolean;
-    manualActions?: Array<{
+    manualActions?: {
       productId: string;
       code: string;
       message: string;
-    }>;
+    }[];
     manualActionsTruncated?: boolean;
   };
   error?: string;
@@ -246,11 +243,9 @@ type InternalRequestInit = Omit<RequestInit, "headers"> & {
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
-// Merge the request's internal headers with kit defaults (`accept`,
-// optionally `content-type`). When `Headers` is missing — older React
-// Native builds where the operator wires up `fetchImpl` without a
-// `Headers` polyfill — the internal request sites use plain records,
-// so a small case-insensitive merge is sufficient.
+// Adds kit's defaults (`accept`, and `content-type` for a body) unless the
+// request set them. Some React Native runtimes have fetch but no global
+// `Headers`, so it falls back to a case-insensitive merge into a plain record.
 function mergeHeaders(
   callerHeaders: Record<string, string> | undefined,
   hasBody: boolean,
@@ -263,8 +258,6 @@ function mergeHeaders(
     }
     return merged;
   }
-  // Plain-object fallback path. Build a case-insensitive name map and
-  // re-emit it as a record `fetchImpl` accepts.
   const lower = new Map<string, { name: string; value: string }>();
   const setIfAbsent = (name: string, value: string) => {
     const key = name.toLowerCase();
@@ -310,20 +303,8 @@ export function kitApi(options: KitApiOptions) {
     path: string,
     init?: InternalRequestInit,
   ): Promise<Response> {
-    // Normalize headers without depending on a global `Headers`
-    // constructor: older React Native runtimes ship `fetch` (or a
-    // polyfill via `fetchImpl`) without exposing `Headers` globally.
-    // The prior implementation crashed before the first request on
-    // those runtimes. We use `new Headers()` when available and
-    // otherwise fall back to a small case-insensitive merge into a
-    // plain record. Either way, kit defaults only apply when the
-    // internal request hasn't set the same name.
     const headers = mergeHeaders(init?.headers, init?.body != null);
-    // Prepend a leading slash if `path` is missing one. Today's
-    // call sites all hard-code the leading "/", but normalizing here
-    // makes the helper safe for future additions and matches the
-    // already-stripped `baseUrl` (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // baseUrl has its trailing slash stripped, so the path needs a leading one.
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
     return fetchImpl(`${baseUrl}${normalizedPath}`, {
       ...init,
@@ -336,26 +317,20 @@ export function kitApi(options: KitApiOptions) {
     path: string,
   ): Promise<T> {
     const text = await response.text();
-    // Empty body normalizes to null so callers expecting JSON
-    // (status / entitlements / list*) don't get a truthy ""
-    // and crash on property access.
+    // An empty body parses as null, not "".
     let parsed: unknown = null;
     let parseError: unknown = null;
     if (text) {
       try {
         parsed = JSON.parse(text);
       } catch (error) {
-        // Non-JSON body (a misconfigured proxy returning HTML, a
-        // CDN-injected error page, etc.) on a 2xx response would
-        // otherwise reach the caller as `parsed = text` and crash
-        // on property access via `parsed as T`. Throw a structured
-        // KitApiError instead so callers see a typed failure.
+        // A 2xx with a non-JSON body (a proxy's HTML error page, say) must
+        // fail as a KitApiError, not reach the caller as text typed as T.
         parseError = error;
       }
     }
     if (!response.ok) {
-      // Surface the raw body (text or parsed) on the error path so
-      // operators can read the upstream error message verbatim.
+      // Keep the raw body so the upstream error message stays readable.
       throw new KitApiError(
         response.status,
         parsed ?? text,
