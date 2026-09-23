@@ -833,6 +833,11 @@ adb -s "$ANDROID_SERIAL" install -r Example/android/Martie.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
+A headless Godot export runs `adb kill-server` on exit (editor setting
+`export/android/shutdown_adb_on_exit`, on by default). That drops every
+`adb reverse` rule and scrcpy session on every device, so re-create the
+`tcp:3100` rule before verifying, and export before the other Android rows.
+
 iOS build and launch smoke:
 
 ```bash

@@ -122,10 +122,10 @@ function HorizonStoreSetup() {
           Framework Setup
         </AnchorLink>
         <p>
-          Every framework except Godot ships Quest support through the same
-          Android <code>horizon</code> flavor; only the switch location differs.
-          Find your framework here, then follow the matching section below for
-          full snippets.
+          Every framework ships Quest support through the same Horizon build of{' '}
+          <code>openiap-google</code>; only the switch location differs. Find
+          your framework here, then follow the matching section below for full
+          snippets.
         </p>
         <table className="doc-table">
           <thead>
