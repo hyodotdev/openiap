@@ -1,0 +1,65 @@
+// Applied by the io.github.hyochan.openiap plugin after openiap-store.gradle, once
+// the module applies an Android plugin. Links the store the resolver picks into a
+// module that consumes openiap-google or kmp-iap as a published artifact.
+
+def openIapGroup = 'io.github.hyochan.openiap'
+// openiap-google publishes each store as its own artifact.
+def openIapArtifactStores = [
+  'openiap-google': 'play',
+  'openiap-google-horizon': 'horizon',
+  'openiap-google-amazon': 'amazon',
+]
+
+def openIapUseStore = { String store ->
+  configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+      def named = details.requested.group == openIapGroup ? openIapArtifactStores[details.requested.name] : null
+      if (named == null || named == store) {
+        return
+      }
+      // As in the resolver, two signals that name different stores stop the build.
+      if (named != 'play') {
+        throw new GradleException(
+          "openiap: ${details.requested.name} is declared but this build's store is ${store}; depend on openiap-google, or set openiapStore=${named}"
+        )
+      }
+      // useTarget needs a version, and a BOM's would not carry over to the store's coordinates.
+      def version = details.requested.version
+      if (!version) {
+        throw new GradleException(
+          "openiap: openiap-google is declared without a version but this build's store is ${store}; declare a version so the plugin can link openiap-google-${store}"
+        )
+      }
+      details.useTarget(group: openIapGroup, name: "openiap-google-${store}", version: version)
+      details.because("openiap: store=${store}")
+    }
+  }
+}
+
+['com.android.application', 'com.android.library', 'com.android.dynamic-feature', 'com.android.test'].each { id ->
+  pluginManager.withPlugin(id) {
+    androidComponents.finalizeDsl { android ->
+      // Its own platform flavors choose the store per variant.
+      if (android.flavorDimensions.contains('platform')) {
+        if (project.findProperty('openiapStore')) {
+          logger.lifecycle("openiap: ${project.path} declares platform flavors, so openiapStore does not apply to it")
+        }
+        return
+      }
+      def store = openIapResolveStore('openiap').store
+      // kmp-iap publishes one Android variant per store in this dimension.
+      android.defaultConfig.missingDimensionStrategy('platform', store)
+      openIapUseStore(store)
+    }
+  }
+}
+
+pluginManager.withPlugin('com.android.kotlin.multiplatform.library') {
+  def store = openIapResolveStore('openiap').store
+  kotlin.targets.configureEach { target ->
+    if (target.hasProperty('dependencyVariantSelection')) {
+      target.dependencyVariantSelection.productFlavors.put('platform', [store])
+    }
+  }
+  openIapUseStore(store)
+}

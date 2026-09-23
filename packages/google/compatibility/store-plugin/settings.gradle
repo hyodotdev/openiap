@@ -1,0 +1,25 @@
+// Consumes openiap-google and kmp-iap as published artifacts, the way an app
+// outside this repo does, with the plugin built from source and applied once
+// here so it reaches every module.
+pluginManagement {
+  includeBuild('../../gradle-plugin')
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+plugins {
+  id 'io.github.hyochan.openiap'
+}
+
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = 'store-plugin-fixture'
+include ':app', ':flavored', ':shared', ':consumer', ':classic', ':mixed', ':unversioned'

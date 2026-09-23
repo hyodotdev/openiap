@@ -262,11 +262,35 @@ jobs:
               ;;
           esac
 
+      - name: Check if Gradle plugin already published
+        id: check_plugin
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-gradle-plugin/$VERSION/openiap-gradle-plugin-$VERSION.pom"
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ openiap-gradle-plugin $VERSION already exists on Maven Central"
+              ;;
+            404)
+              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "✓ openiap-gradle-plugin $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify openiap-gradle-plugin $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
       - name: Preflight Maven Central publication
         env:
           HORIZON_EXISTS: ${{ steps.check_horizon.outputs.exists }}
           AMAZON_EXISTS: ${{ steps.check_amazon.outputs.exists }}
           PLAY_EXISTS: ${{ steps.check_play.outputs.exists }}
+          PLUGIN_EXISTS: ${{ steps.check_plugin.outputs.exists }}
           RELEASE_TAG_EXISTS: ${{ steps.check_tag.outputs.exists }}
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -277,13 +301,15 @@ jobs:
           if [ "$RELEASE_TAG_EXISTS" != "true" ] && \
              { [ "$HORIZON_EXISTS" = "true" ] || \
                [ "$AMAZON_EXISTS" = "true" ] || \
-               [ "$PLAY_EXISTS" = "true" ]; }; then
-            echo "::error::A Google flavor is already published without a release tag; release a new version instead"
+               [ "$PLAY_EXISTS" = "true" ] || \
+               [ "$PLUGIN_EXISTS" = "true" ]; }; then
+            echo "::error::A Google artifact is already published without a release tag; release a new version instead"
             exit 1
           fi
           if [ "$HORIZON_EXISTS" = "false" ] || \
              [ "$AMAZON_EXISTS" = "false" ] || \
-             [ "$PLAY_EXISTS" = "false" ]; then
+             [ "$PLAY_EXISTS" = "false" ] || \
+             [ "$PLUGIN_EXISTS" = "false" ]; then
             for credential in \
               "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" \
               "$GPG_KEY_CONTENTS" "$SIGNING_KEY_ID" "$SIGNING_PASSWORD"; do
@@ -362,6 +388,12 @@ jobs:
       - name: Build release artifacts
         working-directory: packages/google
         run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
+
+      - name: Build Gradle plugin
+        working-directory: packages/google/gradle-plugin
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+        run: ../gradlew build --no-daemon --stacktrace
 
       - name: Create release artifacts
         working-directory: packages/google
@@ -471,6 +503,24 @@ jobs:
           }
           \`\`\`
 
+          #### Pick the store automatically
+
+          Apply the plugin in settings.gradle.kts and depend on openiap-google: a
+          connected Quest or Fire device selects its store on a debug build, and
+          \`openiapStore\` pins release builds.
+
+          \`\`\`kotlin
+          // settings.gradle.kts
+          plugins {
+              id("io.github.hyochan.openiap") version "$VERSION"
+          }
+
+          // app/build.gradle.kts
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+          }
+          \`\`\`
+
           ### Documentation
 
           - [API reference](https://openiap.dev/docs/apis)
@@ -482,6 +532,7 @@ jobs:
           - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
           - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
           - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
+          - [openiap-gradle-plugin](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-gradle-plugin/$VERSION)
           EOF
 
       - name: Create and push tag
@@ -544,6 +595,20 @@ jobs:
         run: |
           ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
           echo "✅ Published openiap-google (Play flavor) to Maven Central"
+
+      - name: Publish Gradle plugin to Maven Central
+        if: steps.check_plugin.outputs.exists == 'false'
+        working-directory: packages/google/gradle-plugin
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ../gradlew publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-gradle-plugin to Maven Central"
 
       - name: Create GitHub Release
         working-directory: packages/google

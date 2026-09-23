@@ -176,8 +176,8 @@ function AmazonStoreSetup() {
             <tr>
               <td>Native Android</td>
               <td>
-                Use <code>openiap-google-amazon</code> or select{' '}
-                <code>platform=amazon</code>.
+                The OpenIAP Gradle plugin: a connected Fire device on a debug
+                build; <code>openiapStore=amazon</code> pins it.
               </td>
               <td>Not a Kepler target.</td>
             </tr>
@@ -214,9 +214,7 @@ function AmazonStoreSetup() {
             </tr>
             <tr>
               <td>KMP</td>
-              <td>
-                Build/publish the Android <code>amazonRelease</code> variant.
-              </td>
+              <td>The OpenIAP Gradle plugin, as for native Android.</td>
               <td>No Vega runtime target.</td>
             </tr>
             <tr>
@@ -259,17 +257,19 @@ function AmazonStoreSetup() {
           Native Android
         </AnchorLink>
         <p>
-          Depend on the Amazon artifact and select the <code>amazon</code>{' '}
-          flavor in the app's Gradle build:
+          Depend on <code>openiap-google</code> and apply the OpenIAP Gradle
+          plugin; it links <code>openiap-google-amazon</code> instead when a
+          debug build finds a Fire device, or when{' '}
+          <code>openiapStore=amazon</code> pins a release.
         </p>
-        <CodeBlock language="kotlin">{`dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSIONS.google}")
+        <CodeBlock language="kotlin">{`// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }
 
-android {
-    defaultConfig {
-        missingDimensionStrategy("platform", "amazon")
-    }
+// app/build.gradle.kts
+dependencies {
+    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }`}</CodeBlock>
 
         <AnchorLink id="expo-fire-os" level="h3">
@@ -338,12 +338,11 @@ android {
           KMP and MAUI
         </AnchorLink>
         <p>
-          KMP exposes the Android <code>amazonRelease</code> variant and sets{' '}
-          <code>OPENIAP_STORE="amazon"</code>. MAUI selects the Amazon AAR
+          KMP apps apply the same plugin in <code>settings.gradle.kts</code>,
+          which links kmp-iap&apos;s Amazon build. MAUI selects the Amazon AAR
           flavor by MSBuild property.
         </p>
-        <CodeBlock language="bash">{`./gradlew :library:assembleAmazonRelease
-dotnet build -f net10.0-android -p:OpenIapStore=amazon`}</CodeBlock>
+        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapStore=amazon`}</CodeBlock>
 
         <Callout
           kind="warning"

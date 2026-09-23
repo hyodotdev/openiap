@@ -477,14 +477,12 @@ pod 'openiap', '~> ${versions.apple}'
 
 ### Kotlin (Android)
 \`\`\`kotlin
-// Gradle (build.gradle.kts)
+// app/build.gradle.kts
 implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
 
-// For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
-
-// For Fire OS (Amazon Appstore)
-implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
+// settings.gradle.kts, for Meta Horizon OS and Fire OS: keep the Play coordinate;
+// the plugin links openiap-google-horizon / -amazon by the store rule.
+plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
 \`\`\`
 
 ### Flutter
@@ -601,7 +599,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   Expo uses \`modules.horizon=true\` and \`android.horizon.appId\`.
   React Native and Flutter resolve it from \`openiapStore=horizon\`, an
   \`assembleHorizon*\` task, or a connected Quest on a debug build, plus
-  app-owned manifest metadata. KMP exposes \`horizonRelease\`. MAUI uses
+  app-owned manifest metadata. Native Android and KMP apps get the same rule
+  from the \`io.github.hyochan.openiap\` Gradle plugin. MAUI uses
   \`OpenIapStore=horizon\`. Godot follows a connected Quest on a debug export,
   or pins \`openiap/android_store=horizon\`.
   Required values: Horizon app id from Meta Horizon Developer Hub
@@ -611,12 +610,12 @@ Canonical setup docs live under \`/docs/setup/store\`:
   values such as \`horizon.sku\`, \`horizon.userId\`, and
   \`horizon.accessToken\` when validating Horizon purchases.
 - Fire OS: Android \`amazon\` flavor,
-  \`openiap-google-amazon\`; use \`modules.amazon.fireOS=true\`
-  in the Expo config plugin, or
-  \`missingDimensionStrategy("platform", "amazon")\` in bare Android /
-  React Native / Flutter app Gradle config.
+  \`openiap-google-amazon\`, picked by the same rule: a connected Fire device
+  on a debug build, or \`openiapStore=amazon\` (Expo: \`modules.amazon.fireOS\`).
+  Native Android and KMP apps get the rule from the \`io.github.hyochan.openiap\`
+  Gradle plugin.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
-  \`expo-iap\`, \`flutter_inapp_purchase\`, KMP \`amazonRelease\`, and MAUI
+  \`expo-iap\`, \`flutter_inapp_purchase\`, KMP, and MAUI
   \`OpenIapStore=amazon\`. Godot follows a connected Fire device on a debug
   export, or pins \`openiap/android_store=amazon\`.
   Required values: Android \`applicationId\` matching the Amazon Developer
@@ -878,10 +877,11 @@ npm install react-native-iap
 \`\`\`
 
 \`\`\`kotlin
-// Gradle
+// settings.gradle.kts: links the Horizon or Amazon build by the store rule
+plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
+
+// app/build.gradle.kts
 implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
-implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
-implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
 \`\`\`
 
 \`\`\`bash

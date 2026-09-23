@@ -588,6 +588,11 @@ jobs:
         working-directory: packages/google
         run: bash scripts/verify-store-resolver.sh
 
+      # The plugin carries that rule to apps linking the published artifacts.
+      - name: Verify the store plugin
+        working-directory: packages/google
+        run: bash scripts/verify-store-plugin.sh
+
       # Run every store flavor so flavor-specific API-23 regressions cannot
       # bypass lint coverage.
       - name: Lint Android API compatibility

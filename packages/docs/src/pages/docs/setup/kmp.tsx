@@ -2,7 +2,7 @@ import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
-import { KMP_ANDROID_SDK } from '../../../lib/versioning';
+import { KMP_ANDROID_SDK, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const KMP_INSTALL_COMMAND =
   LIBRARIES.find(({ name }) => name === 'kmp-iap')?.installCommand ??
@@ -204,6 +204,49 @@ kotlin {
     }
 }`}
         </CodeBlock>
+
+        <h4 id="android-store">Pick the Android store</h4>
+        <p>
+          kmp-iap publishes a Play, Horizon, and Amazon build of its Android
+          library, and Gradle stops with{' '}
+          <code>
+            Cannot choose between the following variants of
+            io.github.hyochan:kmp-iap
+          </code>{' '}
+          until the build names one. Apply the OpenIAP Gradle plugin once in{' '}
+          <code>settings.gradle.kts</code>; it reaches every Android module,
+          including an app module that sees kmp-iap only through a shared
+          module. It links Play by default, the connected Quest or Fire
+          device&apos;s store on a debug build, and the store{' '}
+          <code>openiapStore</code> pins, which is how release builds choose.
+        </p>
+        <CodeBlock language="kotlin">
+          {`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
+plugins {
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
+}`}
+        </CodeBlock>
+        <CodeBlock language="properties">
+          {`# gradle.properties — only for a build that must not follow the device
+openiapStore=horizon`}
+        </CodeBlock>
+        <p>
+          Without the plugin, name the store in every Android module:{' '}
+          <code>missingDimensionStrategy("platform", "play")</code> in the{' '}
+          <code>defaultConfig</code> of application and library modules, or{' '}
+          <code>
+            dependencyVariantSelection {'{'} productFlavors.put("platform",
+            listOf("play")) {'}'}
+          </code>{' '}
+          inside{' '}
+          <code>
+            kotlin {'{'} androidLibrary {'{ }'} {'}'}
+          </code>
+          . A module that declares its own <code>platform</code> flavors keeps
+          choosing per flavor. See{' '}
+          <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
+          for the full rule.
+        </p>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
         <CodeBlock language="text">

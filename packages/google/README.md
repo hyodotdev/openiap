@@ -48,6 +48,20 @@ dependencies {
 
 Use the latest version from [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) or the badge above.
 
+To ship to Meta Quest or Fire OS as well, apply the OpenIAP Gradle plugin in
+`settings.gradle.kts` and keep the dependency above. It links the Horizon or
+Amazon build for a debug build on a Quest or Fire device, and for any build that
+sets `openiapStore`:
+
+```kotlin
+// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "<version>"
+}
+```
+
+See [Store Setup](https://openiap.dev/docs/setup/store#selection) for the full rule.
+
 ## Quick Start
 
 ```kotlin

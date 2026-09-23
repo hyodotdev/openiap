@@ -139,8 +139,8 @@ function HorizonStoreSetup() {
             <tr>
               <td>Native Android</td>
               <td>
-                Depend on <code>openiap-google-horizon</code> or select{' '}
-                <code>platform=horizon</code>.
+                The OpenIAP Gradle plugin: a connected Quest on a debug build;{' '}
+                <code>openiapStore=horizon</code> pins it.
               </td>
               <td>Android manifest meta-data.</td>
             </tr>
@@ -175,9 +175,7 @@ function HorizonStoreSetup() {
             </tr>
             <tr>
               <td>KMP</td>
-              <td>
-                Build/publish the Android <code>horizonRelease</code> variant.
-              </td>
+              <td>The OpenIAP Gradle plugin, as for native Android.</td>
               <td>The Android host app owns manifest meta-data.</td>
             </tr>
             <tr>
@@ -206,17 +204,19 @@ function HorizonStoreSetup() {
           Native Android
         </AnchorLink>
         <p>
-          Use the Horizon artifact directly, or select the local Gradle flavor
-          when building from source:
+          Depend on <code>openiap-google</code> and apply the OpenIAP Gradle
+          plugin; it links <code>openiap-google-horizon</code> instead when a
+          debug build finds a Quest, or when <code>openiapStore=horizon</code>{' '}
+          pins a release.
         </p>
-        <CodeBlock language="kotlin">{`dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google-horizon:${OPENIAP_VERSIONS.google}")
+        <CodeBlock language="kotlin">{`// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }
 
-android {
-    defaultConfig {
-        missingDimensionStrategy("platform", "horizon")
-    }
+// app/build.gradle.kts
+dependencies {
+    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }`}</CodeBlock>
         <p>Provide the app id in the Android manifest:</p>
         <CodeBlock language="xml">{`<meta-data
@@ -317,13 +317,11 @@ android {
           KMP and MAUI
         </AnchorLink>
         <p>
-          KMP publishes per-store Android variants of the library; Quest apps
-          consume the <code>horizonRelease</code> variant and keep the app id in
-          the Android host app's manifest, exactly as in the Native Android
-          section above. When building the library from source, assemble the
-          variant directly:
+          KMP apps apply the same plugin in <code>settings.gradle.kts</code>,
+          which links kmp-iap&apos;s Horizon build, and keep the app id in the
+          Android host app&apos;s manifest exactly as in the Native Android
+          section above.
         </p>
-        <CodeBlock language="bash">{`./gradlew :library:assembleHorizonRelease`}</CodeBlock>
         <p>MAUI selects the Horizon AAR flavor with an MSBuild property:</p>
         <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapStore=horizon`}</CodeBlock>
       </section>

@@ -1,0 +1,27 @@
+// A shared KMP module on the classic com.android.library + androidTarget setup.
+plugins {
+  id 'org.jetbrains.kotlin.multiplatform'
+  id 'com.android.library'
+}
+
+kotlin {
+  androidTarget()
+  sourceSets {
+    commonMain {
+      dependencies {
+        implementation 'io.github.hyochan:kmp-iap:3.5.1'
+      }
+    }
+  }
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.classic'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'debugRuntimeClasspath')

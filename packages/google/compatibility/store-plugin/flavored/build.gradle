@@ -1,0 +1,30 @@
+// An app that names the store with its own platform flavors, which the plugin
+// leaves alone: kmp-iap matches each flavor, openiap-google is per flavor.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.flavored'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+  flavorDimensions = ['platform']
+  productFlavors {
+    play { dimension 'platform' }
+    horizon { dimension 'platform' }
+    amazon { dimension 'platform' }
+  }
+}
+
+dependencies {
+  playImplementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+  horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.5.2'
+  amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.5.2'
+  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+}
+
+apply from: rootProject.file('print-stores.gradle')
+// No store in the task name, so only a pin can make the resolver answer.
+openIapFixturePrint('printFlavorStores', 'horizonDebugRuntimeClasspath')

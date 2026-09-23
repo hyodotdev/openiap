@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
+import { OPENIAP_VERSIONS } from '../../../../lib/versioning';
 
 function StoreSetup() {
   useScrollToHash();
@@ -36,10 +38,11 @@ function StoreSetup() {
           the Amazon <code>AppstoreAuthenticationKey.pem</code> are inert on the
           other stores — and let the build pick the store. The Gradle wrappers
           (React Native, Expo, and Flutter) apply the whole rule, first match
-          wins. A Godot export applies it with the{' '}
+          wins, and so does the OpenIAP Gradle plugin in native Android and KMP
+          apps. A Godot export applies it with the{' '}
           <code>openiap/android_store</code> export option as the explicit step
-          and no Variant step. MAUI and KMP share the vocabulary but take an
-          explicit selection only:
+          and no Variant step. MAUI shares the vocabulary but takes an explicit
+          selection only:
         </p>
         <ol>
           <li>
@@ -89,16 +92,33 @@ function StoreSetup() {
           pin against a legacy flag each fail the build, so a pinned release
           train cannot quietly ship the wrong billing SDK. The device is a
           fallback rather than a competing signal: a pin or a flavor simply
-          outranks it. The configuration cache turns the device step off,
-          because a cached answer outlives the device that produced it. The
-          aliases <code>google</code>/<code>gplay</code>/<code>googleplay</code>
-          /<code>google-play</code>/<code>gms</code>, <code>meta</code>/
+          outranks it. The device step also works with the configuration cache:
+          plugging in a different device reconfigures the build. The aliases{' '}
+          <code>google</code>/<code>gplay</code>/<code>googleplay</code>/
+          <code>google-play</code>/<code>gms</code>, <code>meta</code>/
           <code>quest</code>, and <code>fire</code>/<code>fireos</code>/
-          <code>fire-os</code> normalize to the three store ids. KMP apps
-          declare a <code>platform</code> flavor dimension and get the matching
-          library variant automatically; MAUI passes{' '}
+          <code>fire-os</code> normalize to the three store ids. MAUI passes{' '}
           <code>-p:OpenIapStore=horizon</code>.
         </p>
+        <p>
+          Native Android and KMP apps get the rule from the OpenIAP Gradle
+          plugin, applied once in <code>settings.gradle.kts</code> with{' '}
+          <code>mavenCentral()</code> in the <code>pluginManagement</code>{' '}
+          repositories. Depend on <code>openiap-google</code>; the plugin links
+          the chosen store&apos;s build in its place, and a store artifact
+          declared directly must name the same store or the build stops. A
+          module that declares its own <code>platform</code> flavors keeps its
+          own setup: kmp-iap matches each flavor, and openiap-google takes a
+          per-flavor dependency such as{' '}
+          <code>
+            horizonImplementation(&quot;...:openiap-google-horizon&quot;)
+          </code>
+          .
+        </p>
+        <CodeBlock language="kotlin">{`// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
+}`}</CodeBlock>
       </section>
       <section>
         <AnchorLink id="targets" level="h2">

@@ -323,10 +323,11 @@ task that
 builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release
-build never consults a device, several
-attached devices select nothing unless `ANDROID_SERIAL` names one, and the
-configuration cache turns the device step off because a cached answer outlives
-the device that produced it. The choice is logged once:
+build never consults a device, and several attached devices select nothing
+unless `ANDROID_SERIAL` names one. The device step works under the
+configuration cache: Gradle re-runs the probe before reusing a cached
+configuration, so a different device reconfigures the build. The choice is
+logged once:
 `openiap: store=<id> (source=explicit|variant|device|default; <reason>)`.
 
 **Vocabulary.** Store ids are `play`, `horizon`, `amazon`, plus `auto` (the
@@ -340,13 +341,16 @@ purchase and keeps its own names.
 `libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
 `libraries/flutter_inapp_purchase/android` carry byte-identical copies because
 a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
-drift. Every other build system reads the same names:
+drift. The OpenIAP Gradle plugin (`packages/google/gradle-plugin`, id
+`io.github.hyochan.openiap`) packs the SSOT file into its jar at build time
+instead of keeping a copy. Every other build system reads the same names:
 
 | Consumer                            | Input                                                                                         |
 | ----------------------------------- | --------------------------------------------------------------------------------------------- |
 | react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                           |
 | expo-iap config plugin              | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto    |
-| kmp-iap                             | library flavors match an app `platform` dimension. It does **not** read `openiapStore`        |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one             |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store |
 | maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`); `auto` means play, nothing to probe     |
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table              |
@@ -365,6 +369,11 @@ abbreviated Horizon build link the Play SDK:
 ```bash
 cd packages/google && bash scripts/verify-store-resolver.sh
 ```
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
 
 It applies the real resolver to the fixture in
 `packages/google/compatibility/store-resolver`, so no Android SDK, device, or

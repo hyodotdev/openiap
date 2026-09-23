@@ -1,0 +1,20 @@
+// Leaves the openiap-google version to another edge, as a BOM would.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.unversioned'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+dependencies {
+  implementation 'io.github.hyochan.openiap:openiap-google'
+  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'debugRuntimeClasspath')

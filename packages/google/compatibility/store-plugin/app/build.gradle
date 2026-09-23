@@ -1,0 +1,21 @@
+// An app with no store setup of its own: the plugin picks the store.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.app'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+dependencies {
+  implementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'debugRuntimeClasspath')
+openIapFixturePrint('printReleaseStores', 'releaseRuntimeClasspath')
