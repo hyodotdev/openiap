@@ -21,7 +21,10 @@ import {
 import { Link, useNavigationType } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
 import CommerceImplementationComparison from './CommerceImplementationComparison';
-import { COMMERCE_PROTOCOL_LINKS } from '../lib/config';
+import {
+  COMMERCE_PROTOCOL_INSTALL,
+  COMMERCE_PROTOCOL_LINKS,
+} from '../lib/config';
 import {
   COMMERCE_IMPLEMENTATIONS,
   COMMERCE_IMPLEMENTATION_TOPICS,
@@ -1038,7 +1041,7 @@ function CommerceBuildWalkthrough({
               </details>
               <p className="commerce-capture-note">
                 Recorded {run.recordedAt.slice(0, 10)} · {run.checks.length}{' '}
-                checks in the completed example · openiap-commerce-protocol@
+                checks in the completed example · {COMMERCE_PROTOCOL_INSTALL}@
                 {run.standalone.version}.
               </p>
             </div>

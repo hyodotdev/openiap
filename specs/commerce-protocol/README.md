@@ -40,8 +40,8 @@ Give your AI the installed package's `SPEC.md`, `DESIGN.md`, and `generated/`
 artifacts. The package supplies the contract; your AI implements the backend.
 
 - **See what AI built:** the [recorded walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
-  shows a real local HTTP + SQLite backend in six milestones, with captured
-  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/implementation#iapkit) explains what was tested. Give the
+  shows a real local HTTP + SQLite backend in seven milestones, with captured
+  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/ecosystem#composition-proof) explains what was tested. Give the
   [build brief](https://openiap.dev/commerce-example/build-brief.md)
   to your AI to build the same flow in your own stack.
 - **Integrate your backend:** [Use a provider](https://openiap.dev/commerce-protocol/getting-started)
@@ -184,9 +184,11 @@ also pass an `eventsAdapter` covering the full `EventsAdapter` surface
 
 ## Validating
 
+From a repository clone (the npm package does not ship `scripts/` or `test/`):
+
 ```bash
-bun install
-bun run test
+bun install                                 # at the repository root
+cd specs/commerce-protocol && bun run test
 ```
 
 The suite recompiles every schema and binding artifact, validates every

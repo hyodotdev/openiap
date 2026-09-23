@@ -57,7 +57,7 @@ function CommerceProtocol(): React.JSX.Element {
     <div className="doc-page commerce-protocol-page commerce-overview">
       <SEO
         title="OpenIAP Commerce Protocol"
-        description="Build your part of the OpenIAP ecosystem: paywalls, commerce services, or data platforms. Explore the architecture and follow a working AI-built backend."
+        description="A vendor-neutral specification for the server side of in-app purchases. Build your part — a paywall, commerce service, or data platform — and follow a working AI-built backend."
         path="/commerce-protocol"
       />
       <header className="commerce-hero">
@@ -71,9 +71,10 @@ function CommerceProtocol(): React.JSX.Element {
             <span>Connect the whole.</span>
           </h1>
           <p>
-            A shared contract for paywalls, commerce services, and data
-            platforms. Understand how the parts connect, choose what your
-            product owns, and give AI the contract to implement it.
+            A vendor-neutral specification for the server side of in-app
+            purchases. Understand how paywalls, commerce services, and data
+            platforms connect, choose what your product owns, and give AI the
+            contract to implement it.
           </p>
           <div className="commerce-actions">
             <Link className="btn btn-primary" to="#architecture">

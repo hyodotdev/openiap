@@ -1,8 +1,9 @@
 # Implementation review log
 
 > This log describes the original 2026-09 recording. Its checkpoints were
-> superseded when the walkthrough was rebuilt on Commerce Protocol 0.3.0, so
-> the observations below name records that are no longer published. The
+> superseded when the walkthrough was rebuilt on package 0.3.0, so the
+> observations below name records that are no longer published on this site.
+> The linked failure logs remain in the example repository's history. The
 > behaviour each one corrected is still covered by the current chain's tests.
 
 Each checkpoint was run before the next feature was added. The source archives
@@ -95,14 +96,14 @@ sandbox test. Business roles do not introduce new protocol profiles.
 
 The first mapper put store members inside an extra `evidence` object. The
 installed schema rejected it during `npm test`; the captured failure is
-[bridge-first-attempt.txt](06-recover-reviewed-3/bridge-first-attempt.txt). Moving
+[bridge-first-attempt.txt](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e52900c2f040a0c9aa895e4a605b4f3e84940652/docs/build/06-recover-reviewed-3/bridge-first-attempt.txt). Moving
 `apple`/`google` to the verification input's top level fixed the same check.
 The final archive and its npm test log record the corrected source.
 
 ## Third CLI review
 
 The ready receiver's loopback Host check refused a reverse proxy's public Host
-header. The saved [proxy failure](06-recover-reviewed-4/proxy-first-attempt.txt)
+header. The saved [proxy failure](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e52900c2f040a0c9aa895e4a605b4f3e84940652/docs/build/06-recover-reviewed-4/proxy-first-attempt.txt)
 reproduces that case. Signature authentication now protects the receiver
 independently of Host, and the HTTP demo sends the public Host on health, valid,
 duplicate, and tampered requests. The report records the observed duplicate
@@ -156,8 +157,8 @@ The saved local probe ran the same two rejection cases now in `verify.mjs`
 against the reviewed-7 receiver, then repeated them against reviewed-8.
 
 `06-recover-reviewed-8` authenticates the original body bytes before decoding.
-The [original probe](06-recover-reviewed-8/byte-auth-before.txt) and
-[repeated probe](06-recover-reviewed-8/byte-auth-after.txt) show both requests
+The [original probe](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e52900c2f040a0c9aa895e4a605b4f3e84940652/docs/build/06-recover-reviewed-8/byte-auth-before.txt) and
+[repeated probe](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/e52900c2f040a0c9aa895e4a605b4f3e84940652/docs/build/06-recover-reviewed-8/byte-auth-after.txt) show both requests
 changing from 200 to 401, with no inbox insertion after the fix. Regression
 checks also reject correctly signed malformed UTF-8 and accept correctly signed
 Unicode and BOM bodies. Earlier source archives remain unchanged.

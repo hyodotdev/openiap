@@ -163,12 +163,6 @@ function CommerceEcosystemGuide(): React.JSX.Element {
           flow and commerce payload meanings stay the same.
         </p>
         <p>
-          These technical roles describe interoperability. Joint development,
-          support commitments, and promotion depend on separately agreed
-          contributions. The open contract does not include free hosting; IAPKit
-          and other providers set their own service terms.
-        </p>
-        <p>
           <Link to="/commerce-protocol/profiles">Profile obligations</Link> ·{' '}
           <Link to="/commerce-protocol/conformance">Conformance runner</Link> ·{' '}
           <Link to="/commerce-protocol/versioning">
@@ -192,9 +186,7 @@ function CommerceEcosystemGuide(): React.JSX.Element {
         <p>
           Propose shared behavior with a concrete use case, a runnable example,
           a rejection case, and its compatibility impact. Describe which
-          implementers need to change. OpenIAP remains founder-led today;
-          proposals and decisions are public, and IAPKit follows the same
-          contract and checks as other implementations.
+          implementers need to change.
         </p>
         <p>
           <a href="https://github.com/hyodotdev/openiap/issues/new/choose">

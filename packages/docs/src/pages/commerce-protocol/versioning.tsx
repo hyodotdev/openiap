@@ -1,38 +1,8 @@
 import { COMMERCE_PROTOCOL_LINKS } from '../../lib/config';
 import AnchorLink from '../../components/AnchorLink';
-import DataTable from '../../components/DataTable';
 import SEO from '../../components/SEO';
 
 const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
-
-interface ChangeRow {
-  change: string;
-  impact: string;
-}
-
-const CHANGE_ROWS: ChangeRow[] = [
-  {
-    change:
-      'New optional member on an open object, event type, operation, or error code',
-    impact: 'MINOR',
-  },
-  {
-    change: 'New value in an open space (store, environment, eventType…)',
-    impact: 'MINOR',
-  },
-  {
-    change: 'Member removed, renamed, retyped, or made required',
-    impact: 'MAJOR',
-  },
-  {
-    change: 'Member added to a closed object or closed enumeration',
-    impact: 'MAJOR',
-  },
-  {
-    change: 'Operation removed, or its path, method, or auth role changed',
-    impact: 'MAJOR',
-  },
-];
 
 function CommerceVersioning() {
   return (
@@ -52,42 +22,35 @@ function CommerceVersioning() {
       </p>
       <p>
         For example, adding an optional field to an open response can be minor:
-        older callers ignore it. Renaming a required field is major because
-        those callers would no longer find the answer they expect.
+        older callers ignore it. Renaming a field is normally major because
+        those callers would no longer find the answer they expect. Before the
+        npm package reaches <code>1.0.0</code>, a wire member can be renamed
+        without moving the protocol major; each such rename is listed with its
+        migration note.
       </p>
       <p>
         The protocol, each profile, and each binding version independently as
-        MAJOR.MINOR, and callers pin on the major. Open value spaces and open
-        objects are what make MINOR additions safe: a consumer ignores what it
+        MAJOR.MINOR, and callers pin on the major. The protocol version is
+        separate from the npm package version. Open value spaces and open
+        objects are what make MINOR additions safe: a consumer tolerates what it
         does not recognise instead of failing.
       </p>
       <section>
         <AnchorLink id="impact" level="h2">
           What changes what
         </AnchorLink>
-        <DataTable
-          columns={[
-            { header: 'Change', cell: (row: ChangeRow) => row.change },
-            {
-              header: 'Impact',
-              cell: (row: ChangeRow) => <code>{row.impact}</code>,
-            },
-          ]}
-          rows={CHANGE_ROWS}
-          rowKey={(row) => row.change}
-        />
         <p>
-          The REST path&apos;s <code>v1</code> segment is the protocol major, so
-          two majors can be served side by side during a migration. The full
-          decision table is{' '}
           <a
             href={`${SPEC_URL}#12-versioning`}
             target="_blank"
             rel="noopener noreferrer"
           >
             SPEC.md §12
-          </a>
-          .
+          </a>{' '}
+          has the full MAJOR/MINOR decision table and the list of renames made
+          before <code>1.0.0</code>. The REST path&apos;s <code>v1</code>{' '}
+          segment is the protocol major, so two majors can be served side by
+          side during a migration.
         </p>
       </section>
     </div>

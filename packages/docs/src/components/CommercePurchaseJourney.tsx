@@ -127,7 +127,7 @@ const STEPS = [
     label: 'Keep it current',
     title: 'Cancellation keeps the paid time.',
     description:
-      'Alice turns off renewal. She keeps Premium until the end of her paid period. When that deadline arrives, access ends—even if a store notification is late. Your backend reads the current answer when it needs to authorize her.',
+      'Alice turns off renewal. When her paid period ends, access ends—even if a store notification is late. Your backend reads the current answer when it needs to authorize her.',
     nodes: [
       {
         kind: 'store',

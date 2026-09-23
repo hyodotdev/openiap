@@ -106,7 +106,9 @@ executable projection validators consume.
 | `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce      |
 | `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation    |
 | `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                              |
+| `generated/bindings/operations-sdl.json`                 | Generated JSON wrapper of `operations.graphql` for bundlers; the SDL is byte-identical          |
 | `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                            |
+| `generated/bindings/introspection-signature.json`        | Generated structural signature the runner checks served introspection against (§11.3)           |
 | `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                             |
 | `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                         |
 | `conformance/`                                           | The portable conformance runner and its independent mock provider                               |

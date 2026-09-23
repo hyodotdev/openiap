@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-23T15:29:24.203Z
+> Generated: 2026-09-23T21:38:03.467Z
 
 ## Reading instructions for coding assistants
 
@@ -2465,7 +2465,9 @@ executable projection validators consume.
 | `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce      |
 | `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation    |
 | `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                              |
+| `generated/bindings/operations-sdl.json`                 | Generated JSON wrapper of `operations.graphql` for bundlers; the SDL is byte-identical          |
 | `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                            |
+| `generated/bindings/introspection-signature.json`        | Generated structural signature the runner checks served introspection against (§11.3)           |
 | `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                             |
 | `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                         |
 | `conformance/`                                           | The portable conformance runner and its independent mock provider                               |

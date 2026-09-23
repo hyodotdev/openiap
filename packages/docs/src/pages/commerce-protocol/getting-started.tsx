@@ -41,10 +41,12 @@ function CommerceGettingStarted(): React.JSX.Element {
         implementation’s code when you need it.
       </p>
       <p>
-        Apple and Google subscription changes arrive through store
-        notifications. Amazon and Horizon access is rechecked with the store
-        when your backend requests it. Choose your store below to follow the
-        matching path.
+        In IAPKit and the example, Apple and Google subscription changes arrive
+        through store notifications, and Amazon and Horizon ownership is
+        rechecked with the store on each entitlements read. Another provider can
+        work differently; its{' '}
+        <Link to="/commerce-protocol/capabilities">capabilities</Link> say what
+        it supports. Choose your store below to follow the matching path.
       </p>
       <div id="purchase-flow">
         <CommercePurchaseJourney />
@@ -60,75 +62,8 @@ function CommerceGettingStarted(): React.JSX.Element {
           Choose your services and build it →
         </Link>
       </p>
-      <details className="commerce-run-details commerce-technical-reference">
-        <summary>Implementation reference: requests and receiver setup</summary>
-        <p>
-          Use these details when wiring a backend or checking your AI’s code.
-        </p>
-        <section>
-          <AnchorLink id="receive-events" level="h2">
-            Receive subscription changes
-          </AnchorLink>
-          <p>
-            Connect an existing backend with the ready receiver. It verifies the
-            signature, validates the event, and saves it once in SQLite. You do
-            not need to build a commerce provider or a store adapter.
-          </p>
-          <p>
-            If your service only consumes events, start here. The purchase and
-            access operations below belong to the app backend and its chosen
-            provider; your service can keep its existing backend.
-          </p>
-          <p>
-            The <a href={COMMERCE_PROTOCOL_LINKS.example}>example repository</a>{' '}
-            includes the receiver and executable checks. AI can reuse it to
-            demonstrate signed delivery, retries, tamper rejection, and
-            preserved inbox entries after reopening storage.
-          </p>
-          <details>
-            <summary>Run the receiver example locally</summary>
-            <p>
-              Clone the repository, install Bun for its runtime, then install
-              dependencies and run the demo. This fixture check requires no
-              credentials or external services.
-            </p>
-            <PackageInstall />
-            <CodeBlock language="bash">{`npm run demo:consumer`}</CodeBlock>
-            <p>
-              <a href="/commerce-example/consumer-run.json">
-                Recorded results and payloads
-              </a>
-            </p>
-          </details>
-          <details>
-            <summary>Connect the receiver to your provider</summary>
-            <p>
-              Set <code>COMMERCE_WEBHOOK_SECRET</code> to your provider’s
-              signing secret, then run <code>npm run consumer</code>. The ready
-              endpoint is
-              <code> http://127.0.0.1:5182/webhooks/commerce</code>. Put it
-              behind your HTTPS reverse proxy, forwarding the exact body bytes
-              to that local address, and register the HTTPS URL with your
-              provider. The receiver accepts the public Host header forwarded by
-              the proxy; its signature check authenticates the sender.
-            </p>
-            <p>
-              Use one emitter/project and signing key per receiver database.
-              <code> consumer.sqlite</code> is the durable inbox; set
-              <code> COMMERCE_INBOX_PATH</code> for your persistent storage
-              path. To embed the same Fetch-compatible handler in your server,
-              use
-              <code> createReceiver</code> from <code>webhooks.mjs</code>.
-            </p>
-            <p>
-              The inbox preserves the signed event for your existing processing
-              pipeline. Transaction and price fields are optional; a missing
-              price is unknown. Each lifecycle event is not necessarily a new
-              charge. Keep financial calculations in your business logic.
-            </p>
-          </details>
-        </section>
-
+      <div className="commerce-technical-reference">
+        <p>Use these steps when wiring a backend or checking your AI’s code.</p>
         <section>
           <AnchorLink id="install-contract" level="h2">
             1. Install the contract
@@ -278,18 +213,20 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
             backend destination using its management interface and exchange a
             webhook secret. Destination registration is provider-specific.
             Follow the{' '}
-            <Link to="/commerce-protocol/implementation#consumer">
-              backend architecture
+            <Link to="/commerce-protocol/webhooks#signature">
+              receiver steps
             </Link>{' '}
             to authenticate and persist each delivery before acknowledging it.
           </p>
           <p>
             Use events to trigger an authoritative entitlement refresh when you
             cannot safely correlate purchases, especially across multiple
-            subscriptions or product changes. A cancellation disables renewal;
-            it does not automatically remove the remaining paid access. Without
-            events, use bounded server reads at the points your application
-            needs a current answer.
+            subscriptions or product changes. Without events, use bounded server
+            reads at the points your application needs a current answer.{' '}
+            <a href={`${COMMERCE_PROTOCOL_LINKS.spec}#23-entitlement`}>
+              SPEC.md §2.3
+            </a>{' '}
+            defines when a subscription grants access.
           </p>
           <p>
             When an authenticated user deletes their account, call{' '}
@@ -310,7 +247,71 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
             .
           </p>
         </section>
-      </details>
+
+        <section>
+          <AnchorLink id="receive-events" level="h2">
+            Receive subscription changes
+          </AnchorLink>
+          <p>
+            Connect an existing backend with the ready receiver. It verifies the
+            signature, validates the event, and saves it once in SQLite. You do
+            not need to build a commerce provider or a store adapter.
+          </p>
+          <p>
+            If your service only consumes events, this section is all you need.
+            The purchase and access operations above belong to the app backend
+            and its chosen provider; your service can keep its existing backend.
+          </p>
+          <p>
+            The <a href={COMMERCE_PROTOCOL_LINKS.example}>example repository</a>{' '}
+            includes the receiver and executable checks. AI can reuse it to
+            demonstrate signed delivery, retries, tamper rejection, and
+            preserved inbox entries after reopening storage.
+          </p>
+          <details>
+            <summary>Run the receiver example locally</summary>
+            <p>
+              Clone the repository, install Bun for its runtime, then install
+              dependencies and run the demo. This fixture check requires no
+              credentials or external services.
+            </p>
+            <PackageInstall />
+            <CodeBlock language="bash">{`npm run demo:consumer`}</CodeBlock>
+            <p>
+              <a href="/commerce-example/consumer-run.json">
+                Recorded results and payloads
+              </a>
+            </p>
+          </details>
+          <details>
+            <summary>Connect the receiver to your provider</summary>
+            <p>
+              Set <code>COMMERCE_WEBHOOK_SECRET</code> to your provider’s
+              signing secret, then run <code>npm run consumer</code>. The ready
+              endpoint is
+              <code> http://127.0.0.1:5182/webhooks/commerce</code>. Put it
+              behind your HTTPS reverse proxy, forwarding the exact body bytes
+              to that local address, and register the HTTPS URL with your
+              provider. The receiver accepts the public Host header forwarded by
+              the proxy; its signature check authenticates the sender.
+            </p>
+            <p>
+              Use one emitter/project and signing key per receiver database.
+              <code> consumer.sqlite</code> is the durable inbox; set
+              <code> COMMERCE_INBOX_PATH</code> for your persistent storage
+              path. To embed the same Fetch-compatible handler in your server,
+              use
+              <code> createReceiver</code> from <code>webhooks.mjs</code>.
+            </p>
+            <p>
+              The inbox preserves the signed event for your existing processing
+              pipeline. Transaction and price fields are optional; a missing
+              price is unknown. Each lifecycle event is not necessarily a new
+              charge. Keep financial calculations in your business logic.
+            </p>
+          </details>
+        </section>
+      </div>
     </div>
   );
 }

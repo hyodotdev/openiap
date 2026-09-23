@@ -14,6 +14,8 @@ const KNOWN_COMMERCE_EVENT_TYPES =
   commerceEventSchema.properties.eventType.examples;
 
 const SPEC_URL = `${COMMERCE_PROTOCOL_LINKS.spec}#94-webhook-contract`;
+const ENTITLEMENT_SPEC_URL = `${COMMERCE_PROTOCOL_LINKS.spec}#23-entitlement`;
+const DESTINATION_SPEC_URL = `${COMMERCE_PROTOCOL_LINKS.spec}#945-destination-safety`;
 const GRAPHQL_CONTRACT_URL =
   'https://github.com/hyodotdev/openiap/tree/main/specs/commerce-protocol/schema';
 const SIGNATURE_VECTORS_URL =
@@ -135,7 +137,9 @@ function Webhooks() {
           The emitter sends <code>POST</code> to a public HTTPS URL supplied
           directly by the consumer. The content type is{' '}
           <code>application/json</code>, and the body is one Commerce Protocol
-          event document.
+          event document. The body is not compressed:{' '}
+          <code>Content-Encoding</code> is absent or <code>identity</code>,
+          because compression would make the exact signed bytes ambiguous.
         </p>
         <DataTable
           columns={HEADER_COLUMNS}
@@ -145,7 +149,9 @@ function Webhooks() {
         <p>
           Headers help route and inspect a delivery, but the signed body is the
           authority. Read <code>eventId</code> from the parsed body rather than
-          trusting the convenience header.
+          trusting the convenience header. A request carries exactly one{' '}
+          <code>openiap-timestamp</code>, written as a base-10 integer with no
+          sign.
         </p>
       </section>
 
@@ -177,6 +183,11 @@ function Webhooks() {
           <li>
             Read the raw request bytes. Re-serializing JSON changes the signed
             input.
+          </li>
+          <li>
+            Use the shared secret&apos;s exact UTF-8 bytes as the HMAC key,
+            including any prefix such as <code>whsec_</code>. Never strip the
+            prefix or hex-decode the rest.
           </li>
           <li>
             Accept only when <code>|now - timestamp| &lt;= 300</code> seconds;
@@ -223,11 +234,13 @@ function Webhooks() {
           newer state, while still processing independent idempotent effects.
         </p>
         <p>
-          A subscription's <code>active</code> value is a snapshot at
-          <code> processedAt</code>. Never grant access at or after its
-          <code> expiresAt</code>; refresh current access when needed. A
-          cancellation stops renewal and does not remove the remaining paid
-          period. See{' '}
+          A subscription's <code>active</code> value is a snapshot at{' '}
+          <code>processedAt</code>. Never grant access at or after its{' '}
+          <code>expiresAt</code>; refresh current access when needed.{' '}
+          <a href={ENTITLEMENT_SPEC_URL} target="_blank" rel="noreferrer">
+            SPEC.md §2.3
+          </a>{' '}
+          defines the entitlement rule. See also{' '}
           <Link to="/commerce-protocol/getting-started#ongoing-access">
             ongoing access
           </Link>
@@ -241,10 +254,14 @@ function Webhooks() {
         </AnchorLink>
         <p>
           Emitters accept public HTTPS destinations only. They reject embedded
-          credentials and loopback, private, link-local, or unique-local
-          addresses; validate every resolved address; and do not follow
-          redirects. They connect only to a validated public address, by pinning
-          it or verifying the connected peer before sending bytes.
+          credentials and every address that is not globally routable unicast;{' '}
+          <a href={DESTINATION_SPEC_URL} target="_blank" rel="noreferrer">
+            SPEC.md §9.4.5
+          </a>{' '}
+          lists the blocked ranges, including IPv4-mapped IPv6 spellings. They
+          validate every resolved address, do not follow redirects, and connect
+          only to a validated public address, by pinning it or verifying the
+          connected peer before sending bytes.
         </p>
       </section>
 
