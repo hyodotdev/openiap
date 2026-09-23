@@ -401,7 +401,7 @@ function Governance() {
           >
             terms of service
           </a>
-          . It is free within its{' '}
+          . It runs as a shared pool, free within its{' '}
           <a
             href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/README.md#hosted-fair-use-and-capacity-planning"
             target="_blank"
@@ -410,10 +410,10 @@ function Governance() {
             fair-use limits
           </a>
           , and its running costs are meant to be covered by sponsorship; the
-          plan is to share those costs openly as usage grows. Organizations
-          whose usage goes well beyond fair use may be asked to sponsor, or can
-          self-host it instead: the source is open (<code>packages/kit</code>,
-          MIT).
+          plan is to share those costs openly as usage grows. An organization
+          whose load strains the shared servers may be removed from the pool; to
+          keep using it, sponsorship may be required, or it can self-host the
+          server (<code>packages/kit</code>, MIT).
         </p>
       </section>
 

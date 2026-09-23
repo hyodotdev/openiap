@@ -30,10 +30,10 @@ instances you don't control.
 > IAPKit is provided **as-is** with best-effort support. There is no
 > SLA on the community instance. If you need guaranteed response times,
 > self-host from `packages/kit/` (single binary) or contact the maintainers
-> before launch. Organizations expecting to use a significant share of shared
-> capacity are asked to help fund it through
+> before launch. An organization whose load strains the shared servers may be
+> removed from the shared pool; to continue, it can sponsor through
 > [OpenCollective][openiap-opencollective] or
-> [GitHub Sponsors][openiap-github-sponsors].
+> [GitHub Sponsors][openiap-github-sponsors], or self-host.
 
 ## What's Inside
 
@@ -183,14 +183,14 @@ or the user explicitly refreshes it.
 
 If an organization expects sustained high volume or a meaningful share of the
 hosted service, [contact the maintainers][openiap-company-contact] before production
-launch. We ask organizations at that scale to help fund server capacity,
-monitoring, security, and load testing through
+launch. If its load strains the shared servers, it may be removed from the
+shared pool. To keep using the hosted service at that volume, it may be
+required to sponsor the capacity it uses through
 [OpenCollective][openiap-opencollective] or
-[GitHub Sponsors][openiap-github-sponsors]. Sponsorship supports the shared
-service; it does not reserve capacity or create an SLA. The plan is to share
-the service's costs openly as usage grows.
-Self-host this MIT-licensed server when you need predictable scaling, dedicated
-resources, or full operational control.
+[GitHub Sponsors][openiap-github-sponsors]; otherwise, it can self-host this
+MIT-licensed server, which also gives predictable scaling, dedicated resources,
+and full operational control. Sponsorship does not reserve capacity or create an
+SLA. The plan is to share the service's costs openly as usage grows.
 
 ### Health check
 
