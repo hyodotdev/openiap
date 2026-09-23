@@ -30,7 +30,8 @@ contracts; it requires meeting them with the fewest independent concepts.
 #### Clean Up Once It Works
 
 A change is not done when it first passes. Reread the diff and the code it
-touches for smells, and fix them without being asked:
+touches for smells, and fix them without being asked. A smell you run into
+while working counts too, even in code the change does not touch:
 
 - duplicated logic, parallel branches that compute one decision, and helpers
   copied between files;

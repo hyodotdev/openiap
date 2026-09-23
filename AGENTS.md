@@ -90,8 +90,9 @@ Apply that section before implementation and during every review.
 ### Clean Up Once It Works
 
 Once a change works, reread the diff for code smells — duplication, redundant
-fallbacks, `as any`, stale comments — and fix them without being asked. Never
-write `as any`. The checklist is in
+fallbacks, `as any`, stale comments — and fix them without being asked,
+including ones you run into in code the change does not touch. Never write
+`as any`. The checklist is in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#clean-up-once-it-works).
 
 ### Repository Layout
