@@ -821,6 +821,12 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 ) => {
   const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
+  // Outside the try: its catch would turn a store conflict into a warning and
+  // a prebuild with no expo-iap changes at all.
+  const pinnedStore = resolvePinnedAndroidStore({
+    isFireOsEnabled,
+    isHorizonEnabled,
+  });
 
   try {
     // Add iapkitApiKey to extra if provided
@@ -834,10 +840,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 
     const horizonAppId = resolveHorizonAppId(options);
     const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
-    const pinnedStore = resolvePinnedAndroidStore({
-      isFireOsEnabled,
-      isHorizonEnabled,
-    });
     if (pinnedStore) {
       WarningAggregator.addWarningAndroid(
         'expo-iap',

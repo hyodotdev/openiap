@@ -181,6 +181,16 @@ describe('android configuration', () => {
     ).toThrow(/both enabled/u);
   });
 
+  it('fails the prebuild on two store modules instead of skipping every mod', () => {
+    // The plugin's catch-all once turned this into a warning and returned the
+    // config with no expo-iap changes.
+    expect(() =>
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        modules: {horizon: true, amazon: {fireOS: true}},
+      }),
+    ).toThrow(/both enabled/u);
+  });
+
   it('writes the pin gradle.properties carries, and clears a stale one', () => {
     // The pin is the only file the prebuild leaves behind that selects a store,
     // so a stale key from an earlier prebuild would outrank the device.
