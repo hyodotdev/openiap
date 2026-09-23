@@ -20,7 +20,6 @@ import {ensureOnsidePodIOS} from './onsidePodfile';
  */
 export type LocalPathOption = string | {ios?: string; android?: string};
 type GradleLanguage = 'groovy' | 'kotlin';
-type AndroidStorePin = 'horizon' | 'amazon' | null;
 
 export const getAndroidLocalPathInput = (
   raw?: LocalPathOption,
@@ -260,8 +259,6 @@ const withLocalOpenIAP: ConfigPlugin<
   {
     localPath?: LocalPathOption;
     iosAlternativeBilling?: IOSAlternativeBillingConfig;
-    /** Explicit pin from modules.horizon or modules.amazon.fireOS; null lets Gradle resolve the store */
-    pinnedStore?: AndroidStorePin;
     /** Resolved from modules.onside by withIAP */
     enableOnside?: boolean;
   } | void
@@ -532,17 +529,6 @@ const withLocalOpenIAP: ConfigPlugin<
         : `    implementation project(':openiap-google')`;
     let contents = gradle.contents;
 
-    // Remove Maven deps for all openiap-google flavors
-    // to avoid duplicate classes with local module
-    const mavenPattern =
-      /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
-    if (mavenPattern.test(contents)) {
-      contents = contents.replace(mavenPattern, '\n');
-      logOnce(
-        '🧹 Removed Maven openiap-google* dependencies (using local module)',
-      );
-    }
-
     // `:app` is evaluated before the root build file, so it applies the
     // resolver itself; the resolver caches its answer and every module agrees.
     const {apply: applyLine, strategy: strategyLine} = appStoreLines(
@@ -625,47 +611,6 @@ const withLocalOpenIAP: ConfigPlugin<
     logOnce('🛠️ expo-iap: Added the local OpenIAP build-time flavor strategy');
     return config;
   });
-
-  // 3) Set store flags in gradle.properties
-  config = withDangerousMod(config, [
-    'android',
-    async (config) => {
-      const {platformProjectRoot} = config.modRequest as any;
-      const gradlePropertiesPath = path.join(
-        platformProjectRoot,
-        'gradle.properties',
-      );
-
-      let contents: string;
-      try {
-        contents = fs.readFileSync(gradlePropertiesPath, 'utf8');
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-          throw error;
-        }
-        return config;
-      }
-      const pinnedStore = props?.pinnedStore ?? null;
-
-      contents = contents.replace(
-        /^[ \t]*(?:openiapStore|openiapPlatform|horizonEnabled|fireOsEnabled)[ \t]*=.*\n?/gm,
-        '',
-      );
-      if (pinnedStore) {
-        if (!contents.endsWith('\n')) contents += '\n';
-        contents += `openiapStore=${pinnedStore}\n`;
-      }
-
-      fs.writeFileSync(gradlePropertiesPath, contents);
-      logOnce(
-        pinnedStore
-          ? `🛠️ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`
-          : 'ℹ️ expo-iap: No store pin in gradle.properties; Gradle resolves the store per build',
-      );
-
-      return config;
-    },
-  ]);
 
   return config;
 };

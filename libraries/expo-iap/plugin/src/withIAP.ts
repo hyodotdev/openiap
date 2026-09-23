@@ -226,11 +226,8 @@ const STORE_PROPERTY_KEYS = [
 
 type GradleProperty = {type: string; key?: string; value?: string};
 
-// Writes the pin for a published build; `withLocalOpenIAP` writes it again for
-// a local one. `withGradleProperties` below calls this, and the
-// tests exercise it. A pin outranks the task flavor and the connected device,
-// so a stale key from an earlier prebuild would keep selecting a store nobody
-// asked for.
+// A pin outranks the task flavor and the connected device, so a key an earlier
+// prebuild left would keep selecting a store nobody asked for.
 export function storeGradleProperties<T extends GradleProperty>(
   properties: T[],
   pinnedStore: AndroidStorePin,
@@ -896,7 +893,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       amazonAppstoreKey,
     });
 
-    // iOS: choose one path to avoid overlap
+    // One path per prebuild: the local checkout, or the published packages.
     const localPath = isLocalDev ? options?.localPath : undefined;
     if (isLocalDev && !localPath) {
       WarningAggregator.addWarningIOS(
@@ -928,7 +925,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       result = withLocalOpenIAP(result, {
         localPath: resolved,
         iosAlternativeBilling,
-        pinnedStore,
         enableOnside: includeOnside,
       });
     } else {
