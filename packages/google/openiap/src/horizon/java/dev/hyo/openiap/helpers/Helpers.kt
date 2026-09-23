@@ -72,12 +72,13 @@ internal suspend fun queryPurchasesHorizon(
                 operation.succeed(mapped)
             } else if (
                 result.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE &&
-                purchaseList != null
+                !purchaseList.isNullOrEmpty()
             ) {
                 // Meta answers a GetViewerPurchases it could not reach with the
                 // client-side durable cache, and reports SERVICE_UNAVAILABLE
                 // alongside it. The purchases are real; refusing them fails
-                // every restore on a headset with a slow link to the store.
+                // every restore on a headset with a slow link to the store. An
+                // empty cache is no answer: it never holds consumables.
                 val cached = purchaseList.map { it.toPurchase() }
                 OpenIapLog.warn(
                     "queryPurchasesHorizon: service unavailable, using ${cached.size} cached purchases",

@@ -86,6 +86,14 @@ class HorizonCachedPurchasesTest {
     }
 
     @Test
+    fun `service unavailable with an empty cache still fails`() {
+        // A Quest that owned an unconsumed 10 Bulbs got this, and read it as owning nothing.
+        assertThrows(Throwable::class.java) {
+            query(BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE, emptyList())
+        }
+    }
+
+    @Test
     fun `another error is not excused by a purchase list`() {
         assertThrows(Throwable::class.java) {
             query(

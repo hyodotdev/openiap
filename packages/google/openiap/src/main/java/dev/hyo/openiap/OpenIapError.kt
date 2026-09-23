@@ -368,7 +368,8 @@ sealed class OpenIapError : Exception() {
 
         companion object {
             val CODE = ErrorCode.ServiceDisconnected.rawValue
-            const val MESSAGE = "Play Store service is not connected"
+            // Shared by every store flavor, like FeatureNotSupported.
+            const val MESSAGE = "Store service is not connected"
         }
     }
 
