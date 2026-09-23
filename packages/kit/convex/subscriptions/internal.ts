@@ -165,7 +165,7 @@ export async function applySubscriptionEventHandler(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
 ): Promise<ApplySubscriptionEventResult> {
-  const project = await assertProjectWritable(ctx, args.projectId);
+  await assertProjectWritable(ctx, args.projectId);
   const storedEvent = await ctx.db.get(args.eventId);
   if (!storedEvent || storedEvent.projectId !== args.projectId) {
     throw new Error("Webhook event not found for project");

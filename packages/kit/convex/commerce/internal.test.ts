@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { emitCommerceEvent, destinationAcceptsType } from "./internal";
+import type { Doc, Id } from "../_generated/dataModel";
+import {
+  emitCommerceEvent,
+  destinationAcceptsType,
+  type EmitCommerceEventArgs,
+} from "./internal";
 import {
   buildEventPayload,
   claimPendingDeliveriesHandler,
@@ -106,8 +111,9 @@ class Db {
   }
 }
 
+// A Convex ctx cannot be built outside Convex, so the double is asserted once here.
 const ctxOf = (db: Db) =>
-  ({ db, scheduler: { runAfter: async () => undefined } }) as any;
+  ({ db, scheduler: { runAfter: async () => undefined } }) as never;
 
 function seedWritableProject(db: Db): void {
   if (db.rows("projects").some((row) => row._id === "projects_1")) return;
@@ -122,18 +128,19 @@ function seedWritableProject(db: Db): void {
   });
 }
 
-function sourceEvent(overrides: Record<string, unknown> = {}) {
+// Takes any webhook field, so a case can prove one stays out of the event.
+function sourceEvent(
+  overrides: Partial<Doc<"webhookEvents">> = {},
+): EmitCommerceEventArgs["sourceEvent"] {
   return {
-    _id: "webhookEvents_1",
-    _creationTime: Date.now(),
-    projectId: "projects_1",
+    _id: "webhookEvents_1" as Id<"webhookEvents">,
     platform: "IOS",
     environment: "Production",
     occurredAt: 1_700_000_000_000,
-    purchaseToken: "tok-1",
+    sourceNotificationId: "notification-1",
     productId: "com.example.premium",
     ...overrides,
-  } as any;
+  };
 }
 
 async function seedDestination(db: Db, extra: Record<string, unknown> = {}) {

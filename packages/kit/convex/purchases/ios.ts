@@ -273,9 +273,12 @@ export async function verifyJWSTransaction(
     // transient Apple-edge 5xx or DNS hiccup would otherwise bubble
     // up as a permanent verification failure. Retry-on-transient
     // matches the policy the Server API + Google Play paths use.
-    const verifiedTransaction = await retryOnTransient(() =>
-      verifier.verifyAndDecodeTransaction(jws),
-    );
+    // A StoreKit 2 device JWS carries fields the server library's type omits.
+    const verifiedTransaction: JWSTransactionDecodedPayload & {
+      gracePeriodExpiresDate?: number;
+      deviceVerification?: string;
+      deviceVerificationNonce?: string;
+    } = await retryOnTransient(() => verifier.verifyAndDecodeTransaction(jws));
 
     const transactionData = {
       transactionId: verifiedTransaction.transactionId,
@@ -295,17 +298,15 @@ export async function verifyJWSTransaction(
       subscriptionGroupIdentifier:
         verifiedTransaction.subscriptionGroupIdentifier,
       expiresDate: verifiedTransaction.expiresDate,
-      gracePeriodExpiresDate: (verifiedTransaction as any)
-        .gracePeriodExpiresDate,
+      gracePeriodExpiresDate: verifiedTransaction.gracePeriodExpiresDate,
       revocationDate: verifiedTransaction.revocationDate,
       revocationReason: verifiedTransaction.revocationReason,
-      deviceVerification: (verifiedTransaction as any).deviceVerification,
-      deviceVerificationNonce: (verifiedTransaction as any)
-        .deviceVerificationNonce,
+      deviceVerification: verifiedTransaction.deviceVerification,
+      deviceVerificationNonce: verifiedTransaction.deviceVerificationNonce,
       inAppOwnershipType: verifiedTransaction.inAppOwnershipType,
       signedDate: verifiedTransaction.signedDate,
       transactionReason: verifiedTransaction.transactionReason,
-      appTransactionId: (verifiedTransaction as any).appTransactionId,
+      appTransactionId: verifiedTransaction.appTransactionId,
     };
 
     return transactionData;
