@@ -3,7 +3,6 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { FUNDING_LINKS } from '../../../lib/sponsors';
 
 function Governance() {
   useScrollToHash();
@@ -159,16 +158,10 @@ function Governance() {
         <AnchorLink id="routine-decisions" level="h3">
           Routine Decisions
         </AnchorLink>
-        <ul>
-          <li>
-            Bug fixes, documentation improvements, minor refactors: Maintainer
-            approval + merge
-          </li>
-          <li>
-            New features within existing scope: PR review by 1+ maintainer,
-            72-hour comment period for significant changes
-          </li>
-        </ul>
+        <p>
+          The project lead merges a change once CI, the repository audits and
+          automated review pass.
+        </p>
 
         <AnchorLink id="significant-decisions" level="h3">
           Significant Decisions
@@ -202,18 +195,12 @@ function Governance() {
           </li>
         </ul>
 
-        <p>Process for significant decisions:</p>
-        <ol>
-          <li>Open a GitHub Issue or Discussion with the proposal</li>
-          <li>Allow minimum 7-day comment period</li>
-          <li>
-            Project Lead (or TSC) makes final decision, documenting rationale
-          </li>
-          <li>
-            For specification changes: affected platform maintainers must be
-            consulted
-          </li>
-        </ol>
+        <p>
+          Today the project lead decides and records the rationale in the pull
+          request. Once the TSC forms, a significant decision starts as a GitHub
+          issue or discussion with at least a 7-day comment period, and affected
+          platform maintainers are consulted on specification changes.
+        </p>
 
         <AnchorLink id="spec-change-process" level="h3">
           Specification Change Process
@@ -232,12 +219,12 @@ function Governance() {
             Swift, Kotlin, Dart, C#, and GDScript generated types
           </li>
           <li>
-            <strong>Review Period</strong>: Minimum 14-day review period for
-            platform maintainers
+            <strong>Review Period</strong>: none required today; 14 days for
+            platform maintainers once the TSC forms
           </li>
           <li>
-            <strong>Approval</strong>: Requires Project Lead approval + no
-            unresolved objections from platform maintainers
+            <strong>Approval</strong>: Project Lead approval, and no unresolved
+            objections from platform maintainers once the TSC forms
           </li>
           <li>
             <strong>Implementation</strong>: Schema change + regeneration of all
@@ -288,7 +275,9 @@ function Governance() {
           </li>
           <li>
             <strong>Major releases</strong> (breaking changes): Project Lead
-            approval + 30-day notice to community
+            approval, announced on{' '}
+            <Link to="/docs/updates/announcements">Announcements</Link> before
+            the release
           </li>
           <li>
             <strong>Specification releases</strong>: Follow the Specification
@@ -396,7 +385,7 @@ function Governance() {
           Hosted Services
         </AnchorLink>
         <p>
-          The IAPKit instance at{' '}
+          Hyo Dev operates the IAPKit instance at{' '}
           <a
             href="https://kit.openiap.dev"
             target="_blank"
@@ -404,23 +393,27 @@ function Governance() {
           >
             kit.openiap.dev
           </a>{' '}
-          is a{' '}
-          <strong>community service operated under project governance</strong>:
-          its source is open (<code>packages/kit</code>, MIT, self-hostable as a
-          single binary), its infrastructure costs are funded through the
-          project's{' '}
+          under its{' '}
           <a
-            href={FUNDING_LINKS.openCollectiveUrl}
+            href="https://kit.openiap.dev/terms-of-service"
             target="_blank"
             rel="noopener noreferrer"
           >
-            OpenCollective
-          </a>{' '}
-          with transparent expenses, and its fair-use and capacity policies are
-          documented in the package README. It is operated by project
-          maintainers on the project's behalf — not as a separate commercial
-          offering — and would transfer with the other project assets upon
-          foundation hosting.
+            terms of service
+          </a>
+          . It is free within its{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/README.md#hosted-fair-use-and-capacity-planning"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            fair-use limits
+          </a>
+          , and its running costs are meant to be covered by sponsorship; the
+          plan is to share those costs openly as usage grows. Organizations
+          whose usage goes well beyond fair use may be asked to sponsor, or can
+          self-host it instead: the source is open (<code>packages/kit</code>,
+          MIT).
         </p>
       </section>
 
@@ -449,10 +442,9 @@ function Governance() {
           Amendments
         </AnchorLink>
         <p>
-          This governance document may be amended through the Significant
-          Decisions process described above. Changes require a minimum 14-day
-          review period and explicit approval from the Project Lead (or TSC
-          majority, when formed).
+          This page changes through a reviewed pull request the Project Lead
+          approves. Once the TSC forms, an amendment gets a 14-day review period
+          and needs a TSC majority.
         </p>
       </section>
     </div>

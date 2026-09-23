@@ -111,10 +111,7 @@ function FoundingSupporters() {
               <td>
                 <strong>Direct maintainer access</strong>
               </td>
-              <td>
-                Monthly sync calls with the project lead and priority issue
-                triage
-              </td>
+              <td>Monthly sync calls with the project lead</td>
             </tr>
             <tr>
               <td>

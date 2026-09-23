@@ -98,6 +98,19 @@ export const META_SUPPORTER = requireSupporter('meta');
 
 const openCollectiveUrl = `https://opencollective.com/${sponsorRegistry.funding.openCollectiveSlug}`;
 
+export interface SponsorTier {
+  name: string;
+  usd: number;
+  includes: string;
+}
+
+/** Mirrors the tiers on GitHub Sponsors (`tiers.source`). */
+export const SPONSOR_TIERS: {
+  source: string;
+  monthly: readonly SponsorTier[];
+  oneTime: readonly SponsorTier[];
+} = sponsorRegistry.funding.tiers;
+
 export const FUNDING_LINKS = {
   ...sponsorRegistry.funding,
   companyContactUrl: `mailto:${sponsorRegistry.funding.companyContactEmail}`,

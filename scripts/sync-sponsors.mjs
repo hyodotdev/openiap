@@ -159,6 +159,26 @@ export function validateRegistry(root, registry, { staged = false } = {}) {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/u.test(funding.companyContactEmail)) {
     throw new Error("funding.companyContactEmail must be an email address");
   }
+
+  // Mirrors the tiers on GitHub Sponsors, which the docs render.
+  const tiers = funding.tiers;
+  requireUrl(tiers?.source, "funding.tiers.source");
+  for (const group of ["monthly", "oneTime"]) {
+    if (!Array.isArray(tiers[group]) || tiers[group].length === 0) {
+      throw new Error(`funding.tiers.${group} must be a non-empty array`);
+    }
+    for (const [index, tier] of tiers[group].entries()) {
+      const label = `funding.tiers.${group}[${index}]`;
+      for (const field of ["name", "includes"]) {
+        if (typeof tier[field] !== "string" || tier[field].trim() === "") {
+          throw new Error(`${label}.${field} must be a non-empty string`);
+        }
+      }
+      if (!Number.isInteger(tier.usd) || tier.usd <= 0) {
+        throw new Error(`${label}.usd must be a positive whole number`);
+      }
+    }
+  }
 }
 
 export function resolveFundingLinks(funding) {
