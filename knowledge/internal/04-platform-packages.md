@@ -342,14 +342,14 @@ purchase and keeps its own names.
 a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
 drift. Every other build system reads the same names:
 
-| Consumer                            | Input                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                        |
-| expo-iap config plugin              | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto |
-| kmp-iap                             | library flavors match an app `platform` dimension. It does **not** read `openiapStore`     |
-| maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`); `auto` means play, nothing to probe  |
-| godot-iap                           | export option `openiap/android_store` (`auto` = play; an export has no device)             |
-| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table           |
+| Consumer                            | Input                                                                                         |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                           |
+| expo-iap config plugin              | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto    |
+| kmp-iap                             | library flavors match an app `platform` dimension. It does **not** read `openiapStore`        |
+| maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`); `auto` means play, nothing to probe     |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table              |
 
 `bun audit:parity` compares all six alias tables — the resolver, the doctor, the
 Godot helper, the MAUI Gradle module, the runtime facade in `OpenIapStore.kt`

@@ -7384,7 +7384,7 @@ function checkFrameworkDependencyHygiene() {
       }
       parsedAliases[file] = new Map(entries);
     }
-    // Godot has no runtime device, so `none` is the one id it may omit.
+    // Godot has no opt-out build, so `none` is the one id it may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
     const mauiKotlinFile = "libraries/maui-iap/android/openiap/build.gradle.kts";
     // The facade maps aliases onto the three ids; the ids and the opt-out are
@@ -7418,6 +7418,22 @@ function checkFrameworkDependencyHygiene() {
             fail(`${file}: store alias ${JSON.stringify(alias)} is not in the resolver`);
           }
         }
+      }
+    }
+    // A Godot debug export probes the device too, so it reads the same features.
+    const resolverFile = "packages/google/gradle/openiap-store.gradle";
+    if (exists(resolverFile) && exists(godotFile)) {
+      const features = (file) =>
+        [...new Set(read(file).match(/feature:[a-z0-9._]+/g) ?? [])]
+          .sort()
+          .join(", ");
+      const expected = features(resolverFile);
+      if (!expected) {
+        fail(`${resolverFile}: the device feature checks could not be read`);
+      } else if (features(godotFile) !== expected) {
+        fail(
+          `${godotFile}: device features [${features(godotFile)}] differ from the resolver's [${expected}]`,
+        );
       }
     }
     // MSBuild cannot hold a table, so check every alias appears in a condition.

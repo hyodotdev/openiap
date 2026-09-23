@@ -115,10 +115,33 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 			# instead: a misspelled store must not quietly ship the Play SDK.
 			push_error("[GodotIap] %s must be one of: %s; exporting no OpenIAP dependency" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
 			return PackedStringArray()
+		if store == "auto":
+			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
+			store = resolution.store
+			print("[GodotIap] openiap: store=%s (source=%s; %s)" % [resolution.store, resolution.source, resolution.reason])
+		else:
+			print("[GodotIap] openiap: store=%s (source=explicit; %s)" % [store, ANDROID_STORE_OPTION])
 		var dependencies := PackedStringArray()
 		for dependency in _read_android_remote_dependencies():
 			dependencies.append(AndroidStore.artifact(dependency, store))
 		return dependencies
+
+	# The editor's SDK setting first, then the Gradle resolver's fallbacks.
+	func _adb_path() -> String:
+		var roots := PackedStringArray()
+		var settings := EditorInterface.get_editor_settings()
+		if settings.has_setting("export/android/android_sdk_path"):
+			roots.append(str(settings.get_setting("export/android/android_sdk_path")))
+		roots.append(OS.get_environment("ANDROID_HOME"))
+		roots.append(OS.get_environment("ANDROID_SDK_ROOT"))
+		for root in roots:
+			if root.strip_edges().is_empty():
+				continue
+			for name in ["adb", "adb.exe"]:
+				var candidate := root.path_join("platform-tools").path_join(name)
+				if FileAccess.file_exists(candidate):
+					return candidate
+		return "adb"
 
 	func _read_android_remote_dependencies() -> PackedStringArray:
 		if not FileAccess.file_exists(ANDROID_GDAP_PATH):

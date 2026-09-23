@@ -191,7 +191,8 @@ function HorizonStoreSetup() {
             <tr>
               <td>Godot</td>
               <td>
-                Export option <code>openiap/android_store</code> set to{' '}
+                Left at <code>auto</code>, a debug export follows a connected
+                Quest; for release, set <code>openiap/android_store</code> to{' '}
                 <code>horizon</code>.
               </td>
               <td>Android manifest meta-data in the export template.</td>
@@ -332,10 +333,12 @@ android {
           Godot
         </AnchorLink>
         <p>
-          Set the <code>openiap/android_store</code> export option to{' '}
-          <code>horizon</code> in the Android export preset; the plugin then
-          exports the Horizon artifact instead of the Play one. Declare the app
-          id as manifest meta-data in the Android build template.
+          Left at <code>auto</code>, the <code>openiap/android_store</code>{' '}
+          export option exports the Horizon artifact for a debug export when one
+          Quest is connected, or the one <code>ANDROID_SERIAL</code> names. A
+          release export ignores the device, so set the option to{' '}
+          <code>horizon</code> for release. Declare the app id as manifest
+          meta-data in the Android build template.
         </p>
       </section>
 

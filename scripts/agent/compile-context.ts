@@ -602,8 +602,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   React Native and Flutter resolve it from \`openiapStore=horizon\`, an
   \`assembleHorizon*\` task, or a connected Quest on a debug build, plus
   app-owned manifest metadata. KMP exposes \`horizonRelease\`. MAUI uses
-  \`OpenIapStore=horizon\`. Godot sets the \`openiap/android_store\` export
-  option.
+  \`OpenIapStore=horizon\`. Godot follows a connected Quest on a debug export,
+  or pins \`openiap/android_store=horizon\`.
   Required values: Horizon app id from Meta Horizon Developer Hub
   (Expo: \`android.horizon.appId\`; bare RN/Flutter examples commonly pass a
   Gradle property named \`horizonAppId\` into manifest meta-data), product SKUs,
@@ -617,8 +617,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   React Native / Flutter app Gradle config.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
   \`expo-iap\`, \`flutter_inapp_purchase\`, KMP \`amazonRelease\`, and MAUI
-  \`OpenIapStore=amazon\`. Godot selects it through the
-  \`openiap/android_store\` export option.
+  \`OpenIapStore=amazon\`. Godot follows a connected Fire device on a debug
+  export, or pins \`openiap/android_store=amazon\`.
   Required values: Android \`applicationId\` matching the Amazon Developer
   Console app, Amazon Appstore product ids / App Tester catalog entries, and
   the Amazon public key for Fire OS Android builds. Receipt verification and

@@ -230,8 +230,9 @@ function AmazonStoreSetup() {
             <tr>
               <td>Godot</td>
               <td>
-                Export option <code>openiap/android_store</code> set to{' '}
-                <code>amazon</code>.
+                Left at <code>auto</code>, a debug export follows a connected
+                Fire device; for release, set <code>openiap/android_store</code>{' '}
+                to <code>amazon</code>.
               </td>
               <td>No Vega runtime target.</td>
             </tr>

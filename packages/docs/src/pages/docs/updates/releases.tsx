@@ -488,7 +488,8 @@ function Releases() {
             <li>
               <strong>godot-iap 3.6.0</strong> - the{' '}
               <code>openiap/android_store</code> export option selects the Play,
-              Horizon, or Amazon artifact.
+              Horizon, or Amazon artifact; left at <code>auto</code>, a debug
+              export follows the connected device.
             </li>
             <li>
               <strong>maui-iap 2.6.0</strong> - the <code>OpenIapStore</code>{' '}
