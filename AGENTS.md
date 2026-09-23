@@ -104,11 +104,14 @@ directory, and run `bun run audit:layout` after adding or moving directories.
 
 ### Comment Style
 
-Keep comments short — default to one line. AI-authored comments over-explain by
-default, so trim before committing: no restating the code, no narrating the
-change or its history (that belongs in the commit message), no explaining
-well-known APIs. Keep only what the code cannot show: platform quirks, non-obvious
-constraints, and why an obvious alternative was rejected. Full checklist in
+Keep comments short — default to one line — and write them for a person reading
+the code cold: the point first, plain words, one idea. AI-authored comments
+over-explain by default, so trim before committing: no restating the code, no
+narrating the change or its history (that belongs in the commit message), no
+explaining well-known APIs. Keep only what the code cannot show: platform
+quirks, non-obvious constraints, and why an obvious alternative was rejected.
+Trim a verbose comment wherever you meet one, not only in your own change. Full
+checklist in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
 
 ### Reader-First Documentation

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-23T19:02:56.306Z
+> Last updated: 2026-09-23T19:12:49.971Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -680,7 +680,8 @@ while working counts too, even in code the change does not touch:
   typed fixtures and `jest.mocked`, and mark input a test passes on purpose to
   reach a runtime check with `// @ts-expect-error` and the reason.
   `as unknown as T` hides the same problem;
-- comments the code now contradicts, and dead or unreachable code.
+- comments the code now contradicts, comments longer than their point, and
+  dead or unreachable code (see "Write for a Human Reading It Cold").
 
 Rerun the checks afterwards: a cleanup that changes behavior is a bug.
 
@@ -958,6 +959,38 @@ isActive = purchaseState == PurchaseState.Purchased
 
 Section banners (`// --- Runner ---`) are fine when a file has genuinely
 distinct parts; do not add them to short files.
+
+### Write for a Human Reading It Cold
+
+A comment is read by someone who did not write the code and has one question.
+Answer it in plain words they can take in at a glance.
+
+- Lead with the point. Put the constraint or the reason first, not a setup.
+- One idea per comment, in short sentences. If it needs "because ... so ...
+  which means ...", split it or cut it.
+- Use ordinary words and name concrete things: the store, the task, the file.
+  Avoid abstract phrasing such as "a signal that disagrees stops the build"
+  when "an openiapStore pin and a Horizon task fail the build" says it.
+- Say it once. A rule explained in the file header is not re-explained at each
+  use; the use can say nothing, or point at the header.
+- Leave out how the code got here: review rounds, earlier bugs, "once", "twice",
+  "used to". That history is in git.
+
+These are the habits that make a comment read like AI prose. Remove them on
+sight, in the code you change and in the code you pass through.
+
+```groovy
+// ❌ INCORRECT — an essay: history, hedges, and three ideas in one block
+// Gradle task options that take a separate value, derived from `help --task`
+// over `tasks --all` under a Gradle 8 and a Gradle 9, because each major has
+// tasks the other does not ... Anything unlisted is treated as a flag, so a
+// flag never eats the task after it ... The cost runs the other way ...
+
+// ✅ CORRECT — what the list is, and what happens when it is incomplete
+// Task options that take a separate value, from Gradle's `help --task` output.
+// An unlisted option's value may be read as a task; the graph check then fails
+// unless the value also names a task the build runs.
+```
 
 ### Doc Comments Are Not the Docs Site
 
