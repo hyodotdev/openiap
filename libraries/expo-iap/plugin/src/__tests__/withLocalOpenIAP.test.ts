@@ -137,6 +137,33 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     ).toBe(baseProjectBuildGradle);
   });
 
+  it('removes the Groovy wiring and keeps the next line intact', () => {
+    const {apply, strategy} = appStoreLines(
+      '../x/openiap-store.gradle',
+      'groovy',
+    );
+    const app = [
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      '',
+      'dependencies {',
+      '    // React Native sets this version',
+      '    implementation("com.facebook.react:react-android")',
+      '}',
+      '',
+    ].join('\n');
+    const localApp = app
+      .replace('android {', `${apply}\n\nandroid {`)
+      .replace('defaultConfig {', `defaultConfig {\n${strategy}`)
+      .replace(
+        'dependencies {',
+        "dependencies {\n    implementation project(':openiap-google')",
+      );
+    expect(removeLocalOpenIapAppWiring(localApp)).toBe(app);
+  });
+
   it('keeps build lines the local build did not write', () => {
     const app =
       'android {\n    defaultConfig {\n        missingDimensionStrategy "env", "prod"\n    }\n}\ndependencies {\n    implementation project(":feature")\n}\n';

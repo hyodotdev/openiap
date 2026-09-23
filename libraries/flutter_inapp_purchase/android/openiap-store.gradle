@@ -81,7 +81,8 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
 }
 
 // Task options that take a separate value, from Gradle's `help --task` output.
-// An unlisted option's value may be read as a task; the graph check then fails.
+// An unlisted option's value may be read as a task; the graph check then fails
+// unless the value also names a task the build runs.
 ext.openIapValueOptions = [
   '--args', '--component', '--configuration', '--dependency',
   '--distribution-type', '--dsl', '--format',
