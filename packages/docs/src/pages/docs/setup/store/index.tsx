@@ -77,10 +77,11 @@ function StoreSetup() {
           </li>
           <li>
             <strong>Device</strong> — debug builds only (a Godot debug export, a
-            MAUI Debug build): the adb device <code>ANDROID_SERIAL</code> names,
-            or the single attached one, is a Quest or a Fire device. Release
-            builds never look at a device, and several attached devices select
-            nothing unless <code>ANDROID_SERIAL</code> picks one.
+            MAUI Debug build): the adb device <code>ANDROID_SERIAL</code> names
+            (for MAUI, the IDE&apos;s <code>AdbTarget</code> first), or the
+            single attached one, is a Quest or a Fire device. Release builds
+            never look at a device, and several attached devices select nothing
+            unless <code>ANDROID_SERIAL</code> picks one.
           </li>
           <li>
             <strong>Play</strong> otherwise.
@@ -115,16 +116,13 @@ function StoreSetup() {
           Native Android and KMP apps get the rule from the OpenIAP Gradle
           plugin, applied once in <code>settings.gradle.kts</code> with{' '}
           <code>mavenCentral()</code> in the <code>pluginManagement</code>{' '}
-          repositories. Depend on <code>openiap-google</code>; the plugin links
+          repositories. Depend on <code>openiap-google</code> with a version of
+          its own, not one only a BOM or constraint supplies; the plugin links
           the chosen store&apos;s build in its place, and a store artifact
           declared directly must name the same store or the build stops. A
-          module that declares its own <code>platform</code> flavors keeps its
-          own setup: kmp-iap matches each flavor, and openiap-google takes a
-          per-flavor dependency such as{' '}
-          <code>
-            horizonImplementation(&quot;...:openiap-google-horizon&quot;)
-          </code>
-          .
+          module that declares its own <code>platform</code> flavors keeps them:
+          kmp-iap matches each flavor, and one <code>openiap-google</code>{' '}
+          dependency links each flavor&apos;s store.
         </p>
         <CodeBlock language="kotlin">{`// settings.gradle.kts
 plugins {

@@ -348,9 +348,19 @@ android {
           which links kmp-iap&apos;s Amazon build. A MAUI Debug build follows a
           connected Fire device; pin a release with the MSBuild property. Every
           MAUI build also carries the libraries the other stores need (
-          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>).
+          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>). The
+          public key goes in the Android app&apos;s assets: a KMP app&apos;s{' '}
+          <code>src/androidMain/assets</code>, or a MAUI app&apos;s{' '}
+          <code>Platforms/Android/Assets</code>.
         </p>
         <CodeBlock language="bash">{`dotnet publish -f net10.0-android -c Release -p:OpenIapStore=amazon`}</CodeBlock>
+        <p>
+          A Godot export picks Amazon from a connected Fire device on a debug
+          export, or from <code>openiap/android_store=amazon</code>. Put{' '}
+          <code>AppstoreAuthenticationKey.pem</code> at the project root and add
+          it to the Android preset&apos;s filter for non-resource files; the
+          export packs it into the APK&apos;s assets, where the SDK reads it.
+        </p>
 
         <Callout
           kind="warning"

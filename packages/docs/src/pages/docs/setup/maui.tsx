@@ -135,7 +135,11 @@ function MauiSetup() {
 <PropertyGroup>
   <OpenIapGoogleAarDirectory>path/to/openiap/packages/google/openiap/build/outputs/aar/</OpenIapGoogleAarDirectory>
 </PropertyGroup>
-<Import Project="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets" />`}
+<Import Project="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets" />
+
+<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+  <NativeReference Include="path/to/openiap/packages/apple/.build/xcframework/OpenIAP.xcframework" Kind="Framework" SmartLink="True" ForceLoad="True" />
+</ItemGroup>`}
         </CodeBlock>
         <p>
           Building the Apple library from source requires Xcode 27; the

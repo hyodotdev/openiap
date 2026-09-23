@@ -214,11 +214,13 @@ kotlin {
             io.github.hyochan:kmp-iap
           </code>{' '}
           until the build names one. Apply the OpenIAP Gradle plugin once in{' '}
-          <code>settings.gradle.kts</code>; it reaches every Android module,
-          including an app module that sees kmp-iap only through a shared
-          module. It links Play by default, the connected Quest or Fire
-          device&apos;s store on a debug build, and the store{' '}
-          <code>openiapStore</code> pins, which is how release builds choose.
+          <code>settings.gradle.kts</code>; it reaches every Android module of
+          that build, including an app module that sees kmp-iap only through a
+          shared module. A build pulled in with <code>includeBuild</code>{' '}
+          applies it in its own settings. It links Play by default, the
+          connected Quest or Fire device&apos;s store on a debug build, and the
+          store <code>openiapStore</code> pins, which is how release builds
+          choose.
         </p>
         <CodeBlock language="kotlin">
           {`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
@@ -235,14 +237,12 @@ openiapStore=horizon`}
           <code>missingDimensionStrategy("platform", "play")</code> in the{' '}
           <code>defaultConfig</code> of application and library modules, or{' '}
           <code>
-            dependencyVariantSelection {'{'} productFlavors.put("platform",
-            listOf("play")) {'}'}
+            localDependencySelection {'{'} productFlavorDimension("platform"){' '}
+            {'{'} selectFrom.set(listOf("play")) {'}'} {'}'}
           </code>{' '}
-          inside{' '}
-          <code>
-            kotlin {'{'} androidLibrary {'{ }'} {'}'}
-          </code>
-          . A module that declares its own <code>platform</code> flavors keeps
+          inside the Kotlin Multiplatform Android library block (AGP 8.12 or
+          later; AGP 9 removed the older <code>dependencyVariantSelection</code>
+          ). A module that declares its own <code>platform</code> flavors keeps
           choosing per flavor. See{' '}
           <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
           for the full rule.
