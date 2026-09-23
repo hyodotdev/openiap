@@ -8421,6 +8421,17 @@ function checkFrameworkDependencyHygiene() {
     fail(
       "MAUI Directory.Build.props must define MauiAndroidXFragmentKtxVersion",
     );
+  } else {
+    // From 1.9.0 fragment-ktx ships no classes. An older one duplicates the
+    // classes Fragment 1.9 absorbed, which current Play Services pulls in (#483).
+    const [major, minor] = mauiAndroidXFragmentKtxVersion
+      .split(".")
+      .map(Number);
+    if (major < 1 || (major === 1 && minor < 9)) {
+      fail(
+        `MAUI Xamarin.AndroidX.Fragment.Ktx ${mauiAndroidXFragmentKtxVersion} duplicates Fragment 1.9 classes; use 1.9.0 or later`,
+      );
+    }
   }
   if (!mauiAndroidXLifecycleVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXLifecycleVersion");

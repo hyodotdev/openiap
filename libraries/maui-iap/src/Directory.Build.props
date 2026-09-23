@@ -12,8 +12,8 @@
     <MauiGoogleGsonNuGetVersion>2.14.0.1</MauiGoogleGsonNuGetVersion>
     <MauiAndroidXActivityVersion>1.13.0.1</MauiAndroidXActivityVersion>
     <MauiAndroidXCollectionVersion>1.6.0.1</MauiAndroidXCollectionVersion>
-    <MauiAndroidXFragmentVersion>1.8.9.3</MauiAndroidXFragmentVersion>
-    <MauiAndroidXFragmentKtxVersion>1.8.9.4</MauiAndroidXFragmentKtxVersion>
+    <MauiAndroidXFragmentVersion>1.9.0</MauiAndroidXFragmentVersion>
+    <MauiAndroidXFragmentKtxVersion>1.9.0</MauiAndroidXFragmentKtxVersion>
     <MauiAndroidXLifecycleVersion>2.11.0.1</MauiAndroidXLifecycleVersion>
     <MauiAndroidXSavedStateVersion>1.5.0.1</MauiAndroidXSavedStateVersion>
     <MauiKotlinStdLibVersion>2.4.0.1</MauiKotlinStdLibVersion>
