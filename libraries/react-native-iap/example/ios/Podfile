@@ -58,10 +58,9 @@ target 'example' do
     pod 'openiap', openiap_apple_version
   end
 
-  # Host-app XCTest bundle. `inherit! :search_paths` lets the tests `@testable
-  # import NitroIap` (and reach OpenIAP + Nitro modules) without duplicating
-  # pod installations. The TEST_HOST runs inside the example app, so all
-  # linked frameworks are already loaded at test time.
+  # Host-app XCTest bundle: `inherit! :search_paths` lets the tests
+  # `@testable import NitroIap` (and reach OpenIAP + Nitro) without duplicate pod
+  # installs; the TEST_HOST example app already loads those frameworks.
   target 'exampleTests' do
     inherit! :search_paths
   end

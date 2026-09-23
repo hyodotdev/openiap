@@ -75,13 +75,6 @@ import {
 } from './utils/available-purchases';
 import {getVegaIapModule, isVegaOS} from './vega';
 
-// ------------------------------
-// Billing Programs API (Android 8.2.0+)
-// ------------------------------
-
-// BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
-// are exported from './types' (generated from the OpenIAP client spec).
-
 // Export all types
 export type {
   RnIap,
@@ -144,8 +137,6 @@ export interface EventSubscription {
   remove(): void;
 }
 
-// ActiveSubscription and PurchaseError types are already exported via 'export * from ./types'
-
 // Export hooks
 export {useIAP} from './hooks/useIAP';
 export {kitApi, KitApiError} from './kit-api';
@@ -165,9 +156,6 @@ export type {
   EntitlementsResponse,
   StatusResponse,
 } from './kit-api';
-
-// Restore completed transactions (cross-platform)
-// Development utilities removed - use type bridge functions directly if needed
 
 // Create the RnIap HybridObject instance lazily to avoid early JSI crashes
 let iapRef: RnIap | null = null;
@@ -592,31 +580,6 @@ export const promotedProductListenerIOS = (
   };
 };
 
-/**
- * Add a listener for user choice billing events (Android only).
- * Fires when a user selects alternative billing in the User Choice Billing dialog.
- *
- * @param listener - Function to call when user chooses alternative billing
- * @returns EventSubscription with remove() method to unsubscribe
- * @platform Android
- *
- * @example
- * ```typescript
- * const subscription = userChoiceBillingListenerAndroid((details) => {
- *   console.log('User chose alternative billing');
- *   console.log('Products:', details.products);
- *   console.log('External transaction token received; send it to your backend without logging it.');
- *
- *   // Send token to backend for Google Play reporting
- *   void reportToGooglePlay(details.externalTransactionToken).catch((error) => {
- *     console.warn('Alternative billing report failed', error);
- *   });
- * });
- *
- * // Later, remove the listener
- * subscription.remove();
- * ```
- */
 type NitroUserChoiceBillingListener = Parameters<
   RnIap['addUserChoiceBillingListenerAndroid']
 >[0];
@@ -650,6 +613,31 @@ function tryAttachUserChoiceBillingNative(): void {
   });
 }
 
+/**
+ * Add a listener for user choice billing events (Android only).
+ * Fires when a user selects alternative billing in the User Choice Billing dialog.
+ *
+ * @param listener - Function to call when user chooses alternative billing
+ * @returns EventSubscription with remove() method to unsubscribe
+ * @platform Android
+ *
+ * @example
+ * ```typescript
+ * const subscription = userChoiceBillingListenerAndroid((details) => {
+ *   console.log('User chose alternative billing');
+ *   console.log('Products:', details.products);
+ *   console.log('External transaction token received; send it to your backend without logging it.');
+ *
+ *   // Send token to backend for Google Play reporting
+ *   void reportToGooglePlay(details.externalTransactionToken).catch((error) => {
+ *     console.warn('Alternative billing report failed', error);
+ *   });
+ * });
+ *
+ * // Later, remove the listener
+ * subscription.remove();
+ * ```
+ */
 export const userChoiceBillingListenerAndroid = (
   listener: (details: UserChoiceBillingDetails) => void,
 ): EventSubscription => {
@@ -695,32 +683,6 @@ export const userChoiceBillingListenerAndroid = (
   };
 };
 
-/**
- * Add a listener for developer provided billing events (Android 8.3.0+).
- * Fires for External Payments and Billing Choice developer billing flows.
- *
- * The payload includes selected products and nullable token, link, and original
- * transaction fields. Billing Choice fields require Billing Library 9.1.0+.
- *
- * @param listener - Function to call when user chooses developer billing
- * @returns EventSubscription with remove() method to unsubscribe
- * @platform Android
- * @since Google Play Billing Library 8.3.0+
- *
- * @example
- * ```typescript
- * const subscription = developerProvidedBillingListenerAndroid((details) => {
- *   void processExternalPayment(details.products, details.linkUri)
- *     .then(() => details.externalTransactionToken
- *       ? reportToGooglePlay(details.externalTransactionToken)
- *       : undefined)
- *     .catch((error) => console.warn('Developer billing failed', error));
- * });
- *
- * // Later, remove the listener
- * subscription.remove();
- * ```
- */
 type NitroDeveloperProvidedBillingListener = Parameters<
   RnIap['addDeveloperProvidedBillingListenerAndroid']
 >[0];
@@ -753,6 +715,32 @@ function tryAttachDeveloperProvidedBillingNative(): void {
   });
 }
 
+/**
+ * Add a listener for developer provided billing events (Android 8.3.0+).
+ * Fires for External Payments and Billing Choice developer billing flows.
+ *
+ * The payload includes selected products and nullable token, link, and original
+ * transaction fields. Billing Choice fields require Billing Library 9.1.0+.
+ *
+ * @param listener - Function to call when user chooses developer billing
+ * @returns EventSubscription with remove() method to unsubscribe
+ * @platform Android
+ * @since Google Play Billing Library 8.3.0+
+ *
+ * @example
+ * ```typescript
+ * const subscription = developerProvidedBillingListenerAndroid((details) => {
+ *   void processExternalPayment(details.products, details.linkUri)
+ *     .then(() => details.externalTransactionToken
+ *       ? reportToGooglePlay(details.externalTransactionToken)
+ *       : undefined)
+ *     .catch((error) => console.warn('Developer billing failed', error));
+ * });
+ *
+ * // Later, remove the listener
+ * subscription.remove();
+ * ```
+ */
 export const developerProvidedBillingListenerAndroid = (
   listener: (details: DeveloperProvidedBillingDetailsAndroid) => void,
 ): EventSubscription => {
@@ -778,30 +766,6 @@ export const developerProvidedBillingListenerAndroid = (
   };
 };
 
-/**
- * Listen for subscription billing-issue events (cross-platform).
- *
- * Fires when a subscription enters a billing-issue state:
- * - iOS / Mac Catalyst 16.4+ and visionOS 1.0+: via StoreKit 2 `Message.Reason.billingIssue`.
- * - Android (Play Billing 8.1+): when `isSuspendedAndroid === true` is observed.
- * - Horizon / iOS 17 / older platforms: never fires.
- *
- * Recommended UX: on fire, call `deepLinkToSubscriptions()` so the user can
- * update their payment method in the platform subscription center.
- *
- * @param listener - Function to call with the affected Purchase
- * @returns EventSubscription with remove() method to unsubscribe
- *
- * @example
- * ```typescript
- * const subscription = subscriptionBillingIssueListener((purchase) => {
- *   console.warn('Subscription needs attention:', purchase.productId);
- *   deepLinkToSubscriptions({skuAndroid: purchase.productId, packageNameAndroid: 'com.example.app'});
- * });
- *
- * subscription.remove();
- * ```
- */
 type NitroSubscriptionBillingIssueListener = Parameters<
   RnIap['addSubscriptionBillingIssueListener']
 >[0];
@@ -841,6 +805,30 @@ function tryAttachSubscriptionBillingIssueNative(): void {
   });
 }
 
+/**
+ * Listen for subscription billing-issue events (cross-platform).
+ *
+ * Fires when a subscription enters a billing-issue state:
+ * - iOS / Mac Catalyst 16.4+ and visionOS 1.0+: via StoreKit 2 `Message.Reason.billingIssue`.
+ * - Android (Play Billing 8.1+): when `isSuspendedAndroid === true` is observed.
+ * - Horizon, Amazon, macOS, tvOS, watchOS, and iOS before 16.4: never fires.
+ *
+ * Recommended UX: on fire, call `deepLinkToSubscriptions()` so the user can
+ * update their payment method in the platform subscription center.
+ *
+ * @param listener - Function to call with the affected Purchase
+ * @returns EventSubscription with remove() method to unsubscribe
+ *
+ * @example
+ * ```typescript
+ * const subscription = subscriptionBillingIssueListener((purchase) => {
+ *   console.warn('Subscription needs attention:', purchase.productId);
+ *   deepLinkToSubscriptions({skuAndroid: purchase.productId, packageNameAndroid: 'com.example.app'});
+ * });
+ *
+ * subscription.remove();
+ * ```
+ */
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ): EventSubscription => {
@@ -958,7 +946,6 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
       const subscriptionItems: ProductSubscription[] = [];
 
       converted.forEach((item) => {
-        // With discriminated unions, type field is now reliable
         if (item.type === 'in-app') {
           productItems.push(item);
           return;
@@ -1157,21 +1144,17 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
 };
 
 /**
- * iOS only - Gets the original app transaction ID if the app was purchased from the App Store
+ * Get the app transaction: StoreKit's JWS-verified record of how the app was
+ * acquired (iOS 16+). Returns null when none is available.
  * @platform iOS
- * @description
- * This function retrieves the original app transaction information if the app was purchased
- * from the App Store. Returns null if the app was not purchased (e.g., free app or TestFlight).
  *
- * @returns {Promise<string | null>} The original app transaction ID or null
+ * @returns {Promise<AppTransaction | null>} The parsed app transaction, or null
  *
  * @example
  * ```typescript
  * const appTransaction = await getAppTransactionIOS();
  * if (appTransaction) {
- *   console.log('App was purchased, transaction ID:', appTransaction);
- * } else {
- *   console.log('App was not purchased from App Store');
+ *   console.log('Original app version:', appTransaction.originalAppVersion);
  * }
  * ```
  *
@@ -2116,10 +2099,9 @@ export const consumePurchaseAndroid: MutationField<
 
 /**
  * Open the Google Play offer/promo code redemption page (Android only).
- * On Google Play builds, launches the Play Store redeem page so the user can
- * enter a code. Returns false on store flavors without an equivalent flow.
- * Does not require the billing client to be initialized. Reconcile purchases
- * when the app resumes because listener delivery depends on connection state.
+ * Returns false on store flavors without an equivalent flow. Needs no
+ * initialized billing client. Reconcile purchases when the app resumes:
+ * listener delivery depends on connection state.
  *
  * @returns Promise<boolean> - true when the redemption page was launched
  * @platform Android
@@ -2156,7 +2138,6 @@ export const openRedeemOfferCodeAndroid: MutationField<
  *
  * @example
  * ```typescript
- * // Use verifyPurchase instead:
  * const result = await verifyPurchase({
  *   apple: { sku: 'premium_monthly' },
  *   google: {
@@ -2303,10 +2284,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
 };
 
 /**
- * Verify purchase with a specific provider (e.g., IAPKit)
- *
- * This function allows you to verify purchases using external verification
- * services like IAPKit, which provide additional validation and security.
+ * Verify a purchase with an external provider such as IAPKit.
  *
  * @param options - Verification options including provider and credentials
  * @returns Promise resolving to provider-specific verification result
@@ -2597,14 +2575,9 @@ export const deepLinkToSubscriptionsIOS = async (): Promise<boolean> => {
 };
 
 /**
- * Get all active subscriptions with detailed information (OpenIAP compliant)
- * Returns an array of active subscriptions. If subscriptionIds is not provided,
- * returns all active subscriptions. Platform-specific fields are populated based
- * on the current platform.
- *
- * On iOS, this uses the native getActiveSubscriptions method which includes
- * renewalInfoIOS with details about subscription renewal status, pending
- * upgrades/downgrades, and auto-renewal preferences.
+ * Get active subscriptions, limited to `subscriptionIds` when given.
+ * On iOS each result includes renewalInfoIOS: renewal status, pending
+ * upgrades/downgrades, and auto-renewal preference.
  *
  * @param subscriptionIds - Optional array of subscription IDs to filter by
  * @returns Promise<ActiveSubscription[]> - Array of active subscriptions
@@ -2615,9 +2588,6 @@ export const getActiveSubscriptions: QueryField<
   'getActiveSubscriptions'
 > = async (subscriptionIds) => {
   try {
-    // Use native getActiveSubscriptions on both platforms
-    // iOS: includes renewalInfoIOS with subscription lifecycle info
-    // Android: uses OpenIAP which calls Google Play Billing's getActiveSubscriptions
     const activeSubscriptions = await IAP.instance.getActiveSubscriptions(
       subscriptionIds ?? undefined,
     );
@@ -2690,9 +2660,8 @@ export const getActiveSubscriptions: QueryField<
 };
 
 /**
- * Check if the user has any active subscriptions (OpenIAP compliant)
- * Returns true if the user has at least one active subscription, false otherwise.
- * If subscriptionIds is provided, only checks for those specific subscriptions.
+ * Check whether the user has an active subscription, limited to
+ * `subscriptionIds` when given.
  *
  * @param subscriptionIds - Optional array of subscription IDs to check
  * @returns Promise<boolean> - True if there are active subscriptions
@@ -2777,8 +2746,8 @@ const normalizeProductQueryType = (
 };
 
 /**
- * Enable a billing program before initConnection (Android only).
- * Must be called BEFORE initConnection() to configure the BillingClient.
+ * Enable a billing program (Android only). Must be called before
+ * initConnection() to configure the BillingClient.
  *
  * @param program - The billing program to enable (external-content-link or external-offer)
  * @platform Android
@@ -3049,10 +3018,7 @@ export const launchExternalLinkAndroid: MutationField<
 
 /**
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
- *
- * Wraps `ExternalPurchase.canPresent`, which Apple introduced in iOS 17.4.
- * Note: the notice sheet itself (`presentExternalPurchaseNoticeSheetIOS`)
- * still requires iOS 18.2+; only the eligibility check is available earlier.
+ * Wraps `ExternalPurchase.canPresent`.
  *
  * @returns Promise<boolean> - true if notice sheet can be presented
  * @platform iOS
@@ -3086,7 +3052,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
 };
 
 /**
- * Present an external purchase notice sheet to inform users about external purchases (iOS 18.2+).
+ * Present an external purchase notice sheet to inform users about external purchases (iOS 17.4+).
  * This must be called before opening an external purchase link.
  *
  * @returns Promise<ExternalPurchaseNoticeResultIOS> - Result with action and error if any
@@ -3157,7 +3123,6 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 
 /**
  * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
- * Returns true if the app can use custom external purchase links.
  *
  * @returns Promise<boolean> - true if eligible
  * @platform iOS
@@ -3231,9 +3196,8 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
 };
 
 /**
- * Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
- * Displays the system disclosure notice sheet for custom external purchase links.
- * Call this after a deliberate customer interaction before linking out to external purchases.
+ * Show the system disclosure sheet for ExternalPurchaseCustomLink (iOS 18.1+).
+ * Call it after a deliberate customer interaction, before linking out.
  *
  * @param noticeType - Notice type: 'browser' (external purchases displayed in browser)
  * @returns Promise<ExternalPurchaseCustomLinkNoticeResultIOS> - Result with continued status and error if any

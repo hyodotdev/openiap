@@ -1,35 +1,19 @@
 import type {HybridObject} from 'react-native-nitro-modules';
 
-// ╔══════════════════════════════════════════════════════════════════════════╗
-// ║                      NITRO MODULE CONSTRAINTS                            ║
-// ╠══════════════════════════════════════════════════════════════════════════╣
-// ║ Nitro Modules (react-native-nitro-modules) has specific limitations      ║
-// ║ when generating C++/Swift/Kotlin bridge code from TypeScript types:      ║
-// ║                                                                          ║
-// ║ 1. UNION TYPES REQUIRE 2+ VALUES                                         ║
-// ║    - Single-value unions like `type Foo = 'bar'` cause codegen errors    ║
-// ║    - Error: "String literal 'x' cannot be represented in C++ because     ║
-// ║      it is ambiguous between a string and a discriminating union enum"   ║
-// ║    - Solution: Add a fallback value (e.g., 'unspecified') to make 2+     ║
-// ║                                                                          ║
-// ║ 2. TYPES MUST BE DEFINED IN THIS FILE OR IMPORTED AS `type`              ║
-// ║    - Nitro codegen reads this file to generate native bridge code        ║
-// ║    - Interface types from types.ts can be imported and used directly     ║
-// ║    - Union types with 2+ values can be imported from types.ts            ║
-// ║    - Single-value unions must be redefined locally with extra values     ║
-// ║                                                                          ║
-// ║ 3. WRITE `null` FIRST IN NULLABLE UNIONS OF BOOLEANS AND ENUM ARRAYS     ║
-// ║    - Use `null | boolean`, not `boolean | null` (same for enum arrays)   ║
-// ║    - Since nitrogen 0.36 variant operands keep source order when their   ║
-// ║      "looseness" ties (boolean/enum-array tie with null), so null-last   ║
-// ║      would rename generated types (Variant_NullType_Bool →               ║
-// ║      Variant_Bool_NullType) and break hand-written Swift/Kotlin          ║
-// ╚══════════════════════════════════════════════════════════════════════════╝
+// Nitro codegen rules for this file:
+// 1. A string-literal union needs 2+ values. `type Foo = 'bar'` fails with
+//    "String literal 'x' cannot be represented in C++ because it is ambiguous
+//    between a string and a discriminating union enum"; add a fallback such as
+//    'unspecified'.
+// 2. Define types here or import them with `import type`. Interfaces and
+//    2+-value unions import from types.ts; single-value unions are redefined here.
+// 3. Write `null` first in nullable boolean and enum-array unions (`null | boolean`).
+//    nitrogen 0.36+ keeps source order when operands tie on "looseness", so
+//    null-last renames the generated type (Variant_NullType_Bool →
+//    Variant_Bool_NullType) and breaks hand-written Swift/Kotlin.
 
-// NOTE: This Nitro spec re-exports types from the generated schema (src/types.ts)
-// via type aliases to avoid duplicating structure. Nitro's codegen expects the
-// canonical `Nitro*` names defined here, so we keep the aliases rather than
-// removing the types entirely.
+// Nitro codegen needs the `Nitro*` names defined here, so they alias the
+// generated types in src/types.ts instead of copying their structure.
 import type {
   ActiveSubscription,
   AdvancedCommerceInfoIOS,
@@ -38,8 +22,7 @@ import type {
   InitConnectionConfig,
   ExternalPurchaseCustomLinkNoticeResultIOS,
   ExternalPurchaseCustomLinkTokenResultIOS,
-  // ExternalPurchaseCustomLinkTokenTypeIOS has 2 values ('acquisition' | 'services')
-  // so it can be imported directly from types.ts
+  // Two values ('acquisition' | 'services'), so it imports directly.
   ExternalPurchaseCustomLinkTokenTypeIOS,
   ExternalPurchaseLinkResultIOS,
   ExternalPurchaseNoticeResultIOS,
@@ -73,23 +56,15 @@ import type {
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                    LOCAL TYPE DEFINITIONS FOR NITRO                      ║
-// ╠══════════════════════════════════════════════════════════════════════════╣
-// ║ Types below are defined locally because:                                 ║
-// ║ - GQL-generated type has only 1 value (Nitro requires 2+), OR            ║
-// ║ - Nitro codegen needs the type defined in this file for bridge gen       ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
-// ExternalPurchaseCustomLinkNoticeTypeIOS (iOS 18.1+)
-// GQL type: 'browser' (1 value) → Nitro requires 2+ values
-// Added 'unspecified' as fallback to satisfy Nitro constraint
+// iOS 18.1+. The GQL type has only 'browser'; 'unspecified' satisfies rule 1.
 export type ExternalPurchaseCustomLinkNoticeTypeIOS = 'browser' | 'unspecified';
 
-// Platform identifier for cross-platform purchase/product data
-// Defined locally for Nitro codegen (not in GQL schema)
+// Not in the GQL schema.
 export type IapPlatform = 'ios' | 'android';
 
-// IAPKit purchase state enum for receipt verification
-// Defined locally for Nitro codegen (IAPKit-specific, not in GQL schema)
+// IAPKit receipt-verification state; not in the GQL schema.
 export type IapkitPurchaseState =
   | 'entitled'
   | 'pending-acknowledgment'
@@ -103,18 +78,15 @@ export type IapkitPurchaseState =
 
 export type IapkitClientPayloadFormat = 'toml' | 'json' | 'text';
 
-// Store identifier for purchase origin
-// Defined locally for Nitro codegen (not in GQL schema)
+// Store a purchase came from; not in the GQL schema.
 export type IapStore = 'unknown' | 'apple' | 'google' | 'horizon' | 'amazon';
 
-// Purchase verification provider selection
-// Defined locally for Nitro codegen (not in GQL schema)
+// Not in the GQL schema.
 export type PurchaseVerificationProvider = 'iapkit' | 'none';
 
-// Billing Programs API (Android)
-// GQL type exists but defined locally for Nitro codegen consistency
-// Android 8.2.0+, 8.3.0+ for external-payments, 9.1.0+ for billing-choice,
-// 7.0+ for user-choice-billing
+// Redefined here for codegen consistency, though the GQL type exists.
+// Android 8.2.0+; external-payments 8.3.0+, billing-choice 9.1.0+,
+// user-choice-billing 7.0+.
 export type BillingProgramAndroid =
   | 'unspecified'
   | 'external-content-link'
@@ -140,22 +112,19 @@ export type InAppMessageCategoryAndroid =
 export type InAppMessageResponseCodeAndroid =
   'no-action-needed' | 'subscription-status-updated';
 
-// Developer Billing Launch Mode (Android 8.3.0+)
-// Defined locally for Nitro codegen
+// Android 8.3.0+
 export type DeveloperBillingLaunchModeAndroid =
   | 'unspecified'
   | 'launch-in-external-browser-or-app'
   | 'caller-will-launch-link';
 
-// External Link Launch Mode (Android 8.2.0+)
-// Defined locally for Nitro codegen
+// Android 8.2.0+
 export type ExternalLinkLaunchModeAndroid =
   | 'unspecified'
   | 'launch-in-external-browser-or-app'
   | 'caller-will-launch-link';
 
-// External Link Type (Android 8.2.0+)
-// Defined locally for Nitro codegen
+// Android 8.2.0+
 export type ExternalLinkTypeAndroid =
   'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
 
@@ -223,9 +192,7 @@ export interface NitroRequestPurchaseIos {
    */
   compactJWS?: RequestSubscriptionIosProps['compactJWS'];
   /**
-   * JWS promotional offer (iOS 15+, WWDC 2025).
-   * New signature format using compact JWS string for promotional offers.
-   * Back-deployed to iOS 15.
+   * Promotional offer signed as a compact JWS (WWDC 2025, back-deployed to iOS 15).
    * @platform iOS
    */
   promotionalOfferJWS?: PromotionalOfferJwsInputIOS | null;
@@ -623,7 +590,7 @@ export interface NitroActiveSubscription {
   expirationDateIOS?: ActiveSubscription['expirationDateIOS'];
   environmentIOS?: ActiveSubscription['environmentIOS'];
   daysUntilExpirationIOS?: ActiveSubscription['daysUntilExpirationIOS'];
-  renewalInfoIOS?: NitroRenewalInfoIOS | null; // 🆕 Key field for upgrade/downgrade detection
+  renewalInfoIOS?: NitroRenewalInfoIOS | null; // Detects upgrades and downgrades
   // Android specific fields
   autoRenewingAndroid?: ActiveSubscription['autoRenewingAndroid'];
   basePlanIdAndroid?: ActiveSubscription['basePlanIdAndroid'];
@@ -696,11 +663,8 @@ export interface NitroProduct {
   subscriptionPeriodAndroid?: string | null;
   freeTrialPeriodAndroid?: string | null;
   /**
-   * Product-level status code indicating fetch result (Android 8.0+)
-   * OK = product fetched successfully
-   * NOT_FOUND = SKU doesn't exist
-   * NO_OFFERS_AVAILABLE = user not eligible for any offers
-   * Available in Google Play Billing Library 8.0.0+
+   * Product fetch status (Play Billing 8.0.0+): OK, NOT_FOUND (SKU doesn't
+   * exist), or NO_OFFERS_AVAILABLE (user not eligible for any offers).
    */
   productStatusAndroid?: string | null;
 }
@@ -741,11 +705,10 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   // Purchase methods (unified)
 
   /**
-   * Request a purchase (unified method for both platforms)
-   * ⚠️ Important: This is an event-based operation, not promise-based.
-   * Listen for events through purchaseUpdatedListener or purchaseErrorListener.
+   * Request a purchase (unified method for both platforms).
+   * Results arrive through purchaseUpdatedListener or purchaseErrorListener.
    * @param request - Platform-specific purchase request parameters
-   * @returns Promise<void> - Always returns void, listen for events instead
+   * @returns The dispatched purchase payload; the outcome arrives through the listeners
    */
   requestPurchase(
     request: NitroPurchaseRequest,
@@ -944,18 +907,11 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   isEligibleForIntroOfferIOS(groupID: string): Promise<boolean>;
 
   /**
-   * Get receipt data (iOS only)
+   * Get the App Store receipt (iOS only).
    *
-   * ⚠️ **IMPORTANT**: iOS receipts are cumulative and contain ALL transactions for the app,
-   * not just the most recent one. The receipt data does not change between purchases.
-   *
-   * **For individual purchase validation, use `getTransactionJwsIOS(productId)` instead.**
-   *
-   * This returns the App Store Receipt, which:
-   * - Contains all purchase history for the app
-   * - Does not update immediately after finishTransaction()
-   * - May be unavailable immediately after purchase (throws purchase-verification-failed error)
-   * - Requires parsing to extract specific transactions
+   * The receipt is cumulative: it holds every transaction for the app, does not
+   * update immediately after finishTransaction(), and must be parsed to find one
+   * transaction. To validate a single purchase, use `getTransactionJwsIOS(productId)`.
    *
    * @returns Promise<string> - Base64 encoded receipt data containing all app transactions
    * @throws {Error} purchase-verification-failed if receipt is not available (e.g., immediately after purchase)
@@ -965,12 +921,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   getReceiptDataIOS(): Promise<string>;
 
   /**
-   * Request a refreshed receipt from the App Store (iOS only)
-   *
-   * This calls syncIOS() to refresh the receipt from Apple's servers, then returns it.
-   *
-   * ⚠️ **IMPORTANT**: iOS receipts are cumulative and contain ALL transactions.
-   * For individual purchase validation, use `getTransactionJwsIOS(productId)` instead.
+   * Refresh the receipt through syncIOS(), then return it (iOS only).
+   * Like getReceiptDataIOS(), it holds every transaction for the app.
    *
    * @returns Promise<string> - Updated Base64 encoded receipt data containing all app transactions
    * @platform iOS
@@ -987,18 +939,9 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   isTransactionVerifiedIOS(sku: string): Promise<boolean>;
 
   /**
-   * Get transaction JWS (JSON Web Signature) representation for a specific product (iOS only)
-   *
-   * ✅ **RECOMMENDED** for validating individual purchases with your backend.
-   *
-   * This returns a unique, cryptographically signed token for the specific transaction,
-   * unlike `getReceiptDataIOS()` which returns ALL transactions.
-   *
-   * Benefits:
-   * - Contains ONLY the requested transaction (not all historical purchases)
-   * - Cryptographically signed by Apple (can be verified)
-   * - Available immediately after purchase
-   * - Simpler to validate on your backend
+   * Get the JWS for one product's transaction (iOS only). Recommended for backend
+   * validation: unlike getReceiptDataIOS() it holds only this transaction, is
+   * signed by Apple, and is available immediately after purchase.
    *
    * @param sku - The product SKU/ID to get the transaction JWS for
    * @returns Promise<string | null> - JWS string for the transaction, or null if not found
@@ -1025,11 +968,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   >;
 
   /**
-   * Verify purchase with a specific provider (e.g., IAPKit)
-   *
-   * This function allows you to verify purchases using external verification
-   * services like IAPKit, which provide additional validation and security.
-   *
+   * Verify a purchase with an external provider such as IAPKit.
    * @param params - Verification options including provider and credentials
    * @returns Promise<NitroVerifyPurchaseWithProviderResult> - Provider-specific verification result
    */
@@ -1100,15 +1039,11 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   ): void;
 
   /**
-   * Add a listener for subscription billing-issue events (cross-platform).
-   *
-   * Fires when a user's active subscription enters a state that needs attention
-   * (payment method failed, card expired, etc.). Unifies:
-   * - StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+)
-   * - Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+)
-   *
-   * NOT fired on Meta Horizon (Billing 7.0 compat SDK lacks the suspended signal).
-   *
+   * Add a listener for active subscriptions that need payment attention (failed
+   * payment method, expired card). Sources: StoreKit 2 `Message.Reason.billingIssue`
+   * (iOS / Mac Catalyst 16.4+, visionOS 1.0+) and Play Billing 8.1+
+   * `Purchase.isSuspended`. Never fires on Meta Horizon: its Billing 7.0 compat
+   * SDK has no suspended signal.
    * @param listener - Called with the affected Purchase
    */
   addSubscriptionBillingIssueListener(
@@ -1127,8 +1062,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   // ╚════════════════════════════════════════════════════════════════════════╝
 
   /**
-   * Enable a billing program before initConnection (Android only).
-   * Must be called BEFORE initConnection() to configure the BillingClient.
+   * Enable a billing program (Android only). Must be called before
+   * initConnection() to configure the BillingClient.
    *
    * @param program - The billing program to enable
    * @platform Android
@@ -1224,7 +1159,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   // ╚════════════════════════════════════════════════════════════════════════╝
 
   /**
-   * Check if the device can present an external purchase notice sheet (iOS 18.2+).
+   * Check if the device can present an external purchase notice sheet (iOS 17.4+).
    *
    * @returns Promise<boolean> - true if notice sheet can be presented
    * @platform iOS
@@ -1232,7 +1167,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   canPresentExternalPurchaseNoticeIOS(): Promise<boolean>;
 
   /**
-   * Present an external purchase notice sheet to inform users about external purchases (iOS 18.2+).
+   * Present an external purchase notice sheet to inform users about external purchases (iOS 17.4+).
    * This must be called before opening an external purchase link.
    *
    * @returns Promise<ExternalPurchaseNoticeResultIOS> - Result with action and error if any

@@ -84,8 +84,8 @@ jest.mock('react-native-nitro-modules', () => ({
   },
 }));
 
-// Import after mocks using require to ensure init-time mocks apply cleanly
-// (explicit require is used here to avoid dynamic import and to cooperate with jest.resetModules)
+// Require after the mocks so init-time mocks apply; require (not a dynamic
+// import) also works with jest.resetModules.
 let IAP: any = require('../index');
 
 describe('Public API (src/index.ts)', () => {
@@ -134,8 +134,7 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('platform detection helpers', () => {
-    // Note: More comprehensive platform detection tests are in platform-detection.test.ts
-    // which properly resets modules for accurate Platform detection testing
+    // platform-detection.test.ts covers the rest; it resets modules per case.
     it('isNitroReady returns true when Nitro is initialized', () => {
       expect(IAP.isNitroReady()).toBe(true);
     });

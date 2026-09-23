@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Script to run all CI checks locally before committing
-# This helps catch issues before they fail in CI
+# Runs the CI checks locally, to catch failures before committing.
 
 echo "🚀 Running CI checks locally..."
 echo "================================"

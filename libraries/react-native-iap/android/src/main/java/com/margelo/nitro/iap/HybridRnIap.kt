@@ -63,10 +63,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * Custom exception for OpenIAP errors that only includes the error JSON without stack traces.
- * This ensures clean error messages are passed to JavaScript without Java/Kotlin stack traces.
- */
+/** Carries only the OpenIAP error JSON, so JavaScript never sees a Java/Kotlin stack trace. */
 class OpenIapException(private val errorJson: String, cause: Throwable? = null) : Exception(cause) {
     override val message: String
         get() = errorJson
@@ -211,19 +208,13 @@ class HybridRnIap : HybridRnIapSpec() {
     private val purchaseUpdatedListeners = TokenizedListenerRegistry<(NitroPurchase) -> Unit>()
     private val purchaseErrorListeners = mutableListOf<(NitroPurchaseResult) -> Unit>()
 
-    // Pending purchase events buffered while ZERO bridge listeners are attached
-    // (GitHub issue #166). Mirrors expo-iap's ExpoIapHelper.emitOrQueue bounded
-    // queue (MAX_BUFFERED_EVENTS = 200, drop-oldest on overflow); expo buffers
-    // purchase errors the same way, so both channels queue here. Covers:
-    //   1. events fired during initConnection before JS listeners attach
-    //      (e.g. the already-owned recovery republish), and
-    //   2. events fired while all screens are unmounted, flushed on remount.
-    // Queued events are flushed FIFO using a listener snapshot per batch. A
-    // listener added during a flush receives later arrivals, but not backlog
-    // that predates its registration.
-    // Like expo (which clears its queue when the connection lifecycle ends),
-    // endConnection clears these queues; they survive plain unmount/remount
-    // because useIAP keeps the connection alive across screens.
+    // Purchase updates and errors queue here while no bridge listener is attached
+    // (#166), like expo-iap's ExpoIapHelper.emitOrQueue: events fired during
+    // initConnection before JS attaches (e.g. the already-owned recovery
+    // republish) or while every screen is unmounted. The next registration
+    // flushes them FIFO from a listener snapshot, so a listener added mid-flush
+    // gets only later events. endConnection clears the queues; unmount/remount
+    // keeps them, because useIAP keeps the connection open across screens.
     private val pendingPurchaseUpdates = PendingEventBuffer<NitroPurchase>(MAX_PENDING_EVENTS) {
         RnIapLog.warn("pendingPurchaseUpdates overflow; dropping oldest")
     }
@@ -239,7 +230,6 @@ class HybridRnIap : HybridRnIapSpec() {
     private var isInitialized = false
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
-    // Connection methods
     // Variant wrapper helpers shared by the generated Nitrogen bindings.
     private fun String?.wrapVariant(): Variant_NullType_String? = this?.let { Variant_NullType_String.Second(it) }
     private fun Double?.wrapVariant(): Variant_NullType_Double? = this?.let { Variant_NullType_Double.Second(it) }
@@ -259,13 +249,14 @@ class HybridRnIap : HybridRnIapSpec() {
     private fun Variant_NullType_Double?.unwrapDouble(): Double? = (this as? Variant_NullType_Double.Second)?.value
     private fun Variant_NullType_Boolean?.unwrapBool(): Boolean? = (this as? Variant_NullType_Boolean.Second)?.value
 
+    // Connection methods
     override fun initConnection(config: Variant_NullType_InitConnectionConfig?): Promise<Boolean> {
         val configValue = (config as? Variant_NullType_InitConnectionConfig.Second)?.value
         val performInit: suspend () -> Boolean = initOperation@{
             RnIapLog.payload("initConnection", configValue)
 
-            // CRITICAL: Set Activity BEFORE calling initConnection
-            // Horizon SDK needs Activity to initialize OVRPlatform with proper returnComponent
+            // Set the Activity before initConnection: Horizon's OVRPlatform init needs it
+            // for the right returnComponent.
             // https://github.com/meta-quest/Meta-Spatial-SDK-Samples/issues/82#issuecomment-3452577530
             try {
                 withContext(Dispatchers.Main) {
@@ -412,9 +403,7 @@ class HybridRnIap : HybridRnIapSpec() {
             }
 
             try {
-                // Convert Nitro config to OpenIAP config
-                // Note: enableBillingProgramAndroid is passed to OpenIapInitConnectionConfig
-                // which handles enabling the billing program internally
+                // OpenIapInitConnectionConfig enables the billing program itself.
                 val openIapConfig = configValue?.let {
                     OpenIapInitConnectionConfig(
                         enableBillingProgramAndroid = configValue.enableBillingProgramAndroid?.let { program ->
@@ -484,10 +473,8 @@ class HybridRnIap : HybridRnIapSpec() {
                 cleanup = {
                     productTypeBySku.clear()
                     isInitialized = false
-                    // Native listener sets persist; clear only bridge callbacks.
-                    // Pending event queues are cleared with them: like expo-iap
-                    // (whose buffer resets when the connection lifecycle ends),
-                    // buffered events do not survive an explicit endConnection.
+                    // Native listener sets persist; clear only bridge callbacks and
+                    // the pending event queues.
                     synchronized(purchaseUpdatedListeners) {
                         purchaseUpdatedListeners.clear()
                         pendingPurchaseUpdates.clear()
@@ -570,7 +557,6 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
     
-    // Purchase methods
     // Purchase methods (Unified)
     override fun requestPurchase(request: NitroPurchaseRequest): Promise<RequestPurchaseResult> {
         return Promise.async {
@@ -812,8 +798,8 @@ class HybridRnIap : HybridRnIapSpec() {
                         "getAvailablePurchases.native",
                         mapOf("type" to typeEnum.rawValue, "includeSuspended" to includeSuspended)
                     )
-                    // Note: getAvailableItems doesn't accept PurchaseOptions
-                    // includeSuspended only applies when fetching all types
+                    // getAvailableItems takes no PurchaseOptions, so includeSuspended
+                    // applies only when fetching all types.
                     openIap.getAvailableItems(typeEnum)
                 } else {
                     RnIapLog.payload("getAvailablePurchases.native", mapOf("type" to "all", "includeSuspended" to includeSuspended))
@@ -1144,12 +1130,7 @@ class HybridRnIap : HybridRnIapSpec() {
     
     // Helper methods
     
-    /**
-     * Send purchase update event to listeners.
-     * With zero listeners attached the event is buffered (bounded, drop-oldest)
-     * instead of dropped, and flushed FIFO when a listener registers.
-     * Events delivered to at least one listener are never queued.
-     */
+    /** Deliver a purchase update, or queue it while no listener is attached. */
     private fun sendPurchaseUpdate(purchase: NitroPurchase) {
         RnIapLog.result(
             "sendPurchaseUpdate",
@@ -1165,11 +1146,7 @@ class HybridRnIap : HybridRnIapSpec() {
         snapshot.forEach { it(purchase) }
     }
 
-    /**
-     * Send purchase error event to listeners.
-     * Mirrors sendPurchaseUpdate: buffered (bounded, drop-oldest) while zero
-     * listeners are attached, flushed FIFO when a listener registers.
-     */
+    /** Deliver a purchase error, or queue it while no listener is attached. */
     private fun sendPurchaseError(error: NitroPurchaseResult) {
         RnIapLog.result(
             "sendPurchaseError",
@@ -1505,8 +1482,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun clearTransactionIOS(): Promise<Unit> {
         return Promise.async {
-            // This is an iOS-only feature for clearing unfinished transactions
-            // On Android, we don't need to do anything
+            // iOS-only (clears unfinished transactions); nothing to do on Android.
         }
     }
 
@@ -1518,7 +1494,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    // Updated signature to follow spec: returns updated subscriptions
+    // Returns the updated subscriptions, per the spec.
     override fun showManageSubscriptionsIOS(): Promise<Array<NitroPurchase>> {
         return Promise.async {
             // Not supported on Android. Return empty list for iOS-only API.

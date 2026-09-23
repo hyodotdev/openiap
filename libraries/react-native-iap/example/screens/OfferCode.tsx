@@ -11,12 +11,7 @@ import {
 } from 'react-native';
 import {openRedeemOfferCode, useIAP} from 'react-native-iap';
 
-/**
- * Offer Code Redemption Example
- *
- * This example demonstrates how to implement offer code redemption
- * functionality for both iOS and Android platforms.
- */
+/** Offer code redemption example for iOS and Android. */
 
 const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
 
