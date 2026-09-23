@@ -36,6 +36,14 @@ def openIapUseStore = { String store ->
   }
 }
 
+// The DSL has no getter for a dimension strategy; AGP's flavor class keeps them.
+def openIapRequestedPlatform = { flavor ->
+  if (!flavor.hasProperty('missingDimensionStrategies')) {
+    return null
+  }
+  return flavor.missingDimensionStrategies['platform']?.requested
+}
+
 ['com.android.application', 'com.android.library', 'com.android.dynamic-feature', 'com.android.test'].each { id ->
   pluginManager.withPlugin(id) {
     androidComponents.finalizeDsl { android ->
@@ -47,6 +55,14 @@ def openIapUseStore = { String store ->
         return
       }
       def store = openIapResolveStore('openiap').store
+      // A platform the module already requests is a second signal, and as in
+      // the resolver one that disagrees stops the build rather than being replaced.
+      def requested = openIapRequestedPlatform(android.defaultConfig)
+      if (requested != null && requested != store) {
+        throw new GradleException(
+          "openiap: ${project.path} sets missingDimensionStrategy platform=${requested} but this build's store is ${store}; remove the strategy and let the plugin set it, or set openiapStore=${requested}"
+        )
+      }
       // kmp-iap publishes one Android variant per store in this dimension.
       android.defaultConfig.missingDimensionStrategy('platform', store)
       openIapUseStore(store)
@@ -57,8 +73,13 @@ def openIapUseStore = { String store ->
 pluginManager.withPlugin('com.android.kotlin.multiplatform.library') {
   def store = openIapResolveStore('openiap').store
   kotlin.targets.configureEach { target ->
-    if (target.hasProperty('dependencyVariantSelection')) {
+    // AGP 9 removed dependencyVariantSelection; localDependencySelection replaces it.
+    if (target.hasProperty('localDependencySelection')) {
+      target.localDependencySelection.productFlavorDimension('platform') { spec -> spec.selectFrom.set([store]) }
+    } else if (target.hasProperty('dependencyVariantSelection')) {
       target.dependencyVariantSelection.productFlavors.put('platform', [store])
+    } else if (target.platformType.name() == 'androidJvm') {
+      logger.warn("openiap: ${project.path} cannot select kmp-iap's ${store} variant on this Android Gradle Plugin; select the platform flavor yourself")
     }
   }
   openIapUseStore(store)

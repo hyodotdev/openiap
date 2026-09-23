@@ -8,6 +8,11 @@ android {
   compileSdk 36
   defaultConfig {
     minSdk 24
+    // An app that followed the old setup docs requests the platform itself.
+    def strategy = project.findProperty('fixtureStrategy')
+    if (strategy) {
+      missingDimensionStrategy 'platform', strategy
+    }
   }
 }
 
