@@ -36,19 +36,14 @@ export const PRODUCT_SYNC_REAPER_GRACE_MS = 60 * 1_000;
 export const PRODUCT_SYNC_SUCCEEDED_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
 export const PRODUCT_SYNC_FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 export const PRODUCT_SYNC_FAILURES_CAP = 200;
-// Batch size for the reaper / pruner crons. Sized to comfortably
-// fit Convex's per-mutation document budget — enough rows that one
-// tick can clear a typical backlog, but not so many that a
-// pathological deployment with thousands of stuck jobs blows past
-// the budget mid-run.
+// Reaper/pruner batch sizes: enough for one tick to clear a typical backlog,
+// small enough to stay within Convex's per-mutation document budget.
 export const PRODUCT_SYNC_REAPER_BATCH = 50;
 export const PRODUCT_SYNC_PRUNER_BATCH = 100;
 
-// Cap the failures array stored on the job row so a runaway sync
-// (every product fails for the same upstream config reason) doesn't
-// blow past Convex's per-document size budget. The dashboard sees
-// `failuresTruncated: true` and renders a notice; the operator can
-// re-run after fixing the root cause.
+// Caps stored failures so a runaway sync (every product failing for one
+// config reason) stays within Convex's document size budget. The dashboard
+// shows a notice when `failuresTruncated` is set.
 export function truncateFailures<
   T extends { productId: string; reason: string },
 >(failures: T[]): { items: T[]; truncated: boolean } {
@@ -69,15 +64,9 @@ const directionValidator = v.union(
   v.literal("purge-local"),
 );
 
-// Auth gate: presence of a valid secret `apiKey` is sufficient (matches the
-// existing pattern in `products/mutation.ts upsertProduct` and the
-// HTTP routes in `server/api/v1/products.ts`). The dashboard call
-// path is also authenticated via Convex Auth — when a logged-in
-// user makes the call we record their `userId` on `createdBy` for
-// audit trail, but a missing user (server-to-server HTTP path)
-// must NOT block the call. Earlier versions required
-// `getAuthUserId` and broke the documented HTTP API entirely
-// (Copilot review on PR #127).
+// A valid secret `apiKey` is enough, as in `upsertProduct` and the
+// `server/api/v1/products.ts` routes. A signed-in user is recorded on
+// `createdBy`; server-to-server calls have none and must not be blocked.
 async function resolveProjectByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
@@ -93,10 +82,8 @@ async function resolveProjectByApiKey(
   } catch {
     userId = null;
   }
-  // Best-effort membership confirmation when a user IS present
-  // — refuse to honor a logged-in user calling another org's
-  // apiKey. Without a logged-in user we trust the secret apiKey as the
-  // sole credential (server-side caller, MCP tool, SDK).
+  // A signed-in user must belong to the key's organization. Without one, the
+  // secret apiKey is the only credential (server, MCP tool, SDK).
   if (userId) {
     const membership = await ctx.db
       .query("organizationMembers")
@@ -155,11 +142,8 @@ async function resolveProjectForMutationArgs(
   throw createError(ErrorCode.INVALID_INPUT, "apiKey or projectId is required");
 }
 
-// Authenticate `(apiKey, jobId)` together: resolve the project from
-// the apiKey, then verify the job belongs to that project. This
-// ensures the apiKey acts as a per-project capability — a stolen
-// jobId from one project can't be cancelled / read by another
-// project's apiKey.
+// The job must belong to the apiKey's project, so another project's key
+// cannot read or cancel it.
 async function resolveJobByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
@@ -208,11 +192,6 @@ export const getActiveSyncJob = query({
   },
   handler: async (ctx, args) => {
     const project = await resolveProjectForReadArgs(ctx, args);
-    // Composite index `by_project_platform_created` narrows the
-    // index range to just this (project, platform) — replaces the
-    // earlier `by_project_and_created` + in-memory `.filter()`
-    // which scanned every job for the project before discarding
-    // the wrong-platform rows (Gemini review).
     return await ctx.db
       .query("productSyncJobs")
       .withIndex("by_project_platform_created", (q) =>
@@ -251,18 +230,9 @@ export const enqueueProductSync = mutation({
   }),
   handler: async (ctx, args) => {
     const { project, userId } = await resolveProjectForMutationArgs(ctx, args);
-    // Atomic dedup via the project's `activeSyncJobIds` lock field.
-    // Reading and writing the project doc lets Convex's OCC collapse
-    // two concurrent enqueue mutations onto the same job: both read
-    // the project, both try to patch, only one commit wins; the
-    // loser retries, sees the lock, and returns the deduped jobId
-    // (Copilot review on PR #127).
-    //
-    // Index-only dedup (the prior implementation) wasn't atomic
-    // because the two queries returned `null` for both concurrent
-    // callers, then both inserted separate `productSyncJobs` rows
-    // and scheduled separate workers — fanning out conflicting
-    // upstream writes.
+    // Dedup through the project's `activeSyncJobIds` lock: concurrent
+    // enqueues all read and patch the project doc, so OCC retries the losers,
+    // which then see the lock. An index lookup alone would let both insert.
     const lockedJobId = project.activeSyncJobIds?.[args.platform];
     if (lockedJobId) {
       const lockedJob = await ctx.db.get(lockedJobId);
@@ -272,10 +242,8 @@ export const enqueueProductSync = mutation({
       ) {
         return { jobId: lockedJob._id, deduped: true };
       }
-      // Lock points at a stale (terminal) row — fall through to
-      // claim a fresh slot. The worker should have cleared it; this
-      // path covers a crashed worker or a job marked failed via the
-      // reaper.
+      // The lock points at a finished job, e.g. after a worker crash or a
+      // reaper timeout; claim a fresh slot.
     }
     const now = Date.now();
     const jobId = await ctx.db.insert("productSyncJobs", {
@@ -295,9 +263,8 @@ export const enqueueProductSync = mutation({
       },
     });
     if (args.direction === "purge-local") {
-      // Purge runs in this module's V8-isolate runtime — no Apple
-      // credentials, no Play OAuth, no `"use node"` cost. Just a
-      // bounded delete loop against `products`.
+      // Purge only deletes local rows, so it runs here in the V8 runtime
+      // with no store credentials and no "use node" cost.
       await ctx.scheduler.runAfter(
         0,
         internal.products.jobs.runProductSyncPurgeLocal,
@@ -318,13 +285,9 @@ export const enqueueProductSync = mutation({
   },
 });
 
-// Worker for `direction: "purge-local"`. Empties kit's local
-// `products` rows for the (project, platform) in page-bounded
-// batches; never touches App Store Connect or Play Console. The
-// next regular sync re-pulls from the upstream store, so this is
-// the recovery hatch when kit's cache drifts (manual store edits,
-// failed partial pushes, stale prices). Cancel checks run between
-// pages so the next bounded delete batch does not start.
+// Deletes kit's local products for the (project, platform) in pages without
+// touching either store; the next sync pulls them back. The recovery path
+// when kit's cache drifts. Cancellation is checked between pages.
 export const runProductSyncPurgeLocal = internalAction({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args): Promise<void> => {
@@ -339,11 +302,7 @@ export const runProductSyncPurgeLocal = internalAction({
     try {
       const PAGE = 100;
       let total = 0;
-      // 200-page guard caps a runaway loop at 20k rows — far past
-      // any real project's catalog. The bounded `take(limit + 1)`
-      // inside `deletePlatformCatalog` decides `hasMore` from the
-      // overflow row, so we exit cleanly the moment the page returns
-      // short.
+      // 200 pages caps a runaway loop at 20k rows, far past any real catalog.
       for (let page = 0; page < 200; page += 1) {
         const cancelled = await ctx.runQuery(
           internal.products.jobs.isCancelRequested,
@@ -407,13 +366,9 @@ export const cancelProductSync = mutation({
   },
 });
 
-// Soft-dismiss a finished job from the dashboard. Doesn't delete
-// the row (the pruner handles retention) — sets
-// `progress.phase = "dismissed"` so the dashboard's result-banner
-// gate (`progress.phase === "dismissed"`, see products.tsx
-// `<ProductGroup>` renderer) and the toast effect both hide the
-// row. We avoid `cancelRequested` here so the worker's cancel
-// semantics stay distinct from operator dismiss.
+// Hides a finished job's dashboard banner and toast via the "dismissed"
+// phase; the pruner still owns deletion. Leaves `cancelRequested` alone,
+// which means something else to the worker.
 export const dismissCompletedJob = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -563,10 +518,7 @@ export const markJobSucceeded = internalMutation({
           : {}),
       },
     });
-    // Clear the project's lock so the next enqueue can claim the
-    // slot. Guard against a stale lock pointing at a different job
-    // (e.g. a manual db.patch races with a finished worker) so we
-    // never overwrite a fresh lock with `undefined`.
+    // Release the project's lock only if it still points at this job.
     const project = await getWritableProject(ctx, job.projectId);
     if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
       await ctx.db.patch(project._id, {
@@ -600,11 +552,7 @@ export const markJobFailed = internalMutation({
       error: args.error,
       progress: {
         phase: "failed",
-        // Match `markJobSucceeded`'s "true count" semantics —
-        // `progress.failuresCount` is the raw upstream count, not
-        // the truncated slice's length, so analytics readers see
-        // the same number on both terminal states (CodeRabbit
-        // review on PR #127).
+        // The untruncated count, as in `markJobSucceeded`.
         failuresCount: rawFailures.length,
       },
       result: {
@@ -614,8 +562,7 @@ export const markJobFailed = internalMutation({
         ...(truncated ? { failuresTruncated: true } : {}),
       },
     });
-    // Mirror `markJobSucceeded` — clear the lock on terminal
-    // failure so the next enqueue isn't blocked by a stuck slot.
+    // Release the lock, as in `markJobSucceeded`.
     const project = await getWritableProject(ctx, job.projectId);
     if (project?.activeSyncJobIds?.[job.platform] === args.jobId) {
       await ctx.db.patch(project._id, {
@@ -628,9 +575,8 @@ export const markJobFailed = internalMutation({
   },
 });
 
-// Cron: flip `running` rows whose `expectedDeadline + grace` has
-// passed to `failed("worker timed out")`. Without this, a crashed
-// action permanently pins the project's "active job" slot.
+// Cron: fail `running` jobs past `expectedDeadline + grace`. Otherwise a
+// crashed action holds the project's active-job slot forever.
 export const reapStaleProductSyncJobs = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -648,8 +594,7 @@ export const reapStaleProductSyncJobs = internalMutation({
         error: "Worker timed out — sync exceeded the 9-minute ceiling",
         progress: { phase: "reaped" },
       });
-      // Clear the project's lock so the next enqueue isn't pinned
-      // by the dead worker.
+      // Release the dead worker's lock.
       const project = await ctx.db.get(job.projectId);
       if (project && project.activeSyncJobIds?.[job.platform] === job._id) {
         await ctx.db.patch(project._id, {

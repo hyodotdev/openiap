@@ -1120,9 +1120,8 @@ describe("ASC version and submission workflow", () => {
         ],
       }),
     ).resolves.toBe("en-US");
-    // Description alone, title untouched. A comparison that only looked
-    // at `name` would call this a match and mark the product pushed with
-    // the old description still live on the locked version.
+    // Only the description changed. A name-only comparison would mark the
+    // product pushed with the old description still live.
     await expect(
       ascReviewLocalizationMismatch({
         request,
@@ -1135,9 +1134,8 @@ describe("ASC version and submission workflow", () => {
     ).resolves.toBe("en-US");
   });
 
-  // A Draft whose only change is a translation used to compare equal to
-  // the locked version, so it was marked pushed without the translation
-  // ever reaching ASC.
+  // A translation-only change must not compare equal to the locked version,
+  // or the product is marked pushed without the translation reaching ASC.
   it("reports a locale the locked version is missing", async () => {
     const request = (async () => ({
       data: [

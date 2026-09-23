@@ -1,17 +1,11 @@
 "use node";
-// Minimal ES256 JWT minter for App Store Connect API authentication.
-// ASC requires every request to carry a JWT in `Authorization: Bearer`
-// signed with the project's downloaded `.p8` key. Team keys include an
-// issuer id; individual keys omit it and identify the user subject.
+// Minimal ES256 JWT minter for App Store Connect API requests, signed with
+// the project's .p8 key. Team keys set an issuer id; individual keys use a
+// user subject instead.
 //
-// We do NOT reach for `jose` / `jsonwebtoken` here — both pull
-// substantial node-only dependency trees into the Convex action
-// bundle, and ASC's JWT shape is tiny (3 fields + ES256 over the
-// canonical SHA-256 of the header.payload bytes). node:crypto on Bun
-// already supports raw ECDSA over P-256.
-//
-// Pure helpers only; no Convex imports so this is unit-testable in
-// vitest without an action runtime.
+// Hand-rolled because `jose` and `jsonwebtoken` pull large node-only trees
+// into the action bundle, and node:crypto already does ECDSA over P-256.
+// No Convex imports, so vitest can test it without an action runtime.
 
 import { createPrivateKey, createSign } from "node:crypto";
 
@@ -82,26 +76,17 @@ function base64UrlEncode(buf: Buffer | Uint8Array): string {
     .replace(/\//g, "_");
 }
 
-// DER-encoded ECDSA signature is `SEQUENCE { INTEGER r, INTEGER s }`.
-// JWS expects fixed-length r||s (each `coordSize` bytes). Strip the
-// leading 0x00 padding nodes adds for unsigned-positive encoding, then
-// left-pad each integer back out to coordSize.
-//
-// Bounds checks on every read: `node:crypto` always emits well-formed
-// DER, but a future caller passing an arbitrary buffer (e.g. user-
-// supplied signature blob from a webhook) without validation could
-// otherwise trigger out-of-range subarrays / silent NaN-style reads.
-// Each guard throws with a consistent shape so the caller can wrap a
-// single try/catch instead of branching on byte-level corruption.
+// Converts DER `SEQUENCE { INTEGER r, INTEGER s }` to the fixed-length r||s
+// JWS form: strip DER's 0x00 sign padding, then left-pad each to `coordSize`.
+// Every read is bounds-checked and throws, so an arbitrary buffer from a
+// future caller cannot cause out-of-range reads.
 export function derSignatureToJoseSignature(
   der: Buffer | Uint8Array,
   coordSize: number,
 ): Buffer {
   const buf = Buffer.from(der);
-  // Minimum legal DER ECDSA signature is SEQUENCE + len + INTEGER + len
-  // + 1-byte r + INTEGER + len + 1-byte s = 8 bytes. Anything shorter
-  // can't possibly be valid; bailing here also makes the indexing
-  // below safe to do.
+  // Shortest valid DER: SEQUENCE, len, INTEGER, len, r, INTEGER, len, s = 8
+  // bytes. Checking it first also keeps the indexing below in range.
   if (buf.length < 8) {
     throw new Error(
       `Invalid DER signature: buffer too short (${buf.length} bytes, need >= 8)`,

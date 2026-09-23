@@ -27,22 +27,12 @@ type IngestResult = {
   deduped: boolean;
 };
 
-// HTTP receiver invoked from `server/api/v1/webhooks.ts`. The Hono
-// route forwards Apple's POST body (a JSON envelope `{ signedPayload }`)
-// and the project's API key.
+// Called from server/api/v1/webhooks.ts with the signedPayload from Apple's
+// POST body and the project's API key. Apple retries a notificationUUID on
+// transient 5xx; recordWebhookEvent dedups it and the route still returns 200.
 //
-// The action verifies the signedPayload with `SignedDataVerifier`,
-// decodes the embedded transaction + renewal JWS, normalizes everything
-// through `normalizeAppleAsn`, then calls the idempotent insert mutation.
-// Apple retries the same notificationUUID on transient 5xx — that case
-// is collapsed inside `recordWebhookEvent` (returns `deduped: true`)
-// and the route still responds 200 so Apple stops retrying.
-//
-// Naming: follows the openiap iOS suffix convention
-// (`knowledge/internal/01-naming-conventions.md`) — iOS-specific
-// functions end in `IOS`. Even though "Apple" already implies iOS,
-// the convention is mechanical and applies to every iOS-only entry
-// point.
+// The IOS suffix follows knowledge/internal/01-naming-conventions.md even
+// though "Apple" already implies iOS.
 export const ingestAppleAsnIOS = action({
   args: {
     apiKey: v.string(),
@@ -56,12 +46,8 @@ export const ingestAppleAsnIOS = action({
   handler: async (ctx, args): Promise<IngestResult> => {
     const project = await getProjectByApiKey(ctx, args.apiKey);
 
-    // Setup-status gate. Previously the HTTP layer ran a separate
-    // `getSetupStatus` query before invoking this action — that meant
-    // every Apple ASN webhook hit Convex twice. Inlining the check
-    // here cuts the round-trip; the `mapWebhookError` translator
-    // recognizes "IOS_NOT_CONFIGURED" and returns 412 with the same
-    // structured error body the prior pre-check produced.
+    // Checked here, not in the route, to save a Convex round-trip.
+    // mapWebhookError maps IOS_NOT_CONFIGURED to 412.
     const iosMissing: string[] = [];
     if (!project.iosBundleId) iosMissing.push("iosBundleId");
     if (!project.iosAppAppleId) iosMissing.push("iosAppAppleId");
@@ -84,10 +70,8 @@ export const ingestAppleAsnIOS = action({
       previewPayload.data?.bundleId &&
       previewPayload.data.bundleId !== project.iosBundleId
     ) {
-      // ConvexError so the Hono layer's `mapWebhookError` translates
-      // this to a 400, not a 500. A bundle mismatch is a permanent
-      // configuration error — Apple should NOT retry, and 5xx
-      // triggers automatic retries from ASN that we don't want.
+      // Permanent config error: mapWebhookError returns 400, since a 5xx
+      // would make ASN retry.
       throw new ConvexError({
         code: "BUNDLE_ID_MISMATCH",
         message: `Bundle ID mismatch: notification ${previewPayload.data.bundleId} vs project ${project.iosBundleId}`,
@@ -98,10 +82,9 @@ export const ingestAppleAsnIOS = action({
     const appleRootCAs = loadAppleRootCertificates();
     const verifier = new SignedDataVerifier(
       appleRootCAs,
-      // `enableOnlineChecks: false` keeps webhook latency predictable —
-      // ASN v2 retries on 5xx, but the same OCSP/CRL hiccup that breaks
-      // a verifyAndDecodeNotification call would be a permanent
-      // failure here. We still validate the certificate chain offline.
+      // Online checks off: latency stays predictable, and an OCSP/CRL hiccup
+      // would otherwise fail verification permanently instead of retrying.
+      // The certificate chain is still validated offline.
       false,
       environment,
       project.iosBundleId ?? "",
@@ -116,20 +99,16 @@ export const ingestAppleAsnIOS = action({
         "[webhooks/apple] notification verification failed",
         error instanceof Error ? error.name : typeof error,
       );
-      // ConvexError so the Hono `mapWebhookError` translates to 400 —
-      // signature failure is a permanent error and a 5xx would trigger
-      // ASN's automatic retry loop forever. Apple's "do not retry on
-      // permanent failure" guidance maps cleanly to 4xx status codes.
+      // Permanent failure: mapWebhookError returns 400, per Apple's "do not
+      // retry on permanent failure" guidance; a 5xx would be retried forever.
       throw new ConvexError({
         code: "INVALID_SIGNATURE",
         message: "Apple ASN v2 signature verification failed",
       });
     }
 
-    // Decode transaction + renewal JWS if present. Apple sends them
-    // signed individually inside the outer payload; verifying them is
-    // optional for ingestion since the outer signature already attests
-    // to their integrity. We still parse to extract structured fields.
+    // The inner transaction and renewal JWS are signed too, but the verified
+    // outer payload already covers them, so they are only decoded.
     const transaction = decodeOptionalJws<JWSTransactionDecodedPayload>(
       payload.data?.signedTransactionInfo,
     );
@@ -146,12 +125,9 @@ export const ingestAppleAsnIOS = action({
       });
     } catch (error) {
       if (error instanceof WebhookNormalizationError) {
-        // Selective handling: only `UnknownEventType` is "Apple ships
-        // new types ahead of IAPKit's internal mapping" — those we ACK as 200 so
-        // ASN v2 stops retrying. `MissingNotificationId` and
-        // `MissingPurchaseToken` mean the payload itself is malformed
-        // — those must surface as 400 so the operator notices, and
-        // ACK-ing them silently would lose data.
+        // UnknownEventType means Apple shipped a type IAPKit doesn't map yet:
+        // ACK it (200) so ASN stops retrying. The other codes mean a malformed
+        // payload and return 400 so the operator notices; an ACK would lose it.
         if (error.code === "UnknownEventType") {
           console.warn(
             "[webhooks/apple] dropping unsupported notification",
@@ -203,17 +179,14 @@ export const ingestAppleAsnIOS = action({
       },
     );
 
-    // Always run applySubscriptionEvent — the mutation atomically records
-    // `webhookEvents.appliedAt`, so every later replay is a no-op even after a
-    // newer event replaces subscriptions.lastEventId. Skipping on dedup looked
-    // tidy in telemetry but left the subscription stranded if the previous
-    // attempt recorded the event then crashed before patching the
-    // subscription row, since every Apple retry would dedup before
-    // ever reaching the state mutation.
+    // Apply even when deduped: an earlier attempt may have recorded the event
+    // and crashed before updating the subscription. The mutation records
+    // webhookEvents.appliedAt atomically, so a replay is a no-op even after a
+    // newer event replaced subscriptions.lastEventId.
     //
-    // TestNotification has no purchaseToken. Every purchase-bearing event goes
-    // through the single apply handler; it marks one-time rows applied without
-    // creating subscription state or commerce events.
+    // TestNotification has no purchaseToken. One-time purchases use the same
+    // handler, which marks them applied without creating subscription state or
+    // commerce events.
     if (normalized.purchaseToken) {
       await ctx.runMutation(
         internal.subscriptions.internal.applySubscriptionEvent,
@@ -232,14 +205,9 @@ export const ingestAppleAsnIOS = action({
   },
 });
 
-// Decode JWS payload without signature verification. Used pre-verifier
-// to discover the environment so we can instantiate SignedDataVerifier
-// with the correct value.
-//
-// Both failure modes (wrong shape, malformed body) are permanent input
-// errors — Apple should NOT retry them, so we throw structured
-// ConvexErrors that `mapWebhookError` will translate to 400 instead of
-// the generic 500 a plain `Error` would produce.
+// Decodes without verifying, to learn the environment SignedDataVerifier
+// needs. Both failures are permanent input errors, thrown as ConvexErrors so
+// mapWebhookError returns 400 instead of a 500 that Apple would retry.
 function previewDecodeNotification(jws: string): {
   data?: { environment?: string; bundleId?: string };
 } {
@@ -264,11 +232,9 @@ function previewDecodeNotification(jws: string): {
 }
 
 /**
- * The environment reaches us inside the unverified payload, so it must never
- * select a value that turns verification off. SignedDataVerifier returns the
- * decoded JWT unverified under XCODE and LOCAL_TESTING, which would let anyone
- * holding the publishable key POST an unsigned notification. Only the two
- * environments Apple actually signs are reachable here.
+ * Maps only to environments Apple signs. The value comes unverified, and
+ * SignedDataVerifier skips verification under XCODE and LOCAL_TESTING, which
+ * would let anyone with the publishable key POST an unsigned notification.
  */
 export function mapPreviewEnvironment(value: string | undefined): Environment {
   return value === "Sandbox" ? Environment.SANDBOX : Environment.PRODUCTION;

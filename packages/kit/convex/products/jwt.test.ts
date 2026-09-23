@@ -114,12 +114,9 @@ describe("derSignatureToJoseSignature", () => {
 });
 
 function bigIntFrom(buf: Buffer): Buffer {
-  // Strip excess leading zeros so the integer is canonical, then add a
-  // 0x00 prefix back if the high bit of the leading nonzero byte is
-  // set (DER says positive integers can't start with 0x80+). The prior
-  // version stripped leading zeros AFTER checking the high bit and
-  // missed the `00 80 ...` case — that pattern occurs ~1/65536 times
-  // per coord, which made the ECDSA round-trip test flake on CI.
+  // Strip leading zeros first, then re-add 0x00 if the high bit is set: DER
+  // positive integers cannot start with 0x80+. Checking the high bit before
+  // stripping misses `00 80 ...` (~1 in 65536 per coord) and flakes the test.
   let i = 0;
   while (i < buf.length - 1 && buf[i] === 0) i += 1;
   const stripped = buf.subarray(i);

@@ -4,44 +4,26 @@ import * as crypto from "node:crypto";
 
 import { parsePositiveNumber } from "../../utils/env";
 
-// Per-(apiKey, payload) replay-burst guard. Sits downstream of the
-// per-key burst limiter in `rate-limit.ts` — that layer blocks
-// "any hammer on this key", this layer blocks the narrower pattern
-// "same receipt submitted over and over". A real client legitimately
-// re-verifies the same receipt (app launch, subscription renewal
-// check, retry after transient 5xx), but sustained same-payload
-// traffic is almost always either a buggy retry loop or someone
-// replaying one captured receipt to burn our upstream quota.
+// Per-(apiKey, payload) replay guard, behind the per-key limiter in
+// `rate-limit.ts`. Clients re-verify a receipt now and then (launch, renewal
+// check, retry after a 5xx); sustained same-payload traffic is a retry loop
+// or a captured receipt replayed to burn upstream quota.
 //
-// The bucket is tuned so normal retry patterns don't trip it:
-//   - Capacity 30: a debug loop or app-restart storm can hit the
-//     same receipt up to 30 times before we care.
-//   - Refill 1 / 60s: sustained rate past the burst is capped at
-//     ~1/min for a given (key, payload) pair — below anything real
-//     subscription polling would do.
-// Tune via REPLAY_GUARD_CAPACITY / REPLAY_GUARD_REFILL_PER_SEC if
-// the logs show a legitimate pattern getting blocked.
+// Defaults allow a burst of 30, then ~1 per minute per (key, payload), below
+// any real subscription polling. Tune REPLAY_GUARD_CAPACITY and
+// REPLAY_GUARD_REFILL_PER_SEC if logs show legitimate traffic blocked.
 //
-// Cross-machine note: same caveat as rate-limit.ts — the bucket is
-// per-machine. Fly's min_machines_running=1 makes it effectively
-// global today; if the fleet scales out, a determined attacker could
-// fan their replay across machines. That's acceptable: the monthly
-// cap in Convex is the final backstop, and this layer's job is to
-// cheaply drop the common case, not to be bypass-proof.
+// Buckets are per machine, effectively global while Fly runs one machine.
+// Replay fanned across machines is acceptable: the Convex monthly cap is the
+// backstop, and this layer only needs to drop the common case cheaply.
 
 export interface ReplayBucket {
   tokens: number;
   lastRefillMs: number;
-  // Set when the most recent verify call for this (key, payload)
-  // returned a stable rejection. Subsequent
-  // requests for the exact same payload are short-circuited with
-  // `REPEATED_FAILURE` until the cooldown expires — re-asking
-  // Apple / Google / Amazon about a receipt they already rejected,
-  // or retrying the same failed product-match guard, has
-  // no chance of changing the answer in seconds. An attacker
-  // replaying a captured-then-revoked receipt should hit a hard wall
-  // instead of being able to rotate timing under the per-request
-  // burst cap to keep burning upstream API quota.
+  // Set when the last verify of this (key, payload) was a stable rejection,
+  // including a failed product-match guard. Until the cooldown ends the same
+  // payload gets `REPEATED_FAILURE` without asking the store again, so a
+  // replayed revoked receipt can't burn quota by pacing under the burst cap.
   lastFailureMs?: number;
 }
 
@@ -49,9 +31,7 @@ export interface ReplayGuardConfig {
   capacity: number;
   refillPerSecond: number;
   maxStoreSize: number;
-  /** Cooldown after a failed verification of the same payload. Defaults
-   * are tuned for the common case where the store provider's verdict for
-   * a given receipt is stable for far longer than this window. */
+  /** Cooldown after a stable rejection of the same payload. */
   failureCooldownMs: number;
   now?: () => number;
   store?: Map<string, ReplayBucket>;
@@ -70,12 +50,9 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
-// These states are settled store verdicts. Everything else remains
-// retryable unless the verifier supplies explicit stable provenance.
-// This matters for UNKNOWN: Google uses it both for a successfully
-// fetched future/unrecognized state and for the explicit 410 revoked-token
-// response. Only a verdict with stable provenance should arm the five-minute
-// cooldown.
+// Settled store verdicts. Anything else stays retryable unless the verifier
+// marks it stable: Google's UNKNOWN covers both an unrecognized state and the
+// explicit 410 revoked-token response, and only the latter is settled.
 const STABLE_REJECTION_STATES = new Set([
   "INAUTHENTIC",
   "CANCELED",
@@ -84,11 +61,8 @@ const STABLE_REJECTION_STATES = new Set([
 ]);
 
 /**
- * Whether a rejected verification should arm the negative cooldown.
- *
- * The guard exists to stop someone replaying a receipt the store has
- * definitively rejected (INAUTHENTIC, CANCELED, EXPIRED). Those verdicts
- * don't change in seconds. Non-terminal ones do.
+ * Whether a rejected verification arms the failure cooldown. Settled verdicts
+ * (INAUTHENTIC, CANCELED, EXPIRED) don't change in seconds; others can.
  */
 export function isStableRejection(
   state: string,
@@ -106,11 +80,6 @@ export interface ReplayConsumeResult {
   reason?: ReplayRejectReason;
 }
 
-/**
- * Hash the request body's store-specific identifier so the bucket map
- * doesn't retain the plaintext JWS / purchaseToken / (userId, sku).
- * SHA-256 prefix matches the approach used by `hashApiKey`.
- */
 export type ReplayPayload =
   | { store: "apple"; jws: string; expectedProductId?: string }
   | { store: "google"; purchaseToken: string; expectedProductId?: string }
@@ -123,6 +92,10 @@ export type ReplayPayload =
       expectedProductId?: string;
     };
 
+/**
+ * Hashed so the bucket map never holds a plaintext JWS, purchase token, or
+ * (userId, sku). A SHA-256 prefix, like `hashApiKey`.
+ */
 export function hashPayload(body: ReplayPayload): string {
   const hasher = crypto.createHash("sha256");
   hasher.update(body.store);
@@ -193,13 +166,8 @@ export function tryConsumeReplay(
   store.delete(bucketKey);
   store.set(bucketKey, bucket);
 
-  // Failure cooldown takes precedence over the token-bucket check —
-  // a known-invalid payload should never reach the upstream store
-  // while the cooldown is active, even if the bucket happens to have
-  // tokens. This is the layer that defeats "captured-then-revoked
-  // receipt replay": the attacker has a real-shaped receipt that
-  // the store provider said no to, and trying again 200 ms later just
-  // burns our upstream quota for the same answer.
+  // The cooldown applies even when the bucket has tokens: a rejected payload
+  // must not reach the store again until it ends.
   if (failureCooldownMs > 0 && bucket.lastFailureMs !== undefined) {
     const elapsedSinceFailureMs = Math.max(0, nowMs - bucket.lastFailureMs);
     if (elapsedSinceFailureMs < failureCooldownMs) {
@@ -242,18 +210,10 @@ export function tryConsumeReplay(
 }
 
 /**
- * Mark the (key, payload) bucket as having just observed a failed
- * verification. Called from the middleware's finally block when the
- * handler supplied an explicit stable outcome — i.e. the upstream store
- * (Apple / Google / Horizon / Amazon) returned a definitive "this receipt is
- * invalid" verdict. Thrown errors from the handler (network
- * failures, configuration mistakes, project-not-found, etc.) do NOT
- * trigger the cooldown, since those aren't a verdict from the store
- * and a retry might legitimately succeed.
- *
- * Creates the bucket if needed — a payload can fail on its very first
- * call, and we still want subsequent retries of the same payload to
- * hit the cooldown.
+ * Starts the failure cooldown after the store definitively rejects a payload.
+ * Thrown handler errors (network, config, missing project) never get here:
+ * they aren't a store verdict, and a retry may succeed. Creates the bucket,
+ * since a payload can fail on its first call.
  */
 export function markPayloadFailure(
   store: Map<string, ReplayBucket>,
@@ -287,20 +247,15 @@ const DEFAULT_REFILL_PER_SEC = parsePositiveNumber(
   1 / 60,
   1 / 3600,
 );
-// 50k (key, payload) pairs ≈ ~2 MB of resident memory. Keyed on the
-// hash of both, an attacker would need to churn pairs faster than
-// legitimate traffic to blow past LRU eviction. Tunable by env.
+// 50k (key, payload) pairs ≈ 2 MB, LRU-evicted; pushing real buckets out
+// takes churning new pairs faster than legitimate traffic arrives.
 const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
   process.env.REPLAY_GUARD_MAX_STORE,
   50_000,
   1,
 );
-// Default failure cooldown: 5 minutes. Long enough that "replay the
-// same revoked receipt" attacks see a hard wall well past any
-// reasonable client-side retry-on-transient cadence; short enough
-// that if the store provider really did re-validate a previously-
-// failed receipt (rare but possible during outages), the client
-// recovers within one app session.
+// 5 minutes: longer than any sane retry cadence, short enough that a receipt
+// the store re-validates (rare, during outages) recovers within one session.
 const DEFAULT_FAILURE_COOLDOWN_MS =
   parsePositiveNumber(process.env.REPLAY_GUARD_FAILURE_COOLDOWN_SEC, 300, 1) *
   1000;
@@ -308,9 +263,8 @@ const DEFAULT_FAILURE_COOLDOWN_MS =
 const sharedStore = new Map<string, ReplayBucket>();
 
 /**
- * The process-wide replay store and its tuned defaults, exported so the
- * transport-independent verification admission keys the same buckets as the
- * /v1 middleware — one receipt spends against one bucket regardless of binding.
+ * The process-wide store and defaults, shared with the commerce verification
+ * admission so a receipt spends one bucket whichever binding it came through.
  */
 export const REPLAY_GUARD = Object.freeze({
   store: sharedStore,
@@ -357,11 +311,8 @@ export function replayGuardMiddleware(
   return createMiddleware<{ Variables: ReplayGuardVars }>(async (c, next) => {
     const apiKeyHash = c.var.apiKeyHash;
 
-    // `rateLimitMiddleware` sets `apiKeyHash`. If we ever see an
-    // unset hash here, the middleware chain was wired in the wrong
-    // order — surface as 500 rather than silently skipping the
-    // guard (which would let replay traffic through on a deploy
-    // that regressed the order).
+    // `rateLimitMiddleware` sets this. Missing means the chain is misordered;
+    // a 500 beats silently letting replay traffic through.
     if (!apiKeyHash) {
       return c.json(
         {
@@ -377,9 +328,7 @@ export function replayGuardMiddleware(
       );
     }
 
-    // Valid-by-schema by the time this runs — the upstream validator (valibot
-    // for /v1, the generated JSON Schema for the commerce binding) guarantees
-    // a well-formed body before the payload is hashed.
+    // Already schema-validated (valibot for /v1, JSON Schema for commerce).
     const body = getPayload(c);
 
     const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;
@@ -421,18 +370,14 @@ export function replayGuardMiddleware(
       await next();
     } finally {
       if (c.get("verifyCapacityRejected") === true) {
-        // SERVICE_BUSY is emitted before the handler or upstream store runs.
-        // Charging it would turn legitimate backoff retries into a misleading
-        // DUPLICATE_PAYLOAD response after enough capacity rejections.
+        // SERVICE_BUSY returns before the store is called; charging it would
+        // turn honest backoff retries into DUPLICATE_PAYLOAD.
         refundCapacityRejectedAttempt(bucketKey);
       } else {
-        // After the handler completes, mark the bucket if the upstream
-        // verification returned a stable invalid verdict. Horizon is current
-        // ownership keyed by (userId, sku), not an immutable receipt: a user
-        // can buy the same SKU immediately after `success: false`, so its
-        // negative result must remain retryable. The normal token bucket still
-        // limits Horizon bursts. Lives in `finally` so an exception bubbling
-        // out of the handler doesn't skip marking stable receipt failures.
+        // In `finally` so a handler exception can't skip marking a stable
+        // rejection. Horizon is exempt: it checks current ownership of
+        // (userId, sku), and the user can buy right after `success: false`.
+        // The token bucket still limits Horizon bursts.
         const outcome = c.get("verifyOutcome");
         if (
           body.store !== "horizon" &&

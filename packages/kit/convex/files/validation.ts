@@ -66,7 +66,6 @@ const FILE_VALIDATIONS = {
 
 export type FilePurpose = keyof typeof FILE_VALIDATIONS;
 
-// Validate file based on purpose
 export function validateFile(
   fileName: string,
   fileType: string,
@@ -76,7 +75,6 @@ export function validateFile(
   const validation = FILE_VALIDATIONS[purpose];
   const fileExtension = getFileExtension(fileName).toLowerCase();
 
-  // Check file extension
   if (validation.extensions.length > 0) {
     const extensionsList = validation.extensions as readonly string[];
     if (!extensionsList.includes(fileExtension)) {
@@ -114,8 +112,6 @@ export function validateFile(
         `Unexpected MIME type for ${purpose}: ${fileType}. ` +
           `Expected one of: ${validation.mimeTypes.join(", ")}`,
       );
-      // Don't throw error for MIME type mismatch, just warn
-      // Browsers are inconsistent with MIME types
     }
   }
 
@@ -130,7 +126,6 @@ export function validateFile(
     );
   }
 
-  // Check file size
   if (fileSize > validation.maxSize) {
     throw new ConvexError(
       `File too large for ${purpose}. ` +
@@ -140,7 +135,6 @@ export function validateFile(
   }
 }
 
-// Get file extension from filename
 export function getFileExtension(fileName: string): string {
   const lastDot = fileName.lastIndexOf(".");
   if (lastDot === -1) {
@@ -149,14 +143,12 @@ export function getFileExtension(fileName: string): string {
   return fileName.substring(lastDot);
 }
 
-// Format file size for display
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} bytes`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Validate Apple P8 key specifically
 export function validateAppleP8Key(fileName: string, fileSize: number): void {
   if (!fileName.endsWith(".p8")) {
     throw new ConvexError(
@@ -179,7 +171,6 @@ export function validateAppleP8Key(fileName: string, fileSize: number): void {
   }
 }
 
-// Validate JSON config file
 export function validateJsonConfig(
   fileName: string,
   fileType: string,
@@ -197,7 +188,6 @@ export function validateJsonConfig(
     );
   }
 
-  // Check MIME type
   const validMimeTypes = [
     "application/json",
     "text/plain",
@@ -208,7 +198,6 @@ export function validateJsonConfig(
   }
 }
 
-// Validate certificate file
 export function validateCertificate(fileName: string, fileSize: number): void {
   const validExtensions = [".pem", ".crt", ".cer", ".p12", ".pfx", ".der"];
   const fileExtension = getFileExtension(fileName).toLowerCase();
@@ -226,7 +215,6 @@ export function validateCertificate(fileName: string, fileSize: number): void {
   }
 }
 
-// Check if file content looks like valid JSON
 export async function validateJsonContent(content: string): Promise<void> {
   try {
     JSON.parse(content);
@@ -235,9 +223,7 @@ export async function validateJsonContent(content: string): Promise<void> {
   }
 }
 
-// Check if file content looks like valid P8 key
 export function validateP8Content(content: string): void {
-  // P8 keys should contain these markers
   if (
     !content.includes("-----BEGIN PRIVATE KEY-----") ||
     !content.includes("-----END PRIVATE KEY-----")
@@ -247,7 +233,6 @@ export function validateP8Content(content: string): void {
     );
   }
 
-  // Basic structure validation
   const lines = content.split("\n");
   if (lines.length < 5) {
     throw new ConvexError("P8 key file appears to be corrupted or incomplete");
@@ -288,9 +273,7 @@ export function validateGoogleServiceAccountContent(content: string): {
   return { clientEmail, privateKey };
 }
 
-// Check if file content looks like valid PEM certificate
 export function validatePemContent(content: string): void {
-  // PEM certificates should contain these markers
   const hasBeginCert =
     content.includes("-----BEGIN CERTIFICATE-----") ||
     content.includes("-----BEGIN TRUSTED CERTIFICATE-----") ||
@@ -315,7 +298,6 @@ export function validateFileUpload(
   fileSize: number,
   purpose: FilePurpose,
 ): void {
-  // Basic validation
   if (!fileName || fileName.trim() === "") {
     throw new ConvexError("File name is required");
   }
@@ -330,10 +312,8 @@ export function validateFileUpload(
     );
   }
 
-  // Purpose-specific validation
   validateFile(fileName, fileType, fileSize, purpose);
 
-  // Additional specific validations
   switch (purpose) {
     case "apple_p8_key":
       validateAppleP8Key(fileName, fileSize);
@@ -347,21 +327,16 @@ export function validateFileUpload(
       }
       break;
     case "apple_iap_review_screenshot":
-      // Extension, strict MIME, non-empty size, and the 10 MB cap are all
-      // enforced above. Binary magic is checked again immediately before ASC
-      // upload, after reading the private blob from Convex storage.
+      // Metadata is checked above; the bytes again before the ASC upload.
       break;
   }
 }
 
 /**
- * Validate the private blob immediately before it is uploaded to ASC.
- *
- * Browser-provided names and MIME types are metadata only. This lightweight
- * signature/transparency check runs in both runtimes; the upload reservation
- * receives its trusted marker only after `files/action.ts` also performs a
- * full Sharp decode. PNG screenshots with alpha are rejected because App
- * Store Connect rejects them after upload processing.
+ * Signature and transparency check on the screenshot bytes before ASC upload;
+ * light enough for either runtime. Browser names and MIME types are only
+ * metadata. `files/action.ts` also runs a full Sharp decode before the upload
+ * is marked valid. PNGs with alpha are rejected: ASC rejects them after upload.
  */
 export function validateAppleReviewScreenshotContent(
   content: Uint8Array,

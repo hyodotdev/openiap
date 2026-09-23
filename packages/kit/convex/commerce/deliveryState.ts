@@ -1,11 +1,10 @@
 // Persistence half of outbound delivery: claim/lease, result recording and
-// replay. Convex only allows actions in a "use node" module, so the HTTP half
-// lives in `delivery.ts` and calls into these mutations.
+// replay. A "use node" module may hold only actions, so the HTTP half lives in
+// `delivery.ts` and calls these mutations.
 //
-// Direction is strictly store → IAPKit → developer backend. This is
-// server-to-server only: destinations are HTTPS endpoints a project owner
-// registered, nothing here is reachable from a shipped app, and no
-// client-pullable stream exists.
+// Direction is strictly store → IAPKit → developer backend, server to server:
+// destinations are HTTPS endpoints a project owner registered, nothing here is
+// reachable from a shipped app, and no client-pullable stream exists.
 
 import { v } from "convex/values";
 
@@ -49,10 +48,9 @@ export type ClaimedDelivery = {
 };
 
 /**
- * The wire body. Typed as `CommerceEvent` so the compiler, not a test, is what
- * keeps the payload equal to the published contract: storage-only columns
- * (`subscriptionId`, the internal `sourceEventId`) cannot leak in, and a
- * contract field cannot silently go missing.
+ * The wire body. Typed as `CommerceEvent` so the compiler, not a test, keeps it
+ * equal to the published contract: storage-only columns (`subscriptionId`, the
+ * internal `sourceEventId`) cannot leak in, and no contract field can go missing.
  */
 export function buildEventPayload(event: Doc<"commerceEvents">): CommerceEvent {
   return {
@@ -188,9 +186,9 @@ export async function claimPendingDeliveriesHandler(
         .filter((value): value is number => value !== undefined)
         .sort((a, b) => a - b)[0];
       if (future === undefined) {
-        // Fan-out and replay recreate this row when work appears. Keeping an
-        // idle tenant in the global index forever would let old empty queues
-        // consume every bounded scan ahead of newly awakened projects.
+        // Fan-out and replay recreate this row when work appears. Left in the
+        // global index, old empty queues would use up every bounded scan ahead
+        // of newly awakened projects.
         await ctx.db.delete(queue._id);
       } else {
         await ctx.db.patch(queue._id, {
@@ -241,9 +239,9 @@ export async function claimPendingDeliveriesHandler(
       continue;
     }
     if (!destinationAcceptsType(destination, event.eventType)) {
-      // This is an intentional administrative suppression, not a dead letter.
-      // Remove the unsent row so narrowing a filter cannot create permanent
-      // failed history or pin the immutable event outside retention.
+      // A narrowed filter is an admin suppression, not a dead letter. Delete the
+      // unsent row so it cannot leave permanent failed history or pin the
+      // immutable event outside retention.
       await ctx.db.delete(delivery._id);
       const remaining = await ctx.db
         .query("outboundDeliveries")
@@ -258,9 +256,9 @@ export async function claimPendingDeliveriesHandler(
       continue;
     }
 
-    // The lease is what makes overlapping cron ticks safe: a claimed row moves
-    // out of "pending" before the HTTP call starts. The token fences the write
-    // back, so a reclaimed row ignores whatever the superseded attempt reports.
+    // The lease makes overlapping cron ticks safe: a claimed row leaves
+    // "pending" before the HTTP call starts. The token fences the write-back,
+    // so a reclaimed row ignores what the superseded attempt reports.
     const leaseToken = crypto.randomUUID();
     await ctx.db.patch(delivery._id, {
       status: "delivering",

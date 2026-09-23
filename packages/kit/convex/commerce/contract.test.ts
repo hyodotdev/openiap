@@ -60,11 +60,10 @@ describe("the public receiver contract stays in sync", () => {
   });
 
   it("pins the wire identities deployed receivers already decode", () => {
-    // These names are derived from the protocol's transport record, so nothing
-    // here restates them in shipped code. This golden is the record of what
-    // receivers were told, and a protocol rename must fail it on purpose:
-    // decide the migration — dual-emit, new destinations only, cutover — and
-    // then move the pin. spec.conformance.test.ts covers the other direction.
+    // Shipped code imports these from the protocol; this golden records what
+    // receivers were told. A protocol rename fails it on purpose: choose the
+    // migration (dual-emit, new destinations only, cutover), then move the pin.
+    // spec.conformance.test.ts covers the other direction.
     expect({
       signature: SIGNATURE_HEADER,
       timestamp: TIMESTAMP_HEADER,
@@ -97,9 +96,8 @@ describe("the public receiver contract stays in sync", () => {
   });
 
   it("teaches receivers the header names and prefix kit actually sends", () => {
-    // These documents tell an integrator what to verify. Without this they
-    // keep teaching the old spelling after a rename, and the reader's
-    // signature check fails against a kit that already moved.
+    // Otherwise a rename leaves these docs teaching the old spelling, and an
+    // integrator's signature check fails against a kit that already moved.
     for (const contract of publicReceiverContracts()) {
       for (const name of [
         SIGNATURE_HEADER,

@@ -1,10 +1,9 @@
 // Emission of normalized commerce events and their outbound fan-out.
 //
-// `emitCommerceEvent` is a plain function, not a mutation, so callers run it
-// inside the transaction that already committed the lifecycle change. That is
-// what makes emission exactly-once without a second idempotency layer: if the
-// transition commits, the event commits with it; if it rolls back, so does the
-// event.
+// `emitCommerceEvent` is a plain function, not a mutation, so it runs inside
+// the caller's lifecycle-change transaction: the event commits or rolls back
+// with the transition. That makes emission exactly-once with no second
+// idempotency layer.
 
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
@@ -98,9 +97,8 @@ export async function emitCommerceEvent(
     hasBoundUser: Boolean(args.subscription?.userId),
   });
   if (types.length === 0) return [];
-  // Both types describe one charge, so the price rides the first only.
-  // Usually the lifecycle event; the entitlement event when there is no
-  // lifecycle transition, which is the only place left to carry it.
+  // Both events describe one charge, so only the first carries the price: the
+  // lifecycle event, or the entitlement event when there is no transition.
   const pricedType = types[0];
 
   const now = Date.now();
@@ -205,9 +203,8 @@ async function fanOutToDestinations(
     )
     .collect();
 
-  // `eventId` was inserted by the caller moments ago, so no delivery row can
-  // reference it yet — one insert per destination is already exactly-once.
-  // Emission itself is protected by the surrounding transaction.
+  // The caller just inserted `eventId`, so no delivery row references it yet;
+  // one insert per destination is already exactly-once.
   let created = 0;
   for (const destination of destinations) {
     if (!destinationAcceptsType(destination, eventType)) continue;

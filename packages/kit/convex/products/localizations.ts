@@ -1,26 +1,17 @@
 import { ConvexError, v } from "convex/values";
 
-// Localized store-listing text. A product's `title` / `description`
-// remain the base listing every store requires; `localizations` only
-// adds languages on top of it, so a row without any behaves exactly as
-// it did before this existed.
+// Localized store-listing text. A product's `title` / `description` stay the
+// base listing every store requires; `localizations` only adds languages.
 //
-// Both stores take BCP-47 codes in the same shape — Play calls the field
-// `languageCode` on its listing objects, App Store Connect calls it
-// `locale` on inAppPurchaseLocalizations / subscriptionLocalizations —
-// so one representation serves both push paths.
+// Both stores take BCP-47-shaped codes (Play's `languageCode`, ASC's `locale`
+// on IAP and subscription localizations), so one representation serves both.
 
 /** Locale every product's base `title` / `description` is published as. */
 export const BASE_LISTING_LOCALE = "en-US";
 
-// The stores cap listing text differently, and Play differs again by
-// product type: it documents 55/200 for a one-time product but only a
-// description cap for a subscription, leaving the title uncapped. App
-// Store Connect allows 30/45. Validate against the exact surface the
-// row targets so an Android operator isn't held to Apple's limit, an
-// iOS operator isn't told their text is fine right up until ASC rejects
-// it, and a legal subscription title isn't refused for exceeding a
-// limit Play never states.
+// Listing limits differ by store and, on Play, by product type: Play states
+// no title cap for a subscription. Validate against the surface the row
+// targets, never one store's limits for both.
 export type ProductPlatform = "IOS" | "Android";
 export type ProductListingType =
   | "Subscription"
@@ -38,10 +29,9 @@ export function listingLimitsFor(
   type: ProductListingType,
 ): ListingLimits {
   if (platform === "IOS") return { title: 30, description: 45 };
-  // 200, not the 80 the bundled googleapis 157 types still claim: Play's
-  // live discovery document reports "Maximum length - 200 characters"
-  // for SubscriptionListing.description. Validating at 80 would refuse
-  // text Play accepts.
+  // 200, not the 80 in the bundled googleapis 157 types: Play's live discovery
+  // document says "Maximum length - 200 characters" for
+  // SubscriptionListing.description.
   if (type === "Subscription") return { description: 200 };
   return { title: 55, description: 200 };
 }
@@ -62,19 +52,14 @@ export const productLocalizationsValidator = v.array(
   productLocalizationValidator,
 );
 
-// Play and ASC do NOT share a locale vocabulary — Simplified Chinese is
-// `zh-CN` on Play and `zh-Hans` on ASC; Latin American Spanish is
-// `es-419` on Play and `es-MX` on ASC. A product row targets exactly one
-// platform. The pattern must admit script subtags (`zh-Hans`) and numeric
-// region subtags (`es-419`); platform-specific validation below then enforces
-// ASC's fixed shortcode inventory while Play keeps accepting general BCP-47.
+// Play and ASC name locales differently (`zh-CN` vs `zh-Hans`, `es-419` vs
+// `es-MX`), so the shared pattern admits script and numeric region subtags.
+// ASC's fixed shortcode list is enforced separately below.
 const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
 
-// App Store Connect accepts a fixed locale-shortcode vocabulary rather than
-// every valid BCP-47 tag. In particular, Japanese and Korean are `ja` / `ko`,
-// not the equally valid region-qualified `ja-JP` / `ko-KR` forms that Play
-// accepts. Keep the store boundary explicit so a dashboard edit fails locally
-// instead of surfacing as an opaque ASC 409 during push-sync.
+// ASC accepts only these shortcodes, not every BCP-47 tag: Japanese and Korean
+// are `ja` / `ko`, not Play's `ja-JP` / `ko-KR`. Checking here turns an opaque
+// ASC 409 during push-sync into a local error.
 // https://developer.apple.com/documentation/appstoreconnectapi/managing-metadata-in-your-app-by-using-locale-shortcodes
 const ASC_LOCALE_SHORTCODES = new Set([
   "ar-SA",
@@ -164,14 +149,6 @@ export function localeForAppStoreConnect(raw: string): string {
 }
 
 /**
- * Normalizes and validates operator-supplied localizations.
- *
- * @param localizations Raw rows from the dashboard / MCP / a pull.
- * @returns The cleaned list, or undefined when there is nothing to store.
- * @throws When a locale is malformed, duplicated, collides with the base
- *   locale, has a blank title, or exceeds a store length limit.
- */
-/**
  * Structured so the REST route and MCP tool map it to 400 rather than a
  * generic 500 — these are operator input mistakes, not server faults.
  */
@@ -182,6 +159,14 @@ function invalidListing(message: string): ConvexError<{
   return new ConvexError({ code: "INVALID_INPUT", message });
 }
 
+/**
+ * Normalizes and validates operator-supplied localizations.
+ *
+ * @param localizations Raw rows from the dashboard / MCP / a pull.
+ * @returns The cleaned list, or undefined when there is nothing to store.
+ * @throws When a locale is malformed, duplicated, collides with the base
+ *   locale, has a blank title, or exceeds a store length limit.
+ */
 export function normalizeProductLocalizations(
   localizations: ProductLocalization[] | undefined,
   platform: ProductPlatform,
@@ -199,10 +184,8 @@ export function normalizeProductLocalizations(
   const normalized: ProductLocalization[] = [];
 
   for (const entry of localizations) {
-    // Canonicalize case before comparing: `ko-kr` and `ko-KR` are the
-    // same locale, so without this a duplicate slips through and the
-    // store rejects the pair — and `EN-us` would dodge the base-locale
-    // guard entirely.
+    // Canonical casing first, so `ko-kr` counts as a duplicate of `ko-KR` and
+    // `EN-us` cannot dodge the base-locale check.
     const canonicalLocale = canonicalizeLocale(entry.locale);
     const locale =
       platform === "IOS"
@@ -254,14 +237,9 @@ export function normalizeProductLocalizations(
 }
 
 /**
- * Splits store listings into the base listing plus the extra locales.
- *
- * The pull direction's counterpart to {@link listingRowsForProduct}: a
- * store's listing array becomes the `title` / `description` /
- * `localizations` triple a product row stores. The base locale is
- * preferred as the base listing; when a store has no entry for it (an
- * app authored entirely in another language) the first listing takes
- * that role so the required `title` is never empty.
+ * Splits store listings into the base listing plus the extra locales; the
+ * pull-side counterpart of {@link listingRowsForProduct}. Prefers the base
+ * locale, else the first listing, so the required `title` is never empty.
  */
 export function splitStoreListings(
   listings: Array<{
@@ -291,9 +269,8 @@ export function splitStoreListings(
   const base =
     usable.find((listing) => listing.locale === preferredBaseLocale) ??
     usable.find((listing) => listing.locale === BASE_LISTING_LOCALE);
-  // A store with no en-US listing still has to yield a non-empty `title`,
-  // so the first listing becomes the base. Keep its locale explicitly:
-  // without `baseLocale`, the next push would relabel that text as en-US.
+  // Keep the promoted listing's locale as `baseLocale`, or the next push
+  // would relabel that text as en-US.
   const promoted = base ?? usable[0];
   const others = usable
     .filter((listing) => listing.locale !== promoted.locale)

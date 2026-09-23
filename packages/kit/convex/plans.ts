@@ -1,16 +1,14 @@
 import { v } from "convex/values";
 
 /**
- * IAPKit is free-for-everyone with no monthly cap. Abuse protection
- * lives at the edge (format validation, replay-guard, per-key burst
- * and concurrency limits in `server/api/v1/`) — not as a monthly hard stop.
- * Monthly accounting never blocks a request, while the fair-use edge
- * safeguards may throttle any plan to protect the shared service.
+ * IAPKit is free for everyone with no monthly cap: monthly counts never block
+ * a request. Abuse protection is the fair-use edge in `server/api/v1/`
+ * (format validation, replay guard, per-key burst and concurrency limits),
+ * which may throttle any plan to protect the shared service.
  *
- * `monthlyRequestCount` on organizations stays for dashboard display
- * and informal telemetry. `monthlyRequestLimit` is kept as a soft
- * display / sponsor-CTA threshold (default shown below) — the
- * verification path never consults it.
+ * Organizations keep `monthlyRequestCount` for the dashboard and informal
+ * telemetry, and `monthlyRequestLimit` as this display-only sponsor-CTA
+ * threshold; the verification path never reads it.
  */
 export const SPONSOR_CTA_THRESHOLD = 25_000;
 

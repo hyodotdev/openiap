@@ -340,10 +340,9 @@ describe("summarizeGoogleSubscription", () => {
 });
 
 describe("orderLookupResponseValidator", () => {
-  // No existing test exercises convex `v.*` validators at runtime (they have
-  // no public parse API), so acceptance is asserted through the Infer'd
-  // OrderLookupResponse type: these fixtures fail `bun run lint` if the
-  // validator shape stops accepting them.
+  // Convex `v.*` validators have no public parse API, so acceptance is checked
+  // through the Infer'd OrderLookupResponse type: these fixtures fail
+  // `bun run lint` if the validator shape stops accepting them.
   it("declares the response fields the dashboard consumes", () => {
     expect(orderLookupResponseValidator.kind).toBe("object");
     expect(Object.keys(orderLookupResponseValidator.fields).sort()).toEqual([

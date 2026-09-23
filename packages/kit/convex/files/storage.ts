@@ -2,13 +2,9 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 
 /**
- * Return whether an application row already owns a Convex storage object.
- *
- * File uploads are not the only storage references in the current schema:
- * legacy organization avatars point at `_storage` directly. Both lookups are
- * indexed so cleanup and claim paths can protect shared blobs without scanning
- * either table. Reading both index ranges also gives Convex OCC enough
- * information to retry if a concurrent mutation claims the same storage ID.
+ * Whether a file row or a legacy organization avatar already references this
+ * blob. Both lookups are indexed, and their range reads make the caller retry
+ * through Convex OCC if a concurrent mutation claims the same storage ID.
  */
 export async function isStorageReferenced(
   ctx: MutationCtx,
@@ -51,13 +47,9 @@ export async function deleteFileAndStorageIfUnreferenced(
 }
 
 /**
- * Delete a Convex storage object only when its system row still exists.
- *
- * Deletion cascades are retried and can resume after a prior transaction
- * removed the blob but not its application row. Treating an absent storage
- * object as success keeps those cascades idempotent. Metadata lookup or
- * deletion failures still propagate so transient infrastructure errors are
- * retried instead of being mistaken for a completed cleanup.
+ * Delete a storage object if its system row still exists. A retried cascade
+ * may find the blob already gone, so absence counts as success; lookup and
+ * delete errors still propagate so they get retried.
  */
 export async function deleteStorageIfPresent(
   ctx: MutationCtx,

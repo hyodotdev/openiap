@@ -70,7 +70,6 @@ export const list = query({
       }
     }
 
-    // Build query
     const filesQuery = ctx.db
       .query("files")
       .withIndex("by_organization", (q) =>
@@ -79,7 +78,6 @@ export const list = query({
 
     const files = await filesQuery.collect();
 
-    // Filter by project if specified
     let filteredFiles = files;
     if (args.projectId) {
       filteredFiles = files.filter((f) => f.projectId === args.projectId);
@@ -95,12 +93,10 @@ export const list = query({
       );
     }
 
-    // Filter by purpose if specified
     if (args.purpose) {
       filteredFiles = filteredFiles.filter((f) => f.purpose === args.purpose);
     }
 
-    // Get uploader information
     const uploaderIds = [...new Set(filteredFiles.map((f) => f.uploadedBy))];
 
     // Get user profiles for display names
@@ -178,7 +174,6 @@ export const get = query({
       throw new ConvexError("Not a member of this organization");
     }
 
-    // Get uploader profile
     const uploaderProfile = await ctx.db
       .query("userProfiles")
       .withIndex("by_user", (q) => q.eq("userId", file.uploadedBy))
@@ -269,7 +264,6 @@ export const count = query({
   },
 });
 
-// Get App Store file by project
 export const getAppStoreFileByProject = query({
   args: {
     projectId: v.id("projects"),
@@ -298,10 +292,7 @@ export const getAppStoreFileByProject = query({
       return null;
     }
 
-    // Find App Store file for this project via the by_project index.
-    // Prior `by_organization + filter in memory` returned every file
-    // across every project in the org, which scaled with the org's
-    // total file count rather than just the target project's.
+    // by_project, not by_organization: read only this project's files.
     const projectFiles = await ctx.db
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
@@ -323,9 +314,9 @@ export const getAppStoreFileByProject = query({
   },
 });
 
-// Get the App Store Connect API key (.p8) by project. Genuinely a
-// different file from `getAppStoreFileByProject` — see schema.ts.
-// Used by `products/asc.ts` for push-sync.
+// The App Store Connect API key: a different .p8 than
+// `getAppStoreFileByProject` returns (see schema.ts). Used by `products/asc.ts`
+// push-sync.
 export const getAscApiKeyFileByProject = query({
   args: {
     projectId: v.id("projects"),
@@ -367,7 +358,6 @@ export const getAscApiKeyFileByProject = query({
   },
 });
 
-// Get Google Play file by project
 export const getGooglePlayFileByProject = query({
   args: {
     projectId: v.id("projects"),
@@ -396,8 +386,6 @@ export const getGooglePlayFileByProject = query({
       return null;
     }
 
-    // Find Google Play file for this project via the by_project index
-    // (see appStore counterpart above for why).
     const projectFiles = await ctx.db
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))

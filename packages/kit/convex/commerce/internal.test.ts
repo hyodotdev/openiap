@@ -409,8 +409,7 @@ describe("emitCommerceEvent", () => {
         userId: "user-1",
       },
     });
-    // Started + entitlement.granted are two events, so two deliveries — one
-    // per event, not two per event.
+    // Two events (started, granted), one delivery each.
     const deliveries = db.rows("outboundDeliveries");
     expect(deliveries).toHaveLength(2);
     expect(new Set(deliveries.map((r) => r.eventId)).size).toBe(2);

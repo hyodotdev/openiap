@@ -1,12 +1,10 @@
-// Per-provider capability declarations.
+// Per-provider capabilities: what IAPKit implements today, not what a store's
+// API allows. Consumers branch on this instead of assuming every store behaves
+// like Apple, and support can answer "why no renewal event for Meta?" without
+// reading provider code.
 //
-// These describe what IAPKit *actually implements today*, not what a store's
-// API theoretically allows. Consumers branch on this instead of assuming every
-// store behaves like Apple, and support can answer "why is there no renewal
-// event for Meta" without reading provider code.
-//
-// Keep in sync with the provider modules; `contract.test.ts` pins the
-// claims that have a concrete implementation behind them.
+// Keep in sync with the provider modules; `contract.test.ts` pins the claims
+// that have a concrete implementation behind them.
 
 import type { CommerceStore } from "./contract";
 

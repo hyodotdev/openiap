@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { COMMERCE_EVENT_TYPES } from "./contract";
 import { checkDestinationUrl } from "./signing";
 
-// The mutations themselves need the Convex auth context, which the unit
-// harness does not model. What is worth pinning here is the security-relevant
-// logic they compose: which URLs may ever be stored, which event-type filters
-// are accepted, and that the public projection cannot leak a secret.
+// The mutations need the Convex auth context, which this harness does not
+// model, so this pins the security logic they compose: which URLs may be
+// stored, which event-type filters are accepted, and that the public
+// projection cannot leak a secret.
 
 /** Mirrors `publicView` in destinations.ts. Kept in step by the test below. */
 const PUBLIC_FIELDS = [

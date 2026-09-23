@@ -45,50 +45,27 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
 
 // Inbound webhook receivers for Apple ASN v2 and Google Pub/Sub RTDN.
 //
-// Auth model:
-// - Apple ASN does not support custom Authorization headers, so the
-//   project's API key is encoded in the path: kit gives each project a
-//   webhook URL of the form
-//     https://kit.openiap.dev/v1/webhooks/{apiKey}
-//   to register in App Store Connect. Platform-specific /apple and
-//   /google aliases remain supported for existing store-console wiring.
-//   The path segment behaves like a capability token; rotating the
-//   project's API key invalidates the URL just like it invalidates
-//   verifyReceipt callers. The Convex action verifies the signedPayload
-//   signature against Apple's roots, so even if the URL leaks, only
-//   Apple-signed payloads are accepted.
-//
-// - Google Pub/Sub push delivers a Bearer JWT from Google in the
-//   Authorization header. The Fly edge verifies its signature and audience;
-//   the public Convex action repeats that verification and requires the token
-//   email to match this project's uploaded Google service account. The path
-//   API key resolves the project but is not treated as source authentication.
+// Auth:
+// - Apple ASN can't send an Authorization header, so the project key rides in
+//   the path: https://kit.openiap.dev/v1/webhooks/{apiKey}. Rotating the key
+//   invalidates the URL. The Convex action checks the signedPayload against
+//   Apple's roots, so a leaked URL still accepts only Apple-signed payloads.
+// - Google Pub/Sub push sends a Bearer JWT. The Fly edge checks its signature
+//   and audience; the Convex action repeats that and requires the token email
+//   to match the project's uploaded service account. The path key only
+//   resolves the project; it is not source authentication.
 
 const webhooks = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
 
-// Unified lifecycle endpoint. The exact same URL works for both Apple
-// App Store Connect and Google Pub/Sub push subscriptions: kit
-// inspects the body shape to detect which store sent the
-// notification, then dispatches to the same Convex action that the
-// platform-specific paths use.
-//
-// Detection rules:
-//   - Apple ASN v2 payload: `{ "signedPayload": "<JWS>" }`
+// One URL for both stores, so the dashboard shows a single copy box. The body
+// shape picks the handler:
+//   - Apple ASN v2: `{ "signedPayload": "<JWS>" }`
 //   - Google Pub/Sub push: `{ "message": { "data": "<base64>",
 //     "messageId": "..." }, "subscription": "..." }`
-// Anything else returns 400 INVALID_INPUT so misconfigured upstream
-// senders fail loudly rather than silently being dropped.
-//
-// Why one URL: the comparison-table feedback was that exposing two
-// "Apple URL" / "Google URL" copy boxes in the dashboard makes the
-// hosted-backend pitch leakier than it needs to be. With one URL,
-// the operator pastes the same string into App Store Connect AND
-// Google Pub/Sub; whichever platform they haven't configured simply
-// never sends traffic, and kit's per-platform receiver code only
-// runs when its expected payload shape arrives.
+// Anything else is a 400 INVALID_INPUT, so a misconfigured sender fails loudly.
 const unifiedHandler = async (c: Context) => {
   const apiKey = c.req.param("apiKey");
   if (!apiKey) {
@@ -114,13 +91,9 @@ const unifiedHandler = async (c: Context) => {
     );
   }
 
-  // Setup-status gating now lives INSIDE the ingest actions
-  // (`ingestAppleAsnIOS` / `ingestGoogleRtdn`) — they already query
-  // the project once and throw structured ConvexError codes
-  // (`INVALID_API_KEY` / `IOS_NOT_CONFIGURED` / `ANDROID_NOT_CONFIGURED`)
-  // that `mapWebhookError` translates to the right HTTP status.
-  // Doing the check here as a separate Convex query was adding an
-  // extra round-trip per webhook.
+  // Setup checks run inside the ingest actions, which load the project anyway;
+  // `mapWebhookError` maps their ConvexError codes to HTTP. A separate query
+  // here would cost a round-trip per webhook.
   if (looksLikeApple(body)) {
     return handleAppleNotification(
       c,
@@ -150,10 +123,7 @@ const unifiedHandler = async (c: Context) => {
 // Pub/Sub push subscription configuration.
 webhooks.post("/:apiKey", pathApiKeyGuard, publicApiRateLimit, unifiedHandler);
 
-// Backwards-compatible aliases for operators who already configured a
-// platform-specific URL. Both dispatch through the same handlers as
-// the unified endpoint, so the dashboard / docs nudge users toward
-// the one-URL pattern without breaking existing wiring.
+// Platform-specific aliases, kept for existing store-console wiring.
 webhooks.post(
   "/apple/:apiKey",
   pathApiKeyGuard,
@@ -289,12 +259,9 @@ async function handleGoogleNotification(
   apiKey: string,
   body: PubSubPushBody,
 ) {
-  // Pub/Sub push always sends `Authorization: Bearer <jwt>` when OIDC
-  // is configured on the subscription. We require the operator to have
-  // set GOOGLE_PUBSUB_PUSH_AUDIENCE in production so kit fails closed
-  // — a missing env var must not silently let anonymous bodies through
-  // a Google-shaped path. In development / sandbox, the operator can
-  // opt out by setting `KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1`.
+  // Pub/Sub sends a Bearer JWT when the subscription has OIDC. Without
+  // GOOGLE_PUBSUB_PUSH_AUDIENCE this fails closed; only development may opt
+  // out with `KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1`.
   const authHeader = c.req.header("authorization");
   const oidcToken = extractBearerToken(authHeader) ?? undefined;
   const audience = process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
@@ -339,12 +306,8 @@ async function handleGoogleNotification(
     }
   }
 
-  // Decode the Pub/Sub `message.data` once and keep both the parsed
-  // form (used to build the typed payload) and the original UTF-8 text
-  // (passed through as `rawMessage` so consumers / auditors / future
-  // signature verifiers see exactly what Google sent — JSON.stringify
-  // would normalize spacing + key order and break any byte-level
-  // verification).
+  // `rawMessage` keeps the decoded text exactly as Google sent it;
+  // re-stringifying would change spacing and key order.
   const decodedMessage = decodePubSubMessageData(body.message.data);
   if (!decodedMessage) {
     return c.json(
@@ -448,9 +411,8 @@ async function verifyPubSubOidcToken(
       });
       return false;
     }
-    // This edge check rejects user identities early. The Convex action repeats
-    // signature/audience verification and requires this email to equal the
-    // current project's uploaded Google service-account `client_email`.
+    // Rejects user identities early; the Convex action then requires the
+    // project's uploaded service-account `client_email`.
     if (!isAllowedPubSubServiceAccount(email)) {
       console.warn("[webhooks/google] OIDC principal rejected", {
         audience: sanitizePubSubAudienceForLog(payload.aud),
@@ -568,9 +530,8 @@ export function sanitizePubSubAudienceForLog(
   if (typeof audience !== "string") return undefined;
   const parsed = safeUrl(audience);
   if (!parsed) return REDACTED_CREDENTIAL;
-  // The webhook audience IS the endpoint URL, and this deployment carries the
-  // project key in that path so Pub/Sub can authenticate without a header. The
-  // route prefix is what makes a log entry useful; the key is not.
+  // The audience is the endpoint URL, which carries the project key. Log the
+  // route, not the key.
   const path = parsed.pathname.replace(
     /(\/webhooks(?:\/(?:apple|google))?\/)[^/]+/,
     `$1${REDACTED_CREDENTIAL}`,
@@ -595,13 +556,9 @@ function mapWebhookError(
 ) {
   const convexError = handleConvexError(error);
   if (convexError !== null) {
-    // Apple/Google ship new notification types ahead of IAPKit's internal
-    // lifecycle mapping. Acknowledge with 200 so the upstream stops retrying —
-    // event was deliberately dropped, not lost. Other normalization
-    // errors (MissingNotificationId, MissingPurchaseToken,
-    // BUNDLE_ID_MISMATCH, INVALID_SIGNATURE, …) are permanent
-    // configuration/payload errors that need 4xx so the operator
-    // notices and the upstream stops retrying.
+    // Stores ship new notification types before IAPKit maps them; a 200 stops
+    // retries for an event dropped on purpose. Other codes (BUNDLE_ID_MISMATCH,
+    // INVALID_SIGNATURE, …) are permanent, so a 4xx makes the operator notice.
     if (convexError.code === "UNSUPPORTED_EVENT") {
       return c.json({ ok: true, dropped: true, reason: convexError.message });
     }
@@ -613,11 +570,7 @@ function mapWebhookError(
     ) {
       return c.json({ errors: [convexError] }, 401);
     }
-    // Per-platform setup-status gates (the action throws these when
-    // the project hasn't configured the matching platform). 412
-    // Precondition Failed is the same status the previous HTTP-layer
-    // pre-check returned, so SDKs / dashboards branching on these
-    // codes don't have to change.
+    // The matching platform isn't set up. Callers already branch on 412.
     if (
       convexError.code === "IOS_NOT_CONFIGURED" ||
       convexError.code === "ANDROID_NOT_CONFIGURED" ||

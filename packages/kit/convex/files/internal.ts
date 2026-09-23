@@ -19,7 +19,6 @@ function describeErrorForLog(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
 }
 
-// Internal query to get file record
 export const getFileRecord = internalQuery({
   args: {
     fileId: v.id("files"),
@@ -40,7 +39,6 @@ export const getUploadReservationForValidation = internalQuery({
   }),
 });
 
-// Internal mutation to update file access tracking
 export const updateFileAccess = internalMutation({
   args: {
     fileId: v.id("files"),
@@ -69,7 +67,6 @@ export const getFileContent = internalAction({
       throw new ConvexError("File not found");
     }
 
-    // Get the actual file content from storage
     const blob = await ctx.storage.get(file.storageId);
     if (!blob) {
       throw new ConvexError("File content not found in storage");
@@ -88,7 +85,6 @@ export const getFileContent = internalAction({
   },
 });
 
-// Internal action to get file by storageId
 export const getFileByStorageId = internalAction({
   args: {
     storageId: v.id("_storage"),
@@ -123,8 +119,6 @@ export const getFileByStorageId = internalAction({
   },
 });
 
-// Internal query to get file by storageId — uses the `by_storage_id`
-// index for O(log n) lookup rather than scanning the whole `files` table.
 export const getFileByStorageIdQuery = internalQuery({
   args: {
     storageId: v.id("_storage"),
@@ -137,7 +131,6 @@ export const getFileByStorageIdQuery = internalQuery({
   },
 });
 
-// Internal action to read file as text
 export const readFileAsText = internalAction({
   args: {
     fileId: v.id("files"),
@@ -151,7 +144,6 @@ export const readFileAsText = internalAction({
       throw new ConvexError("File not found");
     }
 
-    // Get the actual file content from storage
     const blob = await ctx.storage.get(file.storageId);
     if (!blob) {
       throw new ConvexError("File content not found in storage");
@@ -163,7 +155,6 @@ export const readFileAsText = internalAction({
     //   accessCount: (file.accessCount || 0) + 1,
     // });
 
-    // Convert blob to text using TextDecoder (works in Convex environment)
     const text = await blob.text();
 
     return {
@@ -175,7 +166,6 @@ export const readFileAsText = internalAction({
   },
 });
 
-// Internal action to read file as base64
 export const readFileAsBase64 = internalAction({
   args: {
     fileId: v.id("files"),
@@ -189,7 +179,6 @@ export const readFileAsBase64 = internalAction({
       throw new ConvexError("File not found");
     }
 
-    // Get the actual file content from storage
     const blob = await ctx.storage.get(file.storageId);
     if (!blob) {
       throw new ConvexError("File content not found in storage");
@@ -201,17 +190,9 @@ export const readFileAsBase64 = internalAction({
     //   accessCount: (file.accessCount || 0) + 1,
     // });
 
-    // Convex `internalAction`s without `"use node"` run in the V8
-    // isolate runtime where `Buffer` is NOT a global — using it
-    // throws `ReferenceError: Buffer is not defined` at request time
-    // (the prior `Buffer.from(...)` shipped here was the bug behind
-    // the dashboard's "download .p8" failing). Encode via `btoa` on
-    // chunked binary strings so the path stays portable to either
-    // runtime; chunking keeps the call-stack bound below the
-    // `String.fromCharCode` argument limit for files of any size,
-    // and accumulating the chunks in an array before `join("")`
-    // avoids the O(n²) string-concatenation behavior of `binary +=`
-    // on multi-megabyte uploads (Copilot review on PR #127).
+    // No `Buffer` global in the V8 runtime (no "use node"), so use `btoa`.
+    // Chunks stay under the `String.fromCharCode` argument limit, and one
+    // `join` avoids quadratic string concatenation on multi-megabyte files.
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     const CHUNK = 0x8000;
@@ -238,11 +219,9 @@ export const readFileAsBase64 = internalAction({
   },
 });
 
-// Internal query to find files by purpose. The return type is the
-// safe-to-export projection (no `storageId` / no `uploadedBy` —
-// callers like `getAppleP8Key` must not see those). Annotated
-// explicitly so callers get a strong type instead of `any[]` from
-// inference through the Convex handler wrapper.
+// What `findFilesByPurpose` returns: callers like `getAppleP8Key` must not
+// see `storageId` or `uploadedBy`. Declared explicitly because inference
+// through the Convex handler would give callers `any[]`.
 type FilePublicProjection = Omit<
   Doc<"files">,
   "storageId" | "uploadedBy" | "accessCount" | "lastAccessedAt"
@@ -284,11 +263,9 @@ export const findFilesByPurpose = internalQuery({
   },
 });
 
-// Exact-project lookup for the private App Review screenshot. The temporary
-// storage URL is returned only from this internal query so the Node ASC worker
-// can stream/fetch the blob directly instead of expanding a 10 MB image into a
-// binary string plus base64 inside the smaller V8 isolate. It is never exposed
-// by a public query or action.
+// Returns the storage URL so the Node ASC worker fetches the screenshot
+// itself instead of base64-expanding up to 10 MB in the smaller V8 isolate.
+// Never return this URL from a public query or action.
 export const getAppleReviewScreenshotByProjectInternal = internalQuery({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
@@ -363,7 +340,6 @@ export const getAppleP8Key = internalAction({
       },
     );
 
-    // Filter by project if specified
     let targetFile = files[0];
     if (args.projectId) {
       const projectFiles = files.filter(
@@ -375,7 +351,6 @@ export const getAppleP8Key = internalAction({
     if (!targetFile) {
       throw new ConvexError("No Apple P8 key found for this organization");
     }
-    // Read the key content
     const content = await ctx.runAction(
       internal.files.internal.readFileAsText,
       {
@@ -391,9 +366,8 @@ export const getAppleP8Key = internalAction({
   },
 });
 
-// Internal action to get the App Store Connect API key (.p8). This is
-// a different key than `getAppleP8Key` returns — see schema.ts for the
-// distinction. Used by `products/asc.ts` push-sync.
+// A different .p8 than `getAppleP8Key` returns (see schema.ts).
+// Used by `products/asc.ts` push-sync.
 export const getAppleAscApiKey = internalAction({
   args: {
     organizationId: v.id("organizations"),
@@ -443,7 +417,6 @@ export const getAppleAscApiKey = internalAction({
   },
 });
 
-// Internal mutation to cleanup old files
 export const cleanupOldFiles = internalMutation({
   args: {
     organizationId: v.id("organizations"),
@@ -462,9 +435,8 @@ export const cleanupOldFiles = internalMutation({
 
     let deletedCount = 0;
     for (const file of files) {
-      // Don't delete internal files, keys (both Apple .p8 kinds), or review
-      // screenshots. The purpose guard protects legacy/malformed screenshot
-      // rows even if isInternal was false.
+      // The screenshot purpose check also covers legacy rows where
+      // isInternal is false.
       if (
         file.isInternal ||
         file.purpose === "apple_p8_key" ||
@@ -482,10 +454,8 @@ export const cleanupOldFiles = internalMutation({
           fileId: file._id,
           error: describeErrorForLog(error),
         });
-        // The helper deletes the file row before checking/reclaiming its final
-        // storage reference. Let the mutation fail so Convex rolls that row
-        // deletion back atomically; swallowing the error would commit a new
-        // orphan blob with no row for a later cleanup retry to discover.
+        // Rethrow so Convex rolls back the row delete. Swallowing the error
+        // would leave an orphan blob with no row for a retry to find.
         throw error;
       }
     }
@@ -494,10 +464,9 @@ export const cleanupOldFiles = internalMutation({
   },
 });
 
-// Most expired upload reservations carry no storageId because the storage
-// service assigns it only after the client POSTs to the signed URL. Screenshot
-// validation deliberately claims that id before its Node action downloads the
-// blob, so the bounded sweep must also reclaim claimed-but-unsaved objects.
+// Most expired reservations have no storageId: storage assigns one only when
+// the client POSTs the upload. Validation claims the id before downloading
+// the blob, so the sweep also reclaims claimed-but-unsaved blobs.
 export const pruneUploadReservations = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
@@ -535,9 +504,8 @@ export const pruneUploadReservations = internalMutation({
       await ctx.db.delete(reservation._id);
     }
 
-    // A full page means more expired rows may already be queued. Chain another
-    // bounded transaction immediately instead of waiting an hour while an
-    // authenticated-abuse backlog grows faster than the cron can drain it.
+    // A full batch means more rows may be expired. Continue now instead of
+    // waiting an hour for the cron while an abuse backlog grows.
     if (expired.length === batchSize) {
       await ctx.scheduler.runAfter(
         0,
