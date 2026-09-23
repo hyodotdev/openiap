@@ -267,20 +267,30 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-gradle-plugin/$VERSION/openiap-gradle-plugin-$VERSION.pom"
-          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
-          HTTP_STATUS="${HTTP_STATUS:-000}"
-          case "$HTTP_STATUS" in
-            200)
+          # plugins { id(...) } resolves the marker, so the plugin counts as
+          # published only when both it and its jar's POM are there.
+          BASE="https://repo1.maven.org/maven2/io/github/hyochan/openiap"
+          STATUSES=""
+          for POM in "openiap-gradle-plugin/$VERSION/openiap-gradle-plugin-$VERSION.pom" \
+                     "io.github.hyochan.openiap.gradle.plugin/$VERSION/io.github.hyochan.openiap.gradle.plugin-$VERSION.pom"; do
+            HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/$POM" || true)
+            STATUSES="$STATUSES ${HTTP_STATUS:-000}"
+          done
+          case "$STATUSES" in
+            " 200 200")
               echo "exists=true" >> $GITHUB_OUTPUT
-              echo "⚠️ openiap-gradle-plugin $VERSION already exists on Maven Central"
+              echo "⚠️ openiap-gradle-plugin $VERSION and its marker already exist on Maven Central"
               ;;
-            404)
+            " 404 404")
               echo "exists=false" >> $GITHUB_OUTPUT
               echo "✓ openiap-gradle-plugin $VERSION does not exist, will publish"
               ;;
+            " 200 404"|" 404 200")
+              echo "❌ openiap-gradle-plugin $VERSION is only partly on Maven Central (plugin, marker:$STATUSES); release a new version"
+              exit 1
+              ;;
             *)
-              echo "❌ Unable to verify openiap-gradle-plugin $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              echo "❌ Unable to verify openiap-gradle-plugin $VERSION on Maven Central (HTTP$STATUSES)"
               exit 1
               ;;
           esac
@@ -510,7 +520,14 @@ jobs:
           \`openiapStore\` pins release builds.
 
           \`\`\`kotlin
-          // settings.gradle.kts
+          // settings.gradle.kts: the plugin is on Maven Central, not the Gradle Plugin Portal
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
           plugins {
               id("io.github.hyochan.openiap") version "$VERSION"
           }
