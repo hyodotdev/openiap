@@ -63,15 +63,17 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
   if (platform == 'none' && (horizon || fireOs)) {
     throw new GradleException("${label}: openiapPlatform=none conflicts with legacy store flags")
   }
-  def legacy = platform == 'none' ? 'none' : (fireOs ? 'amazon' : (horizon ? 'horizon' : null))
+  def (legacyKey, legacy) = platform == 'none' ? ['openiapPlatform=none', 'none']
+      : fireOs ? ['fireOsEnabled=true', 'amazon']
+      : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
   if (legacy != null) {
     logger.warn("${label}: horizonEnabled, fireOsEnabled, and openiapPlatform are deprecated; use openiapStore=${legacy}")
   }
-  def store = (explicit != null && explicit != 'auto') ? explicit : legacy
-  if (explicit != null && explicit != 'auto' && legacy != null && legacy != explicit) {
-    def legacyKey = platform == 'none' ? 'openiapPlatform=none' : (fireOs ? 'fireOsEnabled=true' : 'horizonEnabled=true')
-    throw new GradleException("${label}: openiapStore=${explicit} conflicts with ${legacyKey}")
+  def pin = explicit == 'auto' ? null : explicit
+  if (pin != null && legacy != null && legacy != pin) {
+    throw new GradleException("${label}: openiapStore=${pin} conflicts with ${legacyKey}")
   }
+  def store = pin ?: legacy
   if (store == 'none' && !allowNone) {
     throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
   }

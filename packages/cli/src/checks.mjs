@@ -116,18 +116,13 @@ export function androidStoreChecks(root, framework) {
   const platformEntry = properties?.get("openiapPlatform");
   const platformValue = platformEntry?.value.trim().toLowerCase() ?? "";
   const optOut = platformEntry !== undefined && platformValue === "none";
-  const legacy = optOut
-    ? "none"
+  const [legacyName, legacy] = optOut
+    ? ["openiapPlatform", "none"]
     : fireOs
-      ? "amazon"
+      ? ["fireOsEnabled", "amazon"]
       : horizon
-        ? "horizon"
-        : null;
-  const legacyName = optOut
-    ? "openiapPlatform"
-    : fireOs
-      ? "fireOsEnabled"
-      : "horizonEnabled";
+        ? ["horizonEnabled", "horizon"]
+        : [null, null];
   const legacyEntry = legacy ? properties.get(legacyName) : undefined;
   const legacyKey = legacy
     ? `${legacyName}=${oneLine(legacyEntry.value)}`
@@ -214,7 +209,7 @@ export function androidStoreChecks(root, framework) {
         "android/gradle.properties",
         `${pinKey} is not supported by ${framework}.`,
         "Remove the opt-out; only flutter_inapp_purchase builds without an Android store SDK.",
-        { line: (pinned ? storeEntry : legacyEntry)?.line },
+        { line: pinLine },
       ),
     );
   }
@@ -273,18 +268,20 @@ export function androidStoreChecks(root, framework) {
   const store = decided ?? linksNonPlay ?? declared;
   const refused = findings.some((one) => one.level === "error");
   if (!refused && store && store !== "play") {
-    const message = !decided
-      ? `This Android project last linked the ${store} store; with no pin in gradle.properties, each build resolves its own.`
-      : store === "none"
-        ? `This Android project links no store SDK (${pinKey}).`
-        : computed
-          ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
-          : `This Android project is pinned to the ${store} store (${pinKey}).`;
-    const fix = !decided
-      ? `The ${store} strategy left in ${app.file} no longer selects the store; remove it, and pin with openiapStore only where a build must target ${store}.`
-      : store === "none"
-        ? `Remove ${pinKey} before testing purchases on a device.`
-        : `Google Play billing will not connect from this build. Remove ${pinned ? "the openiapStore pin" : `${pinKey}, a deprecated pin,`} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
+    let message;
+    let fix;
+    if (!decided) {
+      message = `This Android project last linked the ${store} store; with no pin in gradle.properties, each build resolves its own.`;
+      fix = `The ${store} strategy left in ${app.file} no longer selects the store; remove it, and pin with openiapStore only where a build must target ${store}.`;
+    } else if (store === "none") {
+      message = `This Android project links no store SDK (${pinKey}).`;
+      fix = `Remove ${pinKey} before testing purchases on a device.`;
+    } else {
+      message = computed
+        ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
+        : `This Android project is pinned to the ${store} store (${pinKey}).`;
+      fix = `Google Play billing will not connect from this build. Remove ${pinned ? "the openiapStore pin" : `${pinKey}, a deprecated pin,`} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
+    }
     findings.push(
       finding(
         "android-store-not-play",
