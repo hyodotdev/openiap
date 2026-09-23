@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-23T18:39:37.634Z
+> Last updated: 2026-09-23T19:00:49.033Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -665,6 +665,23 @@ contracts; it requires meeting them with the fewest independent concepts.
 - When fixing a bug, first look for state or code that can be deleted or
   consolidated. Prefer one understandable path over several defensive fallback
   paths.
+
+#### Clean Up Once It Works
+
+A change is not done when it first passes. Reread the diff and the code it
+touches for smells, and fix them without being asked:
+
+- duplicated logic, parallel branches that compute one decision, and helpers
+  copied between files;
+- layers, fallbacks, or checks that another part of the system already
+  guarantees;
+- `as any`, which is never allowed. Type the value or narrow it; in tests, use
+  typed fixtures and `jest.mocked`, and mark input a test passes on purpose to
+  reach a runtime check with `// @ts-expect-error` and the reason.
+  `as unknown as T` hides the same problem;
+- comments the code now contradicts, and dead or unreachable code.
+
+Rerun the checks afterwards: a cleanup that changes behavior is a bug.
 
 ### 1. Explicit Over Implicit
 

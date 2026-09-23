@@ -70,6 +70,10 @@ Keep generated files, documentation, previews, and knowledge context in sync
 through their canonical workflows. Do not proceed while the working diff has a
 known failing required check.
 
+Once it works, clean it up before review: apply "Clean Up Once It Works" in
+`knowledge/internal/03-coding-style.md` to the diff without waiting to be
+asked, then rerun the affected checks.
+
 ## 3. Stabilize With Review Self
 
 Run `$review-self` immediately against the complete base-to-working-tree diff.

@@ -87,6 +87,13 @@ KISS and SSOT are mandatory release criteria. The canonical rules live in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
 Apply that section before implementation and during every review.
 
+### Clean Up Once It Works
+
+Once a change works, reread the diff for code smells — duplication, redundant
+fallbacks, `as any`, stale comments — and fix them without being asked. Never
+write `as any`. The checklist is in
+[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#clean-up-once-it-works).
+
 ### Repository Layout
 
 Treat the directory ownership rules in
