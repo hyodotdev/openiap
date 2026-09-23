@@ -7340,8 +7340,8 @@ function checkFrameworkDependencyHygiene() {
         "Android wrappers must read the store only through openiap-store.gradle",
       );
     }
-    // The store vocabulary is implemented six times over. They cannot share
-    // code across Groovy, JS, GDScript, Kotlin DSL and MSBuild, so compare the
+    // The store vocabulary is implemented five times over, in Groovy, JS,
+    // Kotlin, GDScript and MSBuild, which cannot share code, so compare the
     // tables instead: a store that resolves differently in two layers of one
     // build is the failure this whole mechanism exists to prevent.
     const aliasTables = {
@@ -7375,21 +7375,6 @@ function checkFrameworkDependencyHygiene() {
             ].map((one) => [one[1], one[2]])
           : null;
       },
-      "libraries/maui-iap/android/openiap/build.gradle.kts": (text) => {
-        const block = /fun normalizeOpenIapStore\(value: String\?\): String =\s*when \(value\?\.lowercase\(Locale\.ROOT\)\) \{([\s\S]*?)\n    \}/.exec(
-          text,
-        )?.[1];
-        if (!block) return null;
-        const entries = [];
-        for (const line of block.split("\n")) {
-          const arm = /^\s*(.+?)\s*->\s*"([a-z]+)"\s*$/.exec(line);
-          if (!arm || arm[1].startsWith("else")) continue;
-          for (const key of arm[1].matchAll(/"([A-Za-z0-9._-]+)"/g)) {
-            entries.push([key[1], arm[2]]);
-          }
-        }
-        return entries.length ? entries : null;
-      },
       "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
         const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
         return block
@@ -7413,7 +7398,6 @@ function checkFrameworkDependencyHygiene() {
     }
     // Godot has no opt-out build, so `none` is the one id it may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
-    const mauiKotlinFile = "libraries/maui-iap/android/openiap/build.gradle.kts";
     // The facade maps aliases onto the three ids; the ids and the opt-out are
     // not keys there, and it has no device so `auto` never reaches it.
     const facadeFile =
@@ -7427,11 +7411,6 @@ function checkFrameworkDependencyHygiene() {
           if (file === godotFile && store === "none") continue;
           if (file === facadeFile && facadeSkips.has(alias)) continue;
           const mine = table.get(alias);
-          // The MAUI facade module compiles against one store's API, so `auto`
-          // means Play there; the app build's targets pick the real store.
-          if (file === mauiKotlinFile && store === "auto" && mine === "play") {
-            continue;
-          }
           if (mine === undefined) {
             fail(`${file}: store alias ${JSON.stringify(alias)} is missing`);
           } else if (mine !== store) {
@@ -8521,10 +8500,8 @@ function checkFrameworkDependencyHygiene() {
       'readGoogleVariable("coroutinesVersion")',
       "compileSdk = googleCompileSdk",
       "minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)",
-      "openIapAndroidStore",
-      "openiap-google-amazon",
-      "openiap-google-horizon",
-      'missingDimensionStrategy("platform", openIapAndroidStore)',
+      '"openiap-google-$openIapStore"',
+      'missingDimensionStrategy("platform", openIapStore)',
       "mauiGsonVersion",
       'implementation("androidx.core:core:$googleCoreVersion")',
       "com.google.code.gson:gson:$gsonVersion",

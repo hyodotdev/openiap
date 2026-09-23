@@ -15,6 +15,8 @@
 // quietly ship the wrong billing SDK. The device is a fallback, not a competing signal:
 // a pin or a flavor simply outranks it. A release build never consults a device,
 // and several attached devices select nothing unless ANDROID_SERIAL names one.
+// Only spelled-out task names are read; once the task graph is ready, a task
+// that builds another store (an abbreviation like aHR, say) fails the build.
 
 ext.openIapStoreAliases = [
   play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
@@ -76,49 +78,8 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
   return store
 }
 
-// Gradle accepts camelCase abbreviations, so `aHR` runs assembleHorizonRelease.
-// Every capital starts a segment; the first one is the verb.
-ext.openIapAbbreviatedStore = { String taskPath ->
-  def flavors = ['play', 'horizon', 'amazon']
-  // AGP names its own segments too, and `A` opens AndroidTest and All as
-  // readily as Amazon. A segment that could be either is not a store: the
-  // graph check below turns a missed flavor into a failed build, while a
-  // wrong guess here would link the wrong SDK.
-  def notFlavors = ['debug', 'release', 'android', 'androidtest', 'all', 'test',
-                    'unit', 'connected', 'clean', 'check', 'lint']
-  def verbs = ['assemble', 'bundle', 'install']
-  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
-  def segments = name.split(/(?=[A-Z])/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
-  if (segments.size() < 2 || !verbs.any { it.startsWith(segments[0]) }) {
-    return [] as LinkedHashSet
-  }
-  def matches = [] as LinkedHashSet
-  segments.drop(1).each { segment ->
-    if (notFlavors.any { it.startsWith(segment) }) {
-      return
-    }
-    flavors.findAll { it.startsWith(segment) }.each { matches << it }
-  }
-  return matches
-}
-
-// Gradle task options that take a separate value, derived from `help --task`
-// over `tasks --all` under a Gradle 8 and a Gradle 9, because each major has
-// tasks the other does not: Gradle prints a `--no-` twin for a flag and not for
-// a value option. `--rerun` is the one exception, a built-in flag appended to
-// every task without a twin, so it is excluded by hand; adding it here would
-// silently drop the task after it. verify-store-resolver.sh redoes the
-// derivation on the one Gradle it runs and fails on what that Gradle publishes
-// and this list misses; the rest of the list it can only detect changes to.
-//
-// Anything unlisted is treated as a flag, so a flag never eats the task after
-// it -- `Test` alone declares three, which is why
-// `test --fail-fast assembleHorizonRelease` has to keep the assemble. The cost
-// runs the other way: a value of an option missing here, a plugin's own among
-// them, is read as a task, and one that spells a store picks it. AGP's
-// `--serial` is the known instance, harmless because a device serial does not
-// spell a store.
-// `--option=value` is a single token and never reaches this list.
+// Task options that take a separate value, from Gradle's `help --task` output.
+// An unlisted option's value may be read as a task; the graph check then fails.
 ext.openIapValueOptions = [
   '--args', '--component', '--configuration', '--dependency',
   '--distribution-type', '--dsl', '--format',
@@ -129,9 +90,8 @@ ext.openIapValueOptions = [
   '--tests', '--type', '--variant',
 ] as Set
 
-// Gradle flattens a whole invocation into one list, options included, so
-// `--tests *AmazonTest*` would otherwise read as a store. Drop each option and
-// the value it consumes; every remaining name is a task the developer asked for.
+// Gradle flattens an invocation into one list, options included, so drop each
+// option and its value: `--tests *AmazonTest*` is not an Amazon build.
 ext.openIapRequestedTasks = {
   def names = []
   def previous = null
@@ -154,22 +114,8 @@ ext.openIapRequestedTasks = {
 }
 
 ext.openIapTaskStore = { String label ->
-  // Abbreviation is a per-task fallback: a task that spells its flavor out is
-  // never also fragmented, or `assemblePLAYRelease` would collide with itself.
-  def named = [] as LinkedHashSet
-  openIapRequestedTasks().each { String taskPath ->
-    def exact = [] as LinkedHashSet
-    openIapTaskTokens(taskPath).each { token ->
-      if (token in ['play', 'horizon', 'amazon']) {
-        exact << token
-      }
-    }
-    if (exact) {
-      exact.each { named << it }
-    } else {
-      openIapAbbreviatedStore(taskPath).each { named << it }
-    }
-  }
+  def named = openIapRequestedTasks().collectMany { openIapTaskTokens(it) }
+      .findAll { it in ['play', 'horizon', 'amazon'] } as LinkedHashSet
   // Picking one of two named stores would link the wrong billing SDK in silence.
   if (named.size() > 1) {
     throw new GradleException("${label}: cannot tell which store the requested tasks '${openIapRequestedTasks().join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
@@ -257,10 +203,10 @@ ext.openIapVerifyTaskGraph = { String label, Map resolution ->
       }
     }
     if (!named) {
-      // Only an abbreviation lands here: `p` in a real assemblePDebug read as
-      // Play, while the task it runs names no store.
+      // A store read from something no task confirms, such as an unlisted
+      // option's value, is not trusted.
       if (resolution.source == 'variant') {
-        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but the task it runs names no store; spell the store out or set openiapStore")
+        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but no task it runs names a store; set openiapStore")
       }
       return
     }

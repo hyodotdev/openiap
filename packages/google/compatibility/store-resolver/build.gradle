@@ -21,9 +21,7 @@ if ((project.findProperty('fixtureSecondCaller') ?: 'false').toBoolean()) {
  'assembleAmazonDebug', 'assembleAmazonRelease',
  'assembleHorizonRelease', 'bundleHorizonRelease',
  'installPlayDebug', 'installHorizonDebug',
- 'connectedAndroidTest',
- // A real flavor named p, which also abbreviates play.
- 'bundlePRelease'].each { name ->
+ 'connectedAndroidTest'].each { name ->
   tasks.register(name) { doLast { } }
 }
 
@@ -54,6 +52,14 @@ abstract class FixtureTestTask extends DefaultTask {
   // Gradle's own Test task declares this one; it takes no value.
   @Option(option = 'fail-fast', description = 'Stop at the first failure')
   void setFailFast(boolean value) { failFast = value }
+
+  // A value option the resolver does not list, as a plugin's own would be.
+  @Input
+  @Optional
+  String suite
+
+  @Option(option = 'suite', description = 'A value option the resolver does not list')
+  void setSuite(String value) { suite = value }
 
   @TaskAction
   void run() { }

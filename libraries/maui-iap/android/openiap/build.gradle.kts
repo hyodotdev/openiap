@@ -66,66 +66,11 @@ val googleMinSdk = readGoogleAndroidInt("minSdk")
 val mauiAndroidMinSdk = readMauiAndroidMinSdk()
 val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
-// Groovy's toBoolean() accepts exactly true/y/1, case-insensitive, and the
-// doctor asserts the same set. Parsing a wider or narrower one here would make
-// the same gradle.properties select different stores in the two resolvers.
-fun legacyFlag(name: String): Boolean =
-    providers.gradleProperty(name).orNull?.trim()?.lowercase(Locale.ROOT) in
-        setOf("true", "y", "1")
-val horizonEnabled = legacyFlag("horizonEnabled")
-val fireOsEnabled = legacyFlag("fireOsEnabled")
-if (horizonEnabled && fireOsEnabled) {
-    error("maui-iap Android: horizonEnabled and fireOsEnabled cannot both be true")
-}
-
-// Same alias table as packages/google/gradle/openiap-store.gradle.
-fun normalizeOpenIapStore(value: String?): String =
-    when (value?.lowercase(Locale.ROOT)) {
-        null, "", "auto", "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
-        "none" -> "none"
-        "horizon", "meta", "quest" -> "horizon"
-        "amazon", "fire", "fireos", "fire-os" -> "amazon"
-        else -> error("maui-iap Android: unsupported openiapStore '$value'")
-    }
-
-// Trim and treat blank as absent exactly as the Groovy resolver does; without
-// that, " horizon " fails here while it resolves there, from one build's input.
-val requestedOpenIapStore = listOf("openiapStore", "openIapAndroidStore", "OpenIapAndroidStore")
-    .firstNotNullOfOrNull { providers.gradleProperty(it).orNull?.trim()?.takeIf(String::isNotEmpty) }
-// Blank is not absent here: the Groovy resolver and the doctor both reject an
-// empty openiapPlatform, so folding it away would accept what they refuse.
-val requestedOpenIapPlatform = providers.gradleProperty("openiapPlatform").orNull?.trim()
-if (requestedOpenIapPlatform != null && requestedOpenIapPlatform.lowercase(Locale.ROOT) != "none") {
-    error("maui-iap Android: openiapPlatform only supports the opt-out value 'none'")
-}
-val legacyOpenIapStore = when {
-    requestedOpenIapPlatform != null -> "none"
-    fireOsEnabled -> "amazon"
-    horizonEnabled -> "horizon"
-    else -> null
-}
-// Same rule as packages/google/gradle/openiap-store.gradle: two signals that
-// name different stores stop the build instead of one quietly winning. `auto`
-// is not a pin there either.
-val pinnedOpenIapStore = requestedOpenIapStore
-    ?.takeIf { it.lowercase(Locale.ROOT) != "auto" }
-    ?.let(::normalizeOpenIapStore)
-if (pinnedOpenIapStore != null && legacyOpenIapStore != null && pinnedOpenIapStore != legacyOpenIapStore) {
-    error("maui-iap Android: openiapStore=$pinnedOpenIapStore conflicts with the legacy flags selecting $legacyOpenIapStore")
-}
-if (legacyOpenIapStore == "none" || pinnedOpenIapStore == "none") {
-    error("maui-iap Android: openiapStore=none is not supported by this library")
-}
-val openIapAndroidStore = when {
-    pinnedOpenIapStore != null -> pinnedOpenIapStore
-    legacyOpenIapStore != null -> legacyOpenIapStore
-    else -> "play"
-}
-val openIapGoogleArtifact = when (openIapAndroidStore) {
-    "amazon" -> "openiap-google-amazon"
-    "horizon" -> "openiap-google-horizon"
-    else -> "openiap-google"
-}
+// One facade AAR serves every store: it ships compiled against Play, and CI
+// also compiles it against Horizon and Amazon with -PopeniapStore.
+val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull?.trim()?.lowercase(Locale.ROOT)
+val openIapStore = if (requestedOpenIapStore == "horizon" || requestedOpenIapStore == "amazon") requestedOpenIapStore else "play"
+val openIapGoogleArtifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
 
 android {
     namespace = "dev.hyo.openiap.maui"
@@ -133,7 +78,7 @@ android {
 
     defaultConfig {
         minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)
-        missingDimensionStrategy("platform", openIapAndroidStore)
+        missingDimensionStrategy("platform", openIapStore)
     }
 
     buildTypes {

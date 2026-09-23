@@ -60,13 +60,11 @@ function StoreSetup() {
             <strong>Variant</strong> — the requested task names a store flavor:{' '}
             <code>assembleHorizonRelease</code>, <code>installAmazonDebug</code>
             , or <code>flutter build apk --flavor amazon</code> in a Flutter app
-            that declares those flavors. Gradle&apos;s camelCase abbreviations
-            are read where they are unambiguous — <code>aHR</code> is{' '}
-            <code>assembleHorizonRelease</code> — and where they are not, the
-            build fails rather than guess: once the task graph is ready it is
-            compared against the store that was linked, so a lower-cased name or
-            a prefix match stops the build instead of shipping the wrong SDK.
-            Name one store per invocation, and name it <code>play</code>,{' '}
+            that declares those flavors. Only a spelled-out task name is read:
+            once the task graph is ready, an abbreviation such as{' '}
+            <code>aHR</code>, a lower-cased name or a prefix that builds another
+            store stops the build instead of shipping the wrong SDK. Name one
+            store per invocation, and name it <code>play</code>,{' '}
             <code>horizon</code> or <code>amazon</code> — the aliases work in{' '}
             <code>openiapStore</code>, not in a flavor name. An anchor task such
             as <code>assembleDebug</code> or <code>bundleRelease</code> is not a

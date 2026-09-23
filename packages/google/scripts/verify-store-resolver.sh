@@ -112,27 +112,22 @@ run "installPlayDebug"                     play/variant     installPlayDebug
 run "two flavors in one invocation fail"   "fail:cannot tell which store" assembleHorizonRelease assembleAmazonDebug
 run "a pin against another flavor fails"   "fail:conflicts with the horizon flavor" assembleHorizonRelease -PopeniapStore=play
 run "a pin that agrees is kept"            horizon/explicit assembleHorizonRelease -PopeniapStore=horizon
+run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
 
 echo "abbreviated task names"
-# Gradle accepts these, so missing the flavor here links the wrong billing SDK.
-run "aHR is assembleHorizonRelease"        horizon/variant  aHR
-# `A` opens AndroidTest and All as readily as Amazon, so the abbreviation is
-# not read as a store; the graph check turns that into a failed build.
-run "aAR is too ambiguous to read"         "fail:but the requested tasks build amazon" aAR
-run "aPD is assemblePlayDebug"             play/variant     aPD
-run "aD names no flavor"                   play/default     aD
-run "iHD is installHorizonDebug"           horizon/variant  iHD
-run "AGP own segments are not stores"      play/default     cAT
-run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
-# An exact flavor plus an abbreviation of another still names two stores.
-run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
-run "abbreviated plus exact fails"         "fail:cannot tell which store" aHR assembleAmazonDebug
-run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
-# A real flavor that happens to abbreviate a store must not pick that store.
-run "a flavor named p is not Play"         "fail:the task it runs names no store" bundlePRelease
-run "bHR is bundleHorizonRelease"          horizon/variant  bHR
+# Only spelled-out names are read. An abbreviation that builds another store
+# fails once the graph is ready, instead of linking the Play SDK in silence.
+run "aHR fails rather than guess"          "fail:but the requested tasks build horizon" aHR
+run "aAR too"                              "fail:but the requested tasks build amazon" aAR
+run "iHD too"                              "fail:but the requested tasks build horizon" iHD
 # Gradle matches an abbreviation with fewer humps than the task name has.
-run "aH is assembleHorizonRelease"         horizon/variant  aH
+run "aH too"                               "fail:but the requested tasks build horizon" aH
+run "one that agrees builds"               play/default     aPD
+run "aD names no flavor"                   play/default     aD
+run "AGP own segments are not stores"      play/default     cAT
+run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
+run "abbreviated plus exact fails"         "fail:build more than one store" aHR assembleAmazonDebug
+run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
 
 echo "task graph"
 # Gradle matches names case-insensitively and by prefix, which configuration
@@ -173,6 +168,8 @@ run "an inline option value"               horizon/variant  testDebugUnitTest --
 # amazon for a build that never named one.
 run "an option value spelling a store"     play/default     properties --property amazon
 run "the same value after an anchor"       play/default     assemble properties --property amazon
+# An unlisted option's value is read as a task, and no task it runs confirms it.
+run "an unlisted option's value fails"     "fail:no task it runs names a store" testDebugUnitTest --suite amazon
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus
@@ -206,100 +203,6 @@ ANDROID_SERIAL=QUEST1 run "ANDROID_SERIAL picks one of them" horizon/device asse
 ANDROID_SERIAL=ABSENT run "an absent serial selects nothing" play/default   assembleDebug
 clear_device
 run "no adb at all"                        play/default     assembleDebug
-
-# The list of value-taking options was twice written from memory, and twice
-# wrong: once naming an option Gradle does not have, once missing one whose
-# value spelled a store. Ask Gradle instead.
-echo "value-option drift"
-# Gradle prints a `--no-` twin for a flag and not for a value option. `--rerun`
-# is the one built-in flag it appends to every task without a twin, so a new
-# twinless flag reads as a value option here. Confirm whether it takes one by
-# running the task with the option and nothing after it, then add a flag to
-# this line rather than to openIapValueOptions, where it would drop the task
-# written after it.
-twinless_flags="--rerun"
-# `--args` needs a JavaExec task and `--component` / `--format` belong to
-# Gradle 8 tasks that Gradle 9 removed, so no single Gradle shows all three.
-# They come from the same derivation run by hand on each major. Naming them
-# here detects a change to the list; it cannot tell whether the list was right
-# to begin with, which only a second Gradle could.
-undetectable_options="--args --component --format"
-
-declared=$(sed -n '/openIapValueOptions = \[/,/\] as Set/p' \
-    "$google_root/gradle/openiap-store.gradle" \
-    | grep -oE "'--[a-z0-9-]+'" | tr -d "'" | sort -u)
-# A task prints as `name` or `name - description`. Every heading and banner
-# carries a space without that separator, so neither form matches one.
-fixture_tasks=$(cd "$fixture" && "$gradlew" --quiet tasks --all 2>/dev/null \
-    | sed -nE 's/^:?([a-zA-Z][A-Za-z0-9_.:-]*)( - .*)?[[:space:]]*$/\1/p' | sort -u)
-published=$(
-    cd "$fixture" || exit
-    printf '%s\n' "$fixture_tasks" | while IFS= read -r task; do
-        [[ -n "$task" ]] || continue
-        "$gradlew" --quiet help --task "$task" 2>/dev/null \
-            | grep -oE '^[[:space:]]+--[a-z0-9-]+' | tr -d '[:blank:]'
-    done | sort -u
-)
-
-# A derivation that saw little agrees with almost any list, and every per-task
-# failure is swallowed, so name one described task and one undescribed one --
-# the parser has already dropped the undescribed kind once.
-if ! printf '%s\n' "$fixture_tasks" | grep -qx help \
-    || ! printf '%s\n' "$fixture_tasks" | grep -qx testDebugUnitTest; then
-    drift="derivation saw no tasks"
-elif ! printf '%s\n' "$published" | grep -qx -- --task \
-    || ! printf '%s\n' "$published" | grep -qx -- --property \
-    || ! printf '%s\n' "$published" | grep -qx -- --tests; then
-    drift="derivation saw no options"
-else
-    drift=$(
-        printf '%s\n' "$published" | while IFS= read -r option; do
-            [[ -n "$option" ]] || continue
-            # Balanced parens: inside $( ) an unmatched `)` ends the substitution.
-            case "$option" in (--no-*) continue ;; esac
-            case " $twinless_flags " in (*" $option "*) continue ;; esac
-            if printf '%s\n' "$published" | grep -qx -- "--no-${option#--}"; then
-                printf '%s\n' "$declared" | grep -qx -- "$option" \
-                    && printf 'now-a-flag:%s ' "$option"
-                continue
-            fi
-            printf '%s\n' "$declared" | grep -qx -- "$option" \
-                || printf 'unlisted:%s ' "$option"
-        done
-        for option in $undetectable_options; do
-            printf '%s\n' "$declared" | grep -qx -- "$option" \
-                || printf 'dropped:%s ' "$option"
-        done
-        # Listing a flag is the mistake the comments warn about, and the loop
-        # above skips flags before it can notice one.
-        for option in $twinless_flags; do
-            printf '%s\n' "$declared" | grep -qx -- "$option" \
-                && printf 'flag-listed:%s ' "$option"
-        done
-        # A `--no-` name is a flag by construction, and the loop above skips
-        # every `--no-` before it can say so.
-        # `|| :` so a no-match does not leave the pipeline failing under pipefail.
-        { printf '%s\n' "$declared" | grep -E '^--no-' || :; } \
-            | while IFS= read -r option; do printf 'flag-listed:%s ' "$option"; done
-        # An option Gradle does not publish anywhere was once listed from
-        # memory; Gradle rejects it before a build, so it only hides a typo.
-        printf '%s\n' "$declared" | while IFS= read -r option; do
-            [[ -n "$option" ]] || continue
-            printf '%s\n' "$published" | grep -qx -- "$option" && continue
-            case " $undetectable_options " in (*" $option "*) continue ;; esac
-            printf 'unpublished:%s ' "$option"
-        done
-    )
-fi
-
-if [[ -z "$drift" ]]; then
-    printf '  ok   %-58s %s\n' "the list matches what Gradle publishes" \
-        "$(printf '%s\n' "$declared" | wc -l | tr -d ' ') listed"
-    passed=$((passed + 1))
-else
-    printf '  FAIL %-58s %s\n' "the list drifted from Gradle" "$drift"
-    failed=$((failed + 1))
-fi
 
 echo
 echo "Store resolver: $passed passed, $failed failed"

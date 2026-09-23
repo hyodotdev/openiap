@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-23T12:56:47.111Z
+> Last updated: 2026-09-23T18:39:37.634Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1386,16 +1386,15 @@ instead of keeping a copy. Every other build system reads the same names:
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
 
-`bun audit:parity` compares all six alias tables — the resolver, the doctor, the
-Godot helper, the MAUI Gradle module, the runtime facade in `OpenIapStore.kt`
-and the MAUI package targets — because a store that resolves differently in two
-layers of one build is exactly what this mechanism exists to prevent.
+`bun audit:parity` compares all five alias tables — the resolver, the doctor,
+the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
+targets — because a store that resolves differently in two layers of one build
+is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by
 `packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
-Android job. It covers Gradle's camelCase abbreviations (`aHR` is
-`assembleHorizonRelease`) because reading task names as typed once let an
-abbreviated Horizon build link the Play SDK:
+Android job. It covers abbreviated task names such as `aHR`, which once let
+a Horizon build link the Play SDK and now fail at the task-graph check:
 
 ```bash
 cd packages/google && bash scripts/verify-store-resolver.sh
