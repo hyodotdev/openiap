@@ -20,6 +20,7 @@ import type {
   PurchaseState,
   SubscriptionPeriodIOS,
   Product,
+  ProductOrSubscription,
   ProductSubscription,
   Purchase,
   PurchaseAndroid,
@@ -372,7 +373,11 @@ export function convertNitroProductToProduct(
  */
 export function convertProductToProductSubscription(
   product: Product,
-): ProductSubscription {
+): ProductSubscription;
+// The public overload keeps the shipped cast contract; an in-app input is copied through with a warning.
+export function convertProductToProductSubscription(
+  product: ProductOrSubscription,
+): ProductOrSubscription {
   if (product.type !== PRODUCT_TYPE_SUBS) {
     RnIapConsole.warn(
       'Converting non-subscription product to ProductSubscription:',
@@ -380,7 +385,7 @@ export function convertProductToProductSubscription(
     );
   }
 
-  return {...(product as any)};
+  return {...product};
 }
 
 /**

@@ -147,7 +147,7 @@ describe('OfferCode Screen', () => {
   });
 
   it('shows Vega unsupported guidance without calling the redemption API', async () => {
-    (Platform as any).OS = 'kepler';
+    Object.assign(Platform, {OS: 'kepler'});
     const {getByText} = await render(<OfferCode />);
 
     await fireEvent.press(getByText('Amazon Vega IAP'));

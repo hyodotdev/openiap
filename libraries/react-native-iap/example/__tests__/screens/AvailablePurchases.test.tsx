@@ -116,7 +116,7 @@ describe('AvailablePurchases Screen', () => {
 
   it('shows Vega guidance instead of opening unsupported subscription management deep links', async () => {
     const originalPlatform = Platform.OS;
-    (Platform as any).OS = 'kepler';
+    Object.assign(Platform, {OS: 'kepler'});
 
     try {
       const {getByText} = await renderWithProviders(<AvailablePurchases />);
@@ -128,7 +128,7 @@ describe('AvailablePurchases Screen', () => {
       ).toBeTruthy();
       expect(RNIap.deepLinkToSubscriptions).not.toHaveBeenCalled();
     } finally {
-      (Platform as any).OS = originalPlatform;
+      Object.assign(Platform, {OS: originalPlatform});
     }
   });
 

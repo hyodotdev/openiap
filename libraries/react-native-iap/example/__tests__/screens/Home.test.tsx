@@ -17,7 +17,7 @@ describe('Home Screen', () => {
 
   it('renders header with correct title and subtitle', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     expect(getByText('React Native IAP')).toBeTruthy();
@@ -26,7 +26,7 @@ describe('Home Screen', () => {
 
   it('renders all menu items', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     expect(getByText('All Products')).toBeTruthy();
@@ -54,7 +54,7 @@ describe('Home Screen', () => {
 
   it('navigates to AllProducts when All Products menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const allProductsButton = getByText('All Products').parent?.parent;
@@ -67,7 +67,7 @@ describe('Home Screen', () => {
 
   it('navigates to PurchaseFlow when Purchase Flow menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const purchaseFlowButton = getByText('Purchase Flow').parent?.parent;
@@ -80,7 +80,7 @@ describe('Home Screen', () => {
 
   it('navigates to SubscriptionFlow when Subscription Flow menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const subscriptionFlowButton =
@@ -94,7 +94,7 @@ describe('Home Screen', () => {
 
   it('navigates to AvailablePurchases when Available Purchases menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const availablePurchasesButton = getByText('Available Purchases').parent
@@ -108,7 +108,7 @@ describe('Home Screen', () => {
 
   it('navigates to OfferCode when Offer Code menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const offerCodeButton = getByText('Offer Code').parent?.parent;
@@ -121,7 +121,7 @@ describe('Home Screen', () => {
 
   it('navigates to AlternativeBilling when Alternative Billing menu item is pressed', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     const alternativeBillingButton = getByText('Alternative Billing').parent
@@ -135,7 +135,7 @@ describe('Home Screen', () => {
 
   it('renders footer text', async () => {
     const {getByText} = await render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
+      <Home navigation={{navigate: mockNavigate}} />,
     );
 
     expect(

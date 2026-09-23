@@ -5,7 +5,7 @@ import {getSuccessFromPurchaseVariant} from '../../utils/purchase';
 describe('utility fallback coverage', () => {
   afterEach(() => {
     delete process.env.RN_IAP_DEV_MODE;
-    delete (global as any).RN_IAP_DEV_MODE;
+    Reflect.deleteProperty(globalThis, 'RN_IAP_DEV_MODE');
     jest.restoreAllMocks();
   });
 
@@ -50,7 +50,7 @@ describe('utility fallback coverage', () => {
     process.env.RN_IAP_DEV_MODE = 'true';
     RnIapConsole.log('environment');
     delete process.env.RN_IAP_DEV_MODE;
-    (global as any).RN_IAP_DEV_MODE = true;
+    Object.assign(globalThis, {RN_IAP_DEV_MODE: true});
     RnIapConsole.info('global');
 
     expect(log).toHaveBeenCalledWith('[RN-IAP]', 'environment');

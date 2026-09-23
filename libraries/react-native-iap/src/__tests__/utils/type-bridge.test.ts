@@ -109,17 +109,17 @@ describe('type-bridge utilities', () => {
             },
           ]),
         }),
-      ) as any;
+      );
 
-      expect(result.typeIOS).toBe('subscription-bundle');
-      expect(result.bundledSubscriptionsIOS).toEqual([
+      expect(result).toHaveProperty('typeIOS', 'subscription-bundle');
+      expect(result).toHaveProperty('bundledSubscriptionsIOS', [
         expect.objectContaining({
           id: 'premium.monthly',
           subscriptionGroupId: 'premium',
         }),
       ]);
-      expect(result.pricingTermsIOS).toHaveLength(1);
-      expect(result.subscriptionOffers[0].id).toBe('intro');
+      expect(result).toHaveProperty('pricingTermsIOS.length', 1);
+      expect(result.subscriptionOffers?.[0]?.id).toBe('intro');
       expect(result).not.toHaveProperty('discountOffers');
       expect(result).not.toHaveProperty('subscriptionInfoIOS');
       expect(result).not.toHaveProperty('discountsIOS');
@@ -141,10 +141,10 @@ describe('type-bridge utilities', () => {
             },
           ]),
         }),
-      ) as any;
+      );
 
       expect(result.platform).toBe('android');
-      expect(result.subscriptionOffers[0].offerTokenAndroid).toBe('token');
+      expect(result.subscriptionOffers?.[0]?.offerTokenAndroid).toBe('token');
       expect(result).not.toHaveProperty('discountOffers');
       expect(result).not.toHaveProperty('subscriptionOfferDetailsAndroid');
       expect(result).not.toHaveProperty('oneTimePurchaseOfferDetailsAndroid');
@@ -164,23 +164,26 @@ describe('type-bridge utilities', () => {
             },
           ]),
         }),
-      ) as any;
+      );
 
-      expect(result.discountOffers[0].offerTokenAndroid).toBe('discount-token');
+      expect(result).toHaveProperty(
+        'discountOffers.0.offerTokenAndroid',
+        'discount-token',
+      );
       expect(result).not.toHaveProperty('oneTimePurchaseOfferDetailsAndroid');
     });
 
     it('uses safe defaults for invalid standardized offer JSON', () => {
       const iosResult = convertNitroProductToProduct(
         product({subscriptionOffers: '{'}),
-      ) as any;
+      );
       const androidResult = convertNitroProductToProduct(
         product({
           type: 'subs',
           platform: 'android',
           subscriptionOffers: '{',
         }),
-      ) as any;
+      );
 
       expect(iosResult.subscriptionOffers).toBeNull();
       expect(iosResult).not.toHaveProperty('discountOffers');
@@ -200,15 +203,21 @@ describe('type-bridge utilities', () => {
           pricingTermsIOS: '{',
           bundledSubscriptionsIOS: '{',
         }),
-      ) as any;
+      );
 
       expect(fallbackPlatform.platform).toBe('android');
-      expect(result.typeIOS).toBe('non-consumable');
-      expect(result.introductoryPricePaymentModeIOS).toBe('pay-as-you-go');
-      expect(result.introductoryPriceSubscriptionPeriodIOS).toBe('day');
-      expect(result.subscriptionPeriodUnitIOS).toBe('week');
-      expect(result.pricingTermsIOS).toBeNull();
-      expect(result.bundledSubscriptionsIOS).toBeNull();
+      expect(result).toHaveProperty('typeIOS', 'non-consumable');
+      expect(result).toHaveProperty(
+        'introductoryPricePaymentModeIOS',
+        'pay-as-you-go',
+      );
+      expect(result).toHaveProperty(
+        'introductoryPriceSubscriptionPeriodIOS',
+        'day',
+      );
+      expect(result).toHaveProperty('subscriptionPeriodUnitIOS', 'week');
+      expect(result).toHaveProperty('pricingTermsIOS', null);
+      expect(result).toHaveProperty('bundledSubscriptionsIOS', null);
       expect(console.warn).toHaveBeenCalled();
     });
 
@@ -219,12 +228,8 @@ describe('type-bridge utilities', () => {
       ['subscriptionSuite', 'subscription-suite'],
     ] as const)('normalizes iOS type %s', (nativeType, expected) => {
       expect(
-        (
-          convertNitroProductToProduct(
-            product({typeIOS: nativeType as never}),
-          ) as any
-        ).typeIOS,
-      ).toBe(expected);
+        convertNitroProductToProduct(product({typeIOS: nativeType})),
+      ).toHaveProperty('typeIOS', expected);
     });
 
     it('handles non-array iOS metadata and invalid Android discounts', () => {
@@ -235,16 +240,22 @@ describe('type-bridge utilities', () => {
           introductoryPricePaymentModeIOS: 'payUpFront' as never,
           introductoryPriceSubscriptionPeriodIOS: 'invalid' as never,
         }),
-      ) as any;
+      );
       const android = convertNitroProductToProduct(
         product({platform: 'android', discountOffers: '{'}),
-      ) as any;
+      );
 
-      expect(ios.pricingTermsIOS).toBeNull();
-      expect(ios.bundledSubscriptionsIOS).toBeNull();
-      expect(ios.introductoryPricePaymentModeIOS).toBe('pay-up-front');
-      expect(ios.introductoryPriceSubscriptionPeriodIOS).toBe('empty');
-      expect(android.discountOffers).toBeNull();
+      expect(ios).toHaveProperty('pricingTermsIOS', null);
+      expect(ios).toHaveProperty('bundledSubscriptionsIOS', null);
+      expect(ios).toHaveProperty(
+        'introductoryPricePaymentModeIOS',
+        'pay-up-front',
+      );
+      expect(ios).toHaveProperty(
+        'introductoryPriceSubscriptionPeriodIOS',
+        'empty',
+      );
+      expect(android).toHaveProperty('discountOffers', null);
     });
   });
 

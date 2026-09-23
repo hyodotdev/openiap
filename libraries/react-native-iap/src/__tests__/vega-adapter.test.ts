@@ -918,7 +918,8 @@ describe('Amazon Vega adapter', () => {
       module.requestPurchase({
         google: {
           skus: ['premium_monthly'],
-          subscriptionOffers: '[]' as any,
+          // @ts-expect-error direct Vega Nitro calls can carry serialized offers the adapter must accept.
+          subscriptionOffers: '[]',
         },
       }),
     ).resolves.toEqual([

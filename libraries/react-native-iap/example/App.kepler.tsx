@@ -27,8 +27,10 @@ LogBox.ignoreLogs([
   '[RN-IAP] Error getting active subscriptions:',
 ]);
 
-(global as any).RN_IAP_DEV_MODE = true;
-(global as any).RN_IAP_SUPPRESS_NATIVE_ALERTS = true;
+Object.assign(globalThis, {
+  RN_IAP_DEV_MODE: true,
+  RN_IAP_SUPPRESS_NATIVE_ALERTS: true,
+});
 
 type RouteName =
   | 'Home'

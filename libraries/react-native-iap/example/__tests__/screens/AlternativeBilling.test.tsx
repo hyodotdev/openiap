@@ -25,11 +25,11 @@ describe('AlternativeBilling Screen', () => {
   });
 
   afterEach(() => {
-    (Platform as any).OS = originalPlatform;
+    Object.assign(Platform, {OS: originalPlatform});
   });
 
   it('renders Amazon Vega as unsupported for alternative billing', async () => {
-    (Platform as any).OS = 'kepler';
+    Object.assign(Platform, {OS: 'kepler'});
 
     const {getByText} = await render(<AlternativeBilling />);
 

@@ -197,7 +197,7 @@ export const isNitroReady = (): boolean => {
  * tvOS reports Platform.OS as 'ios' but has Platform.isTV = true.
  */
 export const isTVOS = (): boolean => {
-  return Platform.OS === 'ios' && (Platform as any).isTV === true;
+  return Platform.OS === 'ios' && Platform.isTV === true;
 };
 
 /**
@@ -207,7 +207,7 @@ export const isTVOS = (): boolean => {
 export const isMacOS = (): boolean => {
   return (
     Platform.OS === 'macos' ||
-    (Platform.OS === 'ios' && (Platform as any).isMacCatalyst === true)
+    (Platform.OS === 'ios' && Platform.isMacCatalyst === true)
   );
 };
 
@@ -317,7 +317,7 @@ const emitPurchaseUpdateToListeners = (
   } else {
     RnIapConsole.error(
       'Invalid purchase data received from native — productId:',
-      (nitroPurchase as any)?.productId ?? 'unknown',
+      nitroPurchase?.productId ?? 'unknown',
     );
   }
 };
@@ -420,7 +420,7 @@ const promotedProductNativeHandler: NitroPromotedProductListener = (
   } else {
     RnIapConsole.error(
       'Invalid promoted product data received from native — id:',
-      (nitroProduct as any)?.id ?? 'unknown',
+      nitroProduct?.id ?? 'unknown',
     );
   }
 };

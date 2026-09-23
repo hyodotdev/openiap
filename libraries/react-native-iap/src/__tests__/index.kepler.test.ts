@@ -1,6 +1,6 @@
 import * as IAP from '../index.kepler';
 import {ErrorCode} from '../types';
-import type {RequestPurchaseProps} from '../types';
+import type {PurchaseAndroid, RequestPurchaseProps} from '../types';
 import {getVegaIapModule} from '../vega';
 
 jest.mock('../hooks/useIAP', () => ({useIAP: jest.fn()}));
@@ -53,7 +53,8 @@ describe('Amazon Vega public API', () => {
 
   it('rejects removed product type aliases', async () => {
     await expect(
-      IAP.fetchProducts({skus: ['coins'], type: 'inapp' as any}),
+      // @ts-expect-error 'inapp' is a removed alias the runtime must reject.
+      IAP.fetchProducts({skus: ['coins'], type: 'inapp'}),
     ).rejects.toThrow(/Unsupported product type/);
     expect(fetchProductsNative).not.toHaveBeenCalled();
   });
@@ -76,7 +77,8 @@ describe('Amazon Vega public API', () => {
     await expect(
       IAP.requestPurchase({
         request: {google: {skus: ['coins']}},
-        type: 'all' as any,
+        // @ts-expect-error 'all' is query-only; the runtime must reject it for purchases.
+        type: 'all',
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.DeveloperError,
@@ -221,11 +223,20 @@ describe('Amazon Vega public API', () => {
       }),
     ).resolves.toBeNull();
 
-    await expect(
-      IAP.finishTransaction({purchase: {productId: 'coins'} as any}),
-    ).rejects.toThrow(/purchaseToken required/);
+    const purchase: PurchaseAndroid = {
+      id: 'purchase',
+      isAutoRenewing: false,
+      productId: 'coins',
+      purchaseState: 'purchased',
+      quantity: 1,
+      store: 'amazon',
+      transactionDate: 0,
+    };
+    await expect(IAP.finishTransaction({purchase})).rejects.toThrow(
+      /purchaseToken required/,
+    );
     await IAP.finishTransaction({
-      purchase: {productId: 'coins', purchaseToken: 'receipt'} as any,
+      purchase: {...purchase, purchaseToken: 'receipt'},
       isConsumable: true,
     });
     expect(vegaModule.finishTransaction).toHaveBeenCalledWith({
@@ -292,11 +303,11 @@ describe('Amazon Vega public API', () => {
     await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
 
     for (const call of [
-      () => IAP.verifyPurchase({} as any),
+      () => IAP.verifyPurchase({}),
       () => IAP.syncIOS(),
       () => IAP.presentExternalPurchaseLinkIOS('https://example.com'),
-      () => IAP.deepLinkToSubscriptions({} as any),
-      () => IAP.isBillingProgramAvailableAndroid('external-offer' as any),
+      () => IAP.deepLinkToSubscriptions({}),
+      () => IAP.isBillingProgramAvailableAndroid('external-offer'),
       () => IAP.getBillingChoiceInfoAndroid({}),
       () =>
         IAP.launchExternalLinkAndroid({
@@ -306,12 +317,14 @@ describe('Amazon Vega public API', () => {
           linkUri: 'https://example.com',
         }),
       () =>
-        IAP.createBillingProgramReportingDetailsAndroid(
-          'external-offer' as any,
-        ),
+        IAP.createBillingProgramReportingDetailsAndroid({
+          program: 'external-offer',
+        }),
       () =>
-        IAP.showBillingProgramInformationDialogAndroid('external-offer' as any),
-      () => IAP.showInAppMessagesAndroid({} as any),
+        IAP.showBillingProgramInformationDialogAndroid({
+          externalTransactionToken: 'token',
+        }),
+      () => IAP.showInAppMessagesAndroid({}),
     ]) {
       await expect(call()).rejects.toThrow(/not supported on Amazon Vega/);
     }
