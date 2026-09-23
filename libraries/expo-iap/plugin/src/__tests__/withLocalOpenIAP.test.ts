@@ -52,7 +52,7 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     const result = ensureLocalOpenIapFlavorStrategy(
       baseProjectBuildGradle,
       scriptPath,
-      'kotlin',
+      'kt',
     );
 
     expect(result).toContain(`apply(from = "${scriptPath}")`);
@@ -90,17 +90,14 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(groovy.strategy).toContain('openIapResolveStore("app").store');
     expect(groovy.strategy).not.toContain('rootProject');
 
-    const kotlin = appStoreLines('../x/openiap-store.gradle', 'kotlin');
+    const kotlin = appStoreLines('../x/openiap-store.gradle', 'kt');
     expect(kotlin.apply).toBe('apply(from = "../x/openiap-store.gradle")');
     expect(kotlin.strategy).toContain('openIapResolveStore');
     expect(kotlin.strategy).not.toContain('rootProject');
   });
 
   it('removes the Kotlin DSL wiring a local build wrote', () => {
-    const {apply, strategy} = appStoreLines(
-      '../x/openiap-store.gradle',
-      'kotlin',
-    );
+    const {apply, strategy} = appStoreLines('../x/openiap-store.gradle', 'kt');
     const app = [
       'plugins {',
       '    id("com.android.application")',
@@ -134,7 +131,7 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
         ensureLocalOpenIapFlavorStrategy(
           baseProjectBuildGradle,
           scriptPath,
-          'kotlin',
+          'kt',
         ),
       ),
     ).toBe(baseProjectBuildGradle);

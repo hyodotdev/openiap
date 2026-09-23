@@ -19,7 +19,8 @@ import {ensureOnsidePodIOS} from './onsidePodfile';
  * This is only for local development with openiap-apple library
  */
 export type LocalPathOption = string | {ios?: string; android?: string};
-type GradleLanguage = 'groovy' | 'kotlin';
+// Expo's names for a .gradle and a .gradle.kts file.
+type GradleLanguage = 'groovy' | 'kt';
 
 export const getAndroidLocalPathInput = (
   raw?: LocalPathOption,
@@ -106,9 +107,6 @@ const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
 const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
   '// End expo-iap local openiap-google flavor selection';
 
-const normalizeGradleLanguage = (language?: string): GradleLanguage =>
-  language === 'kotlin' ? 'kotlin' : 'groovy';
-
 // The resolver ships beside this plugin, so locate it from here instead of
 // guessing where the consumer hoisted node_modules.
 const OPENIAP_STORE_SCRIPT = path.resolve(
@@ -135,7 +133,7 @@ export const appStoreLines = (
   storeScriptPath: string,
   language: GradleLanguage,
 ): {apply: string; strategy: string} =>
-  language === 'kotlin'
+  language === 'kt'
     ? {
         apply: `apply(from = "${storeScriptPath}")`,
         strategy:
@@ -208,7 +206,7 @@ export const ensureLocalOpenIapFlavorStrategy = (
   const cleaned = removeLocalOpenIapFlavorStrategy(contents).trimEnd();
 
   const strategyBlock =
-    language === 'kotlin'
+    language === 'kt'
       ? `apply(from = "${storeScriptPath}")
 val openIapStore =
   ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String
@@ -286,12 +284,17 @@ const withLocalOpenIAP: ConfigPlugin<
     }
     return null;
   };
+  const androidInput = getAndroidLocalPathInput(props?.localPath);
+  // The local openiap-google module: from localPath, else beside the app.
+  const localAndroidModule = (projectRoot: string): string | null =>
+    resolveAndroidModulePath(androidInput) ??
+    resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google'));
 
   // iOS: inject local pod path with wrapper podspec
   config = withDangerousMod(config, [
     'ios',
     async (config) => {
-      const {platformProjectRoot, projectRoot} = config.modRequest as any;
+      const {platformProjectRoot, projectRoot} = config.modRequest;
       const raw = props?.localPath;
       const iosPath =
         (typeof raw === 'string' ? raw : raw?.ios) ||
@@ -379,15 +382,8 @@ const withLocalOpenIAP: ConfigPlugin<
 
   // Android: include local module and add dependency if available
   config = withSettingsGradle(config, (config) => {
-    const raw = props?.localPath;
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    const androidModulePath = localAndroidModule(config.modRequest.projectRoot);
+    if (!androidModulePath) {
       if (androidInput) {
         console.warn(
           `⚠️  Could not resolve Android OpenIAP module at: ${androidInput}. Skipping local Android linkage.`,
@@ -400,22 +396,19 @@ const withLocalOpenIAP: ConfigPlugin<
     }
     const pluginVersions =
       resolveAndroidGradlePluginVersions(androidModulePath);
-    const settingsRoot =
-      ((config.modRequest as any).platformProjectRoot as string | undefined) ??
-      path.join(projectRoot, 'android');
     const relativeAndroidModulePath = path
-      .relative(settingsRoot, androidModulePath)
+      .relative(config.modRequest.platformProjectRoot, androidModulePath)
       .replace(/\\/g, '/');
 
     // 1) settings.gradle: include and map projectDir
     const settings = config.modResults;
-    const settingsLanguage = normalizeGradleLanguage(settings.language);
+    const settingsLanguage = settings.language;
     const includeLine =
-      settingsLanguage === 'kotlin'
+      settingsLanguage === 'kt'
         ? 'include(":openiap-google")'
         : "include ':openiap-google'";
     const projectDirLine =
-      settingsLanguage === 'kotlin'
+      settingsLanguage === 'kt'
         ? `project(":openiap-google").projectDir = File(settingsDir, "${relativeAndroidModulePath}")`
         : `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
     const includePattern = /include\s*(?:\(\s*)?["']:openiap-google["']\s*\)?/;
@@ -506,15 +499,7 @@ const withLocalOpenIAP: ConfigPlugin<
 
   // 2) app/build.gradle: add implementation project(':openiap-google')
   config = withAppBuildGradle(config, (config) => {
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const raw = props?.localPath;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    if (!localAndroidModule(config.modRequest.projectRoot)) {
       config.modResults.contents = removeLocalOpenIapAppWiring(
         config.modResults.contents,
       );
@@ -522,9 +507,9 @@ const withLocalOpenIAP: ConfigPlugin<
     }
 
     const gradle = config.modResults;
-    const appLanguage = normalizeGradleLanguage(gradle.language);
+    const appLanguage = gradle.language;
     const dependencyLine =
-      appLanguage === 'kotlin'
+      appLanguage === 'kt'
         ? `    implementation(project(":openiap-google"))`
         : `    implementation project(':openiap-google')`;
     let contents = gradle.contents;
@@ -533,10 +518,7 @@ const withLocalOpenIAP: ConfigPlugin<
     // resolver itself; the resolver caches its answer and every module agrees.
     const {apply: applyLine, strategy: strategyLine} = appStoreLines(
       storeScriptPathFrom(
-        path.join(
-          (config.modRequest as any).platformProjectRoot as string,
-          'app',
-        ),
+        path.join(config.modRequest.platformProjectRoot, 'app'),
       ),
       appLanguage,
     );
@@ -586,15 +568,7 @@ const withLocalOpenIAP: ConfigPlugin<
   // 2b) project build.gradle: Expo autolinked library modules can consume the
   // local flavored OpenIAP module transitively, so give them the same default.
   config = withProjectBuildGradle(config, (config) => {
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const raw = props?.localPath;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    if (!localAndroidModule(config.modRequest.projectRoot)) {
       config.modResults.contents = removeLocalOpenIapFlavorStrategy(
         config.modResults.contents,
       );
@@ -603,10 +577,8 @@ const withLocalOpenIAP: ConfigPlugin<
 
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
-      storeScriptPathFrom(
-        (config.modRequest as any).platformProjectRoot as string,
-      ),
-      normalizeGradleLanguage(config.modResults.language),
+      storeScriptPathFrom(config.modRequest.platformProjectRoot),
+      config.modResults.language,
     );
     logOnce('🛠️ expo-iap: Added the local OpenIAP build-time flavor strategy');
     return config;

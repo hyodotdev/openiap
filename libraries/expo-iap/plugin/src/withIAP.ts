@@ -189,7 +189,7 @@ const PLATFORM_STRATEGY_LINE =
 // wrote both, and a stale copy would pin the wrong store.
 export const modifyAppBuildGradle = (
   gradle: string,
-  language: 'groovy' | 'kotlin',
+  language: 'groovy' | 'kt',
 ): string => {
   let modified =
     language === 'groovy'
@@ -296,7 +296,7 @@ const withIapAndroid: ConfigPlugin<
   const pinnedStore = props?.pinnedStore ?? null;
 
   config = withProjectBuildGradle(config, (config) => {
-    const language = (config.modResults as any).language || 'groovy';
+    const {language} = config.modResults;
     if (language === 'groovy') {
       config.modResults.contents = normalizeGeneratedGroovyProjectBuildGradle(
         config.modResults.contents,
@@ -306,7 +306,7 @@ const withIapAndroid: ConfigPlugin<
   });
 
   config = withAppBuildGradle(config, (config) => {
-    const language = (config.modResults as any).language || 'groovy';
+    const {language} = config.modResults;
     config.modResults.contents = modifyAppBuildGradle(
       config.modResults.contents,
       language,

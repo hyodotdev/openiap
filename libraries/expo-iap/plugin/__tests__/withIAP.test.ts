@@ -126,7 +126,7 @@ describe('android configuration', () => {
       '}',
       '',
     ].join('\n');
-    const result = modifyAppBuildGradle(baseGradle, 'kotlin');
+    const result = modifyAppBuildGradle(baseGradle, 'kt');
 
     expect(result).not.toContain('openiap-google');
     expect(result).not.toContain('missingDimensionStrategy');
@@ -234,83 +234,106 @@ describe('android configuration', () => {
     }
   });
 
-  it("drops an earlier local build's Android wiring on a published prebuild", async () => {
-    const fs = jest.requireActual('fs') as typeof import('fs');
-    const os = jest.requireActual('os') as typeof import('os');
-    const path = jest.requireActual('path') as typeof import('path');
-    const projectRoot = fs.mkdtempSync(
-      path.join(os.tmpdir(), 'expo-iap-local-'),
-    );
-    const android = path.join(projectRoot, 'android');
-    const files: Record<string, string> = {
-      'settings.gradle': "rootProject.name = 'app'\ninclude ':app'\n",
-      'build.gradle': 'buildscript {\n  repositories {\n    google()\n  }\n}\n',
-      'app/build.gradle':
-        'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n    // React Native sets this version\n    implementation("com.facebook.react:react-android")\n}\n',
-      'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
-      'app/src/main/AndroidManifest.xml':
-        '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
-    };
-    const buildFiles = ['settings.gradle', 'build.gradle', 'app/build.gradle'];
-    const read = () =>
-      Object.fromEntries(
-        buildFiles.map((file) => [
-          file,
-          fs.readFileSync(path.join(android, file), 'utf8'),
-        ]),
+  const rootBuild = 'buildscript {\n  repositories {\n    google()\n  }\n}\n';
+  const appBuild =
+    'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n    // React Native sets this version\n    implementation("com.facebook.react:react-android")\n}\n';
+  it.each([
+    {
+      dsl: 'Groovy',
+      ext: '',
+      settings: "rootProject.name = 'app'\ninclude ':app'\n",
+      include: "include ':openiap-google'",
+      dependency: "implementation project(':openiap-google')",
+    },
+    {
+      dsl: 'Kotlin',
+      ext: '.kts',
+      settings: 'rootProject.name = "app"\ninclude(":app")\n',
+      include: 'include(":openiap-google")',
+      dependency: 'implementation(project(":openiap-google"))',
+    },
+  ])(
+    "drops an earlier local build's $dsl DSL wiring on a published prebuild",
+    async ({ext, settings, include, dependency}) => {
+      const fs = jest.requireActual('fs') as typeof import('fs');
+      const os = jest.requireActual('os') as typeof import('os');
+      const path = jest.requireActual('path') as typeof import('path');
+      const projectRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'expo-iap-local-'),
       );
-    const prebuild = (options: ExpoIapPluginOptions) =>
-      compileModsAsync(
-        plugin({name: 'app', slug: 'app'} as ExpoConfig, options) as ExpoConfig,
-        {projectRoot, platforms: ['android']},
-      );
-    const local: ExpoIapPluginOptions = {
-      enableLocalDev: true,
-      localPath: {
-        android: path.resolve(__dirname, '../../../../packages/google'),
-      },
-    };
-    try {
-      for (const [file, contents] of Object.entries(files)) {
-        fs.mkdirSync(path.dirname(path.join(android, file)), {recursive: true});
-        fs.writeFileSync(path.join(android, file), contents);
-      }
-
-      await prebuild(local);
-      const linked = read();
-      expect(linked['settings.gradle']).toContain("include ':openiap-google'");
-      expect(linked['app/build.gradle']).toContain(
-        "implementation project(':openiap-google')",
-      );
-      expect(linked['build.gradle']).toContain('openIapResolveStore');
-
-      // expo-iap links an included :openiap-google in place of Maven.
-      await prebuild({});
-      const published = read();
-      expect(published['settings.gradle']).not.toMatch(
-        /include ':openiap-google'|projectDir/,
-      );
-      expect(published['app/build.gradle']).not.toMatch(
-        /openiap-google|openiap-store|openIapResolveStore/,
-      );
-      expect(published['build.gradle']).toBe(files['build.gradle']);
-      expect(published['app/build.gradle']).toBe(files['app/build.gradle']);
-
-      await prebuild(local);
-      await prebuild({});
-      expect(read()).toEqual(published);
-
-      // A local build that links only the iOS package uses the published Android one.
-      await prebuild(local);
-      await prebuild({
+      const android = path.join(projectRoot, 'android');
+      const settingsFile = `settings.gradle${ext}`;
+      const rootFile = `build.gradle${ext}`;
+      const appFile = `app/build.gradle${ext}`;
+      const files: Record<string, string> = {
+        [settingsFile]: settings,
+        [rootFile]: rootBuild,
+        [appFile]: appBuild,
+        'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
+        'app/src/main/AndroidManifest.xml':
+          '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
+      };
+      const read = () =>
+        Object.fromEntries(
+          [settingsFile, rootFile, appFile].map((file) => [
+            file,
+            fs.readFileSync(path.join(android, file), 'utf8'),
+          ]),
+        );
+      const prebuild = (options: ExpoIapPluginOptions) =>
+        compileModsAsync(
+          plugin(
+            {name: 'app', slug: 'app'} as ExpoConfig,
+            options,
+          ) as ExpoConfig,
+          {projectRoot, platforms: ['android']},
+        );
+      const local: ExpoIapPluginOptions = {
         enableLocalDev: true,
-        localPath: {ios: path.resolve(__dirname, '../../../../packages/apple')},
-      });
-      expect(read()).toEqual(published);
-    } finally {
-      fs.rmSync(projectRoot, {recursive: true, force: true});
-    }
-  });
+        localPath: {
+          android: path.resolve(__dirname, '../../../../packages/google'),
+        },
+      };
+      try {
+        for (const [file, contents] of Object.entries(files)) {
+          fs.mkdirSync(path.dirname(path.join(android, file)), {
+            recursive: true,
+          });
+          fs.writeFileSync(path.join(android, file), contents);
+        }
+
+        await prebuild(local);
+        const linked = read();
+        expect(linked[settingsFile]).toContain(include);
+        expect(linked[appFile]).toContain(dependency);
+        expect(linked[rootFile]).toContain('openIapResolveStore');
+
+        // expo-iap links an included :openiap-google in place of Maven.
+        await prebuild({});
+        const published = read();
+        expect(published[settingsFile]).not.toContain(include);
+        expect(published[settingsFile]).not.toContain('projectDir');
+        expect(published[rootFile]).toBe(rootBuild);
+        expect(published[appFile]).toBe(appBuild);
+
+        await prebuild(local);
+        await prebuild({});
+        expect(read()).toEqual(published);
+
+        // A local build that links only the iOS package uses the published Android one.
+        await prebuild(local);
+        await prebuild({
+          enableLocalDev: true,
+          localPath: {
+            ios: path.resolve(__dirname, '../../../../packages/apple'),
+          },
+        });
+        expect(read()).toEqual(published);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    },
+  );
 
   it('writes the pin gradle.properties carries, and clears a stale one', () => {
     // The pin is the only file the prebuild leaves behind that selects a store,
