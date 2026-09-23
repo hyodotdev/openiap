@@ -19,9 +19,14 @@ android {
 }
 
 dependencies {
-  playImplementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
-  horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.5.2'
-  amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.5.2'
+  // A module can also depend on openiap-google once, for every flavor.
+  if (project.findProperty('fixturePlainDependency')) {
+    implementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+  } else {
+    playImplementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+    horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.5.2'
+    amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.5.2'
+  }
   implementation 'io.github.hyochan:kmp-iap:3.5.1'
 }
 

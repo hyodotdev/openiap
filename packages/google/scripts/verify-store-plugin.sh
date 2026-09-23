@@ -103,10 +103,13 @@ unset FAKE_ADB_DEVICES
 # Its own platform flavors name the store. Were the pin applied there, its
 # horizon flavor's openiap-google-horizon would conflict with amazon.
 run "own platform flavors are left alone"   "flavored:horizonDebugRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorStores -PopeniapStore=amazon
+# One plain dependency there still links each flavor's own store.
+run "a plain dependency follows each flavor" "flavored:horizonDebugRuntimeClasspath=kmp-iap-android-horizon,openiap-google-horizon" :flavored:printFlavorStores -PfixturePlainDependency=true
 
 # So is a platform the app requests itself, which the plugin must not replace.
 run "a platform strategy that agrees is kept" "app:debugRuntimeClasspath=kmp-iap-android-play,openiap-google" :app:printDebugStores -PfixtureStrategy=play
 run "and one that disagrees fails"          "fail:sets missingDimensionStrategy platform=horizon" :app:printDebugStores -PfixtureStrategy=horizon
+run "and so does a flavor's own request"    "fail:flavor qa sets missingDimensionStrategy platform=horizon" :app:help -PfixtureFlavorStrategy=horizon -PopeniapStore=amazon
 
 # A store artifact declared directly is a second signal; it must agree.
 run "a store artifact that disagrees fails" "fail:openiap-google-horizon is declared but this build's store is play" :mixed:printDebugStores

@@ -10,9 +10,11 @@ def openIapArtifactStores = [
   'openiap-google-amazon': 'amazon',
 ]
 
-def openIapUseStore = { String store ->
-  configurations.configureEach {
-    resolutionStrategy.eachDependency { details ->
+// Links the store's build of openiap-google in the given configurations, or in
+// every one of this module's when none are given.
+def openIapUseStore = { String store, Collection targets = null ->
+  def swap = { configuration ->
+    configuration.resolutionStrategy.eachDependency { details ->
       def named = details.requested.group == openIapGroup ? openIapArtifactStores[details.requested.name] : null
       if (named == null || named == store) {
         return
@@ -34,18 +36,37 @@ def openIapUseStore = { String store ->
       details.because("openiap: store=${store}")
     }
   }
+  if (targets == null) {
+    configurations.configureEach(swap)
+  } else {
+    targets.each(swap)
+  }
 }
 
 // The DSL has no getter for a dimension strategy; AGP's flavor class keeps them.
+// A product flavor's request opens with its own name and lists the values after
+// it, and AGP takes the first one the dependency has, so that is the store.
 def openIapRequestedPlatform = { flavor ->
   if (!flavor.hasProperty('missingDimensionStrategies')) {
     return null
   }
-  return flavor.missingDimensionStrategies['platform']?.requested
+  def request = flavor.missingDimensionStrategies['platform']
+  if (request == null) {
+    return null
+  }
+  return ([request.requested] + request.fallbacks).find { it in openIapArtifactStores.values() }
 }
 
 ['com.android.application', 'com.android.library', 'com.android.dynamic-feature', 'com.android.test'].each { id ->
   pluginManager.withPlugin(id) {
+    // A module's own platform flavor names each variant's store, so one plain
+    // openiap-google dependency links that store's build in each variant.
+    androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+      def flavor = variant.productFlavors.find { it.first == 'platform' }?.second
+      if (flavor in openIapArtifactStores.values()) {
+        openIapUseStore(flavor, [variant.runtimeConfiguration, variant.compileConfiguration])
+      }
+    }
     androidComponents.finalizeDsl { android ->
       // Its own platform flavors choose the store per variant.
       if (android.flavorDimensions.contains('platform')) {
@@ -55,13 +76,16 @@ def openIapRequestedPlatform = { flavor ->
         return
       }
       def store = openIapResolveStore('openiap').store
-      // A platform the module already requests is a second signal, and as in
-      // the resolver one that disagrees stops the build rather than being replaced.
-      def requested = openIapRequestedPlatform(android.defaultConfig)
-      if (requested != null && requested != store) {
-        throw new GradleException(
-          "openiap: ${project.path} sets missingDimensionStrategy platform=${requested} but this build's store is ${store}; remove the strategy and let the plugin set it, or set openiapStore=${requested}"
-        )
+      // A platform the module or one of its flavors already requests is a second
+      // signal, and as in the resolver one that disagrees stops the build.
+      ([android.defaultConfig] + android.productFlavors.toList()).each { flavor ->
+        def requested = openIapRequestedPlatform(flavor)
+        if (requested != null && requested != store) {
+          def owner = flavor.is(android.defaultConfig) ? project.path : "${project.path} flavor ${flavor.name}"
+          throw new GradleException(
+            "openiap: ${owner} sets missingDimensionStrategy platform=${requested} but this build's store is ${store}; remove the strategy and let the plugin set it, or set openiapStore=${requested}"
+          )
+        }
       }
       // kmp-iap publishes one Android variant per store in this dimension.
       android.defaultConfig.missingDimensionStrategy('platform', store)
