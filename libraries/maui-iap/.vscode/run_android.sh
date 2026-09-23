@@ -57,13 +57,15 @@ fi
 
 adb start-server >/dev/null
 
-DEVICE="${MAUI_ANDROID_DEVICE:-}"
+# ANDROID_SERIAL is the device every Android tool targets; the device passed
+# below as AdbTarget outranks it in the store selection, so honour it here.
+DEVICE="${MAUI_ANDROID_DEVICE:-${ANDROID_SERIAL:-}}"
 if [ -z "$DEVICE" ]; then
-  DEVICE="$(adb devices -l | awk 'NR > 1 && $2 == "device" && / usb:/ { print $1; exit }')"
+  DEVICE="$(adb devices -l | tr -d '\r' | awk 'NR > 1 && $2 == "device" && / usb:/ { print $1; exit }')"
 fi
 
 if [ -z "$DEVICE" ]; then
-  DEVICE="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
+  DEVICE="$(adb devices | tr -d '\r' | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
 fi
 
 if [ -z "$DEVICE" ]; then

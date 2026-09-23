@@ -126,6 +126,10 @@
   <Target Name="_OpenIapRequireStoreAars" BeforeTargets="GenerateNuspec">
     <Error Condition="!Exists('$(_OpenIapGoogleAarOutputs)openiap-play-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-horizon-release.aar') or !Exists('$(_OpenIapGoogleAarOutputs)openiap-amazon-release.aar')"
            Text="Build all three openiap-google release AARs before packing (packages/google: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)." />
+    <!-- IncludeBindingsInNuPkg skips a missing facade, which would only show as a
+         NoClassDefFoundError in the app. -->
+    <Error Condition="!Exists('..\..\android\openiap\build\outputs\aar\openiap-release.aar')"
+           Text="Build the MAUI facade AAR before packing (libraries/maui-iap/android: ../../../packages/google/gradlew :openiap:assembleRelease)." />
   </Target>
 
   <ItemGroup>
