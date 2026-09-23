@@ -98,6 +98,7 @@ run "a legacy flag that agrees is kept"    horizon/explicit assembleDebug -Popen
 # Opting out links nothing, so a store flavor kept for packaging is no conflict.
 run "none beside a store flavor"           none/explicit    assembleAmazonRelease -PopeniapStore=none -PfixtureAllowNone=true
 run "the legacy opt-out beside one too"    none/explicit    assembleAmazonRelease -PopeniapPlatform=none -PfixtureAllowNone=true
+run "and beside two store flavors"         none/explicit    assembleHorizonRelease assembleAmazonDebug -PopeniapStore=none -PfixtureAllowNone=true
 # A library that cannot build without a store SDK refuses the cached opt-out
 # too, and the refusal has to name the key the build actually set.
 run "a later caller refuses the opt-out"   "fail:second: openiapStore=none is not supported" assembleDebug -PopeniapStore=none -PfixtureAllowNone=true -PfixtureSecondCaller=true
@@ -127,6 +128,8 @@ run "a spelled-out caps flavor"            play/variant     assemblePLAYRelease
 run "exact plus abbreviated fails"         "fail:build more than one store" assembleHorizonRelease aAR
 run "abbreviated plus exact fails"         "fail:cannot tell which store" aHR assembleAmazonDebug
 run "the same store twice is fine"         horizon/variant  assembleHorizonRelease aHR
+# A real flavor that happens to abbreviate a store must not pick that store.
+run "a flavor named p is not Play"         "fail:the task it runs names no store" bundlePRelease
 run "bHR is bundleHorizonRelease"          horizon/variant  bHR
 # Gradle matches an abbreviation with fewer humps than the task name has.
 run "aH is assembleHorizonRelease"         horizon/variant  aH

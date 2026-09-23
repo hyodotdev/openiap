@@ -240,7 +240,8 @@ ext.openIapSelectedTasks = { graph, String request ->
 // checked against them before any task runs. Only the tasks the request
 // selected count: an unqualified name reaches every project, and an anchor
 // like assembleDebug legitimately builds every flavor of a library it names.
-ext.openIapVerifyTaskGraph = { String label, String resolved ->
+ext.openIapVerifyTaskGraph = { String label, Map resolution ->
+  def resolved = resolution.store
   if (resolved == 'none') {
     return
   }
@@ -256,6 +257,11 @@ ext.openIapVerifyTaskGraph = { String label, String resolved ->
       }
     }
     if (!named) {
+      // Only an abbreviation lands here: `p` in a real assemblePDebug read as
+      // Play, while the task it runs names no store.
+      if (resolution.source == 'variant') {
+        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but the task it runs names no store; spell the store out or set openiapStore")
+      }
       return
     }
     if (named.size() > 1) {
@@ -382,7 +388,8 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     return cached
   }
   def explicit = openIapExplicitStore(label, allowNone)
-  def variant = openIapTaskStore(label)
+  // Opting out links nothing, so the tasks may build several store flavors.
+  def variant = explicit == 'none' ? null : openIapTaskStore(label)
   // A pin that disagrees with the requested flavor is the case that ships the
   // wrong billing SDK from a correct-looking release task, so it fails here.
   // Opting out is not that case: it links nothing, so an app that keeps a store
@@ -408,6 +415,6 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
   }
   rootProject.ext.openIapStoreResolution = resolution
   logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
-  openIapVerifyTaskGraph(label, resolution.store)
+  openIapVerifyTaskGraph(label, resolution)
   return resolution
 }

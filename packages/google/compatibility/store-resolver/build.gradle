@@ -21,7 +21,9 @@ if ((project.findProperty('fixtureSecondCaller') ?: 'false').toBoolean()) {
  'assembleAmazonDebug', 'assembleAmazonRelease',
  'assembleHorizonRelease', 'bundleHorizonRelease',
  'installPlayDebug', 'installHorizonDebug',
- 'connectedAndroidTest'].each { name ->
+ 'connectedAndroidTest',
+ // A real flavor named p, which also abbreviates play.
+ 'bundlePRelease'].each { name ->
   tasks.register(name) { doLast { } }
 }
 
