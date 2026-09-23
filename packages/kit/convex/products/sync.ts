@@ -35,13 +35,9 @@ const offerValidator = v.object({
   currency: v.optional(v.string()),
 });
 
-// Coerce a free-form billingPeriod string into the schema's literal
-// union, returning undefined for unknown values. ASC and Play both
-// hand us ISO-8601 strings ("P1M" / "P1Y" / etc.) but a future Apple
-// enum or Play SDK quirk could leak something we don't model — in
-// that case we'd rather drop the field (so MRR shows 0 with a clear
-// "unknown period" log line) than persist garbage that breaks the
-// schema validator.
+// Narrows a store billing period to the schema's literals. An unmodelled value
+// becomes undefined (MRR 0, logged as an unknown period) rather than failing
+// the validator.
 export type BillingPeriodLiteral =
   | "P1W"
   | "P1M"
@@ -85,10 +81,8 @@ export function shouldPreserveKitRemovedDuringPull(
   return existing?.state === "Removed" && existing.origin === "kit";
 }
 
-// Internal mutation called by the ASC / Play push-sync actions when a
-// row is mirrored from the upstream store. Distinct from the public
-// `upsertProduct` mutation in mutation.ts so server-driven sync can't
-// be triggered by anyone holding the apiKey alone.
+// Store-to-kit upsert for the sync workers; internal, unlike `upsertProduct`,
+// so an apiKey alone cannot trigger it.
 export const upsertFromStore = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -98,24 +92,15 @@ export const upsertFromStore = internalMutation({
     title: v.string(),
     description: v.optional(v.string()),
     baseLocale: v.optional(v.string()),
-    // No `v.null()` here, unlike the author-facing `upsertProduct`: on
-    // the pull path a store read never deletes a kit-authored locale
-    // (see the ASC call site), so `null` would be accepted and then
-    // silently coalesce back to the existing value. Rejecting it keeps
-    // the no-op from looking like a clear.
+    // No `v.null()`, unlike upsertProduct: a pull never clears kit locales, so
+    // a null would silently do nothing.
     localizations: v.optional(productLocalizationsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     storeRef: v.string(),
     state: stateValidator,
-    // ISO-8601 billing period. Required for correct MRR
-    // normalization in metricsSummary — without this field synced
-    // subscriptions defaulted to undefined and monthlyMicrosForSub
-    // returned 0, silently zeroing every synced sub's contribution
-    // to the dashboard headline. Union mirrors the schema's
-    // `billingPeriod` literal — non-matching upstream values (a
-    // future Apple/Play enum) get coerced via mapBillingPeriodLiteral
-    // at the call site so this validator can stay strict.
+    // Needed for MRR: without it monthlyMicrosForSub returns 0. Callers coerce
+    // store values with coerceBillingPeriod so this stays strict.
     billingPeriod: v.optional(
       v.union(
         v.literal("P1W"),
@@ -141,12 +126,8 @@ export const upsertFromStore = internalMutation({
       );
     });
 
-    // Match by (projectId, platform, productId) — apps commonly use
-    // the same productId on both stores, and the older
-    // (projectId, productId)-only lookup would collide and silently
-    // flip an existing Android row's platform to IOS (or vice versa)
-    // mid-sync, deleting one platform's catalog from the dashboard's
-    // perspective.
+    // Match on platform too: apps often reuse a productId on both stores, and
+    // matching without it flips one platform's row to the other.
     const existing: Doc<"products"> | null = await ctx.db
       .query("products")
       .withIndex("by_project_and_platform_and_product", (q) =>
@@ -158,20 +139,14 @@ export const upsertFromStore = internalMutation({
       .unique();
     const now = Date.now();
     if (existing && shouldPreserveKitRemovedDuringPull(existing)) {
-      // A kit-authored removal is an upstream delete request. Pull
-      // runs before push for direction="both", so without this guard
-      // the still-existing store row would resurrect the local row to
-      // Active/Ready and the delete pass would never see it.
+      // A kit-authored removal is a pending upstream delete. In a `both` sync
+      // the pull runs first and would otherwise resurrect the row before the
+      // delete pass sees it.
       return existing._id;
     }
-    // Subscription group metadata only applies to subscriptions —
-    // explicitly null it out for non-Subscription rows so a row
-    // that flipped types (or that the operator typed a group name
-    // into via the form) doesn't cling to stale data and surface
-    // under the dashboard's "Subscription Group" cluster
-    // (LukasB-DEV report on PR #128). Convex patches treat
-    // `undefined` as a no-op, so the field has to be `null` to
-    // actually clear — schema widened accordingly.
+    // Null, since a patch ignores undefined: clears group fields on
+    // non-subscriptions so a row that changed type does not show under a
+    // subscription group.
     const groupId =
       args.type === "Subscription" ? (args.subscriptionGroupId ?? null) : null;
     const groupName =
@@ -189,23 +164,17 @@ export const upsertFromStore = internalMutation({
         currency: args.currency ?? existing.currency,
         storeRef: args.storeRef,
         state: args.state,
-        // Subscription metadata is sourced from the store on every
-        // pull, so we overwrite (not coalesce) — a sub that was
-        // moved between groups in ASC, or that lost a free trial in
-        // Play Console, should reflect that on the next sync rather
-        // than stick to whatever kit cached previously. Same applies
-        // to billingPeriod: the upstream is the source of truth.
+        // Overwrite, not coalesce: the store owns subscription metadata,
+        // including a group move or a removed free trial.
         billingPeriod: args.billingPeriod,
         subscriptionGroupId: groupId,
         subscriptionGroupName: groupName,
         offers: args.offers,
         syncedAt: now,
         updatedAt: now,
-        // A store-reported removal is upstream state, not a new kit-authored
-        // delete request. Reclassify it so the push half of a `both` job does
-        // not attempt to delete the already-unavailable resource. An explicit
-        // kit removal returned above before reaching this patch and therefore
-        // keeps its deletion intent. Preserve origin for all other updates.
+        // A store-reported removal is not a kit delete request: mark it
+        // store-origin so the push half does not delete it again. Kit removals
+        // returned above.
         ...(args.state === "Removed"
           ? { origin: "store" as const }
           : existing.origin === undefined
@@ -239,13 +208,9 @@ export const upsertFromStore = internalMutation({
   },
 });
 
-// Persist the upstream resource id immediately after the create call
-// succeeds, *without* advancing state past Draft. The follow-up steps
-// (localization, price schedule) may still fail, and a hard failure
-// there shouldn't strand the upstream resource — the next sync needs
-// to find this row, see the populated storeRef, and resume from
-// step 2 instead of trying to create a duplicate. `markPushed`
-// remains the success path that flips state to Ready.
+// Saves the upstream id right after create but leaves the row Draft, so a
+// failed later step resumes on the next sync instead of creating a duplicate.
+// markPushed sets Ready.
 export const markStoreRef = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -343,10 +308,7 @@ export const listExistingProductTypes = internalQuery({
     v.object({
       productId: v.string(),
       type: typeValidator,
-      // Lets the pull rank Play's regional prices by the currency the
-      // operator authored rather than always collapsing to US/USD,
-      // which would overwrite a KRW row with its converted dollar
-      // amount on the first sync after a push.
+      // Lets the Play pull keep the authored currency (pickPlayRegionalPrice).
       currency: v.optional(v.string()),
     }),
   ),
@@ -365,14 +327,9 @@ export const listExistingProductTypes = internalQuery({
   },
 });
 
-// Pull every Draft iOS row that the push pass should attempt. We do
-// NOT gate on `storeRef === undefined` here: a previous sync may have
-// successfully created the upstream resource (storeRef now populated)
-// but failed on a subsequent step (localization / price schedule).
-// Such rows stay in state=Draft and the push branch needs to revisit
-// them — using their existing storeRef to skip the create call and
-// retry only the failed steps. The push branch handles the
-// "skip create when storeRef already set" decision.
+// Draft iOS rows to push, including ones with a storeRef: a create that
+// succeeded before a later step failed stays Draft, and the push skips create
+// for it.
 export const listDraftIosProducts = internalQuery({
   args: {
     projectId: v.id("projects"),
@@ -426,17 +383,10 @@ export const listDraftIosProducts = internalQuery({
               (args.reviewScreenshotFileId === undefined ||
                 row.lastAppleReviewScreenshotFileId !==
                   args.reviewScreenshotFileId))) &&
-          // Skip rows that were imported from the upstream store —
-          // ASC's "PREPARE_FOR_SUBMISSION" / "MISSING_METADATA" /
-          // similar states map to kit `Draft`, and re-pushing them on
-          // every sync inflated the `pushed` counter while looping
-          // them back-and-forth between Draft and Ready (LukasB-DEV
-          // report on PR #128). Legacy rows without `origin` set
-          // pass when they have no `storeRef` — pure kit creations
-          // — and partial-sync resumption (kit-created row whose
-          // CREATE succeeded but localization/price failed) keeps
-          // working because those rows have `origin: "kit"` set on
-          // first insert.
+          // Skip store-imported rows: ASC states like PREPARE_FOR_SUBMISSION
+          // map to Draft and would be re-pushed every sync. Legacy rows without
+          // `origin` pass only without a storeRef; partial kit creates keep
+          // `origin: "kit"`.
           (row.origin === "kit" || row.storeRef === undefined),
       )
       .sort((left, right) => {
@@ -460,10 +410,7 @@ export const listDraftIosProducts = internalQuery({
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
-        // Coerce nullable schema field back to optional at the
-        // worker boundary — push code branches on
-        // `row.subscriptionGroupName ?? row.productId` and treats
-        // `undefined` correctly; null would slip past the `??`.
+        // Same coercion for the nullable group fields.
         subscriptionGroupName: row.subscriptionGroupName ?? undefined,
         subscriptionGroupId: row.subscriptionGroupId ?? undefined,
         reviewNote: row.reviewNote,
@@ -507,24 +454,13 @@ export const listDraftAndroidProducts = internalQuery({
         q.eq("projectId", args.projectId).eq("platform", "Android"),
       )
       .collect();
-    // Mirror the iOS filter: state === Draft only. The earlier
-    // `storeRef === undefined` guard was added to avoid re-pushing
-    // Pull-imported rows that already existed upstream, but it also
-    // blocked partial-sync resumption — a Draft row whose create
-    // succeeded but whose listing/price step failed never got
-    // retried. play.ts now branches on `row.storeRef` at the top of
-    // the push loop and PATCHes existing storeRefs instead of
-    // creating, so both the partial-sync and pull-then-push cases
-    // are correct without the extra filter (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // As for iOS: Draft rows with or without a storeRef; play.ts patches
+    // existing ones.
     return all
       .filter(
         (row) =>
           row.state === "Draft" &&
-          // Same `origin === "kit" OR storeRef === undefined` filter
-          // as the iOS query — see comment there. Excludes
-          // pulled-from-Play rows that map to `Draft` and would
-          // otherwise re-push on every sync.
+          // Same store-import filter as the iOS query.
           (row.origin === "kit" || row.storeRef === undefined),
       )
       .map((row) => ({
@@ -538,10 +474,9 @@ export const listDraftAndroidProducts = internalQuery({
         // boundary: "cleared" and "never set" are the same thing to a
         // store push, and null would trip the validator.
         localizations: row.localizations ?? undefined,
-        // Only Android one-time products have a writable product-level
-        // footprint. Old development rows can contain an empty list or a
-        // value left behind before this guard existed; never let either
-        // reach the Play worker as an explicit "withdraw everything" order.
+        // Only Android one-time products have a region footprint. An empty or
+        // leftover list from old rows must never reach Play as "withdraw
+        // everywhere".
         regions:
           row.type !== "Subscription" &&
           (row.regions === "all" ||
@@ -639,23 +574,16 @@ export const deleteRemovedProductRow = internalMutation({
     ) {
       return false;
     }
-    // Client payload bodies and body-free dashboard summaries intentionally
-    // live outside `products` and are retained. If a later pull recreates this
-    // catalog row, the app-owned metadata becomes available again without an
-    // operator re-entering it.
+    // Client payloads live outside `products` and are kept, so a later pull
+    // that recreates the row gets them back.
     await ctx.db.delete(existing._id);
     return true;
   },
 });
 
-// Bounded delete used by the `purge-local` sync direction. Deletes
-// the project's kit-side product rows for one platform and returns
-// `{ deleted, hasMore }` so the worker can loop until empty without
-// blowing past Convex's per-mutation document budget. Does NOT touch
-// either client-payload table, App Store Connect, or Play Console — upstream
-// deletion is handled by
-// marking individual rows Removed and running push/both sync so the
-// platform-specific delete constraints can be reported per product.
+// `purge-local`: deletes one page of a platform's kit product rows; the worker
+// loops on `hasMore`. Client payloads and the stores are untouched: upstream
+// deletes go through Removed rows and a push sync, which reports per product.
 export const deletePlatformCatalog = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -665,12 +593,8 @@ export const deletePlatformCatalog = internalMutation({
   returns: v.object({ deleted: v.number(), hasMore: v.boolean() }),
   handler: async (ctx, args) => {
     await assertProjectWritable(ctx, args.projectId);
-    // Guard against `limit <= 0` — Convex would happily run
-    // `.take(1)` (limit + 1 = 1) and the worker loop reads
-    // `hasMore` to keep iterating, which combined with `deleted = 0`
-    // traps the purge worker in a non-progressing loop until the
-    // 9-min reaper kills it (CodeRabbit critical finding on
-    // PR #127).
+    // A limit of 0 would report hasMore with nothing deleted, looping the
+    // worker until the reaper kills it.
     if (!Number.isInteger(args.limit) || args.limit < 1) {
       throw new Error("limit must be a positive integer");
     }

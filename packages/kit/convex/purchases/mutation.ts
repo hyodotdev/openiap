@@ -106,15 +106,10 @@ export const bindVerifiedPurchaseAsServer = mutation({
     return { bound: true };
   },
 });
-// Mark purchase as inauthentic.
-//
-// Internal-only on purpose: nothing in the dashboard or server calls this —
-// it is an operator/maintenance function (run it from the Convex dashboard).
-// As a public mutation it took only a `purchaseId` and performed no
-// identity/membership check, so anyone reaching the deployment could flip
-// another tenant's receipt to INAUTHENTIC and skew its purchase stats.
-// It stays in this file (rather than internal.ts) to keep the generated
-// module graph unchanged; see packages/kit/CONVENTION.md for the CQRS split.
+// Marks a purchase inauthentic. Operator-only, run from the Convex dashboard.
+// Internal because it takes only a purchaseId with no membership check: public,
+// it would let anyone flip another tenant's receipt. It stays in mutation.ts
+// to keep its generated path, the exception packages/kit/CONVENTION.md allows.
 export const markReceiptInvalid = internalMutation({
   args: {
     purchaseId: v.id("purchases"),
@@ -132,11 +127,8 @@ export const markReceiptInvalid = internalMutation({
     }
 
     const prevIsValid = purchase.isValid ?? false;
-    // Treat empty strings as absent so we stay aligned with the
-    // extractor and backfill contract — an empty `orderId` never
-    // represents a real Google order, and feeding it to
-    // `deltaForUpdate` as "present" would mis-decrement
-    // `googleOrders` if any malformed rows ever reached this path.
+    // An empty orderId is not an order (as in the extractor and backfill);
+    // counting it would skew googleOrders.
     const hasOrderId =
       typeof purchase.orderId === "string" && purchase.orderId.length > 0;
 

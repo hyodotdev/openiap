@@ -24,53 +24,25 @@ class ProductSyncCancelledError extends Error {
   }
 }
 
-/**
- * Per-product upstream rejection reported back to the dashboard. Used
- * inside `pushSyncProductsGoogle`'s `failures` array; extracted so the
- * shape stays in lockstep across every site that pushes into it.
- */
+/** Per-product upstream rejection shown on the dashboard. */
 export interface ProductSyncFailure {
   productId: string;
   reason: string;
 }
 
-// Google Play Developer API client + push-sync action.
-//
-// Auth: reuses the same per-project service-account JSON kit already
-// stores for receipt verification (see `convex/purchases/android.ts`).
-// The googleapis SDK handles OAuth token minting.
-//
-// Surface area:
-//   - inappproducts.list   → kit ← Play one-time products
-//   - inappproducts.get
-//   - inappproducts.insert → kit → Play (create new)
-//   - inappproducts.patch  → kit → Play (update existing)
-//   - monetization.subscriptions.list/insert → subscription products
-// The `pushSyncProductsGoogle` action drives both directions.
+// Google Play catalog sync through the Android Publisher API. Auth reuses the
+// project's service-account JSON from receipt verification
+// (`convex/purchases/android.ts`); googleapis mints the OAuth tokens.
 
 /**
- * Pull, push, or two-way sync the project's product catalog with
- * Google Play's Android Publisher API.
+ * Runs one Google Play sync job, with the same lifecycle and phase-boundary
+ * cancellation as `runProductSyncIOS` in `products/asc.ts`.
  *
- * `direction = "pull"`: import every IAP / subscription that exists
- * upstream into kit. `direction = "push"`: promote every kit-side row
- * with `state: "Draft"` to Play. `direction = "both"` (default): pull
- * first, then push so the catalog converges.
- *
- * NOTE on action duration: same caveat as `pushSyncProductsAppleIOS`
- * — this handler walks the project's catalog sequentially with
- * per-page Promise.all fan-out. Convex actions have a 10-minute hard
- * ceiling. Typical commercial apps (<100 SKUs) finish well inside that
- * bound; catalogs >500 SKUs may need a batched + scheduler-chained
- * variant. Tracked as a follow-up.
- *
- * @returns Counts of `pulled` / `pushed` rows plus a `failures` list
- *          carrying per-product upstream rejection reasons so the
- *          dashboard can render them.
+ * `pull` imports every Play IAP and subscription, `push` sends kit's Draft
+ * rows to Play, and `both` pulls, then pushes. The catalog is walked
+ * sequentially: under ~100 SKUs fits Convex's 10-minute action limit easily;
+ * over ~500 may need a batched, scheduler-chained variant.
  */
-// Worker that drives a single Google Play sync job. See the parallel
-// docstring on `runProductSyncIOS` in `products/asc.ts` — same job
-// lifecycle, same cancel-at-phase-boundary semantics.
 export const runProductSyncAndroid = internalAction({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args): Promise<void> => {
@@ -106,9 +78,7 @@ export const runProductSyncAndroid = internalAction({
       });
     };
     if (job.direction === "purge-local") {
-      // enqueue routes purge-local jobs to a different worker; this
-      // branch is unreachable in practice but narrows the type for
-      // the call below.
+      // Unreachable (enqueue sends purge-local elsewhere); narrows the type.
       await ctx.runMutation(internal.products.jobs.markJobFailed, {
         jobId: args.jobId,
         error: "purge-local routed to wrong worker",
@@ -147,12 +117,9 @@ export const runProductSyncAndroid = internalAction({
   },
 });
 
-// See parallel definitions in `products/asc.ts`. Kept inline here
-// (rather than imported across modules) because both files declare
-// `"use node"` and Convex treats the module boundary as the runtime
-// boundary; importing this from a non-`"use node"` module would
-// pull `googleapis` into the V8 isolate runtime (Gemini review on
-// PR #127).
+// Mirrors the types in `products/asc.ts`. Not shared: importing from a
+// "use node" module into a non-node one would pull googleapis into the V8
+// isolate.
 interface AndroidSyncProgressUpdate {
   current?: number;
   total?: number;
@@ -174,12 +141,9 @@ interface AndroidSyncResult {
   deleted?: number;
   failures: ProductSyncFailure[];
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
-  // Same operator-must-finish concept as the iOS path's
-  // AscManualReviewAction — the push succeeded but left upstream state
-  // that needs a human in Play Console (issue #288: regional prices
-  // couldn't be auto-converted, so the product is US-only until the
-  // operator sets them). The productSyncJobs schema and dashboard
-  // banner are already platform-agnostic, so this flows end-to-end.
+  // Push succeeded but Play Console still needs a human, like iOS's
+  // AscManualReviewAction (#288: prices that could not be converted leave the
+  // product US-only until the operator sets them).
   manualActions?: AndroidManualAction[];
 }
 
@@ -225,10 +189,7 @@ async function performAndroidSync(
   if (!fileContent?.content) {
     throw new Error("Service account JSON file is unreadable");
   }
-  // Wrap the parse so a malformed JSON upload yields an actionable
-  // config error ("Service account JSON is invalid") instead of a
-  // raw SyntaxError from JSON.parse, which surfaces as a generic
-  // 500 with no operator-friendly hint.
+  // A raw SyntaxError would surface as a generic 500 with no hint.
   let credentials: Record<string, unknown>;
   try {
     credentials = JSON.parse(fileContent.content) as Record<string, unknown>;
@@ -247,11 +208,8 @@ async function performAndroidSync(
   const direction = args.direction ?? "both";
   const dryRun = options.dryRun;
   const failures: ProductSyncFailure[] = [];
-  // Same shape as the iOS sync — read-only preview accumulator. Each
-  // upstream write the PUSH branch would have made gets pushed onto
-  // this list instead, then surfaced through the toast / result
-  // banner so the operator can verify base-plan duration, region
-  // pricing, etc. before committing.
+  // Dry-run preview: each write the push would make, shown to the operator
+  // (base-plan duration, region pricing, ...) before committing.
   const plannedWrites: Array<{
     productId: string;
     step: string;
@@ -266,33 +224,12 @@ async function performAndroidSync(
   if (direction === "pull" || direction === "both") {
     await checkCancelled();
     await reportPhase("pull-products");
-    // One-time products. Play has TWO catalog APIs and apps live in
-    // different ones depending on when/how they were set up:
-    //
-    //   - `inappproducts.list` — legacy v1 endpoint. Apps created
-    //     before the new monetization framework store products here.
-    //   - `monetization.onetimeproducts.list` — new endpoint. Apps
-    //     onboarded under "Manage products" in the modern Play
-    //     Console store products HERE and `inappproducts.list`
-    //     silently returns empty for them. (This is why "Sync with
-    //     Play Console" was only pulling subscriptions for accounts
-    //     using the new console — the one-time products were
-    //     invisible to the legacy endpoint.)
-    //
-    // We hit both, dedupe by SKU, and keep going on either failing
-    // — that way an account that lives entirely in one or the other
-    // still gets a complete pull instead of failing on the missing
-    // half.
-    //
-    // ORDER MATTERS: hit the new monetization API first so its
-    // USD-preferred regional price wins. The legacy
-    // `inappproducts.list` only exposes a single `defaultPrice`
-    // (whatever currency the merchant set in Play Console — often
-    // their home currency) which made products like
-    // `dev.hyo.martie.10bulbs` show up as "AED 3.89" on the
-    // dashboard for an operator using a Korean Play Console where
-    // AED happens to be a regional override. New endpoint runs
-    // first; legacy only fills in skus the new endpoint missed.
+    // Play keeps one-time products in two APIs. Legacy `inappproducts.list`
+    // returns empty for apps set up under the modern console's "Manage
+    // products"; those live in `monetization.onetimeproducts.list`. Query both,
+    // dedupe by SKU, and keep going if either fails.
+    // The new API runs first so its USD-preferred regional price wins; legacy
+    // has only one `defaultPrice`, in whatever currency the merchant set.
     const seenOneTimeSkus = new Set<string>();
     const existingTypeRows = await ctx.runQuery(
       internal.products.sync.listExistingProductTypes,
@@ -307,16 +244,9 @@ async function performAndroidSync(
         .map((row) => [row.productId, row.currency as string]),
     );
     try {
-      // Defensive guard: the new monetization API isn't surfaced in
-      // any typed shape by `googleapis` yet, so we cast through
-      // `unknown` and read the (possibly-missing) `onetimeproducts`
-      // property. `androidpublisher.monetization` is documented but
-      // could change shape in a future SDK release; failing soft
-      // (treating it as "no monetization endpoint here") lets the
-      // legacy `inappproducts.list` path below still pull what it
-      // can instead of bailing the entire pull half-done. The
-      // outer try/catch records the failure in the per-product
-      // `failures` array so the operator sees something happened.
+      // googleapis has no typed `onetimeproducts` yet, so read it through
+      // `unknown`. If it is missing, skip it and let the legacy pull run; the
+      // outer catch records any failure for the operator.
       const monetizationApi = androidpublisher.monetization as
         | { onetimeproducts?: unknown }
         | undefined;
@@ -340,19 +270,11 @@ async function performAndroidSync(
                     purchaseOptionId?: string;
                     buyOption?: { legacyCompatible?: boolean };
                     rentOption?: unknown;
-                    // Pricing lives DIRECTLY on the purchaseOption,
-                    // NOT nested inside buyOption. The earlier shape
-                    // (buyOption.regionalPricingAndAvailabilityConfigs)
-                    // was wrong — every one-time product surfaced
-                    // with no price because the lookup never matched.
+                    // Pricing is on the option itself, not inside buyOption.
                     regionalPricingAndAvailabilityConfigs?: Array<{
                       regionCode?: string;
-                      // Google's enum: "AVAILABLE",
-                      // "NO_LONGER_AVAILABLE", "AVAILABLE_IF_RELEASED".
-                      // Stale rows from removed regions still ship
-                      // back with a price attached, so without this
-                      // field we'd happily display a price the
-                      // operator turned off years ago.
+                      // AVAILABLE, NO_LONGER_AVAILABLE, AVAILABLE_IF_RELEASED.
+                      // Removed regions still come back with a price attached.
                       availability?: string;
                       price?: {
                         currencyCode?: string;
@@ -380,20 +302,9 @@ async function performAndroidSync(
             if (!product.productId) continue;
             if (seenOneTimeSkus.has(product.productId)) continue;
             seenOneTimeSkus.add(product.productId);
-            // Walk every purchaseOption × regionalPricingAndAvailabilityConfig
-            // (pricing lives on the option, not inside buyOption).
-            // Two filters before ranking:
-            //   - drop regions explicitly NO_LONGER_AVAILABLE so we
-            //     don't surface stale pricing the operator removed.
-            //   - require the price to have a `units` field — Google
-            //     ships zero-priced placeholder rows for some regions
-            //     and they'd outrank real prices alphabetically.
-            // Ranking: regionCode === "US" first (canonical kit
-            // display currency, deterministically maps to USD),
-            // then any USD-currency region (covers operators who
-            // override the US region price into a non-USD currency
-            // — rare but possible), then the first remaining region
-            // alphabetically by currency for a stable result.
+            // Candidates skip NO_LONGER_AVAILABLE regions (stale prices) and
+            // prices without `units` (zero-priced placeholders that would sort
+            // ahead of real prices); pickPlayRegionalPrice ranks the rest.
             const priceCandidates: Array<{
               regionCode?: string;
               currencyCode?: string;
@@ -417,12 +328,7 @@ async function performAndroidSync(
             priceCandidates.sort((a, b) =>
               (a.currencyCode ?? "").localeCompare(b.currencyCode ?? ""),
             );
-            // Prefer the currency the kit row already carries. Pushing
-            // converts the operator's base price into every region, so
-            // a US-first ranking would read back the converted dollar
-            // amount and overwrite an authored KRW/JPY row with it —
-            // and the next push would then convert from that already
-            // converted number. First imports keep the US/USD ranking.
+            // Keep the kit row's authored currency; see pickPlayRegionalPrice.
             const authoredCurrency = existingCurrencyByProductId.get(
               product.productId,
             );
@@ -440,14 +346,11 @@ async function performAndroidSync(
               product.productId,
             );
             if (existingType === undefined) {
-              // First import through the modern endpoint, which carries
-              // no consumable flag — so the type below is a guess.
-              // NonConsumable is the safe guess (consuming a
-              // non-consumable would destroy a permanent entitlement),
-              // but a guessed Consumable verifies as
-              // PENDING_ACKNOWLEDGMENT instead of READY_TO_CONSUME, and
-              // a client gating on that state reads it as a rejection
-              // (issue #289). Say so rather than deciding silently.
+              // The modern API has no consumable flag. NonConsumable is the
+              // safe guess (consuming a non-consumable destroys an
+              // entitlement), but a consumable then verifies as
+              // PENDING_ACKNOWLEDGMENT, which clients may read as a rejection
+              // (#289), so tell the operator.
               manualActions.push({
                 productId: product.productId,
                 code: "product_type_assumed",
@@ -460,11 +363,9 @@ async function performAndroidSync(
               projectId: project._id,
               productId: product.productId,
               platform: "Android",
-              // The new API doesn't carry a "consumable vs.
-              // non-consumable" distinction; Play tracks consumption
-              // at purchase time. Preserve any kit-authored type so
-              // pull-sync doesn't turn consumables into
-              // non-consumables, and default only for first imports.
+              // Play tracks consumption per purchase, not per product; keep the
+              // kit-authored type so a pull never turns a consumable into a
+              // non-consumable.
               type: preservePlayOneTimeType(existingType, "NonConsumable"),
               ...splitStoreListings(
                 (product.listings ?? []).map((entry) => ({
@@ -493,11 +394,7 @@ async function performAndroidSync(
       });
     }
 
-    // Legacy `inappproducts.list` runs SECOND so any sku already
-    // surfaced by the new endpoint (with USD-preferred pricing) wins
-    // via the dedupe set. Only skus invisible to the new endpoint
-    // get filled in here with whatever `defaultPrice` the merchant
-    // set in Play Console.
+    // Legacy second: it only fills SKUs the new API did not return.
     try {
       let token: string | undefined;
       let pageCount = 0;
@@ -533,13 +430,8 @@ async function performAndroidSync(
         if (pageCount > 50) break;
       } while (token);
     } catch (error) {
-      // The legacy `inappproducts.list` endpoint is deprecated for
-      // newer Play Console accounts and Google now responds with
-      // "Please migrate to the new publishing API". That message is
-      // expected — the new `monetization.onetimeproducts.list` call
-      // above already covers this account — and surfacing it as a
-      // failure produces a noisy red toast every Sync. Suppress it
-      // when seen; surface anything else.
+      // Newer Play Console accounts get "Please migrate to the new publishing
+      // API" here; the new API already covered them, so it is not a failure.
       const reason = error instanceof Error ? error.message : String(error);
       if (!/migrate to the new publishing API/i.test(reason)) {
         failures.push({
@@ -603,10 +495,8 @@ async function performAndroidSync(
               storeRef: sub.productId,
               state: mapModernPlayOneTimeState(sub.basePlans),
               billingPeriod: coerceBillingPeriod(billingPeriod),
-              // Play has no first-class subscription "group" — base
-              // plans on a single subscription product play that role,
-              // and we surface them as `offers[].kind === "BasePlan"`
-              // rows. Leave the ASC-only group fields unset.
+              // Play has no subscription groups; base plans fill that role as
+              // BasePlan offers, so the ASC-only group fields stay unset.
               offers,
             });
             pulled += 1;
@@ -707,34 +597,18 @@ async function performAndroidSync(
     );
     for (const row of drafts) {
       try {
-        // When this row already has a storeRef from a prior partial
-        // sync, run the appropriate update endpoint instead of the
-        // create endpoint — Play returns 409 Conflict on
-        // create-with-existing-productId and ASC's parity step
-        // (asc.ts) does the same patch flow. Listings + price are
-        // both safe to re-push idempotently. Without this, kit-side
-        // edits made after the initial push would silently never
-        // reach Play (PR #124
-        // (https://github.com/hyodotdev/openiap/pull/124) review).
+        // Already in Play (storeRef set): patch, as asc.ts does, so later kit
+        // edits reach Play; create would return 409. Re-pushing listings and
+        // price is safe.
         if (row.storeRef) {
-          // Track whether the patch step succeeded — only flip to
-          // Ready when the upstream actually accepted our changes,
-          // otherwise the row stays Draft and surfaces in the next
-          // sync's drafts list for retry (PR #124
-          // (https://github.com/hyodotdev/openiap/pull/124) review).
+          // Only a patch Play accepted marks the row Ready; otherwise it stays
+          // Draft and retries next sync.
           let patchOk = true;
           if (row.type === "Subscription") {
-            // Subscriptions: patch the listing via
-            // monetization.subscriptions.patch (base listing plus every
-            // locale on the row, merged over what Play has). Base-plan
-            // price changes have to go through a separate
-            // monetization.subscriptions.basePlans endpoint, so we
-            // intentionally don't try to mutate price here; that
-            // requires a deactivate+recreate flow Play doesn't allow
-            // in a single call. The dashboard surfaces a hint when
-            // the kit-side row has a different price than the
-            // pulled row so the operator knows to do that step
-            // manually.
+            // Listings only. A base-plan price change needs the separate
+            // basePlans endpoint and a deactivate+recreate Play cannot do in
+            // one call; the dashboard hints when kit's price differs so the
+            // operator does it by hand.
             if (dryRun) {
               plannedWrites.push({
                 productId: row.productId,
@@ -747,17 +621,9 @@ async function performAndroidSync(
                   packageName,
                   productId: row.storeRef,
                   updateMask: "listings",
-                  // `regionsVersion` is required by the Play API on
-                  // every patch/create — it pins the regional-pricing
-                  // schema version (Google added the `2022/01` revision
-                  // when they switched the regional config shape) and
-                  // the request 400s without it. PR #124
-                  // (https://github.com/hyodotdev/openiap/pull/124)
-                  // review. The googleapis SDK exposes this as a flat
-                  // querystring param (`regionsVersion.version`).
-                  // This patch masks `listings` only and sends no
-                  // prices, so no conversion has to be aligned with and
-                  // the historical pin stays correct.
+                  // Play requires a regions version on every write (400
+                  // without it); googleapis takes it as a flat query param.
+                  // No prices are sent here, so the historical pin is fine.
                   "regionsVersion.version": FALLBACK_REGIONS_VERSION,
                   requestBody: {
                     productId: row.storeRef,
@@ -770,9 +636,8 @@ async function performAndroidSync(
                   },
                 });
               } catch (error) {
-                // 404 = subscription was deleted upstream after our
-                // last pull; surface as a failure so the operator
-                // re-creates it. Anything else also surfaces.
+                // Every error surfaces; a 404 means it was deleted in Play and
+                // needs re-creating.
                 patchOk = false;
                 failures.push({
                   productId: `${row.productId} (subscription patch)`,
@@ -782,10 +647,8 @@ async function performAndroidSync(
               }
             }
           } else {
-            // One-time product: modern Play Console apps use
-            // monetization.onetimeproducts, while older apps still
-            // accept the legacy inappproducts endpoint. Prefer the
-            // modern API and let the helper fall back when needed.
+            // The helper tries the modern one-time-product API, then falls back
+            // to legacy inappproducts.
             if (dryRun) {
               plannedWrites.push({
                 productId: row.productId,
@@ -840,27 +703,19 @@ async function performAndroidSync(
           continue;
         }
         if (row.type === "Subscription") {
-          // Reject subscription creates that would land on Play with
-          // no base plan: such a subscription is created in a draft
-          // state that the Play app cannot purchase, which silently
-          // breaks the SDK's `requestPurchase` flow downstream. The
-          // operator must provide both a price and currency at
-          // minimum so we can synthesize a base plan. Validation
-          // applies to dry-run too — we want the operator to see
-          // this error before attempting a real sync.
+          // Without a base plan Play creates an unpurchasable draft, which
+          // silently breaks the SDK's requestPurchase. Minting one needs a
+          // price and currency; dry runs check too, so the operator sees this
+          // before a real sync.
           if (!row.priceAmountMicros || !row.currency) {
             throw new Error(
               "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
             );
           }
-          // Play's `regionalConfigs` requires the `currencyCode` to be
-          // the local currency of the `regionCode` it's paired with, so
-          // the base price can't simply be replicated across regions.
-          // Ask Play to convert it (same mechanism the one-time path
-          // uses) and write every region it returns — a base plan
-          // created with a lone US config is unbuyable everywhere else
-          // (issue #288). Conversion failure degrades to the base
-          // region plus a manual action rather than a hard failure.
+          // Each regional config must use its region's own currency, so Play
+          // converts the base price and every returned region is written; a
+          // lone US config is unbuyable elsewhere (#288). If conversion fails,
+          // write the base region plus a manual action instead of failing.
           const basePlanId = basePlanIdForPeriod(row.billingPeriod);
           if (dryRun) {
             plannedWrites.push({
@@ -874,9 +729,8 @@ async function performAndroidSync(
               detail: basePlanId,
             });
           } else {
-            // Conversion (and therefore the USD-fallback guard) runs
-            // only on the real write path — a dry run must never fail a
-            // non-USD subscription for a price it isn't going to send.
+            // Real writes only: a dry run must not fail a non-USD subscription
+            // on the USD-fallback guard for a price it will not send.
             const subscriptionBasePrice = microsToGoogleMoney(
               row.priceAmountMicros,
               row.currency,
@@ -910,12 +764,7 @@ async function performAndroidSync(
             await androidpublisher.monetization.subscriptions.create({
               packageName,
               productId: row.productId,
-              // `regionsVersion` is required by the v3 API on every
-              // create — pins the regional-pricing schema revision
-              // (Google introduced `2022/01` when the regional-config
-              // shape changed). The request 400s without it. The
-              // googleapis SDK exposes this as a flat querystring
-              // param (`regionsVersion.version`).
+              // Required (400 without it); see regionsVersionFor.
               "regionsVersion.version": regionsVersionFor(
                 subscriptionConverted,
               ),
@@ -926,11 +775,8 @@ async function performAndroidSync(
                   title: listing.title,
                   description: listing.description ?? listing.title,
                 })),
-                // Auto-renewing base plan. Period from the catalog row;
-                // defaults to monthly when the operator hasn't picked
-                // one. The base-plan id mirrors the duration so a row
-                // upgraded later from monthly→yearly doesn't collide
-                // with an existing base plan id in Play Console.
+                // The base-plan id follows the period, so switching monthly to
+                // yearly later does not collide with the existing id.
                 basePlans: [
                   {
                     basePlanId,
@@ -954,14 +800,8 @@ async function performAndroidSync(
                 ],
               },
             });
-            // Activate the just-created base plan. Play's v3 API
-            // creates new base plans in DRAFT regardless of the
-            // `state` field on the create payload — the SKU isn't
-            // purchasable until `basePlans.activate` flips it to
-            // ACTIVE. Without this call we'd mark the row Ready while
-            // the upstream subscription is still non-purchasable
-            // (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
-            // review).
+            // Play creates base plans in DRAFT whatever the payload's `state`
+            // says; they are not purchasable until activated.
             await androidpublisher.monetization.subscriptions.basePlans.activate(
               {
                 packageName,
@@ -1007,14 +847,9 @@ async function performAndroidSync(
           }
         }
         if (!dryRun) {
-          // Persist storeRef immediately after the create returns,
-          // BEFORE flipping state to Ready via markPushed. If the
-          // action times out / crashes between create and markPushed,
-          // the next sync still sees this row's storeRef populated
-          // and will skip the create call (avoiding 409 Conflict
-          // from re-creating the same productId in Play). Mirrors the
-          // partial-sync resilience pattern in pushSyncProductsAppleIOS.
-          // Play's productId IS the storeRef (no separate opaque id).
+          // Save storeRef before markPushed: after a crash in between, the
+          // next sync patches instead of re-creating (409). Play's productId
+          // is the storeRef.
           await ctx.runMutation(internal.products.sync.markStoreRef, {
             projectId: project._id,
             productId: row.productId,
@@ -1049,13 +884,10 @@ async function performAndroidSync(
 }
 
 /**
- * Listings for a subscription patch, merged over what Play already has.
- *
- * `updateMask: "listings"` replaces the array, so a locale the operator
- * added in Play Console would be deleted by a push that sent only kit's
- * own set. Read errors propagate — the caller turns them into a per-row
- * failure and the row stays Draft for the next sync — because a partial
- * write here is destructive, not merely incomplete.
+ * Listings for a subscription patch, merged over what Play already has:
+ * `updateMask: "listings"` replaces the array, so sending only kit's set would
+ * delete locales added in Play Console. Read errors propagate (the row stays
+ * Draft) because writing an unmerged set is destructive.
  */
 export async function mergedSubscriptionListings(
   androidpublisher: androidpublisher_v3.Androidpublisher,
@@ -1073,10 +905,6 @@ export async function mergedSubscriptionListings(
     androidpublisher_v3.Schema$SubscriptionListing
   >();
 
-  // A read failure must NOT fall through to kit's own set: the patch
-  // replaces the listings array, so writing an unmerged set would delete
-  // exactly the upstream locales this read exists to protect. Surface it
-  // and let the caller record a failure instead.
   const response = await androidpublisher.monetization.subscriptions.get({
     packageName,
     productId,
@@ -1104,11 +932,8 @@ export async function mergedSubscriptionListings(
 }
 
 /**
- * Human summary of what a push would publish.
- *
- * `withRegions` is false on paths that write listings only (the
- * subscription patch), so the preview never advertises a footprint that
- * write does not touch.
+ * Human summary of what a push would publish. Pass `withRegions: false` for
+ * listing-only writes so the preview does not claim a region footprint.
  */
 function describePlayListingPlan(
   row: {
@@ -1168,15 +993,10 @@ interface AndroidOneTimeProductUpsertArgs {
 }
 
 /**
- * Play listing rows for a product: the base en-US listing plus every
- * locale the operator added, merged over whatever is already upstream.
- *
- * `updateMask` makes Play REPLACE the whole `listings` array, so a
- * locale an operator added directly in Play Console would be deleted by
- * a push that only knows kit's own set. Kit-authored locales win; the
- * rest are carried through untouched. (Consequence: removing a
- * localization in kit does not remove it from Play — delete it in Play
- * Console. Same trade the regional configs make.)
+ * Play listings for a product: the base listing plus every kit locale, merged
+ * over what is upstream, because `updateMask` replaces the whole array. Kit's
+ * locales win and the rest are kept, so removing a locale in kit leaves it in
+ * Play (as with regional configs).
  */
 function listingsForAndroidProduct(
   args: {
@@ -1207,9 +1027,8 @@ function listingsForAndroidProduct(
     });
   }
 
-  // Base locale first: Play's legacy path needs `defaultLanguage` to
-  // match a listing, and a store that treats the first entry as default
-  // should get the language the operator actually authored.
+  // Base locale first: legacy Play needs `defaultLanguage` to match a listing,
+  // and a store may take the first entry as the default.
   const baseLocale = args.baseLocale ?? BASE_LISTING_LOCALE;
   const base = byLocale.get(baseLocale);
   const rest = Array.from(byLocale.entries())
@@ -1236,11 +1055,7 @@ export async function upsertAndroidOneTimeProduct(
     if (outcome.manualAction) manualActions.push(outcome.manualAction);
   } catch (error) {
     if (!shouldFallbackToLegacyOneTimeProduct(error, options)) throw error;
-    // Only the LEGACY path cannot honour a region footprint, so the
-    // check belongs here — hoisting it above the modern attempt made
-    // every footprint fail before Play was ever contacted. Round 5's
-    // concern (a regions message hiding the real modern failure) is met
-    // by carrying that failure into the text instead.
+    // Checked only on fallback: the modern API honours a region footprint.
     assertLegacyPathUsableFor(args, error);
 
     if (options.allowCreate) {
@@ -1251,9 +1066,8 @@ export async function upsertAndroidOneTimeProduct(
     return manualActions;
   }
 
-  // Activation errors describe the modern product we just upserted and must
-  // not be reclassified as evidence that the product belongs to the legacy
-  // catalog.
+  // Outside the try: an activation error is about the modern product, not a
+  // reason to fall back to legacy.
   await activateAndroidOneTimePurchaseOption(auth, args);
   return manualActions;
 }
@@ -1269,36 +1083,10 @@ function validateAndroidOneTimePrice(
 }
 
 /**
- * Asks Play to convert one base price into every region it sells in.
- *
- * Play has no `autoConvertMissingPrices` equivalent on the modern
- * one-time-product API, so the only way to publish a product that is
- * buyable outside the base region is to call this first and write every
- * returned region explicitly (issue #288). A failure degrades to a
- * single-region write plus a manual action rather than failing the whole
- * push, so the reason is carried out for the operator — "conversion
- * unavailable" and "your service account lacks pricing permission" need
- * very different responses.
- */
-/**
- * Number of regions Play actually returned a usable price for.
- *
- * `convertedRegionPrices` is an object, so a bare truthiness check
- * treats `{}` — Play answering with no conversions at all — as success
- * and ships the product US-only while reporting a clean sync. Every
- * decision that depends on "did conversion work" must go through this.
- */
-/**
- * Regions version to write a resource at.
- *
- * `convertRegionPrices` always converts using Play's CURRENT region
- * definitions, but a write is validated against whatever version the
- * request pins. Pinning an older version than the conversion used makes
- * Play reject the write for any region whose currency changed since —
- * e.g. Bulgaria moved from BGN to EUR, and a 2022/01 write of a
- * freshly-converted EUR price fails with "Expected BGN but got EUR".
- * So the write follows the conversion's own version, falling back to the
- * historical pin when there is no conversion to align with.
+ * Regions version to write a resource at. Play converts prices with its current
+ * region definitions but validates a write against the pinned version, so an
+ * older pin rejects any region whose currency changed since (Bulgaria's move
+ * from BGN to EUR fails a 2022/01 write with "Expected BGN but got EUR").
  */
 const FALLBACK_REGIONS_VERSION = "2022/01";
 
@@ -1306,12 +1094,9 @@ function regionsVersionFor(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
   existingVersion?: string,
 ): string {
-  // The conversion's own version wins. Failing that, the write still
-  // echoes the configs Play generated at `existingVersion`, and pinning
-  // anything older makes Play reject them for the same reason a
-  // freshly-converted price fails at 2022/01 — a region whose currency
-  // changed since. The historical pin is only for a product Play has
-  // never priced.
+  // The conversion's version, else the one Play priced the existing configs at,
+  // since echoing those configs under an older pin fails the same way. The
+  // historical pin is only for a product Play has never priced.
   return (
     converted?.regionVersion?.version ??
     existingVersion ??
@@ -1319,6 +1104,11 @@ function regionsVersionFor(
   );
 }
 
+/**
+ * Number of regions Play returned a usable price for. Use it for every "did
+ * conversion work" check: `convertedRegionPrices` is an object, and a truthy
+ * `{}` would ship the product US-only while reporting a clean sync.
+ */
 function convertedRegionCount(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
 ): number {
@@ -1327,6 +1117,15 @@ function convertedRegionCount(
   ).length;
 }
 
+/**
+ * Asks Play to convert one base price into every region it sells in.
+ *
+ * The modern one-time-product API has no `autoConvertMissingPrices`, so a
+ * product is only buyable outside its base region if every converted region is
+ * written (#288). A failure returns its reason instead of throwing: the push
+ * then writes one region plus a manual action, and "conversion unavailable"
+ * needs a different fix than "missing pricing permission".
+ */
 async function convertAndroidRegionPrices(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   packageName: string,
@@ -1346,21 +1145,6 @@ async function convertAndroidRegionPrices(
   }
 }
 
-/**
- * Builds the regional pricing rows for a purchase option.
- *
- * `existingByRegion` carries the product's current configs on an update.
- * In inherit mode, only those regions are repriced and their availability
- * stays unchanged. An explicit list or `"all"` may reactivate a withdrawn
- * region because that is an operator-authored footprint change.
- *
- * When conversion is unavailable there is no legal price for a foreign
- * region (Play pairs each region with its own currency), so the base
- * amount is written to the regions that already use the base currency
- * and every other region keeps its previous price. `repriced` reports
- * how many regions actually took the new amount so the caller can say
- * plainly that the rest did not.
- */
 /**
  * Marks a region unavailable while keeping its config.
  *
@@ -1382,6 +1166,19 @@ function withdrawRegion(
   return { ...existing, availability: "NO_LONGER_AVAILABLE" };
 }
 
+/**
+ * Builds the regional pricing rows for a purchase option.
+ *
+ * `existingByRegion` holds the product's current configs on an update. Inherit
+ * mode reprices only those regions and keeps their availability, so a
+ * price-only push cannot reopen a market withdrawn in Play Console; an explicit
+ * list or `"all"` is an operator footprint change and may.
+ *
+ * Without a conversion there is no legal foreign price (each region needs its
+ * own currency): regions already in the base currency take the new amount and
+ * the rest keep their old price. `repricedRegions` says which took it, so the
+ * caller can say the rest did not.
+ */
 function buildRegionalPricingConfigs(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
   basePrice: androidpublisher_v3.Schema$Money,
@@ -1408,33 +1205,23 @@ function buildRegionalPricingConfigs(
   )) {
     if (!regionPrice.price) continue;
     const existing = existingByRegion.get(regionCode);
-    // Play refuses to drop a region once a purchase option has it
-    // ("Cannot remove region once it has been added"), so an excluded
-    // region can only be withdrawn, never omitted — and a region the
-    // product doesn't have yet is simply not added.
+    // Play refuses to drop a region once added ("Cannot remove region once it
+    // has been added"): an excluded region is withdrawn, and one the product
+    // never had is skipped.
     if (allowedRegions && !allowedRegions.has(regionCode)) {
       if (!existing) continue;
       configs.set(regionCode, {
         ...withdrawRegion(existing),
-        // The PATCH is pinned to the conversion's current regions version.
-        // Echoing an old config's price can pair a retired currency (for
-        // example BGN) with the new version that now requires EUR, even
-        // though the region is being withdrawn.
+        // Converted price even when withdrawing: the old one may be in a
+        // retired currency (BGN) that the pinned regions version rejects.
         price: regionPrice.price,
       });
       continue;
     }
     configs.set(regionCode, {
       regionCode,
-      // Play rejects a config that pairs a region with a currency that
-      // isn't its own, so the converted Money is the only safe price
-      // here — never the operator's base-currency amount.
+      // Each region needs its own currency: never the base amount.
       price: regionPrice.price,
-      // A region kit itself withdrew must come back when the operator
-      // explicitly adds it to a list or selects `"all"`; otherwise the
-      // footprint would be a one-way door. In inherit mode, preserve the
-      // availability Play returned so a price-only push cannot reopen a
-      // market the operator withdrew in Play Console.
       availability: reactivateIncludedRegions
         ? "AVAILABLE"
         : (existing?.availability ?? "AVAILABLE"),
@@ -1448,9 +1235,8 @@ function buildRegionalPricingConfigs(
       configs.set(regionCode, withdrawRegion(existing));
       continue;
     }
-    // Without a conversion the new amount is still legal in any region
-    // already denominated in the base currency. Writing it there keeps
-    // a price edit from being silently dropped on the degraded path.
+    // Degraded path: keep a price edit in regions already priced in the base
+    // currency.
     if (
       convertedRegionCount(converted) === 0 &&
       existing.price?.currencyCode === basePrice.currencyCode
@@ -1476,12 +1262,9 @@ function buildRegionalPricingConfigs(
     configs.size === 0 ||
     (reactivateIncludedRegions && !hasAvailableIncludedRegion)
   ) {
-    // Nothing to preserve and no conversion — fall back to the base
-    // region so the product is at least purchasable somewhere. The
-    // caller reports this as a manual action rather than a silent
-    // success. An operator who named their regions and left US out must
-    // not have it published anyway; there is simply nothing legal to
-    // write for them, so the push fails and says why.
+    // Nothing to keep and no conversion: fall back to US so the product sells
+    // somewhere (the caller reports a manual action). If the operator's regions
+    // exclude US there is nothing legal to write, so fail.
     if (allowedRegions && !allowedRegions.has("US")) {
       throw new Error(
         `Play could not convert ${basePrice.currencyCode} into regional prices for "${productId}", and its sales regions (${[...allowedRegions].join(", ")}) exclude the US fallback. Retry the sync, or set the prices in Play Console.`,
@@ -1499,16 +1282,8 @@ function buildRegionalPricingConfigs(
 }
 
 /**
- * Guards the single-region fallback used when Play's price conversion is
- * unavailable.
- *
- * Play requires a region's config to carry that region's own currency,
- * so only a USD price may be published to the US fallback. A non-USD
- * price would 400 with a generic message; fail here instead with one
- * that says what to do. (Before issue #288 this constraint was enforced
- * by rejecting every non-USD product outright — now it only applies on
- * the degraded path, because conversion normally supplies each region's
- * local currency.)
+ * Guards the US-only fallback used when Play cannot convert prices: only a USD
+ * price is legal there, and Play's own 400 would not say what to do.
  */
 function assertUsdFallbackRegion(
   basePrice: androidpublisher_v3.Schema$Money,
@@ -1523,11 +1298,9 @@ function assertUsdFallbackRegion(
 }
 
 /**
- * Regional base-plan configs for a subscription create.
- *
- * Same contract as {@link buildRegionalPricingConfigs} minus the merge
- * arm: `subscriptions.create` only ever runs for a subscription that
- * doesn't exist upstream yet, so there is nothing to preserve.
+ * Regional base-plan configs for a subscription create:
+ * {@link buildRegionalPricingConfigs} without the merge, since a new
+ * subscription has nothing upstream to keep.
  */
 export function buildSubscriptionRegionalConfigs(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
@@ -1577,10 +1350,9 @@ function buildAndroidOneTimeProduct(
     listings: listingsForAndroidProduct(args, existing.listings),
     purchaseOptions: [
       {
-        // Spread the upstream option first so fields kit doesn't model
-        // — offerTags, taxAndComplianceSettings, an operator-configured
-        // newRegionsConfig — survive; the keys below then assert what
-        // kit does own. `state` is output-only and must not be echoed.
+        // Upstream first, so fields kit does not model (offerTags,
+        // taxAndComplianceSettings, newRegionsConfig) survive; the keys below
+        // are kit's.
         ...stripReadOnlyPurchaseOptionFields(existing.buyOption),
         purchaseOptionId: "buy",
         buyOption: {
@@ -1590,11 +1362,8 @@ function buildAndroidOneTimeProduct(
         regionalPricingAndAvailabilityConfigs,
         ...(newRegionsConfig ? { newRegionsConfig } : {}),
       },
-      // kit only models the single `buy` option, but `updateMask:
-      // "purchaseOptions"` replaces the whole list — so anything the
-      // operator added in Play Console (a rent option, a second buy
-      // option, a pre-order offer) has to be echoed back or the push
-      // deletes it. Same replace-semantics trap as the regional configs.
+      // `updateMask` replaces the whole list: echo back options added in Play
+      // Console (rent, a second buy, pre-order) or the push deletes them.
       ...existing.otherPurchaseOptions.map((option) =>
         stripReadOnlyPurchaseOptionFields(option),
       ),
@@ -1603,11 +1372,8 @@ function buildAndroidOneTimeProduct(
 }
 
 /**
- * Drops output-only fields Play rejects on write.
- *
- * `state` is documented as output-only ("This field cannot be changed by
- * updating the resource"), so echoing a read-back option verbatim would
- * turn a preservation write into a 400.
+ * Drops output-only fields Play rejects on write: echoing `state` ("This field
+ * cannot be changed by updating the resource") returns a 400.
  */
 function stripReadOnlyPurchaseOptionFields(
   option: androidpublisher_v3.Schema$OneTimeProductPurchaseOption | undefined,
@@ -1634,12 +1400,9 @@ interface ExistingOneTimeProductState {
 }
 
 /**
- * Reads the product's current purchase options.
- *
- * `updateMask: "purchaseOptions"` makes Play REPLACE the repeated field,
- * so an update that doesn't first read what's there wipes both the
- * regions and the purchase options it omits. Returns empty state when
- * the product doesn't exist yet — the caller then treats it as a create.
+ * Reads the product's current purchase options, which a write must echo because
+ * `updateMask: "purchaseOptions"` replaces them. Returns empty state for a
+ * product that does not exist yet.
  */
 async function readExistingOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
@@ -1691,12 +1454,8 @@ export async function upsertModernAndroidOneTimeProduct(
   }
   const basePrice = microsToGoogleMoney(args.priceAmountMicros, args.currency);
 
-  // Read before write: `updateMask: "purchaseOptions"` replaces the
-  // repeated field wholesale, so an update that skipped this would strip
-  // every region the operator has configured in Play Console. The read
-  // also runs on the create path — `allowMissing` upserts, so a "create"
-  // can land on a product that already exists (retry after a partial
-  // sync) and must not flatten it either.
+  // Also on create: `allowMissing` upserts, so a retried create can land on an
+  // existing product and must not flatten it.
   const existing = await readExistingOneTimeProduct(androidpublisher, args);
 
   const conversion = await convertAndroidRegionPrices(
@@ -1733,21 +1492,12 @@ export async function upsertModernAndroidOneTimeProduct(
       );
     }
   }
-  // Three states, and the difference between the last two is the whole
-  // point of this block:
-  //
-  //   ["US","KR"] — an explicit footprint. Everything else is withdrawn.
-  //   "all"       — sell wherever Play prices. Expands on purpose.
-  //   unset       — inherit. A product Play has never seen goes out
-  //                 everywhere (Play Console's own default, and the fix
-  //                 for #288); one that already exists keeps the exact
-  //                 regions it has and is only repriced.
-  //
-  // That last case is why `unset` is not simply "all": pushing an
-  // existing US-only product would otherwise expand it to every market
-  // Play prices, on a sync the operator ran to change a price. Nothing
-  // is withdrawn here — the excluded regions have no config to withdraw,
-  // so the footprint branch below skips them.
+  // `regions`:
+  //   ["US","KR"]  explicit footprint; every other region is withdrawn.
+  //   "all"        sell wherever Play prices; expands on purpose.
+  //   unset        inherit: a new product goes out everywhere (Play Console's
+  //                default, #288); an existing one keeps its regions and is
+  //                only repriced, so a price change never expands it.
   const explicitFootprint = Array.isArray(args.regions)
     ? new Set(args.regions)
     : undefined;
@@ -1768,34 +1518,23 @@ export async function upsertModernAndroidOneTimeProduct(
       explicitlyManagedFootprint,
     );
 
-  // "Other regions" pricing covers markets Play launches later. Play
-  // requires both USD and EUR here, so it only goes out when the
-  // conversion supplied both.
-  // Two rules meet here. Without a footprint, per-region availability is
-  // preserved, so this has to be too: an operator who withdrew "other
-  // regions" in Play Console has said "do not follow Play into new
-  // markets", and re-pricing must not silently opt them back in — only
-  // the amounts are refreshed. With an explicit footprint it has to be
-  // OFF, and merely omitting it is not enough, because the existing
-  // purchase option is spread into the write and would carry a
-  // previously-enabled config forward. It has to be actively withdrawn.
+  // "Other regions" covers markets Play launches later and needs both a USD and
+  // an EUR price. Without a footprint, keep its availability and refresh only
+  // the amounts; with an explicit footprint, actively withdraw it, since the
+  // spread existing option would otherwise carry an enabled config forward.
   const existingNewRegions = existing.buyOption?.newRegionsConfig;
   const otherRegions = explicitFootprint
     ? undefined
-    : // Inheriting: refresh the amounts if Play already follows new
-      // markets for this product, but never switch that on. Creating it
-      // here would opt an existing product into every market Play
-      // launches from now on — the same silent expansion the inherited
-      // footprint exists to prevent, just deferred.
+    : // Inheriting: refresh an existing config but never create one, which
+      // would opt the product into every market Play launches from now on.
       inheritedFootprint && !existingNewRegions
       ? undefined
       : converted?.convertedOtherRegionsPrice;
   const newRegionsConfig =
     otherRegions?.usdPrice && otherRegions.eurPrice
       ? {
-          // `"all"` is an explicit request to follow Play into future
-          // markets, so it reactivates a previously withdrawn config.
-          // Inherit mode preserves the operator's Play Console choice.
+          // "all" follows Play into future markets, so it reopens a withdrawn
+          // config; inherit keeps the Play Console choice.
           availability:
             args.regions === "all"
               ? "AVAILABLE"
@@ -1807,16 +1546,12 @@ export async function upsertModernAndroidOneTimeProduct(
           existingNewRegions &&
           (existingNewRegions.availability ?? "AVAILABLE") === "AVAILABLE"
         ? { ...existingNewRegions, availability: "NO_LONGER_AVAILABLE" }
-        : // Explicit, not omitted: `undefined` would rely on the spread
-          // carrying the old value, which is the same reasoning that
-          // makes the withdrawal above necessary. Only an explicit
-          // footprint withdraws — inheriting leaves the operator's own
-          // Play Console setting exactly as it is.
+        : // Explicit, not undefined, which would rely on the spread; only an
+          // explicit footprint withdraws, inheriting keeps the Play setting.
           existingNewRegions;
 
-  // The generated method owns the PATCH route. In googleapis v157 the
-  // upsert route is the lowercase `/onetimeproducts/{productId}` path,
-  // which differs from the camel-case routes used by sibling methods.
+  // Use the generated method: in googleapis v157 this route is lowercase
+  // `/onetimeproducts/{productId}`, unlike its camel-case siblings.
   await androidpublisher.monetization.onetimeproducts.patch({
     packageName: args.packageName,
     productId: args.productId,
@@ -1834,23 +1569,16 @@ export async function upsertModernAndroidOneTimeProduct(
     ),
   });
 
-  // Availability is optional in Play's schema and absent means
-  // AVAILABLE, so both the stale count and the unpriced check go through
-  // one predicate rather than testing the string directly. It is a
-  // NOT-withdrawn test, not an equals-AVAILABLE one: a region priced
-  // ahead of release comes back as AVAILABLE_IF_RELEASED and is still a
-  // region the product is sold in. Reading it as "not live" made the
-  // stale count disagree with the configs it was counting.
+  // Absent availability means AVAILABLE. Test "not withdrawn", not "equals
+  // AVAILABLE": the product still sells in an AVAILABLE_IF_RELEASED region.
   const isLive = (
     config: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig,
   ) =>
     (config.availability ?? "AVAILABLE") !== "NO_LONGER_AVAILABLE" &&
     !(allowedRegions && !allowedRegions.has(config.regionCode ?? ""));
 
-  // A requested region Play returned no price for is silently absent
-  // from the write, so say so. This backstops the region-code validator:
-  // a code that is well-formed and assigned but not a Play sales region
-  // reaches here rather than disappearing.
+  // A requested region Play did not price is silently missing from the write,
+  // so report it (for example a valid code that is not a Play sales region).
   const unpriced = explicitFootprint
     ? [...explicitFootprint].filter(
         (region) =>
@@ -1864,21 +1592,17 @@ export async function upsertModernAndroidOneTimeProduct(
       ? ` Play does not sell "${args.productId}" in ${unpriced.join(", ")}, so ${unpriced.length === 1 ? "that region was" : "those regions were"} skipped — remove ${unpriced.length === 1 ? "it" : "them"} from the product's sales regions, or check the code.`
       : "";
 
-  // Both numbers must come from the SAME set of final configs. Mixing a
-  // filtered numerator with an unfiltered counter made `stale` go
-  // negative when a withdrawn region happened to be repriced, which
-  // silently dropped the whole warning.
+  // Both counts from the same final configs, or `stale` can go negative and
+  // drop the warning.
   const live = regionalConfigs.filter(isLive);
   const applied = live.filter((config) =>
     repricedRegions.has(config.regionCode ?? ""),
   ).length;
   const stale = live.length - applied;
 
-  // Inheriting a narrow footprint is the safe choice, not necessarily
-  // the intended one — an operator whose product is US-only because of
-  // the bug this release fixes would otherwise never find out. Say how
-  // many markets are being left on the table, once the numbers are known
-  // to be real (a failed conversion knows nothing about availability).
+  // An inherited narrow footprint is safe but may be an accident (US-only), so
+  // report how many markets it leaves out. Counted only when conversion worked;
+  // a failed one knows nothing about availability.
   const convertedRegions = Object.entries(
     converted?.convertedRegionPrices ?? {},
   )
@@ -1902,10 +1626,7 @@ export async function upsertModernAndroidOneTimeProduct(
       : "";
 
   if (convertedRegionCount(converted) > 0) {
-    // Conversion worked; what is left worth saying is whether a
-    // requested region has no Play price, and whether kit declined to
-    // expand. Reported as its own action rather than short-circuiting
-    // the conversion-failure report below.
+    // Conversion worked: report unpriced regions and skipped expansion.
     const note = `${unpricedNote}${expansionNote}`.trim();
     return note
       ? {
@@ -1920,10 +1641,9 @@ export async function upsertModernAndroidOneTimeProduct(
       : {};
   }
 
-  // Conversion failed. The write still went out, but only `applied` of
-  // the product's live regions could legally take the new amount — the
-  // rest kept their previous prices. Report exactly that; "pushed, no
-  // failures" would read as "the new price is live everywhere".
+  // Conversion failed: the write went out, but only `applied` live regions took
+  // the new amount. Say so; a clean result would read as the new price being
+  // live everywhere.
   const amount = `${args.currency} ${(args.priceAmountMicros / 1_000_000).toFixed(2)}`;
   return {
     manualAction: {
@@ -1940,9 +1660,8 @@ export async function upsertModernAndroidOneTimeProduct(
 }
 
 /**
- * Legacy `inappproducts` keeps listings as a locale-keyed map rather
- * than an array. `defaultLanguage` must name one of these keys, which
- * the base locale always satisfies.
+ * Legacy listings are a locale-keyed map; `defaultLanguage` must name one of
+ * its keys, which the base locale always is.
  */
 function legacyListingsMap(
   args: AndroidOneTimeProductUpsertArgs,
@@ -1964,14 +1683,6 @@ function legacyListingsMap(
   return listings;
 }
 
-/**
- * The legacy `inappproducts` API has no region concept — it prices a SKU
- * from `defaultPrice` and, with `autoConvertMissingPrices`, everywhere
- * else. An operator who named their sales regions cannot be served by
- * it, and silently publishing everywhere would be the opposite of what
- * they asked for. Raised before the modern attempt so a genuine modern
- * failure is reported as itself.
- */
 /** Message for an unknown upstream throwable, without "[object Object]". */
 function describeUpstreamError(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -1980,13 +1691,18 @@ function describeUpstreamError(error: unknown): string {
   return typeof message === "string" ? message : "an unknown error";
 }
 
+/**
+ * The legacy `inappproducts` API has no regions: it prices a SKU from
+ * `defaultPrice` and, with `autoConvertMissingPrices`, everywhere else. An
+ * explicit region list cannot be honoured there, and publishing everywhere
+ * would be the opposite of what the operator asked. The message carries the
+ * modern API's failure that caused the fallback.
+ */
 export function assertLegacyPathUsableFor(
   args: AndroidOneTimeProductUpsertArgs,
   modernError?: unknown,
 ): void {
-  // "all" is not a footprint the legacy API cannot honour — it prices
-  // every region, which is exactly what "all" asks for. Only an explicit
-  // list has no legal expression there.
+  // Legacy prices every region, which is exactly what "all" asks for.
   if (args.regions === "all" || !args.regions?.length) return;
   throw new Error(
     `"${args.productId}" specifies sales regions, but this app fell back to Play's legacy in-app-products API, which prices every region or none. Remove the region list, or migrate the app to Play's one-time products model.` +
@@ -2002,9 +1718,8 @@ async function insertLegacyAndroidOneTimeProduct(
 ): Promise<void> {
   await androidpublisher.inappproducts.insert({
     packageName: args.packageName,
-    // Without this the legacy API prices the SKU in the merchant
-    // currency only and leaves every other region unbuyable — the
-    // legacy-path half of issue #288.
+    // Otherwise legacy prices only the merchant currency and every other region
+    // is unbuyable (#288).
     autoConvertMissingPrices: true,
     requestBody: {
       packageName: args.packageName,
@@ -2062,10 +1777,9 @@ export function shouldFallbackToLegacyOneTimeProduct(
     message.includes("Please use the InAppProducts API");
   if (explicitlyRequiresLegacyApi) return true;
 
-  // An update may target a SKU that exists only in the legacy catalog, so a
-  // modern 404 must retain the established legacy-patch compatibility path.
-  // A create uses allowMissing=true; its bare 404 cannot mean "product absent"
-  // and must remain visible instead of being masked by a legacy insert.
+  // On update, a modern 404 may be a SKU that exists only in the legacy
+  // catalog, so fall back. A create uses allowMissing, so its 404 cannot mean
+  // "absent" and must stay visible.
   return !options.allowCreate && status === 404;
 }
 
@@ -2241,37 +1955,15 @@ function pickPlayCurrency(
   return product.defaultPrice?.currency ?? undefined;
 }
 
-// Pick a representative price + currency for a subscription. The
-// previous implementation had three bugs that combined to produce the
-// "wrong currency" / "missing price" output the dashboard surfaced:
-//
-//   1. It bailed out (returned null price) whenever
-//      `legacyCompatibleSubscriptionOfferId` was set on the base plan.
-//      That field's presence has nothing to do with whether the plan
-//      has pricing — it's a migration shim from the static-pricing era
-//      — so any sub configured with that compat id silently lost its
-//      price. (Hence the second product showing "—" in the screenshot.)
-//   2. It always read `regionalConfigs?.[0]`, which is just whichever
-//      region Google sorted first. That made the UI flip between AED /
-//      USD / KRW depending on the response order.
-//   3. Currency and price were read independently and could disagree.
-//
-// New rule: walk every basePlan, walk every regionalConfig, prefer USD
-// if any region offers it, otherwise return the first region with a
-// readable price. Currency + price come from the SAME regionalConfig
-// so they're always consistent.
 /**
  * Chooses which region's price represents a pulled one-time product.
  *
- * Preference order, and why each step exists:
- *   1. the authored currency in the US region, then anywhere — pushing
- *      converts the operator's base price into every region, so a
- *      US-first rule would read a KRW/JPY row back as its converted
- *      dollar amount and the next push would convert from that already
- *      converted number;
- *   2. US, then any USD region — Play prices several non-US regions in
- *      USD (EC, SV, TL, ZW…), so matching on currency alone would
- *      resolve a plain USD row to whichever of those Play listed first;
+ * Preference order:
+ *   1. the authored currency, in the US region, then anywhere: pushing converts
+ *      the base price into every region, so a US-first rule would read a
+ *      KRW/JPY row back as dollars and the next push would convert that again;
+ *   2. US, then any USD region: Play prices some non-US regions in USD (EC, SV,
+ *      TL, ZW...), so currency alone could pick one of those;
  *   3. whatever is left, for a first import kit has never priced.
  */
 export function pickPlayRegionalPrice<
@@ -2296,12 +1988,8 @@ export function pickSubBasePlanPrice(
 ): {
   priceAmountMicros?: number;
   currency?: string;
-  // The basePlanId of the plan whose price we picked, so the caller
-  // can pull `billingPeriod` from the *same* plan instead of guessing
-  // (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review:
-  // mixed monthly + yearly base plans previously paired the yearly
-  // USD price with the monthly billingPeriod, breaking MRR
-  // normalization).
+  // Plan the price came from, so `billingPeriod` comes from the same plan;
+  // mixing monthly and yearly plans broke MRR normalization.
   basePlanId?: string;
 } {
   type Candidate = {
@@ -2326,12 +2014,7 @@ export function pickSubBasePlanPrice(
     }
   }
   if (candidates.length === 0) return {};
-  // Prefer the currency the kit row already carries. Pushing converts
-  // the operator's base price into every region, so a USD-first rule
-  // would read a KRW/JPY-authored row back as its converted dollar
-  // amount and the next push would convert from that already-converted
-  // number. Falls back to USD — the most universally recognizable
-  // dashboard value — for rows kit hasn't priced yet.
+  // Authored currency first, then USD, the most recognizable dashboard value.
   const preferred = pickPlayRegionalPrice(candidates, preferredCurrency);
   if (!preferred) return {};
   return {
@@ -2551,26 +2234,17 @@ export async function listPlaySubscriptionOffers(
 }
 
 /**
- * Convert a Google `Money` proto into the integer micros (1/1,000,000
- * of the currency unit) representation kit stores on every product row.
+ * Converts a Google `Money` into kit's integer micros.
  *
- * `units` is a BigInt-as-string in the Play proto, so the micros
- * multiplication is done in BigInt to avoid IEEE 754 precision loss on
- * large currency values (>2^53). The nanos → micros conversion is
- * BigInt division which truncates (not `Math.round`, which would push
- * `999_999_999` nanos up to a full 1_000_000 micros and silently add 1
- * micro to sub-unit prices). Truncation matches how Google Play Console
- * stores price points internally — Play uses micros as the canonical
- * unit, so any rounding here would re-introduce drift we just cleaned
- * up. Resolves to `undefined` when the input has neither `units` nor
- * `nanos` (proto3 JSON omits a zero `units`, so a sub-unit price like $0.99
- * arrives as nanos-only), when the `units` is not a non-negative decimal
- * string, when the result is negative, when `nanos` falls outside
- * Google Money's int32 sub-unit range, or when the resulting micros exceed
- * `Number.MAX_SAFE_INTEGER` (≈ USD 9 billion — kit treats those rows as
- * price-unknown rather than silently corrupting them).
+ * BigInt math, since `units` is a BigInt string. Nanos are truncated, not
+ * rounded (rounding would turn 999_999_999 nanos into an extra micro), which
+ * matches how Play stores price points. Nanos-only is valid: proto3 JSON omits
+ * a zero `units`, so $0.99 arrives that way.
  *
- * PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix.
+ * Returns `undefined` (price unknown) when both fields are missing, `units` is
+ * not a non-negative decimal string, `nanos` is outside Money's int32 sub-unit
+ * range, or the result is negative or above `Number.MAX_SAFE_INTEGER` (about
+ * USD 9 billion).
  */
 export function moneyToMicros(
   money: androidpublisher_v3.Schema$Money | undefined,
@@ -2583,14 +2257,9 @@ export function moneyToMicros(
     if (nanosMicros === undefined) return undefined;
     const microsBigInt = unitsMicros + nanosMicros;
     if (microsBigInt < 0n) return undefined;
-    // Drop values that exceed Number.MAX_SAFE_INTEGER. The schema
-    // stores `priceAmountMicros` as a JS `number` (IEEE 754 double),
-    // so anything above 2^53 - 1 would silently lose precision on
-    // round-trip. In practice no realistic IAP price hits that bound
-    // (it's ~9.0e15 micros = USD 9 billion), but for currencies with
-    // very high unit values like IDR / KRW it's worth the explicit
-    // guard rather than a silent corruption — kit treats the row as
-    // "price unknown" and the dashboard surfaces that affordance.
+    // `priceAmountMicros` is a double: past 2^53 - 1 it loses precision, so
+    // report the price as unknown instead. Guards high-unit currencies like IDR
+    // and KRW.
     if (microsBigInt > BigInt(Number.MAX_SAFE_INTEGER) || microsBigInt < 0n) {
       return undefined;
     }
@@ -2627,11 +2296,9 @@ function moneyNanosToMicros(
 }
 
 /**
- * Map an ISO 8601 billing-period string (`P1W` / `P1M` / `P1Y` / etc.)
- * to a stable, descriptive basePlanId for the Play console. Play's
- * product detail page surfaces this id verbatim, so "yearly" /
- * "weekly" reads better than the default "monthly" hardcoded fallback
- * we used before. Unknown / undefined periods collapse to `"monthly"`.
+ * Maps an ISO 8601 billing period (`P1W`, `P1M`, `P1Y`...) to a readable
+ * basePlanId, which Play Console shows verbatim. Unknown periods map to
+ * `"monthly"`.
  */
 export function basePlanIdForPeriod(period: string | undefined): string {
   switch (period) {

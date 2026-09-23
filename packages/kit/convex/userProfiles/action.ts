@@ -3,26 +3,17 @@ import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 
-// Cap per action invocation. With `ACCOUNT_DELETION_PAGE=100` that's
-// enough to drain ~50k rows in one action — more than any realistic
-// account. If a genuinely huge account exceeds this, we self-schedule
-// a follow-up invocation to keep going.
+// Batches per action run, more than a realistic account needs; a larger one
+// reschedules the action to continue.
 const MAX_DRAIN_ITERATIONS = 500;
 
 /**
- * Finalize the teardown kicked off by `deleteAccount`.
+ * Finishes the teardown `deleteAccount` started, calling
+ * `drainAccountDeletionBatch` (one bounded phase per call) until nothing is
+ * left, so no mutation exceeds Convex's limits however much the account holds.
  *
- * Loops the `drainAccountDeletionBatch` mutation — which processes one
- * bounded phase per call — until the user's data tree is fully deleted.
- * Keeping the heavy loop in an action means individual mutations stay
- * inside Convex's per-transaction limits regardless of how much data
- * the account had accumulated (dominant concern: per-project receipt
- * volume, which is unbounded in principle).
- *
- * Resumable: if this action crashes or hits the `MAX_DRAIN_ITERATIONS`
- * cap mid-drain, it re-schedules itself. The mutation is idempotent —
- * subsequent calls pick up whatever rows are still present in the
- * pending-deletion phases.
+ * Resumable: after a crash or the `MAX_DRAIN_ITERATIONS` cap it reschedules
+ * itself, and the idempotent mutation picks up whatever remains.
  */
 export const finalizeAccountDeletion = internalAction({
   args: { userId: v.id("users") },

@@ -283,12 +283,10 @@ export function selectReportingMrr(
   };
 }
 
-// Time-independent evaluation snapshot for the Fly HTTP boundary. It excludes
-// refunded, revoked, and other historical rows except for the single latest
-// fallback needed by status. State-entitled candidates may include a row whose
-// expiresAt has just passed; Fly removes it with its own current clock before
-// producing the public HTTP response. Convex may safely cache the snapshot and
-// invalidates it when a dependent row changes.
+// Clock-free snapshot for the Fly HTTP layer, so Convex can cache it and
+// invalidate it on row changes. Of the historical rows only the latest is kept,
+// as the status fallback; Fly drops candidates whose expiresAt has passed using
+// its own clock.
 export const subscriptionEvaluationSnapshot = query({
   args: {
     apiKey: v.string(),
@@ -492,14 +490,8 @@ export const listSubscriptions = query({
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
 
-    // userId path: subscriptions per user is a small population
-    // (single digits in practice — a user with 50 subscriptions on a
-    // single project is pathological), so we collect the entire
-    // by_project_and_user slice and apply state/productId filters in
-    // memory rather than throwing. Earlier behaviour rejected the
-    // combo with an error, which made the dashboard "filter user X by
-    // state Active" path unusable (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // A user has few subscriptions, so load them all and filter by state and
+    // productId in memory.
     if (args.userId) {
       const userRows = await ctx.db
         .query("subscriptions")
@@ -519,12 +511,8 @@ export const listSubscriptions = query({
       };
     }
 
-    // Pick the most-selective index for the supplied filters. Schema
-    // covers single-filter combinations directly; the composite
-    // (projectId, state, productId) index handles the dashboard's
-    // common "filter by state and SKU" combination so we don't need
-    // an over-fetch + in-memory post-filter that could miss rows
-    // past the take() boundary.
+    // Every filter combination has an index (state + productId is a composite),
+    // so take() never cuts off rows a post-filter would need.
     let rows: Array<Doc<"subscriptions">>;
     if (args.state && args.productId) {
       rows = await ctx.db
@@ -563,16 +551,8 @@ export const listSubscriptions = query({
         .take(limit);
     }
 
-    // All filter combinations hit an index that covers the supplied
-    // columns now (the (state + productId) composite was added in
-    // schema.ts), so no in-memory post-filter is needed here.
-
-    // `total` reflects the filtered window we actually materialized,
-    // not the full server-side count. Computing a true total would
-    // require a separate aggregate scan that defeats the take() bound
-    // we just put in. The dashboard treats `total` as "rows shown
-    // matching the current filter" and surfaces "+ more" affordances
-    // via the next page request.
+    // `total` counts the rows loaded, not every match; a true count would need
+    // an unbounded scan.
     return {
       items: rows.slice(0, limit).map(shapeSubscriptionRow),
       total: rows.length,
@@ -580,20 +560,9 @@ export const listSubscriptions = query({
   },
 });
 
-// Metrics aggregation. Reads incrementally-maintained per-currency
-// counters out of `subscriptionStats` for the live state buckets +
-// MRR (O(currencies-per-project) — typically 1-3 rows), and bounded
-// indexed scans over `by_project_and_state` for the 30-day rolling
-// counters. The prior implementation took up to 10,000 subscriptions
-// off the by_project_and_updated index and aggregated in memory,
-// which silently undercounted projects above that cap.
-//
-// Migration safety: when the stats table is empty for a project
-// (pre-rollout state) we fall through to a one-shot recompute via
-// the same statsContributionFor logic so the dashboard stays
-// correct on first read after deploy. The
-// `recomputeSubscriptionStats` internal mutation populates rows for
-// future reads.
+// Live counts and MRR come from `subscriptionStats` (one row per currency), the
+// 30-day counters from a bounded indexed scan. A project with no stats rows yet
+// is computed on the fly until `recomputeSubscriptionStats` fills them.
 export const metricsSummary = query({
   args: {
     apiKey: v.optional(v.string()),
@@ -605,17 +574,13 @@ export const metricsSummary = query({
     inBillingRetry: v.number(),
     refunded30d: v.number(),
     canceled30d: v.number(),
-    // Headline MRR in the project's reporting currency, normalized
-    // to monthly. Historical field name kept for dashboard / MCP
-    // consumers, but the value is no longer a cross-currency or
-    // "most popular currency" total.
+    // Monthly MRR in the reporting currency only; the name predates
+    // per-currency MRR and is kept for dashboard and MCP consumers.
     mrrMicros: v.number(),
     currency: v.optional(v.string()),
     reportingCurrency: v.string(),
-    // Full per-currency breakdown so consumers that care about
-    // multi-currency aren't left guessing. Each entry's `mrrMicros`
-    // is summed only over subscriptions in that currency, normalized
-    // to monthly via the product's billingPeriod.
+    // Per-currency MRR, each normalized to monthly by the product's
+    // billingPeriod.
     mrrByCurrency: v.array(
       v.object({ currency: v.string(), mrrMicros: v.number() }),
     ),
@@ -667,19 +632,9 @@ export const metricsSummary = query({
         }
       }
     } else {
-      // No stats rows yet — pre-rollout state for this project.
-      // Compute on the fly so the dashboard isn't blank on first
-      // read after deploy. Bounded by the same per-project scan the
-      // backfill mutation does; for projects past the prior 10k cap
-      // this is a one-time cost until `recomputeSubscriptionStats`
-      // populates the table.
-      //
-      // Bounded by FALLBACK_SCAN_CAP so a project that's hugely past
-      // the prior 10k scan limit can't crash the dashboard render.
-      // The cap matches the previous implementation's bound; the
-      // first read after deploy schedules an async backfill via the
-      // drift-correction cron, after which subsequent reads come
-      // out of subscriptionStats and have no scan at all.
+      // No stats rows yet: compute on the fly, capped so a huge project cannot
+      // break the render, until the drift-correction cron backfills
+      // `subscriptionStats`.
       const FALLBACK_SCAN_CAP = 10_000;
       const periodByProductId = await loadPeriodByProductId(ctx, project._id);
       const allSubs = await ctx.db
@@ -710,24 +665,10 @@ export const metricsSummary = query({
       }
     }
 
-    // 30-day rolling counters — bounded by churn rather than by
-    // historical state archive. The previous implementation walked
-    // every `Refunded` row + every (Active|InGracePeriod|InBillingRetry
-    // |Expired) row for the project and filtered in memory, which
-    // grew unbounded as the historical archive accumulated. We now
-    // do a single time-windowed scan via `by_project_and_updated`
-    // with `gte(cutoff)`, then derive both refunded + canceled
-    // counters in one pass. The candidate set is bounded by the
-    // last 30 days of state changes (typically thousands per
-    // project, never the full lifetime).
-    // Cap the windowed scan so a project with > 10k state changes
-    // in 30 days can't exceed Convex's 40k document-read limit. The
-    // rolling counters degrade gracefully — if a project genuinely
-    // hits this bound the dashboard shows an approximate count that
-    // still tracks the cohort closely (this is the same trade-off
-    // the previous SUBS_SCAN_CAP made for active counts, before the
-    // incremental subscriptionStats path replaced it). Real-world
-    // monthly churn is well under 10k for any realistic deployment.
+    // 30-day counters from one `by_project_and_updated` scan since the cutoff,
+    // so the cost follows recent churn, not history. The cap keeps a project
+    // with over 10k changes in 30 days under Convex's 40k read limit; past it
+    // the counts are approximate.
     const ROLLING_SCAN_CAP = 10_000;
     const recentlyChanged = await ctx.db
       .query("subscriptions")
@@ -756,11 +697,9 @@ export const metricsSummary = query({
       }
     }
 
-    // Sort per-currency MRR for deterministic UI rendering. The
-    // headline `mrrMicros` below intentionally uses only the
-    // project's reporting currency; other currencies remain visible
-    // in `excludedMrrByCurrency` instead of being silently summed
-    // by IAPKit.
+    // Sorted for stable rendering. Only the reporting currency feeds the
+    // headline; the others stay in `excludedMrrByCurrency` instead of being
+    // summed.
     const sorted = Array.from(mrrAccumulators.entries()).sort(
       ([a, av], [b, bv]) => (bv !== av ? bv - av : a.localeCompare(b)),
     );
@@ -788,21 +727,11 @@ export const metricsSummary = query({
   },
 });
 
-// Daily revenue + lifecycle metrics for the Analytics dashboard. Reads
-// pre-computed rollups from `revenueMetricsDaily` (populated by the
-// `recomputeAllRevenueMetrics` cron) so the dashboard never scans the
-// raw webhookEvents log on render.
-//
-// `fromDay` and `toDay` are inclusive ISO date strings (YYYY-MM-DD,
-// UTC) — same format `revenueMetricsDaily.day` is stored under, so
-// the index range is a direct string comparison.
-//
-// Return shape: one entry per rollup row, i.e. one per
-// (day, currency, productId, platform). Aggregation across rows
-// happens client-side (`analytics.tsx`) so the dashboard can switch
-// between filter combinations without re-querying. Summing across
-// currencies is a UI-side concern — `revenueMicros` from a USD row
-// and a EUR row cannot be added without an FX rate.
+// Daily metrics for the Analytics dashboard from the `revenueMetricsDaily`
+// rollups, so a render never scans `webhookEvents`. `fromDay` and `toDay` are
+// inclusive UTC YYYY-MM-DD, compared as strings on the index. Returns one entry
+// per (day, currency, productId, platform) for the dashboard to aggregate; rows
+// in different currencies need an FX rate to add.
 const platformValidator = v.union(v.literal("IOS"), v.literal("Android"));
 
 export const getRevenueMetrics = query({
@@ -811,16 +740,9 @@ export const getRevenueMetrics = query({
     projectId: v.optional(v.id("projects")),
     fromDay: v.string(),
     toDay: v.string(),
-    // Server-side `productId` / `currency` / `platform` filters were
-    // removed because the dashboard does all of that filtering
-    // client-side (the unfiltered fetch is what backs the filter-
-    // dropdown population — narrowing the scan would defeat that),
-    // and a server-side narrowing path was incompatible with that
-    // contract: when a productId was pinned the dropdowns silently
-    // collapsed to that SKU's currencies / platforms only. If a
-    // future caller needs server-side narrowing for a non-dashboard
-    // surface, add a separate query — don't reintroduce these as
-    // optional args on this one.
+    // No product, currency or platform args: the dashboard filters client-side
+    // and fills its dropdowns from the unfiltered rows. Add a separate query if
+    // another caller needs narrowing.
   },
   returns: v.object({
     days: v.array(
@@ -837,17 +759,11 @@ export const getRevenueMetrics = query({
         revenueMicros: v.number(),
       }),
     ),
-    // Available filter values surfaced to the dashboard so the UI
-    // can render dropdowns / chiclets for everything the project
-    // actually has data for, without a second round-trip.
+    // Every value in the window, for the dashboard's filter dropdowns.
     currencies: v.array(v.string()),
     productIds: v.array(v.string()),
     platforms: v.array(platformValidator),
-    // True when the underlying scan hit `REVENUE_SCAN_CAP` and the
-    // returned rows are a partial view of the requested window. The
-    // dashboard surfaces this as a banner so a truncated chart is
-    // visible to the operator instead of silently rendering a
-    // partial tail.
+    // The scan hit REVENUE_SCAN_CAP; the dashboard shows a banner.
     truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
@@ -862,12 +778,8 @@ export const getRevenueMetrics = query({
       };
     }
 
-    // Reject ranges past the dashboard's longest preset (90 days)
-    // before issuing the index scan. A misbehaving client can
-    // otherwise request `fromDay = "1970-01-01"` and force the
-    // server to materialize every rollup row in the project. The
-    // 90-day cap matches `RANGES` in `analytics.tsx`; widening
-    // there should bump this in lockstep.
+    // Cap at the dashboard's longest preset (`RANGES` in analytics.tsx; change
+    // both together) so a client cannot load every rollup row.
     const MAX_RANGE_DAYS = 92;
     if (args.fromDay > args.toDay) {
       throw new Error(
@@ -888,20 +800,8 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Range scan over `revenueMetricsDaily` via
-    // `by_project_and_day_and_currency` (`[projectId, day, currency]`).
-    // The dashboard does all filtering (currency / product /
-    // platform) client-side, so we deliberately return the full
-    // window — narrowing here would prune the data the dashboard
-    // needs to populate its filter dropdowns.
-    //
-    // Capped at REVENUE_SCAN_CAP to stay under Convex's 32k
-    // document-scan limit per query. A 92-day range across a
-    // maximalist project (30 SKUs × 3 currencies × 2 platforms =
-    // 180 rows/day → ~16.5k rows for 92 days) fits inside this
-    // cap; truncation surfaces as the `truncated` flag below and
-    // an amber banner on the dashboard so a partial chart is
-    // never silently rendered.
+    // Below Convex's 32k per-query scan limit, and above 92 days of 30 SKUs
+    // × 3 currencies × 2 platforms (~16.5k rows). Hitting it sets `truncated`.
     const REVENUE_SCAN_CAP = 20_000;
     const allRows = await ctx.db
       .query("revenueMetricsDaily")
@@ -919,10 +819,6 @@ export const getRevenueMetrics = query({
       );
     }
 
-    // Populate filter-dropdown choices from the unfiltered range
-    // scan so the UI can render every available currency /
-    // productId / platform regardless of which filter the user
-    // currently has active.
     const currencies = new Set<string>();
     const productIds = new Set<string>();
     const platforms = new Set<"IOS" | "Android">();

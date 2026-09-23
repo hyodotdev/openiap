@@ -24,13 +24,10 @@ const runBaseStatsBackfill = testableFunction(
 );
 
 /**
- * Minimal in-memory stand-in for the slice of `ctx.db` the stats helpers
- * touch. Intentionally narrow — just enough to exercise `withIndex(name, cb)
- * → .order() / .first() / async iterate`, plus insert/patch/get/delete.
- *
- * Not a substitute for `convex-test`; scoped to the write/read paths that
- * this refactor introduced so a regression (counter drift, missing cascade
- * delete, etc.) is caught by unit tests before it ships.
+ * In-memory stand-in for the slice of `ctx.db` the stats helpers use:
+ * `withIndex` with `.order()`, `.first()` and async iteration, plus
+ * insert/patch/get/delete. Not a convex-test substitute; it catches counter
+ * drift and missing cascade deletes.
  */
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 

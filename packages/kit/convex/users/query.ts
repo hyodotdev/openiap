@@ -4,18 +4,13 @@ import { isEmailSignInOpen } from "../authWindow";
 import { hasAnyResendAccount } from "./internal";
 
 /**
- * Pre-sign-in gate: returns true if a user with the given email
- * already exists. Called from the AuthModal before firing the OTP
- * email so we don't burn Resend credit on a send that would end in
- * "new signups are GitHub-only" anyway. New signups are expected to
- * go through GitHub OAuth from 2026-04 onward; this query only
- * exists so existing email-only accounts keep working until the
- * Resend provider is fully retired.
+ * Pre-sign-in gate: whether a user with this email exists. The AuthModal asks
+ * before sending an OTP, so Resend credit is not spent on a signup that must
+ * use GitHub (new signups since 2026-04). It exists only until email-only
+ * accounts are retired.
  *
- * Publicly callable (no auth guard) — anonymous visitors need to be
- * able to call this from the sign-in form. Email enumeration risk
- * is real but low-value given product scale (<200 users) and we
- * return a boolean-only answer, not timing-sensitive detail.
+ * Public, because anonymous visitors call it from the sign-in form. It returns
+ * only a boolean; the enumeration risk is accepted at this scale (<200 users).
  */
 export const canSignInWithEmail = query({
   args: { email: v.string() },

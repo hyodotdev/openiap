@@ -75,18 +75,10 @@ export const getReceiptsByProject = query({
 
     let paginated: PaginationResult<Doc<"purchases">>;
 
-    // Filter application strategy: pick the most-selective index the
-    // current arg combination allows, then push any remaining filters onto
-    // the query builder via `.filter()` BEFORE `.paginate()` so Convex
-    // applies them server-side and page sizes stay consistent. We
-    // deliberately avoid a post-paginate `.filter(...)` on the result
-    // page — that antipattern under-fills pages and can make the client
-    // think there are no more rows while matching data still exists.
-    //
-    // The trade-off: combinations like `store + sortField=updatedAt`
-    // without a matching composite index will scan the per-project slice
-    // and filter in-engine. Add a composite index if a combination
-    // becomes hot.
+    // Use the most selective index, then `.filter()` before `.paginate()`:
+    // filtering a page afterwards under-fills it and can end pagination early.
+    // Combinations without a composite index scan the project's rows; add one
+    // if a combination gets hot.
 
     if (requestIpQuery) {
       paginated = await ctx.db
@@ -160,10 +152,8 @@ export const getReceiptsByProject = query({
         .paginate(args.paginationOpts);
     }
 
-    // `productId` is stored as a column by `savePurchaseInternal` so we
-    // don't have to re-parse `remoteResponse` for every page item. Fall
-    // back to parsing for rows that pre-date the column (older receipts
-    // picked up before the `backfillPurchaseProductIds` migration ran).
+    // Rows from before the productId column and its backfill fall back to
+    // parsing remoteResponse.
     const pageWithProductId = paginated.page.map((purchase) => ({
       ...purchase,
       productId:

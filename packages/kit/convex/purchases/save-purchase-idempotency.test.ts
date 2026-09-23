@@ -6,38 +6,16 @@ import { readPurchaseStats } from "./stats";
 import { AMAZON_RECONCILE_INTERVAL_MS } from "./shared";
 
 /**
- * Regression guard for the dedup behavior that keeps IAPKit's
- * `purchases` table from double-counting. The production report from
- * Adam (the prior maintainer) — "3x more purchases in IAPKit than in
- * Google Play console" — was reproduced on Black Dust
- * (`com.actnone.blackdust`): 848 google rows, 848 distinct
- * `purchaseToken`s, but Play Console reported 197 orders. Google
- * reissues `purchaseToken` for the same logical order across
- * re-validations and state transitions, so primary dedup on
- * `purchaseToken` alone can't collapse them. `savePurchaseInternal`
- * now uses Google's stable `orderId` as a secondary dedup key when
- * the response surfaces one.
+ * Pins the dedup that keeps `purchases` from double-counting. Google reissues
+ * `purchaseToken` for one order across re-validations and state changes (seen
+ * as 3x Play Console's order count), so `orderId` is a secondary key.
  *
- * These tests pin the contract:
- *
- *   - same (projectId, remoteId) is ALWAYS an upsert, never a second
- *     row. If this fails, re-validation inflates the purchase table.
- *   - stats.total moves only on the first insert, never on subsequent
- *     re-validations, regardless of whether state changes.
- *   - different remoteIds under the same project but SAME orderId
- *     collapse onto the first row (Google token reissue case).
- *   - different remoteIds under the same project with DIFFERENT
- *     orderIds ARE separate rows — the dedup must not merge distinct
- *     purchases.
- *   - different remoteIds with NO orderId in the response stay as
- *     separate rows (pre-acknowledgement responses have no orderId to
- *     correlate on).
- *   - orderId dedup is gated to `store === "google"`; Apple receipts
- *     go by the stable `originalTransactionId` already and must not
- *     be affected even if an `orderId` field sneaks into their
- *     payload.
- *   - a missing remoteId disables dedup (every call inserts). This
- *     mirrors current behavior and protects the failure-mode path.
+ *   - same (projectId, remoteId) always upserts;
+ *   - stats.total moves only on the first insert;
+ *   - different remoteIds with the same orderId collapse onto the first row;
+ *   - different orderIds, or no orderId (pre-acknowledgement), stay separate;
+ *   - orderId dedup is Google-only; Apple keys on `originalTransactionId`;
+ *   - a missing remoteId disables dedup (every call inserts).
  */
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -192,9 +170,7 @@ class MemDb {
 }
 
 function makeCtx(db: MemDb) {
-  // `savePurchaseInternal` schedules the first-receipt mixpanel emit
-  // via `ctx.scheduler.runAfter(...)`; stub it with a no-op async so
-  // the unit tests don't need to reach into Convex's scheduler.
+  // No-op stub for the first-receipt Mixpanel emit.
   const scheduler = {
     runAfter: async () => undefined,
   };
@@ -244,10 +220,8 @@ function buildArgs(overrides: {
     requestData: (overrides.requestData ?? GOOGLE_REQUEST) as never,
     remoteResponse:
       overrides.remoteResponse ??
-      // Intentionally NO orderId: mirrors the pending-acknowledgement
-      // shape where Google hasn't assigned a stable identifier yet.
-      // Tests that exercise orderId-based dedup pass an explicit
-      // response with `orderId` set.
+      // No orderId, like a pending-acknowledgement response; orderId tests pass
+      // their own.
       JSON.stringify({
         productLineItem: [{ productId: "premium_monthly" }],
       }),
@@ -484,10 +458,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("omitting remoteId disables dedup — every call inserts a new row", async () => {
-    // The verification path currently always sets remoteId to the
-    // purchaseToken, but the fallback path (no identifier at all)
-    // should keep behaving as an append — critical for failure modes
-    // that can't extract an identifier yet.
+    // Verification always sets remoteId, but a call with no identifier must
+    // still append.
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: undefined }) });
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: undefined }) });
 
@@ -495,10 +467,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("two google receipts sharing an orderId collapse onto a single row even when purchaseToken changes", async () => {
-    // Adam's 3x inflation on Black Dust came from Google reissuing
-    // `purchaseToken` for the same logical order between
-    // re-validations. Primary dedup by remoteId misses; the secondary
-    // (projectId, applicationId, orderId) key is what collapses them.
+    // A reissued token misses the remoteId dedup; the secondary
+    // (projectId, applicationId, orderId) key collapses it.
     const response = JSON.stringify({
       kind: "androidpublisher#productPurchase",
       orderId: "GPA.3328-5001-2345-67890",
@@ -565,12 +535,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("pending-acknowledgement google responses (no orderId) still produce separate rows", async () => {
-    // Regression guard: the majority of Black Dust's rows come from
-    // Google responses that haven't been acknowledged yet and so have
-    // no orderId. Those must fall through to insert exactly as they
-    // did before the secondary dedup landed — otherwise two genuinely
-    // different purchases with different tokens would collide on
-    // "no orderId" and get merged.
+    // Most rows are pre-acknowledgement with no orderId; two such purchases
+    // must not merge on the missing orderId.
     await savePurchaseInternal({
       ctx,
       ...buildArgs({ remoteId: "token_pending_1" }),
@@ -627,11 +593,8 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("orderId secondary dedup does not apply to apple receipts", async () => {
-    // Apple's `originalTransactionId` is the stable primary key and
-    // is already used as `remoteId`. The orderId path must stay
-    // Google-only — if it ever kicked in for apple, two apple
-    // receipts from different devices that happen to share a field
-    // Google would call `orderId` could silently merge.
+    // Apple keys on originalTransactionId; orderId dedup there could merge
+    // unrelated receipts that share an `orderId` field.
     const sameResponse = JSON.stringify({
       productId: "pro_monthly",
       orderId: "GPA.spurious-order-id-in-apple-payload",
@@ -660,11 +623,9 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("re-verify returning an error body (no orderId) preserves googleOrders on an already-acked row", async () => {
-    // persistFailedGoogleReceipt stores a `{ errorCode, ... }` envelope
-    // when Google returns 4xx on a re-verify. The stored `orderId`
-    // column is intentionally preserved (patch only writes orderId
-    // when a new one is present), so `googleOrders` — the distinct-
-    // orderId counter — must stay put too.
+    // persistFailedGoogleReceipt stores an error envelope on a Google 4xx. The
+    // stored orderId is kept (the patch writes one only when present), so
+    // googleOrders must not move.
     const ackResponse = JSON.stringify({
       kind: "androidpublisher#productPurchase",
       orderId: "GPA.order-stable",
@@ -707,13 +668,9 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
   });
 
   it("primary dedup resolves orderId conflicts — late pre-ack→ack patch cannot create two rows with the same orderId", async () => {
-    // Narrow race: a pre-ack row exists under token_initial (no
-    // orderId). An ack row for the same logical order already landed
-    // under token_reissue (orderId=O1). Now a delayed client replay
-    // with token_initial comes back and Google still resolves it with
-    // orderId=O1. Primary dedup would patch the pre-ack row to
-    // orderId=O1 — without the conflict guard this leaves TWO rows
-    // both claiming O1 and breaks the per-orderId invariant.
+    // Race: a pre-ack row under token_initial (no orderId) and an ack row under
+    // token_reissue (O1) exist, and a delayed replay of token_initial resolves
+    // to O1. Without the conflict guard two rows would claim O1.
     const ackResponse = JSON.stringify({
       kind: "androidpublisher#productPurchase",
       orderId: "GPA.only-one-logical-order",

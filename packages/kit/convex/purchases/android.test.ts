@@ -666,9 +666,8 @@ describe("isProductNotFoundError", () => {
   });
 });
 
-// Issue #289: a token that covers more than one line item resolved to
-// whichever item Google listed first, so `expectedProductId` could be
-// compared against the wrong product and reject a valid purchase.
+// #289: with several line items, `expectedProductId` must pick the item, not
+// whichever Google listed first.
 describe("selectProductLineItem", () => {
   const bulbs = { productId: "dev.hyo.martie.10bulbs" };
   const premium = { productId: "dev.hyo.martie.premium" };
@@ -724,27 +723,20 @@ describe("selectProductLineItem", () => {
 
     expect(receipt.productId).toBe("dev.hyo.martie.premium");
     expect(receipt.quantity).toBe(3);
-    // Would previously have been INAUTHENTIC: productId resolved to the
-    // first line item and then failed the expectedProductId comparison.
+    // Taking the first line item would fail the expectedProductId check here.
     expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
   });
 });
 
-// Issue #289: productsv2/subscriptionsv2 are eventually consistent, so a
-// token seconds old can 404 in both. 4xx is excluded from
-// `retryOnTransient`, so that became a hard failure on the first attempt
-// — the app then never acknowledged, and Google voided the purchase at
-// ~301s.
+// #289: a seconds-old token can 404 in both APIs, and retryOnTransient does not
+// retry a 4xx; the unacknowledged purchase is then voided at ~301s.
 describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
   function stubPublisher(responder: (attempt: number) => unknown) {
     let calls = 0;
     const androidpublisher = google.androidpublisher({
       version: "v3",
-      // gaxios adds its own retry on top of every call. A thrown
-      // adapter error looks like a network failure to it, which would
-      // triple each count and hide what this test measures — kit's own
-      // retry depth. Production 404s arrive as HTTP responses and are
-      // not gaxios-retried, so disabling it here matches reality.
+      // gaxios would retry a thrown adapter error as a network failure and hide
+      // kit's own retry depth; real 404s are HTTP responses it does not retry.
       retryConfig: { retry: 0, noResponseRetries: 0 },
       adapter: async <T>(
         request: Common.gaxios.GaxiosOptionsPrepared,
@@ -816,11 +808,8 @@ describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
   });
 
   it("fails fast on a permission error instead of retrying it", async () => {
-    // The predicate is the whole point of the retry: only "Google has
-    // never heard of this token" is transient. Widening it to every
-    // error would sit on an operator's revoked service account for
-    // three rounds of two calls, and would do the same for a package
-    // mismatch that is never going to start working.
+    // Only "Google does not know this token" retries; a revoked service account
+    // or a package mismatch never starts working.
     const { androidpublisher, callCount } = stubPublisher(() => {
       throw Object.assign(new Error("The caller does not have permission"), {
         code: 403,

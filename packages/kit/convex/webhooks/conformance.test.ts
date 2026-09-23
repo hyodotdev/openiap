@@ -439,7 +439,7 @@ const GOOGLE_EVENTS: Record<LifecycleEvent, GoogleEventSpec | null> = {
     state: "SUBSCRIPTION_STATE_PAUSED",
   },
   // Resume arrives as RECOVERED (1). Pause-schedule-changed (11) is only the
-  // schedule update, not the end-of-pause signal (see PR #123).
+  // schedule update, not the end-of-pause signal.
   Resume: {
     kind: "subscription",
     notificationType: RTDN.RECOVERED,

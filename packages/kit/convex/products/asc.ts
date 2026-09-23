@@ -56,18 +56,12 @@ class ProductSyncDeadlineError extends Error {
 }
 
 /**
- * Pushes one ASC localization resource per locale.
+ * Upserts one ASC localization per locale; Apple keeps a resource per locale,
+ * so a locale added in ASC is left alone.
  *
- * Apple keeps a separate resource per locale on a version, so this is an
- * upsert per locale rather than a single replace — a locale added
- * directly in ASC is left alone rather than deleted.
- *
- * The base listing propagates its error so the caller's benign-replay
- * handling still applies and the row fails. Later locales fail
- * individually and name themselves, because one bad translation must not
- * strand the ones behind it. Aborts always keep unwinding: recording a
- * cancellation or a deadline as a per-locale failure would let the loop
- * grind on after the operator cancelled.
+ * A base-listing error propagates so the caller's replay handling applies.
+ * Later locales fail one at a time and name themselves, so one bad translation
+ * does not strand the rest. Cancellation and deadline errors always propagate.
  */
 export async function pushAscReviewLocalizations(args: {
   listings: Array<{ locale: string; title: string; description?: string }>;
@@ -115,12 +109,9 @@ interface SyncAscReviewLocalizationArgs {
 }
 
 /**
- * Synchronizes the review localization boundary for one ASC version.
- *
- * This wrapper intentionally owns the outer failure policy as well as the
- * per-locale writer. Cancellation and deadline errors can originate from any
- * request in either layer, so they must escape before replay conflicts or
- * ordinary localization failures are handled.
+ * Syncs review localizations for one ASC version and owns the failure policy.
+ * Cancellation and deadline errors can come from either layer, so they escape
+ * before replay conflicts or other failures are handled.
  */
 export async function syncAscReviewLocalization(
   args: SyncAscReviewLocalizationArgs,
@@ -170,14 +161,9 @@ function isProductSyncAbortError(error: unknown): boolean {
   );
 }
 
-// Resolve App Store Connect API credentials (issuer ID + key ID + .p8
-// key content) for a project. Centralized so the two action handlers
-// (pushSyncProductsAppleIOS and listSubscriptionGroupsAppleIOS) share
-// one source of truth — both have to honor the same pair-resolution
-// rule (never mix new ASC slot with legacy Server API slot) and the
-// same .p8 fallback (dedicated ASC slot first, then legacy single
-// slot for projects mid-migration). Throws on missing config or
-// missing .p8 with the operator-actionable message we want surfaced.
+// App Store Connect credentials for a project: the ASC key pair when set, never
+// mixed with the legacy Server API pair. Throws an operator-facing message when
+// the key id or .p8 is missing.
 type AscCredentials = {
   issuerId?: string;
   keyId: string;
@@ -188,34 +174,16 @@ async function resolveAscCredentials(
   project: Doc<"projects">,
   options: { detailedErrors?: boolean } = {},
 ): Promise<AscCredentials> {
-  // Apple uses ONE Issuer ID per team across both API gateways
-  // (App Store Server API + App Store Connect API), so the
-  // Settings UI deliberately exposes a single shared Issuer ID
-  // input that writes to `iosAppStoreIssuerId` — `iosAscIssuerId`
-  // is never populated through the UI and only exists for
-  // backwards-compat with the brief window when both were
-  // separate inputs.
+  // Apple has one Issuer ID per team for both gateways, so the UI writes a
+  // single shared `iosAppStoreIssuerId`; `iosAscIssuerId` is left over from
+  // when they were separate inputs. Key IDs differ: `iosAppStoreKeyId` is the
+  // In-App Purchase key (receipt verification), `iosAscKeyId` the ASC API
+  // Team/Individual key (catalog management).
   //
-  // The Key IDs are NOT shared: `iosAppStoreKeyId` is the In-App
-  // Purchase key (receipt verification) and `iosAscKeyId` is the
-  // App Store Connect API Team / Individual key (catalog
-  // management). They authenticate against different gateways and
-  // every Apple-issued key has a unique 10-char id.
-  //
-  // Pair-resolution rule: if `iosAscKeyId` is set, sign with the
-  // ASC pair (issuer falls back to the shared `iosAppStoreIssuerId`
-  // when `iosAscIssuerId` is missing). If `iosAscKeyId` is missing,
-  // fall back to the legacy single-slot Server API pair so projects
-  // mid-migration still work — `call()` surfaces a wrong-kind 401
-  // hint when Apple rejects a Server-API key on an ASC endpoint.
-  //
-  // Earlier the gate required BOTH `iosAscIssuerId` AND
-  // `iosAscKeyId` to be set, which never happened in production
-  // (UI doesn't expose the Issuer field). The fallback then sent
-  // the JWT with `kid: iosAppStoreKeyId` (Server API key id) but
-  // signed with the ASC private key, and Apple rejected every
-  // request with a 401 across all production deployments
-  // (LukasB-DEV's report on PR #127).
+  // With `iosAscKeyId` set, sign with the ASC pair; otherwise use the legacy
+  // Server API pair so projects mid-migration still work, and `call()` hints at
+  // the wrong key kind on a 401. Do not also require `iosAscIssuerId`: the UI
+  // never sets it.
   const useAsc = !!project.iosAscKeyId;
   const issuerId = useAsc
     ? (project.iosAscIssuerId ?? project.iosAppStoreIssuerId)
@@ -234,10 +202,8 @@ async function resolveAscCredentials(
         : `App Store Connect API ${missing.join(", ")} not configured`,
     );
   }
-  // Prefer the dedicated ASC .p8 file; fall back to the Server API
-  // .p8 when the user has only uploaded one. The wrong-kind hint
-  // from `call()` will tell them to upload a Team Key if Apple
-  // rejects whichever they have.
+  // Dedicated ASC .p8 first, else the Server API one; `call()`'s 401 hint
+  // covers the wrong kind.
   let keyContent: string | undefined;
   try {
     const ascKey = await ctx.runAction(
@@ -249,15 +215,8 @@ async function resolveAscCredentials(
     );
     keyContent = ascKey?.keyContent;
   } catch (error) {
-    // Only swallow the documented "no ASC key uploaded" case so we
-    // can fall through to the legacy slot. Storage / permission /
-    // transient errors must surface — masking them as "use legacy
-    // key" hides the real failure and ends up signing requests with
-    // the wrong key, producing confusing 401s downstream.
-    //
-    // The action throws a ConvexError whose message starts with
-    // "No App Store Connect API key (.p8) uploaded" when the file is
-    // missing. Anything else rethrows.
+    // Only a missing ASC key falls through to the legacy slot. Any other error
+    // would end up signing with the wrong key and surface as a confusing 401.
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("No App Store Connect API key (.p8) uploaded")) {
       throw error;
@@ -321,28 +280,10 @@ async function getProjectForActionArgs(
   throw new Error("apiKey or projectId is required");
 }
 
-// App Store Connect REST client + push-sync action.
-//
-// Auth: every request carries a freshly-minted ES256 JWT signed with
-// the project's `.p8` key (already stored for App Store Server API
-// reuse). Token TTL is 600s with a 60s safety margin before expiry.
-//
-// Surface area implemented (matches what `@onesub/providers` exposes):
-//   - listInAppPurchases(appId)  → GET /v1/apps/{id}/inAppPurchasesV2
-//   - createInAppPurchase(args)  → POST /v2/inAppPurchases
-//   - patchInAppPurchase(id,...) → PATCH /v2/inAppPurchases/{id}
-//   - deleteInAppPurchase(id)    → DELETE /v2/inAppPurchases/{id}
-//   - listSubscriptionGroups(appId) → GET /v1/apps/{id}/subscriptionGroups
-//   - listSubscriptions(groupId) → GET /v1/subscriptionGroups/{id}/subscriptions
-//   - createSubscription(...)    → POST /v1/subscriptions
-//   - patchSubscription(...)     → PATCH /v1/subscriptions/{id}
-//   - deleteSubscription(id)     → DELETE /v1/subscriptions/{id}
-// The `pushSyncProducts` action drives kit→ASC sync for a project.
-//
-// Failure model: ASC returns an `errors[]` array per the JSON:API
-// spec; we throw the response status + the first error's `detail` so
-// the dashboard / MCP / SDK surfaces a useful message instead of
-// "fetch failed".
+// App Store Connect REST client. Each request carries a fresh ES256 JWT signed
+// with the project's `.p8` key (600s TTL, renewed 60s before expiry). Errors
+// throw the status plus ASC's JSON:API `errors[].detail`, so callers see the
+// reason instead of "fetch failed".
 
 const ASC_BASE = "https://api.appstoreconnect.apple.com";
 const ASC_FETCH_TIMEOUT_MS = 30_000;
@@ -350,12 +291,9 @@ const ASC_FETCH_TIMEOUT_MS = 30_000;
 type AscToken = { value: string; expiresAt: number };
 
 /**
- * Thrown by `AscClient.call` on any non-OK ASC response. The status
- * code is preserved so callers can branch on it — e.g. ignore 409
- * Conflict on retried `createSubLocalization` / `createIapLocalization`
- * pushes (the upstream resource already exists, the next step still
- * applies). Earlier behaviour threw a generic `Error` and forced the
- * caller to substring-match the message; this is the typed version.
+ * Non-OK ASC response. Keeps the status so callers can branch on it, e.g.
+ * ignore a 409 when a retried localization push finds the resource already
+ * exists.
  */
 export class AscApiError extends Error {
   constructor(
@@ -442,12 +380,8 @@ class AscClient {
     skipBoundaryCheck = false,
   ): Promise<T> {
     if (!skipBoundaryCheck) await this.beforeRequest();
-    // Per-request timeout. ASC's REST surface is generally responsive
-    // (<1s for reads, 1-3s for writes), so 30s is a generous bound
-    // that catches a hung upstream long before the surrounding
-    // Convex action's 10-min ceiling. Without this, a single hung
-    // request can stall the entire push-sync pass — ASC has no
-    // server-sent keepalive on the REST endpoints.
+    // ASC normally answers within 3s, and nothing else would stop one hung
+    // request from stalling the whole sync until the 10-minute action limit.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ASC_FETCH_TIMEOUT_MS);
     let response: Response;
@@ -476,14 +410,8 @@ class AscClient {
     }
     if (!response.ok) {
       const errorMessage = extractAscError(parsed);
-      // Apple's 401 is the same generic "Provide a properly configured
-      // and signed bearer token" for several distinct failure modes,
-      // and the most common one — uploading the In-App Purchase Key
-      // instead of the App Store Connect API (Team / Individual) Key
-      // — looks indistinguishable from "expired token" or "wrong
-      // signature" without context. Surface a targeted hint so the
-      // operator stops debugging the JWT and starts checking the
-      // *kind* of key they uploaded.
+      // Apple's 401 message is the same for several causes, so hint at the
+      // most common: an In-App Purchase key uploaded instead of an ASC API key.
       const message =
         response.status === 401
           ? `ASC ${path} returned 401: ${errorMessage}\n` +
@@ -498,10 +426,6 @@ class AscClient {
             "the .p8 generated under 'App Store Connect API' and use " +
             "ITS Issuer ID + Key ID in the dashboard."
           : `ASC ${path} returned ${response.status}: ${errorMessage}`;
-      // Use a typed AscApiError so callers can branch on
-      // `.status === 409` to ignore "already exists" replays during
-      // retried localization / price-schedule pushes (PR #124
-      // (https://github.com/hyodotdev/openiap/pull/124) review).
       throw new AscApiError(response.status, message);
     }
     return parsed as T;
@@ -524,12 +448,8 @@ class AscClient {
     return this.call<T>(path, init, true);
   }
 
-  // ASC list endpoints cap at 200 items per page. For accounts with
-  // larger catalogs we have to follow `links.next` until absent or
-  // pages > 200 (= 40k items, more than ASC actually allows per app
-  // — the bound just prevents a runaway loop on unexpected response
-  // shapes). Without pagination, accounts above the page limit silently
-  // lose products from kit's catalog.
+  // ASC pages cap at 200 items; without pagination, larger catalogs silently
+  // lose products.
   async listInAppPurchases(appId: string): Promise<AscIapListResponse> {
     return this.collectAllPages<AscIapResource["data"]>(
       `/v1/apps/${encodeURIComponent(appId)}/inAppPurchasesV2?limit=200`,
@@ -580,10 +500,8 @@ class AscClient {
     );
   }
 
-  // Generic JSON:API paginator. ASC returns `{ data: [...],
-  // links: { self, next? } }` — we follow `next` (the cursor URL is
-  // absolute, so we hand it straight back to fetch via `call`'s base
-  // join logic). Capped at 200 pages as a runaway guard.
+  // Follows `links.next`; the 200-page cap (40k items, more than ASC allows per
+  // app) only stops a runaway loop.
   private async collectAllPages<T>(
     initialPath: string,
   ): Promise<{ data: T[] }> {
@@ -601,14 +519,9 @@ class AscClient {
     return { data: merged };
   }
 
-  // Introductory offer attached to a subscription. Apple allows at
-  // most ONE introductoryOffer per subscription per territory at a
-  // time — the prior `pay-up-front $0.99 for 3 months` is replaced
-  // when you publish a new one. We pull the USA territory's active
-  // offer (if any) so the dashboard can render badges like
-  // "7-day free trial" / "$0.99 intro for 3 months". Returns Error
-  // so the caller can append a failure row instead of silently
-  // dropping offer metadata.
+  // The USA intro offer, for the dashboard badge (Apple allows one per
+  // subscription per territory). Returns the Error so the caller records a
+  // failure instead of dropping it.
   async subIntroductoryOffer(
     subId: string,
   ): Promise<AscIntroOfferListResponse | Error> {
@@ -622,31 +535,16 @@ class AscClient {
     }
   }
 
-  // Per-product *configured* USA price. The naive
-  // `/{type}/{id}/pricePoints?filter[territory]=USA&limit=1` endpoint
-  // returns the entire USA *price matrix* (every tier the catalog
-  // offers — $0.29, $0.49, $0.99, …), not the price the operator
-  // assigned to the product, so `limit=1` always pinned the lowest
-  // tier and every IAP / sub showed up as $0.29. The actual assigned
-  // price lives on a different relationship — `iapPriceSchedule` for
-  // one-time IAPs, `prices` for subscriptions — with the matching
-  // pricePoint side-loaded via `include`.
-  // Returns either the price response or an Error so the caller can
-  // surface the actual ASC reason (404, 403, malformed schedule, …)
-  // through the sync result's `failures` array — silently swallowing
-  // these is what made one-time IAPs show "—" with no diagnostic.
+  // The product's assigned USA price. Not `pricePoints`, which lists every tier
+  // (so `limit=1` gave $0.29): the assigned price is on `iapPriceSchedule`
+  // (IAPs) or `prices` (subscriptions). Returns the Error so the caller can
+  // report the ASC reason in `failures`.
   async iapCurrentPrice(
     iapId: string,
   ): Promise<AscManualPricesResponse | Error> {
-    // v2 IAPs expose the price-schedule relationship under `/v2/`
-    // (the per-resource endpoints moved with the V2 catalog), even
-    // though the catalog list is `/v1/apps/{id}/inAppPurchasesV2`
-    // and the JSON:API resource type is still `"inAppPurchases"`. The
-    // older `/v1/inAppPurchases/{id}/iapPriceSchedule` 404s with
-    // "relationship 'iapPriceSchedule' does not exist" because that
-    // path resolves to the legacy V1 IAP resource which has no such
-    // relationship. The downstream `manualPrices` collection lookup
-    // stays on `/v1/inAppPurchasePriceSchedules/...`.
+    // The schedule relationship is under /v2/ even though the list is
+    // /v1/.../inAppPurchasesV2; /v1/inAppPurchases/{id}/iapPriceSchedule is the
+    // legacy resource and 404s. The manualPrices lookup stays on /v1/.
     try {
       const schedule = await this.call<AscIapPriceScheduleResponse>(
         `/v2/inAppPurchases/${encodeURIComponent(iapId)}/relationships/iapPriceSchedule`,
@@ -659,10 +557,8 @@ class AscClient {
       const manual = await this.call<AscManualPricesResponse>(
         `/v1/inAppPurchasePriceSchedules/${encodeURIComponent(schedule.data.id)}/manualPrices?filter[territory]=USA&include=inAppPurchasePricePoint`,
       );
-      // When the IAP uses Apple's equalized auto-pricing instead of
-      // per-territory manual prices, `manualPrices` comes back empty
-      // and the assigned USA price actually lives on the parallel
-      // `automaticPrices` collection (same envelope shape).
+      // With Apple's equalized auto-pricing, manualPrices is empty and the USA
+      // price is in `automaticPrices` (same shape).
       if (manual.data.length === 0) {
         return await this.call<AscManualPricesResponse>(
           `/v1/inAppPurchasePriceSchedules/${encodeURIComponent(schedule.data.id)}/automaticPrices?filter[territory]=USA&include=inAppPurchasePricePoint`,
@@ -687,28 +583,14 @@ class AscClient {
     }
   }
 
-  // Find a USA price-point id whose `customerPrice` matches the
-  // requested USD amount. Apple manages prices via opaque tier ids
-  // (eyJ...) — to set a price you can't just send "9.99", you must
-  // pass the price-point resource id corresponding to that tier in
-  // USA. We fetch the catalog once per (resource, amount) lookup.
-  //
-  // Errors propagate verbatim so the call site can distinguish
-  // "no tier matches USD 9.99" (returns null after a successful
-  // list) from "ASC returned 401 / 429 / timeout" (throws). The
-  // prior `.catch(() => null)` collapsed both into the same null
-  // result and surfaced a real upstream failure as a bogus catalog
-  // validation error.
+  // USA price-point id matching a USD amount: ASC sets prices by opaque tier
+  // id, not by amount. Returns null when no tier matches; ASC errors throw so
+  // they are not mistaken for a missing tier.
   async findIapUsaPricePointId(
     iapId: string,
     targetMicros: number,
   ): Promise<string | null> {
-    // Walk every page of price points — Apple's USA tier list can
-    // exceed `limit=200` (territory- and tier-band-dependent), so a
-    // single-page lookup missed standard tiers like $24.99 / $39.99
-    // / $299.99 that landed beyond the first window and surfaced as
-    // "No ASC price tier matches USD X — pick a published tier" on
-    // an otherwise-valid push (LukasB-DEV report on PR #128).
+    // The USA tier list can exceed one 200-item page ($24.99, $299.99, ...).
     const list = await this.collectAllPages<
       AscPricePointListResponse["data"][number]
     >(
@@ -728,10 +610,8 @@ class AscClient {
     return pickPricePointIdMatching(list, targetMicros);
   }
 
-  // Atomically create the IAP price schedule with the chosen USA
-  // price tier. Apple's pattern: POST `inAppPurchasePriceSchedules`
-  // with the IAP relationship + the manualPrices relationship inline,
-  // and pass the price rows in `included`. Returns the schedule id.
+  // One POST creates the schedule and its USA price, passed as an inline
+  // `included` row.
   setIapPriceSchedule(args: {
     iapId: string;
     pricePointId: string;
@@ -819,11 +699,7 @@ class AscClient {
     });
   }
 
-  // Look up an existing subscription group by referenceName, or
-  // create one. Used by the Add Product flow when the operator types
-  // a group name on a Subscription draft — kit then resolves it to
-  // an ASC group id at push time so they don't need to copy/paste
-  // opaque ids from ASC's web console.
+  // Lets the operator type a group name instead of pasting ASC's opaque id.
   async findOrCreateSubscriptionGroup(args: {
     appId: string;
     referenceName: string;
@@ -1059,13 +935,10 @@ interface AscReviewEligibilityLoader {
   getActions(item: AscReviewVersionItem): Promise<AscManualReviewAction[]>;
 }
 
-// Resolve only the history needed by the current bounded candidate batch.
-// The previous eager scan fetched every version of every IAP, subscription,
-// and group before preparing even one row. Large catalogs could exhaust the
-// worker deadline and repeat the same scan forever. These promise caches make
-// type/group checks lazy, exact, shared by concurrent rows, and reusable by
-// later dry-run batches while stopping new history requests as soon as an
-// approved predecessor is found.
+// Loads version history lazily, only for the current candidate batch: an eager
+// scan of every version could exhaust the worker deadline on large catalogs and
+// repeat forever. The promise caches are shared by concurrent rows and later
+// dry-run batches, and stop at the first approved predecessor.
 export function createAscReviewEligibilityLoader(args: {
   client: AscReviewEligibilityClient;
   appId: string;
@@ -1214,12 +1087,9 @@ export function createAscReviewEligibilityLoader(args: {
   };
 }
 
-// Reference catalog response: every USA price point Apple publishes
-// for a given IAP / sub. Used at push-time to translate a USD amount
-// into the corresponding opaque price-point id (`eyJ...`) Apple's
-// price-schedule POST requires. Different shape from the
-// per-product *configured* price (`AscManualPricesResponse`) — this
-// is the immutable tier ladder, that one is the operator's pick.
+// Every USA price point Apple publishes for a product (the tier ladder), used
+// to turn a USD amount into the price-point id a price schedule needs.
+// `AscManualPricesResponse` is the operator's pick.
 type AscPricePointListResponse = {
   data: Array<{
     id: string;
@@ -1228,10 +1098,8 @@ type AscPricePointListResponse = {
   }>;
 };
 
-// Find the price-point id whose `customerPrice` matches the desired
-// USD amount (within 1 cent for floating-point safety). Returns null
-// if Apple's catalog has no matching tier — caller should surface a
-// failure so the operator picks a tier ASC actually publishes.
+// Price point within 1 cent of the USD amount, or null so the caller asks the
+// operator for a tier ASC publishes.
 export function pickPricePointIdMatching(
   list: AscPricePointListResponse | null,
   targetMicros: number,
@@ -1250,18 +1118,13 @@ export function pickPricePointIdMatching(
   return null;
 }
 
-// Schedule lookup for one-time IAPs. We only need the resource id so
-// we can fetch its `manualPrices` collection; relationships and
-// attributes are intentionally untyped.
+// Only the id is read, to fetch `manualPrices`.
 type AscIapPriceScheduleResponse = {
   data?: { id: string; type: "inAppPurchasePriceSchedules" } | null;
 };
 
-// `manualPrices` (one-time IAP) and `subscriptionPrices` (auto-renew
-// sub) share the same JSON:API envelope: a primary `data` row that
-// references a pricePoint, and the actual `customerPrice` lives on
-// the side-loaded resource in `included`. We narrow only the fields
-// we read.
+// Shared by `manualPrices` and `subscriptionPrices`: each row references a
+// price point whose `customerPrice` is in `included`.
 type AscManualPricesResponse = {
   data: Array<{
     id: string;
@@ -1294,14 +1157,9 @@ type AscSubscriptionPricesResponse = {
   }>;
 };
 
-// Introductory offers list. Apple's `offerMode` enum:
-//   - "FREE_TRIAL"     — duration of free access; no pricePoint
-//   - "PAY_UP_FRONT"   — single discounted price for N periods
-//   - "PAY_AS_YOU_GO"  — discounted price each period for N periods
-// `numberOfPeriods` semantics differ by mode (free trial: 1; pay-up:
-// 1; pay-as-you-go: N) so we surface it as-is and let the dashboard
-// label it. `subscriptionPricePoint` is included for the discounted
-// price; absent for free trials.
+// Apple's `offerMode`: FREE_TRIAL (no price point), PAY_UP_FRONT (one price for
+// N periods), PAY_AS_YOU_GO (a price each period). `numberOfPeriods` differs by
+// mode and passes through for the dashboard to label.
 type AscIntroOfferListResponse = {
   data: Array<{
     id: string;
@@ -1324,11 +1182,8 @@ type AscIntroOfferListResponse = {
   }>;
 };
 
-// Pick the price record that's currently in effect (today between
-// startDate and endDate, treating either bound's absence as "open").
-// ASC normally returns just one row when no scheduled change is
-// pending, but a future-dated price-change creates a second record so
-// we can't just take `data[0]`.
+// The price row in effect today (a missing bound is open). A scheduled change
+// adds a second row, so `data[0]` is not enough.
 export function pickActivePriceRow<
   T extends {
     attributes?: { startDate?: string | null; endDate?: string | null };
@@ -1346,11 +1201,8 @@ export function pickActivePriceRow<
   return active ?? rows[0];
 }
 
-// Generic shape both manual-price (one-time IAP) and subscription-
-// price responses collapse into for parsing — primary row points to a
-// pricePoint resource via a named relationship, included carries the
-// `customerPrice`. Names of those keys vary between the two surfaces;
-// we pass them in instead of branching inside.
+// Common shape of IAP and subscription price responses; the relationship key
+// names differ, so callers pass them in.
 type AscPriceCollectionResponse = {
   data: Array<{
     id: string;
@@ -1368,10 +1220,8 @@ type AscPriceCollectionResponse = {
   }>;
 };
 
-// Resolve the active price record's pricePoint id and look up its
-// `customerPrice` from the `included` array. Returns empty fields
-// when nothing matches (no schedule, no USA price, ASC error) so the
-// caller can pass the result straight into upsertFromStore.
+// The active row's `customerPrice`, or empty fields when there is none, ready
+// for upsertFromStore.
 function parseAssignedPrice(
   resp: AscPriceCollectionResponse | null,
   relationshipKey: "inAppPurchasePricePoint" | "subscriptionPricePoint",
@@ -1420,20 +1270,14 @@ function extractAscError(parsed: unknown): string {
 }
 
 // ---------------------------------------------------------------------------
-// Push-sync action: pulls the project's catalog from ASC, upserts kit's
-// `products` rows from it, and pushes any kit-side products with state
-// = "Draft" / "Ready" upstream.
+// Sync worker: pulls the ASC catalog into kit's `products` rows and pushes
+// Draft / Ready rows upstream.
 // ---------------------------------------------------------------------------
 
-// Worker that drives a single ASC sync job. Scheduled by
-// `enqueueProductSync` (in `products/jobs.ts`); never called
-// directly by the dashboard / HTTP / SDK paths so the long fetch
-// can never hold a browser connection open.
-//
-// Convex actions cap at ~10 minutes. The job deadline is 9 minutes, remote
-// work stops 45 seconds before it for cleanup + terminal persistence, and the
-// reaper remains a crash fallback. Cancellation/deadline checks run at phase,
-// chunk, request, upload-operation, and asset-poll boundaries.
+// Runs one ASC sync job. Only `enqueueProductSync` (products/jobs.ts) schedules
+// it, so the long fetch never holds a browser connection open. Convex actions
+// cap at ~10 minutes: the job deadline is 9, remote work stops 45s before it
+// for cleanup, and the reaper covers crashes.
 export const runProductSyncIOS = internalAction({
   args: { jobId: v.id("productSyncJobs") },
   handler: async (ctx, args): Promise<void> => {
@@ -1476,9 +1320,7 @@ export const runProductSyncIOS = internalAction({
       });
     };
     if (job.direction === "purge-local") {
-      // enqueue routes purge-local jobs to a different worker; this
-      // branch is unreachable in practice but narrows the type for
-      // the call below.
+      // Unreachable (enqueue sends purge-local elsewhere); narrows the type.
       await ctx.runMutation(internal.products.jobs.markJobFailed, {
         jobId: args.jobId,
         error: "purge-local routed to wrong worker",
@@ -1533,10 +1375,6 @@ export const runProductSyncIOS = internalAction({
   },
 });
 
-// Shared shape for the per-phase progress callback the worker
-// passes into both `performIosSync` and `performAndroidSync`. Pulled
-// out so the two function signatures stay readable when extended
-// (Gemini review on PR #127).
 interface SyncProgressUpdate {
   current?: number;
   total?: number;
@@ -1575,10 +1413,9 @@ export function getAscReviewFinalizeDisposition(args: {
   return "submit";
 }
 
-// Only a confirmed submission is terminal for the local row. Manual outcomes
-// must remain Draft even after their metadata/screenshot was prepared: the
-// worker still has to persist the in-memory operator instruction, and a crash
-// before that terminal mutation must let the next run surface it again.
+// Only a confirmed submission is terminal. Manual outcomes stay Draft until the
+// worker persists the operator instruction, so a crash before that surfaces it
+// again next run.
 export function shouldMarkAscReviewSubmissionOutcomePushed(
   outcome: AscReviewSubmissionOutcome,
 ): boolean {
@@ -1607,18 +1444,6 @@ async function performIosSync(
     dryRun: options.dryRun,
   };
   const { checkCancelled, reportPhase } = options;
-  // ASC push-sync uses the App Store Connect API key (Team Key /
-  // Individual Key), which is genuinely different from the App Store
-  // Server API key used for receipt verification — Apple scopes them
-  // separately at the gateway. We prefer the dedicated ASC slot when
-  // the operator has populated it, but fall back to the existing
-  // Server API slot so projects that upload a Team Key into the old
-  // (single-slot) workflow keep working without a re-config dance.
-  // The 401 from Apple's gateway is what catches a wrong-kind key
-  // either way — the helpful message in `call()` points the operator
-  // at the right Apple page. The full pair-resolve + .p8-fallback
-  // logic lives in `resolveAscCredentials` so the matching
-  // listSubscriptionGroupsAppleIOS handler stays in lockstep.
   const { issuerId, keyId, keyContent } = await resolveAscCredentials(
     ctx,
     project,
@@ -1671,11 +1496,7 @@ async function performIosSync(
       return null;
     });
     if (iaps) {
-      // Apple throttles ASC pretty aggressively (~50 req/min);
-      // concurrency=6 keeps the pull fast for catalogs with dozens
-      // of IAPs while staying well clear of 429 territory. Switching
-      // from a sequential await loop dropped a 30-IAP pull from
-      // ~30s to ~5s in local testing.
+      // ASC throttles at ~50 req/min; 6 in flight stays clear of 429s.
       const iapResults = await mapWithConcurrency(
         iaps.data,
         6,
@@ -1734,9 +1555,8 @@ async function performIosSync(
           pricePoint instanceof Error ? null : pricePoint,
           "inAppPurchasePricePoint",
         );
-        // upsertFromStore runs serially — Convex coalesces writes
-        // anyway and parallel mutations on the same row would race
-        // on the (projectId, platform, productId) lookup.
+        // Serial: parallel mutations on one row would race on the (projectId,
+        // platform, productId) lookup.
         if (!dryRun) {
           await ctx.runMutation(internal.products.sync.upsertFromStore, {
             projectId: project._id,
@@ -1784,10 +1604,7 @@ async function performIosSync(
             return null;
           });
         if (!subs) continue;
-        // Same parallelization as the IAP loop above. Within each
-        // sub, price lookup and intro-offer lookup are independent
-        // — fire them as a Promise.all to halve the per-item RTT
-        // before walking on to the upsert.
+        // As above; each sub's price and intro-offer lookups run in parallel.
         const subResults = await mapWithConcurrency(
           subs.data,
           6,
@@ -1865,14 +1682,10 @@ async function performIosSync(
   }
 
   // ── PUSH: kit → ASC for Draft rows ─────────────────────────────
-  // Each draft becomes a multi-step flow: create → create/reuse review
-  // version → localize → set price → optional screenshot upload → review
-  // submission. The first step alone leaves the IAP/sub in an unsubmittable
-  // state because Apple requires both an en-US localization and a
-  // USA price schedule before the row can move past Draft. We do
-  // the whole chain here so a single Sync click takes the catalog
-  // from "kit-only" to App Review. When no project screenshot is configured,
-  // preserve the prior Ready-to-Submit behaviour without failing the sync.
+  // Each draft runs create → review version → localize → price → screenshot →
+  // review submission, since Apple needs an en-US localization and a USA price
+  // before a product leaves Draft. Without a project screenshot the row stops
+  // at Ready to Submit instead of failing.
   if (direction === "push" || direction === "both") {
     await checkCancelled();
     await reportPhase("push-removals", {
@@ -2017,25 +1830,10 @@ async function performIosSync(
           error instanceof Error ? error : new Error(String(error));
       }
     }
-    // Cache subscriptionGroup find-or-create results across the
-    // entire push pass so a project with multiple drafts in the
-    // same group (Premium Monthly + Premium Yearly + Premium
-    // Weekly all referencing groupName="Premium") only triggers
-    // one ASC listSubscriptionGroups round-trip — and never two
-    // concurrent create calls racing for the same name.
-    //
-    // Stores the in-flight promise (not the resolved id) so two
-    // drafts that hit the same name concurrently share one ASC
-    // round-trip. Without this the parallel push fan-out below
-    // could race two find-or-create calls for the same group,
-    // ending up with one of them returning a 409.
+    // In-flight find-or-create per group name, so drafts in one group share one
+    // ASC call and never race two creates (one would 409).
     const groupIdCache = new Map<string, Promise<string>>();
-    // Dry-run uses a single up-front listSubscriptionGroups fetch
-    // (read-only) so the per-draft preview rendering doesn't
-    // re-list the groups for each Subscription row in drafts.
-    // Lazy: only fetched on the first Subscription draft we hit
-    // in dry-run, so projects without Sub drafts don't pay the
-    // call at all.
+    // Dry runs list groups once, lazily on the first subscription draft.
     let dryRunGroupsCache: Awaited<
       ReturnType<typeof client.listSubscriptionGroups>
     > | null = null;
@@ -2045,50 +1843,18 @@ async function performIosSync(
       }
       return dryRunGroupsCache;
     };
-    // Bounded-parallel push. ASC throttles aggressively on the
-    // mutation endpoints (createSubscription / createInAppPurchase /
-    // setPriceSchedule) so the previous sequential `for (const row
-    // of drafts)` loop was the safe-but-slow path; a project with
-    // 20 draft products waited 20× the per-draft round-trip. Run
-    // PUSH_CONCURRENCY drafts in parallel and trade some risk of a
-    // 429 (where ASC returns Retry-After we'd surface to the
-    // failures array) for an N× speedup.
-    //
-    // Each draft's create → localize → setPrice steps stay strictly
-    // sequential within `processOneDraft` — ASC rejects ordering
-    // races on a single resource (a localize call landing before
-    // the create propagates returns 409). Cross-draft parallelism
-    // is safe because each upstream resource is independent. The
-    // groupIdCache holds in-flight promises so concurrent drafts in
-    // the same subscription group still issue exactly one
-    // findOrCreate call.
-    //
-    // Concurrency=4 keeps us well under ASC's per-app rate limit
-    // (anecdotally ~10 writes/sec before 429s start) while
-    // delivering ~4× wall-clock improvement on typical catalogs.
-    // mapWithConcurrency preserves input order for the result
-    // array (we don't actually use it; failures + pushed are
-    // accumulated by mutation).
+    // Drafts push 4 at a time, under ASC's write limit (~10/s before 429s; a
+    // 429 lands in `failures`). Steps within one draft stay sequential: a
+    // localize that lands before its create propagates returns 409. Separate
+    // drafts touch independent resources.
     const PUSH_CONCURRENCY = 4;
     const processOneDraft = async (
       row: (typeof drafts)[number],
     ): Promise<AscReviewVersionItem | null> => {
       await checkCancelled();
-      // Track failures pushed *for this row* via a row-local flag.
-      // The previous `failuresAtStart = failures.length` snapshot
-      // worked when this loop was sequential, but with
-      // mapWithConcurrency (PUSH_CONCURRENCY=4) the shared
-      // `failures` array can grow because of OTHER concurrent
-      // drafts between the snapshot and the success-gate check —
-      // which would block this draft from calling markPushed even
-      // though every step for THIS row succeeded.
-      //
-      // Use a row-local boolean + a recordFailure helper so each
-      // draft's success gate is independent of cross-draft noise.
-      // A partial setup (create succeeded, localization failed)
-      // still leaves the row in Draft with a populated storeRef
-      // so the next sync resumes step 2 instead of re-creating
-      // the upstream resource.
+      // Row-local, since the shared `failures` array also grows with other
+      // concurrent drafts. A partial setup stays Draft with its storeRef, so
+      // the next sync resumes instead of re-creating.
       let rowHadFailure = false;
       const recordFailure = (failure: {
         productId: string;
@@ -2389,21 +2155,11 @@ async function performIosSync(
       };
       try {
         if (row.type === "Subscription") {
-          // Resolve the ASC subscriptionGroup from the operator-typed
-          // `subscriptionGroupName`. Find-or-create so the operator
-          // doesn't have to pre-create the group in ASC's web UI; if
-          // they don't pick a name we default to the productId so
-          // there's *some* group rather than a hard failure — but
-          // surface a non-fatal warning since per-product groups
-          // fragment the catalog and break StoreKit 2's
-          // upgrade/downgrade flow between Monthly and Yearly tiers
-          // (those need to share a group). In dry-run, list groups
-          // (read-only) and report which path the real run would
-          // take instead of creating anything.
-          //
-          // Skip both group-resolve and create when this row already
-          // has a storeRef from a prior partially-successful sync —
-          // re-creating would either duplicate or 409 against ASC.
+          // Without a group name, default to the productId rather than fail,
+          // with a warning: per-product groups break StoreKit 2 upgrades and
+          // downgrades between tiers, which must share a group. A row with a
+          // storeRef skips group resolution and create, which would duplicate
+          // or 409.
           const groupName = row.subscriptionGroupName ?? row.productId;
           let reviewGroupId = row.subscriptionGroupId;
           if (!reviewGroupId && row.storeRef && reviewEligibility) {
@@ -2412,12 +2168,8 @@ async function performIosSync(
               undefined;
           }
           if (!row.subscriptionGroupName && !row.storeRef && dryRun) {
-            // Surface the per-product-group warning in dry-run only
-            // so operators see the recommendation while previewing
-            // (the most common time to fix the catalog), but a
-            // production sync isn't blocked or noisy. Pushing into
-            // `failures` would also trip the markPushed gate added
-            // for partial-failure resilience.
+            // Warn only in the preview; in `failures` it would block markPushed
+            // on a real sync.
             plannedWrites.push({
               productId: row.productId,
               step: "warning: no subscription group name set",
@@ -2475,9 +2227,7 @@ async function performIosSync(
                   referenceName: groupName,
                 });
                 groupIdCache.set(groupName, cached);
-                // If the in-flight call rejects, evict the cached
-                // promise so a follow-up draft can retry instead of
-                // permanently inheriting the failure.
+                // Evict a rejected promise so a later draft can retry.
                 cached.catch(() => {
                   if (groupIdCache.get(groupName) === cached) {
                     groupIdCache.delete(groupName);
@@ -2494,10 +2244,8 @@ async function performIosSync(
                 reviewNote: row.reviewNote,
               });
               storeRef = result.data.id;
-              // Persist the upstream id immediately so a subsequent
-              // step's failure doesn't lose the binding (and the
-              // next sync sees this row's storeRef populated and
-              // skips the create call above).
+              // Persist the id now so a later step's failure keeps the binding
+              // and the next sync skips create.
               await ctx.runMutation(internal.products.sync.markStoreRef, {
                 projectId: project._id,
                 productId: row.productId,
@@ -2510,12 +2258,8 @@ async function performIosSync(
             "subscription",
             storeRef,
           );
-          // Localize so reviewers see the human-readable name +
-          // description instead of just the productId. ASC requires
-          // at least one locale before submission — failing here
-          // doesn't unwind the create (Apple has no rollback) so we
-          // record a failure and let the operator retry / fix in
-          // ASC web.
+          // ASC needs a locale before submission. A failure here cannot undo
+          // the create (Apple has no rollback), so it is recorded for a retry.
           if (dryRun && reviewVersion) {
             if (
               reviewVersion.alreadySubmitted ||
@@ -2562,14 +2306,9 @@ async function performIosSync(
           } else if (reviewVersion) {
             await syncReviewLocalization("subscription", reviewVersion);
           }
-          // Set the USA price by resolving the operator's USD amount
-          // → Apple's nearest price-point id. We require currency =
-          // "USD" because the dashboard form lets them pick others
-          // but we only know the USA tier ladder here; non-USD prices
-          // are surfaced as an actionable failure rather than silently
-          // mis-priced. In dry-run, skip the lookup (the just-created
-          // subscription resource doesn't exist for read-back) and
-          // just record intent.
+          // USD only: we only know the USA tier ladder, so other currencies
+          // fail with a clear reason instead of being mis-priced. Dry runs skip
+          // the lookup, since nothing was created to read back.
           if (
             row.priceAmountMicros !== undefined &&
             (row.currency ?? "USD") === "USD"
@@ -2689,9 +2428,7 @@ async function performIosSync(
               result.data.attributes.inAppPurchaseType,
               row.type,
             );
-            // Same partial-sync resilience as the Subscription
-            // branch — persist the upstream id before the
-            // localization / price steps that may fail.
+            // Persist the id before steps that may fail, as for subscriptions.
             await ctx.runMutation(internal.products.sync.markStoreRef, {
               projectId: project._id,
               productId: row.productId,
@@ -2929,13 +2666,8 @@ async function performIosSync(
   };
 }
 
-// Lightweight read-only action so the dashboard can populate a
-// subscription-group autocomplete without the operator having to copy
-// reference names from ASC's web console. Returns just `{id,
-// referenceName}` per group — the heavier listSubscriptionsInGroup
-// fetch only happens during full pull-sync. Failures bubble back as a
-// thrown Error so the dashboard can show a toast and degrade
-// gracefully (the field stays a free-text input).
+// Read-only group list for the dashboard's subscription-group autocomplete. On
+// error the dashboard shows a toast and the field stays free text.
 export const listSubscriptionGroupsAppleIOS = action({
   args: {
     apiKey: v.optional(v.string()),
@@ -2981,11 +2713,8 @@ export function mapBillingPeriodToAsc(
       return "ONE_WEEK";
     case "P1M":
     case undefined:
-      // Treat missing billingPeriod as monthly. The catalog form
-      // makes billingPeriod optional and a missing value commonly
-      // means "I forgot to fill this in"; defaulting to monthly is
-      // the least destructive interpretation (the operator can fix
-      // the row and re-sync).
+      // A missing period is usually an unfilled optional field; monthly is the
+      // least destructive guess.
       return "ONE_MONTH";
     case "P2M":
       return "TWO_MONTHS";
@@ -2996,12 +2725,8 @@ export function mapBillingPeriodToAsc(
     case "P1Y":
       return "ONE_YEAR";
     default:
-      // Unknown period values used to silently coerce to ONE_MONTH,
-      // which provisioned the wrong subscription duration in ASC —
-      // a much harder-to-unwind mistake than a failed sync. Throw
-      // so the operator sees the typo immediately and the partial-
-      // failure tracking in processOneDraft records it as an
-      // actionable failure for that row.
+      // Throw rather than guess: a wrong duration in ASC is much harder to undo
+      // than a failed sync.
       throw new Error(
         `Invalid billing period for ASC subscription: "${period}". ` +
           `Expected one of P1W, P1M, P2M, P3M, P6M, P1Y (or omit for monthly).`,
@@ -3039,12 +2764,8 @@ export function mapAscReviewProductType(
   }
 }
 
-// Apple represents introductory-offer durations as enum strings
-// rather than ISO-8601 like the subscriptionPeriod field. Translate
-// to ISO so kit's `offers[].duration` is uniform across stores
-// (Play already uses ISO `P1W` / `P1M` / etc.). Unknown values fall
-// through as-is so the dashboard can still render whatever Apple
-// returned even if Apple ships a new enum value.
+// Apple's intro-offer durations are enums; map them to ISO 8601 to match Play.
+// Unknown values pass through so a new Apple value still renders.
 export function mapAscOfferDurationToIso(
   raw: string | undefined,
 ): string | undefined {
@@ -3085,10 +2806,7 @@ export function mapAscOfferKind(
   }
 }
 
-// Convert ASC introductory offers list into kit's `offers[]` shape.
-// Picks rows whose date range covers today (consistent with how
-// `pickActivePriceRow` resolves the active price). Free-trial offers
-// have no pricePoint — we emit them with no priceAmountMicros.
+// ASC intro offers active today, as kit `offers[]`; free trials have no price.
 export function parseIntroOffers(
   resp: AscIntroOfferListResponse | null,
 ): Array<{

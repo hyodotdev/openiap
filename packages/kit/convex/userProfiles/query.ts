@@ -83,11 +83,8 @@ export const getUserStats = query({
       if (currentOrg) {
         organizationStats = {
           monthlyRequestCount: currentOrg.monthlyRequestCount || 0,
-          // Show at least the sponsor CTA threshold so legacy orgs
-          // with stale low values (e.g. the 250 default from the
-          // paid-plan era) don't display a misleadingly-low cap.
-          // Sponsor-bumped orgs with an explicit higher value still
-          // show their bumped number.
+          // At least the sponsor CTA threshold, so a stale low value (the old
+          // 250 default) never shows as the cap; a higher bumped value does.
           monthlyRequestLimit: Math.max(
             currentOrg.monthlyRequestLimit ?? 0,
             SPONSOR_CTA_THRESHOLD,

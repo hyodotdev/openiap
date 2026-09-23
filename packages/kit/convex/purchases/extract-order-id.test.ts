@@ -3,12 +3,9 @@ import { describe, expect, it } from "vitest";
 import { extractOrderIdFromRemoteResponse } from "./shared";
 
 /**
- * Unit tests for the write-time orderId extractor that feeds the
- * secondary (projectId, applicationId, orderId) dedup key. The goal is
- * to accept exactly the response shapes `verifyGooglePlayReceiptInternalV1`
- * persists today — and to stay silent (return null) on shapes that
- * genuinely have no stable identifier, because returning a wrong
- * orderId would merge unrelated purchases.
+ * The orderId extractor behind the secondary dedup key: it accepts the shapes
+ * `verifyGooglePlayReceiptInternalV1` persists and returns null otherwise,
+ * since a wrong orderId would merge unrelated purchases.
  */
 describe("extractOrderIdFromRemoteResponse", () => {
   it("returns null for non-Google stores", () => {

@@ -195,10 +195,8 @@ export const verifyGooglePlayReceiptInternalV1 = action({
 
       if (
         error instanceof PlayStorePurchaseVerificationFailedError &&
-        // This is a special case. Google returns error 410 with this message
-        // When a subscription is not found. It returns the same error for subscriptions
-        // that have previously been found but expired 60 days ago. We currently
-        // have no way to differentiate between the two situations.
+        // Google's 410 means both "not found" and "expired over 60 days ago";
+        // the two cannot be told apart.
         isPlayStoreTokenNoLongerValidError(error)
       ) {
         const receiptResponse = mapGoogleTokenNoLongerValidResponse();
@@ -314,11 +312,8 @@ export function parseAndValidateServiceAccountKey(
       );
     }
 
-    // Ensure private key has proper line breaks. Always normalize any
-    // literal `\n` escape sequences — a key that was JSON-encoded once
-    // and then embedded in another JSON payload can contain a mix of
-    // real newlines and escaped ones; the old "only-if-no-newlines"
-    // guard left those mixed keys broken.
+    // Always unescape `\n`: a key JSON-encoded twice can mix real and escaped
+    // newlines.
     keyData.private_key = keyData.private_key.replaceAll("\\n", "\n");
 
     return keyData;
@@ -468,14 +463,9 @@ export function mapProductResponseToReceiptData(args: {
 }
 
 /**
- * Picks the line item a verification is about.
- *
- * Reading `productLineItem[0]` unconditionally is wrong once a token
- * covers more than one item — Play's newer one-time-product model lets a
- * single purchase carry several purchase options, and a multi-item token
- * would resolve to whichever item Google happened to list first. When
- * the caller told us which product it expects, honour that; otherwise
- * keep the historical first-item behaviour.
+ * Picks the line item a verification is about: the expected product when the
+ * caller names one, else the first. In Play's newer one-time-product model a
+ * token can carry several items, in no guaranteed order.
  */
 export function selectProductLineItem(
   lineItems: androidpublisher_v3.Schema$ProductLineItem[] | undefined | null,
@@ -492,13 +482,10 @@ export function selectProductLineItem(
 }
 
 /**
- * True when Google says it has never heard of this purchase token.
- *
- * Right after a purchase completes, `productsv2` / `subscriptionsv2` can
- * still 404 for a few hundred milliseconds — the write hasn't propagated
- * yet. Clients verify immediately (the reporter in issue #289 measured
- * t≈1s), so treating that 404 as final rejects a perfectly good purchase
- * the app then refuses to acknowledge, and Google voids it at ~301s.
+ * True when Google does not know the token. Right after a purchase, productsv2
+ * and subscriptionsv2 can 404 for a few hundred ms while clients already verify
+ * (#289); a purchase rejected then is never acknowledged, and Google voids it
+ * at ~301s.
  */
 function isFreshTokenNotYetPropagated(error: unknown): boolean {
   return error instanceof PlayStorePurchaseNotFoundError;
@@ -522,29 +509,19 @@ export async function verifyPurchaseWithGooglePlay(
   args: {
     packageName: string;
     purchaseToken: string;
-    // Required key, nullable value, on purpose: with `?` a caller that
-    // simply forgets to forward it still compiles, and the multi-line-item
-    // fix silently reverts to "first item wins". Making the key mandatory
-    // turns that omission into a type error.
+    // Required key, optional value: forgetting to pass it is a type error, not
+    // a silent "first item wins".
     expectedProductId: string | undefined;
   },
 ): Promise<GooglePlayVerificationResult> {
-  // Neither catalog knowing the token can simply mean the purchase is
-  // seconds old and hasn't propagated yet, so retry the product →
-  // subscription pair before calling it unknown (issue #289). Only the
-  // "not found in either" outcome retries; auth, permission, and
-  // package-mismatch errors still fail fast.
+  // Unknown to both catalogs may just mean not yet propagated (#289), so retry
+  // the pair. Auth, permission and package errors fail fast.
   return retryOnTransient(
     () => lookUpGooglePlayPurchase(androidpublisher, args),
     {
       shouldRetry: isFreshTokenNotYetPropagated,
-      // Deliberately shallow. Each attempt costs TWO Play calls
-      // (product then subscription), so every extra attempt also
-      // multiplies the upstream cost of a token that genuinely doesn't
-      // exist — a bogus-token probe must not become an 8-call, 2-second
-      // hold. Propagation after a real purchase is sub-second, so three
-      // attempts inside ~750ms covers it while capping the abuse cost
-      // at 3x, against Google's ~301s window to acknowledge.
+      // Shallow on purpose: each attempt is two Play calls, and a bogus token
+      // must stay cheap. Propagation is sub-second; 3 tries in ~750ms cover it.
       maxAttempts: 3,
       baseDelayMs: 250,
       maxDelayMs: 500,
@@ -564,12 +541,8 @@ async function lookUpGooglePlayPurchase(
   let remoteResponse: string = "null";
 
   try {
-    // Verify in-app product purchase first. `retryOnTransient` wraps
-    // the call so Google Play 5xx / network blips don't propagate as
-    // customer-visible failures — but it deliberately leaves 4xx
-    // responses (including 404 for "not a product purchase") alone so
-    // the downstream branch below can fall through to the subscription
-    // lookup on its first observation of the 404.
+    // Product first. retryOnTransient retries 5xx and network errors but not a
+    // 404, which falls through to the subscription lookup.
     const productResponse = await retryOnTransient(() =>
       androidpublisher.purchases.productsv2.getproductpurchasev2({
         packageName: args.packageName,
@@ -590,17 +563,13 @@ async function lookUpGooglePlayPurchase(
 
     remoteResponse = JSON.stringify(productResponse.data ?? null);
   } catch (productError) {
-    // Only retry as a subscription when the product lookup failed because
-    // the token wasn't a product purchase (404 / "not found"). Auth failures,
-    // permission errors, and network errors should surface as-is instead of
-    // issuing a second doomed request.
+    // Only a "not a product purchase" 404 tries the subscription API; other
+    // errors surface as-is.
     if (!isProductNotFoundError(productError)) {
       throw createPlayStoreError(productError);
     }
 
-    // If in-app purchase fails, try as a subscription. Same retry
-    // policy applies — transient 5xx from Google Play's subscription
-    // endpoint is not a reason to fail the customer's verify call.
+    // Same retry policy for the subscription endpoint.
     try {
       const subResponse = await retryOnTransient(() =>
         androidpublisher.purchases.subscriptionsv2.get({

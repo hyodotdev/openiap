@@ -169,16 +169,12 @@ export const updateLocale = mutation({
 });
 
 /**
- * Tear the current user's account down.
- *
- * The mutation itself is deliberately light: it schedules
- * `finalizeAccountDeletion` and returns. The action then loops
- * bounded `drainAccountDeletionBatch` mutations that walk a priority
- * list (refresh tokens → sessions → verification codes → auth
- * accounts → profile → memberships → orphaned orgs with their
- * projects/purchases/files) a fixed page at a time. Purchase volume
- * per project is the one truly unbounded axis, so the drain never
- * tries to delete all purchases inside a single transaction.
+ * Tears down the current user's account. Only schedules
+ * `finalizeAccountDeletion`, which runs bounded `drainAccountDeletionBatch`
+ * mutations through a priority list (refresh tokens, sessions, verification
+ * codes, auth accounts, profile, memberships, orphaned orgs with their
+ * projects, purchases and files) a page at a time, since purchase volume per
+ * project is unbounded.
  */
 export const deleteAccount = mutation({
   args: {},

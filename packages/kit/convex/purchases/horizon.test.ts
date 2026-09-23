@@ -418,9 +418,8 @@ describe("buildHorizonRemoteId", () => {
   });
 
   test("disambiguates across every colon placement", () => {
-    // These two inputs would collide with the old `${userId}:${sku}`
-    // scheme: split "a:b:c" back into (userId, sku) ambiguously.
-    // URL-encoding the parts makes both encodings unique.
+    // A plain `${userId}:${sku}` join would make these two collide ("a:b:c"
+    // splits ambiguously); URL-encoding the parts keeps them unique.
     const a = buildHorizonRemoteId("a:b", "c");
     const b = buildHorizonRemoteId("a", "b:c");
     expect(a).not.toBe(b);

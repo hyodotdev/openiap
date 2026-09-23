@@ -3,21 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { collapseDuplicatePurchasesByOrderIdHandler } from "./cleanup";
 
 /**
- * Regression guard for `collapseDuplicatePurchasesByOrderId`'s
- * defensive store filter. The mutation walks the
- * `by_project_app_orderId` index to find sibling groups, but the
- * index doesn't carry the `store` field, so a non-Google row that
- * (for whatever reason — manual write, corruption, a future schema
- * change) happens to carry an `orderId` could land in the same
- * group key as Google siblings. The cleanup code narrows the
- * candidate set to `store === "google"` with a non-empty `orderId`
- * before picking a survivor and emitting deletions, which these
- * tests pin.
+ * Pins `collapseDuplicatePurchasesByOrderId`'s store filter. Its index has no
+ * `store`, so a non-Google row carrying an `orderId` (manual write, corruption,
+ * a future schema change) could join a Google group; it must never be deleted
+ * or kept as the survivor.
  *
- * The minimal in-memory `ctx.db` stand-in mirrors the slice used by
- * other unit tests in this folder — `withIndex` applies `.eq()`
- * predicates, `paginate` returns the whole table in a single page,
- * and everything else is a simple Map lookup.
+ * The in-memory `ctx.db` mirrors the other tests here: `withIndex` applies
+ * `.eq()`, `paginate` returns one page, and the rest is Map lookups.
  */
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
 
@@ -226,11 +218,8 @@ describe("collapseDuplicatePurchasesByOrderId — defensive store filter", () =>
   });
 
   it("leaves non-Google siblings alone even when they share the group key", async () => {
-    // Worst-case manual-write / corruption scenario: an Apple row
-    // somehow ended up with the same (projectId, applicationId,
-    // orderId) as a pair of Google rows. The mutation must NEVER
-    // delete the Apple row, and must NEVER pick it as the survivor
-    // of the Google group.
+    // An Apple row sharing a Google group's key is neither deleted nor kept as
+    // the group's survivor.
     db.seedPurchase({
       id: "p_apple",
       projectId: PROJECT,

@@ -121,10 +121,8 @@ const productShape = v.object({
   storeRef: v.optional(v.string()),
   subscriptionGroupId: v.optional(v.string()),
   subscriptionGroupName: v.optional(v.string()),
-  // Subscription billing period — surfaced so the dashboard's
-  // price column can render "USD 9.99 / 1 month" for parity with
-  // the Android base-plan badges. iOS rows that lack a period in
-  // the cached metadata fall back to the bare price.
+  // Lets the dashboard show "USD 9.99 / 1 month"; iOS rows without a cached
+  // period show the bare price.
   billingPeriod: v.optional(
     v.union(
       v.literal("P1W"),
@@ -184,13 +182,8 @@ function shape(
     currency: product.currency,
     state: product.state,
     storeRef: product.storeRef,
-    // The schema widened these to `string | null` so
-    // `upsertFromStore` can clear stale values via patch (Convex
-    // treats `undefined` as no-op). Coerce back to optional at
-    // the public-query boundary so the dashboard / SDK clients
-    // don't need to handle `null` — pre-existing call sites only
-    // checked `.subscriptionGroupName` for truthiness, which still
-    // works after coercion.
+    // Nullable so upsertFromStore can clear them (a patch ignores undefined);
+    // optional again here so clients never see null.
     subscriptionGroupId: product.subscriptionGroupId ?? undefined,
     subscriptionGroupName: product.subscriptionGroupName ?? undefined,
     billingPeriod: product.billingPeriod,

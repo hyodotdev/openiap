@@ -414,10 +414,9 @@ export function applySubscriptionTransition(
   }
 }
 
-// Entitlement rule: status grants access AND the period hasn't expired.
-// Matches onesub's `/onesub/status` collapse — see
-// packages/server/src/routes/status.ts:46-62 in onesub for the same
-// `statusAllows && notYetExpired` pattern.
+// Entitled when the state grants access and the period has not expired, the
+// same `statusAllows && notYetExpired` rule as onesub's `/onesub/status`
+// (packages/server/src/routes/status.ts).
 export function entitlementActive(
   sub: NonNullable<CurrentSubscription>,
   now: number = Date.now(),

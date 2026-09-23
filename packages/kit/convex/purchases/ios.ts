@@ -268,12 +268,9 @@ export async function verifyJWSTransaction(
       appAppleId,
     );
 
-    // `enableOnlineChecks: true` makes verifyAndDecodeTransaction
-    // perform an HTTP call against Apple's CRL/OCSP endpoints, so a
-    // transient Apple-edge 5xx or DNS hiccup would otherwise bubble
-    // up as a permanent verification failure. Retry-on-transient
-    // matches the policy the Server API + Google Play paths use.
-    // A StoreKit 2 device JWS carries fields the server library's type omits.
+    // Online checks call Apple's CRL/OCSP endpoints, so transient failures
+    // retry, as on the other store paths. The type adds fields a StoreKit 2
+    // device JWS carries but the server library omits.
     const verifiedTransaction: JWSTransactionDecodedPayload & {
       gracePeriodExpiresDate?: number;
       deviceVerification?: string;
@@ -428,10 +425,8 @@ async function verifyTransactionWithServerApi(params: {
   );
 
   try {
-    // App Store Server API can return transient 5xx during incidents;
-    // retry matches the shared policy (max 3 attempts, sub-second
-    // backoff, 4xx fails fast). `extractHttpStatus` reads
-    // `httpStatusCode` from APIException so retry-on-5xx fires here.
+    // Retries the API's transient 5xx; extractHttpStatus reads APIException's
+    // httpStatusCode.
     const response = await retryOnTransient(() =>
       client.getTransactionInfo(decodedJwsPayload.transactionId as string),
     );

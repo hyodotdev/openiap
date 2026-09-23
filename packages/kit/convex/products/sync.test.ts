@@ -671,11 +671,9 @@ describe("upsertFromStore localization preservation", () => {
   });
 
   it("keeps kit-authored locales when the pull reports none", async () => {
-    // ASC omits the field entirely (its localizations live on version
-    // sub-resources), and Play omits it for a product whose only listing
-    // is the base locale. Overwriting here would delete a locale the
-    // operator authored in kit, and the push side — which merges rather
-    // than replaces — would then have nothing to republish.
+    // ASC never sends localizations (they live on version sub-resources) and
+    // Play omits them for a base-only product. Overwriting would delete
+    // kit-authored locales that the merging push could not restore.
     const store = db();
     await upsertFromStore._handler({ db: store }, pull({}));
 

@@ -7,13 +7,10 @@ import {
 } from "./helpers";
 import { getGooglePlayFileByProjectFromDb } from "../files/internal";
 
-// Public query — surfaces which platforms a project has configured so
-// the dashboard, the SDK, and the MCP server can return a precise
-// "X not configured" error instead of a silent empty response.
-//
-// Auth via apiKey (same model as the rest of the v1 surface). Returns
-// `found: false` when the key is unknown so the dashboard can render
-// "log in to a different project" without leaking which keys exist.
+// Which platforms a project has configured, so the dashboard, SDK and MCP
+// server can say "X not configured" instead of returning nothing. apiKey auth,
+// like the rest of v1; an unknown key returns `found: false` without revealing
+// which keys exist.
 
 const platformShape = v.object({
   configured: v.boolean(),

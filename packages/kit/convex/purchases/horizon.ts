@@ -28,19 +28,12 @@ import {
   retryOnTransient,
 } from "./retry";
 
-// Meta's S2S entitlement endpoint. Follows the exact shape the
-// client SDK uses for its own direct-to-Meta fallback — IAPKit just
-// swaps in the server-held App Access Token so the client never sees
-// the App Secret.
-//
-// Endpoint: POST https://graph.oculus.com/{APP_ID}/verify_entitlement
-// Body (x-www-form-urlencoded):
-//   access_token  = OC|{APP_ID}|{APP_SECRET}
-//   user_id       = Oculus user id from the client
-//   sku           = add-on SKU configured in Meta Developer Dashboard
-// Response JSON: { success: boolean, grant_time?: number }
-//
-// Docs: https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/
+// Meta's S2S entitlement check: the call the client SDK makes directly, but
+// with the server-held App Access Token so the app never sees the secret.
+//   POST https://graph.oculus.com/{APP_ID}/verify_entitlement
+//   form body: access_token=OC|{APP_ID}|{APP_SECRET}, user_id, sku
+//   response: { success: boolean, grant_time?: number }
+// https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/
 const META_GRAPH_BASE = "https://graph.oculus.com";
 const META_REQUEST_TIMEOUT_MS = 10_000;
 
@@ -142,11 +135,9 @@ async function requestHorizonVerification(
         try {
           responseBody = (await response.json()) as unknown;
         } catch (error) {
-          // `Response.json()` can fail for the same transient reasons as the
-          // initial fetch (for example, the peer disconnects or the body
-          // stalls until our AbortController fires). Preserve those errors so
-          // the shared retry policy can recover; only deterministic JSON
-          // syntax failures become a protocol error.
+          // `Response.json()` can fail transiently like the fetch (a peer
+          // disconnect, a body stalled until the abort), so those retry; only a
+          // JSON syntax error is a protocol error.
           if (shouldRetryHorizonError(error)) throw error;
           throw new InvalidHorizonResponseError(
             "Meta Graph API returned invalid JSON.",
@@ -231,19 +222,14 @@ export async function verifyHorizonReceipt(
     projectId: project._id,
     store: "horizon",
     applicationId: project.horizonAppId,
-    // `{userId}:{sku}` is deterministic per entitlement so the
-    // `by_project_and_remote` index de-dupes repeat verifications
-    // into one row — same pattern Apple uses with
-    // originalTransactionId and Google uses with purchaseToken.
+    // `{userId}:{sku}` is stable per entitlement, so `by_project_and_remote`
+    // dedups repeat verifications, like Apple's originalTransactionId and
+    // Google's purchaseToken.
     remoteId: buildHorizonRemoteId(args.userId, args.sku),
     requestData,
-    // Pack the sku alongside Meta's fields so
-    // extractProductIdFromRemoteResponse can surface the product
-    // id from persisted rows without also needing requestData.
-    // `grantTimeMs` is renamed from Meta's wire field `grant_time`
-    // because we've already normalized the unit — storing it with
-    // the original name would invite `new Date(grant_time)` misuse
-    // downstream.
+    // `sku` lets extractProductIdFromRemoteResponse read the product.
+    // `grantTimeMs` is renamed because it is already in ms; `grant_time` would
+    // invite unit mistakes.
     remoteResponse: JSON.stringify({
       success: verified.success,
       grantTimeMs: verified.grantTime,
@@ -278,12 +264,8 @@ export function parseHorizonResponse(raw: unknown): HorizonVerifyResult {
   }
   const success = record.success;
   const grantTimeRaw = record.grant_time;
-  // Meta's `grant_time` is a Unix timestamp in **seconds**. The rest
-  // of IAPKit (persisted purchase rows, dashboards, anything that
-  // might compare against `Date.now()`) standardizes on
-  // milliseconds — match Apple's `purchaseDate` and Google's
-  // `purchaseDate` so cross-store analytics don't need per-store
-  // unit handling. Convert here at the ingestion boundary.
+  // Meta's `grant_time` is in seconds; IAPKit uses ms everywhere, like Apple's
+  // and Google's purchaseDate.
   const grantTime =
     typeof grantTimeRaw === "number" && Number.isFinite(grantTimeRaw)
       ? grantTimeRaw * 1000

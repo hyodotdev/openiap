@@ -8,14 +8,9 @@ import {
   deleteStorageIfUnreferenced,
 } from "../files/storage";
 
-// Per-phase page size for the account-deletion drain. Each
-// `drainAccountDeletionBatch` call reads/writes at most a bounded multiple
-// of this many rows, keeping the mutation well under Convex's
-// per-transaction limits regardless of per-user volume (purchases,
-// sessions, refresh tokens, etc.).
-// Auth tokens, Stripe payloads, and organization/file metadata can all be
-// large. Ten maximum-sized documents leave headroom under Convex's 16 MiB
-// transaction read limit while keeping every account-deletion phase bounded.
+// Rows per account-deletion phase. Auth tokens, Stripe payloads and org or file
+// metadata can be large; ten maximum-size documents stay under Convex's 16 MiB
+// transaction read limit.
 const ACCOUNT_DELETION_PAGE = 10;
 
 // Internal query to get user by ID (read-only, so modeled as a query).
@@ -40,14 +35,9 @@ export const getUserById = internalQuery({
 });
 
 /**
- * Process one bounded slice of the current user's account teardown.
- *
- * The drain runs in priority order; each call makes one phase's worth
- * of progress and returns `{ done: false }` until the user's data tree
- * is empty (at which point the final call deletes the `users` row and
- * returns `{ done: true }`). The caller — `finalizeAccountDeletion`
- * action — loops on `done` to complete the teardown without ever
- * blowing a per-transaction budget.
+ * One bounded slice of a user's account teardown, one phase at a time in
+ * priority order. Returns `{ done: false }` until the final call deletes the
+ * `users` row; `finalizeAccountDeletion` loops on `done`.
  */
 export const drainAccountDeletionBatch = internalMutation({
   args: { userId: v.id("users") },
@@ -159,12 +149,8 @@ export const drainAccountDeletionBatch = internalMutation({
       return { done: false };
     }
 
-    // Phase: finally delete the user row itself. Orgs flagged by the
-    // membership phase (sole-member case) are picked up by the
-    // separate `drainPendingDeletionOrganizations` cron — running it
-    // inside the user-deletion drain would let one user's account
-    // teardown be indefinitely delayed by orphan-org backlog from
-    // unrelated users.
+    // Last, the user row. Orgs flagged above are left to
+    // drainPendingDeletionOrganizations.
     const user = await ctx.db.get(userId);
     if (user) {
       await ctx.db.delete(userId);
@@ -176,10 +162,9 @@ export const drainAccountDeletionBatch = internalMutation({
 });
 
 /**
- * Drain one bounded slice of any organization currently flagged
- * `pendingDeletion: true`. Run on a cron rather than inline in the
- * account-deletion path so a single user's teardown never has to
- * wait on global orphan-org cleanup.
+ * One bounded slice of an organization flagged `pendingDeletion`. A cron, not
+ * part of the account drain, so one user's teardown never waits on other users'
+ * orphan orgs.
  */
 export const drainPendingDeletionOrganizations = internalMutation({
   args: {},
@@ -197,8 +182,7 @@ export const drainPendingDeletionOrganizations = internalMutation({
     }
     const madeProgress = await drainOrganizationPage(ctx, org._id);
     if (!madeProgress) {
-      // Stripe customer teardown is no longer needed after the free
-      // transition; legacy stripeCustomerId values are left as-is.
+      // Legacy stripeCustomerId values stay; Stripe needs no teardown.
       const avatarFileId = org.avatarFileId;
       await ctx.db.delete(org._id);
       if (avatarFileId) {
@@ -211,19 +195,15 @@ export const drainPendingDeletionOrganizations = internalMutation({
 });
 
 /**
- * Delete one bounded page of an orphaned organization's data. Returns
- * `true` if work was done (more remains, caller should loop) or
- * `false` when the org has nothing else attached (caller should then
- * delete the org row itself).
+ * Deletes one page of an orphaned org's data. True while work remains; false
+ * when only the org row is left for the caller to delete.
  */
 async function drainOrganizationPage(
   ctx: MutationCtx,
   organizationId: Id<"organizations">,
 ): Promise<boolean> {
-  // Walk projects one at a time. Marking the row pending lets the same
-  // bounded, recoverable cascade used by direct project deletion own every
-  // project-scoped table; keeping a second table list here caused new domains
-  // (webhooks/subscriptions/products/jobs) to be orphaned on account deletion.
+  // One project at a time, marked pending so the project-deletion cascade owns
+  // every project table; a second table list here would miss new domains.
   const project = await ctx.db
     .query("projects")
     .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))

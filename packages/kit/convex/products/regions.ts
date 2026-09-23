@@ -1,15 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
-// Where a product is sold. Leaving this unset uses Play's sell-everywhere
-// default for a new product, while an existing product inherits its
-// current footprint. An explicit list lets an operator who only ships to
-// a few markets say so, and `"all"` requests a deliberate expansion.
-//
-// Note this is product-level. An app is only installable in the
-// countries it is distributed to, so regions beyond that are inert
-// either way; the list matters for operators who want the catalog to
-// state their footprint rather than inherit Play's whole map, and for
-// keeping a product out of regions Play adds in future.
+// A product's sales regions; see productRegionsValidator. Product-level: an app
+// is only installable where it is distributed, so regions beyond that are
+// inert. The list states a footprint and keeps a product out of regions Play
+// adds later.
 
 // The current ISO 3166-1 alpha-2 assignment table, plus XK (Kosovo),
 // which Play and CLDR commonly expose even though ISO reserves it for
@@ -57,16 +51,13 @@ function isAssignedRegion(code: string): boolean {
 }
 
 /**
- * A product's sales footprint, as three distinct states:
+ * A product's sales footprint:
  *
- * - `["US","KR"]` — exactly these regions; anything else is withdrawn.
- * - `"all"` — wherever Play prices the product, including markets it
- *   launches later. An expansion the operator asked for.
- * - unset — inherit. New products go everywhere (Play Console's own
- *   default); a product Play already knows keeps the regions it has.
- *
- * The third state exists because "unset" used to mean "all", which
- * turned a price edit on a US-only product into a push to 173 markets.
+ * - `["US","KR"]`: exactly these regions; anything else is withdrawn.
+ * - `"all"`: wherever Play prices it, including markets it launches later.
+ * - unset: inherit. New products go everywhere (Play Console's default); a
+ *   product Play already knows keeps its regions. Unset is not "all", which
+ *   would turn a price edit on a US-only product into a push to 173 markets.
  */
 export const productRegionsValidator = v.union(
   v.literal("all"),
@@ -86,10 +77,8 @@ export function normalizeProductRegions(
   regions: ProductRegions | undefined,
 ): ProductRegions | undefined {
   if (regions === "all") return "all";
-  // An empty list is not a footprint of zero regions — Play has no way
-  // to express "sold nowhere", and a product that reaches the write with
-  // one would be silently unbuyable. Treat it as unset, the same way a
-  // cleared field in the dashboard means "stop restricting".
+  // Empty means unset: Play cannot express "sold nowhere", and such a product
+  // would be silently unbuyable.
   if (!regions || regions.length === 0) return undefined;
 
   const seen = new Set<string>();
