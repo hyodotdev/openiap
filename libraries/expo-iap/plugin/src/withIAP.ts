@@ -728,6 +728,8 @@ export function resolveAmazonAppstoreKey(
 
 // A module flag pins the store for every build of this prebuild; without one
 // the Gradle resolver picks it from the task flavor or the connected device.
+// The flags are deprecated but still pin: dropping them silently would move an
+// existing Quest or Fire release build to Play.
 export function resolvePinnedAndroidStore(
   flags: Pick<AmazonPlatformFlags, 'isFireOsEnabled' | 'isHorizonEnabled'>,
 ): AndroidStorePin {
@@ -744,6 +746,19 @@ export function resolvePinnedAndroidStore(
     : flags.isHorizonEnabled
     ? 'horizon'
     : null;
+}
+
+export function deprecatedStorePinWarning(store: 'horizon' | 'amazon'): string {
+  const key =
+    store === 'horizon'
+      ? 'modules.horizon (or EXPO_IAP_HORIZON)'
+      : 'modules.amazon.fireOS (or EXPO_IAP_FIREOS)';
+  const device = store === 'horizon' ? 'Quest' : 'Fire device';
+  return (
+    `${key} is deprecated: a local debug build already follows the connected ${device}. ` +
+    `Pin every EAS or release build that must target it with ORG_GRADLE_PROJECT_openiapStore=${store} ` +
+    `in the build profile env; until then ${key} still pins every build of this prebuild.`
+  );
 }
 
 export function resolveAlternativeBillingIOS(
@@ -823,6 +838,12 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
       isFireOsEnabled,
       isHorizonEnabled,
     });
+    if (pinnedStore) {
+      WarningAggregator.addWarningAndroid(
+        'expo-iap',
+        deprecatedStorePinWarning(pinnedStore),
+      );
+    }
     const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
 
     logOnce(

@@ -146,6 +146,30 @@ describe('android configuration', () => {
     ).toBe('horizon');
   });
 
+  it('warns that a module pin is deprecated but still applies it', () => {
+    // Dropping the pin silently would move an existing Quest release to Play.
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {modules: {horizon: true}});
+
+    expect(warn).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated.*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
+      ),
+    );
+  });
+
+  it('does not warn when nothing pins the store', () => {
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
+
+    expect(
+      warn.mock.calls.some(([, message]) => /deprecated/u.test(String(message))),
+    ).toBe(false);
+  });
+
   it('refuses two modules naming different stores', () => {
     // An APK links one billing SDK, so picking one silently would ship the
     // other store's users a build that cannot talk to their store.

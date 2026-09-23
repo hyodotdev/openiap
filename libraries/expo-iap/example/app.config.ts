@@ -25,9 +25,7 @@ const useLocalDev =
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
-  const isFireOsEnabled = process.env.EXPO_IAP_FIREOS === '1';
   const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
-  const isHorizonEnabled = process.env.EXPO_IAP_HORIZON === '1';
   const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const iapPluginOptions: ExpoIapPluginOptions = {
@@ -42,11 +40,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
     modules: {
       // Onside module: iOS only (alternative billing for Korea)
       onside: isOnsideEnabled,
-      // Pins every Android build of this prebuild to Horizon; unset, Gradle picks the store
-      horizon: isHorizonEnabled,
-      // fireOS pins the Android store the same way; vegaOS generates the Vega target
+      // The Android store follows the connected device; vegaOS generates the Vega target
       amazon: {
-        fireOS: isFireOsEnabled,
         vegaOS: isVegaEnabled,
       },
     },

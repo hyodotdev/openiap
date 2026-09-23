@@ -282,9 +282,9 @@ cd ios && pod install`}
           (Meta Quest), and <Link to="/docs/setup/store/amazon">Amazon</Link>{' '}
           (Fire OS devices and the Vega OS runtime). Android store selection
           happens when Gradle runs — a store flavor, a connected Quest or Fire
-          device on a debug build, or an <code>openiapStore</code> pin — so keep
-          the store credentials in the config and leave the module flags off
-          unless a whole prebuild must be pinned to one store.
+          device on a local debug build, or an <code>openiapStore</code> pin —
+          so keep the store credentials in the config; a build that must target
+          one store is pinned in its EAS profile, not in the config.
         </p>
         <CodeBlock language="json">
           {`{
@@ -322,14 +322,19 @@ cd ios && pod install`}
         <p>
           Platform-specific values live under <code>android</code> or{' '}
           <code>ios</code>; <code>modules</code> holds opt-ins.{' '}
-          <code>modules.onside</code> links the Onside SDK,{' '}
-          <code>modules.amazon.vegaOS</code> generates the Vega target, and{' '}
-          <code>modules.horizon</code> or <code>modules.amazon.fireOS</code> pin
-          every Android build of the prebuild to that store by writing{' '}
-          <code>openiapStore</code> into <code>gradle.properties</code>. The
-          separate <code>android.amazon.vegaOS</code> block is only needed when
-          your Vega OS build requires different values (app id, artifacts) than
-          your regular Android config — see{' '}
+          <code>modules.onside</code> links the Onside SDK and{' '}
+          <code>modules.amazon.vegaOS</code> generates the Vega target. The
+          Android store needs no option: a local debug build follows the
+          connected Quest or Fire device. An EAS cloud build has no device to
+          follow and a release build never looks at one, so pin them with{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore</code> in the EAS profile&apos;s{' '}
+          <code>env</code> (see{' '}
+          <Link to="/docs/setup/store#selection">
+            How the Store Is Selected
+          </Link>
+          ). The separate <code>android.amazon.vegaOS</code> block is only
+          needed when your Vega OS build requires different values (app id,
+          artifacts) than your regular Android config — see{' '}
           <Link to="/docs/setup/store/amazon">Amazon Store Setup</Link>.
         </p>
       </section>

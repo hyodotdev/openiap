@@ -266,15 +266,17 @@ same local-server and purchases-view evidence as the other live lanes.
 Every item below has cost a full debugging session. Check them before
 concluding that a store, an account, or the code is at fault.
 
-**The Android project keeps the last store it was prebuilt for.** The FireOS
-and Horizon rows run `expo prebuild --platform android --clean` with
-`EXPO_IAP_FIREOS=1` or `EXPO_IAP_HORIZON=1`, and the generated `android/`
-directory keeps that store afterwards. A later Play run then links the wrong
-`openiap-google` flavor, so the example sits on `Connecting to Store...` with
+**A leftover store pin outranks the device.** The FireOS and Horizon rows need
+no store variable: the build follows the connected device. A pin left behind
+(`ORG_GRADLE_PROJECT_openiapStore` still exported, `EXPO_IAP_HORIZON` or
+`EXPO_IAP_FIREOS` still exported, or an `openiapStore` line written by the
+deprecated `modules.horizon` / `modules.amazon.fireOS` options)
+makes a later Play run link the wrong `openiap-google` flavor, so the example
+sits on `Connecting to Store...` with
 `initConnection failed: Failed to initialize connection` and
-`getStorefront failed: Billing client not ready`. Re-run
-`bunx expo prebuild --platform android --clean` with no store variable before
-the Play row, then confirm `android/gradle.properties` carries no
+`getStorefront failed: Billing client not ready`. Unset those variables, re-run
+`bunx expo prebuild --platform android --clean` before the Play row, then
+confirm `android/gradle.properties` carries no
 `openiapStore` pin (and none of the legacy `horizonEnabled` / `fireOsEnabled`
 flags) and that `android/app/build.gradle` has no fixed
 `missingDimensionStrategy`; the Gradle build then resolves the store from the
