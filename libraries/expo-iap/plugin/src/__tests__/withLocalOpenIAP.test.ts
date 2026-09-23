@@ -3,6 +3,10 @@ import {
   ensureLocalOpenIapFlavorStrategy,
   LOCAL_STRATEGY_LINE_GROOVY,
   LOCAL_STRATEGY_LINE_KOTLIN,
+  removeLocalOpenIapAppWiring,
+  removeLocalOpenIapFlavorStrategy,
+  removeLocalOpenIapSettings,
+  setLocalOpenIapPodPath,
   storeScriptPathFrom,
 } from '../withLocalOpenIAP';
 
@@ -90,6 +94,68 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(kotlin.apply).toBe('apply(from = "../x/openiap-store.gradle")');
     expect(kotlin.strategy).toContain('openIapResolveStore');
     expect(kotlin.strategy).not.toContain('rootProject');
+  });
+
+  it('removes the Kotlin DSL wiring a local build wrote', () => {
+    const {apply, strategy} = appStoreLines(
+      '../x/openiap-store.gradle',
+      'kotlin',
+    );
+    const app = [
+      'plugins {',
+      '    id("com.android.application")',
+      '}',
+      '',
+      'android {',
+      '    defaultConfig {',
+      '    }',
+      '}',
+      '',
+      'dependencies {',
+      '}',
+      '',
+    ].join('\n');
+    const localApp = app
+      .replace('android {', `${apply}\n\nandroid {`)
+      .replace('defaultConfig {', `defaultConfig {\n${strategy}`)
+      .replace(
+        'dependencies {',
+        'dependencies {\n    implementation(project(":openiap-google"))',
+      );
+    expect(removeLocalOpenIapAppWiring(localApp)).toBe(app);
+
+    const settings = 'rootProject.name = "app"\ninclude(":app")\n';
+    const localSettings = `${settings}\ninclude(":openiap-google")\nproject(":openiap-google").projectDir = File(settingsDir, "../x")\n`;
+    expect(removeLocalOpenIapSettings(localSettings)).toBe(settings);
+
+    expect(
+      removeLocalOpenIapFlavorStrategy(
+        ensureLocalOpenIapFlavorStrategy(
+          baseProjectBuildGradle,
+          scriptPath,
+          'kotlin',
+        ),
+      ),
+    ).toBe(baseProjectBuildGradle);
+  });
+
+  it('keeps build lines the local build did not write', () => {
+    const app =
+      'android {\n    defaultConfig {\n        missingDimensionStrategy "env", "prod"\n    }\n}\ndependencies {\n    implementation project(":feature")\n}\n';
+    expect(removeLocalOpenIapAppWiring(app)).toBe(app);
+    const settings = "include ':app'\ninclude ':feature'\n";
+    expect(removeLocalOpenIapSettings(settings)).toBe(settings);
+  });
+
+  it('moves the local pod when localPath moves', () => {
+    const podfile =
+      "target 'App' do\n  use_expo_modules!\n\n  pod 'openiap', :path => '../../old/apple'\nend\n";
+    expect(setLocalOpenIapPodPath(podfile, '../../new/apple')).toBe(
+      podfile.replace('../../old/apple', '../../new/apple'),
+    );
+    // A versioned pod is the app's own choice.
+    const versioned = "  pod 'openiap', '~> 1.3'\n";
+    expect(setLocalOpenIapPodPath(versioned, '../x')).toBe(versioned);
   });
 
   it('points at the resolver that ships beside this plugin', () => {

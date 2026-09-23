@@ -1,5 +1,5 @@
 import type {ExpoConfig} from '@expo/config-types';
-import {WarningAggregator} from 'expo/config-plugins';
+import {compileModsAsync, WarningAggregator} from 'expo/config-plugins';
 import plugin, {
   applyOnsideInfoPlist,
   computeAutolinkModules,
@@ -194,6 +194,122 @@ describe('android configuration', () => {
         modules: {horizon: true, amazon: {fireOS: true}},
       }),
     ).toThrow(/both enabled/u);
+  });
+
+  it('keeps the published iOS setup when enableLocalDev has no localPath', () => {
+    const result = plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      enableLocalDev: true,
+    }) as ExpoConfig & {mods?: {ios?: Record<string, unknown>}};
+    expect(result.mods?.ios?.podfile).toBeDefined();
+  });
+
+  it('moves the local pod when localPath moves', async () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-pod-'));
+    const podfile = path.join(projectRoot, 'ios', 'Podfile');
+    try {
+      fs.mkdirSync(path.dirname(podfile), {recursive: true});
+      fs.writeFileSync(
+        podfile,
+        "target 'app' do\n  use_expo_modules!\n\n  pod 'openiap', :path => '../gone/apple'\nend\n",
+      );
+      const apple = path.resolve(__dirname, '../../../../packages/apple');
+      await compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+          enableLocalDev: true,
+          localPath: {ios: apple},
+        }) as ExpoConfig,
+        {projectRoot, platforms: ['ios']},
+      );
+      expect(fs.readFileSync(podfile, 'utf8')).toContain(
+        `pod 'openiap', :path => '${path.relative(
+          path.dirname(podfile),
+          apple,
+        )}'`,
+      );
+    } finally {
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
+  });
+
+  it("drops an earlier local build's Android wiring on a published prebuild", async () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'expo-iap-local-'),
+    );
+    const android = path.join(projectRoot, 'android');
+    const files: Record<string, string> = {
+      'settings.gradle': "rootProject.name = 'app'\ninclude ':app'\n",
+      'build.gradle': 'buildscript {\n  repositories {\n    google()\n  }\n}\n',
+      'app/build.gradle':
+        'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}\n',
+      'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
+      'app/src/main/AndroidManifest.xml':
+        '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
+    };
+    const buildFiles = ['settings.gradle', 'build.gradle', 'app/build.gradle'];
+    const read = () =>
+      Object.fromEntries(
+        buildFiles.map((file) => [
+          file,
+          fs.readFileSync(path.join(android, file), 'utf8'),
+        ]),
+      );
+    const prebuild = (options: ExpoIapPluginOptions) =>
+      compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, options) as ExpoConfig,
+        {projectRoot, platforms: ['android']},
+      );
+    const local: ExpoIapPluginOptions = {
+      enableLocalDev: true,
+      localPath: {
+        android: path.resolve(__dirname, '../../../../packages/google'),
+      },
+    };
+    try {
+      for (const [file, contents] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(android, file)), {recursive: true});
+        fs.writeFileSync(path.join(android, file), contents);
+      }
+
+      await prebuild(local);
+      const linked = read();
+      expect(linked['settings.gradle']).toContain("include ':openiap-google'");
+      expect(linked['app/build.gradle']).toContain(
+        "implementation project(':openiap-google')",
+      );
+      expect(linked['build.gradle']).toContain('openIapResolveStore');
+
+      // expo-iap links an included :openiap-google in place of Maven.
+      await prebuild({});
+      const published = read();
+      expect(published['settings.gradle']).not.toMatch(
+        /include ':openiap-google'|projectDir/,
+      );
+      expect(published['app/build.gradle']).not.toMatch(
+        /openiap-google|openiap-store|openIapResolveStore/,
+      );
+      expect(published['build.gradle']).toBe(files['build.gradle']);
+      expect(published['app/build.gradle']).toBe(files['app/build.gradle']);
+
+      await prebuild(local);
+      await prebuild({});
+      expect(read()).toEqual(published);
+
+      // A local build that links only the iOS package uses the published Android one.
+      await prebuild(local);
+      await prebuild({
+        enableLocalDev: true,
+        localPath: {ios: path.resolve(__dirname, '../../../../packages/apple')},
+      });
+      expect(read()).toEqual(published);
+    } finally {
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
   });
 
   it('writes the pin gradle.properties carries, and clears a stale one', () => {

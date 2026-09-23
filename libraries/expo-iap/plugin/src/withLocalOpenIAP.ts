@@ -148,6 +148,57 @@ export const appStoreLines = (
           '        missingDimensionStrategy "platform", openIapResolveStore("app").store',
       };
 
+// Each removal also takes the blank line the local build wrote beside the line,
+// so switching between local and published builds leaves the file as it was.
+export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
+  contents.replace(
+    new RegExp(
+      `(?:^[ \\t]*\\n)?${escapeRegExp(
+        LOCAL_OPENIAP_FLAVOR_BLOCK_START,
+      )}[\\s\\S]*?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_END)}\\n?`,
+      'gm',
+    ),
+    '',
+  );
+
+// The expo-iap module links an included :openiap-google in place of Maven, so a
+// build that is not local must not keep an earlier local build's wiring.
+export const removeLocalOpenIapSettings = (contents: string): string =>
+  contents
+    .replace(
+      /(?:^[ \t]*\n)?^[ \t]*include\s*\(?\s*["']:openiap-google["']\s*\)?[ \t]*\n?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*project\(["']:openiap-google["']\)\.projectDir\s*=.*\n?/gm,
+      '',
+    );
+
+export const removeLocalOpenIapAppWiring = (contents: string): string =>
+  contents
+    .replace(
+      /^[ \t]*implementation\s*\(?\s*project\(\s*["']:openiap-google["']\s*\)\s*\)?[ \t]*\n?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*apply\s*(?:from:|\(from = )\s*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?(?:^[ \t]*\n)?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*openIapResolveStore[^\n]*\n?/gm,
+      '',
+    );
+
+// A localPath that moved must move the pod with it.
+export const setLocalOpenIapPodPath = (
+  podfile: string,
+  relativePath: string,
+): string =>
+  podfile.replace(
+    /(pod\s+'openiap'\s*,\s*:path\s*=>\s*)(['"])[^'"\n]*\2/g,
+    (_, prefix: string) => `${prefix}'${relativePath}'`,
+  );
+
 // Every Android library module in a local build links the flavor the resolver
 // picks when Gradle runs, so the app and expo-iap always agree on one store.
 export const ensureLocalOpenIapFlavorStrategy = (
@@ -155,16 +206,7 @@ export const ensureLocalOpenIapFlavorStrategy = (
   storeScriptPath: string,
   language: GradleLanguage = 'groovy',
 ): string => {
-  const existingBlockPattern = new RegExp(
-    `\\n?${escapeRegExp(
-      LOCAL_OPENIAP_FLAVOR_BLOCK_START,
-    )}[\\s\\S]*?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_END)}\\n?`,
-    'gm',
-  );
-  const cleaned = contents
-    .replace(existingBlockPattern, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd();
+  const cleaned = removeLocalOpenIapFlavorStrategy(contents).trimEnd();
 
   const strategyBlock =
     language === 'kotlin'
@@ -289,8 +331,21 @@ const withLocalOpenIAP: ConfigPlugin<
         }
       }
 
+      const relativePath = path
+        .relative(platformProjectRoot, iosPath)
+        .replace(/\\/g, '/');
+
       // Check if local OpenIAP pod is already configured
       if (podfileContent.includes("pod 'openiap',")) {
+        const updatedContent = setLocalOpenIapPodPath(
+          podfileContent,
+          relativePath,
+        );
+        if (updatedContent !== podfileContent) {
+          podfileContent = updatedContent;
+          podfileChanged = true;
+          logOnce(`✅ Moved the local OpenIAP pod to: ${iosPath}`);
+        }
         if (podfileChanged) {
           fs.writeFileSync(podfilePath, podfileContent);
         }
@@ -300,9 +355,6 @@ const withLocalOpenIAP: ConfigPlugin<
 
       const targetRegex =
         /target\s+['"][\w]+['"]\s+do\s*\n\s*use_expo_modules!/;
-      const relativePath = path
-        .relative(platformProjectRoot, iosPath)
-        .replace(/\\/g, '/');
 
       if (targetRegex.test(podfileContent)) {
         podfileContent = podfileContent.replace(targetRegex, (match) => {
@@ -344,6 +396,9 @@ const withLocalOpenIAP: ConfigPlugin<
           `⚠️  Could not resolve Android OpenIAP module at: ${androidInput}. Skipping local Android linkage.`,
         );
       }
+      config.modResults.contents = removeLocalOpenIapSettings(
+        config.modResults.contents,
+      );
       return config;
     }
     const pluginVersions =
@@ -463,6 +518,9 @@ const withLocalOpenIAP: ConfigPlugin<
       null;
 
     if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+      config.modResults.contents = removeLocalOpenIapAppWiring(
+        config.modResults.contents,
+      );
       return config;
     }
 
@@ -498,9 +556,8 @@ const withLocalOpenIAP: ConfigPlugin<
     );
     const strategyPattern =
       /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*\n?/gm;
-    contents = contents.replace(strategyPattern, '');
-    contents = contents.replace(
-      /^[ \t]*apply\s*(?:from:|\(from = )\s*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?/gm,
+    contents = removeLocalOpenIapAppWiring(contents).replace(
+      strategyPattern,
       '',
     );
 
@@ -552,6 +609,9 @@ const withLocalOpenIAP: ConfigPlugin<
       null;
 
     if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+      config.modResults.contents = removeLocalOpenIapFlavorStrategy(
+        config.modResults.contents,
+      );
       return config;
     }
 
@@ -608,6 +668,27 @@ const withLocalOpenIAP: ConfigPlugin<
   ]);
 
   return config;
+};
+
+export const withoutLocalOpenIAPAndroid: ConfigPlugin = (config) => {
+  config = withSettingsGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapSettings(
+      config.modResults.contents,
+    );
+    return config;
+  });
+  config = withAppBuildGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapAppWiring(
+      config.modResults.contents,
+    );
+    return config;
+  });
+  return withProjectBuildGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapFlavorStrategy(
+      config.modResults.contents,
+    );
+    return config;
+  });
 };
 
 export default withLocalOpenIAP;

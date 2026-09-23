@@ -13,7 +13,7 @@ import {
 import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
-import withLocalOpenIAP from './withLocalOpenIAP';
+import withLocalOpenIAP, {withoutLocalOpenIAPAndroid} from './withLocalOpenIAP';
 import withVega, {type VegaProjectOptions} from './withVega';
 import {
   withIosAlternativeBilling,
@@ -275,8 +275,13 @@ const withAmazonAppstoreKey: ConfigPlugin<string> = (config, keyPath) =>
         'assets',
         AMAZON_APPSTORE_KEY_FILE,
       );
-      fs.mkdirSync(path.dirname(target), {recursive: true});
-      fs.copyFileSync(source, target);
+      if (!syncAmazonAppstoreKey(source, target)) {
+        WarningAggregator.addWarningAndroid(
+          'expo-iap',
+          `Amazon Appstore key not found at ${source}; Fire OS builds cannot verify receipts without it.`,
+        );
+        return config;
+      }
       logOnce(
         `✅ expo-iap: Copied ${AMAZON_APPSTORE_KEY_FILE} into android/app/src/main/assets`,
       );
@@ -892,45 +897,47 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     });
 
     // iOS: choose one path to avoid overlap
-    if (isLocalDev) {
-      if (!options?.localPath) {
-        WarningAggregator.addWarningIOS(
-          'expo-iap',
-          'enableLocalDev is true but no localPath provided. Skipping local OpenIAP integration.',
-        );
-      } else {
-        const raw = options.localPath;
-        const resolved =
-          typeof raw === 'string'
-            ? path.resolve(raw)
-            : {
-                ios: raw.ios ? path.resolve(raw.ios) : undefined,
-                android: raw.android ? path.resolve(raw.android) : undefined,
-              };
+    const localPath = isLocalDev ? options?.localPath : undefined;
+    if (isLocalDev && !localPath) {
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        'enableLocalDev is true but no localPath provided. Using the published OpenIAP instead.',
+      );
+    }
+    if (localPath) {
+      const resolved =
+        typeof localPath === 'string'
+          ? path.resolve(localPath)
+          : {
+              ios: localPath.ios ? path.resolve(localPath.ios) : undefined,
+              android: localPath.android
+                ? path.resolve(localPath.android)
+                : undefined,
+            };
 
-        const preview =
-          typeof resolved === 'string'
-            ? resolved
-            : `ios=${resolved.ios ?? 'auto'}, android=${
-                resolved.android ?? 'auto'
-              }`;
-        logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
-        if (includeOnside) {
-          result = withOnsideInfoPlist(result);
-        }
-        result = withLocalOpenIAP(result, {
-          localPath: resolved,
-          iosAlternativeBilling,
-          pinnedStore,
-          enableOnside: includeOnside,
-        });
+      const preview =
+        typeof resolved === 'string'
+          ? resolved
+          : `ios=${resolved.ios ?? 'auto'}, android=${
+              resolved.android ?? 'auto'
+            }`;
+      logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
+      if (includeOnside) {
+        result = withOnsideInfoPlist(result);
       }
+      result = withLocalOpenIAP(result, {
+        localPath: resolved,
+        iosAlternativeBilling,
+        pinnedStore,
+        enableOnside: includeOnside,
+      });
     } else {
       // Ensure iOS Podfile is set up to resolve public CocoaPods specs
       result = withIapIOS(result, {
         enableOnside: includeOnside,
         iosAlternativeBilling,
       });
+      result = withoutLocalOpenIAPAndroid(result);
       if (includeExpoIap) {
         logOnce('📦 [expo-iap] Using OpenIAP from CocoaPods');
       }
