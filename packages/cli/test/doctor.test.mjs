@@ -377,6 +377,98 @@ test("the legacy opt-out key is read, and only accepts none", () => {
   );
 });
 
+// Each row was run through the resolver fixture too: a build Gradle refuses gets
+// the error alone, never a store it would supposedly link, and a pin is named by
+// the key that set it, legacy keys included.
+test("gradle.properties is judged the way Gradle judges it", () => {
+  const FLUTTER = {
+    "pubspec.yaml":
+      "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+  };
+  for (const [framework, properties, expected, message] of [
+    [
+      RN,
+      "horizonEnabled=true\n",
+      ["android-store-not-play"],
+      /pinned to the horizon store \(horizonEnabled=true\)/u,
+    ],
+    [
+      RN,
+      "openiapStore=auto\nfireOsEnabled=y\n",
+      ["android-store-not-play"],
+      /pinned to the amazon store \(fireOsEnabled=y\)/u,
+    ],
+    [
+      RN,
+      "horizonEnabled=true\nfireOsEnabled=true\n",
+      ["android-store-flavor-conflict"],
+      /both true/u,
+    ],
+    [
+      RN,
+      "openiapPlatform=horizon\n",
+      ["android-store-unknown"],
+      /only supports the opt-out value none/u,
+    ],
+    [
+      RN,
+      "openiapStore=none\n",
+      ["android-store-unknown"],
+      /openiapStore=none is not supported/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=auto\nopeniapPlatform=none\n",
+      ["android-store-not-play"],
+      /links no store SDK \(openiapPlatform=none\)/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=bogus\nopeniapPlatform=none\n",
+      ["android-store-unknown"],
+      /openiapStore=bogus is not a store/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=none\nhorizonEnabled=true\n",
+      ["android-store-flavor-conflict"],
+      /openiapStore=none disagrees with horizonEnabled=true/u,
+    ],
+  ]) {
+    withProject(
+      { ...framework, "android/gradle.properties": properties },
+      (root) => {
+        const found = doctor(root).findings.filter((one) =>
+          one.id.startsWith("android-store"),
+        );
+        assert.deepEqual(
+          found.map((one) => one.id),
+          expected,
+          JSON.stringify(properties),
+        );
+        assert.match(found[0].message, message, JSON.stringify(properties));
+      },
+    );
+  }
+});
+
+test("an opt-out names the key that set it in the fix too", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapStore=auto\nopeniapPlatform=none\n",
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.match(notPlay.fix, /Remove openiapPlatform=none/u);
+      assert.equal(notPlay.line, 2);
+    },
+  );
+});
+
 test("the combinations Gradle refuses are errors, not a clean bill", () => {
   // Each of these fails the Android build outright, so reporting it clean sends
   // someone to the build to discover it.
