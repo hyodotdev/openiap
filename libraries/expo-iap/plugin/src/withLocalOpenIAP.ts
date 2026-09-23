@@ -166,22 +166,22 @@ export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
 export const removeLocalOpenIapSettings = (contents: string): string =>
   contents
     .replace(
-      /(?:^[ \t]*\n)?^[ \t]*include\s*\(?\s*["']:openiap-google["']\s*\)?[ \t]*\n?/gm,
+      /(?:^[ \t]*\n)?^[ \t]*include[ \t]*\(?[ \t]*["']:openiap-google["'][ \t]*\)?[ \t]*\n?/gm,
       '',
     )
     .replace(
-      /^[ \t]*project\(["']:openiap-google["']\)\.projectDir\s*=.*\n?/gm,
+      /^[ \t]*project\(["']:openiap-google["']\)\.projectDir[ \t]*=.*\n?/gm,
       '',
     );
 
 export const removeLocalOpenIapAppWiring = (contents: string): string =>
   contents
     .replace(
-      /^[ \t]*implementation\s*\(?\s*project\(\s*["']:openiap-google["']\s*\)\s*\)?[ \t]*\n?/gm,
+      /^[ \t]*implementation[ \t]*\(?[ \t]*project\([ \t]*["']:openiap-google["'][ \t]*\)[ \t]*\)?[ \t]*\n?/gm,
       '',
     )
     .replace(
-      /^[ \t]*apply\s*(?:from:|\(from = )\s*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?(?:^[ \t]*\n)?/gm,
+      /^[ \t]*apply[ \t]*(?:from:|\(from = )[ \t]*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?(?:^[ \t]*\n)?/gm,
       '',
     )
     .replace(

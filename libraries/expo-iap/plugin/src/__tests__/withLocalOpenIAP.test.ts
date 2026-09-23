@@ -112,6 +112,7 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
       '}',
       '',
       'dependencies {',
+      '    implementation("com.facebook.react:react-android")',
       '}',
       '',
     ].join('\n');

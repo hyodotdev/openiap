@@ -246,7 +246,7 @@ describe('android configuration', () => {
       'settings.gradle': "rootProject.name = 'app'\ninclude ':app'\n",
       'build.gradle': 'buildscript {\n  repositories {\n    google()\n  }\n}\n',
       'app/build.gradle':
-        'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n}\n',
+        'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n    // React Native sets this version\n    implementation("com.facebook.react:react-android")\n}\n',
       'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
       'app/src/main/AndroidManifest.xml':
         '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
