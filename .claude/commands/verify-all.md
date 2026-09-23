@@ -151,25 +151,18 @@ bun run audit:commerce-evidence || echo "commerce evidence differs from current 
 (
   cd libraries/maui-iap
   DOTNET_BUILD_ARGS=(/m:1 /nr:false -p:UseSharedCompilation=false --nologo)
-  for store in play amazon horizon; do
-    dotnet build-server shutdown || true
-    rm -rf \
-      src/OpenIap.Maui.Bindings.Android/bin \
-      src/OpenIap.Maui.Bindings.Android/obj
-    (cd android && ../../../packages/google/gradlew \
-      :openiap:assembleRelease -PopenIapAndroidStore="$store")
-    dotnet build \
-      src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-      -p:TargetFrameworks=net10.0-android \
-      -p:OpenIapAndroidStore="$store" \
-      "${DOTNET_BUILD_ARGS[@]}"
-    dotnet build \
-      src/OpenIap.Maui/OpenIap.Maui.csproj \
-      -p:TargetFrameworks=net10.0-android \
-      -p:OpenIapAndroidStore="$store" \
-      -p:BuildProjectReferences=false \
-      "${DOTNET_BUILD_ARGS[@]}"
-  done
+  (cd android && ../../../packages/google/gradlew :openiap:assembleRelease)
+  dotnet build \
+    src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
+    -p:TargetFrameworks=net10.0-android \
+    "${DOTNET_BUILD_ARGS[@]}"
+  dotnet build \
+    src/OpenIap.Maui/OpenIap.Maui.csproj \
+    -p:TargetFrameworks=net10.0-android \
+    -p:BuildProjectReferences=false \
+    "${DOTNET_BUILD_ARGS[@]}"
+  # The app build picks the store; this checks every rule against a fake adb.
+  bash scripts/verify-store-selection.sh
 )
 
 # MAUI iOS/macCatalyst binding and platform library (requires xcodegen + MAUI workload)

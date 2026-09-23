@@ -184,9 +184,9 @@ function AmazonStoreSetup() {
             <tr>
               <td>Expo</td>
               <td>
-                Resolved at build time; <code>modules.amazon.fireOS</code> only
-                pins it. <code>android.amazon.appstoreKey</code> supplies the
-                public key.
+                Resolved at build time; an EAS profile pins a release with{' '}
+                <code>ORG_GRADLE_PROJECT_openiapStore=amazon</code>.{' '}
+                <code>android.amazon.appstoreKey</code> supplies the public key.
               </td>
               <td>
                 <code>modules.amazon.vegaOS</code>, with optional{' '}
@@ -220,8 +220,8 @@ function AmazonStoreSetup() {
             <tr>
               <td>MAUI</td>
               <td>
-                Build Android with <code>OpenIapStore=amazon</code> (
-                <code>OpenIapAndroidStore</code> still works).
+                A connected Fire device on a Debug build;{' '}
+                <code>OpenIapStore=amazon</code> pins it.
               </td>
               <td>No Vega runtime target.</td>
             </tr>
@@ -278,11 +278,17 @@ dependencies {
         <p>
           Expo apps keep the Amazon public key in the config plugin; the plugin
           copies it into <code>android/app/src/main/assets</code> on every
-          prebuild and the Gradle build picks the store. Add{' '}
-          <code>modules.amazon.fireOS: true</code> only to pin every build of
-          that prebuild to Amazon, which also drops the Play billing permission
-          from the manifest.
+          prebuild and the Gradle build picks the store. An EAS build has no
+          Fire device to follow and a release build never looks, so pin every
+          EAS profile that must target Fire OS in its <code>env</code>.
         </p>
+        <CodeBlock language="json">{`{
+  "build": {
+    "fire": {
+      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon" }
+    }
+  }
+}`}</CodeBlock>
         <CodeBlock language="typescript">{`plugins: [
   [
     'expo-iap',
@@ -339,10 +345,12 @@ android {
         </AnchorLink>
         <p>
           KMP apps apply the same plugin in <code>settings.gradle.kts</code>,
-          which links kmp-iap&apos;s Amazon build. MAUI selects the Amazon AAR
-          flavor by MSBuild property.
+          which links kmp-iap&apos;s Amazon build. A MAUI Debug build follows a
+          connected Fire device; pin a release with the MSBuild property. Every
+          MAUI build also carries the libraries the other stores need (
+          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>).
         </p>
-        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapStore=amazon`}</CodeBlock>
+        <CodeBlock language="bash">{`dotnet publish -f net10.0-android -c Release -p:OpenIapStore=amazon`}</CodeBlock>
 
         <Callout
           kind="warning"
@@ -401,9 +409,9 @@ android {
           Expo
         </AnchorLink>
         <p>
-          Expo can prepare the Vega target from config. <code>fireOS</code> and{' '}
-          <code>vegaOS</code> can both be enabled, but they still produce
-          separate artifacts; keep both flags in <code>modules.amazon</code>.
+          Expo prepares the Vega target from <code>modules.amazon.vegaOS</code>.
+          The Fire OS build is a separate artifact that the Android build picks
+          like any other store.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
@@ -411,7 +419,6 @@ android {
     {
       modules: {
         amazon: {
-          fireOS: true,
           vegaOS: true,
         },
       },

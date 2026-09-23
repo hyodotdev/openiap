@@ -345,19 +345,19 @@ drift. The OpenIAP Gradle plugin (`packages/google/gradle-plugin`, id
 `io.github.hyochan.openiap`) packs the SSOT file into its jar at build time
 instead of keeping a copy. Every other build system reads the same names:
 
-| Consumer                            | Input                                                                                         |
-| ----------------------------------- | --------------------------------------------------------------------------------------------- |
-| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                           |
-| expo-iap config plugin              | `modules.horizon` / `modules.amazon.fireOS` write an `openiapStore` pin; no pin means auto    |
-| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one             |
-| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store |
-| maui-iap                            | MSBuild `OpenIapStore` (alias `OpenIapAndroidStore`); `auto` means play, nothing to probe     |
-| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play |
-| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table              |
+| Consumer                            | Input                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
+| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` still pin, with a warning    |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
+| maui-iap                            | package targets at app build: `OpenIapStore` (alias `OpenIapAndroidStore`), Debug-build device, play |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
 
 `bun audit:parity` compares all six alias tables — the resolver, the doctor, the
 Godot helper, the MAUI Gradle module, the runtime facade in `OpenIapStore.kt`
-and both MAUI csproj files — because a store that resolves differently in two
+and the MAUI package targets — because a store that resolves differently in two
 layers of one build is exactly what this mechanism exists to prevent.
 
 **Regression suite.** Every rule above is asserted by

@@ -26,10 +26,11 @@ For manual `.csproj` edits, copy the current PackageReference from the
 [OpenIap.Maui NuGet package page](https://www.nuget.org/packages/OpenIap.Maui).
 
 `OpenIap.Maui` is the only NuGet package apps reference. The Android and iOS
-binding outputs are flattened into the main NuGet package, while Google
-Billing, Play Services, Gson, AndroidX, and Kotlin Android libraries remain
-normal NuGet dependencies so apps can deduplicate them with their own package
-graph.
+binding outputs are flattened into the main NuGet package, while Play Services,
+Gson, AndroidX, and Kotlin Android libraries remain normal NuGet dependencies so
+apps can deduplicate them with their own package graph. The store SDK itself
+(Google Play Billing, the Horizon billing library, or the Amazon Appstore SDK)
+is linked when the app builds; see [Android store](#android-store).
 
 Stable NuGet releases rebuild the embedded Apple XCFramework with the current
 App Store-accepted toolchain (Xcode 26.6 / SDK 26.5) and verify every packaged
@@ -147,8 +148,8 @@ verification, scoped entitlement reads, and bounded lifecycle refreshes.
 ```bash
 cd /path/to/openiap
 
-# Android source runs need the native Google AAR plus the MAUI-owned module AAR.
-(cd packages/google && ./gradlew :openiap:assemblePlayRelease)
+# Android source runs need every store's Google AAR plus the MAUI-owned module AAR.
+(cd packages/google && ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)
 (cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)
 
 cd libraries/maui-iap/example/OpenIap.Maui.Example
@@ -160,29 +161,30 @@ dotnet build -t:Run -f net10.0-maccatalyst
 ```
 
 VS Code launch configurations are in `libraries/maui-iap/.vscode/launch.json`.
-The Android launcher builds both AARs before compiling the example app.
+The Android launcher builds the AARs and passes its device to the build.
 
-### Android store variants
+### Android store
 
-Source builds can select Amazon Appstore or Meta Horizon instead of Google
-Play. Build the matching native facade immediately before the .NET build:
+A Debug build links the store of the device it deploys to — the IDE's target
+(`AdbTarget`), else the one `ANDROID_SERIAL` names, else the only one attached:
+a Quest gets Meta Horizon, a Fire device the Amazon Appstore, anything else
+Google Play. Only the `Debug` configuration looks at a device, so pin every
+build that ships to another store:
 
 ```bash
-cd libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease -PopeniapStore=amazon
-cd ..
-dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net10.0-android \
-  -p:OpenIapStore=amazon
+dotnet publish -f net10.0-android -c Release -p:OpenIapStore=horizon
 ```
 
-Use `horizon` for Meta Horizon and `play` for Google Play; the aliases
-`google`/`gplay`/`googleplay`/`google-play`/`gms`, `meta`/`quest`, and
-`fire`/`fireos`/`fire-os` work too, and a value that names
-no store fails the build rather than falling back to Play. The older
-`openIapAndroidStore` / `OpenIapAndroidStore` spellings still work. MAUI keeps
-each store's intermediate and output directories separate, preventing a prior
-store build from leaking its AAR or manifest into the next variant.
+The aliases `google`/`gplay`/`googleplay`/`google-play`/`gms`, `meta`/`quest`,
+and `fire`/`fireos`/`fire-os` work too, `OpenIapAndroidStore` still works, and a
+value that names no store fails the build.
+
+MAUI only: NuGet fixes dependencies before the build knows the store, so every
+build also carries Play Services and DataTransport (about 3.1 MB, with their
+manifest entries) and kotlinx-serialization-json (up to 0.9 MB); the store SDK
+itself is linked for the chosen store only. The
+[MAUI setup guide](https://openiap.dev/docs/setup/maui#android-store) lists the
+manifest entries.
 
 ## What's generated vs. hand-written
 

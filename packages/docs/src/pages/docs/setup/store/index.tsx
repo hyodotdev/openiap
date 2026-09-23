@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -41,8 +42,8 @@ function StoreSetup() {
           wins, and so does the OpenIAP Gradle plugin in native Android and KMP
           apps. A Godot export applies it with the{' '}
           <code>openiap/android_store</code> export option as the explicit step
-          and no Variant step. MAUI shares the vocabulary but takes an explicit
-          selection only:
+          and no Variant step, and a MAUI build the same way with the{' '}
+          <code>OpenIapStore</code> MSBuild property:
         </p>
         <ol>
           <li>
@@ -75,11 +76,11 @@ function StoreSetup() {
             one pin — per invocation.
           </li>
           <li>
-            <strong>Device</strong> — debug builds and Godot debug exports only:
-            the adb device <code>ANDROID_SERIAL</code> names, or the single
-            attached one, is a Quest or a Fire device. Release builds never look
-            at a device, and several attached devices select nothing unless{' '}
-            <code>ANDROID_SERIAL</code> picks one.
+            <strong>Device</strong> — debug builds only (a Godot debug export, a
+            MAUI Debug build): the adb device <code>ANDROID_SERIAL</code> names,
+            or the single attached one, is a Quest or a Fire device. Release
+            builds never look at a device, and several attached devices select
+            nothing unless <code>ANDROID_SERIAL</code> picks one.
           </li>
           <li>
             <strong>Play</strong> otherwise.
@@ -97,9 +98,19 @@ function StoreSetup() {
           <code>google</code>/<code>gplay</code>/<code>googleplay</code>/
           <code>google-play</code>/<code>gms</code>, <code>meta</code>/
           <code>quest</code>, and <code>fire</code>/<code>fireos</code>/
-          <code>fire-os</code> normalize to the three store ids. MAUI passes{' '}
-          <code>-p:OpenIapStore=horizon</code>.
+          <code>fire-os</code> normalize to the three store ids.
         </p>
+        <Callout
+          kind="warning"
+          title="MAUI only: shared store libraries in every build"
+        >
+          Every framework links one store&apos;s SDK per build. A MAUI build
+          additionally carries the NuGet libraries any store needs, because
+          NuGet fixes a package&apos;s dependencies before the build knows the
+          store: Play Services and DataTransport (about 3.1 MB, with their
+          manifest entries) and kotlinx-serialization-json (up to 0.9 MB). See{' '}
+          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>.
+        </Callout>
         <p>
           Native Android and KMP apps get the rule from the OpenIAP Gradle
           plugin, applied once in <code>settings.gradle.kts</code> with{' '}

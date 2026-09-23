@@ -40,7 +40,8 @@ cd libraries/maui-iap/example/OpenIap.Maui.Example
 # iOS Simulator
 dotnet build -t:Run -f net10.0-ios
 
-# Android (real device or emulator)
+# Android (real device or emulator). Build the Google AARs first: see
+# "Example app" in ../README.md. A Debug build links the device's store.
 adb uninstall dev.hyo.martie || true
 dotnet build -t:Run -f net10.0-android
 

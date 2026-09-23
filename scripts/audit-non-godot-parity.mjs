@@ -1542,10 +1542,9 @@ function checkE2eExampleIds() {
     'adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie',
     'adb -s "$ANDROID_SERIAL" install --no-incremental -r',
     'adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1',
-    'adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie',
-    'adb -s "$FIREOS_SERIAL" install --no-incremental -r',
-    "bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
-    'adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1',
+    "bin/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
+    "Run it once per store device",
+    "scripts/verify-store-selection.sh",
     "-p:RuntimeIdentifier=ios-arm64",
     "bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app",
     "xcrun devicectl device process launch",
@@ -7400,8 +7399,8 @@ function checkFrameworkDependencyHygiene() {
           if (file === godotFile && store === "none") continue;
           if (file === facadeFile && facadeSkips.has(alias)) continue;
           const mine = table.get(alias);
-          // MAUI has no device to probe, so `auto` can only mean Play there,
-          // exactly as in the csproj conditions below.
+          // The MAUI facade module compiles against one store's API, so `auto`
+          // means Play there; the app build's targets pick the real store.
           if (file === mauiKotlinFile && store === "auto" && mine === "play") {
             continue;
           }
@@ -7430,30 +7429,30 @@ function checkFrameworkDependencyHygiene() {
       const expected = features(resolverFile);
       if (!expected) {
         fail(`${resolverFile}: the device feature checks could not be read`);
-      } else if (features(godotFile) !== expected) {
-        fail(
-          `${godotFile}: device features [${features(godotFile)}] differ from the resolver's [${expected}]`,
-        );
+      } else {
+        for (const probe of [godotFile, "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+          if (exists(probe) && features(probe) !== expected) {
+            fail(
+              `${probe}: device features [${features(probe)}] differ from the resolver's [${expected}]`,
+            );
+          }
+        }
       }
     }
     // MSBuild cannot hold a table, so check every alias appears in a condition.
-    for (const csproj of [
-      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-      "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
-    ]) {
+    // The app build resolves the store there, device step included.
+    for (const csproj of ["libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
       expectFile(csproj);
       if (!exists(csproj) || !reference) continue;
       const text = read(csproj);
       for (const [alias, store] of reference) {
         if (store === "none") continue;
-        // MSBuild has no device to probe, so `auto` can only mean Play there.
-        const expected = store === "auto" ? "play" : store;
         const condition = new RegExp(
-          `'\\$\\(OpenIapStoreKey\\)' == '${alias}'[^>]*>${expected}<`,
+          `'\\$\\(OpenIapStoreKey\\)' == '${alias}'[^>]*>${store}<`,
         );
         if (!condition.test(text.replace(/\n\s*/g, " "))) {
           fail(
-            `${csproj}: store alias ${JSON.stringify(alias)} does not select ${expected}`,
+            `${csproj}: store alias ${JSON.stringify(alias)} does not select ${store}`,
           );
         }
       }
@@ -8225,16 +8224,18 @@ function checkFrameworkDependencyHygiene() {
   );
 
   const mauiProps = read("libraries/maui-iap/src/Directory.Build.props");
-  const mauiBillingVersion = mauiProps.match(
+  // The app build reads the store SDK versions from the package itself.
+  const mauiStoreProps = read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props");
+  const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];
-  const mauiAmazonAppstoreSdkVersion = mauiProps.match(
+  const mauiAmazonAppstoreSdkVersion = mauiStoreProps.match(
     /<MauiAmazonAppstoreSdkVersion>([^<]+)<\/MauiAmazonAppstoreSdkVersion>/,
   )?.[1];
-  const mauiHorizonBillingCompatibilityVersion = mauiProps.match(
+  const mauiHorizonBillingCompatibilityVersion = mauiStoreProps.match(
     /<MauiHorizonBillingCompatibilityVersion>([^<]+)<\/MauiHorizonBillingCompatibilityVersion>/,
   )?.[1];
-  const mauiHorizonPlatformKotlinVersion = mauiProps.match(
+  const mauiHorizonPlatformKotlinVersion = mauiStoreProps.match(
     /<MauiHorizonPlatformKotlinVersion>([^<]+)<\/MauiHorizonPlatformKotlinVersion>/,
   )?.[1];
   const mauiHorizonSerializationNuGetVersion = mauiProps.match(
@@ -8243,9 +8244,13 @@ function checkFrameworkDependencyHygiene() {
   const mauiGsonVersion = mauiProps.match(
     /<MauiGsonVersion>([^<]+)<\/MauiGsonVersion>/,
   )?.[1];
-  const mauiBillingClientNuGetVersion = mauiProps.match(
-    /<MauiBillingClientNuGetVersion>([^<]+)<\/MauiBillingClientNuGetVersion>/,
-  )?.[1];
+  const mauiPlayServicesVersions = [
+    "MauiPlayServicesBaseVersion",
+    "MauiPlayServicesBasementVersion",
+    "MauiPlayServicesLocationVersion",
+    "MauiPlayServicesTasksVersion",
+    "MauiDataTransportVersion",
+  ].map((name) => [name, mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1]]);
   const mauiGoogleGsonNuGetVersion = mauiProps.match(
     /<MauiGoogleGsonNuGetVersion>([^<]+)<\/MauiGoogleGsonNuGetVersion>/,
   )?.[1];
@@ -8277,13 +8282,15 @@ function checkFrameworkDependencyHygiene() {
       "MauiHorizonBillingCompatibilityVersion",
       "MauiHorizonPlatformKotlinVersion",
       "MauiHorizonSerializationNuGetVersion",
-      "MauiBillingClientNuGetVersion",
+      "MauiPlayServicesBaseVersion",
+      "MauiDataTransportVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
       "MauiAndroidXCollectionVersion",
       "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "mauiGsonVersion",
+      "buildTransitive/OpenIap.Maui.props",
     ],
     "root version sync must update MAUI Android dependency versions from packages/google",
   );
@@ -8312,13 +8319,13 @@ function checkFrameworkDependencyHygiene() {
     "libraries/maui-iap/src/Directory.Build.props",
     [
       "Generated by scripts/sync-versions.sh",
-      "MauiPlayBillingVersion",
-      "MauiAmazonAppstoreSdkVersion",
-      "MauiHorizonBillingCompatibilityVersion",
-      "MauiHorizonPlatformKotlinVersion",
       "MauiHorizonSerializationNuGetVersion",
       "MauiGsonVersion",
-      "MauiBillingClientNuGetVersion",
+      "MauiPlayServicesBaseVersion",
+      "MauiPlayServicesBasementVersion",
+      "MauiPlayServicesLocationVersion",
+      "MauiPlayServicesTasksVersion",
+      "MauiDataTransportVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
       "MauiAndroidXCollectionVersion",
@@ -8329,20 +8336,32 @@ function checkFrameworkDependencyHygiene() {
     ],
     "MAUI Directory.Build.props must be generated by version sync",
   );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
+    [
+      "Generated by scripts/sync-versions.sh",
+      "_OpenIapMauiPropsImported",
+      "MauiPlayBillingVersion",
+      "MauiAmazonAppstoreSdkVersion",
+      "MauiHorizonBillingCompatibilityVersion",
+      "MauiHorizonPlatformKotlinVersion",
+    ],
+    "MAUI store SDK versions must be generated beside the package targets",
+  );
   if (!mauiBillingVersion) {
-    fail("MAUI Directory.Build.props must define MauiPlayBillingVersion");
+    fail("MAUI OpenIap.Maui.props must define MauiPlayBillingVersion");
   }
   if (!mauiAmazonAppstoreSdkVersion) {
-    fail("MAUI Directory.Build.props must define MauiAmazonAppstoreSdkVersion");
+    fail("MAUI OpenIap.Maui.props must define MauiAmazonAppstoreSdkVersion");
   }
   if (!mauiHorizonBillingCompatibilityVersion) {
     fail(
-      "MAUI Directory.Build.props must define MauiHorizonBillingCompatibilityVersion",
+      "MAUI OpenIap.Maui.props must define MauiHorizonBillingCompatibilityVersion",
     );
   }
   if (!mauiHorizonPlatformKotlinVersion) {
     fail(
-      "MAUI Directory.Build.props must define MauiHorizonPlatformKotlinVersion",
+      "MAUI OpenIap.Maui.props must define MauiHorizonPlatformKotlinVersion",
     );
   }
   if (!mauiHorizonSerializationNuGetVersion) {
@@ -8353,10 +8372,8 @@ function checkFrameworkDependencyHygiene() {
   if (!mauiGsonVersion) {
     fail("MAUI Directory.Build.props must define MauiGsonVersion");
   }
-  if (!mauiBillingClientNuGetVersion) {
-    fail(
-      "MAUI Directory.Build.props must define MauiBillingClientNuGetVersion",
-    );
+  for (const [name, value] of mauiPlayServicesVersions) {
+    if (!value) fail(`MAUI Directory.Build.props must define ${name}`);
   }
   if (!mauiGoogleGsonNuGetVersion) {
     fail("MAUI Directory.Build.props must define MauiGoogleGsonNuGetVersion");
@@ -8391,13 +8408,14 @@ function checkFrameworkDependencyHygiene() {
         `MAUI Android Billing Maven version ${mauiBillingVersion} must match packages/google ${googleBillingVersions[0]}`,
       );
     }
+    // Billing's POM dependencies are exempted from verification by exact
+    // version, so a Billing bump has to revisit that list.
     if (
-      mauiBillingClientNuGetVersion &&
-      mauiBillingClientNuGetVersion !== googleBillingVersions[0] &&
-      !mauiBillingClientNuGetVersion.startsWith(`${googleBillingVersions[0]}.`)
+      exists("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets") &&
+      !read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets").includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
     ) {
       fail(
-        `MAUI Android BillingClient NuGet version ${mauiBillingClientNuGetVersion} must track packages/google ${googleBillingVersions[0]}`,
+        `libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets: the Billing dependency exemptions must be revisited for billing ${googleBillingVersions[0]}`,
       );
     }
   }
@@ -8517,28 +8535,28 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
     [
-      "Xamarin.Android.Google.BillingClient",
-      'Version="$(MauiBillingClientNuGetVersion)"',
+      "openiap-release.aar",
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
-      "OpenIapAndroidStore",
-      "OpenIapGoogleAarFlavor",
-      "openiap-$(OpenIapGoogleAarFlavor)-release.aar",
-      "com.amazon.device:amazon-appstore-sdk",
-      'Version="$(MauiAmazonAppstoreSdkVersion)"',
-      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
-      'Version="$(MauiHorizonBillingCompatibilityVersion)"',
-      "com.meta.horizon.platform.sdk:core-kotlin",
-      "com.meta.horizon.platform.sdk:user-age-category-kotlin",
-      "com.meta.horizon.platform.sdk:iap-kotlin",
-      'Version="$(MauiHorizonPlatformKotlinVersion)"',
-      "Xamarin.KotlinX.Serialization.Json",
-      "Xamarin.KotlinX.Serialization.Json.Jvm",
-      'Version="$(MauiHorizonSerializationNuGetVersion)"',
     ],
     "MAUI Android binding dependency versions",
+  );
+  expectNotIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
+    [
+      "OpenIapAndroidStore",
+      "OpenIapGoogleAarFlavor",
+      "OpenIapGoogleAarPath",
+      "openiap-play-release.aar",
+      "openiap-horizon-release.aar",
+      "openiap-amazon-release.aar",
+      "Xamarin.Android.Google.BillingClient",
+      "com.amazon.device",
+      "com.meta.horizon",
+    ],
+    "MAUI Android binding must stay store-agnostic; the app build picks the store",
   );
   expectNotIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
@@ -8559,9 +8577,14 @@ function checkFrameworkDependencyHygiene() {
       "net10.0-android",
       "net10.0-ios",
       "net10.0-maccatalyst",
-      "Xamarin.Android.Google.BillingClient",
-      'Version="$(MauiBillingClientNuGetVersion)"',
-      "Condition=\"'$(OpenIapGoogleAarFlavor)' == 'play'\"",
+      "Xamarin.GooglePlayServices.Base",
+      'Version="$(MauiPlayServicesBaseVersion)"',
+      "Xamarin.GooglePlayServices.Location",
+      "Xamarin.Google.Android.DataTransport.TransportRuntime",
+      'Version="$(MauiDataTransportVersion)"',
+      "Xamarin.KotlinX.Serialization.Json",
+      "Xamarin.KotlinX.Serialization.Json.Jvm",
+      'Version="$(MauiHorizonSerializationNuGetVersion)"',
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
       "Xamarin.AndroidX.Activity",
@@ -8583,22 +8606,46 @@ function checkFrameworkDependencyHygiene() {
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
       "openiap-release.aar",
-      "OpenIapAndroidStore",
-      "OpenIapGoogleAarFlavor",
-      "openiap-$(OpenIapGoogleAarFlavor)-release.aar",
-      "com.amazon.device:amazon-appstore-sdk",
-      'Version="$(MauiAmazonAppstoreSdkVersion)"',
-      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
-      'Version="$(MauiHorizonBillingCompatibilityVersion)"',
+      "openiap-play-release.aar",
+      "openiap-horizon-release.aar",
+      "openiap-amazon-release.aar",
+      'PackagePath="android"',
+      "buildTransitive\\OpenIap.Maui.props;buildTransitive\\OpenIap.Maui.targets",
+      "_OpenIapRequireStoreAars",
+    ],
+    "MAUI Android package dependency versions",
+  );
+  expectNotIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    ["Xamarin.Android.Google.BillingClient", "OpenIapGoogleAarFlavor", "AndroidMavenLibrary"],
+    "MAUI package must not link Billing through its NuGet binding, whose Java wrappers need it in every store's build",
+  );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+    [
+      '<AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />',
+      '<AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />',
+      '<AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />',
       "com.meta.horizon.platform.sdk:core-kotlin",
       "com.meta.horizon.platform.sdk:user-age-category-kotlin",
       "com.meta.horizon.platform.sdk:iap-kotlin",
       'Version="$(MauiHorizonPlatformKotlinVersion)"',
-      "Xamarin.KotlinX.Serialization.Json",
-      "Xamarin.KotlinX.Serialization.Json.Jvm",
-      'Version="$(MauiHorizonSerializationNuGetVersion)"',
+      '<_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />',
+      "_CreatePropertiesCache",
+      "'$(Configuration)' == 'Debug'",
+      "AdbTarget",
+      "ANDROID_SERIAL",
     ],
-    "MAUI Android package dependency versions",
+    "MAUI store selection must link one store's SDKs and rebuild when the store changes",
+  );
+  // A project reference does not import buildTransitive, so the example must.
+  expectIncludes(
+    "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
+    [
+      "<OpenIapGoogleAarDirectory>",
+      '<Import Project="..\\..\\src\\OpenIap.Maui\\buildTransitive\\OpenIap.Maui.targets" />',
+    ],
+    "MAUI example must import the store selection a NuGet install gets automatically",
   );
   expectIncludes(
     "libraries/maui-iap/Directory.Build.props",
@@ -8607,16 +8654,13 @@ function checkFrameworkDependencyHygiene() {
       "obj/**;bin/**",
       "<MauiControlsVersion>10.0.90</MauiControlsVersion>",
       "<MicrosoftExtensionsLoggingDebugVersion>10.0.10</MicrosoftExtensionsLoggingDebugVersion>",
-      "BaseIntermediateOutputPath",
-      "BaseOutputPath",
-      "$(OpenIapAndroidStore)",
     ],
-    "MAUI Android store builds must use isolated MSBuild outputs",
+    "MAUI shared build properties",
   );
   expectIncludes(
     "libraries/maui-iap/src/Directory.Build.props",
     ['<Import Project="..\\Directory.Build.props" />'],
-    "generated MAUI dependency props must preserve store output isolation",
+    "generated MAUI dependency props must import the shared build properties",
   );
   expectNotIncludes(
     "packages/apple/Sources/OpenIapModule+ObjC.swift",
@@ -8683,7 +8727,8 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/src/pages/docs/setup/maui.tsx",
     [
       ".NET 10 SDK",
-      "Google Play Billing, Play Services",
+      "shared dependencies (Play Services, AndroidX, Kotlin, Gson)",
+      "MAUI only: every build carries the shared store libraries",
       "net10.0-ios;net10.0-android;net10.0-maccatalyst",
       "OpenIap.Maui 2.x",
       "supports .NET 10 only",

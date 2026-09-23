@@ -147,8 +147,8 @@ function HorizonStoreSetup() {
             <tr>
               <td>Expo</td>
               <td>
-                Resolved at build time; <code>modules.horizon</code> in the{' '}
-                <code>expo-iap</code> config plugin only pins it.
+                Resolved at build time; an EAS profile pins a release with{' '}
+                <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code>.
               </td>
               <td>
                 <code>android.horizon.appId</code>; the config plugin writes
@@ -181,8 +181,8 @@ function HorizonStoreSetup() {
             <tr>
               <td>MAUI</td>
               <td>
-                Build Android with <code>OpenIapStore=horizon</code> (
-                <code>OpenIapAndroidStore</code> still works).
+                A connected Quest on a Debug build;{' '}
+                <code>OpenIapStore=horizon</code> pins it.
               </td>
               <td>The Android manifest in the MAUI app owns the app id.</td>
             </tr>
@@ -230,12 +230,18 @@ dependencies {
         </AnchorLink>
         <p>
           Keep the app id in the config plugin; the plugin writes the manifest
-          meta-data on every prebuild and the Gradle build picks the store. Add{' '}
-          <code>modules.horizon: true</code> only to pin every build of that
-          prebuild to Horizon — an EAS profile can do the same with{' '}
-          <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in its{' '}
-          <code>env</code>.
+          meta-data on every prebuild and the Gradle build picks the store. An
+          EAS build has no Quest to follow and a release build never looks, so
+          pin every EAS profile that must target Horizon in its <code>env</code>
+          .
         </p>
+        <CodeBlock language="json">{`{
+  "build": {
+    "quest": {
+      "env": { "ORG_GRADLE_PROJECT_openiapStore": "horizon" }
+    }
+  }
+}`}</CodeBlock>
         <CodeBlock language="typescript">{`plugins: [
   [
     'expo-iap',
@@ -322,8 +328,13 @@ android {
           Android host app&apos;s manifest exactly as in the Native Android
           section above.
         </p>
-        <p>MAUI selects the Horizon AAR flavor with an MSBuild property:</p>
-        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapStore=horizon`}</CodeBlock>
+        <p>
+          A MAUI Debug build follows a connected Quest; pin a release with the
+          MSBuild property. Unlike the other frameworks, every MAUI build also
+          carries the libraries the other stores need (
+          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>).
+        </p>
+        <CodeBlock language="bash">{`dotnet publish -f net10.0-android -c Release -p:OpenIapStore=horizon`}</CodeBlock>
       </section>
 
       <section>
