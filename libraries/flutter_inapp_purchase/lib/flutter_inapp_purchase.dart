@@ -1704,9 +1704,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           }
 
           if (consumable) {
-            debugPrint(
-              '[FlutterInappPurchase] Android: Consuming product with token: ${purchase.purchaseToken}',
-            );
+            if (kDebugMode) {
+              debugPrint(
+                '[FlutterInappPurchase] Android: Consuming ${purchase.productId}',
+              );
+            }
             final result = await _channel.invokeMethod(
               'consumePurchaseAndroid',
               <String, dynamic>{'purchaseToken': purchase.purchaseToken},
@@ -1736,7 +1738,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
           if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledging purchase with token: ${purchase.purchaseToken}',
+              '[FlutterInappPurchase] Android: Acknowledging ${purchase.productId}',
             );
           }
 
@@ -1804,7 +1806,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] = true;
           } else if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.purchaseToken})',
+              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.productId})',
             );
           }
           return;
