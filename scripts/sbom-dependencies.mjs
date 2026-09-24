@@ -578,7 +578,7 @@ function extractGradle(root, { manifest, externalLocals }) {
   if (
     usesLocalOpeniapProject &&
     ![...found.values()].some(
-      (entry) => entry.name === "io.github.hyodotdev.openiap:openiap-google",
+      (entry) => entry.name === "io.github.hyochan.openiap:openiap-google",
     )
   ) {
     throw new Error(
@@ -999,10 +999,7 @@ function extractNone() {
   return [];
 }
 
-function extractOpenIapNative(
-  root,
-  { apple = false, google = [], group = "io.github.hyodotdev.openiap" },
-) {
+function extractOpenIapNative(root, { apple = false, google = [] }) {
   const versions = readJson(root, "openiap-versions.json");
   const entries = [];
   if (apple) {
@@ -1021,9 +1018,9 @@ function extractOpenIapNative(
   for (const artifact of google) {
     entries.push(
       dependencyEntry({
-        name: `${group}:${artifact}`,
+        name: `io.github.hyochan.openiap:${artifact}`,
         version: versions.google,
-        purl: `pkg:maven/${group}/${artifact}@${encodePurlVersion(versions.google)}`,
+        purl: `pkg:maven/io.github.hyochan.openiap/${artifact}@${encodePurlVersion(versions.google)}`,
         properties: [{ name: "openiap:platform", value: "android" }],
         spdxLicense: "MIT",
         supplier: "OpenIAP",

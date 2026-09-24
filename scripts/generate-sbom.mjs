@@ -65,13 +65,6 @@ const ALL_OPENIAP_NATIVE_VARIANTS = {
   google: ["openiap-google", "openiap-google-horizon", "openiap-google-amazon"],
 };
 
-// RN, Expo, and Flutter still resolve the published group until openiap-google
-// ships under the new one; their build scripts and inventories say the same.
-const ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP = {
-  ...ALL_OPENIAP_NATIVE_VARIANTS,
-  group: "io.github.hyochan.openiap",
-};
-
 const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
 const GRADLE_COORDINATE_PATTERN =
   /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
@@ -263,7 +256,7 @@ const COMPONENTS = {
       kind: "aggregate",
       sources: [
         { kind: "npm", manifest: "libraries/expo-iap/package.json" },
-        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
+        ALL_OPENIAP_NATIVE_VARIANTS,
         {
           kind: "declared",
           manifest: "libraries/expo-iap/ios/ExpoIap.podspec",
@@ -384,7 +377,7 @@ const COMPONENTS = {
             },
           ],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
+        ALL_OPENIAP_NATIVE_VARIANTS,
         {
           kind: "declared",
           manifest:
@@ -462,21 +455,21 @@ const COMPONENTS = {
     sbomName: "openiap-google",
     type: "library",
     purl: (version) =>
-      `pkg:maven/io.github.hyodotdev.openiap/openiap-google@${version}`,
+      `pkg:maven/io.github.hyochan.openiap/openiap-google@${version}`,
     distribution: (version) =>
-      `https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google/${version}`,
+      `https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${version}`,
     directory: "packages/google",
     source: {
       kind: "aggregate",
       sources: [
         {
           kind: "maven-pom",
-          coordinate: "io.github.hyodotdev.openiap:openiap-google",
+          coordinate: "io.github.hyochan.openiap:openiap-google",
           repositories: ["https://repo1.maven.org/maven2"],
         },
         {
           kind: "maven-artifact",
-          coordinate: "io.github.hyodotdev.openiap:openiap-google-horizon",
+          coordinate: "io.github.hyochan.openiap:openiap-google-horizon",
           repositories: ["https://repo1.maven.org/maven2"],
           introducedVersion: "1.3.2",
           variant: "horizon",
@@ -486,7 +479,7 @@ const COMPONENTS = {
         },
         {
           kind: "maven-artifact",
-          coordinate: "io.github.hyodotdev.openiap:openiap-google-amazon",
+          coordinate: "io.github.hyochan.openiap:openiap-google-amazon",
           repositories: ["https://repo1.maven.org/maven2"],
           introducedVersion: "2.3.0-rc.1",
           variant: "amazon",
@@ -650,7 +643,7 @@ const COMPONENTS = {
             },
           ],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
+        ALL_OPENIAP_NATIVE_VARIANTS,
         {
           kind: "declared",
           manifest: "libraries/react-native-iap/NitroIap.podspec",

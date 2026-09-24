@@ -805,7 +805,7 @@ private val storeAliases = mapOf(
  * compatibility and otherwise unused.
  */
 private fun buildModule(context: Context, store: String?, appId: String?): OpenIapProtocol {
-    val linked = io.github.hyodotdev.openiap.BuildConfig.OPENIAP_STORE.lowercase(java.util.Locale.ROOT)
+    val linked = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE.lowercase(java.util.Locale.ROOT)
     val requested = store?.trim()?.lowercase(java.util.Locale.ROOT)?.let { storeAliases[it] ?: it }
     if (requested != null && requested != linked) {
         OpenIapLog.warn(

@@ -217,12 +217,12 @@ function AndroidSetup() {
         <p>Add the OpenIAP Android dependency:</p>
         <pre className="code-block">{`// build.gradle.kts
 dependencies {
-    implementation("io.github.hyodotdev.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
+    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }
 
 // Or build.gradle (Groovy)
 dependencies {
-    implementation 'io.github.hyodotdev.openiap:openiap-google:${OPENIAP_VERSIONS.google}'
+    implementation 'io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}'
 }`}</pre>
         <p
           style={{
@@ -233,7 +233,7 @@ dependencies {
         >
           Check the latest version at{' '}
           <a
-            href="https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google"
+            href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google"
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -10,7 +10,7 @@ pluginManagement {
 }
 
 plugins {
-  id 'io.github.hyodotdev.openiap'
+  id 'io.github.hyochan.openiap'
 }
 
 dependencyResolutionManagement {

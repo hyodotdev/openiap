@@ -101,7 +101,7 @@ kotlin {
 }
 
 dependencies {
-    compileOnly("io.github.hyodotdev.openiap:$openIapGoogleArtifact:$openIapGoogleVersion")
+    compileOnly("io.github.hyochan.openiap:$openIapGoogleArtifact:$openIapGoogleVersion")
 
     implementation("androidx.core:core:$googleCoreVersion")
     implementation("com.google.code.gson:gson:$gsonVersion")

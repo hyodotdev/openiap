@@ -50,7 +50,7 @@ function Ecosystem() {
             : Android library for Google Play Billing with native Kotlin
             implementation. Also provides{' '}
             <a
-              href="https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google-horizon"
+              href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -58,7 +58,7 @@ function Ecosystem() {
             </a>{' '}
             flavor to support Meta HorizonOS and{' '}
             <a
-              href="https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google-amazon"
+              href="https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon"
               target="_blank"
               rel="noopener noreferrer"
             >

@@ -8,7 +8,7 @@
 
 <br />
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.hyodotdev.openiap/openiap-google)](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google)
 [![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=23)
 [![Google Release](https://github.com/hyodotdev/openiap/actions/workflows/release-google.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/release-google.yml)
 [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml)
@@ -42,11 +42,11 @@ Add to your module's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("io.github.hyodotdev.openiap:openiap-google:<version>")
+    implementation("io.github.hyochan.openiap:openiap-google:<version>")
 }
 ```
 
-Use the latest version from [Maven Central](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google) or the badge above.
+Use the latest version from [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) or the badge above.
 
 To ship to Meta Quest or Fire OS as well, apply the OpenIAP Gradle plugin in
 `settings.gradle.kts` and keep the dependency above. It links the Horizon or
@@ -56,7 +56,7 @@ sets `openiapStore`:
 ```kotlin
 // settings.gradle.kts
 plugins {
-    id("io.github.hyodotdev.openiap") version "<version>"
+    id("io.github.hyochan.openiap") version "<version>"
 }
 ```
 

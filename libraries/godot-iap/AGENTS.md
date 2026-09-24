@@ -161,7 +161,7 @@ To update versions:
 ```kotlin
 // build.gradle.kts - reads from openiap-versions.json
 dependencies {
-    implementation("io.github.hyodotdev.openiap:openiap-google:$openiapGoogleVersion")
+    implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
 }
 ```
 

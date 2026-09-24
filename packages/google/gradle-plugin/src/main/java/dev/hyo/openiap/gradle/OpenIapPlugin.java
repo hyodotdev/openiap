@@ -35,7 +35,7 @@ public final class OpenIapPlugin implements Plugin<Object> {
             return;
         }
         if (!(target instanceof Project)) {
-            throw new GradleException("openiap: apply io.github.hyodotdev.openiap in settings.gradle(.kts) or an Android module");
+            throw new GradleException("openiap: apply io.github.hyochan.openiap in settings.gradle(.kts) or an Android module");
         }
         Project project = (Project) target;
         AtomicBoolean wired = new AtomicBoolean();

@@ -135,7 +135,7 @@ class OpenIapErrorTest {
     // correct on that store's own device, so it must not prescribe a rebuild.
     @Test
     fun `InitConnection names a non-Play flavor`() {
-        val store = io.github.hyodotdev.openiap.BuildConfig.OPENIAP_STORE
+        val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
         val message = OpenIapError.InitConnection.message
         if (store == "play") {
             assertEquals(OpenIapError.InitConnection.MESSAGE, message)

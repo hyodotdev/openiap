@@ -342,7 +342,7 @@ purchase and keeps its own names.
 `libraries/flutter_inapp_purchase/android` carry byte-identical copies because
 a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
 drift. The OpenIAP Gradle plugin (`packages/google/gradle-plugin`, id
-`io.github.hyodotdev.openiap`) packs the SSOT file into its jar at build time
+`io.github.hyochan.openiap`) packs the SSOT file into its jar at build time
 instead of keeping a copy. Every other build system reads the same names:
 
 | Consumer                            | Input                                                                                                |

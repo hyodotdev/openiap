@@ -82,7 +82,7 @@ val isCentralPublishTaskRequested =
     }
 
 android {
-    namespace = "io.github.hyodotdev.openiap"
+    namespace = "io.github.hyochan.openiap"
     compileSdk = 36
 
     defaultConfig {
@@ -248,7 +248,7 @@ val publishVariant = project.findProperty("OPENIAP_PUBLISH_VARIANT")?.toString()
 
 if (isStandaloneGoogleBuild) {
     extensions.configure<MavenPublishBaseExtension> {
-        val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyodotdev.openiap"
+        val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
 
         when (publishVariant) {
             "horizon" -> {

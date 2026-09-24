@@ -179,7 +179,7 @@ export function syncHorizonAppIdMetaData(
 }
 
 const OPENIAP_DEPENDENCY_LINE =
-  /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.(?:hyodotdev|hyochan)\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
+  /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
 const PLATFORM_STRATEGY_LINE =
   /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
 

@@ -22,7 +22,7 @@ godot-iap/
 
 ## Dependencies
 
-- **Android**: `io.github.hyodotdev.openiap:openiap-google` (version in `openiap-versions.json`)
+- **Android**: `io.github.hyochan.openiap:openiap-google` (version in `openiap-versions.json`)
 - **iOS**: `https://github.com/hyodotdev/openiap.git` (SwiftGodot)
 
 ## Quick Commands

@@ -329,9 +329,9 @@ android {
 
 dependencies {
     val playBillingVersion = "9.1.0"
-    add("playImplementation", "io.github.hyodotdev.openiap:openiap-google:$googleVersion")
-    add("horizonImplementation", "io.github.hyodotdev.openiap:openiap-google-horizon:$googleVersion")
-    add("amazonImplementation", "io.github.hyodotdev.openiap:openiap-google-amazon:$googleVersion")
+    add("playImplementation", "io.github.hyochan.openiap:openiap-google:$googleVersion")
+    add("horizonImplementation", "io.github.hyochan.openiap:openiap-google-horizon:$googleVersion")
+    add("amazonImplementation", "io.github.hyochan.openiap:openiap-google-amazon:$googleVersion")
     // androidMain still contains the Play Billing implementation. Amazon uses
     // the OpenIAP module delegate at runtime, but these symbols must be present
     // while compiling the shared Android source set for non-Play variants.

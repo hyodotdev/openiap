@@ -18,7 +18,7 @@ val openIapVersion: String = providers.gradleProperty("openIapVersion").orNull
             ?: throw GradleException("openiap-gradle-plugin: 'google' version missing in openiap-versions.json")
     }
 
-group = "io.github.hyodotdev.openiap"
+group = "io.github.hyochan.openiap"
 version = openIapVersion
 
 // Java rather than Groovy: a class compiled against Groovy 4 is not guaranteed
@@ -32,7 +32,7 @@ gradlePlugin {
     vcsUrl.set("https://github.com/hyodotdev/openiap")
     plugins {
         create("openiap") {
-            id = "io.github.hyodotdev.openiap"
+            id = "io.github.hyochan.openiap"
             implementationClass = "dev.hyo.openiap.gradle.OpenIapPlugin"
             displayName = "OpenIAP store selection"
             description = "Links the Play, Horizon, or Amazon build of openiap-google and kmp-iap by the OpenIAP store rule."
@@ -52,7 +52,7 @@ val isCentralPublishTaskRequested = gradle.startParameter.taskNames.any {
 }
 
 mavenPublishing {
-    coordinates("io.github.hyodotdev.openiap", "openiap-gradle-plugin", openIapVersion)
+    coordinates("io.github.hyochan.openiap", "openiap-gradle-plugin", openIapVersion)
     configure(GradlePlugin(javadocJar = JavadocJar.Empty(), sourcesJar = true))
     if (isCentralPublishTaskRequested) {
         publishToMavenCentral()

@@ -225,7 +225,7 @@ kotlin {
         <CodeBlock language="kotlin">
           {`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
-    id("io.github.hyodotdev.openiap") version "${OPENIAP_VERSIONS.google}"
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }`}
         </CodeBlock>
         <CodeBlock language="properties">
