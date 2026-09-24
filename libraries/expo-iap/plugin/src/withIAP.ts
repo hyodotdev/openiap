@@ -248,8 +248,11 @@ export function storeGradleProperties<T extends GradleProperty>(
     ? removed.filter((entry) => entry !== `openiapStore=${pinnedStore}`)
     : removed;
   if (netRemoved.length > 0) {
+    const suffix = pinnedStore
+      ? `re-pinned openiapStore=${pinnedStore}`
+      : 'store now resolves automatically';
     logOnce(
-      `🧹 expo-iap: Removed legacy store properties (${netRemoved.join(', ')}) — pin the store with openiapStore instead`,
+      `🧹 expo-iap: Removed stale store properties (${netRemoved.join(', ')}) — ${suffix}`,
     );
   }
   return pinnedStore

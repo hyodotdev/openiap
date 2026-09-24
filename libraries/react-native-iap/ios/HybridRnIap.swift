@@ -2150,9 +2150,8 @@ class HybridRnIap: HybridRnIapSpec {
                     throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
                 }
             } else {
-                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 17.4 or later")
-                RnIapLog.failure("canPresentExternalPurchaseNoticeIOS", error: err)
-                throw err
+                RnIapLog.result("canPresentExternalPurchaseNoticeIOS", false)
+                return false
             }
         }
     }

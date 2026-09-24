@@ -264,6 +264,18 @@ test("a value that is not a store is an error", () => {
   );
 });
 
+test("a prototype key is not a store", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=constructor\n" },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+    },
+  );
+});
+
 test("the Flutter opt-out is reported like another store, without a mismatch", () => {
   withProject(
     {

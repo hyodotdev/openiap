@@ -104,7 +104,11 @@ export function androidStoreChecks(root, framework) {
   const storeValue = storeEntry?.value.trim().toLowerCase() ?? "";
   // openIapNormalizeStore: a blank value is absent, and only an alias is a store.
   const explicit =
-    storeValue === "" ? null : (STORE_ALIASES[storeValue] ?? "unknown");
+    storeValue === ""
+      ? null
+      : Object.hasOwn(STORE_ALIASES, storeValue)
+        ? STORE_ALIASES[storeValue]
+        : "unknown";
   const pinned =
     explicit !== null && explicit !== "auto" && explicit !== "unknown";
   // The legacy keys still pin, with a deprecation warning: openiapPlatform=none
