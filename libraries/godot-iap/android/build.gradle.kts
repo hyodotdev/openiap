@@ -89,7 +89,7 @@ dependencies {
     if (localGoogleProject != null) {
         implementation(project(":openiap"))
     } else {
-        implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
+        implementation("io.github.hyodotdev.openiap:openiap-google:$openiapGoogleVersion")
     }
 
     // Godot Android library

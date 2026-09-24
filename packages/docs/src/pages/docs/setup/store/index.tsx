@@ -124,7 +124,7 @@ function StoreSetup() {
         </p>
         <CodeBlock language="kotlin">{`// settings.gradle.kts
 plugins {
-    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
+    id("io.github.hyodotdev.openiap") version "${OPENIAP_VERSIONS.google}"
 }`}</CodeBlock>
       </section>
       <section>

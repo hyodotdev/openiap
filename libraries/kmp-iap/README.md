@@ -47,7 +47,7 @@ see [Pick the Android store](https://openiap.dev/docs/setup/kmp#android-store).
 ```kotlin
 // settings.gradle.kts
 plugins {
-    id("io.github.hyochan.openiap") version "<openiap-google version>"
+    id("io.github.hyodotdev.openiap") version "<openiap-google version>"
 }
 ```
 

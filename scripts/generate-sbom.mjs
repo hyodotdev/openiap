@@ -298,9 +298,9 @@ const COMPONENTS = {
               file: "libraries/expo-iap/android/build.gradle",
               pattern: GRADLE_COORDINATE_PATTERN,
               expected: [
-                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
-                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
-                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}",
               ],
             },
             {
@@ -336,9 +336,9 @@ const COMPONENTS = {
               pattern: GRADLE_COORDINATE_PATTERN,
               expected: [
                 "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}",
-                "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}",
-                "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}",
-                "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}",
+                "io.github.hyodotdev.openiap:openiap-google-amazon:${openiapGoogleVersion}",
+                "io.github.hyodotdev.openiap:openiap-google-horizon:${openiapGoogleVersion}",
+                "io.github.hyodotdev.openiap:openiap-google:${openiapGoogleVersion}",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}",
               ],
             },
@@ -455,21 +455,21 @@ const COMPONENTS = {
     sbomName: "openiap-google",
     type: "library",
     purl: (version) =>
-      `pkg:maven/io.github.hyochan.openiap/openiap-google@${version}`,
+      `pkg:maven/io.github.hyodotdev.openiap/openiap-google@${version}`,
     distribution: (version) =>
-      `https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${version}`,
+      `https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google/${version}`,
     directory: "packages/google",
     source: {
       kind: "aggregate",
       sources: [
         {
           kind: "maven-pom",
-          coordinate: "io.github.hyochan.openiap:openiap-google",
+          coordinate: "io.github.hyodotdev.openiap:openiap-google",
           repositories: ["https://repo1.maven.org/maven2"],
         },
         {
           kind: "maven-artifact",
-          coordinate: "io.github.hyochan.openiap:openiap-google-horizon",
+          coordinate: "io.github.hyodotdev.openiap:openiap-google-horizon",
           repositories: ["https://repo1.maven.org/maven2"],
           introducedVersion: "1.3.2",
           variant: "horizon",
@@ -479,7 +479,7 @@ const COMPONENTS = {
         },
         {
           kind: "maven-artifact",
-          coordinate: "io.github.hyochan.openiap:openiap-google-amazon",
+          coordinate: "io.github.hyodotdev.openiap:openiap-google-amazon",
           repositories: ["https://repo1.maven.org/maven2"],
           introducedVersion: "2.3.0-rc.1",
           variant: "amazon",
@@ -591,9 +591,9 @@ const COMPONENTS = {
               expected: [
                 "com.facebook.react:react-native:+",
                 "com.google.android.gms:play-services-base:$playServicesBaseVersion",
-                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
-                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
-                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion",
               ],
             },

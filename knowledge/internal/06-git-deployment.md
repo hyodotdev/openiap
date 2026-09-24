@@ -356,7 +356,7 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 **Result:**
 
-- Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
+- Maven Central: `implementation("io.github.hyodotdev.openiap:openiap-google:<google-version>")`
 
 ### Deploying Documentation
 

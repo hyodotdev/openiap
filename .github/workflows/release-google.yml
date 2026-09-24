@@ -198,7 +198,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"
           HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
           HTTP_STATUS="${HTTP_STATUS:-000}"
           case "$HTTP_STATUS" in
@@ -221,7 +221,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"
           HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
           HTTP_STATUS="${HTTP_STATUS:-000}"
           case "$HTTP_STATUS" in
@@ -244,7 +244,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"
           HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
           HTTP_STATUS="${HTTP_STATUS:-000}"
           case "$HTTP_STATUS" in
@@ -269,9 +269,9 @@ jobs:
         run: |
           # plugins { id(...) } resolves the marker, so the plugin counts as
           # published only when both it and its jar's POM are there.
-          BASE="https://repo1.maven.org/maven2/io/github/hyochan/openiap"
+          BASE="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap"
           pom_status() { curl -sS -o /dev/null -w "%{http_code}" "$BASE/$1/$VERSION/$1-$VERSION.pom" || true; }
-          STATUS="$(pom_status openiap-gradle-plugin)/$(pom_status io.github.hyochan.openiap.gradle.plugin)"
+          STATUS="$(pom_status openiap-gradle-plugin)/$(pom_status io.github.hyodotdev.openiap.gradle.plugin)"
           case "$STATUS" in
             200/200)
               echo "exists=true" >> $GITHUB_OUTPUT
@@ -461,7 +461,7 @@ jobs:
 
           \`\`\`kotlin
           dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+              implementation("io.github.hyodotdev.openiap:openiap-google:$VERSION")
           }
           \`\`\`
 
@@ -469,7 +469,7 @@ jobs:
 
           \`\`\`groovy
           dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
+              implementation 'io.github.hyodotdev.openiap:openiap-google:$VERSION'
           }
           \`\`\`
 
@@ -479,7 +479,7 @@ jobs:
 
           \`\`\`kotlin
           dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
+              implementation("io.github.hyodotdev.openiap:openiap-google-horizon:$VERSION")
           }
           \`\`\`
 
@@ -487,7 +487,7 @@ jobs:
 
           \`\`\`groovy
           dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
+              implementation 'io.github.hyodotdev.openiap:openiap-google-horizon:$VERSION'
           }
           \`\`\`
 
@@ -497,7 +497,7 @@ jobs:
 
           \`\`\`kotlin
           dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
+              implementation("io.github.hyodotdev.openiap:openiap-google-amazon:$VERSION")
           }
           \`\`\`
 
@@ -505,7 +505,7 @@ jobs:
 
           \`\`\`groovy
           dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
+              implementation 'io.github.hyodotdev.openiap:openiap-google-amazon:$VERSION'
           }
           \`\`\`
 
@@ -525,12 +525,12 @@ jobs:
               }
           }
           plugins {
-              id("io.github.hyochan.openiap") version "$VERSION"
+              id("io.github.hyodotdev.openiap") version "$VERSION"
           }
 
           // app/build.gradle.kts
           dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+              implementation("io.github.hyodotdev.openiap:openiap-google:$VERSION")
           }
           \`\`\`
 
@@ -542,10 +542,10 @@ jobs:
 
           ### Maven Central
 
-          - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
-          - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
-          - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
-          - [openiap-gradle-plugin](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-gradle-plugin/$VERSION)
+          - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google/$VERSION)
+          - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google-horizon/$VERSION)
+          - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google-amazon/$VERSION)
+          - [openiap-gradle-plugin](https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-gradle-plugin/$VERSION)
           EOF
 
       - name: Create and push tag

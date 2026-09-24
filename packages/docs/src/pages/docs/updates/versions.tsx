@@ -6,9 +6,9 @@ import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { OPENIAP_PROTOCOLS, OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const GOOGLE_MAVEN_BADGE =
-  'https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google';
+  'https://img.shields.io/maven-central/v/io.github.hyodotdev.openiap/openiap-google';
 const GOOGLE_MAVEN_ARTIFACT =
-  'https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google';
+  'https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google';
 // The Apple package ships on the repository's plain semantic tags, alongside
 // prefixed tags for every other package, so the badge has to filter to this
 // major or shields.io picks up an unrelated release. Deriving the major from
@@ -137,7 +137,7 @@ function Versions() {
             href={GOOGLE_MAVEN_ARTIFACT}
             target="_blank"
             rel="noopener noreferrer"
-            title="View io.github.hyochan.openiap:openiap-google on Maven Central"
+            title="View io.github.hyodotdev.openiap:openiap-google on Maven Central"
             className="badge-link"
           >
             <img
@@ -147,7 +147,7 @@ function Versions() {
             />
           </a>
           <code style={{ fontSize: '0.85rem' }}>
-            io.github.hyochan.openiap:openiap-google
+            io.github.hyodotdev.openiap:openiap-google
           </code>
         </div>
         <ul>

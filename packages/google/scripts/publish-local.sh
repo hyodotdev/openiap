@@ -96,7 +96,7 @@ if [[ "$MODE" == "local" ]]; then
   echo "Publishing to Maven Local (for local testing)..."
   ./gradlew :openiap:publishToMavenLocal --no-daemon --stacktrace
   echo "Published to Maven Local."
-  echo "Use dependency: ${openIapGroupId:-io.github.hyochan.openiap}:openiap-google:${openIapVersion:-<version-from-build>}"
+  echo "Use dependency: ${openIapGroupId:-io.github.hyodotdev.openiap}:openiap-google:${openIapVersion:-<version-from-build>}"
   exit 0
 fi
 
@@ -105,4 +105,4 @@ echo "Building and publishing to Maven Central..."
 
 echo "Publishing completed."
 echo "Check https://central.sonatype.com/publishing/deployments"
-echo "Coordinates: ${openIapGroupId:-io.github.hyochan.openiap}:openiap-google:${openIapVersion:-<version-from-build>}"
+echo "Coordinates: ${openIapGroupId:-io.github.hyodotdev.openiap}:openiap-google:${openIapVersion:-<version-from-build>}"

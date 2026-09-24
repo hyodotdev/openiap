@@ -29,6 +29,6 @@ kotlin {
 
 dependencies {
     implementation(
-        "io.github.hyochan.openiap:${providers.gradleProperty("openIapArtifact").get()}:${providers.gradleProperty("openIapVersion").get()}",
+        "io.github.hyodotdev.openiap:${providers.gradleProperty("openIapArtifact").get()}:${providers.gradleProperty("openIapVersion").get()}",
     )
 }

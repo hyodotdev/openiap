@@ -184,7 +184,7 @@ sealed class OpenIapError : Exception() {
 
         /** Name the store this binary links; the same build is correct on its own device. */
         private fun buildMessage(): String {
-            val store = io.github.hyochan.openiap.BuildConfig.OPENIAP_STORE
+            val store = io.github.hyodotdev.openiap.BuildConfig.OPENIAP_STORE
             return if (store.lowercase() == "play") {
                 MESSAGE
             } else {

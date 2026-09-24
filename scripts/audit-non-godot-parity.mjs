@@ -4228,8 +4228,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/google/README.md",
     [
-      'implementation("io.github.hyochan.openiap:openiap-google:<version>")',
-      "https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google",
+      'implementation("io.github.hyodotdev.openiap:openiap-google:<version>")',
+      "https://central.sonatype.com/artifact/io.github.hyodotdev.openiap/openiap-google",
     ],
     "Google README install version",
   );
@@ -5112,7 +5112,7 @@ function checkFrameworkDependencyHygiene() {
   }
   expectIncludes(
     "packages/google/scripts/publish-local.sh",
-    ["${openIapGroupId:-io.github.hyochan.openiap}:openiap-google"],
+    ["${openIapGroupId:-io.github.hyodotdev.openiap}:openiap-google"],
     "Google publish-local coordinate hint",
   );
   expectNotIncludes(
@@ -5493,9 +5493,9 @@ function checkFrameworkDependencyHygiene() {
       "Checkout release tag (current version)",
       'LEGACY_TAG="google-v$VERSION"',
       'ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: "3600"',
-      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"',
-      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"',
-      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"',
+      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"',
+      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"',
+      'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyodotdev/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"',
       'HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "Unable to verify openiap-google-horizon $VERSION on Maven Central",
@@ -6695,7 +6695,7 @@ function checkFrameworkDependencyHygiene() {
   if (googleVersion) {
     expectIncludes(
       "libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap",
-      [`io.github.hyochan.openiap:openiap-google:${googleVersion}`],
+      [`io.github.hyodotdev.openiap:openiap-google:${googleVersion}`],
       "Godot Android GDAP OpenIAP dependency version",
     );
   }
@@ -6718,7 +6718,7 @@ function checkFrameworkDependencyHygiene() {
         "COROUTINES_VERSION=",
         "read_google_variable coroutinesVersion",
         "fallback_property kotlinxCoroutinesVersion",
-        'remote=["io.github.hyochan.openiap:openiap-google:$OPENIAP_GOOGLE_VERSION", "org.jetbrains.kotlinx:kotlinx-coroutines-android:$COROUTINES_VERSION"]',
+        'remote=["io.github.hyodotdev.openiap:openiap-google:$OPENIAP_GOOGLE_VERSION", "org.jetbrains.kotlinx:kotlinx-coroutines-android:$COROUTINES_VERSION"]',
       ],
       "Godot GDAP dependency writer",
     );
@@ -6955,8 +6955,8 @@ function checkFrameworkDependencyHygiene() {
       "updateReadmeVersion",
       "spec\\.version\\s+=",
       "library/library.podspec gradle.properties",
-      "io.github.hyochan.openiap:kmp-iap",
-      "central.sonatype.com/artifact/io.github.hyochan.openiap/kmp-iap",
+      "io.github.hyodotdev.openiap:kmp-iap",
+      "central.sonatype.com/artifact/io.github.hyodotdev.openiap/kmp-iap",
       "git pull --rebase origin main || true",
       'git push || echo "No changes to commit"',
       "git stash --include-untracked || true",
@@ -8815,7 +8815,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "git clone https://github.com/hyodotdev/openiap-google",
       'debugImplementation project(":openiap")',
-      'releaseImplementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"',
+      'releaseImplementation "io.github.hyodotdev.openiap:openiap-google:${openiapGoogleVersion}"',
     ],
     "Flutter local OpenIAP debugging docs must match automatic local project selection",
   );

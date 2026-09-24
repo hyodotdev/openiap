@@ -103,7 +103,7 @@ describe('android configuration', () => {
       '}',
       'dependencies {',
       '    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"',
-      '    implementation "io.github.hyochan.openiap:openiap-google:0.0.1"',
+      '    implementation "io.github.hyodotdev.openiap:openiap-google:0.0.1"',
       '}',
       '',
     ].join('\n');

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-24T01:23:23.818Z
+> Last updated: 2026-09-24T02:02:03.905Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1424,7 +1424,7 @@ purchase and keeps its own names.
 `libraries/flutter_inapp_purchase/android` carry byte-identical copies because
 a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
 drift. The OpenIAP Gradle plugin (`packages/google/gradle-plugin`, id
-`io.github.hyochan.openiap`) packs the SSOT file into its jar at build time
+`io.github.hyodotdev.openiap`) packs the SSOT file into its jar at build time
 instead of keeping a copy. Every other build system reads the same names:
 
 | Consumer                            | Input                                                                                                |
@@ -2672,7 +2672,7 @@ workflow predates the tag-ref publisher cannot be repaired safely through
 
 **Result:**
 
-- Maven Central: `implementation("io.github.hyochan.openiap:openiap-google:<google-version>")`
+- Maven Central: `implementation("io.github.hyodotdev.openiap:openiap-google:<google-version>")`
 
 ### Deploying Documentation
 

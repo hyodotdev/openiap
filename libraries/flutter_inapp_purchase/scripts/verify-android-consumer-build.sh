@@ -139,7 +139,7 @@ fi
   dependency_report="$tmp_root/none-debug-runtime-classpath.txt"
   ./android/gradlew -p android :app:dependencies \
     --configuration debugRuntimeClasspath > "$dependency_report"
-  billing_dependency_pattern='^[-[:space:]|+\\]*project :openiap([[:space:]]|\(|\*|$)|io\.github\.hyochan\.openiap:openiap-google|com\.android\.billingclient|com\.amazon\.device\.iap'
+  billing_dependency_pattern='^[-[:space:]|+\\]*project :openiap([[:space:]]|\(|\*|$)|io\.github\.(hyodotdev|hyochan)\.openiap:openiap-google|com\.android\.billingclient|com\.amazon\.device\.iap'
   if grep -Eq "$billing_dependency_pattern" "$dependency_report"; then
     echo "Android none build retained a store billing dependency" >&2
     grep -En "$billing_dependency_pattern" "$dependency_report" >&2

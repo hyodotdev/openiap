@@ -77,7 +77,7 @@ binary="GodotIap.release.aar"
 
 [dependencies]
 local=[]
-remote=["io.github.hyochan.openiap:openiap-google:$OPENIAP_GOOGLE_VERSION", "org.jetbrains.kotlinx:kotlinx-coroutines-android:$COROUTINES_VERSION"]
+remote=["io.github.hyodotdev.openiap:openiap-google:$OPENIAP_GOOGLE_VERSION", "org.jetbrains.kotlinx:kotlinx-coroutines-android:$COROUTINES_VERSION"]
 EOF
 
 echo "Wrote: $OUTPUT_FILE"

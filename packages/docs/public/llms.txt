@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-09-24T01:23:23.826Z
+> Generated: 2026-09-24T02:02:03.911Z
 
 ## Reading instructions for coding assistants
 
@@ -184,10 +184,10 @@ npm install react-native-iap
 
 ```kotlin
 // settings.gradle.kts: links the Horizon or Amazon build by the store rule
-plugins { id("io.github.hyochan.openiap") version "3.5.2" }
+plugins { id("io.github.hyodotdev.openiap") version "3.5.2" }
 
 // app/build.gradle.kts
-implementation("io.github.hyochan.openiap:openiap-google:3.5.2")
+implementation("io.github.hyodotdev.openiap:openiap-google:3.5.2")
 ```
 
 ```bash

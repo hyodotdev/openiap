@@ -22,15 +22,15 @@ func _run() -> void:
 	_check("gms is a Play alias", AndroidStore.normalize("gms") == "play")
 	_check("unknown values name no store", AndroidStore.normalize("bogus") == "")
 
-	var play := "io.github.hyochan.openiap:openiap-google:3.5.2"
+	var play := "io.github.hyodotdev.openiap:openiap-google:3.5.2"
 	_check("auto exports the Play artifact", AndroidStore.artifact(play, "auto") == play)
 	_check(
 		"horizon swaps the artifact",
-		AndroidStore.artifact(play, "horizon") == "io.github.hyochan.openiap:openiap-google-horizon:3.5.2"
+		AndroidStore.artifact(play, "horizon") == "io.github.hyodotdev.openiap:openiap-google-horizon:3.5.2"
 	)
 	_check(
 		"amazon swaps the artifact",
-		AndroidStore.artifact(play, "amazon") == "io.github.hyochan.openiap:openiap-google-amazon:3.5.2"
+		AndroidStore.artifact(play, "amazon") == "io.github.hyodotdev.openiap:openiap-google-amazon:3.5.2"
 	)
 	var other := "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0"
 	_check("other dependencies pass through", AndroidStore.artifact(other, "horizon") == other)

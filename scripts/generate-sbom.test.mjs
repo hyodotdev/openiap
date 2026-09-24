@@ -1479,22 +1479,22 @@ test("published metadata matches the consumer-visible artifacts", async () => {
   );
   assert.ok(googleNames.includes("com.amazon.device:amazon-appstore-sdk"));
   assert.ok(
-    googleNames.includes("io.github.hyochan.openiap:openiap-google-horizon"),
+    googleNames.includes("io.github.hyodotdev.openiap:openiap-google-horizon"),
   );
   assert.ok(
-    googleNames.includes("io.github.hyochan.openiap:openiap-google-amazon"),
+    googleNames.includes("io.github.hyodotdev.openiap:openiap-google-amazon"),
   );
 
   const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
   const kmpNames = kmp.document.components.map((entry) => entry.name);
   assert.equal(kmp.directCount, 8);
   assert.ok(kmpNames.includes("openiap"));
-  assert.ok(kmpNames.includes("io.github.hyochan.openiap:openiap-google"));
+  assert.ok(kmpNames.includes("io.github.hyodotdev.openiap:openiap-google"));
   assert.ok(
-    kmpNames.includes("io.github.hyochan.openiap:openiap-google-horizon"),
+    kmpNames.includes("io.github.hyodotdev.openiap:openiap-google-horizon"),
   );
   assert.ok(
-    kmpNames.includes("io.github.hyochan.openiap:openiap-google-amazon"),
+    kmpNames.includes("io.github.hyodotdev.openiap:openiap-google-amazon"),
   );
   assert.ok(kmpNames.includes("org.jetbrains.kotlin:kotlin-stdlib"));
   assert.ok(kmpNames.includes("org.jetbrains.kotlinx:kotlinx-datetime"));
@@ -1505,7 +1505,7 @@ test("published metadata matches the consumer-visible artifacts", async () => {
   assert.ok(maui.document.components.some((entry) => entry.name === "openiap"));
   assert.ok(
     maui.document.components.some(
-      (entry) => entry.name === "io.github.hyochan.openiap:openiap-google",
+      (entry) => entry.name === "io.github.hyodotdev.openiap:openiap-google",
     ),
   );
   assert.ok(
@@ -1679,9 +1679,9 @@ test("framework SBOMs include every shipped native runtime contract", async () =
 
   const openIapNativeNames = [
     "openiap",
-    "io.github.hyochan.openiap:openiap-google",
-    "io.github.hyochan.openiap:openiap-google-amazon",
-    "io.github.hyochan.openiap:openiap-google-horizon",
+    "io.github.hyodotdev.openiap:openiap-google",
+    "io.github.hyodotdev.openiap:openiap-google-amazon",
+    "io.github.hyodotdev.openiap:openiap-google-horizon",
   ];
   const expectedByComponent = {
     expo: [...openIapNativeNames, "ExpoModulesCore", "OnsideKit"],
@@ -1761,7 +1761,7 @@ test("framework SBOMs include every shipped native runtime contract", async () =
   for (const component of kmp.document.components.filter(
     (entry) =>
       entry.name === "openiap" ||
-      entry.name.startsWith("io.github.hyochan.openiap:openiap-google"),
+      entry.name.startsWith("io.github.hyodotdev.openiap:openiap-google"),
   )) {
     assert.equal(component.supplier.name, "OpenIAP", component.name);
     assert.equal(component.licenses[0].license.id, "MIT", component.name);
@@ -2520,8 +2520,8 @@ test("registry license lookup is opt-in while reviewed metadata stays offline", 
     undefined,
   );
   for (const name of [
-    "io.github.hyochan.openiap:openiap-google-horizon",
-    "io.github.hyochan.openiap:openiap-google-amazon",
+    "io.github.hyodotdev.openiap:openiap-google-horizon",
+    "io.github.hyodotdev.openiap:openiap-google-amazon",
   ]) {
     const component = document.components.find((entry) => entry.name === name);
     assert.equal(component.licenses[0].license.id, "MIT", name);

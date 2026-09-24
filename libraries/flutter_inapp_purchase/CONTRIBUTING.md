@@ -121,7 +121,7 @@ By default, this plugin depends on the published artifact version from
 `openiap-versions.json`:
 
 ```
-implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
+implementation "io.github.hyodotdev.openiap:openiap-google:${openiapGoogleVersion}"
 ```
 
 If you need to debug against the monorepo OpenIAP Android module:

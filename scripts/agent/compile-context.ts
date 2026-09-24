@@ -478,11 +478,11 @@ pod 'openiap', '~> ${versions.apple}'
 ### Kotlin (Android)
 \`\`\`kotlin
 // app/build.gradle.kts
-implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
+implementation("io.github.hyodotdev.openiap:openiap-google:${versions.google}")
 
 // settings.gradle.kts, for Meta Horizon OS and Fire OS: keep the Play coordinate;
 // the plugin links openiap-google-horizon / -amazon by the store rule.
-plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
+plugins { id("io.github.hyodotdev.openiap") version "${versions.google}" }
 \`\`\`
 
 ### Flutter
@@ -605,7 +605,7 @@ Canonical setup docs live under \`/docs/setup/store\`:
   Expo, React Native and Flutter resolve it from \`openiapStore=horizon\`, an
   \`assembleHorizon*\` task, or a connected Quest on a debug build, plus
   app-owned manifest metadata. Native Android and KMP apps get the same rule
-  from the \`io.github.hyochan.openiap\` Gradle plugin. MAUI follows a
+  from the \`io.github.hyodotdev.openiap\` Gradle plugin. MAUI follows a
   connected Quest on a Debug build, or pins \`OpenIapStore=horizon\`. Godot
   follows a connected Quest on a debug export,
   or pins \`openiap/android_store=horizon\`.
@@ -619,7 +619,7 @@ Canonical setup docs live under \`/docs/setup/store\`:
 - Fire OS: Android \`amazon\` flavor,
   \`openiap-google-amazon\`, picked by the same rule: a connected Fire device
   on a debug build, or \`openiapStore=amazon\` (Expo: in the EAS profile env).
-  Native Android and KMP apps get the rule from the \`io.github.hyochan.openiap\`
+  Native Android and KMP apps get the rule from the \`io.github.hyodotdev.openiap\`
   Gradle plugin.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
   \`expo-iap\`, \`flutter_inapp_purchase\`, KMP, and MAUI (a connected Fire
@@ -885,10 +885,10 @@ npm install react-native-iap
 
 \`\`\`kotlin
 // settings.gradle.kts: links the Horizon or Amazon build by the store rule
-plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
+plugins { id("io.github.hyodotdev.openiap") version "${versions.google}" }
 
 // app/build.gradle.kts
-implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
+implementation("io.github.hyodotdev.openiap:openiap-google:${versions.google}")
 \`\`\`
 
 \`\`\`bash

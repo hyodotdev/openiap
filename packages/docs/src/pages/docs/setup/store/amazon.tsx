@@ -264,12 +264,12 @@ function AmazonStoreSetup() {
         </p>
         <CodeBlock language="kotlin">{`// settings.gradle.kts
 plugins {
-    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
+    id("io.github.hyodotdev.openiap") version "${OPENIAP_VERSIONS.google}"
 }
 
 // app/build.gradle.kts
 dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
+    implementation("io.github.hyodotdev.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }`}</CodeBlock>
 
         <AnchorLink id="expo-fire-os" level="h3">
