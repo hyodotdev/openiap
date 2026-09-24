@@ -42,7 +42,7 @@ gradlePlugin {
 
 // Ship the resolver the framework wrappers apply rather than a port of it.
 tasks.processResources {
-    from(rootDir.resolve("../gradle/openiap-store.gradle")) {
+    from(rootDir.resolve("../../../openiap-store.gradle")) {
         into("dev/hyo/openiap/gradle")
     }
 }

@@ -210,6 +210,7 @@ jobs:
               - 'specs/client/**'
               - 'scripts/**'
               - 'openiap-versions.json'
+              - 'openiap-store.gradle'
               - '.github/workflows/ci.yml'
               - '!**/*.md'
             ios:

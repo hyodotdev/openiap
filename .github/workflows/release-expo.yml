@@ -617,10 +617,12 @@ jobs:
 
       - name: Resolve symlinks for npm publish
         run: |
-          # npm ignores symlinks — replace with real file
-          if [ -L openiap-versions.json ]; then
-            cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
-          fi
+          # npm drops symlinks, so publish the linked files as copies.
+          for link in openiap-versions.json android/openiap-store.gradle; do
+            if [ -L "$link" ]; then
+              cp --remove-destination "$(readlink -f "$link")" "$link"
+            fi
+          done
 
       - name: Consumer install smoke test
         run: bun run verify:consumer-install --pack-ignore-scripts

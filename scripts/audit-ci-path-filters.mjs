@@ -347,6 +347,17 @@ export const cases = Object.freeze([
     ],
   },
   {
+    // The wrappers link this file, so a change never touches their own paths.
+    name: "root-store-resolver",
+    files: ["openiap-store.gradle"],
+    jobs: [
+      "ci-expo-iap.yml",
+      "ci-flutter-inapp-purchase.yml",
+      "ci-react-native-iap.yml",
+      "ci:test-android",
+    ],
+  },
+  {
     name: "libraries-versions-manifest",
     files: ["libraries-versions.jsonc"],
     jobs: [

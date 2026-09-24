@@ -1,6 +1,6 @@
 # Store resolver fixture
 
-Drives `packages/google/gradle/openiap-store.gradle` — the one rule that picks
+Drives the root `openiap-store.gradle` — the one rule that picks
 the Android store — without an Android SDK, a device, or a network.
 
 Run the suite that uses it:

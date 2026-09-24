@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-24T01:23:23.818Z
+> Last updated: 2026-09-24T03:41:13.670Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1419,13 +1419,15 @@ are normalized at the input boundary only: `google`, `gplay`, `googleplay`,
 `fire-os` → `amazon`. `IapStore` in the schema is the _runtime_ store on a
 purchase and keeps its own names.
 
-**SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule.
+**SSOT.** The root `openiap-store.gradle` implements the rule; edit only that
+file. A Gradle script cannot ship in the AAR, so
 `libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
-`libraries/flutter_inapp_purchase/android` carry byte-identical copies because
-a Gradle script cannot be fetched from the AAR; `bun audit:parity` fails on
-drift. The OpenIAP Gradle plugin (`packages/google/gradle-plugin`, id
-`io.github.hyochan.openiap`) packs the SSOT file into its jar at build time
-instead of keeping a copy. Every other build system reads the same names:
+`libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
+`openiap-versions.json`, and `bun audit:parity` checks the link targets. Each
+wrapper publishes it as a real file: the npm release steps copy it over the
+link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
+(`packages/google/gradle-plugin`, id `io.github.hyochan.openiap`) packs the same
+file into its jar at build time. Every other build system reads the same names:
 
 | Consumer                            | Input                                                                                                |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |

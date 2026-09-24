@@ -1,5 +1,5 @@
-// OpenIAP store resolver. Source of truth: packages/google/gradle/openiap-store.gradle;
-// each framework's android/ copy must stay byte-identical (bun audit:parity).
+// OpenIAP store resolver. Framework wrappers symlink this file into android/
+// and publish it as a real file.
 // Apply it, then call openIapResolveStore('<label>'), or ('<label>', [allowNone: true])
 // where the library can build without a store SDK.
 //

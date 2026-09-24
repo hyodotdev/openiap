@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Regression suite for the Android store resolver
-# (packages/google/gradle/openiap-store.gradle). The store is decided at
+# (openiap-store.gradle at the repository root). The store is decided at
 # configuration time, so each rule is checked here without a device.
 set -euo pipefail
 

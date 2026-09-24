@@ -62,7 +62,7 @@ const APP_BUILD_FILES = [
   "android/app/build.gradle.kts",
 ];
 
-// Same table as packages/google/gradle/openiap-store.gradle.
+// Same table as the root openiap-store.gradle.
 const STORE_ALIASES = {
   play: "play",
   google: "play",
