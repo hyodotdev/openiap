@@ -130,7 +130,7 @@ struct AlternativeBillingScreen: View {
                 .autocapitalization(.none)
                 .keyboardType(.URL)
 
-            Text("Tap Purchase on any product below. The ExternalPurchase API (iOS 18.2+) will show Apple's notice sheet before opening this URL.")
+            Text("Tap Purchase on any product below. Apple's notice sheet (iOS 17.4+) appears before this URL opens.")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -224,7 +224,7 @@ struct AlternativeBillingScreen: View {
                 )
                 InstructionRow(
                     number: "3",
-                    text: "Apple's notice sheet appears (iOS 18.2+)"
+                    text: "Apple's notice sheet appears (iOS 17.4+)"
                 )
                 InstructionRow(
                     number: "4",
@@ -242,7 +242,7 @@ struct AlternativeBillingScreen: View {
                     .fontWeight(.semibold)
                     .foregroundColor(AppColors.warning)
 
-                Text("• iOS 18.2+ required for ExternalPurchase API\n• Apple's official alternative billing compliance\n• Notice sheet shows App Store warning\n• Purchase completes on external website\n• Deep link needed to return to app")
+                Text("• iOS 17.4+ required for the notice sheet\n• Apple's official alternative billing compliance\n• Notice sheet shows App Store warning\n• Purchase completes on external website\n• Deep link needed to return to app")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -318,23 +318,23 @@ struct AlternativeBillingScreen: View {
         }
     }
 
-    // MARK: - Purchase Flow with Alternative Billing (iOS 18.2+)
+    // MARK: - Purchase Flow with Alternative Billing
 
     private func purchaseProduct(_ product: OpenIapProduct) {
         print("🛒 [AlternativeBilling] Starting alternative billing purchase for: \(product.id)")
         print("🌐 [AlternativeBilling] External URL: \(externalUrl)")
 
-        if #available(iOS 18.2, *) {
+        if #available(iOS 17.4, *) {
             Task { await testExternalPurchaseFlow() }
         } else {
-            errorMessage = "Alternative billing with ExternalPurchase API requires iOS 18.2 or later"
+            errorMessage = "The external purchase notice sheet requires iOS 17.4 or later"
             showError = true
         }
     }
 
-    // MARK: - External Purchase Flow (iOS 18.2+)
+    // MARK: - External Purchase Flow
 
-    @available(iOS 18.2, *)
+    @available(iOS 17.4, *)
     private func testExternalPurchaseFlow() async {
         print("🔷 [AlternativeBilling] Testing external purchase flow...")
 

@@ -244,7 +244,7 @@ fun AlternativeBillingScreen(navController: NavController) {
             isProcessing = true
 
             try {
-                // For iOS 18.2+, present notice sheet first if available
+                // Present the notice sheet first when available (iOS 17.4+)
                 if (kmpIapInstance.canPresentExternalPurchaseNoticeIOS()) {
                     purchaseResult = "📋 Presenting external purchase notice..."
 

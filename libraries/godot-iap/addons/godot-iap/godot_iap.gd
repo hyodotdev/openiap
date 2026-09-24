@@ -1595,7 +1595,7 @@ func get_promoted_product_ios() -> Variant:
 					return Types.ProductIOS.from_dict(parsed)
 	return null
 
-## Check if can present external purchase notice (iOS 18.2+).
+## Check if can present external purchase notice (iOS 17.4+).
 ## @return bool - true if external purchase notice can be presented
 ##
 ## See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
@@ -1605,7 +1605,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 		return payload.get("success", false) and payload.get("canPresent", false)
 	return false
 
-## Present external purchase notice sheet (iOS 18.2+).
+## Present external purchase notice sheet (iOS 17.4+).
 ## @return Types.ExternalPurchaseNoticeResultIOS
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
@@ -1621,7 +1621,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 	var default_result = Types.ExternalPurchaseNoticeResultIOS.new()
 	return default_result
 
-## Present external purchase link (iOS 18.2+).
+## Present external purchase link.
 ## @param url: String - external purchase URL
 ## @return Types.ExternalPurchaseLinkResultIOS
 ##

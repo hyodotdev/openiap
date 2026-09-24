@@ -94,7 +94,7 @@ struct ExternalPurchaseLinkResultIOS {
           <code>Promise&lt;ExternalPurchaseLinkResultIOS&gt;</code>
         </Link>{' '}
         — carries the result of opening the external link (success flag + any
-        error string from StoreKit).
+        error message).
       </p>
 
       <h2>Example</h2>

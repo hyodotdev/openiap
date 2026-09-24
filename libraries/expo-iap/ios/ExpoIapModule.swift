@@ -416,7 +416,7 @@ public final class ExpoIapModule: Module {
             return hasActive
         }
 
-        // MARK: - External Purchase (iOS 16.0+)
+        // MARK: - External Purchase
 
         AsyncFunction("canPresentExternalPurchaseNoticeIOS") { () async throws -> Bool in
             ExpoIapLog.payload("canPresentExternalPurchaseNoticeIOS", payload: nil)

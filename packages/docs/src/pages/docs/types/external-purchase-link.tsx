@@ -24,20 +24,12 @@ function ExternalPurchaseLink() {
         <p>
           iOS-specific feature for redirecting users to an external website for
           payment using Apple&apos;s StoreKit <code>ExternalPurchase</code> API.
-          Available from iOS 17.4+ (notice sheet) and iOS 18.2+ (custom links).
+          Available from iOS 17.4+ (notice sheet) and iOS 18.1+ (custom links).
         </p>
         <p>
-          Result of <code>presentExternalPurchaseLinkIOS</code>.{' '}
-          <strong>iOS only</strong> — wraps{' '}
-          <code>ExternalPurchaseLink.open(url:)</code> (
-          <a
-            href="https://developer.apple.com/documentation/storekit/externalpurchaselink"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Apple docs
-          </a>
-          ).
+          <code>presentExternalPurchaseLinkIOS</code> is{' '}
+          <strong>iOS only</strong> and opens the URL with{' '}
+          <code>UIApplication.open</code>, not a StoreKit API.
         </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
@@ -105,7 +97,7 @@ function ExternalPurchaseLink() {
                 <code>presentExternalPurchaseLinkIOS</code>
               </td>
               <td>Open external purchase URL in Safari</td>
-              <td>iOS 18.2+</td>
+              <td>iOS 16+</td>
             </tr>
           </tbody>
         </table>
@@ -468,7 +460,7 @@ async function handleExternalPurchase(externalUrl: string) {
             swift: (
               <CodeBlock language="swift">{`import OpenIap
 
-@available(iOS 18.2, *)
+@available(iOS 17.4, *)
 func handleExternalPurchase(externalUrl: String) async {
     do {
         // Step 1: Check if external purchase is available
@@ -638,7 +630,7 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
           <tbody>
             <tr>
               <td>Platform</td>
-              <td>iOS 17.4+ (notice sheet), iOS 18.2+ (custom links)</td>
+              <td>iOS 17.4+ (notice sheet), iOS 18.1+ (custom links)</td>
             </tr>
             <tr>
               <td>Entitlement</td>

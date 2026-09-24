@@ -53,7 +53,7 @@ function ExternalPurchase() {
               <td>
                 iOS 17.4+ (Notice Sheet)
                 <br />
-                iOS 18.2+ (New APIs)
+                iOS 18.1+ (Custom Links)
               </td>
               <td>StoreKit 2</td>
             </tr>
@@ -104,10 +104,10 @@ function ExternalPurchase() {
                   returns results immediately - no browser redirect required.
                 </p>
 
-                <h4>Basic Usage (iOS 18.2+)</h4>
+                <h4>Basic Usage</h4>
                 <p>
-                  iOS 18.2+ provides dedicated APIs for external purchase flow
-                  with notice sheet and link presentation:
+                  Check that the notice sheet can be shown, present it, then
+                  open your purchase link when the user continues:
                 </p>
                 <LanguageTabs>
                   {{
@@ -156,7 +156,7 @@ async function handleExternalPurchaseFlow() {
                     swift: (
                       <CodeBlock language="swift">{`import OpenIAP
 
-@available(iOS 18.2, *)
+@available(iOS 17.4, *)
 func handleExternalPurchaseFlow() async {
     let externalUrl = "https://your-payment-site.com/checkout"
 
@@ -199,7 +199,7 @@ func handleExternalPurchaseFlow() async {
                       <CodeBlock language="kotlin">{`import dev.openiap.OpenIap
 import dev.openiap.ExternalPurchaseNoticeAction
 
-// iOS 18.2+ External Purchase Flow (from Kotlin Multiplatform)
+// iOS 17.4+ External Purchase Flow (from Kotlin Multiplatform)
 suspend fun handleExternalPurchaseFlow() {
     val externalUrl = "https://your-payment-site.com/checkout"
 
@@ -239,7 +239,7 @@ suspend fun handleExternalPurchaseFlow() {
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.ExternalPurchaseNoticeAction
 
-// iOS 18.2+ External Purchase Flow (from Kotlin Multiplatform)
+// iOS 17.4+ External Purchase Flow (from Kotlin Multiplatform)
 suspend fun handleExternalPurchaseFlow() {
     val kmpIAP = KmpIAP()
     val externalUrl = "https://your-payment-site.com/checkout"
@@ -279,7 +279,7 @@ suspend fun handleExternalPurchaseFlow() {
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-// iOS 18.2+ External Purchase Flow
+// iOS 17.4+ External Purchase Flow
 Future<void> handleExternalPurchaseFlow() async {
   const externalUrl = 'https://your-payment-site.com/checkout';
 
@@ -339,7 +339,7 @@ async Task HandleExternalPurchaseFlowAsync()
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# iOS 18.2+ External Purchase Flow
+                      <CodeBlock language="gdscript">{`# iOS 17.4+ External Purchase Flow
 func handle_external_purchase_flow() -> void:
     var external_url = "https://your-payment-site.com/checkout"
 
@@ -370,24 +370,16 @@ func handle_external_purchase_flow() -> void:
                   }}
                 </LanguageTabs>
 
-                <Callout kind="note">
-                  The iOS 18.2+ API provides a cleaner flow with dedicated
-                  methods for presenting the notice sheet and external purchase
-                  link. This is the recommended approach for iOS 18.2 and later.
-                </Callout>
-
                 <h4>Requirements</h4>
                 <ul>
                   <li>
-                    <strong>iOS 17.4+</strong> - Minimum version for External
-                    Purchase API
+                    <strong>iOS 17.4+</strong> - Required for{' '}
+                    <code>canPresentExternalPurchaseNoticeIOS</code> and{' '}
+                    <code>presentExternalPurchaseNoticeSheetIOS</code>
                   </li>
                   <li>
-                    <strong>iOS 18.2+</strong> - Recommended for dedicated
-                    external purchase APIs (
-                    <code>canPresentExternalPurchaseNoticeIOS</code>,{' '}
-                    <code>presentExternalPurchaseNoticeSheetIOS</code>,{' '}
-                    <code>presentExternalPurchaseLinkIOS</code>)
+                    <strong>iOS 18.1+</strong> - Required for the{' '}
+                    <code>ExternalPurchaseCustomLink</code> APIs
                   </li>
                   <li>
                     <strong>StoreKit 2</strong> - Uses StoreKit 2 framework
@@ -629,7 +621,8 @@ func handle_external_purchase_flow() -> void:
                       <td>FeatureNotSupported Error</td>
                       <td>iOS version too old</td>
                       <td>
-                        Requires iOS 17.4+ (notice sheet), iOS 18.2+ (new APIs)
+                        Requires iOS 17.4+ (notice sheet), iOS 18.1+ (custom
+                        links)
                       </td>
                     </tr>
                   </tbody>
@@ -1730,7 +1723,7 @@ func _ready_user_choice() -> void:
           {{
             ios: (
               <>
-                <h3>iOS Flow (iOS 18.2+)</h3>
+                <h3>iOS Flow (iOS 17.4+)</h3>
                 <table className="error-table">
                   <thead>
                     <tr>
@@ -1797,13 +1790,6 @@ func _ready_user_choice() -> void:
                     </tr>
                   </tbody>
                 </table>
-
-                <Callout kind="note">
-                  The iOS 18.2+ flow with dedicated APIs provides better user
-                  experience with Apple's official notice sheet. The entire flow
-                  happens within the app - no browser redirect or deep linking
-                  required.
-                </Callout>
               </>
             ),
             android: (
@@ -1904,21 +1890,21 @@ func _ready_user_choice() -> void:
                 <ul>
                   <li>
                     <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/ios/OpenIapExample/Screens/AlternativeBillingScreen.swift"
+                      href="https://github.com/hyodotdev/openiap/tree/main/packages/apple/Example/OpenIapExample/Screens/AlternativeBillingScreen.swift"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       AlternativeBillingScreen.swift
                     </a>{' '}
-                    - Complete iOS 18.2+ implementation with notice sheet and
-                    external purchase link presentation
+                    - Complete implementation with notice sheet and external
+                    purchase link presentation
                   </li>
                 </ul>
 
                 <p>This example demonstrates:</p>
                 <ul>
                   <li>Complete UI implementation with state management</li>
-                  <li>Notice sheet presentation (iOS 18.2+)</li>
+                  <li>Notice sheet presentation (iOS 17.4+)</li>
                   <li>Deep link handling and verification flow</li>
                   <li>Error handling and user feedback</li>
                   <li>Production-ready code patterns</li>
@@ -1931,7 +1917,7 @@ func _ready_user_choice() -> void:
                 <ul>
                   <li>
                     <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap/example/android/app/src/main/java/dev/hyo/martie/screens/AlternativeBillingScreen.kt"
+                      href="https://github.com/hyodotdev/openiap/tree/main/packages/google/Example/src/main/java/dev/hyo/martie/screens/AlternativeBillingScreen.kt"
                       target="_blank"
                       rel="noopener noreferrer"
                     >

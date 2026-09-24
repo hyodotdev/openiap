@@ -2126,7 +2126,7 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    // MARK: - External Purchase (iOS 16.0+)
+    // MARK: - External Purchase
 
     func canPresentExternalPurchaseNoticeIOS() throws -> Promise<Bool> {
         return Promise.async {
@@ -2150,7 +2150,7 @@ class HybridRnIap: HybridRnIapSpec {
                     throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
                 }
             } else {
-                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 16.0 or later")
+                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 17.4 or later")
                 RnIapLog.failure("canPresentExternalPurchaseNoticeIOS", error: err)
                 throw err
             }
@@ -2195,7 +2195,7 @@ class HybridRnIap: HybridRnIapSpec {
                     throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
                 }
             } else {
-                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 16.0 or later")
+                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 17.4 or later")
                 RnIapLog.failure("presentExternalPurchaseNoticeSheetIOS", error: err)
                 throw err
             }
