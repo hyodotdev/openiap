@@ -338,7 +338,7 @@ jobs:
           done
 
           if [ -n "$PREV_TAG" ]; then
-            PR_LINES=$(git log "${PREV_TAG}..HEAD" --merges --pretty=format:"%s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | \
+            PR_LINES=$(git log "${PREV_TAG}..HEAD" --merges --pretty=format:"%s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)openiap-store.gradle" ":(top)packages/google/" ":(top)packages/apple/" | \
               sed -n 's/^Merge pull request #\([0-9]*\) from .*/\1/p')
             for PR_NUM in $PR_LINES; do
               PR_TITLE=$(git log --all --grep="Merge pull request #${PR_NUM}" --pretty=format:"%s" | head -1 | sed "s|Merge pull request #${PR_NUM} from [^ ]* ||")
@@ -347,7 +347,7 @@ jobs:
               fi
             done
             if [ -z "$CHANGES" ]; then
-              LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
+              LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)openiap-store.gradle" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
               if [ -n "$LOG_LINES" ]; then
                 CHANGES="${LOG_LINES}\n"
               fi
@@ -521,7 +521,7 @@ jobs:
           fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/flutter-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/flutter_inapp_purchase/" ":(top,exclude)libraries/flutter_inapp_purchase/.claude/" ":(top,exclude)libraries/flutter_inapp_purchase/AGENTS.md" ":(top,exclude)libraries/flutter_inapp_purchase/CLAUDE.md")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)openiap-store.gradle" ":(top,exclude)libraries/flutter_inapp_purchase/.claude/" ":(top,exclude)libraries/flutter_inapp_purchase/AGENTS.md" ":(top,exclude)libraries/flutter_inapp_purchase/CLAUDE.md")
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
