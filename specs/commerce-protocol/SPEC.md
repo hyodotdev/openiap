@@ -1574,7 +1574,9 @@ storage or tooling.
 - **Purchase-not-found and conflict errors.** No 1.0 operation reports an
   unknown purchase or a conflicting state as an error: `bindPurchase` answers
   `bound: false` for both (§4.4). A later version that needs them adds codes
-  (§12).
+  (§12). PURCHASE_NOT_FOUND and CONFLICT were removed before 1.0 without a
+  version move: no operation ever declared them, so pinned callers only
+  delete dead branches.
 - **Trial and introductory-offer state.** Offers are catalog metadata here, not
   a property of a live subscription.
 - **Storefront and country.**

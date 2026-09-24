@@ -114,7 +114,9 @@
     <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'play'">
       <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
       <!-- billing:9.1.0's POM dependencies. The package's own NuGet dependencies
-           provide them, but the verifier only credits an app's direct references. -->
+           provide them, but the verifier only credits an app's direct references.
+           When MauiPlayBillingVersion in OpenIap.Maui.props moves, re-pin this
+           list from the new billing POM by hand. -->
       <AndroidIgnoredJavaDependency Include="androidx.activity:activity:1.2.3;androidx.core:core:1.15.0;com.google.android.datatransport:transport-api:3.0.0;com.google.android.datatransport:transport-backend-cct:3.1.8;com.google.android.datatransport:transport-runtime:3.1.8;com.google.android.gms:play-services-base:18.5.0;com.google.android.gms:play-services-basement:18.9.0;com.google.android.gms:play-services-location:19.0.0;com.google.android.gms:play-services-tasks:18.2.0" />
     </ItemGroup>
     <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'horizon'">

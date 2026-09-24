@@ -30,7 +30,7 @@ const EXPLANATIONS = [
     description:
       'Your authenticated backend selects Alice and asks the provider to associate the verified purchase with her. Repeating this request keeps the same owner.',
     result:
-      'Continue on bound: true. A false result covers both unknown evidence and an ownership conflict; it never tells Bob whose purchase exists.',
+      'Continue on bound: true. For a store the provider integrates, a false result covers both unknown evidence and an ownership conflict; it never tells Bob whose purchase exists. Other stores fail with UNSUPPORTED_STORE instead.',
   },
   {
     name: 'entitlements',

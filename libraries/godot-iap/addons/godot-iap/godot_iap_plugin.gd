@@ -134,16 +134,18 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 
 	## The store this Android export links, or "" when the option names none.
 	func _android_store(debug: bool) -> String:
-		if _android_stores.has(debug):
-			return _android_stores[debug]
-		var store := AndroidStore.normalize(get_option(ANDROID_STORE_OPTION))
+		var option = get_option(ANDROID_STORE_OPTION)
+		var key := "%s|%s" % [debug, option]
+		if _android_stores.has(key):
+			return _android_stores[key]
+		var store := AndroidStore.normalize(option)
 		if store == "auto":
 			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
 			store = resolution.store
 			print("[GodotIap] openiap: store=%s (source=%s; %s)" % [resolution.store, resolution.source, resolution.reason])
 		elif not store.is_empty():
 			print("[GodotIap] openiap: store=%s (source=explicit; %s)" % [store, ANDROID_STORE_OPTION])
-		_android_stores[debug] = store
+		_android_stores[key] = store
 		return store
 
 	func _get_export_features(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:

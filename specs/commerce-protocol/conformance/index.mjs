@@ -1920,11 +1920,13 @@ export async function runConformance({
             forbiddenTokens({ input: undefined, adapter, credentials }),
             // Probe an operation the provider serves, with a credential the
             // runner holds; a partial provider may serve either role alone.
-            profileServed("entitlements") &&
+            // Roles come from the served operations (bindPurchase/eraseUser are
+            // server-role but live outside entitlements), not the profiles.
+            servedRoles.has("server") &&
               typeof credentials?.server === "string" &&
               credentials.server
               ? "server"
-              : profileServed("verification") &&
+              : servedRoles.has("verification") &&
                   typeof credentials?.verification === "string" &&
                   credentials.verification
                 ? "verification"
@@ -1967,6 +1969,17 @@ export async function runConformance({
         continue;
       }
       if (!storeVectorIsEligible(vector, capabilities, declaredStores)) {
+        continue;
+      }
+      // A partial provider issues no credential for roles it doesn't
+      // serve: such a vector can neither run nor fail, so skip it. A
+      // served role without its credential still throws below.
+      if (
+        vector.credential !== null &&
+        vector.credential !== "invalid" &&
+        !credentials?.[vector.credential] &&
+        !servedRoles.has(vector.credential)
+      ) {
         continue;
       }
       const attempts = [];

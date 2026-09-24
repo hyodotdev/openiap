@@ -68,8 +68,19 @@ val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
 // One facade AAR serves every store: it ships compiled against Play, and CI
 // also compiles it against Horizon and Amazon with -PopeniapStore.
+for (legacy in listOf("openIapAndroidStore", "OpenIapAndroidStore")) {
+  if (providers.gradleProperty(legacy).isPresent) {
+    error("'$legacy' was replaced by -PopeniapStore=<play|horizon|amazon>; remove the legacy flag.")
+  }
+}
 val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull?.trim()?.lowercase(Locale.ROOT)
-val openIapStore = if (requestedOpenIapStore == "horizon" || requestedOpenIapStore == "amazon") requestedOpenIapStore else "play"
+val openIapStore = when (requestedOpenIapStore) {
+  null -> "play"
+  "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
+  "horizon", "meta", "quest" -> "horizon"
+  "amazon", "fire", "fireos", "fire-os" -> "amazon"
+  else -> error("Unsupported -PopeniapStore='$requestedOpenIapStore'. Use play, horizon, or amazon (default: play).")
+}
 val openIapGoogleArtifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
 
 android {

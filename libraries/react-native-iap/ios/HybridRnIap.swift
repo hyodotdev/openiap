@@ -2132,7 +2132,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             RnIapLog.payload("canPresentExternalPurchaseNoticeIOS", nil)
 
-            if #available(iOS 16.0, *) {
+            if #available(iOS 17.4, *) {
                 do {
                     let canPresent = try await self.runConnectedOperation {
                         try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
@@ -2161,7 +2161,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             RnIapLog.payload("presentExternalPurchaseNoticeSheetIOS", nil)
 
-            if #available(iOS 16.0, *) {
+            if #available(iOS 17.4, *) {
                 do {
                     let result = try await self.runConnectedOperation {
                         try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()

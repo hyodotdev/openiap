@@ -80,12 +80,14 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
 // An unlisted option's value may be read as a task; the graph check then fails
 // unless the value also names a task the build runs.
 ext.openIapValueOptions = [
-  '--args', '--component', '--configuration', '--dependency',
+  '-b', '-c', '-g', '-I', '-p',
+  '--args', '--component', '--configuration', '--console', '--dependency',
   '--distribution-type', '--dsl', '--format',
   '--gradle-distribution-sha256-sum', '--gradle-distribution-url',
-  '--gradle-version', '--group', '--groups', '--insecure-protocol',
-  '--java-version', '--jvm-vendor', '--jvm-version', '--network-timeout',
-  '--package', '--project-name', '--property', '--task', '--test-framework',
+  '--gradle-version', '--group', '--groups', '--include-build',
+  '--insecure-protocol', '--java-version', '--jvm-vendor', '--jvm-version',
+  '--max-workers', '--network-timeout', '--package', '--project-cache-dir',
+  '--project-dir', '--project-name', '--property', '--task', '--test-framework',
   '--tests', '--type', '--variant',
 ] as Set
 
@@ -94,7 +96,11 @@ ext.openIapValueOptions = [
 ext.openIapRequestedTasks = {
   def names = []
   def previous = null
-  gradle.startParameter.taskNames.each { String token ->
+  def requested = gradle.startParameter.taskNames
+  if (requested.isEmpty()) {
+    requested = rootProject.defaultTasks ?: []
+  }
+  requested.each { String token ->
     if (!token) {
       return
     }
@@ -112,6 +118,8 @@ ext.openIapRequestedTasks = {
   return names
 }
 
+// Variant detection reads every requested task: keep whole-token
+// play/horizon/amazon out of custom task names.
 ext.openIapTaskStore = { String label ->
   def named = openIapRequestedTasks().collectMany { openIapTaskTokens(it) }
       .findAll { it in ['play', 'horizon', 'amazon'] } as LinkedHashSet
@@ -224,6 +232,8 @@ ext.openIapEnv = { String name ->
 
 ext.openIapAdb = {
   def roots = [openIapEnv('ANDROID_HOME'), openIapEnv('ANDROID_SDK_ROOT')]
+  // local.properties is plain I/O, not a tracked input: sdk.dir ~never
+  // changes, and staleness only loses adb discovery, never a store pick.
   def localProperties = rootProject.file('local.properties')
   if (localProperties.isFile()) {
     def properties = new Properties()

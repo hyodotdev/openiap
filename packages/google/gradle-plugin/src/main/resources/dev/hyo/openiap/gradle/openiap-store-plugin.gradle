@@ -46,6 +46,10 @@ def openIapUseStore = { String store, Collection targets = null ->
 // has no getter, so read AGP's flavor class; the first store listed wins.
 def openIapRequestedPlatform = { flavor ->
   if (!flavor.hasProperty('missingDimensionStrategies')) {
+    if (!binding.hasVariable('openIapStrategyCheckSkipped')) {
+      binding.setVariable('openIapStrategyCheckSkipped', true)
+      logger.warn("openiap-store: this AGP hides missingDimensionStrategies, so the strategy-agreement check is skipped")
+    }
     return null
   }
   def request = flavor.missingDimensionStrategies['platform']

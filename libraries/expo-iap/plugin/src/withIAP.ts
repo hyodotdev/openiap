@@ -202,11 +202,15 @@ export const modifyAppBuildGradle = (
     );
   }
 
-  const withoutStrategy = modified.replace(PLATFORM_STRATEGY_LINE, '');
+  const removedStrategies: string[] = [];
+  const withoutStrategy = modified.replace(PLATFORM_STRATEGY_LINE, (line) => {
+    removedStrategies.push(line.trim());
+    return '';
+  });
   if (withoutStrategy !== modified) {
     modified = withoutStrategy;
     logOnce(
-      '🧹 expo-iap: Removed a fixed platform strategy; the store is resolved at build time',
+      `🧹 expo-iap: Removed fixed platform strategies (${removedStrategies.join('; ')}) — the store is resolved at build time; pin it with openiapStore instead`,
     );
   }
 
@@ -233,6 +237,21 @@ export function storeGradleProperties<T extends GradleProperty>(
     (item) =>
       item.type !== 'property' || !STORE_PROPERTY_KEYS.includes(item.key ?? ''),
   );
+  const removed = properties
+    .filter(
+      (item) =>
+        item.type === 'property' &&
+        STORE_PROPERTY_KEYS.includes(item.key ?? ''),
+    )
+    .map((item) => `${item.key}=${item.value ?? ''}`);
+  const netRemoved = pinnedStore
+    ? removed.filter((entry) => entry !== `openiapStore=${pinnedStore}`)
+    : removed;
+  if (netRemoved.length > 0) {
+    logOnce(
+      `🧹 expo-iap: Removed legacy store properties (${netRemoved.join(', ')}) — pin the store with openiapStore instead`,
+    );
+  }
   return pinnedStore
     ? [
         ...kept,

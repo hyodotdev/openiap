@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-24T01:23:23.826Z
+> Generated: 2026-09-24T03:48:33.254Z
 
 ## Reading instructions for coding assistants
 
@@ -3936,7 +3936,9 @@ storage or tooling.
 - **Purchase-not-found and conflict errors.** No 1.0 operation reports an
   unknown purchase or a conflicting state as an error: `bindPurchase` answers
   `bound: false` for both (§4.4). A later version that needs them adds codes
-  (§12).
+  (§12). PURCHASE_NOT_FOUND and CONFLICT were removed before 1.0 without a
+  version move: no operation ever declared them, so pinned callers only
+  delete dead branches.
 - **Trial and introductory-offer state.** Offers are catalog metadata here, not
   a property of a live subscription.
 - **Storefront and country.**

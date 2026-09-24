@@ -91,8 +91,11 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(groovy.strategy).not.toContain('rootProject');
 
     const kotlin = appStoreLines('../x/openiap-store.gradle', 'kt');
-    expect(kotlin.apply).toBe('apply(from = "../x/openiap-store.gradle")');
-    expect(kotlin.strategy).toContain('openIapResolveStore');
+    expect(kotlin.apply).toContain('apply(from = "../x/openiap-store.gradle")');
+    expect(kotlin.apply).toContain('val openIapStore =');
+    expect(kotlin.apply).toContain('openIapResolveStore');
+    expect(kotlin.strategy).toContain('openIapStore');
+    expect(kotlin.strategy).not.toContain('openIapResolveStore');
     expect(kotlin.strategy).not.toContain('rootProject');
   });
 

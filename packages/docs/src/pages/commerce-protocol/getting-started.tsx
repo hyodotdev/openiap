@@ -205,12 +205,13 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
   -H 'Content-Type: application/json' \\
   --data-binary @binding.json`}</CodeBlock>
           <p>
-            Continue after <code>bound: true</code>. A <code>bound: false</code>
-            result intentionally does not distinguish unknown evidence from a
-            purchase belonging to someone else. Do not transfer the binding or
-            grant access on that result; use your provider’s recovery process.
-            The association can remain bound even when the subscription is
-            expired.
+            Continue after <code>bound: true</code>. For a store the provider
+            integrates, a <code>bound: false</code> result intentionally does
+            not distinguish unknown evidence from a purchase belonging to
+            someone else; other stores fail with UNSUPPORTED_STORE instead. Do
+            not transfer the binding or grant access on that result; use your
+            provider’s recovery process. The association can remain bound even
+            when the subscription is expired.
           </p>
           <CodeBlock language="bash">{`curl --fail-with-body --get "$COMMERCE_BASE_URL${pathOf('entitlements')}" \\
   -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\

@@ -129,9 +129,10 @@ export const appStoreLines = (
 ): {apply: string; strategy: string} =>
   language === 'kt'
     ? {
-        apply: `apply(from = "${storeScriptPath}")`,
-        strategy:
-          '        missingDimensionStrategy("platform", ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["store"] as String)',
+        // defaultConfig's receiver is DefaultConfig, not the script, so read
+        // extra at the top level where the script scope applies.
+        apply: `apply(from = "${storeScriptPath}")\nval openIapStore = ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["store"] as String`,
+        strategy: '        missingDimensionStrategy("platform", openIapStore)',
       }
     : {
         apply: `apply from: "${storeScriptPath}"`,
@@ -176,7 +177,11 @@ export const removeLocalOpenIapAppWiring = (contents: string): string =>
       '',
     )
     .replace(
-      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*openIapResolveStore[^\n]*\n?/gm,
+      /^[ \t]*val openIapStore = .*openIapResolveStore.*\n?(?:^[ \t]*\n)?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*(openIapResolveStore|openIapStore)[^\n]*\n?/gm,
       '',
     );
 

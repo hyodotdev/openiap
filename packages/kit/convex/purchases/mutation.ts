@@ -71,8 +71,9 @@ export const bindVerifiedPurchaseAsServer = mutation({
       for (const row of reclaimed)
         await ctx.db.patch(row._id, { appUserId: undefined });
       if (reclaimed.length === 0) {
-        // SPEC §4.4 keeps every non-binding outcome at bound:false, so the cap
-        // is visible to operators only through this log line.
+        // For an integrated store, SPEC §4.4 keeps every non-binding outcome
+        // at bound:false, so the cap is visible to operators only through
+        // this log line.
         console.warn("[commerce] bindPurchase refused: bound purchase limit", {
           projectId: resolved.project._id,
           store: args.store,

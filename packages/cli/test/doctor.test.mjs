@@ -14,6 +14,7 @@ import test from "node:test";
 
 import { FINDING_IDS, doctor, formatText } from "../src/doctor.mjs";
 import { finding } from "../src/findings.mjs";
+import { STORE_ALIASES } from "../src/checks.mjs";
 import { readFileSync } from "node:fs";
 
 function project(files) {
@@ -203,6 +204,27 @@ test("store aliases resolve the way the Gradle resolver reads them", () => {
       },
     );
   }
+});
+
+test("store aliases stay in sync with the Gradle resolver table", () => {
+  const gradle = readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../../openiap-store.gradle",
+    ),
+    "utf8",
+  );
+  const block = gradle.match(/ext\.openIapStoreAliases\s*=\s*\[(.*?)\]/s)?.[1];
+  assert.ok(block, "alias map moved; update this sync test");
+  const uncommented = block.replace(/\/\/.*$/gm, "");
+  const pairs = [
+    ...uncommented.matchAll(/['"]?([\w-]+)['"]?\s*:\s*['"](\w+)['"]/g),
+  ];
+  assert.ok(pairs.length > 0, "alias map parse found no entries");
+  assert.deepEqual(
+    Object.fromEntries(pairs.map((m) => [m[1], m[2]])),
+    STORE_ALIASES,
+  );
 });
 
 test("openiapStore=auto pins nothing", () => {

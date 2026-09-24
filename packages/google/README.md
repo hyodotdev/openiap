@@ -55,6 +55,13 @@ sets `openiapStore`:
 
 ```kotlin
 // settings.gradle.kts
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 plugins {
     id("io.github.hyochan.openiap") version "<version>"
 }

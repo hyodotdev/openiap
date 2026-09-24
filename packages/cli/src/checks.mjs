@@ -63,7 +63,7 @@ const APP_BUILD_FILES = [
 ];
 
 // Same table as the root openiap-store.gradle.
-const STORE_ALIASES = {
+export const STORE_ALIASES = {
   play: "play",
   google: "play",
   gplay: "play",

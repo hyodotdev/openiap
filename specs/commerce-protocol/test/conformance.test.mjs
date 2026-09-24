@@ -2661,6 +2661,28 @@ describe("the portable conformance runner", () => {
     );
   });
 
+  it("certifies an accountLifecycle-only GraphQL provider (server role outside entitlements)", async () => {
+    // bindPurchase/eraseUser are server-role but live in accountLifecycle, so
+    // the probe must select the server role even though entitlements is unserved.
+    const provider = createMockProvider({ profiles: ["accountLifecycle"] });
+    const report = await runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch: provider.fetch,
+          credentials: { server: provider.credentials.server },
+        }),
+      ],
+      Ajv,
+      credentials: { server: provider.credentials.server },
+    });
+    const probe = report.results.find((r) => r.id === "graphql.executor-probe");
+    expect(probe.ok, probe.failures.join(" ")).toBe(true);
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+  });
+
   it("refuses to run when a protocol role is missing from credentials", async () => {
     const provider = createMockProvider();
     await expect(
