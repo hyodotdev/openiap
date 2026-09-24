@@ -112,11 +112,11 @@ dependencies {
     if (findProject(":openiap-google") != null) {
       api project(":openiap-google")
     } else if (openiapFlavor == 'amazon') {
-      api "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
     } else if (openiapFlavor == 'horizon') {
-      api "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
     } else {
       // Fallback to published artifact when local project isn't linked
-      api "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}"
+      api "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
     }
 }

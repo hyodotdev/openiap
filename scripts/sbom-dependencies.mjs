@@ -999,7 +999,10 @@ function extractNone() {
   return [];
 }
 
-function extractOpenIapNative(root, { apple = false, google = [] }) {
+function extractOpenIapNative(
+  root,
+  { apple = false, google = [], group = "io.github.hyodotdev.openiap" },
+) {
   const versions = readJson(root, "openiap-versions.json");
   const entries = [];
   if (apple) {
@@ -1018,9 +1021,9 @@ function extractOpenIapNative(root, { apple = false, google = [] }) {
   for (const artifact of google) {
     entries.push(
       dependencyEntry({
-        name: `io.github.hyodotdev.openiap:${artifact}`,
+        name: `${group}:${artifact}`,
         version: versions.google,
-        purl: `pkg:maven/io.github.hyodotdev.openiap/${artifact}@${encodePurlVersion(versions.google)}`,
+        purl: `pkg:maven/${group}/${artifact}@${encodePurlVersion(versions.google)}`,
         properties: [{ name: "openiap:platform", value: "android" }],
         spdxLicense: "MIT",
         supplier: "OpenIAP",

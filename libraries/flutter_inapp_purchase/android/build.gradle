@@ -194,11 +194,11 @@ dependencies {
         if (localGoogleProject != null) {
             implementation project(':openiap')
         } else if (openiapPlatform == 'amazon') {
-            implementation "io.github.hyodotdev.openiap:openiap-google-amazon:${openiapGoogleVersion}"
+            implementation "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}"
         } else if (openiapPlatform == 'horizon') {
-            implementation "io.github.hyodotdev.openiap:openiap-google-horizon:${openiapGoogleVersion}"
+            implementation "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}"
         } else {
-            implementation "io.github.hyodotdev.openiap:openiap-google:${openiapGoogleVersion}"
+            implementation "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}"
         }
 
         implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"

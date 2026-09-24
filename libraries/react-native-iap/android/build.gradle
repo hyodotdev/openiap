@@ -262,11 +262,11 @@ dependencies {
   if (localGoogleProject != null) {
     implementation project(':openiap')
   } else if (openiapFlavor == 'amazon') {
-    implementation "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}"
+    implementation "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}"
   } else if (openiapFlavor == 'horizon') {
-    implementation "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}"
+    implementation "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}"
   } else {
-    implementation "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}"
+    implementation "io.github.hyochan.openiap:openiap-google:${googleVersionString}"
   }
 
   // Test dependencies

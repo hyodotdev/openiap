@@ -1677,22 +1677,22 @@ test("framework SBOMs include every shipped native runtime contract", async () =
   });
   assert.deepEqual(conformance.document.components, []);
 
-  const openIapNativeNames = [
+  const openIapNativeNamesLegacyGroup = [
     "openiap",
-    "io.github.hyodotdev.openiap:openiap-google",
-    "io.github.hyodotdev.openiap:openiap-google-amazon",
-    "io.github.hyodotdev.openiap:openiap-google-horizon",
+    "io.github.hyochan.openiap:openiap-google",
+    "io.github.hyochan.openiap:openiap-google-amazon",
+    "io.github.hyochan.openiap:openiap-google-horizon",
   ];
   const expectedByComponent = {
-    expo: [...openIapNativeNames, "ExpoModulesCore", "OnsideKit"],
+    expo: [...openIapNativeNamesLegacyGroup, "ExpoModulesCore", "OnsideKit"],
     flutter: [
-      ...openIapNativeNames,
+      ...openIapNativeNamesLegacyGroup,
       "Flutter",
       "androidx.annotation:annotation",
       "org.jetbrains.kotlinx:kotlinx-coroutines-android",
     ],
     "react-native": [
-      ...openIapNativeNames,
+      ...openIapNativeNamesLegacyGroup,
       "React-Core",
       "React-jsi",
       "React-callinvoker",

@@ -65,6 +65,13 @@ const ALL_OPENIAP_NATIVE_VARIANTS = {
   google: ["openiap-google", "openiap-google-horizon", "openiap-google-amazon"],
 };
 
+// RN, Expo, and Flutter still resolve the published group until openiap-google
+// ships under the new one; their build scripts and inventories say the same.
+const ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP = {
+  ...ALL_OPENIAP_NATIVE_VARIANTS,
+  group: "io.github.hyochan.openiap",
+};
+
 const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
 const GRADLE_COORDINATE_PATTERN =
   /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
@@ -256,7 +263,7 @@ const COMPONENTS = {
       kind: "aggregate",
       sources: [
         { kind: "npm", manifest: "libraries/expo-iap/package.json" },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
         {
           kind: "declared",
           manifest: "libraries/expo-iap/ios/ExpoIap.podspec",
@@ -298,9 +305,9 @@ const COMPONENTS = {
               file: "libraries/expo-iap/android/build.gradle",
               pattern: GRADLE_COORDINATE_PATTERN,
               expected: [
-                "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}",
-                "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}",
-                "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
               ],
             },
             {
@@ -336,9 +343,9 @@ const COMPONENTS = {
               pattern: GRADLE_COORDINATE_PATTERN,
               expected: [
                 "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}",
-                "io.github.hyodotdev.openiap:openiap-google-amazon:${openiapGoogleVersion}",
-                "io.github.hyodotdev.openiap:openiap-google-horizon:${openiapGoogleVersion}",
-                "io.github.hyodotdev.openiap:openiap-google:${openiapGoogleVersion}",
+                "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}",
+                "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}",
               ],
             },
@@ -377,7 +384,7 @@ const COMPONENTS = {
             },
           ],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
         {
           kind: "declared",
           manifest:
@@ -591,9 +598,9 @@ const COMPONENTS = {
               expected: [
                 "com.facebook.react:react-native:+",
                 "com.google.android.gms:play-services-base:$playServicesBaseVersion",
-                "io.github.hyodotdev.openiap:openiap-google-amazon:${googleVersionString}",
-                "io.github.hyodotdev.openiap:openiap-google-horizon:${googleVersionString}",
-                "io.github.hyodotdev.openiap:openiap-google:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
                 "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion",
               ],
             },
@@ -643,7 +650,7 @@ const COMPONENTS = {
             },
           ],
         },
-        ALL_OPENIAP_NATIVE_VARIANTS,
+        ALL_OPENIAP_NATIVE_VARIANTS_LEGACY_GROUP,
         {
           kind: "declared",
           manifest: "libraries/react-native-iap/NitroIap.podspec",
