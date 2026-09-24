@@ -1,5 +1,5 @@
 ## Android store selection for exports, by the same rules as
-## the root openiap-store.gradle.
+## packages/google/gradle/openiap-store.gradle.
 extends RefCounted
 
 const STORES: PackedStringArray = ["auto", "play", "horizon", "amazon"]

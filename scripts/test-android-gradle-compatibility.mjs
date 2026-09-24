@@ -143,7 +143,7 @@ tasks.register('verifyCompatibility') {
     );
     // The wrapper applies the store resolver, which it publishes as a real file.
     copy(
-      join(repo, "openiap-store.gradle"),
+      join(repo, "packages/google/gradle/openiap-store.gradle"),
       `${packageName}/android/openiap-store.gradle`,
     );
     copy(join(source, "package.json"), `${packageName}/package.json`);

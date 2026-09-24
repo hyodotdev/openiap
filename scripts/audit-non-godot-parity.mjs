@@ -7324,8 +7324,8 @@ function checkFrameworkDependencyHygiene() {
       ],
       "Google example overlapping Android versions must not drift from openiap module",
     );
-    // A Gradle script cannot ship in the AAR, so each wrapper links the root
-    // resolver into android/ and its package publishes the linked file.
+    // A Gradle script cannot ship in the AAR, so each wrapper links the
+    // google-owned resolver into android/ and its package publishes the file.
     for (const wrapper of [
       "libraries/react-native-iap/android",
       "libraries/expo-iap/android",
@@ -7333,7 +7333,7 @@ function checkFrameworkDependencyHygiene() {
     ]) {
       expectSymlinkTarget(
         `${wrapper}/openiap-store.gradle`,
-        "../../../openiap-store.gradle",
+        "../../../packages/google/gradle/openiap-store.gradle",
         `${wrapper}/openiap-store.gradle`,
       );
       expectIncludes(
@@ -7355,7 +7355,7 @@ function checkFrameworkDependencyHygiene() {
     // Five store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild) cannot
     // share code, so they must match entry for entry.
     const aliasTables = {
-      "openiap-store.gradle": (text) => {
+      "packages/google/gradle/openiap-store.gradle": (text) => {
         const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
         return block
           ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
@@ -7413,10 +7413,10 @@ function checkFrameworkDependencyHygiene() {
     const facadeFile =
       "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt";
     const facadeSkips = new Set(["play", "horizon", "amazon", "auto", "none"]);
-    const reference = parsedAliases["openiap-store.gradle"];
+    const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
     if (reference) {
       for (const [file, table] of Object.entries(parsedAliases)) {
-        if (file === "openiap-store.gradle") continue;
+        if (file === "packages/google/gradle/openiap-store.gradle") continue;
         for (const [alias, store] of reference) {
           if (file === godotFile && store === "none") continue;
           if (file === facadeFile && facadeSkips.has(alias)) continue;
@@ -7437,7 +7437,7 @@ function checkFrameworkDependencyHygiene() {
       }
     }
     // A Godot debug export probes the device too, so it reads the same features.
-    const resolverFile = "openiap-store.gradle";
+    const resolverFile = "packages/google/gradle/openiap-store.gradle";
     if (exists(resolverFile) && exists(godotFile)) {
       const features = (file) =>
         [...new Set(read(file).match(/feature:[a-z0-9._]+/g) ?? [])]

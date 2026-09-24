@@ -2,7 +2,7 @@
 // machine-readable line. verify-store-resolver.sh asserts against that line.
 import org.gradle.api.tasks.options.Option
 
-apply from: new File(rootDir, '../../../../openiap-store.gradle')
+apply from: new File(rootDir, '../../gradle/openiap-store.gradle')
 
 def allowNone = (project.findProperty('fixtureAllowNone') ?: 'false').toBoolean()
 def resolution = openIapResolveStore('fixture', [allowNone: allowNone])

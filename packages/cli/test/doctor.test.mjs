@@ -210,7 +210,7 @@ test("store aliases stay in sync with the Gradle resolver table", () => {
   const gradle = readFileSync(
     path.resolve(
       path.dirname(fileURLToPath(import.meta.url)),
-      "../../../openiap-store.gradle",
+      "../../google/gradle/openiap-store.gradle",
     ),
     "utf8",
   );

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-24T08:59:19.465Z
+> Last updated: 2026-09-24T20:51:39.505Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1419,8 +1419,8 @@ are normalized at the input boundary only: `google`, `gplay`, `googleplay`,
 `fire-os` → `amazon`. `IapStore` in the schema is the _runtime_ store on a
 purchase and keeps its own names.
 
-**SSOT.** The root `openiap-store.gradle` implements the rule; edit only that
-file. A Gradle script cannot ship in the AAR, so
+**SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule;
+edit only that file. A Gradle script cannot ship in the AAR, so
 `libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
 `libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
 `openiap-versions.json`, and `bun audit:parity` checks the link targets. Each
