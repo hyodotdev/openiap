@@ -188,11 +188,18 @@ consumer doing revenue reconciliation SHOULD accept only `store`.
 **Identifiers** are opaque strings. A consumer MUST NOT parse structure out of
 one.
 
-**Enumerations** are closed unless this document says otherwise. Four value
-spaces are deliberately open — `environment` here, `store` below,
-`cancellationReason` on the subscription snapshot, and `eventType`, which §12
-grows in a MINOR version — and a consumer MUST tolerate a value it does not
-recognise in any of them, and MUST NOT act on one it does not know.
+**Enumerations** are closed unless this document says otherwise. These value
+spaces are open, and a MINOR version can add a value to any of them (§12):
+
+- `store` (below) and `environment`
+- `cancellationReason` (§2.2)
+- `eventType` (§9.1)
+- the verification `state` (§4.1) and the erasure job `status` (§4.5)
+- protocol error codes (§8)
+- profile and binding names (§3, §10.1)
+
+Whoever reads one MUST tolerate a value it does not recognise and MUST NOT act
+on one it does not know. §8 says how a caller treats an unrecognised error code.
 
 **Store, not platform.** This specification keys on `store`, never on device
 platform. One device platform can host several stores — an Android build can
@@ -242,8 +249,9 @@ unlike `price`, it carries no provenance.
 
 Entitlement is carried as `subscription.active`, and where a `subscription`
 member is present that is the field to read — never a re-derivation from
-`state`. A store that keeps no canonical subscription record sends no snapshot;
-there the `entitlement.*` event type itself carries the decision (§9.5).
+`state`. An `entitlement.*` event may omit the snapshot where the store keeps no
+canonical subscription record; its event type then carries the decision (§9.5).
+No implementation emits that shape yet (§14).
 
 **Entitlement is not derivable from `state` alone**, and this is where naive
 implementations go wrong:
@@ -360,7 +368,11 @@ a consumer MUST ignore a profile name it does not recognise.
 A provider implements a profile **completely or not at all**. It MUST declare
 in its capability descriptor (§10) every profile it serves and MUST NOT
 declare one it serves partially or does not pass conformance for (§11).
-Profiles version independently as MAJOR.MINOR; a caller pins on the major.
+A provider whose descriptor lists profiles MUST fail an operation from any
+profile it does not list with `UNSUPPORTED_PROFILE`. Authorization comes first
+(§5): a credential the provider did not issue for the operation's role still
+gets `UNAUTHORIZED` or `FORBIDDEN`. Profiles version independently as
+MAJOR.MINOR; a caller pins on the major.
 
 ---
 
@@ -414,10 +426,12 @@ input to it, select or mutate account state.
 
 ### 4.2 subscriptionStatus
 
-A developer backend reads one user's subscription standing: an `active` gate
-for the user as a whole, plus the most relevant record — the current
-entitling subscription when one exists, otherwise the provider's most recent
-record as context, and no record member at all when the provider has none.
+A developer backend reads one user's subscription standing. `active` says
+whether the user holds a currently entitling subscription. The result also
+carries the most relevant record — the current entitling subscription when one
+exists, otherwise the provider's most recent record as context, and no record
+member at all when the provider has none. Access that does not come from a
+subscription appears only in `entitlements` (§4.3).
 
 The snapshot is **tokenless by construction**: no purchase token, store
 transaction identity, signed receipt, or provider-internal record identifier
@@ -426,10 +440,17 @@ because with it a shipped app could walk arbitrary user identities.
 
 ### 4.3 entitlements
 
-The access decision for one user: every product whose gate is open at the
-provider's read time, with the entitling records. Unknown, expired, and
-ambiguous records contribute nothing. The same tokenless and server-role
-rules as §4.2 apply.
+The access decision for one user: `productIds` lists every product whose gate
+is open at the provider's read time, and `subscriptions` the entitling
+subscription records. A product can be granted without a subscription record,
+such as a durable purchase, so `productIds` may name products no record
+carries; every record's product is in `productIds`. Unknown, expired, and
+ambiguous records contribute nothing. The same tokenless and server-role rules
+as §4.2 apply.
+
+A provider that rechecks access with a store and cannot get its answer MUST
+fail the read with `VERIFICATION_FAILED` (§8) rather than answer from what it
+has.
 
 ### 4.4 bindPurchase
 
@@ -438,12 +459,13 @@ the identity space of §2.4. Server role only: token possession is
 deliberately not proof of ownership, so binding is a decision the caller's
 authenticated backend makes, never a shipped app.
 
-Binding is idempotent and never moves an existing binding. `bound: false`
-covers every non-binding outcome — unknown evidence, evidence bound to a
-different user, a store the provider cannot bind — without distinguishing
-them, so the operation cannot probe whether someone else's purchase exists.
-How a provider recovers a purchase bound to the wrong user is management
-plane, outside this contract.
+Binding is idempotent and never moves an existing binding. For a store the
+provider integrates, `bound: false` covers every non-binding outcome — unknown
+evidence, evidence bound to a different user — without distinguishing them, so
+the operation cannot probe whether someone else's purchase exists. A store the
+provider does not integrate is `UNSUPPORTED_STORE`, as in §4.1. How a provider
+recovers a purchase bound to the wrong user is management plane, outside this
+contract.
 
 ### 4.5 eraseUser
 
@@ -469,8 +491,8 @@ runner reads it the same way a caller does.
 ## 5. Authentication and trust
 
 The protocol standardizes **roles and rules**, not credential formats. How a
-provider issues, names, or rotates credentials is its own business; no
-prefix, length, or issuer is part of this contract.
+provider issues, names, or rotates credentials is its own business; a
+credential's prefix, length, and issuer are outside this contract.
 
 | Role             | Holder                             | May call                                             |
 | ---------------- | ---------------------------------- | ---------------------------------------------------- |
@@ -480,27 +502,27 @@ prefix, length, or issuer is part of this contract.
 
 Both bindings MUST enforce:
 
-- Credentials travel in the `Authorization` header. A provider MUST NOT
-  accept a secret in a URL path or query string, where proxies and logs
-  retain it.
+- A credential travels as `Authorization: Bearer <credential>` (RFC 6750).
+  A provider MUST NOT accept a secret in a URL path or query string, where
+  proxies and logs retain it.
 - Auth failures fail close: no credential is `UNAUTHORIZED`, a credential of
   the wrong role is `FORBIDDEN`, and neither response reveals whether the
   target of the call exists.
 - For an operation that requires the **server** role, authorization precedes
-  input validation: a caller without a valid server credential MUST receive
-  `UNAUTHORIZED` or `FORBIDDEN`, never a verdict about its input — an
+  input validation. A caller without a valid server credential MUST receive
+  `UNAUTHORIZED` or `FORBIDDEN`, never a verdict about its input: an
   input-validation answer would let an unauthenticated caller map the
   privileged surface (which stores bind, which members exist, which bounds
-  apply). Transport-shape failures — an unparseable or oversized body, or a
-  GraphQL document that fails parsing or validation — MAY still precede
-  authorization: they say nothing operation-specific. Variable coercion
-  against the operation input IS input validation, not transport shape — a
-  GraphQL engine coerces variables before any resolver runs, so a provider
-  that authorizes only inside resolvers violates this rule and MUST
-  authorize the operation before executing the document. Verification-role
-  operations are exempt
-  because their input schema is the published client contract an application
-  already ships with.
+  apply).
+  - Verification-role operations are exempt, because their input schema is
+    the published client contract an application already ships with.
+  - Transport-shape failures MAY still precede authorization, because they
+    say nothing operation-specific: an unparseable or oversized body, or a
+    GraphQL document that fails parsing or validation.
+  - Variable coercion against the operation input is input validation, not
+    transport shape. A GraphQL engine coerces variables before any resolver
+    runs, so a provider MUST authorize the operation before executing the
+    document; authorizing only inside resolvers violates this rule.
 - The verification role and the server role are distinct credentials. A
   provider MUST NOT let a verification credential reach an account read or
   mutation, which is what blocks arbitrary-`userId` lookups from shipped
@@ -535,6 +557,8 @@ offline bundle.
   `Content-Type: application/json`.
 - Success is exactly the operation's `successStatus`. Every failure returns
   the status §8 assigns to its code, with a `ProtocolErrorResponse` body.
+- A request whose method and path under `/commerce/v1` match no operation
+  fails with `NOT_FOUND`.
 - An unrecognised input member is ignored (§4), and a caller MUST ignore
   unrecognised result members — the same open-object rule the event envelope
   follows.
@@ -580,15 +604,17 @@ provider MAY still gate introspection behind a credential.
   delivered at `200`. This includes a refusal decided before execution,
   such as an authorization or rate-limit rejection; a pre-execution refusal
   omits the `data` member.
-- A request-level failure — the document or variables themselves could not
-  be processed: unparseable document, validation failure, variable coercion
-  — MAY carry no protocol code or MAY carry the generic `INVALID_REQUEST`,
-  never a more specific code. The two categories are exclusive per envelope:
-  one `errors` array is either all coded or all codeless — a codeless entry
-  riding beside coded ones would be invisible to every code check. It omits the `data` member entirely, and only
-  the codeless form MAY be delivered as HTTP `400` instead of `200`. A
-  caller treats either form as `INVALID_REQUEST`; only where the request
-  died differs.
+- A request-level failure is one where the document or variables could not
+  be processed: an unparseable document, a validation failure, or variable
+  coercion.
+  - It MAY carry no protocol code or the generic `INVALID_REQUEST`, never a
+    more specific code.
+  - Its response omits the `data` member entirely.
+  - Only its codeless form MAY be delivered as HTTP `400` instead of `200`.
+  - A caller treats either form as `INVALID_REQUEST`; only where the request
+    died differs.
+- One `errors` array is either all coded or all codeless. A codeless entry
+  beside coded ones would be invisible to every code check.
 - GraphQL cannot express omitted-versus-null on a selected member: a member
   the provider omitted comes back as `null`. Operation types therefore never
   make `null` meaningful (the compiler rejects a nullable omittable member),
@@ -616,13 +642,11 @@ traces, or implementation source paths.
 | `INVALID_REQUEST`     | 400  | The input is malformed or fails the operation schema                         |
 | `UNAUTHORIZED`        | 401  | No usable credential was presented                                           |
 | `FORBIDDEN`           | 403  | The credential's role may not call this operation                            |
-| `NOT_FOUND`           | 404  | The addressed resource does not exist                                        |
-| `PURCHASE_NOT_FOUND`  | 404  | The evidenced purchase is unknown, where an operation distinguishes that     |
-| `CONFLICT`            | 409  | The request contradicts current state                                        |
+| `NOT_FOUND`           | 404  | The REST method and path match no operation (§6)                             |
 | `UNSUPPORTED_STORE`   | 422  | The provider does not integrate the named store                              |
 | `RATE_LIMITED`        | 429  | Too many requests; retry after the signalled delay                           |
 | `INTERNAL_ERROR`      | 500  | The provider failed internally                                               |
-| `UNSUPPORTED_PROFILE` | 501  | The operation belongs to a profile this provider does not serve              |
+| `UNSUPPORTED_PROFILE` | 501  | The operation belongs to a profile the provider does not declare (§3)        |
 | `VERIFICATION_FAILED` | 502  | The provider could not obtain a verdict — never the store rejecting evidence |
 
 The space is open: a MINOR version can add a code, so a caller MUST treat an
@@ -1074,9 +1098,10 @@ The consumer revokes access on `entitlement.revoked`. It could equally act on
 same meaning for every store — including a store that produces no subscription
 lifecycle at all (§10).
 
-> On such a store the event arrives with **no `subscription` member**, because
-> there is no canonical record to snapshot. `eventType` alone then carries the
-> access decision, which is why the reference consumer below handles both.
+> For such a store an entitlement event would carry **no `subscription`
+> member**, because there is no canonical record to snapshot, and `eventType`
+> alone would carry the access decision. No implementation emits that shape yet
+> (§14), but the schema allows it, so the reference consumer below handles both.
 
 #### What the consumer had to know
 
@@ -1183,8 +1208,9 @@ Each capability carries **two** booleans, deliberately separate:
 
 They differ in practice. Amazon publishes Real-Time Notifications that a given
 backend may not have integrated; that is an implementation gap, not a store
-limitation, and collapsing the two into one boolean hides which one it is. A
-`notes` string is **required** whenever either is false or the two disagree.
+limitation, and collapsing the two into one boolean hides which one it is.
+`implementation` MUST NOT be true where `provider` is false. A `notes` string
+is **required** whenever either is false.
 
 `examples/provider-capabilities.json` is the reference implementation's own
 descriptor. Read its `implementation` axis as one backend's answer, not as the
@@ -1283,17 +1309,37 @@ import {
   runConformance,
 } from "@hyodotdev/openiap-commerce-protocol/conformance";
 
+// Bare credential values; the adapters send them as Bearer tokens (§5).
+const credentials = {
+  verification: process.env.COMMERCE_VERIFICATION_TOKEN,
+  server: process.env.COMMERCE_SERVER_TOKEN,
+};
+const adapters = [
+  createRestAdapter({
+    baseUrl: process.env.COMMERCE_BASE_URL,
+    fetch,
+    credentials,
+  }),
+];
+if (process.env.COMMERCE_GRAPHQL_URL) {
+  adapters.push(
+    createGraphqlAdapter({
+      url: process.env.COMMERCE_GRAPHQL_URL,
+      fetch,
+      credentials,
+    }),
+  );
+}
+
 const report = await runConformance({
-  adapters: [
-    createRestAdapter({ baseUrl, fetch, credentials }),
-    createGraphqlAdapter({ url: graphqlUrl, fetch, credentials }),
-  ],
+  adapters,
   Ajv,
-  // The same role-to-credential map the adapters use — required, so the
-  // runner can reject an error message that echoes a credential.
+  // Required: the runner rejects an error message that echoes a credential.
   credentials,
-  eventsAdapter, // required when the descriptor declares the events profile
+  // Add your eventsAdapter here if the descriptor declares the events profile.
 });
+console.log(JSON.stringify(report, null, 2));
+process.exitCode = report.ok ? 0 : 1;
 ```
 
 It is offline and decentralized by construction: it talks only through the
@@ -1311,33 +1357,39 @@ signing-only adapter.
 ### 11.3 What the vectors prove — and what they cannot
 
 The operation vectors (`generated/vectors/operations.json`) exercise auth
-negatives, invalid and unknown-member inputs, unsupported stores, mismatched
-evidence, idempotent repeats, tokenless responses, error-code and
-HTTP-status agreement, capability honesty, and REST/GraphQL parity. Their
-purchase evidence is fake but well-formed, so a provider without store
-credentials still verifies its transport contract; a verdict for that
-evidence is accepted as either a schema-valid result or
-`VERIFICATION_FAILED`.
+negatives, invalid and unknown-member inputs, unsupported stores and profiles,
+mismatched evidence, unknown users, idempotent repeats, tokenless responses,
+error-code and HTTP-status agreement, capability honesty, and REST/GraphQL
+parity. Their purchase evidence is fake but well-formed, so a provider without
+store credentials still verifies its transport contract; a verdict for that
+evidence is accepted as either a schema-valid result or `VERIFICATION_FAILED`.
 
 They therefore certify the **contract**, not the **stores**: passing says
 nothing about whether real Apple or Google receipts validate correctly.
-Beyond the operation vectors, the runner also checks the capability
-descriptor's version agreement against the manifest and — on the GraphQL
-binding — probes that the endpoint is a real executor (a malformed document,
-an undefined field, and a mistyped variable must each be rejected, without
-echoing the submitted value; introspection, where enabled, must agree
-STRUCTURALLY with the generated signature — kinds, field and argument types
-with their nullability, input members, closed enum value sets, and closed
-object member sets. A compatible MINOR may add types, nullable arguments, and
-members to open objects; it cannot extend a closed object). Event Delivery conformance is likewise separate — §9's
-signature, delivery-envelope, response-semantics, and lifecycle vectors
-cover it, driven through the provider's events adapter — and a signing-only
-provider does not pass it. The events vectors do not reach everything §9
-requires of a production emitter: the §9.3 event-document schema, §9.4.4
-backoff and dead-lettering, §9.4.5 destination safety, and §9.2 store
-mapping are certified by an implementation's own tests, not by this
-adapter surface. And a provider can pass while serving fixture data;
-conformance is a floor, not an audit.
+
+Beyond the operation vectors, the runner checks:
+
+- that the capability descriptor's versions agree with the manifest;
+- on the GraphQL binding, that the endpoint is a real executor: a malformed
+  document, an undefined field, and a mistyped variable must each be rejected
+  without echoing the submitted value;
+- that introspection, where enabled, agrees structurally with the generated
+  signature: kinds, field and argument types with their nullability, input
+  members, closed enum value sets, and closed object member sets. A
+  compatible MINOR may add types, nullable arguments, and members to open
+  objects; it cannot extend a closed object.
+
+The adapters reach declared operations only, so §6's `NOT_FOUND` for an
+unmatched method and path is certified by an implementation's own tests.
+
+Event Delivery conformance is separate. §9's signature, delivery-envelope,
+response-semantics, and lifecycle vectors cover it, driven through the
+provider's events adapter, and a signing-only provider does not pass it. The
+events vectors do not reach everything §9 requires of a production emitter:
+the §9.3 event-document schema, §9.4.4 backoff and dead-lettering, §9.4.5
+destination safety, and §9.2 store mapping are certified by an
+implementation's own tests, not by this adapter surface. And a provider can
+pass while serving fixture data; conformance is a floor, not an audit.
 
 ---
 
@@ -1353,9 +1405,9 @@ facts table use the same value as `commerceProtocolVersion`. **Consumers pin on 
 A MINOR that leaves the event body untouched does not oblige an emitter to
 change `eventVersion`: that member names the version the body conforms to, not
 the newest version published. Until the first stable package release, 1.0 stays
-open for additive documents, so a new document does not move the protocol
-version at all. The npm package version is separate again, and moves only when
-the release workflow publishes.
+open for additive changes: a new document, or an existing error code declared on
+another operation, does not move the protocol version at all. The npm package
+version is separate again, and moves only when the release workflow publishes.
 
 While the package major is `0`, that latitude extends to renaming a wire
 member: the protocol major does not move, because moving it would relocate
@@ -1389,7 +1441,7 @@ the retired name for as long as the code lives.
 | --------------------------------------------------------------------------------------------------------- | ----------------- |
 | New optional member on an open object                                                                     | MINOR             |
 | New event type                                                                                            | MINOR             |
-| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR             |
+| New value in an open value space (§2.1 lists them)                                                        | MINOR             |
 | New operation, new profile, or new optional operation input member                                        | MINOR             |
 | New protocol error code, or a new evidence member for a new store                                         | MINOR             |
 | New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR once stable |
@@ -1515,6 +1567,14 @@ storage or tooling.
   product; what is absent is the one-time purchase's economic-event taxonomy.
 - **Refund amounts and partial refunds.** `subscription.refunded` reports that a
   refund occurred, not how much was returned.
+- **Entitlement events without a subscription snapshot.** The event schema
+  allows an `entitlement.*` event with no `subscription` member, the shape a
+  store with no canonical subscription record would produce (§2.3, §9.5). No
+  implementation emits one yet.
+- **Purchase-not-found and conflict errors.** No 1.0 operation reports an
+  unknown purchase or a conflicting state as an error: `bindPurchase` answers
+  `bound: false` for both (§4.4). A later version that needs them adds codes
+  (§12).
 - **Trial and introductory-offer state.** Offers are catalog metadata here, not
   a property of a live subscription.
 - **Storefront and country.**

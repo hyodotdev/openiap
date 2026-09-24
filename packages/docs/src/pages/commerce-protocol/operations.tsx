@@ -57,7 +57,7 @@ const EXPLANATIONS = [
     description:
       'When Alice deletes her account, ask the provider to remove her identity from its subscription records and protocol event store. Repeating the request is safe.',
     result:
-      'accepted acknowledges the request. A provider may report an erasure job. Your backend and other event recipients must erase their own copies separately.',
+      'accepted acknowledges the request. A provider may report an erasure job; repeat the same request to read its status until completed. Your backend and other event recipients must erase their own copies separately.',
   },
 ] as const;
 
@@ -113,6 +113,10 @@ export default function CommerceOperations(): React.JSX.Element {
                   <code>
                     {operation.method} {operation.path}
                   </code>
+                </dd>
+                <dt>Success status</dt>
+                <dd>
+                  <code>{operation.successStatus}</code>
                 </dd>
                 <dt>Responsibility</dt>
                 <dd>

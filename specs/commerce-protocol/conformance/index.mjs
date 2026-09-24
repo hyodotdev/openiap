@@ -590,9 +590,9 @@ function checkErrorOutcome(outcome, operationName, adapter) {
   return failures;
 }
 
-// SPEC.md 4.2: the outer `active` gate must agree with the snapshot's own
-// gate, and a `true` gate requires an entitling subscription. The schema
-// cannot express this cross-field relation, so the runner checks it.
+// SPEC.md 4.2: `active` says whether the user holds an entitling
+// subscription, so it must agree with the snapshot's own gate and be false
+// without one. The schema cannot express this cross-field relation.
 function statusInvariants(data) {
   const failures = [];
   if (!data || typeof data !== "object") return failures;
@@ -610,9 +610,9 @@ function statusInvariants(data) {
 }
 
 // SPEC.md 4.3: the result answers FOR the requested user — an echoed userId
-// that names someone else is a cross-user leak, whatever else matches —
-// productIds must be exactly the deduplicated productIds of the returned
-// subscriptions, and every returned subscription must be entitled.
+// that names someone else is a cross-user leak, whatever else matches — and
+// every returned subscription is entitled with its product in productIds.
+// productIds may also name products granted without a subscription record.
 function entitlementsInvariants(data, input) {
   const failures = [];
   if (!data || typeof data !== "object") return failures;
@@ -628,21 +628,20 @@ function entitlementsInvariants(data, input) {
   const subscriptions = Array.isArray(data.subscriptions)
     ? data.subscriptions
     : [];
+  const productIds = new Set(
+    Array.isArray(data.productIds) ? data.productIds : [],
+  );
   for (const subscription of subscriptions) {
     if (subscription?.active !== true) {
       failures.push(
         `entitlements returned a non-active subscription (${subscription?.productId})`,
       );
     }
-  }
-  const expected = [...new Set(subscriptions.map((s) => s?.productId))].sort();
-  const actual = Array.isArray(data.productIds)
-    ? [...data.productIds].sort()
-    : [];
-  if (stableStringify(expected) !== stableStringify(actual)) {
-    failures.push(
-      `productIds ${JSON.stringify(actual)} is not the deduplicated set of active subscription productIds ${JSON.stringify(expected)}`,
-    );
+    if (!productIds.has(subscription?.productId)) {
+      failures.push(
+        `subscription ${JSON.stringify(subscription?.productId)} is entitling but missing from productIds`,
+      );
+    }
   }
   return failures;
 }
@@ -947,6 +946,17 @@ function evaluateResultChecks({ outcome, expect, adapter, validate, input }) {
           `result.${member} must equal ${JSON.stringify(value)}, got ${JSON.stringify(actual)}`,
         );
       }
+    }
+  }
+  // Checked on the normalized data, where GraphQL's null for an omitted
+  // member is already gone.
+  for (const member of expect.absentMembers ?? []) {
+    if (
+      outcome.data &&
+      typeof outcome.data === "object" &&
+      Object.hasOwn(outcome.data, member)
+    ) {
+      failures.push(`result.${member} must be absent`);
     }
   }
   for (const check of expect.checks ?? []) {
@@ -1787,8 +1797,8 @@ export async function runConformance({
   for (const adapter of adapters) {
     // SPEC.md 3 and 11.1 scope conformance to the profiles a provider
     // declares, so a partial-but-legal provider certifies the profiles it
-    // serves instead of failing on operations it never claimed. `core`
-    // (providerCapabilities) always runs.
+    // serves; an operation it never claimed must answer UNSUPPORTED_PROFILE.
+    // `core` (providerCapabilities) always runs.
     const capabilityOutcome = await readCapabilityOutcome(adapter);
     const capabilities =
       capabilityOutcome.kind === "result" &&
@@ -1804,6 +1814,18 @@ export async function runConformance({
       capabilities?.stores && typeof capabilities.stores === "object"
         ? new Set(Object.keys(capabilities.stores))
         : null;
+    const profileServed = (profile) =>
+      declaredProfiles === null || declaredProfiles.has(profile);
+    // SPEC.md 3 and 5: authorization precedes the profile check, so a provider
+    // owes UNSUPPORTED_PROFILE only to a role one of its declared profiles uses.
+    const servedRoles = new Set(
+      httpBindingManifest.operations
+        .filter(
+          (operation) =>
+            operation.profile !== "core" && profileServed(operation.profile),
+        )
+        .map((operation) => operation.auth),
+    );
 
     // Adapter contract: the credential values feed the SPEC.md 8 message
     // scan. An adapter without them would skip credential-echo detection
@@ -1896,11 +1918,14 @@ export async function runConformance({
           probeFailures = await probeGraphqlExecutor(
             adapter,
             forbiddenTokens({ input: undefined, adapter, credentials }),
-            // A legal partial-profile provider may hold no server
-            // credential; the probes only need SOME accepted bearer.
-            typeof credentials?.server === "string" && credentials.server
+            // Probe an operation the provider serves, with a credential the
+            // runner holds; a partial provider may serve either role alone.
+            profileServed("entitlements") &&
+              typeof credentials?.server === "string" &&
+              credentials.server
               ? "server"
-              : typeof credentials?.verification === "string" &&
+              : profileServed("verification") &&
+                  typeof credentials?.verification === "string" &&
                   credentials.verification
                 ? "verification"
                 : null,
@@ -1925,11 +1950,19 @@ export async function runConformance({
         continue;
       }
       const profile = operationsByName.get(vector.operation)?.profile;
+      const profileDeclared =
+        profile === undefined || profile === "core" || profileServed(profile);
+      if (vector.profileUndeclared ? profileDeclared : !profileDeclared) {
+        continue;
+      }
+      // A provider can refuse an undeclared profile only to a credential it
+      // issued: skip when the runner holds none for the role, or when no
+      // declared profile uses that role.
       if (
-        profile !== undefined &&
-        profile !== "core" &&
-        declaredProfiles !== null &&
-        !declaredProfiles.has(profile)
+        vector.profileUndeclared &&
+        vector.credential !== null &&
+        (!credentials?.[vector.credential] ||
+          !servedRoles.has(operationsByName.get(vector.operation)?.auth))
       ) {
         continue;
       }

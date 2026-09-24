@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { COMMERCE_STORE_LABELS } from '../lib/commerceImplementations';
+import {
+  COMMERCE_STORE_LABELS,
+  isCommerceStore,
+} from '../lib/commerceImplementations';
 import { Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -180,7 +183,7 @@ const STEPS = [
       'Keep unfinished deletion requests until the provider confirms completion. Your receiver must discard late events for the deleted account, including after restart. This removes account identity; it does not cancel the store subscription.',
     term: 'Account erasure',
     definition:
-      'Removing the link to the app user from provider records and copies held by your services. An accepted job can still be queued; wait for completed before considering provider cleanup finished.',
+      'Removing the link to the app user from provider records and copies held by your services. An accepted job can still be queued. Repeat the same erasure request to read its status; provider cleanup is finished at completed.',
     reference: '/commerce-protocol/operations#eraseUser',
     referenceLabel: 'Erasure reference',
   },
@@ -197,12 +200,7 @@ const ICONS = {
 export default function CommercePurchaseJourney(): React.JSX.Element {
   const { hash, search } = useLocation();
   const requestedStore = new URLSearchParams(search).get('store');
-  const store =
-    requestedStore === 'amazon' ||
-    requestedStore === 'horizon' ||
-    requestedStore === 'google'
-      ? requestedStore
-      : 'apple';
+  const store = isCommerceStore(requestedStore) ? requestedStore : 'apple';
   const storeLabel = COMMERCE_STORE_LABELS[store];
   const recheck = store === 'amazon' || store === 'horizon';
   const steps = STEPS.map((entry) => {
@@ -221,7 +219,7 @@ export default function CommercePurchaseJourney(): React.JSX.Element {
       return {
         ...entry,
         title: 'Check whether Alice still owns Premium.',
-        description: `Your backend requests Alice’s entitlements. The provider asks ${storeLabel} again using the saved store identity and purchase evidence. A negative answer removes Premium from the result. A store outage fails the request so your app can apply its retry policy.`,
+        description: `Your backend requests Alice’s entitlements. The provider asks ${storeLabel} again using the saved store identity and purchase evidence. A negative answer removes Premium from the result. A store outage fails the request with VERIFICATION_FAILED so your app can apply its retry policy.`,
         nodes: [
           {
             kind: 'server' as const,

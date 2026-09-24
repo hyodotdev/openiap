@@ -105,12 +105,7 @@ const CAPABILITIES = Object.freeze({
       revenueAmount: mockedSupport(),
     },
   },
-  profiles: {
-    verification: "1.0",
-    entitlements: "1.0",
-    accountLifecycle: "1.0",
-  },
-  bindings: { rest: "1.0", graphql: "1.0" },
+  bindings: { ...httpBindingManifest.bindings },
 });
 
 function requiredMembersOf(typeName) {
@@ -124,29 +119,41 @@ class OperationError extends Error {
   }
 }
 
-export function createMockProvider({ declareEvents = false } = {}) {
-  // The base mock serves the operation surface only. `declareEvents` adds the
-  // events profile to its descriptor so the runner's events verification (which
+export function createMockProvider({
+  declareEvents = false,
+  profiles = ["verification", "entitlements", "accountLifecycle"],
+} = {}) {
+  // The base mock serves the operation surface only; `profiles` narrows it, and
+  // an operation outside them answers UNSUPPORTED_PROFILE. `declareEvents`
+  // adds the events profile so the runner's events verification (which
   // requires an events adapter and reproduces the signature vectors) is
   // exercised — a provider that declares events but skips signing must fail.
-  const capabilities = declareEvents
-    ? {
-        ...CAPABILITIES,
-        profiles: { ...CAPABILITIES.profiles, events: "1.0" },
-        // §10 honesty: everything the emission rules can produce must be
-        // declared — the runner cross-checks emitted types against this list.
-        eventTypes: [
-          ...new Set([
-            ...lifecycleVectors.emission.cases.flatMap(
-              (testCase) => testCase.emit,
-            ),
-            ...lifecycleVectors.binding.cases.flatMap(
-              (testCase) => testCase.emit,
-            ),
-          ]),
-        ].sort(),
-      }
-    : CAPABILITIES;
+  const servedProfiles = new Set(profiles);
+  const capabilities = {
+    ...CAPABILITIES,
+    profiles: Object.fromEntries(
+      [...profiles, ...(declareEvents ? ["events"] : [])].map((name) => [
+        name,
+        httpBindingManifest.profiles[name],
+      ]),
+    ),
+    ...(declareEvents
+      ? {
+          // §10 honesty: everything the emission rules can produce must be
+          // declared — the runner cross-checks emitted types against this list.
+          eventTypes: [
+            ...new Set([
+              ...lifecycleVectors.emission.cases.flatMap(
+                (testCase) => testCase.emit,
+              ),
+              ...lifecycleVectors.binding.cases.flatMap(
+                (testCase) => testCase.emit,
+              ),
+            ]),
+          ].sort(),
+        }
+      : {}),
+  };
   const subscriptions = [
     {
       productId: "mock.premium",
@@ -161,6 +168,9 @@ export function createMockProvider({ declareEvents = false } = {}) {
       userId: FIXTURES.userId,
     },
   ];
+  // A durable grant with no subscription record: entitlements lists its
+  // product, and subscriptionStatus does not count it (SPEC.md 4.2, 4.3).
+  const grants = [{ productId: "mock.lifetime", userId: FIXTURES.userId }];
   let erasureJobCounter = 0;
   const erasureJobs = new Map();
 
@@ -223,13 +233,19 @@ export function createMockProvider({ declareEvents = false } = {}) {
     },
     entitlements: (input) => {
       requireInputMembers("EntitlementsInput", input);
+      const owned = (record) => record.userId === input.userId;
       const active = subscriptions.filter(
-        (subscription) =>
-          subscription.userId === input.userId && subscription.active,
+        (subscription) => owned(subscription) && subscription.active,
       );
       return {
         userId: input.userId,
-        productIds: [...new Set(active.map((s) => s.productId))],
+        productIds: [
+          ...new Set(
+            [...active, ...grants.filter(owned)].map(
+              (record) => record.productId,
+            ),
+          ),
+        ],
         subscriptions: active.map(snapshotOf),
       };
     },
@@ -269,10 +285,8 @@ export function createMockProvider({ declareEvents = false } = {}) {
         erasureJobCounter += 1;
         job = { jobId: `mock-erasure-job-${erasureJobCounter}` };
         erasureJobs.set(input.userId, job);
-        for (const subscription of subscriptions) {
-          if (subscription.userId === input.userId) {
-            subscription.userId = undefined;
-          }
+        for (const record of [...subscriptions, ...grants]) {
+          if (record.userId === input.userId) record.userId = undefined;
         }
       }
       return { accepted: true, jobId: job.jobId, status: "completed" };
@@ -309,6 +323,15 @@ export function createMockProvider({ declareEvents = false } = {}) {
       throw new OperationError("NOT_FOUND", "Unknown operation");
     }
     authorize(definition, role);
+    if (
+      definition.profile !== "core" &&
+      !servedProfiles.has(definition.profile)
+    ) {
+      throw new OperationError(
+        "UNSUPPORTED_PROFILE",
+        `This provider does not serve the ${definition.profile} profile`,
+      );
+    }
     return {
       definition,
       data: handlers[operationName](input),

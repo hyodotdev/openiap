@@ -65,9 +65,9 @@ function CommerceGraphql() {
             2
           )}
         </CodeBlock>
-        <CodeBlock language="bash">{`# Use your provider's GraphQL URL and complete server Authorization header.
+        <CodeBlock language="bash">{`# COMMERCE_GRAPHQL_URL is your provider's GraphQL endpoint.
 curl --fail-with-body "$COMMERCE_GRAPHQL_URL" \\
-  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
   -H 'Content-Type: application/json' \\
   --data-binary @request.json`}</CodeBlock>
         <p>

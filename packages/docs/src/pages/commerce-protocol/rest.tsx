@@ -45,14 +45,14 @@ function CommerceRest() {
           Read current access
         </AnchorLink>
         <p>
-          Run this from your authenticated backend. Set the complete
-          Authorization header value in <code>COMMERCE_SERVER_AUTH</code> and
-          select <code>COMMERCE_USER_ID</code> from the backend's session and
-          ownership policy.
+          Run this from your authenticated backend. Set the server credential in{' '}
+          <code>COMMERCE_SERVER_TOKEN</code> and select{' '}
+          <code>COMMERCE_USER_ID</code> from the backend's session and ownership
+          policy.
         </p>
         <CodeBlock language="bash">{`export COMMERCE_BASE_URL='https://your-provider.example'
 curl --fail-with-body --get "$COMMERCE_BASE_URL${ENTITLEMENTS_PATH}" \\
-  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
   --data-urlencode "userId=$COMMERCE_USER_ID"`}</CodeBlock>
         <p>
           Read <code>productIds</code> for current access. An empty list grants

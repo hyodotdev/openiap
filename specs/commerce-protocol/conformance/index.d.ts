@@ -297,6 +297,8 @@ export declare const operationVectors: {
     bindings?: string[];
     requiresStore?: string;
     requiresCapability?: string;
+    /** Runs only when the descriptor lists profiles without this one. */
+    profileUndeclared?: boolean;
     repeat?: number;
     expect: Record<string, unknown>;
   }>;

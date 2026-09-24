@@ -369,6 +369,13 @@ export function compileProtocolContract(source) {
           );
         }
       }
+      // SPEC.md 3: a provider answers a profile it does not declare with
+      // UNSUPPORTED_PROFILE, so every operation outside core can return it.
+      if (op.profile !== "core" && !op.errors.includes("UNSUPPORTED_PROFILE")) {
+        throw new Error(
+          `${label} belongs to profile ${op.profile} and must declare UNSUPPORTED_PROFILE`,
+        );
+      }
 
       if ((field.arguments ?? []).length > 1) {
         throw new Error(`${label} takes at most one argument`);

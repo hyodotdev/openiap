@@ -63,7 +63,6 @@ const SAFE_MESSAGE: Record<string, string> = {
   INVALID_REQUEST: "The request is invalid",
   RATE_LIMITED: "Too many requests. Retry after the indicated delay.",
   VERIFICATION_FAILED: "The provider could not obtain a verdict from the store",
-  CONFLICT: "Ownership changed during the read; retry",
   INTERNAL_ERROR: "The operation failed",
 };
 
@@ -294,9 +293,9 @@ export async function entitlements(
   subscriptions: SubscriptionStatusSnapshot[];
 }> {
   const userId = requireUserId(input.userId);
-  // The operation declares no verdict codes, so a store fault fails the read as
-  // an internal error; only the caller's own faults (auth, rate limit) keep
-  // their own codes.
+  // This read rechecks bound Amazon and Horizon purchases with the store, so a
+  // store fault is VERIFICATION_FAILED (SPEC.md 4.3). Auth, rate-limit, and
+  // internal faults keep their own codes.
   let purchases: { productIds: string[] };
   try {
     purchases = await client.action(
@@ -304,7 +303,7 @@ export async function entitlements(
       { apiKey: context.apiKey, userId },
     );
   } catch (error) {
-    rethrowAsProtocolError(error, "INTERNAL_ERROR");
+    rethrowAsProtocolError(error, "VERIFICATION_FAILED");
   }
   try {
     const result = await client.query(api.subscriptions.query.entitlementsV2, {

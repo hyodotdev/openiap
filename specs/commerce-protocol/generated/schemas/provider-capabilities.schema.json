@@ -148,11 +148,11 @@
           "type": "boolean"
         },
         "implementation": {
-          "description": "Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.",
+          "description": "Whether this backend consumes it. Never true where `provider` is false. False against a true `provider` is an implementation gap, not a store limitation.",
           "type": "boolean"
         },
         "notes": {
-          "description": "Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.",
+          "description": "Required whenever either axis is false. States the concrete limitation in prose a support engineer can act on.",
           "type": "string",
           "minLength": 1
         }

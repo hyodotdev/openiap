@@ -74,12 +74,12 @@ is unchanged until then; a released row needs a fresh `bindPurchase` before it
 is read again.
 
 The read fails closed rather than answering partially, so a store it cannot
-reach fails the whole operation. Disabling a store the project already sells
-through has the same effect: the rows it granted stay bound and valid, and
-omitting them would be a partial answer. Re-enabling the store restores the
-read. Nothing else releases those rows — the recheck throws before it can mark
-them invalid, so the bind cap never reclaims them, and only `eraseUser` clears
-the binding.
+reach fails the whole operation with `VERIFICATION_FAILED`. Disabling a store
+the project already sells through has the same effect: the rows it granted stay
+bound and valid, and omitting them would be a partial answer. Re-enabling the
+store restores the read. Nothing else releases those rows — the recheck throws
+before it can mark them invalid, so the bind cap never reclaims them, and only
+`eraseUser` clears the binding.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
 returning `productIds`. Rechecks draw on their own per-project bucket (300

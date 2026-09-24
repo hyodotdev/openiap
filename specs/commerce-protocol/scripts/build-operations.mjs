@@ -570,6 +570,18 @@ function buildOperationVectors(ir, operationsSchema) {
         });
       }
     }
+    if (operation.profile !== "core") {
+      // SPEC.md 3: an operation from a profile the descriptor does not
+      // declare fails with UNSUPPORTED_PROFILE.
+      cases.push({
+        id: `${operation.name}.profile.unsupported`,
+        operation: operation.name,
+        credential,
+        input,
+        profileUndeclared: true,
+        expect: { kind: "error", codes: ["UNSUPPORTED_PROFILE"] },
+      });
+    }
     if (operation.input) {
       cases.push({
         id: `${operation.name}.input.missing-required-member`,
@@ -665,6 +677,18 @@ function buildOperationVectors(ir, operationsSchema) {
       expect: { kind: "error", codes: ["UNSUPPORTED_STORE"] },
     },
     {
+      // SPEC.md 4.4: a store the provider does not integrate is an error,
+      // not a non-binding outcome.
+      id: "bindPurchase.store.unsupported",
+      operation: "bindPurchase",
+      credential: "server",
+      input: {
+        userId: FIXTURES.userId,
+        store: "a_store_openiap_has_never_heard_of",
+      },
+      expect: { kind: "error", codes: ["UNSUPPORTED_STORE"] },
+    },
+    {
       id: "verifyPurchase.input.mismatched-evidence",
       operation: "verifyPurchase",
       credential: "verification",
@@ -705,9 +729,8 @@ function buildOperationVectors(ir, operationsSchema) {
       },
     },
     {
-      // An integrated store may expose no stable purchase identity suitable
-      // for binding. That is still a non-binding outcome, not a store error.
-      id: "bindPurchase.unbindable-store.not-bound",
+      // Unknown evidence is a non-binding outcome for every integrated store.
+      id: "bindPurchase.unknown-evidence.not-bound.horizon",
       operation: "bindPurchase",
       credential: "server",
       input: {
@@ -720,6 +743,21 @@ function buildOperationVectors(ir, operationsSchema) {
         kind: "result",
         schema: "BindPurchaseResult",
         resultSubset: { bound: false },
+      },
+    },
+    {
+      // SPEC.md 4.2: a user with no record is inactive and gets no record
+      // member, not a canned or borrowed one.
+      id: "subscriptionStatus.unknown-user.inactive",
+      operation: "subscriptionStatus",
+      credential: "server",
+      input: { userId: FIXTURES.unknownUserId },
+      expect: {
+        kind: "result",
+        schema: "SubscriptionStatusResult",
+        checks: ["tokenless", "statusConsistency"],
+        resultSubset: { active: false },
+        absentMembers: ["subscription"],
       },
     },
     {
@@ -740,7 +778,7 @@ function buildOperationVectors(ir, operationsSchema) {
 
   return {
     $comment:
-      "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case with `requiresStore` runs only when the provider declares that store, and `requiresCapability` additionally requires that store capability's implementation support. A case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
+      "Operation conformance vectors for the OpenIAP Commerce Protocol. Generated from commerce-protocol.graphql — do not edit. Every case runs on each binding the provider declares unless it names `bindings`; a case with `requiresStore` runs only when the provider declares that store, and `requiresCapability` additionally requires that store capability's implementation support. A case for a profile operation runs only when the descriptor declares that profile, except a `profileUndeclared` case, which runs only when the descriptor lists profiles without it. A case's normalized outcome must also agree across bindings. Fixture evidence is fake but well-formed: these vectors verify the transport contract and never certify real store receipt validity.",
     protocolVersion: ir.version,
     fixtures: FIXTURES,
     credentialRoles: ["verification", "server"],

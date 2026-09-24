@@ -128,12 +128,12 @@ type Support
   provider: Boolean!
 
   """
-  Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.
+  Whether this backend consumes it. Never true where `provider` is false. False against a true `provider` is an implementation gap, not a store limitation.
   """
   implementation: Boolean!
 
   """
-  Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.
+  Required whenever either axis is false. States the concrete limitation in prose a support engineer can act on.
   """
   notes: NonEmptyString! @optional
 }

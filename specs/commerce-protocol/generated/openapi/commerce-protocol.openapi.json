@@ -143,6 +143,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "`UNSUPPORTED_PROFILE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -240,6 +250,26 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "`UNSUPPORTED_PROFILE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "`VERIFICATION_FAILED`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -330,6 +360,16 @@
           },
           "500": {
             "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "`UNSUPPORTED_PROFILE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -453,6 +493,16 @@
                 }
               }
             }
+          },
+          "501": {
+            "description": "`UNSUPPORTED_PROFILE`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
           }
         },
         "requestBody": {
@@ -542,6 +592,16 @@
           },
           "500": {
             "description": "`INTERNAL_ERROR`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolErrorResponse"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "`UNSUPPORTED_PROFILE`",
             "content": {
               "application/json": {
                 "schema": {
@@ -661,7 +721,7 @@
         }
       },
       "SubscriptionStatusResult": {
-        "description": "The user's current subscription standing. `active` answers the gate for the user as a whole; `subscription` is the most relevant record — the current entitling subscription when one exists, otherwise the provider's most recent record as context. It is omitted when the provider has no record for this user. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.",
+        "description": "The user's current subscription standing. `active` says whether the user holds a currently entitling subscription; `subscription` is the most relevant record — the current entitling subscription when one exists, otherwise the provider's most recent record as context. It is omitted when the provider has no record for this user. A provider that cannot enumerate the user's records completely MUST fail the operation instead of answering from a partial read.",
         "type": "object",
         "required": [
           "active"
@@ -669,7 +729,7 @@
         "additionalProperties": false,
         "properties": {
           "active": {
-            "description": "Whether the user is entitled to anything right now. The gate for simple access checks.",
+            "description": "Whether the user holds a currently entitling subscription. Access that does not come from a subscription appears only in `entitlements`.",
             "type": "boolean"
           },
           "subscription": {
@@ -705,7 +765,7 @@
             "$ref": "#/components/schemas/Identifier"
           },
           "productIds": {
-            "description": "Every product the user may access right now, deduplicated.",
+            "description": "Every product the user may access right now, deduplicated, including products granted without a subscription record.",
             "type": "array",
             "items": {
               "type": "string",
@@ -714,7 +774,7 @@
             "uniqueItems": true
           },
           "subscriptions": {
-            "description": "The subscription records whose open gates produced `productIds`.",
+            "description": "The entitling subscription records. Each record's product is in `productIds`; a product granted without a subscription has no record here.",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SubscriptionStatusSnapshot"
@@ -985,7 +1045,7 @@
         ]
       },
       "BindPurchaseResult": {
-        "description": "Whether a binding now exists between this user and the evidenced purchase. `bound: false` covers every non-binding outcome — unknown evidence, evidence bound to a different user, or a store the provider cannot bind — without distinguishing them, so the operation cannot be used to probe whether someone else's purchase exists. Re-binding the same user to the same evidence is idempotent and reports `bound: true`.",
+        "description": "Whether a binding now exists between this user and the evidenced purchase. For a store the provider integrates, `bound: false` covers every non-binding outcome — unknown evidence, evidence bound to a different user — without distinguishing them, so the operation cannot be used to probe whether someone else's purchase exists. A store the provider does not integrate is UNSUPPORTED_STORE. Re-binding the same user to the same evidence is idempotent and reports `bound: true`.",
         "type": "object",
         "required": [
           "bound"
@@ -1281,9 +1341,7 @@
               "UNAUTHORIZED",
               "FORBIDDEN",
               "NOT_FOUND",
-              "PURCHASE_NOT_FOUND",
               "VERIFICATION_FAILED",
-              "CONFLICT",
               "RATE_LIMITED",
               "UNSUPPORTED_PROFILE",
               "UNSUPPORTED_STORE",
@@ -1311,11 +1369,11 @@
             "type": "boolean"
           },
           "implementation": {
-            "description": "Whether this backend consumes it. False against a true `provider` is an implementation gap, not a store limitation.",
+            "description": "Whether this backend consumes it. Never true where `provider` is false. False against a true `provider` is an implementation gap, not a store limitation.",
             "type": "boolean"
           },
           "notes": {
-            "description": "Required whenever `provider` and `implementation` disagree, or whenever either is false. States the concrete limitation in prose a support engineer can act on.",
+            "description": "Required whenever either axis is false. States the concrete limitation in prose a support engineer can act on.",
             "type": "string",
             "minLength": 1
           }
@@ -1402,8 +1460,6 @@
     "UNAUTHORIZED": 401,
     "FORBIDDEN": 403,
     "NOT_FOUND": 404,
-    "PURCHASE_NOT_FOUND": 404,
-    "CONFLICT": 409,
     "UNSUPPORTED_STORE": 422,
     "RATE_LIMITED": 429,
     "INTERNAL_ERROR": 500,

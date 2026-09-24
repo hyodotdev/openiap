@@ -360,18 +360,40 @@ describe("commerce REST adapter", () => {
     );
   });
 
-  it("answers with a declared code when the bound-purchase read itself faults", async () => {
-    // The operation declares no verdict code, so an unclassifiable fault is an
-    // internal error, never a 502 the manifest does not list.
+  it.each([
+    ["META_HORIZON_VERIFICATION_ERROR", "VERIFICATION_FAILED", 502],
+    ["AMAZON_RECEIPT_VERIFICATION_ERROR", "VERIFICATION_FAILED", 502],
+    ["INTERNAL_ERROR", "INTERNAL_ERROR", 500],
+    ["INSUFFICIENT_SCOPE", "FORBIDDEN", 403],
+  ])(
+    "answers a %s fault in the store recheck as %s (SPEC.md 4.3)",
+    async (convexCode, protocolCode, status) => {
+      mocks.action.mockRejectedValue(new Error("upstream down"));
+      mocks.handleConvexError.mockReturnValue({
+        code: convexCode,
+        message: "store detail for token ghi789",
+      });
+      const response = await buildApp().request(
+        "/commerce/v1/entitlements?userId=user-1",
+        { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
+      );
+      expect(response.status).toBe(status);
+      const body = await response.json();
+      expect(body.error.code).toBe(protocolCode);
+      expect(body.error.message).not.toContain("ghi789");
+    },
+  );
+
+  it("answers an unclassified store recheck fault as VERIFICATION_FAILED", async () => {
     mocks.action.mockRejectedValue(new Error("upstream down"));
     mocks.handleConvexError.mockReturnValue(null);
     const response = await buildApp().request(
       "/commerce/v1/entitlements?userId=user-1",
       { headers: { Authorization: `Bearer ${SERVER_KEY}` } },
     );
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(502);
     const body = await response.json();
-    expect(body.error.code).toBe("INTERNAL_ERROR");
+    expect(body.error.code).toBe("VERIFICATION_FAILED");
     expect(body.error.message).not.toContain("upstream");
   });
 

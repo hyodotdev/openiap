@@ -9,14 +9,44 @@ import CodeBlock from '../../components/CodeBlock';
 import PackageInstall from '../../components/PackageInstall';
 import SEO from '../../components/SEO';
 import CommercePurchaseJourney from '../../components/CommercePurchaseJourney';
-import { COMMERCE_IMPLEMENTATIONS } from '../../lib/commerceImplementations';
+import {
+  COMMERCE_IMPLEMENTATIONS,
+  COMMERCE_STORE_LABELS,
+  isCommerceStore,
+  type CommerceStore,
+} from '../../lib/commerceImplementations';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
+
+const EVIDENCE: Record<CommerceStore, { request: object; note: string }> = {
+  apple: {
+    request: evidence,
+    note: 'Replace the illustrative JWS with the StoreKit transaction JWS the app received.',
+  },
+  google: {
+    request: { store: 'google', google: { purchaseToken: '…' } },
+    note: 'Use the purchase token Google Play returned to the app.',
+  },
+  amazon: {
+    request: {
+      store: 'amazon',
+      amazon: { userId: '…', receiptId: '…', sandbox: true },
+    },
+    note: 'Use the Amazon user ID and receipt ID from the purchase response, and keep sandbox only for App Tester receipts. Before binding, confirm the Amazon user belongs to the signed-in session.',
+  },
+  horizon: {
+    request: { store: 'horizon', horizon: { userId: '…', sku: '…' } },
+    note: 'Use the Meta user ID and the add-on SKU. Before binding, confirm the Meta user belongs to the signed-in session.',
+  },
+};
 
 function CommerceGettingStarted(): React.JSX.Element {
   useScrollToHash();
   const { search } = useLocation();
-  const pathOf = (name: string): string =>
-    httpBinding.operations.find((operation) => operation.name === name)!.path;
+  const requestedStore = new URLSearchParams(search).get('store');
+  const store = isCommerceStore(requestedStore) ? requestedStore : 'apple';
+  const operationOf = (name: string): (typeof httpBinding.operations)[number] =>
+    httpBinding.operations.find((operation) => operation.name === name)!;
+  const pathOf = (name: string): string => operationOf(name).path;
 
   return (
     <div className="doc-page">
@@ -108,16 +138,18 @@ function CommerceGettingStarted(): React.JSX.Element {
             2. Connect to a provider
           </AnchorLink>
           <p>
-            Obtain the base URL, supported store configuration, and
-            Authorization header values from your provider. A provider issues
-            its own credentials; OpenIAP has no registration service. Keep the
+            Obtain the base URL, supported store configuration, and the
+            verification and server credentials from your provider. A provider
+            issues its own credentials; OpenIAP has no registration service.
+            Each request sends one as{' '}
+            <code>Authorization: Bearer &lt;credential&gt;</code>. Keep the
             server credential in your backend. These shell examples assume{' '}
             <code>curl</code> and <code>jq</code>.
           </p>
           <CodeBlock language="bash">{`export COMMERCE_BASE_URL='https://your-provider.example'
 # Set these through your local secret manager or environment.
-# COMMERCE_VERIFY_AUTH: complete Authorization header value for verification
-# COMMERCE_SERVER_AUTH: complete Authorization header value for the server role
+# COMMERCE_VERIFICATION_TOKEN: the verification credential
+# COMMERCE_SERVER_TOKEN: the server credential
 
 curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('providerCapabilities')}"`}</CodeBlock>
           <p>
@@ -137,20 +169,16 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('providerCapabilities')}"`}</C
             3. Verify, bind, and read access
           </AnchorLink>
           <p>
-            Save the following shape as <code>evidence.json</code>. Replace its
-            illustrative JWS with a real StoreKit transaction JWS from the app.
-            For Google, use{' '}
-            <code>
-              {'{ "store": "google", "google": { "purchaseToken": "…" } }'}
-            </code>
-            . Your provider must be configured for that app and store
-            environment.
+            Save the {COMMERCE_STORE_LABELS[store]} evidence below as{' '}
+            <code>evidence.json</code>; it follows the store chosen above.{' '}
+            {EVIDENCE[store].note} Your provider must be configured for that app
+            and store environment.
           </p>
           <CodeBlock language="json">
-            {JSON.stringify(evidence, null, 2)}
+            {JSON.stringify(EVIDENCE[store].request, null, 2)}
           </CodeBlock>
           <CodeBlock language="bash">{`curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('verifyPurchase')}" \\
-  -H "Authorization: $COMMERCE_VERIFY_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_VERIFICATION_TOKEN" \\
   -H 'Content-Type: application/json' \\
   --data-binary @evidence.json`}</CodeBlock>
           <p>
@@ -173,7 +201,7 @@ jq --arg userId "$COMMERCE_USER_ID" '. + {userId: $userId}' \\
   evidence.json > binding.json
 
 curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
-  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
   -H 'Content-Type: application/json' \\
   --data-binary @binding.json`}</CodeBlock>
           <p>
@@ -185,7 +213,7 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
             expired.
           </p>
           <CodeBlock language="bash">{`curl --fail-with-body --get "$COMMERCE_BASE_URL${pathOf('entitlements')}" \\
-  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
   --data-urlencode "userId=$COMMERCE_USER_ID"`}</CodeBlock>
           <p>
             Gate product-specific features on membership in{' '}
@@ -236,6 +264,20 @@ curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('bindPurchase')}" \\
             from your backend. The provider erases its own identity records;
             arrange erasure separately for copies already delivered to your
             backend and connected services.
+          </p>
+          <CodeBlock language="bash">{`jq -n --arg userId "$COMMERCE_USER_ID" '{userId: $userId}' > erasure.json
+
+curl --fail-with-body "$COMMERCE_BASE_URL${pathOf('eraseUser')}" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
+  -H 'Content-Type: application/json' \\
+  --data-binary @erasure.json`}</CodeBlock>
+          <p>
+            A <code>{operationOf('eraseUser').successStatus}</code> with{' '}
+            <code>accepted: true</code> acknowledges the request. When the
+            answer carries a job <code>status</code>, send the same request
+            again to read the job&apos;s progress: repeating it is safe and
+            reports the current job. The provider&apos;s cleanup is finished at{' '}
+            <code>completed</code>.
           </p>
           <p>
             Continue with the{' '}
