@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-24T20:51:39.505Z
+> Last updated: 2026-09-25T16:13:19.436Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3557,6 +3557,32 @@ not use these results as informational statuses.
 OpenIAP currently maps successful `finishTransaction()` calls to `FULFILLED`.
 The other 3.0.9 results need a deliberate cross-platform API contract before
 they can be selected by callers.
+
+Reference: [Implement Appstore SDK IAP](https://developer.amazon.com/docs/in-app-purchasing/iap-implement-iap.html)
+
+## Subscription Periods and Free Trials
+
+`Product` carries no structured pricing: `getPrice()` is a formatted string
+only, with no numeric amount and no currency code. OpenIAP passes it through as
+`displayPrice`, derives `price` from it on a best-effort basis with
+`AmazonPriceParser`, and leaves `currency` empty; paywalls render `displayPrice`.
+
+`getSubscriptionPeriod()` and `getFreeTrialPeriod()` are duration words:
+`Weekly`, `BiWeekly`, `Monthly`, `BiMonthly`, `Quarterly`, `SemiAnnual`,
+`Annual`. Amazon's product data field table ("Implement getProductData method"
+section of the page linked below) states: "Free trial period of the subscription
+term. Returned only if a free trial is configured and the customer is eligible."
+Its presence is therefore the eligibility signal. The `Product` javadoc says
+only that the value may be null and does not mention eligibility. OpenIAP maps
+both to `SubscriptionPeriod` and emits the trial as a second `SubscriptionOffer`
+with `paymentMode: free-trial`, `periodCount: 1`, `price: 0`, and `id: ""`
+(Amazon names no offer, matching the iOS introductory offer, so it stays
+distinct from the base offer whose `id` is the SKU); Play-only `...Android`
+offer fields stay null because Amazon has no base plans, offer tokens, or
+pricing phases.
+
+After purchase the RVS receipt reports `freeTrialEndDate` while the
+subscription is in its trial.
 
 Reference: [Implement Appstore SDK IAP](https://developer.amazon.com/docs/in-app-purchasing/iap-implement-iap.html)
 
