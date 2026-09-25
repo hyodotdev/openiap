@@ -409,9 +409,10 @@ jobs:
       needs.codeql-scope.outputs.swift_wrappers == 'true' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
+    # Pushes use macos-26 like PRs: the xcode-27 image cannot load the Swift
+    # macro plugin server (Bad CPU type), which fails every wrapper build.
     runs-on: >-
-      ${{ github.event_name != 'pull_request'
-          && (matrix.component == 'godot' && 'macos-26' || 'xcode-27')
+      ${{ github.event_name != 'pull_request' && 'macos-26'
           || needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 90
     permissions:
@@ -468,10 +469,8 @@ jobs:
           flutter-version: "3.44.9"
           cache: true
 
-      - name: Set up Godot Xcode
-        if: >-
-          matrix.component == 'godot' &&
-          needs.pick-mac-runner.outputs.runner != 'self-mac'
+      - name: Set up Xcode
+        if: needs.pick-mac-runner.outputs.runner != 'self-mac'
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.6"
@@ -538,12 +537,12 @@ jobs:
         if: matrix.component == 'flutter'
         working-directory: libraries/flutter_inapp_purchase
         env:
-          # The self-hosted Mac ships one Xcode and manages it itself, so a PR
-          # routed there matches that machine, not the hosted pin.
+          # Hosted legs pin Xcode 26.6; only a PR routed to the self-hosted
+          # Mac matches that machine's own Xcode instead.
           EXPECTED_XCODE_MAJOR: >-
             ${{ (github.event_name == 'pull_request'
-                 && needs.pick-mac-runner.outputs.runner != 'self-mac')
-                && '26' || '27' }}
+                 && needs.pick-mac-runner.outputs.runner == 'self-mac')
+                && '27' || '26' }}
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
       - name: Build Godot Swift wrapper
