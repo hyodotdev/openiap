@@ -177,3 +177,5 @@ libraries/*/docs/build/
 # Resx generated designer code (per-build artifact)
 *.resx.designer.cs
 knowledge/research/_datasets/
+# Device E2E run reports (maestro-runner timestamped output, local only)
+/reports/
