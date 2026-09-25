@@ -189,8 +189,10 @@ function AmazonStoreSetup() {
                 <code>android.amazon.appstoreKey</code> supplies the public key.
               </td>
               <td>
-                <code>modules.amazon.vegaOS</code>, with optional{' '}
-                <code>android.amazon.vegaOS</code> metadata overrides.
+                Auto-detected from the <code>manifest.toml</code> Vega target
+                marker; <code>modules.amazon.vegaOS</code> forces it on or off,
+                with optional <code>android.amazon.vegaOS</code> metadata
+                overrides.
               </td>
             </tr>
             <tr>
@@ -419,9 +421,13 @@ android {
           Expo
         </AnchorLink>
         <p>
-          Expo prepares the Vega target from <code>modules.amazon.vegaOS</code>.
-          The Fire OS build is a separate artifact that the Android build picks
-          like any other store.
+          Expo recognizes a Vega target on its own: a root{' '}
+          <code>manifest.toml</code> turns Vega file generation on, so a fresh
+          checkout with a committed manifest needs no flag. Set{' '}
+          <code>modules.amazon.vegaOS</code> explicitly only to force generation
+          on for a first run or off for a multi-target root. The Fire OS build
+          is a separate artifact that the Android build picks like any other
+          store.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [

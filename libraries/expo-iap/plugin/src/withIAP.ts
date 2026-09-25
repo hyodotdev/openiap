@@ -954,9 +954,20 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 
     syncAutolinking(autolinkState);
 
-    if (isVegaEnabled) {
-      result = withVega(result, resolveVegaProjectOptions(options));
-    }
+    // Vega generation is auto-detected from the project's manifest.toml; the
+    // module flag and EXPO_IAP_VEGA only override it. withVega no-ops for
+    // non-Vega projects.
+    const moduleAmazon = options?.modules?.amazon;
+    const vegaExplicit = hasOwnKey(moduleAmazon, 'vegaOS')
+      ? moduleAmazon?.vegaOS === true
+      : isEnvFlagEnabled('EXPO_IAP_VEGA')
+      ? true
+      : undefined;
+    const vegaProjectOptions = resolveVegaProjectOptions(options);
+    result = withVega(result, {
+      ...vegaProjectOptions,
+      enabled: vegaExplicit ?? vegaProjectOptions?.enabled,
+    });
 
     return result;
   } catch (error) {

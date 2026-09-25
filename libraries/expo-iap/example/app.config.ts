@@ -25,7 +25,6 @@ const useLocalDev =
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
-  const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
   const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const iapPluginOptions: ExpoIapPluginOptions = {
@@ -40,10 +39,8 @@ export default ({config}: ConfigContext): ExpoConfig => {
     modules: {
       // Onside module: iOS only (alternative billing for Korea)
       onside: isOnsideEnabled,
-      // The Android store follows the connected device; vegaOS generates the Vega target
-      amazon: {
-        vegaOS: isVegaEnabled,
-      },
+      // No Amazon flags: the Android store follows the connected device and
+      // Vega file generation auto-detects its manifest.
     },
     android: {
       // Horizon App ID, written on every prebuild and inert outside Quest

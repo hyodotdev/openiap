@@ -437,6 +437,9 @@ jobs:
       - name: Test review-thread listing
         run: node --test scripts/list-review-threads.test.mjs
 
+      - name: Test review-automation comment sweep
+        run: node --test scripts/delete-review-automation-comments.test.mjs
+
       - name: Sync generated version files
         run: ./scripts/sync-versions.sh
 

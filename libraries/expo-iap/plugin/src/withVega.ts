@@ -53,6 +53,12 @@ export type VegaProjectOptions = {
    * Whether to update package.json with Vega dependencies, scripts, and kepler metadata.
    */
   syncPackageJson?: boolean;
+  /**
+   * Whether to generate the Vega target. `true` forces it on, `false` forces
+   * it off, and an unset value auto-detects from the project: a root
+   * manifest.toml means Vega.
+   */
+  enabled?: boolean;
 };
 
 export type VegaProjectSettings = {
@@ -265,17 +271,17 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   setIfMissing(
     next.scripts,
     'vega:prebuild',
-    'EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install',
+    'expo prebuild --platform android --no-install',
   );
   setIfMissing(
     next.scripts,
     'build:vega:release',
-    'EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install && EXPO_IAP_VEGA=1 react-native build-vega --build-type Release',
+    'expo prebuild --platform android --no-install && react-native build-vega --build-type Release',
   );
   setIfMissing(
     next.scripts,
     'build:vega:debug',
-    'EXPO_IAP_VEGA=1 expo prebuild --platform android --no-install && EXPO_IAP_VEGA=1 react-native build-vega --build-type Debug',
+    'expo prebuild --platform android --no-install && react-native build-vega --build-type Debug',
   );
   setIfMissing(
     next.scripts,
@@ -324,6 +330,18 @@ const readFileIfPresent = (filePath: string): string | undefined => {
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;
     return undefined;
+  }
+};
+
+// True when the project itself is a Vega target. manifest.toml is required
+// input for every Vega build, so a committed one marks the target and nothing
+// else creates it. Kepler dependencies or a kepler package.json field alone do
+// not count: a multi-target root installs them for a separate Vega target.
+export const isVegaTargetProject = (projectRoot: string): boolean => {
+  try {
+    return fs.existsSync(path.join(projectRoot, 'manifest.toml'));
+  } catch {
+    return false;
   }
 };
 
@@ -448,6 +466,11 @@ const withVega: ConfigPlugin<VegaProjectOptions | void> = (config, options) => {
     'android',
     async (modConfig) => {
       const projectRoot = modConfig.modRequest.projectRoot;
+      const enabled = options?.enabled ?? isVegaTargetProject(projectRoot);
+      if (!enabled) return modConfig;
+      if (options?.enabled === undefined) {
+        logOnce('🔍 expo-iap: Vega target auto-detected; syncing Vega files');
+      }
       const settings = resolveVegaProjectSettings(
         modConfig as ExpoConfig,
         options ?? undefined,

@@ -1,5 +1,17 @@
+// The Vega target is recognized by its manifest.toml; EXPO_IAP_VEGA stays as
+// an explicit override.
+function isVegaTarget() {
+  const fs = require('fs');
+  const path = require('path');
+  try {
+    return fs.existsSync(path.join(__dirname, 'manifest.toml'));
+  } catch {
+    return false;
+  }
+}
+
 module.exports = function (api) {
-  const isVega = process.env.EXPO_IAP_VEGA === '1';
+  const isVega = process.env.EXPO_IAP_VEGA === '1' || isVegaTarget();
   api.cache.using(() => (isVega ? 'vega' : 'expo'));
 
   if (isVega) {
