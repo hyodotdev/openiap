@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-25T16:36:51.387Z
+> Generated: 2026-09-25T17:11:40.036Z
 
 ## Reading instructions for coding assistants
 
@@ -614,9 +614,10 @@ only that the value may be null and does not mention eligibility. OpenIAP maps
 both to `SubscriptionPeriod` and emits the trial as a second `SubscriptionOffer`
 with `paymentMode: free-trial`, `periodCount: 1`, `price: 0`, and `id: ""`
 (Amazon names no offer, matching the iOS introductory offer, so it stays
-distinct from the base offer whose `id` is the SKU). The trial offer leaves
-every Play-only `...Android` field null because Amazon has no base plans, offer
-tokens, or pricing phases. The base offer keeps its earlier shape:
+distinct from the base offer whose `id` is the SKU). Like every Play and
+Horizon offer, the trial offer sets `basePlanIdAndroid` to the SKU; it leaves
+the remaining Play-only fields (offer token, tags, pricing phases) null
+because Amazon reports none. The base offer keeps its earlier shape:
 `basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
 `pricingPhasesAndroid` holds one synthetic recurring phase.
 

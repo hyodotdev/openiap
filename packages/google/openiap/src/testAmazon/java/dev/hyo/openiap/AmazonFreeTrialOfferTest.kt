@@ -18,7 +18,7 @@ class AmazonFreeTrialOfferTest {
         assertEquals("", offer?.id)
         assertEquals("", offer?.displayPrice)
         assertEquals("", offer?.currency)
-        assertNull(offer?.basePlanIdAndroid)
+        assertEquals("dev.hyo.martie.premium", offer?.basePlanIdAndroid)
         assertNull(offer?.offerTokenAndroid)
         assertNull(offer?.offerTagsAndroid)
         assertNull(offer?.pricingPhasesAndroid)

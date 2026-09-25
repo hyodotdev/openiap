@@ -420,6 +420,7 @@ internal fun String.toSubscriptionPeriod(): SubscriptionPeriod? {
 internal fun buildAmazonFreeTrialOffer(sku: String, freeTrialPeriod: String?): SubscriptionOffer? {
     val period = freeTrialPeriod.toIsoBillingPeriod().toSubscriptionPeriod() ?: return null
     return SubscriptionOffer(
+        basePlanIdAndroid = sku,
         currency = "",
         displayPrice = "",
         // Amazon names no offer; matches the iOS introductory offer.
