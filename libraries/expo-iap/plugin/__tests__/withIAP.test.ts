@@ -29,6 +29,7 @@ import {
   createVegaAppJson,
   createVegaEntryPoint,
   createVegaManifest,
+  isVegaTargetProject,
   mergeVegaPackageJson,
   normalizeVegaPackageId,
   resolveVegaProjectSettings,
@@ -1242,6 +1243,206 @@ describe('vega project generation', () => {
     expect(
       result.optionalDependencies?.['@amazon-devices/react-native-kepler'],
     ).toBe('^2.0.0');
+  });
+
+  describe('vega target auto-detection', () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+
+    const makeProjectRoot = () =>
+      fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-vega-'));
+
+    const writeMinimalAndroid = (projectRoot: string) => {
+      const android = path.join(projectRoot, 'android');
+      const files: Record<string, string> = {
+        'settings.gradle': "rootProject.name = 'app'\ninclude ':app'\n",
+        'build.gradle':
+          'buildscript {\n  repositories {\n    google()\n  }\n}\n',
+        'app/build.gradle':
+          'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n    implementation("com.facebook.react:react-android")\n}\n',
+        'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
+        'app/src/main/AndroidManifest.xml':
+          '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
+      };
+      for (const [file, contents] of Object.entries(files)) {
+        fs.mkdirSync(path.dirname(path.join(android, file)), {
+          recursive: true,
+        });
+        fs.writeFileSync(path.join(android, file), contents, 'utf8');
+      }
+    };
+
+    const prebuildAndroid = (
+      projectRoot: string,
+      options: ExpoIapPluginOptions,
+    ) =>
+      compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, options) as ExpoConfig,
+        {projectRoot, platforms: ['android']},
+      );
+
+    it('treats a root manifest.toml as a Vega target', () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        expect(isVegaTargetProject(projectRoot)).toBe(false);
+        fs.writeFileSync(
+          path.join(projectRoot, 'manifest.toml'),
+          'schema-version = 1\n',
+          'utf8',
+        );
+        expect(isVegaTargetProject(projectRoot)).toBe(true);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('ignores kepler dependencies and package markers without a manifest', () => {
+      // The expo-iap example root installs Kepler packages and carries a
+      // kepler package.json field for its separate Vega target, yet a plain
+      // prebuild there must not generate Vega files.
+      const projectRoot = makeProjectRoot();
+      try {
+        fs.writeFileSync(
+          path.join(projectRoot, 'package.json'),
+          JSON.stringify({
+            name: 'app',
+            dependencies: {
+              '@amazon-devices/keplerscript-appstore-iap-lib': '~2.13.0',
+            },
+            kepler: {projectType: 'application'},
+          }),
+          'utf8',
+        );
+        expect(isVegaTargetProject(projectRoot)).toBe(false);
+        expect(isVegaTargetProject(path.join(projectRoot, 'gone'))).toBe(false);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('generates the Vega target from a manifest marker without any flag', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        const marker = 'schema-version = 1\n';
+        fs.writeFileSync(
+          path.join(projectRoot, 'manifest.toml'),
+          marker,
+          'utf8',
+        );
+        await prebuildAndroid(projectRoot, {});
+        expect(
+          fs.readFileSync(path.join(projectRoot, 'index.js'), 'utf8'),
+        ).toContain('AppRegistry.registerComponent(appName, () => App);');
+        expect(
+          JSON.parse(
+            fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'),
+          ),
+        ).toMatchObject({expoIapGenerated: true});
+        // A marker the plugin did not write is still the user's file.
+        expect(
+          fs.readFileSync(path.join(projectRoot, 'manifest.toml'), 'utf8'),
+        ).toBe(marker);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('leaves a non-Vega project untouched without any flag', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {});
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+        expect(fs.existsSync(path.join(projectRoot, 'app.json'))).toBe(false);
+        expect(fs.existsSync(path.join(projectRoot, 'manifest.toml'))).toBe(
+          false,
+        );
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('lets an explicit vegaOS flag win over detection either way', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        fs.writeFileSync(
+          path.join(projectRoot, 'manifest.toml'),
+          'schema-version = 1\n',
+          'utf8',
+        );
+        await prebuildAndroid(projectRoot, {
+          modules: {amazon: {vegaOS: false}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+
+      const plainRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(plainRoot);
+        await prebuildAndroid(plainRoot, {
+          modules: {amazon: {vegaOS: true}},
+        });
+        expect(fs.existsSync(path.join(plainRoot, 'index.js'))).toBe(true);
+      } finally {
+        fs.rmSync(plainRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('treats EXPO_IAP_VEGA as an explicit on-switch', async () => {
+      const previous = process.env.EXPO_IAP_VEGA;
+      process.env.EXPO_IAP_VEGA = '1';
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {});
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(true);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.EXPO_IAP_VEGA;
+        } else {
+          process.env.EXPO_IAP_VEGA = previous;
+        }
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('honors an explicit android-level disable over the environment flag', async () => {
+      const previous = process.env.EXPO_IAP_VEGA;
+      process.env.EXPO_IAP_VEGA = '1';
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          android: {amazon: {vegaOS: {enabled: false}}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.EXPO_IAP_VEGA;
+        } else {
+          process.env.EXPO_IAP_VEGA = previous;
+        }
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('honors an explicit android-level enable without markers', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          android: {amazon: {vegaOS: {enabled: true}}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(true);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
   });
 });
 

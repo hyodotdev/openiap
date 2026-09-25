@@ -293,12 +293,11 @@ export const useActionSheet = () => useContext(ActionSheetContext);
 };
 
 const run = (command, args, cwd = tempRoot) => {
+  // The temp Vega project carries its own manifest, so the build needs no
+  // enable flag; the target is recognized by it.
   execFileSync(command, args, {
     cwd,
-    env: {
-      ...process.env,
-      EXPO_IAP_VEGA: '1',
-    },
+    env: {...process.env},
     stdio: 'inherit',
   });
 };

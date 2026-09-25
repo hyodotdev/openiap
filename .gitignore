@@ -182,3 +182,6 @@ knowledge/research/_datasets/
 
 # Agent MCP: per-machine server credentials, never shared
 .mcp.json
+
+# Playwright MCP: screenshots, snapshots, and console logs from agent runs
+.playwright-mcp/

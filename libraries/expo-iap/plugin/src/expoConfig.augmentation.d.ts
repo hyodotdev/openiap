@@ -32,10 +32,12 @@ export type AmazonPlatformOptions = {
    */
   fireOS?: boolean;
   /**
-   * Enable Vega OS project generation for Amazon's Kepler runtime.
+   * Vega OS project generation for Amazon's Kepler runtime. Unset means
+   * auto-detect: a root manifest.toml turns generation on. Set explicitly
+   * to force it on or off.
    * This prepares Vega metadata and build scripts; it does not select an
    * Android Gradle flavor.
-   * @default false
+   * @default auto-detect
    */
   vegaOS?: boolean;
 };
@@ -84,9 +86,10 @@ type BaseExpoIapOptions = {
        */
       appstoreKey?: string;
       /**
-       * Vega OS project generation overrides used when modules.amazon.vegaOS is true.
-       * packageId defaults to android.package, title defaults to expo.name,
-       * appName defaults from title, and icon defaults to expo.icon.
+       * Vega OS project generation overrides, used when generation is enabled
+       * (auto-detected or explicit). packageId defaults to android.package,
+       * title defaults to expo.name, appName defaults from title, and icon
+       * defaults to expo.icon.
        */
       vegaOS?: VegaProjectOptions;
     };

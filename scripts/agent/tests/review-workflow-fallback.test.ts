@@ -63,16 +63,12 @@ describe("review workflow fallback contract", () => {
         /### Cleanup Review Automation Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
       )?.[1] ?? "";
 
-    expect(cleanupScript).toContain("--paginate");
-    expect(cleanupScript).toContain(
-      'gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"',
-    );
+    const scriptRef =
+      cleanupScript.match(/node (\S+\.mjs) \$PR_NUMBER/)?.[1] ?? "";
+    expect(scriptRef).toBe("scripts/delete-review-automation-comments.mjs");
     expect(normalizeWhitespace(reviewPr)).toContain(
       "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     );
-
-    const filter = cleanupScript.match(/--jq '([\s\S]*?)'\s*\|\s*while read/)?.[1];
-    expect(filter).toBeTruthy();
 
     const fixture = JSON.parse(
       readRepositoryFile("scripts/agent/tests/fixtures/coderabbit-cleanup-comments.json"),
@@ -83,18 +79,28 @@ describe("review workflow fallback contract", () => {
       comment.body = comment.body.replace("FILLER_16K", "x".repeat(16000));
     }
 
-    const input = JSON.stringify(fixture);
-    const result = spawnSync("jq", ["-r", filter ?? ""], { input, encoding: "utf8" });
+    const scriptPath = path.join(repositoryRoot, scriptRef);
+    const harness = `const {isAutomationNoise} = await import(${JSON.stringify(scriptPath)});
+let raw = "";
+for await (const chunk of process.stdin) raw += chunk;
+console.log(JSON.stringify(JSON.parse(raw).filter(isAutomationNoise).map((c) => c.id)));`;
+    const result = spawnSync("node", ["--input-type=module", "-e", harness], {
+      input: JSON.stringify(fixture),
+      encoding: "utf8",
+    });
     if (result.error) {
       throw new Error(
-        "jq is required to verify the cleanup filter; install it or run this suite on a runner that has it",
+        "node is required to verify the cleanup filter; run this suite on a runner that has it",
       );
     }
     expect(result.stderr).toBe("");
 
-    const deleted = result.stdout.split("\n").filter(Boolean).map(Number);
-    const expected = fixture.filter((c) => !c.keep).map((c) => c.id);
-    expect(deleted.sort()).toEqual(expected.sort());
+    const deleted = (JSON.parse(result.stdout) as number[]).sort();
+    const expected = fixture
+      .filter((c) => !c.keep)
+      .map((c) => c.id)
+      .sort();
+    expect(deleted).toEqual(expected);
 
     for (const comment of fixture.filter((c) => c.keep)) {
       expect(deleted).not.toContain(comment.id); // ${comment.why}

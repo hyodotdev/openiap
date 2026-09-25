@@ -273,8 +273,8 @@ for the kind of change:
 | `packages/google/`                    | `🤖 android`       |
 | `packages/docs/`                      | `📖 documentation` |
 | `packages/kit/`                       | `kit`              |
-| `specs/client/`                       | `⬡ gql`            |
-| `specs/commerce-protocol/`            | `⬡ gql`            |
+| `specs/client/`                       | `⬡ protocol`       |
+| `specs/commerce-protocol/`            | `⬡ protocol`       |
 | `libraries/react-native-iap/`         | `react-native-iap` |
 | `libraries/expo-iap/`                 | `expo-iap`         |
 | `libraries/flutter_inapp_purchase/`   | `flutter-iap`      |

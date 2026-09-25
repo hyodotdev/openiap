@@ -3,6 +3,8 @@ const {getDefaultConfig} = require('expo/metro-config');
 const path = require('path');
 const fs = require('fs');
 
+// Bundler configs stay env-gated: auto-detection lives in the config plugin,
+// which is the only place that can honor an explicit vegaOS: false.
 const isVega = process.env.EXPO_IAP_VEGA === '1';
 
 // Read library version mode from libraries-versions.jsonc
