@@ -1020,3 +1020,18 @@ describe('vega project generation', () => {
     ).toBe('^2.0.0');
   });
 });
+
+describe('plugin logging', () => {
+  it('keeps stdout clean so config can be read as JSON', () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      plugin({name: 'app', slug: 'app'}, {iapkitApiKey: 'openiap-kit_test'});
+      expect(log).not.toHaveBeenCalled();
+      expect(error).toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+      error.mockRestore();
+    }
+  });
+});

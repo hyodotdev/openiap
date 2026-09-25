@@ -34,7 +34,8 @@ const logOnce = (() => {
   const printed = new Set<string>();
   return (msg: string) => {
     if (!printed.has(msg)) {
-      console.log(msg);
+      // stderr, so tools that read the config as JSON from stdout stay intact
+      console.error(msg);
       printed.add(msg);
     }
   };
