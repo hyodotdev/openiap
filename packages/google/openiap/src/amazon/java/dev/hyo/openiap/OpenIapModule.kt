@@ -387,6 +387,103 @@ internal fun buildAmazonPurchase(
     )
 }
 
+private val isoBillingPeriod = Regex("""^P(\d+)([DWMY])$""")
+
+internal fun String?.toIsoBillingPeriod(): String {
+    val value = this?.trim().orEmpty()
+    if (value.isEmpty() || value.startsWith("P")) return value
+
+    return when (value.lowercase(Locale.ROOT)) {
+        "weekly", "week", "1 week" -> "P1W"
+        "biweekly", "bi-weekly", "bi weekly", "2 week", "2 weeks" -> "P2W"
+        "monthly", "month", "1 month" -> "P1M"
+        "bi-monthly", "bimonthly", "2 month", "2 months" -> "P2M"
+        "quarterly", "quarter", "3 months" -> "P3M"
+        "semiannual", "semiannually", "semi-annual", "semi-annually", "6 months" -> "P6M"
+        "annual", "annually", "yearly", "year", "1 year" -> "P1Y"
+        else -> value
+    }
+}
+
+internal fun String.toSubscriptionPeriod(): SubscriptionPeriod? {
+    val match = isoBillingPeriod.matchEntire(this) ?: return null
+    val unit = when (match.groupValues[2]) {
+        "D" -> SubscriptionPeriodUnit.Day
+        "W" -> SubscriptionPeriodUnit.Week
+        "M" -> SubscriptionPeriodUnit.Month
+        else -> SubscriptionPeriodUnit.Year
+    }
+    return match.groupValues[1].toIntOrNull()?.let { SubscriptionPeriod(unit, it) }
+}
+
+// Amazon returns freeTrialPeriod only when a trial is configured and the customer is eligible; it is a duration word.
+internal fun buildAmazonFreeTrialOffer(sku: String, freeTrialPeriod: String?): SubscriptionOffer? {
+    val period = freeTrialPeriod.toIsoBillingPeriod().toSubscriptionPeriod() ?: return null
+    return SubscriptionOffer(
+        basePlanIdAndroid = sku,
+        currency = "",
+        displayPrice = "",
+        // Amazon names no offer; matches the iOS introductory offer.
+        id = "",
+        paymentMode = PaymentMode.FreeTrial,
+        period = period,
+        periodCount = 1,
+        price = 0.0,
+        type = DiscountOfferType.Introductory
+    )
+}
+
+internal fun buildAmazonSubscriptionProduct(
+    sku: String,
+    title: String?,
+    description: String?,
+    price: String?,
+    subscriptionPeriod: String?,
+    freeTrialPeriod: String?
+): ProductSubscriptionAndroid {
+    val billingPeriod = subscriptionPeriod.toIsoBillingPeriod()
+    val priceAmount = AmazonPriceParser.toPriceAmount(price)
+    val phase = PricingPhaseAndroid(
+        billingCycleCount = 0,
+        billingPeriod = billingPeriod,
+        formattedPrice = price.orEmpty(),
+        priceAmountMicros = "0",
+        priceCurrencyCode = "",
+        recurrenceMode = 1
+    )
+    val baseOffer = SubscriptionOffer(
+        basePlanIdAndroid = sku,
+        currency = "",
+        displayPrice = price.orEmpty(),
+        id = sku,
+        offerTagsAndroid = emptyList(),
+        offerTokenAndroid = "",
+        paymentMode = PaymentMode.PayAsYouGo,
+        period = billingPeriod.toSubscriptionPeriod(),
+        price = priceAmount,
+        pricingPhasesAndroid = PricingPhasesAndroid(listOf(phase)),
+        type = DiscountOfferType.Introductory
+    )
+    return ProductSubscriptionAndroid(
+        currency = "",
+        debugDescription = description,
+        description = description.orEmpty(),
+        displayName = title,
+        displayPrice = price.orEmpty(),
+        id = sku,
+        nameAndroid = title.orEmpty(),
+        platform = IapPlatform.Android,
+        price = priceAmount,
+        productStatusAndroid = ProductStatusAndroid.Ok,
+        subscriptionOffers = listOfNotNull(
+            baseOffer,
+            buildAmazonFreeTrialOffer(sku, freeTrialPeriod)
+        ),
+        title = title.orEmpty(),
+        type = ProductType.Subs
+    )
+}
+
 /**
  * OpenIapModule for Amazon Appstore SDK IAP.
  *
@@ -1583,63 +1680,15 @@ class OpenIapModule(
         )
     }
 
-    private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid {
-        val subscriptionPeriod = this.subscriptionPeriod.toIsoBillingPeriod()
-        val priceAmount = price.toPriceAmount()
-        val phase = PricingPhaseAndroid(
-            billingCycleCount = 0,
-            billingPeriod = subscriptionPeriod,
-            formattedPrice = price.orEmpty(),
-            priceAmountMicros = "0",
-            priceCurrencyCode = "",
-            recurrenceMode = 1
+    private fun AmazonProduct.toSubscriptionProduct(): ProductSubscriptionAndroid =
+        buildAmazonSubscriptionProduct(
+            sku = sku,
+            title = title,
+            description = description,
+            price = price,
+            subscriptionPeriod = subscriptionPeriod,
+            freeTrialPeriod = freeTrialPeriod
         )
-        val phases = PricingPhasesAndroid(listOf(phase))
-        val standardizedOffer = SubscriptionOffer(
-            basePlanIdAndroid = sku,
-            currency = "",
-            displayPrice = price.orEmpty(),
-            id = sku,
-            offerTagsAndroid = emptyList(),
-            offerTokenAndroid = "",
-            paymentMode = PaymentMode.PayAsYouGo,
-            period = null,
-            price = priceAmount,
-            pricingPhasesAndroid = phases,
-            type = DiscountOfferType.Introductory
-        )
-        return ProductSubscriptionAndroid(
-            currency = "",
-            debugDescription = description,
-            description = description.orEmpty(),
-            displayName = title,
-            displayPrice = price.orEmpty(),
-            id = sku,
-            nameAndroid = title.orEmpty(),
-            platform = IapPlatform.Android,
-            price = priceAmount,
-            productStatusAndroid = ProductStatusAndroid.Ok,
-            subscriptionOffers = listOf(standardizedOffer),
-            title = title.orEmpty(),
-            type = ProductType.Subs
-        )
-    }
-
-    private fun String?.toIsoBillingPeriod(): String {
-        val value = this?.trim().orEmpty()
-        if (value.isEmpty() || value.startsWith("P")) return value
-
-        return when (value.lowercase(Locale.ROOT)) {
-            "weekly", "week", "1 week" -> "P1W"
-            "biweekly", "bi-weekly", "bi weekly", "2 week", "2 weeks" -> "P2W"
-            "monthly", "month", "1 month" -> "P1M"
-            "bi-monthly", "bimonthly", "2 month", "2 months" -> "P2M"
-            "quarterly", "quarter", "3 months" -> "P3M"
-            "semiannual", "semiannually", "semi-annual", "semi-annually", "6 months" -> "P6M"
-            "annual", "annually", "yearly", "year", "1 year" -> "P1Y"
-            else -> value
-        }
-    }
 
     private fun String?.toPriceAmount(): Double {
         return AmazonPriceParser.toPriceAmount(this)

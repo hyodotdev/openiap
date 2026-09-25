@@ -64,6 +64,35 @@ they can be selected by callers.
 
 Reference: [Implement Appstore SDK IAP](https://developer.amazon.com/docs/in-app-purchasing/iap-implement-iap.html)
 
+## Subscription Periods and Free Trials
+
+`Product` carries no structured pricing: `getPrice()` is a formatted string
+only, with no numeric amount and no currency code. OpenIAP passes it through as
+`displayPrice`, derives `price` from it on a best-effort basis with
+`AmazonPriceParser`, and leaves `currency` empty; paywalls render `displayPrice`.
+
+`getSubscriptionPeriod()` and `getFreeTrialPeriod()` are duration words:
+`Weekly`, `BiWeekly`, `Monthly`, `BiMonthly`, `Quarterly`, `SemiAnnual`,
+`Annual`. Amazon's product data field table ("Implement getProductData method"
+section of the page linked below) states: "Free trial period of the subscription
+term. Returned only if a free trial is configured and the customer is eligible."
+Its presence is therefore the eligibility signal. The `Product` javadoc says
+only that the value may be null and does not mention eligibility. OpenIAP maps
+both to `SubscriptionPeriod` and emits the trial as a second `SubscriptionOffer`
+with `paymentMode: free-trial`, `periodCount: 1`, `price: 0`, and `id: ""`
+(Amazon names no offer, matching the iOS introductory offer, so it stays
+distinct from the base offer whose `id` is the SKU). Like every Play and
+Horizon offer, the trial offer sets `basePlanIdAndroid` to the SKU; it leaves
+the remaining Play-only fields (offer token, tags, pricing phases) null
+because Amazon reports none. The base offer keeps its earlier shape:
+`basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
+`pricingPhasesAndroid` holds one synthetic recurring phase.
+
+After purchase the RVS receipt reports `freeTrialEndDate` while the
+subscription is in its trial.
+
+Reference: [Implement Appstore SDK IAP](https://developer.amazon.com/docs/in-app-purchasing/iap-implement-iap.html)
+
 ## Add-On Subscriptions
 
 Add-on subscriptions use the existing `getProductData`, `purchase`, purchase
