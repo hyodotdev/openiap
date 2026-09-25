@@ -81,9 +81,11 @@ only that the value may be null and does not mention eligibility. OpenIAP maps
 both to `SubscriptionPeriod` and emits the trial as a second `SubscriptionOffer`
 with `paymentMode: free-trial`, `periodCount: 1`, `price: 0`, and `id: ""`
 (Amazon names no offer, matching the iOS introductory offer, so it stays
-distinct from the base offer whose `id` is the SKU); Play-only `...Android`
-offer fields stay null because Amazon has no base plans, offer tokens, or
-pricing phases.
+distinct from the base offer whose `id` is the SKU). The trial offer leaves
+every Play-only `...Android` field null because Amazon has no base plans, offer
+tokens, or pricing phases. The base offer keeps its earlier shape:
+`basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
+`pricingPhasesAndroid` holds one synthetic recurring phase.
 
 After purchase the RVS receipt reports `freeTrialEndDate` while the
 subscription is in its trial.
