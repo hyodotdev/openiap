@@ -244,9 +244,9 @@ Guard against infinite loops: if a reviewer keeps flagging the same finding afte
 ## Review Decision: Approve or Reject
 
 A reviewed PR from someone else must end with a decision, never silence.
-Once the gate in item 4 holds for the current head:
+Once the loop ends for the current head:
 
-- **Approve** when the diff is correct and CI is green:
+- **Approve** when the gate in item 4 holds and the diff is correct:
   `gh pr review $PR_NUMBER --approve`. Then, when the user authorized the
   merge, merge and leave one short appreciation comment naming what was
   good about the change — outcome first, one or two sentences, no
@@ -268,7 +268,8 @@ round. Run it again as the final step when the loop ends.
 
 Delete temporary top-level comments that only record review automation activity:
 
-- Author comments whose body is exactly `@coderabbitai review`
+- Top-level comments whose body is exactly `@coderabbitai review` (whoever
+  posted it — a trigger is spent once CodeRabbit answers)
 - CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
 - CodeRabbit top-level terminal notices that explicitly say the review was
   skipped or unavailable, including file-limit skips

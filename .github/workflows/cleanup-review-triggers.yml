@@ -9,7 +9,8 @@ permissions:
 
 jobs:
   cleanup-triggers:
-    if: github.event.pull_request.merged == true
+    # Fork PRs get a read-only token that cannot delete; skip instead of failing.
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository
     name: Delete review-automation comments
     runs-on: ubuntu-latest
     timeout-minutes: 5

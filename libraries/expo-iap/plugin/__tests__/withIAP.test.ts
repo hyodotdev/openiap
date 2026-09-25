@@ -1410,6 +1410,39 @@ describe('vega project generation', () => {
         fs.rmSync(projectRoot, {recursive: true, force: true});
       }
     });
+
+    it('honors an explicit android-level disable over the environment flag', async () => {
+      const previous = process.env.EXPO_IAP_VEGA;
+      process.env.EXPO_IAP_VEGA = '1';
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          android: {amazon: {vegaOS: {enabled: false}}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(false);
+      } finally {
+        if (previous === undefined) {
+          delete process.env.EXPO_IAP_VEGA;
+        } else {
+          process.env.EXPO_IAP_VEGA = previous;
+        }
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
+
+    it('honors an explicit android-level enable without markers', async () => {
+      const projectRoot = makeProjectRoot();
+      try {
+        writeMinimalAndroid(projectRoot);
+        await prebuildAndroid(projectRoot, {
+          android: {amazon: {vegaOS: {enabled: true}}},
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'index.js'))).toBe(true);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    });
   });
 });
 

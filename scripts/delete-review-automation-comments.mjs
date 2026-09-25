@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Deletes top-level PR comments that only record review automation activity:
-// the author's `@coderabbitai review` trigger, CodeRabbit's "Action performed"
+// a `@coderabbitai review` trigger, CodeRabbit's "Action performed"
 // replies to it, and CodeRabbit's terminal skipped/unavailable notices. This
 // was an inline jq loop inside `.claude/commands/review-pr.md`; prose cannot
 // be tested, and an untested deletion filter is a loaded footgun. This can.

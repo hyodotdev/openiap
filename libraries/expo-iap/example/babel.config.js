@@ -1,17 +1,7 @@
-// The Vega target is recognized by its manifest.toml; EXPO_IAP_VEGA stays as
-// an explicit override.
-function isVegaTarget() {
-  const fs = require('fs');
-  const path = require('path');
-  try {
-    return fs.existsSync(path.join(__dirname, 'manifest.toml'));
-  } catch {
-    return false;
-  }
-}
-
 module.exports = function (api) {
-  const isVega = process.env.EXPO_IAP_VEGA === '1' || isVegaTarget();
+  // Bundler configs stay env-gated: auto-detection lives in the config plugin,
+  // which is the only place that can honor an explicit vegaOS: false.
+  const isVega = process.env.EXPO_IAP_VEGA === '1';
   api.cache.using(() => (isVega ? 'vega' : 'expo'));
 
   if (isVega) {
