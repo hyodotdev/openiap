@@ -179,3 +179,6 @@ libraries/*/docs/build/
 knowledge/research/_datasets/
 # Device E2E run reports (maestro-runner timestamped output, local only)
 /reports/
+
+# Agent MCP: per-machine server credentials, never shared
+.mcp.json

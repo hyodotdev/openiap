@@ -322,10 +322,10 @@ host-surface equivalent, or stops and asks the maintainer when none exists.
 
 To give Muse the IAPKit MCP server, add the endpoint to
 `${XDG_CONFIG_HOME:-$HOME/.config}/muse/settings.json` under `mcpServers`, as
-`type: "streamable-http"` with the same `url` as the repo's `.mcp.json` and
+`type: "streamable-http"` with `url: "https://kit.openiap.dev/mcp"` and
 your literal key in `headers.Authorization`. That file then holds a secret
 admin key in plaintext, so `chmod 600` it and never commit the key or paste it
-anywhere else. Do not point Muse at `.mcp.json`.
+anywhere else.
 
 ## Claude Code Compatibility
 
@@ -339,9 +339,11 @@ Claude Code gets the same workflow surface without any install step:
   Claude-specific notes (browser tooling, wake-up mechanism, subagents).
   When you change a skill under `.codex/skills/`, check whether the matching
   `.claude/skills/` adapter needs the same update.
-- **MCP server**: the root `.mcp.json` registers the hosted IAPKit MCP
-  endpoint (`https://kit.openiap.dev/mcp`) as a project-scoped server.
-  Export `IAPKIT_API_KEY` before launching Claude Code to authenticate.
+- **MCP server**: the root `.mcp.json` was removed because Muse errors on
+  its `${VAR}` form at every startup and cannot ignore project MCP files.
+  Claude Code users register the hosted IAPKit MCP endpoint
+  (`https://kit.openiap.dev/mcp`) in `~/.claude.json` under `mcpServers`
+  instead. Export `IAPKIT_API_KEY` before launching to authenticate.
 
 For consumers outside this repo, `.claude-plugin/marketplace.json` publishes
 the `plugins/openiap` plugin as a Claude Code marketplace:
