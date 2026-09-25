@@ -25,7 +25,7 @@ Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 | iOS          | all six + `packages/apple`         | iPhone (physical) | device purchase flow each    |
 | Google Play  | all six + `packages/google`        | Pixel             | device purchase flow each    |
 | Amazon       | all six + `packages/google`        | Fire tablet       | device purchase flow each    |
-| Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch; purchase only when the checkout UI is visibly test/sandbox |
+| Meta Horizon | all six + `packages/google`        | Quest 3           | build + install + launch + tap-navigate to the purchase gate; purchase only when the checkout UI is visibly test/sandbox |
 | VegaOS       | react-native-iap and expo-iap only | Vega device       | build + install + launch; purchase attempt when device input allows |
 
 That is 7 iOS + 21 Android/Horizon + 2 VegaOS cells. Do not silently drop a
@@ -74,41 +74,51 @@ tap X Y`, and `adb -s <serial> exec-out screencap -p > shot.png`. Read the
 screenshot before every tap; do not tap coordinates from memory.
 
 **Quest.** `screencap` returns black because Quest blocks capture of the VR
-compositor. Do not conclude the device is undriveable. Put the app on its own
-display and drive that:
+compositor. Do not conclude the device is undriveable. Drive the display-0 VR
+panel directly: `adb -s $QUEST shell input tap X Y` reaches the panel, and
+`adb -s $QUEST shell uiautomator dump` exposes the accessibility tree with
+text and bounds — dump, tap the dumped coordinates, dump again. `tap`, `swipe`,
+and `keyevent` (BACK dismisses the Horizon checkout dialog) are all verified
+working on display 0 (Quest 3, Horizon OS, 2026-09-25: RN RedBox dismissed,
+Kepler home → Purchase Flow navigated, MAUI scrolled to products, Purchase
+tapped into `com.oculus.store` checkout and BACKed out cleanly).
 
 ```bash
-scrcpy -s "$QUEST" --new-display=1080x1920/320 --start-app=dev.hyo.martie \
-  --no-audio --no-playback --record=hold.mp4
+adb -s "$QUEST" shell am start -n <launcher-activity>  # resolve per framework
+adb -s "$QUEST" shell uiautomator dump /sdcard/ui.xml
+adb -s "$QUEST" pull /sdcard/ui.xml .
+adb -s "$QUEST" shell input tap X Y  # coordinates from the dump
 ```
 
-Keep that process alive; the display dies with it, and scrcpy needs a sink, so
-`--record` is not optional. The log prints `New display ... (id=N)`. Screenshot
-with a second short `scrcpy --display-id=N --record=x.mp4 --time-limit=3` then
-`ffmpeg -sseof -0.6 -i x.mp4 -frames:v 1 out.png`; `screencap -d N` is ignored
-and still returns display 0.
+Resolve the launcher activity per framework (`cmd package resolve-activity
+--brief ...`, or `monkey -p <pkg> -c android.intent.category.LAUNCHER 1`):
+Flutter uses `io.flutter.embedding.android.FlutterActivity`, MAUI a
+`crc...MainActivity`. RN/Expo debug builds need their Metro
+(`adb reverse tcp:8081`, one packager at a time) and a cold start if the
+first bundle load stalls. If Metro serves a stale graph (same RedBox after
+an entry change, or a 500 `Got unexpected undefined`), restart it with
+`--reset-cache`. When the panel is empty right after launch, wait for the JS
+bundle (RN shows 6 bare nodes until loaded); a transient `null root node`
+from the dump usually clears on retry.
 
-Verified limitation (Quest 3, Horizon OS, scrcpy 3.x): touch injection on the
-virtual display is silently ignored — `adb shell input -d N tap`, explicit
-`input touchscreen -d N tap`, and monkey-script `tap(x,y)` all leave the frame
-bit-identical (compare md5 before/after). Key events (`input -d N keyevent`)
-do reach the app, which is enough for an RN redbox `R,R` reload but not for
-navigating product UI. Do not burn the run re-proving this; one md5-compare
-per OS upgrade is enough.
+Verified limitation (Quest 3, Horizon OS, scrcpy 3.x): the above applies to
+display 0 only. On a scrcpy virtual display (`--new-display`), touch
+injection is silently ignored — `adb shell input -d N tap`, explicit
+`input touchscreen -d N tap`, and monkey-script `tap(x,y)` all leave the
+frame bit-identical (compare md5 before/after). Key events
+(`input -d N keyevent`) do reach the app. Prefer display 0 + dumps over the
+virtual-display + screenshot path; one md5-compare per OS upgrade is enough,
+do not burn the run re-proving it.
 
-Consequences: drive each Horizon app as install + launch + render-screenshot
-(launch with `am start --display N -n <launcher-activity>`, resolving the
-activity per framework — Flutter uses
-`io.flutter.embedding.android.FlutterActivity`, MAUI a `crc...MainActivity`).
-RN/Expo debug builds need their Metro (`adb reverse tcp:8081`, one packager at
-a time) and a cold start if the first bundle load stalls on black. Moving the
-app to display 0 does not help: 2D apps land in VR panels (`mHasSurface=false`)
-and `uiautomator dump` fails with `null root node`. Report in-app
-connect/fetch/purchase as `BLOCKED: no touch injection on Quest virtual
-display` with the launch screenshot as the install/launch evidence. The
-`com.oculus.store/.IAPActivity` display-0 dialog path stays valid only if a
-purchase can be triggered at all — without input it cannot, so Horizon
-purchase cells are `BLOCKED` by default, never guessed.
+Consequences: drive each Horizon app as install + launch + navigate + tap to
+the purchase gate. The `com.oculus.store` checkout dialog renders its full
+text into the dump (product, total, payment method, Confirm), so the
+test/sandbox gate stays enforceable without screenshots. Frameworks without
+a Horizon commerce module fail earlier with their own store error (RN-IAP:
+`initConnection failed ... responseCode -1`, no Play Store on Horizon OS) —
+report that exact error, not a generic input block. Horizon purchase cells
+are `BLOCKED` by default (real-money Confirm, or no store connection), never
+guessed.
 
 **iOS.** Build with `xcodebuild -destination "id=$UDID"`, install with
 `xcrun devicectl device install app`, launch with
