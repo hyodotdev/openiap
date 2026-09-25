@@ -10,6 +10,10 @@ Run every cell of the matrix below on real hardware and report a row for each.
 verify one; read it before starting and follow it. This file adds only what a
 delegated agent needs: the matrix, the devices, and the rules for reporting.
 
+For a parallel run, delegate `$e2e-matrix-runner-android` (Play, Amazon,
+Horizon, VegaOS) and `$e2e-matrix-runner-apple` (iOS) instead; both follow
+this file's techniques and reporting contract on their narrowed scope.
+
 ## The matrix (pinned scope — do not renegotiate per run)
 
 Six frameworks: `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,

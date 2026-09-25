@@ -8,6 +8,10 @@ description: Run device-backed OpenIAP regression across native packages and fra
 Run this when a PR or release candidate needs real-device regression across
 OpenIAP native packages and framework examples.
 
+For a parallel run, split the matrix instead: `/e2e-tests-android` takes
+Play, Amazon, Horizon, and VegaOS; `/e2e-tests-apple` takes iOS. Both read
+this file as the row authority.
+
 ## Scope
 
 Use the narrowest scope that satisfies the request, but broaden when native
