@@ -290,8 +290,8 @@ class OpenIapModule(
         java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener>()
     private val connectionStateListeners =
         java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapConnectionStateListener>()
-    // Dedup tokens across the session. Thread-safe set backed by ConcurrentHashMap.
-    // Uses Collections.newSetFromMap instead of ConcurrentHashMap.newKeySet (API 24+).
+    // Tokens already reported this session. newSetFromMap because
+    // ConcurrentHashMap.newKeySet needs API 24.
     private val emittedBillingIssueTokens: MutableSet<String> =
         java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap())
 
@@ -992,15 +992,12 @@ class OpenIapModule(
                 }
             }
 
-            // Enrich purchases with basePlanId from ProductDetails
-            // If not in cache, query from Google Play to ensure we have the latest data
-            // First, collect all unique product IDs that need ProductDetails
+            // Fill basePlanId from ProductDetails; fetch uncached ones from Play in one batch.
             val productIdsNeedingDetails = filtered
                 .map { it.productId }
                 .distinct()
                 .filter { productManager.get(it, BillingClient.ProductType.SUBS) == null }
 
-            // Batch query missing ProductDetails to minimize API calls
             if (productIdsNeedingDetails.isNotEmpty()) {
                 try {
                     queryProductDetails(
@@ -1017,7 +1014,6 @@ class OpenIapModule(
                 }
             }
 
-            // Now enrich purchases with cached ProductDetails
             filtered.map { purchase ->
                 val productDetails = productManager.get(
                     purchase.productId,
@@ -1029,7 +1025,6 @@ class OpenIapModule(
                     requestedOfferToken = null,
                 )
 
-                // If basePlanId is available and not already set, update the purchase
                 if (basePlanId != null && purchase.currentPlanId == null) {
                     purchase.copy(currentPlanId = basePlanId).toActiveSubscription()
                 } else {
@@ -1134,11 +1129,9 @@ class OpenIapModule(
     /**
      * Create reporting details for transactions made outside of Google Play Billing (8.2.0+;
      * External Offer requires 8.2.1+).
-     * Creates billing-program reporting details for external offers.
      *
-     * For External Offer and External Content Link, generate fresh reporting details for every
-     * session immediately before redirecting the user. Do not create or reuse a token after
-     * payment has already completed.
+     * For External Offer and External Content Link, create fresh details for every session
+     * right before redirecting the user; never create or reuse a token after payment completes.
      *
      * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
@@ -1162,7 +1155,7 @@ class OpenIapModule(
                     listenerClass.classLoader,
                     arrayOf(listenerClass)
                 ) { _, method, args ->
-                    // Note: Callback method name is onCreateBillingProgramReportingDetailsResponse (not onBillingProgramReportingDetailsResponse)
+                    // The callback is not onBillingProgramReportingDetailsResponse.
                     if (method.name == "onCreateBillingProgramReportingDetailsResponse") {
                         val result = args?.get(0) as? BillingResult
                         val details = args?.getOrNull(1)
@@ -1212,7 +1205,6 @@ class OpenIapModule(
                 val newBuilderMethod = paramsClass.getMethod("newBuilder")
                 val paramsBuilder = newBuilderMethod.invoke(null)
 
-                // Set billing program
                 val setBillingProgramMethod = paramsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
                 setBillingProgramMethod.invoke(paramsBuilder, billingProgramConstant)
 
@@ -1229,11 +1221,9 @@ class OpenIapModule(
                     }
                 }
 
-                // Build the params
                 val buildMethod = paramsBuilderClass.getMethod("build")
                 val reportingParams = buildMethod.invoke(paramsBuilder)
 
-                // Call createBillingProgramReportingDetailsAsync with (BillingProgramReportingDetailsParams, Listener)
                 val method = client.javaClass.getMethod(
                     "createBillingProgramReportingDetailsAsync",
                     paramsClass,
@@ -1260,8 +1250,8 @@ class OpenIapModule(
     }
 
     /**
-     * Launch an external link for external offer or app download (8.2.0+)
-     * This is the new API that replaces showExternalOfferInformationDialog.
+     * Launch an external link for an external offer or app download (8.2.0+).
+     * Replaces showExternalOfferInformationDialog.
      *
      * @param activity Current activity context
      * @param params Parameters for the external link
@@ -1293,26 +1283,21 @@ class OpenIapModule(
 
         activeOperations.await(client) { operation ->
             try {
-                // Build LaunchExternalLinkParams using reflection
                 val paramsClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams")
                 val builderClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkParams\$Builder")
 
                 val newBuilderMethod = paramsClass.getMethod("newBuilder")
                 val builder = newBuilderMethod.invoke(null)
 
-                // Set billing program
                 val setBillingProgramMethod = builderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
                 setBillingProgramMethod.invoke(builder, billingProgramConstant)
 
-                // Set launch mode
                 val setLaunchModeMethod = builderClass.getMethod("setLaunchMode", Int::class.javaPrimitiveType)
                 setLaunchModeMethod.invoke(builder, launchModeConstant)
 
-                // Set link type
                 val setLinkTypeMethod = builderClass.getMethod("setLinkType", Int::class.javaPrimitiveType)
                 setLinkTypeMethod.invoke(builder, linkTypeConstant)
 
-                // Set link URI
                 val setLinkUriMethod = builderClass.getMethod("setLinkUri", android.net.Uri::class.java)
                 setLinkUriMethod.invoke(builder, android.net.Uri.parse(params.linkUri))
 
@@ -1321,11 +1306,9 @@ class OpenIapModule(
                         .invoke(builder, token)
                 }
 
-                // Build the params
                 val buildMethod = builderClass.getMethod("build")
                 val launchParams = buildMethod.invoke(builder)
 
-                // Create the response listener
                 val listenerClass = Class.forName("com.android.billingclient.api.LaunchExternalLinkResponseListener")
                 val listener = java.lang.reflect.Proxy.newProxyInstance(
                     listenerClass.classLoader,
@@ -1345,7 +1328,6 @@ class OpenIapModule(
                     null
                 }
 
-                // Call launchExternalLink
                 val launchMethod = client.javaClass.getMethod(
                     "launchExternalLink",
                     android.app.Activity::class.java,
@@ -1604,7 +1586,7 @@ class OpenIapModule(
 
     /**
      * Enable a billing program for the next BillingClient connection (8.2.0+).
-     * This should be called before initConnection to configure the BillingClient.
+     * Call before initConnection.
      *
      * @param program The billing program to enable
      */
@@ -1737,8 +1719,7 @@ class OpenIapModule(
                     val selectedSubscriptionOffersBySku =
                         mutableMapOf<String, ProductDetails.SubscriptionOfferDetails>()
 
-                    // Reject multi-SKU one-time purchase requests when offerToken is provided
-                    // A single offerToken cannot be applied to multiple SKUs
+                    // One offerToken cannot apply to several one-time SKUs.
                     if (androidArgs.type == ProductQueryType.InApp &&
                         !androidArgs.offerToken.isNullOrEmpty() &&
                         androidArgs.skus.size > 1) {
@@ -1817,8 +1798,7 @@ class OpenIapModule(
                             // Handle one-time purchase discount offers (Android 8.0+)
                             OpenIapLog.debug("Setting offer token for one-time product ${productDetails.productId}", TAG)
 
-                            // Validate offer token exists in available one-time purchase offers
-                            // Use oneTimePurchaseOfferDetailsList (Billing Library 8.0+) for discount offers
+                            // The token must be one of oneTimePurchaseOfferDetailsList (Billing Library 8.0+).
                             val oneTimePurchaseOffers = productDetails.oneTimePurchaseOfferDetailsList
                             val availableTokens = oneTimePurchaseOffers?.map { it.offerToken } ?: emptyList()
 
@@ -1855,7 +1835,6 @@ class OpenIapModule(
                     // Subscription replacements identify the original purchase with either a
                     // Play purchase token or a developer-billing transaction ID.
                     if (androidArgs.type == ProductQueryType.Subs && hasSubscriptionUpdateSource) {
-                        // This is a subscription upgrade/downgrade - do not set obfuscatedProfileId
                         OpenIapLog.debug("=== Subscription Upgrade Flow ===", TAG)
                         OpenIapLog.debug("  - Target SKUs: ${androidArgs.skus}", TAG)
                         OpenIapLog.debug("  - Product Details Count: ${paramsList.size}", TAG)
@@ -1902,9 +1881,8 @@ class OpenIapModule(
 
                     val billingFlowParams = flowBuilder.build()
 
-                    // BillingClient requires launchBillingFlow to run on the
-                    // Android UI thread. Some SDK wrappers call from background
-                    // coroutines, so match the Horizon implementation here.
+                    // launchBillingFlow must run on the UI thread, and some SDK wrappers
+                    // call from a background coroutine. Horizon does the same.
                     activity.runOnUiThread {
                         if (!continuation.isActive) {
                             return@runOnUiThread
@@ -2026,9 +2004,8 @@ class OpenIapModule(
                     }
                 }
 
-                // Google explicitly discourages reusing cached ProductDetails for a
-                // purchase. Refresh every requested SKU immediately before building
-                // BillingFlowParams so price and offer eligibility cannot be stale.
+                // Google discourages buying with cached ProductDetails: refresh every SKU
+                // right before BillingFlowParams so price and offer eligibility are current.
                 val productIdsToQuery = androidArgs.skus.distinct()
                 val productList = productIdsToQuery.map { sku ->
                     QueryProductDetailsParams.Product.newBuilder()
@@ -2311,9 +2288,8 @@ class OpenIapModule(
         userChoiceBillingAndroid = userChoiceBillingAndroid,
     )
 
-    // BillingClient is built lazily in initConnection() so that
-    // alternativeBillingMode and billing programs can be configured
-    // before the first client instance is created.
+    // BillingClient is built in initConnection() so billing mode and programs
+    // can be set before the first client exists.
 
     private fun emitPurchaseError(error: OpenIapError) {
         for (registeredListener in purchaseErrorListeners) {
@@ -2414,10 +2390,9 @@ class OpenIapModule(
     }
 
     /**
-     * Inspects the given purchases and fires `subscriptionBillingIssue` once per purchaseToken
-     * whose `isSuspendedAndroid == true`. Dedupes across queries within the current session
-     * via [emittedBillingIssueTokens]; re-emits only if a token clears and re-enters suspension
-     * in a later session / new module instance.
+     * Fires `subscriptionBillingIssue` once per purchaseToken with `isSuspendedAndroid == true`.
+     * [emittedBillingIssueTokens] dedupes within the session; a token re-emits only if it clears
+     * and re-enters suspension in a later session or module instance.
      */
     private fun notifySuspendedSubscriptions(
         purchases: List<Purchase>,
@@ -2562,8 +2537,7 @@ class OpenIapModule(
         }
 
         if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            // When using DEFERRED replacement mode, purchases will be null
-            // This is expected behavior - the change will take effect at next renewal
+            // DEFERRED replacement returns null purchases; the change applies at the next renewal.
             if (purchases != null) {
                 val mapped = purchases.map { purchase ->
                     val firstProductId = purchase.products.firstOrNull()
@@ -2608,12 +2582,10 @@ class OpenIapModule(
                         )
                     }
                 }.orEmpty()
-                // Claim the pending callback before notifying listeners so the
-                // resolution below cannot race a listener that starts another
-                // purchase. A failed claim means the request was completed or
-                // cleared elsewhere (disconnect/endConnection); the store still
-                // reported real purchases, so listener delivery must not be
-                // skipped in that case.
+                // Claim the callback before notifying listeners, so a listener that
+                // starts another purchase cannot race the resolution below. If the claim
+                // fails (already completed, or cleared by disconnect/endConnection),
+                // still deliver the purchases: the store reported them.
                 val completedRequest = if (matched.isNotEmpty() && pendingRequest != null) {
                     claimPurchaseCallback(
                         sourceClient,
@@ -2679,11 +2651,8 @@ class OpenIapModule(
                         billingResult.debugMessage,
                         subResponseCode,
                     )
-                    // Some devices surface ITEM_ALREADY_OWNED through this
-                    // listener instead of the synchronous launchBillingFlow
-                    // result. Mirror the synchronous recovery: query the owned
-                    // purchases for the in-flight request and treat a match as
-                    // success instead of failing the purchase.
+                    // Some devices report ITEM_ALREADY_OWNED here, not from launchBillingFlow.
+                    // Recover the same way: an owned purchase matching the request is a success.
                     if (pendingRequest != null) {
                         reconcilePurchaseFlowError(
                             sourceClient = sourceClient,
@@ -2816,7 +2785,6 @@ class OpenIapModule(
                                     OpenIapLog.debug("External transaction token received", TAG)
                                     OpenIapLog.debug("Products: $productIds", TAG)
 
-                                    // Create UserChoiceBillingDetails for the event
                                     val billingDetails = dev.hyo.openiap.UserChoiceBillingDetails(
                                         externalTransactionToken = externalToken,
                                         originalExternalTransactionId = originalExternalTransactionId,
@@ -2933,10 +2901,9 @@ class OpenIapModule(
     }
 
     /**
-     * Billing Library 8.0+ can automatically reconnect to the billing service,
-     * but MAUI/Xamarin hosts can accidentally package an older BillingClient
-     * through NuGet/Java dependency resolution. A direct method call would crash
-     * the app with NoSuchMethodError before OpenIAP can surface a typed error.
+     * Billing Library 8.0+ can auto-reconnect, but a MAUI/Xamarin host may package an older
+     * BillingClient via NuGet/Java dependency resolution, where a direct call crashes with
+     * NoSuchMethodError before OpenIAP can surface a typed error.
      */
     private fun enableAutoServiceReconnectionIfAvailable(builder: BillingClient.Builder) {
         try {
@@ -2968,7 +2935,6 @@ class OpenIapModule(
     ) {
         OpenIapLog.debug("=== BILLING PROGRAM INITIALIZATION WITH DEVELOPER LISTENER: $program ===", TAG)
 
-        // Create DeveloperProvidedBillingListener via reflection
         val listenerClass = Class.forName("com.android.billingclient.api.DeveloperProvidedBillingListener")
         val developerBillingListener = java.lang.reflect.Proxy.newProxyInstance(
             listenerClass.classLoader,
@@ -3041,7 +3007,6 @@ class OpenIapModule(
             null
         }
 
-        // Build EnableBillingProgramParams
         val enableParamsClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams")
         val enableParamsBuilderClass = Class.forName("com.android.billingclient.api.EnableBillingProgramParams\$Builder")
 
@@ -3051,15 +3016,12 @@ class OpenIapModule(
         val setBillingProgramMethod = enableParamsBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
         setBillingProgramMethod.invoke(enableBuilder, programConstant)
 
-        // Set developer provided billing listener
         val setListenerMethod = enableParamsBuilderClass.getMethod("setDeveloperProvidedBillingListener", listenerClass)
         setListenerMethod.invoke(enableBuilder, developerBillingListener)
 
-        // Build the params
         val buildMethod = enableParamsBuilderClass.getMethod("build")
         val enableParams = buildMethod.invoke(enableBuilder)
 
-        // Call enableBillingProgram on builder
         val enableMethod = builder.javaClass.getMethod("enableBillingProgram", enableParamsClass)
         enableMethod.invoke(builder, enableParams)
 
@@ -3113,14 +3075,12 @@ class OpenIapModule(
                 null -> null
             }
 
-            // Build DeveloperBillingOptionParams using reflection
             val developerBillingParamsClass = Class.forName("com.android.billingclient.api.DeveloperBillingOptionParams")
             val developerBillingBuilderClass = Class.forName("com.android.billingclient.api.DeveloperBillingOptionParams\$Builder")
 
             val newBuilderMethod = developerBillingParamsClass.getMethod("newBuilder")
             val developerBillingBuilder = newBuilderMethod.invoke(null)
 
-            // Set billing program
             val setBillingProgramMethod = developerBillingBuilderClass.getMethod("setBillingProgram", Int::class.javaPrimitiveType)
             setBillingProgramMethod.invoke(developerBillingBuilder, billingProgramConstant)
 
@@ -3139,11 +3099,9 @@ class OpenIapModule(
                     .invoke(developerBillingBuilder, token)
             }
 
-            // Build the developer billing params
             val buildMethod = developerBillingBuilderClass.getMethod("build")
             val developerBillingParams = buildMethod.invoke(developerBillingBuilder)
 
-            // Apply to BillingFlowParams builder
             val enableDeveloperBillingMethod = flowBuilder.javaClass.getMethod(
                 "enableDeveloperBillingOption",
                 developerBillingParamsClass

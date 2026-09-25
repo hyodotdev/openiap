@@ -35,7 +35,6 @@ const CustomAuth = convexAuth({
     async createOrUpdateUser(ctx, args) {
       assertEmailSignInWindowOpen(args.provider.id);
 
-      // Check if user exists with the same email
       const email = args.profile.email;
       const profileName =
         typeof args.profile.name === "string" ? args.profile.name : undefined;
@@ -53,10 +52,8 @@ const CustomAuth = convexAuth({
         );
       }
 
-      // Find existing user by email via an internal query typed against
-      // our project's data model (which exposes the `email` index on
-      // `users`). The auth library types `ctx.db` as AnyDataModel, so we
-      // go through `ctx.runQuery` to use the indexed lookup.
+      // The auth library types ctx.db as AnyDataModel, which hides the
+      // `email` index, so the lookup goes through runQuery.
       const existingUser = await ctx.runQuery(
         internal.users.internal.findByEmail,
         { email },
@@ -73,7 +70,6 @@ const CustomAuth = convexAuth({
           );
         }
 
-        // User exists - update auth user
         const userId = existingUser._id;
 
         await ctx.db.patch(userId, {
@@ -81,7 +77,6 @@ const CustomAuth = convexAuth({
           image: profileImage ?? existingUser.image,
         });
 
-        // Create or update user profile
         const isGitHub = args.provider.id === "github";
 
         const githubProfile = isGitHub
@@ -101,14 +96,10 @@ const CustomAuth = convexAuth({
         return userId;
       }
 
-      // Gate: new email-OTP signups are not allowed. As of 2026-04 we
-      // only accept new accounts via GitHub OAuth; the Resend OTP
-      // provider stays live only so the ~110 existing email-only
-      // users can keep logging in while we phase it out. If the UI
-      // gate (AuthModal → canSignInWithEmail) is bypassed somehow,
-      // this server-side guard rejects the signup before a user row
-      // is created. OAuth providers (github) are exempt — that's the
-      // path we want new users on.
+      // New accounts are GitHub-only since 2026-04; Resend OTP stays only for
+      // the ~110 existing email-only users (see authWindow.ts). Rejected here,
+      // before a user row exists, in case the AuthModal gate
+      // (canSignInWithEmail) is bypassed.
       const providerId = args.provider.id;
       const isResendProvider = isResendProviderId(providerId);
       if (isResendProvider) {
@@ -117,11 +108,8 @@ const CustomAuth = convexAuth({
         );
       }
 
-      // No existing user by email - try to patch the linked auth account
-      // user if one was provided. If the linked user doc was deleted (e.g.
-      // during a dev-time wipe) fall through and create a fresh user so
-      // the OAuth flow can complete instead of throwing "Update on
-      // nonexistent document ID".
+      // The linked account's user may be gone (e.g. a dev wipe), and patching
+      // it would throw "Update on nonexistent document ID".
       if (args.existingUserId) {
         const linkedUser = await ctx.db.get(args.existingUserId);
         if (linkedUser) {
@@ -134,7 +122,6 @@ const CustomAuth = convexAuth({
         // Stale auth account — fall through to insert a new user below.
       }
 
-      // Create new user
       const userId = await ctx.db.insert("users", {
         email,
         emailVerificationTime: Date.now(),
@@ -142,7 +129,6 @@ const CustomAuth = convexAuth({
         image: profileImage,
       });
 
-      // Create user profile
       const isGitHub = args.provider.id === "github";
 
       const githubProfile = isGitHub
@@ -166,7 +152,6 @@ const CustomAuth = convexAuth({
 
 export const { auth, signIn, signOut, store } = CustomAuth;
 
-// Re-export from the generated API
 import { query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 

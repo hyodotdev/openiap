@@ -54,11 +54,11 @@ describe('hooks/useIAP Android', () => {
   });
 
   beforeEach(() => {
-    jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
-    jest.spyOn(IAP, 'getAvailablePurchases').mockResolvedValue([] as any);
-    jest.spyOn(IAP, 'getActiveSubscriptions').mockResolvedValue([] as any);
-    jest.spyOn(IAP, 'hasActiveSubscriptions').mockResolvedValue(false as any);
-    jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined as any);
+    jest.spyOn(IAP, 'initConnection').mockResolvedValue(true);
+    jest.spyOn(IAP, 'getAvailablePurchases').mockResolvedValue([]);
+    jest.spyOn(IAP, 'getActiveSubscriptions').mockResolvedValue([]);
+    jest.spyOn(IAP, 'hasActiveSubscriptions').mockResolvedValue(false);
+    jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined);
     jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation(() => {
       return {remove: jest.fn()};
     });
@@ -118,7 +118,7 @@ describe('hooks/useIAP Android', () => {
 
   it('registers userChoiceBillingAndroid listener when callback is provided', async () => {
     const mockUserChoiceBillingListener = jest
-      .spyOn(IAP, 'userChoiceBillingListenerAndroid' as any)
+      .spyOn(IAP, 'userChoiceBillingListenerAndroid')
       .mockImplementation(() => ({remove: jest.fn()}));
 
     let api: any;
@@ -288,7 +288,7 @@ describe('hooks/useIAP Android', () => {
     await act(async () => {});
 
     (IAP.initConnection as jest.Mock).mockClear();
-    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true as any);
+    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true);
 
     let result: boolean | undefined;
     await act(async () => {

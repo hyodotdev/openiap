@@ -1,5 +1,6 @@
 import {
   ConfigPlugin,
+  WarningAggregator,
   withDangerousMod,
   withSettingsGradle,
   withAppBuildGradle,
@@ -13,13 +14,10 @@ import {
 } from './withIosAlternativeBilling';
 import {ensureOnsidePodIOS} from './onsidePodfile';
 
-/**
- * Plugin to add local OpenIAP pod dependency for development
- * This is only for local development with openiap-apple library
- */
+/** Adds the local OpenIAP pod dependency; for local openiap-apple development only. */
 export type LocalPathOption = string | {ios?: string; android?: string};
-type GradleLanguage = 'groovy' | 'kotlin';
-type OpenIapAndroidFlavor = 'play' | 'horizon' | 'amazon';
+// Expo's names for a .gradle and a .gradle.kts file.
+type GradleLanguage = 'groovy' | 'kt';
 
 export const getAndroidLocalPathInput = (
   raw?: LocalPathOption,
@@ -106,49 +104,140 @@ const LOCAL_OPENIAP_FLAVOR_BLOCK_START =
 const LOCAL_OPENIAP_FLAVOR_BLOCK_END =
   '// End expo-iap local openiap-google flavor selection';
 
-const normalizeGradleLanguage = (language?: string): GradleLanguage =>
-  language === 'kotlin' ? 'kotlin' : 'groovy';
+// The resolver ships beside this plugin, wherever node_modules put it.
+const OPENIAP_STORE_SCRIPT = path.resolve(
+  __dirname,
+  '../../android/openiap-store.gradle',
+);
 
+export const storeScriptPathFrom = (platformProjectRoot: string): string =>
+  path
+    .relative(platformProjectRoot, OPENIAP_STORE_SCRIPT)
+    .split(path.sep)
+    .join('/');
+
+// Each module applies the resolver itself; it caches its answer, so all agree.
+// `:app` cannot read a root value: React Native evaluates it before the root script.
+export const LOCAL_STRATEGY_LINE_GROOVY =
+  '          missingDimensionStrategy "platform", openIapStore';
+export const LOCAL_STRATEGY_LINE_KOTLIN =
+  '            missingDimensionStrategy("platform", openIapStore)';
+
+export const appStoreLines = (
+  storeScriptPath: string,
+  language: GradleLanguage,
+): {apply: string; strategy: string} =>
+  language === 'kt'
+    ? {
+        // defaultConfig's receiver is DefaultConfig, not the script, so read
+        // extra at the top level where the script scope applies.
+        apply: `apply(from = "${storeScriptPath}")\nval openIapStore = ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("app") as Map<*, *>)["store"] as String`,
+        strategy: '        missingDimensionStrategy("platform", openIapStore)',
+      }
+    : {
+        apply: `apply from: "${storeScriptPath}"`,
+        strategy:
+          '        missingDimensionStrategy "platform", openIapResolveStore("app").store',
+      };
+
+// Each removal also takes the blank line written beside the line, so a switch
+// back to published leaves the file as it was.
+export const removeLocalOpenIapFlavorStrategy = (contents: string): string =>
+  contents.replace(
+    new RegExp(
+      `(?:^[ \\t]*\\n)?${escapeRegExp(
+        LOCAL_OPENIAP_FLAVOR_BLOCK_START,
+      )}[\\s\\S]*?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_END)}\\n?`,
+      'gm',
+    ),
+    '',
+  );
+
+// expo-iap links an included :openiap-google over Maven, so a published build
+// drops what a local one wrote.
+export const removeLocalOpenIapSettings = (contents: string): string =>
+  contents
+    .replace(
+      /(?:^[ \t]*\n)?^[ \t]*include[ \t]*\(?[ \t]*["']:openiap-google["'][ \t]*\)?[ \t]*\n?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*project\(["']:openiap-google["']\)\.projectDir[ \t]*=.*\n?/gm,
+      '',
+    );
+
+export const removeLocalOpenIapAppWiring = (contents: string): string =>
+  contents
+    .replace(
+      /^[ \t]*implementation[ \t]*\(?[ \t]*project\([ \t]*["']:openiap-google["'][ \t]*\)[ \t]*\)?[ \t]*\n?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*apply[ \t]*(?:from:|\(from = )[ \t]*"[^"]*openiap-store\.gradle"\)?[ \t]*\n?(?:^[ \t]*\n)?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*val openIapStore = .*openIapResolveStore.*\n?(?:^[ \t]*\n)?/gm,
+      '',
+    )
+    .replace(
+      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*(openIapResolveStore|openIapStore)[^\n]*\n?/gm,
+      '',
+    );
+
+// A localPath that moved must move the pod with it.
+export const setLocalOpenIapPodPath = (
+  podfile: string,
+  relativePath: string,
+): string =>
+  podfile.replace(
+    /(pod\s+'openiap'\s*,\s*:path\s*=>\s*)(['"])[^'"\n]*\2/g,
+    (_, prefix: string) => `${prefix}'${relativePath}'`,
+  );
+
+// Every Android module in a local build links the flavor the resolver picks.
 export const ensureLocalOpenIapFlavorStrategy = (
   contents: string,
-  flavor: OpenIapAndroidFlavor,
+  storeScriptPath: string,
   language: GradleLanguage = 'groovy',
 ): string => {
-  const existingBlockPattern = new RegExp(
-    `\\n?${escapeRegExp(
-      LOCAL_OPENIAP_FLAVOR_BLOCK_START,
-    )}[\\s\\S]*?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_END)}\\n?`,
-    'gm',
-  );
-  const cleaned = contents
-    .replace(existingBlockPattern, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd();
+  const cleaned = removeLocalOpenIapFlavorStrategy(contents).trimEnd();
 
   const strategyBlock =
-    language === 'kotlin'
-      ? `project(":openiap-google") {
+    language === 'kt'
+      ? `apply(from = "${storeScriptPath}")
+val openIapStore =
+  ((extra["openIapResolveStore"] as groovy.lang.Closure<*>).call("expo-iap") as Map<*, *>)["store"] as String
+
+project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
 subprojects {
-  plugins.withId("com.android.library") {
-    extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
-      defaultConfig {
-        missingDimensionStrategy("platform", "${flavor}")
+  listOf("com.android.library", "com.android.application").forEach { pluginId ->
+    plugins.withId(pluginId) {
+      extensions.configure<com.android.build.gradle.BaseExtension>("android") {
+        defaultConfig {
+${LOCAL_STRATEGY_LINE_KOTLIN}
+        }
       }
     }
   }
 }`
-      : `project(":openiap-google") {
+      : `apply from: "${storeScriptPath}"
+def openIapStore = openIapResolveStore("expo-iap").store
+
+project(":openiap-google") {
   layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
 }
 
 subprojects { subproject ->
-  subproject.plugins.withId("com.android.library") {
-    subproject.android {
-      defaultConfig {
-        missingDimensionStrategy "platform", "${flavor}"
+  ["com.android.library", "com.android.application"].each { pluginId ->
+    subproject.plugins.withId(pluginId) {
+      subproject.android {
+        defaultConfig {
+${LOCAL_STRATEGY_LINE_GROOVY}
+        }
       }
     }
   }
@@ -166,11 +255,6 @@ const withLocalOpenIAP: ConfigPlugin<
   {
     localPath?: LocalPathOption;
     iosAlternativeBilling?: IOSAlternativeBillingConfig;
-    horizonAppId?: string;
-    /** Resolved from modules.horizon by withIAP */
-    isHorizonEnabled?: boolean;
-    /** Resolved from modules.amazon.fireOS by withIAP */
-    isFireOsEnabled?: boolean;
     /** Resolved from modules.onside by withIAP */
     enableOnside?: boolean;
   } | void
@@ -179,7 +263,6 @@ const withLocalOpenIAP: ConfigPlugin<
   if (props?.iosAlternativeBilling) {
     config = withIosAlternativeBilling(config, props.iosAlternativeBilling);
   }
-  // Helper to resolve Android module path
   const resolveAndroidModulePath = (p?: string): string | null => {
     if (!p) return null;
     // Prefer the module directory if it exists
@@ -198,12 +281,17 @@ const withLocalOpenIAP: ConfigPlugin<
     }
     return null;
   };
+  const androidInput = getAndroidLocalPathInput(props?.localPath);
+  // The local openiap-google module: from localPath, else beside the app.
+  const localAndroidModule = (projectRoot: string): string | null =>
+    resolveAndroidModulePath(androidInput) ??
+    resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google'));
 
   // iOS: inject local pod path with wrapper podspec
   config = withDangerousMod(config, [
     'ios',
     async (config) => {
-      const {platformProjectRoot, projectRoot} = config.modRequest as any;
+      const {platformProjectRoot, projectRoot} = config.modRequest;
       const raw = props?.localPath;
       const iosPath =
         (typeof raw === 'string' ? raw : raw?.ios) ||
@@ -240,8 +328,21 @@ const withLocalOpenIAP: ConfigPlugin<
         }
       }
 
+      const relativePath = path
+        .relative(platformProjectRoot, iosPath)
+        .replace(/\\/g, '/');
+
       // Check if local OpenIAP pod is already configured
       if (podfileContent.includes("pod 'openiap',")) {
+        const updatedContent = setLocalOpenIapPodPath(
+          podfileContent,
+          relativePath,
+        );
+        if (updatedContent !== podfileContent) {
+          podfileContent = updatedContent;
+          podfileChanged = true;
+          logOnce(`✅ Moved the local OpenIAP pod to: ${iosPath}`);
+        }
         if (podfileChanged) {
           fs.writeFileSync(podfilePath, podfileContent);
         }
@@ -251,9 +352,6 @@ const withLocalOpenIAP: ConfigPlugin<
 
       const targetRegex =
         /target\s+['"][\w]+['"]\s+do\s*\n\s*use_expo_modules!/;
-      const relativePath = path
-        .relative(platformProjectRoot, iosPath)
-        .replace(/\\/g, '/');
 
       if (targetRegex.test(podfileContent)) {
         podfileContent = podfileContent.replace(targetRegex, (match) => {
@@ -281,40 +379,33 @@ const withLocalOpenIAP: ConfigPlugin<
 
   // Android: include local module and add dependency if available
   config = withSettingsGradle(config, (config) => {
-    const raw = props?.localPath;
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    const androidModulePath = localAndroidModule(config.modRequest.projectRoot);
+    if (!androidModulePath) {
       if (androidInput) {
         console.warn(
           `⚠️  Could not resolve Android OpenIAP module at: ${androidInput}. Skipping local Android linkage.`,
         );
       }
+      config.modResults.contents = removeLocalOpenIapSettings(
+        config.modResults.contents,
+      );
       return config;
     }
     const pluginVersions =
       resolveAndroidGradlePluginVersions(androidModulePath);
-    const settingsRoot =
-      ((config.modRequest as any).platformProjectRoot as string | undefined) ??
-      path.join(projectRoot, 'android');
     const relativeAndroidModulePath = path
-      .relative(settingsRoot, androidModulePath)
+      .relative(config.modRequest.platformProjectRoot, androidModulePath)
       .replace(/\\/g, '/');
 
     // 1) settings.gradle: include and map projectDir
     const settings = config.modResults;
-    const settingsLanguage = normalizeGradleLanguage(settings.language);
+    const settingsLanguage = settings.language;
     const includeLine =
-      settingsLanguage === 'kotlin'
+      settingsLanguage === 'kt'
         ? 'include(":openiap-google")'
         : "include ':openiap-google'";
     const projectDirLine =
-      settingsLanguage === 'kotlin'
+      settingsLanguage === 'kt'
         ? `project(":openiap-google").projectDir = File(settingsDir, "${relativeAndroidModulePath}")`
         : `project(':openiap-google').projectDir = new File(settingsDir, '${relativeAndroidModulePath}')`;
     const includePattern = /include\s*(?:\(\s*)?["']:openiap-google["']\s*\)?/;
@@ -405,66 +496,54 @@ const withLocalOpenIAP: ConfigPlugin<
 
   // 2) app/build.gradle: add implementation project(':openiap-google')
   config = withAppBuildGradle(config, (config) => {
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const raw = props?.localPath;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    if (!localAndroidModule(config.modRequest.projectRoot)) {
+      config.modResults.contents = removeLocalOpenIapAppWiring(
+        config.modResults.contents,
+      );
       return config;
     }
 
     const gradle = config.modResults;
-    const appLanguage = normalizeGradleLanguage(gradle.language);
+    const appLanguage = gradle.language;
     const dependencyLine =
-      appLanguage === 'kotlin'
+      appLanguage === 'kt'
         ? `    implementation(project(":openiap-google"))`
         : `    implementation project(':openiap-google')`;
-    const flavor = props?.isFireOsEnabled
-      ? 'amazon'
-      : props?.isHorizonEnabled
-      ? 'horizon'
-      : 'play';
-    const strategyLine =
-      appLanguage === 'kotlin'
-        ? `        missingDimensionStrategy("platform", "${flavor}")`
-        : `        missingDimensionStrategy "platform", "${flavor}"`;
-
     let contents = gradle.contents;
 
-    // Remove Maven deps for all openiap-google flavors
-    // to avoid duplicate classes with local module
-    const mavenPattern =
-      /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
-    if (mavenPattern.test(contents)) {
-      contents = contents.replace(mavenPattern, '\n');
-      logOnce(
-        '🧹 Removed Maven openiap-google* dependencies (using local module)',
-      );
-    }
-
-    // Add missingDimensionStrategy (required for flavored module)
-    // Remove any existing platform strategies first to avoid duplicates
+    // `:app` runs before the root build file, so it applies the resolver itself.
+    const {apply: applyLine, strategy: strategyLine} = appStoreLines(
+      storeScriptPathFrom(
+        path.join(config.modRequest.platformProjectRoot, 'app'),
+      ),
+      appLanguage,
+    );
     const strategyPattern =
-      /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
-    if (strategyPattern.test(contents)) {
-      contents = contents.replace(strategyPattern, '');
-      logOnce('🧹 Removed existing missingDimensionStrategy for platform');
-    }
+      /^[ \t]*missingDimensionStrategy[\s(]{0,4}["']platform["'][^\n]*\n?/gm;
+    contents = removeLocalOpenIapAppWiring(contents).replace(
+      strategyPattern,
+      '',
+    );
 
-    if (!contents.includes(strategyLine)) {
-      const lines = contents.split('\n');
-      const idx = lines.findIndex((line) => line.match(/defaultConfig\s*\{/));
-      if (idx !== -1) {
-        lines.splice(idx + 1, 0, strategyLine);
-        contents = lines.join('\n');
-        logOnce(
-          `🛠️ expo-iap: Added missingDimensionStrategy for ${flavor} flavor`,
-        );
-      }
+    const androidBlock = /^(\s*)android\s*\{/m;
+    if (androidBlock.test(contents)) {
+      contents = contents.replace(androidBlock, (m) => `${applyLine}\n\n${m}`);
+    } else {
+      contents = `${applyLine}\n\n${contents}`;
+    }
+    const lines = contents.split('\n');
+    const defaultConfigIndex = lines.findIndex((line) =>
+      /defaultConfig\s*\{/.test(line),
+    );
+    if (defaultConfigIndex !== -1) {
+      lines.splice(defaultConfigIndex + 1, 0, strategyLine);
+      contents = lines.join('\n');
+      logOnce('🛠️ expo-iap: Wired app/build.gradle to the store resolver');
+    } else {
+      WarningAggregator.addWarningAndroid(
+        'expo-iap',
+        'app/build.gradle has no defaultConfig block, so the local OpenIAP flavor is unselected.',
+      );
     }
 
     // Add project dependency
@@ -485,73 +564,44 @@ const withLocalOpenIAP: ConfigPlugin<
   // 2b) project build.gradle: Expo autolinked library modules can consume the
   // local flavored OpenIAP module transitively, so give them the same default.
   config = withProjectBuildGradle(config, (config) => {
-    const projectRoot = (config.modRequest as any).projectRoot as string;
-    const raw = props?.localPath;
-    const androidInput = getAndroidLocalPathInput(raw);
-    const androidModulePath =
-      resolveAndroidModulePath(androidInput) ||
-      resolveAndroidModulePath(path.resolve(projectRoot, 'openiap-google')) ||
-      null;
-
-    if (!androidModulePath || !fs.existsSync(androidModulePath)) {
+    if (!localAndroidModule(config.modRequest.projectRoot)) {
+      config.modResults.contents = removeLocalOpenIapFlavorStrategy(
+        config.modResults.contents,
+      );
       return config;
     }
 
-    const flavor = props?.isFireOsEnabled
-      ? 'amazon'
-      : props?.isHorizonEnabled
-      ? 'horizon'
-      : 'play';
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
-      flavor,
-      normalizeGradleLanguage(config.modResults.language),
+      storeScriptPathFrom(config.modRequest.platformProjectRoot),
+      config.modResults.language,
     );
-    logOnce(`🛠️ expo-iap: Added local OpenIAP flavor strategy for ${flavor}`);
+    logOnce('🛠️ expo-iap: Added the local OpenIAP build-time flavor strategy');
     return config;
   });
 
-  // 3) Set store flags in gradle.properties
-  config = withDangerousMod(config, [
-    'android',
-    async (config) => {
-      const {platformProjectRoot} = config.modRequest as any;
-      const gradlePropertiesPath = path.join(
-        platformProjectRoot,
-        'gradle.properties',
-      );
-
-      let contents: string;
-      try {
-        contents = fs.readFileSync(gradlePropertiesPath, 'utf8');
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
-          throw error;
-        }
-        return config;
-      }
-      const isHorizon = props?.isHorizonEnabled ?? false;
-      const isFireOS = props?.isFireOsEnabled ?? false;
-
-      contents = contents.replace(/^horizonEnabled=.*$/gm, '');
-      contents = contents.replace(/^fireOsEnabled=.*$/gm, '');
-      if (!contents.endsWith('\n')) contents += '\n';
-      contents += `horizonEnabled=${isHorizon}\n`;
-      contents += `fireOsEnabled=${isFireOS}\n`;
-
-      fs.writeFileSync(gradlePropertiesPath, contents);
-      logOnce(
-        `🛠️ expo-iap: Set horizonEnabled=${isHorizon} in gradle.properties`,
-      );
-      logOnce(
-        `🛠️ expo-iap: Set fireOsEnabled=${isFireOS} in gradle.properties`,
-      );
-
-      return config;
-    },
-  ]);
-
   return config;
+};
+
+export const withoutLocalOpenIAPAndroid: ConfigPlugin = (config) => {
+  config = withSettingsGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapSettings(
+      config.modResults.contents,
+    );
+    return config;
+  });
+  config = withAppBuildGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapAppWiring(
+      config.modResults.contents,
+    );
+    return config;
+  });
+  return withProjectBuildGradle(config, (config) => {
+    config.modResults.contents = removeLocalOpenIapFlavorStrategy(
+      config.modResults.contents,
+    );
+    return config;
+  });
 };
 
 export default withLocalOpenIAP;

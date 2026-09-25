@@ -181,7 +181,7 @@ let purchaseSubscription = store.purchaseUpdatedListener { purchase in
                 isConsumable: false
             )
         } catch {
-            print("Failed to finish transaction: \(error)")
+            print("Failed to finish transaction: \\(error)")
         }
     }
 }

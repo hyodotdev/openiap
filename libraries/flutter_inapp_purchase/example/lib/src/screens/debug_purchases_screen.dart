@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/types.dart' as gentype;
 
+import '../constants.dart';
 import '../widgets/purchase_detail_view.dart';
 
 class DebugPurchasesScreen extends StatefulWidget {
@@ -63,16 +64,12 @@ class _DebugPurchasesScreenState extends State<DebugPurchasesScreen> {
         productId.contains('pro');
   }
 
-  bool _isConsumable(String? productId) {
-    if (productId == null) return false;
-    // Check if product ID contains consumable keywords
-    return productId.contains('bulbs') ||
-        productId.contains('coins') ||
-        productId.contains('gems') ||
-        productId.contains('lives') ||
-        productId.contains('consumable');
-  }
+  // Gates the Consume button, so it must follow the catalog: consuming the
+  // badge would drop its entitlement.
+  bool _isConsumable(String? productId) =>
+      productId != null && IapConstants.isConsumable(productId);
 
+  // Debug tool: consumes without verification to reset sandbox test state.
   Future<void> _consumePurchase(gentype.Purchase purchase) async {
     if (purchase.purchaseToken == null) {
       _showAlert('Error', 'No purchase token available');

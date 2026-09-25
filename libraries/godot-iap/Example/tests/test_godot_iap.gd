@@ -781,6 +781,13 @@ func test_store_and_stub_mode_helpers() -> void:
 
 	GodotIapPlugin._platform = "Android"
 	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.GOOGLE, "Android should map to the GOOGLE store")
+	# A Horizon or Amazon export is tagged with the store it linked.
+	var original_has_feature = GodotIapPlugin._has_feature
+	GodotIapPlugin._has_feature = func(tag): return tag == "openiap_store_horizon"
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.HORIZON, "A Horizon export should report the HORIZON store")
+	GodotIapPlugin._has_feature = func(tag): return tag == "openiap_store_amazon"
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.AMAZON, "An Amazon export should report the AMAZON store")
+	GodotIapPlugin._has_feature = original_has_feature
 	GodotIapPlugin._platform = "iOS"
 	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.APPLE, "iOS should map to the APPLE store")
 	GodotIapPlugin._platform = "Linux"

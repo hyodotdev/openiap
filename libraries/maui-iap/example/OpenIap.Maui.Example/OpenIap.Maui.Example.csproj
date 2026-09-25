@@ -50,6 +50,13 @@
     <ProjectReference Include="..\..\src\OpenIap.Maui\OpenIap.Maui.csproj" />
   </ItemGroup>
 
+  <!-- A NuGet install imports the store selection from the package; a project
+       reference does not, and the store AARs come from packages/google. -->
+  <PropertyGroup>
+    <OpenIapGoogleAarDirectory>$(MSBuildThisFileDirectory)..\..\..\..\packages\google\openiap\build\outputs\aar\</OpenIapGoogleAarDirectory>
+  </PropertyGroup>
+  <Import Project="..\..\src\OpenIap.Maui\buildTransitive\OpenIap.Maui.targets" />
+
   <!-- .NET-for-iOS does NOT propagate <NativeReference> items through
        ProjectReference. Until that ships, every consumer (this example, or
        any host MAUI app pulling OpenIap.Maui via path-reference) must

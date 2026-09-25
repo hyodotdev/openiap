@@ -42,13 +42,9 @@ export const createOrganization = mutation({
       }
     }
 
-    // Ensure slug is unique. We probe the base slug first and append a
-    // random suffix on collision instead of `slug-1`, `slug-2`, ... so we
-    // don't do a query-in-a-loop scan under contention. The retry loop
-    // covers the (astronomically unlikely) case where TWO concurrent
-    // creates land on the same base AND the same random suffix — without
-    // it, both transactions would commit and the `by_slug` index would
-    // hold duplicates (Convex has no unique-index enforcement).
+    // A random suffix on collision, not a slug-1, slug-2 scan. The retry covers
+    // two concurrent creates drawing the same suffix, since Convex has no
+    // unique indexes.
     const SLUG_RETRY_LIMIT = 5;
     let finalSlug = slug;
     let attempt = 0;
@@ -192,9 +188,7 @@ export const inviteMember = mutation({
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
-    // Find user by email via the indexed lookup; the prior
-    // `.collect()` + `.find()` was a full table scan that would have
-    // failed past Convex's per-query read budget once the user count grew.
+    // Indexed: a full scan would exceed the read budget as users grow.
     const invitedUser = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", args.email))

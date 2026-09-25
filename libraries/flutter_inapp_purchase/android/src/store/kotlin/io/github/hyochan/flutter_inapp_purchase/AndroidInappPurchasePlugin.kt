@@ -1054,6 +1054,17 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                         iapkitMap["amazon"] = amazonMap
                                     }
                                 }
+                                (iapkit["horizon"] as? Map<*, *>)?.let { horizon ->
+                                    (horizon["sku"] as? String)?.let { sku ->
+                                        val horizonMap = mutableMapOf<String, Any?>(
+                                            "sku" to sku
+                                        )
+                                        (horizon["userId"] as? String)?.let { userId ->
+                                            horizonMap["userId"] = userId
+                                        }
+                                        iapkitMap["horizon"] = horizonMap
+                                    }
+                                }
                                 propsMap["iapkit"] = iapkitMap
                             }
 

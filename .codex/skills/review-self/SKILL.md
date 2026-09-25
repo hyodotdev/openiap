@@ -54,13 +54,16 @@ result is stable.
    - missing or weak tests, documentation, examples, migrations, and operational
      safeguards required by the change;
    - the canonical KISS/SSOT release rules in
-     `knowledge/internal/03-coding-style.md`.
+     `knowledge/internal/03-coding-style.md`;
+   - code smells in the diff, the code it touches, and any code read during
+     the round, including any `as any`, per "Clean Up Once It Works" in the
+     same file. These are in scope and fixed without being asked.
 4. Use independent read-only subagents for separate review lenses when the diff
    is large or cross-cutting. Give them the raw target and request, not suspected
    findings or an expected answer.
 5. Validate every finding against the current code and applicable instructions.
-   Reject pure taste, cosmetic churn, duplicate findings, and unrelated
-   nice-to-have work.
+   Reject pure taste, cosmetic churn, duplicate findings, and unrelated feature
+   work. A code smell is not taste: fix it even outside the change's scope.
 6. Fix all validated in-scope findings in one coherent batch under those
    canonical KISS/SSOT rules. Regenerate generated files only through their
    documented generator and preserve unrelated edits.

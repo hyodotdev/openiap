@@ -1,20 +1,14 @@
-// Canonical normalized commerce event contract.
+// Canonical normalized commerce event contract. Consumers (analytics
+// pipelines, SaaS platforms, custom backends) read these events and never
+// need to parse an Apple ASN or Google RTDN payload.
 //
-// This is the consumer-facing surface: analytics pipelines, SaaS platforms and
-// custom backends read these events and must never need to parse an Apple ASN
-// or a Google RTDN payload to learn what happened.
+// Event types reuse the transitions in `subscriptions/stateMachine.ts`; a
+// parallel taxonomy would drift. Store-specific detail goes under
+// `extensions`, never in the canonical fields.
 //
-// The vocabulary deliberately reuses the lifecycle transitions the subscription
-// state machine already produces (`subscriptions/stateMachine.ts`) instead of
-// inventing a parallel taxonomy — one semantic model, two spellings would drift.
-//
-// Store-specific detail lives under `extensions`, never in the canonical fields.
-//
-// Contract values are imported from the protocol, never restated, and the ones
-// a receiver decodes are pinned as goldens in kit's own tests so a protocol
-// rename fails on purpose. The event version below is the single exception: it
-// stays a literal because its type narrows CommerceEvent.eventVersion, and
-// spec.conformance.test.ts is what fails when the protocol bumps it.
+// Contract values are imported from the protocol, never restated. Values a
+// receiver decodes are pinned as goldens in kit's tests, so a protocol rename
+// fails on purpose.
 
 import { $defs } from "@hyodotdev/openiap-commerce-protocol/generated/schemas/primitives.schema.json";
 
@@ -22,8 +16,9 @@ import type { SubscriptionState } from "../webhooks/shared";
 import type { SubscriptionTransitionKind } from "../subscriptions/stateMachine";
 
 /**
- * Version of the emitted body. Consumers pin on the major, so a bump is a
- * deliberate decision: spec.conformance.test.ts fails until this literal moves.
+ * Version of the emitted body; consumers pin on the major. The one contract
+ * value kept as a literal, because its type narrows CommerceEvent.eventVersion.
+ * A protocol bump fails spec.conformance.test.ts until this moves.
  */
 export const COMMERCE_EVENT_SCHEMA_VERSION = "1.0" as const;
 
@@ -85,12 +80,11 @@ export function commerceEventTypeForTransition(
 }
 
 /**
- * SPEC.md §9.1 emission rule as a pure decision, so the mutation that fans out
- * events and the conformance adapter that certifies the rule share one source.
- * The lifecycle event (if any) comes first; an entitlement event follows only
- * when the gate actually flips and a bound user exists to grant or revoke it.
- * At first binding (§2.4) the caller passes `previouslyActive: false` — the
- * unbound baseline is not entitled — so a currently-open gate yields exactly
+ * SPEC.md §9.1 emission rule, kept pure so the fan-out mutation and the
+ * conformance adapter share one source. The lifecycle event (if any) comes
+ * first; an entitlement event follows only when the gate flips and a user is
+ * bound. At first binding (§2.4) the caller passes `previouslyActive: false`,
+ * since the unbound baseline is not entitled, so an open gate yields exactly
  * one `entitlement.granted`.
  */
 export function commerceEventTypesToEmit(args: {
@@ -185,9 +179,9 @@ export type CommerceEvent = {
   extensions?: Record<string, string>;
 };
 
-// Extensions are attacker-influenced in the limit. The bounds are a constraint
-// the sanitizer must satisfy, not something receivers decode, so they follow the
-// protocol: tightening or loosening them keeps kit schema-valid either way.
+// Extensions can be attacker-influenced. These bounds only limit the sanitizer
+// and no receiver decodes them, so they follow the protocol: kit stays
+// schema-valid whichever way the protocol moves them.
 const extensionBounds = $defs.Extensions;
 export const MAX_EXTENSION_ENTRIES = extensionBounds.maxProperties;
 export const MAX_EXTENSION_KEY_LENGTH = extensionBounds.propertyNames.maxLength;

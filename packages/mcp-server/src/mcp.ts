@@ -1,4 +1,7 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  type ToolCallback,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type {
   ServerNotification,
@@ -202,20 +205,20 @@ export function redactSecretString(value: string, apiKey?: string): string {
     );
 }
 
-function registerTool(
+function registerTool<Args extends z.ZodRawShape>(
   server: McpServer,
   localName: string,
   description: string,
-  schema: Record<string, z.ZodTypeAny>,
+  schema: Args,
   annotations: ToolAnnotations,
-  handler: (args: any, extra: ToolExtra) => unknown,
+  handler: ToolCallback<Args>,
 ) {
   server.tool(
     `${IAPKIT_TOOL_PREFIX}_${localName}`,
     description,
     schema,
     annotations,
-    handler as any,
+    handler,
   );
 }
 

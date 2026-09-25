@@ -1,0 +1,19 @@
+// A KMP app module that sees kmp-iap only through :shared.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.consumer'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+dependencies {
+  implementation project(':shared')
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'debugRuntimeClasspath')

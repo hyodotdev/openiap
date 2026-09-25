@@ -252,15 +252,14 @@ internal fun resolveHorizonProductType(
     }
 }
 
-/**
- * OpenIapModule for Meta Horizon Billing
- *
- * @param context Android context
- * The Horizon App ID is read from the
- * `com.meta.horizon.platform.HORIZON_APP_ID` AndroidManifest.xml meta-data key.
- */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
+/**
+ * OpenIapModule for Meta Horizon Billing. Reads the Horizon App ID from the
+ * `com.meta.horizon.platform.HORIZON_APP_ID` AndroidManifest.xml meta-data key.
+ *
+ * @param context Android context
+ */
 class OpenIapModule(
     private val context: Context,
 ) : OpenIapProtocol {
@@ -530,8 +529,7 @@ class OpenIapModule(
         java.util.concurrent.CopyOnWriteArraySet<dev.hyo.openiap.listener.OpenIapConnectionStateListener>()
 
     init {
-        // DO NOT build BillingClient here - React Native context doesn't have Activity yet
-        // BillingClient will be built in initConnection() when Activity is guaranteed to be available
+        // Build BillingClient in initConnection(), not here: a React Native context has no Activity yet.
         OpenIapLog.debug("OpenIapModule initialized (Horizon flavor)", TAG)
     }
 
@@ -1653,8 +1651,7 @@ class OpenIapModule(
             }
 
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                // When using DEFERRED replacement mode, purchases will be null
-                // This is expected behavior - the change will take effect at next renewal
+                // DEFERRED replacement returns null purchases; the change applies at the next renewal.
                 if (purchases != null) {
                     OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
@@ -1711,13 +1708,10 @@ class OpenIapModule(
                             )
                         }
                     }.orEmpty()
-                    // Take the pending callback before notifying listeners so
-                    // resolution cannot race a listener that starts another
-                    // purchase. A failed take means the request was completed or
-                    // cleared elsewhere (polling/disconnect); the store still
-                    // reported real purchases, so listener delivery must not be
-                    // skipped — claimPurchaseDelivery below dedupes anything the
-                    // polling path already delivered.
+                    // Take the callback before notifying listeners, so a listener that
+                    // starts another purchase cannot race the resolution. If the take fails
+                    // (completed or cleared by polling/disconnect), still deliver the store's
+                    // purchases; claimPurchaseDelivery below dedupes what polling delivered.
                     val completedCallback = if (matched.isNotEmpty() && pendingRequest != null) {
                         takePurchaseCallback(pendingRequest.callback, expectedClient)
                     } else {
@@ -1823,10 +1817,8 @@ class OpenIapModule(
     }
 
     /**
-     * Build BillingClient with the provided context.
-     *
-     * CRITICAL: Horizon SDK requires Activity to properly initialize OVRPlatform with returnComponent.
-     * initConnection rejects a missing Activity before reaching this builder.
+     * Build BillingClient. The Horizon SDK needs an Activity to initialize OVRPlatform with
+     * returnComponent; initConnection rejects a missing Activity before this runs.
      *
      * @param activity Activity required by the Horizon Billing Compatibility SDK
      */
@@ -1877,9 +1869,7 @@ class OpenIapModule(
     }
 
     override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
-        // No-op: Suspended-subscription detection (Purchase.isSuspended) requires Google Play
-        // Billing Library 8.1+. The Meta Horizon Billing Compatibility SDK targets Play Billing 7.0
-        // and does not expose this signal.
+        // No-op: Purchase.isSuspended needs Play Billing 8.1+; the Horizon SDK targets Play Billing 7.0.
         OpenIapLog.warn("addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+", TAG)
     }
 

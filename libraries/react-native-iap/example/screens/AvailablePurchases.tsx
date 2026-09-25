@@ -13,7 +13,6 @@ import type {PurchaseError} from 'react-native-iap';
 import {useIAP, deepLinkToSubscriptions} from 'react-native-iap';
 import {useDataModal} from '../src/contexts/DataModalContext';
 
-// Define subscription IDs at component level like in the working example
 const subscriptionIds = [
   'dev.hyo.martie.premium', // Same as subscription-flow
 ];
@@ -31,7 +30,6 @@ export default function AvailablePurchases() {
   // Use global modal context
   const {showData} = useDataModal();
 
-  // Use the useIAP hook like subscription-flow does
   const {
     connected,
     subscriptions,
@@ -49,7 +47,6 @@ export default function AvailablePurchases() {
         store: purchase.store,
       });
 
-      // Finish transaction like in subscription-flow
       await finishTransaction({
         purchase,
         isConsumable: false,
@@ -66,7 +63,6 @@ export default function AvailablePurchases() {
     },
   });
 
-  // Check subscription status like subscription-flow does
   const checkSubscriptionStatus = useCallback(async () => {
     if (!connected || isCheckingStatus) {
       console.log(
@@ -113,7 +109,7 @@ export default function AvailablePurchases() {
     }
   };
 
-  // Load products and available purchases when connected - follow subscription-flow pattern
+  // Load products and available purchases once connected
   useEffect(() => {
     if (connected) {
       console.log(
@@ -140,7 +136,7 @@ export default function AvailablePurchases() {
     }
   }, [connected, fetchProducts, getAvailablePurchases]);
 
-  // Check subscription status separately like subscription-flow does
+  // Check subscription status separately
   useEffect(() => {
     if (connected) {
       // Use a timeout to avoid rapid consecutive calls
@@ -332,7 +328,7 @@ export default function AvailablePurchases() {
                 </View>
               )}
 
-              {/* iOS-specific fields with new IOS naming convention */}
+              {/* iOS-specific fields */}
               {Platform.OS === 'ios' &&
                 'expirationDateIOS' in purchase &&
                 purchase.expirationDateIOS && (

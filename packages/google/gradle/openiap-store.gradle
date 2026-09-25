@@ -1,0 +1,365 @@
+// OpenIAP store resolver. Framework wrappers symlink this file into android/
+// and publish it as a real file.
+// Apply it, then call openIapResolveStore('<label>'), or ('<label>', [allowNone: true])
+// where the library can build without a store SDK.
+//
+// First match wins:
+//   1. explicit  openiapStore=<store> (-P, ORG_GRADLE_PROJECT_openiapStore, gradle.properties).
+//                The legacy horizonEnabled, fireOsEnabled and openiapPlatform=none still work.
+//   2. variant   a requested task names a store flavor (assembleHorizonRelease).
+//   3. device    debug builds only: the Quest or Fire device that ANDROID_SERIAL
+//                names, or the only one connected.
+//   4. play
+// Two signals naming different stores fail the build. Only spelled-out task names
+// are read; a task that builds another store (an abbreviation such as aHR) fails
+// once the task graph is ready.
+
+ext.openIapStoreAliases = [
+  play: 'play', google: 'play', gplay: 'play', googleplay: 'play', 'google-play': 'play', gms: 'play',
+  horizon: 'horizon', meta: 'horizon', quest: 'horizon',
+  amazon: 'amazon', fire: 'amazon', fireos: 'amazon', 'fire-os': 'amazon',
+  none: 'none', auto: 'auto',
+]
+
+ext.openIapNormalizeStore = { Object value, String label ->
+  def key = value?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  if (!key) {
+    return null
+  }
+  def store = openIapStoreAliases[key]
+  if (store == null) {
+    throw new GradleException("${label}: unknown openiapStore '${value}'; use play, horizon, amazon, auto, or none where the library allows it")
+  }
+  return store
+}
+
+// assembleHorizonRelease -> [assemble, horizon, release]
+ext.openIapTaskTokens = { String taskPath ->
+  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
+  return name.split(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|[^A-Za-z0-9]+/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+}
+
+// The key that set the opt-out, for error messages.
+ext.openIapOptOutKey = {
+  def explicit = project.findProperty('openiapStore')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  return explicit == 'none' ? 'openiapStore=none' : 'openiapPlatform=none'
+}
+
+ext.openIapExplicitStore = { String label, boolean allowNone ->
+  def explicit = openIapNormalizeStore(project.findProperty('openiapStore'), label)
+  def horizon = project.findProperty('horizonEnabled')?.toString()?.toBoolean() ?: false
+  def fireOs = project.findProperty('fireOsEnabled')?.toString()?.toBoolean() ?: false
+  def platform = project.findProperty('openiapPlatform')?.toString()?.trim()?.toLowerCase(Locale.ROOT)
+  if (platform != null && platform != 'none') {
+    throw new GradleException("${label}: openiapPlatform only supports the opt-out value 'none'; use openiapStore to pick a store")
+  }
+  if (horizon && fireOs) {
+    throw new GradleException("${label}: horizonEnabled and fireOsEnabled cannot both be true")
+  }
+  if (platform == 'none' && (horizon || fireOs)) {
+    throw new GradleException("${label}: openiapPlatform=none conflicts with legacy store flags")
+  }
+  def (legacyKey, legacy) = platform == 'none' ? ['openiapPlatform=none', 'none']
+      : fireOs ? ['fireOsEnabled=true', 'amazon']
+      : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
+  if (legacy != null) {
+    logger.warn("${label}: horizonEnabled, fireOsEnabled, and openiapPlatform are deprecated; use openiapStore=${legacy}")
+  }
+  def pin = explicit == 'auto' ? null : explicit
+  if (pin != null && legacy != null && legacy != pin) {
+    throw new GradleException("${label}: openiapStore=${pin} conflicts with ${legacyKey}")
+  }
+  def store = pin ?: legacy
+  if (store == 'none' && !allowNone) {
+    throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
+  }
+  return store
+}
+
+// Task options that take a separate value, from Gradle's `help --task` output.
+// An unlisted option's value may be read as a task; the graph check then fails
+// unless the value also names a task the build runs.
+ext.openIapValueOptions = [
+  '-b', '-c', '-g', '-I', '-p',
+  '--args', '--component', '--configuration', '--console', '--dependency',
+  '--distribution-type', '--dsl', '--format',
+  '--gradle-distribution-sha256-sum', '--gradle-distribution-url',
+  '--gradle-version', '--group', '--groups', '--include-build',
+  '--insecure-protocol', '--java-version', '--jvm-vendor', '--jvm-version',
+  '--max-workers', '--network-timeout', '--package', '--project-cache-dir',
+  '--project-dir', '--project-name', '--property', '--task', '--test-framework',
+  '--tests', '--type', '--variant',
+] as Set
+
+// Gradle flattens an invocation into one list, options included, so drop each
+// option and its value: `--tests *AmazonTest*` is not an Amazon build.
+ext.openIapRequestedTasks = {
+  def names = []
+  def previous = null
+  def requested = gradle.startParameter.taskNames
+  if (requested.isEmpty()) {
+    requested = rootProject.defaultTasks ?: []
+  }
+  requested.each { String token ->
+    if (!token) {
+      return
+    }
+    if (token.startsWith('-')) {
+      previous = token
+      return
+    }
+    if (previous != null && openIapValueOptions.contains(previous)) {
+      previous = token
+      return
+    }
+    names << token
+    previous = token
+  }
+  return names
+}
+
+// Variant detection reads every requested task: keep whole-token
+// play/horizon/amazon out of custom task names.
+ext.openIapTaskStore = { String label ->
+  def named = openIapRequestedTasks().collectMany { openIapTaskTokens(it) }
+      .findAll { it in ['play', 'horizon', 'amazon'] } as LinkedHashSet
+  // Two stores in one build: refuse rather than guess.
+  if (named.size() > 1) {
+    throw new GradleException("${label}: cannot tell which store the requested tasks '${openIapRequestedTasks().join(' ')}' select (${named.join(', ')}); build one store per invocation, spell the tasks out, or set openiapStore")
+  }
+  return named ? named.first() : null
+}
+
+// `clean assembleDebug` is a debug build; any release task makes it a release
+// build, which never depends on the attached device.
+ext.openIapBuildTypes = { String taskPath ->
+  def types = [] as LinkedHashSet
+  openIapTaskTokens(taskPath).each { token ->
+    if (token in ['debug', 'release']) {
+      types << token
+    }
+  }
+  if (types) {
+    return types
+  }
+  // `aD` is assembleDebug, so the device rule has to see it as one.
+  def name = taskPath.substring(taskPath.lastIndexOf(':') + 1)
+  def segments = name.split(/(?=[A-Z])/).collect { it.toLowerCase(Locale.ROOT) }.findAll { it }
+  segments.drop(1).each { segment ->
+    ['debug', 'release'].findAll { it.startsWith(segment) }.each { types << it }
+  }
+  return types
+}
+
+ext.openIapDebugBuild = {
+  def names = openIapRequestedTasks()
+  if (!names) {
+    return false
+  }
+  def types = names.collectMany { openIapBuildTypes(it) } as LinkedHashSet
+  return types.contains('debug') && !types.contains('release')
+}
+
+// Gradle resolves a typed name to real tasks: an exact, case-insensitive match
+// when one exists, otherwise a unique prefix or a camelCase abbreviation.
+ext.openIapSelectedTasks = { graph, String request ->
+  def wanted = request.substring(request.lastIndexOf(':') + 1)
+  if (!wanted) {
+    return []
+  }
+  def lower = wanted.toLowerCase(Locale.ROOT)
+  def names = graph.allTasks.collect { it.name } as LinkedHashSet
+  def exact = names.findAll { it.toLowerCase(Locale.ROOT) == lower }
+  if (exact) {
+    return exact
+  }
+  def segments = wanted.split(/(?=[A-Z])/).findAll { it }
+  return names.findAll { String name ->
+    if (name.toLowerCase(Locale.ROOT).startsWith(lower)) {
+      return true
+    }
+    def taskSegments = name.split(/(?=[A-Z])/).findAll { it }
+    if (segments.size() < 2 || segments.size() > taskSegments.size()) {
+      return false
+    }
+    return (0..<segments.size()).every {
+      taskSegments[it].toLowerCase(Locale.ROOT).startsWith(segments[it].toLowerCase(Locale.ROOT))
+    }
+  }
+}
+
+// Checks the store picked at configuration against the tasks that will run.
+// Only tasks the request selected count: an anchor such as assembleDebug also
+// builds every flavor of a library it reaches.
+ext.openIapVerifyTaskGraph = { String label, Map resolution ->
+  def resolved = resolution.store
+  if (resolved == 'none') {
+    return
+  }
+  gradle.taskGraph.whenReady { graph ->
+    def named = [] as LinkedHashSet
+    openIapRequestedTasks().each { String request ->
+      openIapSelectedTasks(graph, request).each { String taskName ->
+        openIapTaskTokens(taskName).each { token ->
+          if (token in ['play', 'horizon', 'amazon']) {
+            named << token
+          }
+        }
+      }
+    }
+    if (!named) {
+      // The store came from something that is not a task, such as an option's value.
+      if (resolution.source == 'variant') {
+        throw new GradleException("${label}: read ${resolved} from '${openIapRequestedTasks().join(' ')}', but no task it runs names a store; set openiapStore")
+      }
+      return
+    }
+    if (named.size() > 1) {
+      throw new GradleException("${label}: the requested tasks build more than one store (${named.join(', ')}) but a build links one; build one store per invocation or set openiapStore")
+    }
+    def actual = named.first()
+    if (actual != resolved) {
+      throw new GradleException("${label}: linked ${resolved} but the requested tasks build ${actual}; spell the task out or set openiapStore=${actual}")
+    }
+  }
+}
+
+ext.openIapEnv = { String name ->
+  // providers.environmentVariable is a tracked configuration-cache input;
+  // System.getenv is not.
+  return providers.environmentVariable(name).orNull
+}
+
+ext.openIapAdb = {
+  def roots = [openIapEnv('ANDROID_HOME'), openIapEnv('ANDROID_SDK_ROOT')]
+  // local.properties is plain I/O, not a tracked input: sdk.dir ~never
+  // changes, and staleness only loses adb discovery, never a store pick.
+  def localProperties = rootProject.file('local.properties')
+  if (localProperties.isFile()) {
+    def properties = new Properties()
+    localProperties.withInputStream { properties.load(it) }
+    roots << properties.getProperty('sdk.dir')
+  }
+  def names = ['adb', 'adb.exe']
+  def adb = roots.findResult { root ->
+    if (!root) {
+      return null
+    }
+    return names.findResult { name ->
+      def candidate = new File(root, "platform-tools/${name}")
+      return candidate.isFile() ? candidate.absolutePath : null
+    }
+  }
+  if (adb != null) {
+    return adb
+  }
+  // A developer with adb only on PATH still gets device selection.
+  return (openIapEnv('PATH') ?: '').split(File.pathSeparator).findResult { entry ->
+    if (!entry) {
+      return null
+    }
+    return names.findResult { name ->
+      def candidate = new File(entry, name)
+      return candidate.isFile() ? candidate.absolutePath : null
+    }
+  }
+}
+
+// providers.exec keeps the probe legal under the configuration cache, and Gradle
+// re-runs it before reusing a cached configuration, so a new device reconfigures.
+ext.openIapAdbText = { List<String> command ->
+  try {
+    return providers.exec {
+      commandLine(command)
+      ignoreExitValue = true
+    }.standardOutput.asText.get()
+  } catch (Throwable ignored) {
+    return null
+  }
+}
+
+// Like every Android tool, target the device ANDROID_SERIAL names.
+ext.openIapDeviceStore = {
+  def adb = openIapAdb()
+  if (adb == null) {
+    return null
+  }
+  def listing = openIapAdbText([adb, 'devices'])
+  if (listing == null) {
+    return null
+  }
+  // Windows adb terminates lines with CR, which the serial would otherwise keep.
+  def serials = listing.readLines()
+      .collect { it.replace('\r', '').trim() }
+      .findAll { it ==~ /^\S+\s+device$/ }
+      .collect { it.split(/\s+/)[0] }
+  def requested = openIapEnv('ANDROID_SERIAL')?.trim()
+  def serial
+  if (requested) {
+    if (!serials.contains(requested)) {
+      logger.warn("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
+      return null
+    }
+    serial = requested
+  } else if (serials.size() == 1) {
+    serial = serials[0]
+  } else {
+    return null
+  }
+  def features = openIapAdbText([adb, '-s', serial, 'shell', 'pm', 'list', 'features'])
+  def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
+  // A device that dropped after the listing answers with nothing; that is not Play.
+  if (!features?.trim() && !manufacturerText?.trim()) {
+    logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
+    return null
+  }
+  features = features ?: ''
+  def manufacturer = (manufacturerText ?: '').trim()
+  def store = 'play'
+  if (features.contains('feature:horizonos.software.horizon_os') || features.contains('feature:oculus.hardware.standalone_vr')) {
+    store = 'horizon'
+  } else if (features.contains('feature:amazon.hardware.fire_tv') || manufacturer.equalsIgnoreCase('Amazon')) {
+    store = 'amazon'
+  }
+  return [store: store, reason: "device ${serial}, manufacturer ${manufacturer ?: 'unknown'}"]
+}
+
+ext.openIapResolveStore = { String label, Map options = [:] ->
+  def allowNone = options.allowNone == true
+  if (rootProject.ext.has('openIapStoreResolution')) {
+    def cached = rootProject.ext.openIapStoreResolution
+    // The opt-out is per caller: a library that needs a store SDK still refuses it.
+    if (cached.store == 'none' && !allowNone) {
+      throw new GradleException("${label}: ${openIapOptOutKey()} is not supported by this library")
+    }
+    return cached
+  }
+  def explicit = openIapExplicitStore(label, allowNone)
+  // Opting out links nothing, so the tasks may build several store flavors.
+  def variant = explicit == 'none' ? null : openIapTaskStore(label)
+  // A pin against the task's flavor would ship the wrong SDK. The opt-out links
+  // nothing, so it may sit beside any flavor.
+  if (explicit != null && explicit != 'none' && variant != null && explicit != variant) {
+    throw new GradleException(
+      "${label}: openiapStore=${explicit} conflicts with the ${variant} flavor in '${openIapRequestedTasks().join(' ')}'"
+    )
+  }
+  def resolution = null
+  if (explicit != null) {
+    resolution = [store: explicit, source: 'explicit', reason: 'openiapStore or a legacy flag']
+  } else if (variant != null) {
+    resolution = [store: variant, source: 'variant', reason: "task ${openIapRequestedTasks().join(' ')}"]
+  } else if (openIapDebugBuild()) {
+    def device = openIapDeviceStore()
+    if (device != null) {
+      resolution = [store: device.store, source: 'device', reason: device.reason]
+    }
+  }
+  if (resolution == null) {
+    resolution = [store: 'play', source: 'default', reason: 'no store signal']
+  }
+  rootProject.ext.openIapStoreResolution = resolution
+  logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
+  openIapVerifyTaskGraph(label, resolution)
+  return resolution
+}

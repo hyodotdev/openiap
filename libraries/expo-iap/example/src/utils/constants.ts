@@ -1,5 +1,4 @@
 // Centralized product ID constants for the example app and related tests
-// Rename guide: subscriptionIds -> SUBSCRIPTION_PRODUCT_IDS, PRODUCT_IDS remains the same name
 
 // One-time purchase product IDs split by consumption behavior
 export const CONSUMABLE_PRODUCT_IDS: string[] = [

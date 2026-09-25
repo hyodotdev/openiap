@@ -1,7 +1,4 @@
-// External dependencies
-
 // Internal modules
-// import removed: use purchaseUpdatedListener directly in app code
 import ExpoIapModule from '../ExpoIapModule';
 
 // Types
@@ -22,10 +19,8 @@ import {decodeApplePurchases} from '../utils/availablePurchases';
 import {Linking, Platform} from 'react-native';
 
 /**
- * Enforce the documented iOS-only contract. Without this, calling a
- * suffixed wrapper on another platform falls through to the native proxy
- * and surfaces as an opaque `TypeError: ExpoIapModule.<name> is not a
- * function` instead of the promised platform error.
+ * Throws the documented iOS-only error. Without it, other platforms reach the
+ * native proxy and fail with an opaque `ExpoIapModule.<name> is not a function`.
  */
 const requireIosPlatform = (methodName: string): void => {
   if (Platform.OS !== 'ios') {
@@ -38,8 +33,6 @@ export type TransactionEvent = {
   error?: PurchaseError;
 };
 
-// Listeners
-
 // Type guards
 export function isProductIOS<T extends {platform?: string}>(
   item: unknown,
@@ -48,8 +41,8 @@ export function isProductIOS<T extends {platform?: string}>(
     item != null &&
     typeof item === 'object' &&
     'platform' in item &&
-    typeof (item as any).platform === 'string' &&
-    (item as any).platform.toLowerCase() === 'ios'
+    typeof item.platform === 'string' &&
+    item.platform.toLowerCase() === 'ios'
   );
 }
 
@@ -58,7 +51,7 @@ export function isProductIOS<T extends {platform?: string}>(
  * Sync state with Appstore (iOS only)
  * https://developer.apple.com/documentation/storekit/appstore/3791906-sync
  *
- * @returns Promise resolving to null on success
+ * @returns Promise resolving to true on success
  * @throws Error if called on non-iOS platform
  *
  * @platform iOS
@@ -199,12 +192,8 @@ export const showManageSubscriptionsIOS: MutationField<
 };
 
 /**
- * Get the receipt data from the iOS device.
- * This returns the base64 encoded receipt data which can be sent to your server
- * for verification with Apple's server.
- *
- * NOTE: For proper security, always verify receipts on your server using
- * Apple's verifyReceipt endpoint, not directly from the app.
+ * Get the device's base64 receipt data to send to your server. Verify it there
+ * with Apple's verifyReceipt endpoint, never directly from the app.
  *
  * @returns {Promise<string>} Base64 encoded receipt data
  *
@@ -216,11 +205,9 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
 };
 
 /**
- * Refresh the receipt data from Apple's servers and return the updated receipt.
- * This calls AppStore.sync() before reading the receipt, ensuring the latest
- * receipt data is available. Use this after a first purchase when
- * getReceiptDataIOS() may return an empty string because the receipt file
- * has not yet been written to disk.
+ * Refresh the receipt from Apple (AppStore.sync()) and return it. Use after a
+ * first purchase, when getReceiptDataIOS() can return an empty string because
+ * the receipt file is not written to disk yet.
  *
  * @returns {Promise<string>} Base64 encoded receipt data
  *
@@ -277,10 +264,7 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
 };
 
 /**
- * Present the code redemption sheet for offer codes (iOS only).
- * This allows users to redeem promotional codes for in-app purchases and subscriptions.
- *
- * Note: This only works on real devices, not simulators.
+ * Present the offer code redemption sheet. Real devices only, not simulators.
  *
  * @returns The verified redeemed purchase when built with Xcode 27+ and
  * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
@@ -303,12 +287,8 @@ export const presentCodeRedemptionSheetIOS: MutationField<
 };
 
 /**
- * Get app transaction information (iOS 16.0+).
- * AppTransaction represents the initial purchase that unlocked the app.
- *
- * NOTE: This function requires:
- * - iOS 16.0 or later at runtime
- * - Xcode 15.0+ with iOS 16.0 SDK for compilation
+ * Get the AppTransaction: the initial purchase that unlocked the app.
+ * Requires iOS 16.0+ at runtime and Xcode 15.0+ (iOS 16.0 SDK) to compile.
  *
  * @returns Promise resolving to the app transaction information or null if not available
  * @throws Error if called on non-iOS platform, iOS version < 16.0, or compiled with older SDK
@@ -400,10 +380,7 @@ export const deepLinkToSubscriptionsIOS = (): Promise<void> =>
 
 /**
  * Check if the device can present an external purchase notice sheet (iOS 17.4+).
- *
- * Wraps `ExternalPurchase.canPresent`, which Apple introduced in iOS 17.4.
- * Note: the notice sheet itself (`presentExternalPurchaseNoticeSheetIOS`)
- * still requires iOS 18.2+; only the eligibility check is available earlier.
+ * Wraps `ExternalPurchase.canPresent`.
  *
  * @returns Promise resolving to true if the notice sheet can be presented
  * @platform iOS
@@ -418,7 +395,7 @@ export const canPresentExternalPurchaseNoticeIOS: QueryField<
 };
 
 /**
- * Present an external purchase notice sheet to inform users about external purchases (iOS 15.4+).
+ * Present an external purchase notice sheet to inform users about external purchases (iOS 17.4+).
  * This must be called before opening an external purchase link.
  * Returns the external purchase token when user continues.
  *
@@ -454,7 +431,6 @@ export const presentExternalPurchaseLinkIOS: MutationField<
 
 /**
  * Check if app is eligible for ExternalPurchaseCustomLink API (iOS 18.1+).
- * Returns true if the app can use custom external purchase links.
  *
  * @returns Promise resolving to true if eligible
  * @platform iOS
@@ -489,14 +465,14 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result =
-    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
+  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
+    tokenType,
+  );
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
 /**
  * Show ExternalPurchaseCustomLink notice sheet (iOS 18.1+).
- * Displays the system disclosure notice sheet for custom external purchase links.
  * Call this after a deliberate customer interaction before linking out to external purchases.
  *
  * @param noticeType - Notice type: 'browser' (external purchases displayed in browser)
@@ -515,8 +491,9 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result =
-    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
+  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType,
+  );
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

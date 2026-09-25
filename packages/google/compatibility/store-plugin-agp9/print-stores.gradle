@@ -1,0 +1,2 @@
+// The shared modules apply this by their root project's path.
+apply from: new File(rootDir, '../store-plugin/print-stores.gradle')

@@ -29,9 +29,8 @@ describe("normalizeProductRegions", () => {
   });
 });
 
-// CodeRabbit round 4: the format check alone accepted reserved codes
-// like ZZ, which upsertProduct stored and the Android sync then silently
-// dropped.
+// The format check alone would accept reserved codes like ZZ, which
+// upsertProduct stores and the Android sync then silently drops.
 describe("assigned-region validation", () => {
   it("accepts current ISO territories plus XK", () => {
     expect(normalizeProductRegions(["QA", "XK", "GB"])).toEqual([
@@ -74,8 +73,8 @@ describe("assigned-region validation", () => {
   });
 });
 
-// Round 6: the reserved-range branch returned early for QA–QL, waving
-// unassigned codes past the CLDR check that would have caught them.
+// The reserved-range branch must not wave unassigned codes (QB, QL) past the
+// CLDR check that catches them.
 describe("reserved-range handling", () => {
   it("still rejects unassigned codes below the reserved span", () => {
     for (const code of ["QB", "QL"]) {

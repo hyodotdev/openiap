@@ -43,11 +43,9 @@ export const resetMonthlyRequestCounts = internalMutation({
 });
 
 /**
- * Increment the org's monthly request counter. IAPKit is free for
- * everyone with no monthly cap — abuse is handled at the edge
- * (shape / replay / burst guards in `server/api/v1/`), not here. This
- * mutation exists so the dashboard / telemetry can show usage; the
- * returned `allowed` is always true.
+ * Counts an org's monthly requests for the dashboard; `allowed` is always true.
+ * IAPKit has no monthly cap: abuse is stopped at the edge (the shape, replay
+ * and burst guards in `server/api/v1/`).
  */
 export const assertUsageAllowedAndIncrement = internalMutation({
   args: { organizationId: v.id("organizations") },
@@ -104,10 +102,7 @@ export const organizationExists = internalQuery({
   },
 });
 
-// Lookup helper used by Convex actions that need to gate on
-// organization membership without dragging the full org schema into
-// the public mutation surface. Returns just the role so the caller
-// can do `role === "member"` checks.
+// Membership role for actions that gate on it; keeps the org schema internal.
 export const getMembership = internalQuery({
   args: {
     userId: v.id("users"),

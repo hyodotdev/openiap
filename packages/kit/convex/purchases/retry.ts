@@ -1,14 +1,7 @@
-// Retry helper for transient failures against external purchase APIs
-// (Google Play Android Publisher, in practice — but the contract is
-// provider-agnostic). Retries ONLY on network/5xx errors so that 4xx
-// responses, which are deterministic user/config errors, fail fast and
-// aren't silently re-attempted.
-//
-// Why a custom helper and not, say, `p-retry`:
-// - Convex actions run in Node.js ("use node") with a hard execution
-//   budget. Our retry policy is intentionally conservative (max 3
-//   attempts, sub-second backoff) to stay inside that budget.
-// - Injectable `sleep` lets tests run synchronously.
+// Retries transient failures against purchase APIs (Google Play in practice):
+// network errors and 5xx only, since a 4xx is deterministic and should fail
+// fast. Not p-retry: the policy stays small (3 attempts, sub-second backoff) to
+// fit the action's time budget, and `sleep` is injectable for tests.
 
 export interface RetryOptions {
   /** Total attempts, including the initial call. Default: 3. */
@@ -95,10 +88,8 @@ function hasNetworkErrorCode(error: unknown): boolean {
 }
 
 /**
- * Default predicate: retry on HTTP 5xx and on Node-style transient
- * network errors. Never retry on 4xx — those are deterministic (bad
- * input, missing auth, not found, etc.) and re-issuing the call wastes
- * quota.
+ * Default predicate: 5xx and transient Node network errors. Never a 4xx, which
+ * is deterministic; retrying only wastes quota.
  */
 export function isTransientHttpError(error: unknown): boolean {
   const status = extractHttpStatus(error);

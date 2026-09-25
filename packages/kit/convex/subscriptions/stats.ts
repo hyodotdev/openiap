@@ -1,8 +1,5 @@
-// Incremental subscription stats maintenance — keeps the
-// `subscriptionStats` aggregation table in sync as subscriptions
-// transition through state machine events. The dashboard's
-// `metricsSummary` reads from this table so the headline counters
-// stay accurate above the prior SUBS_SCAN_CAP=10,000 bound.
+// Keeps `subscriptionStats` in step with subscription transitions, so
+// metricsSummary's headline counts need no scan.
 
 import type { MutationCtx } from "../_generated/server";
 import { internalMutation } from "../_generated/server";
@@ -13,11 +10,8 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { monthlyMicrosForSub } from "./monthlyMicros";
 import { getWritableProject } from "../projects/writable";
 
-// Counted state buckets. Other states (Expired / Revoked / Refunded /
-// Paused / Unknown) don't contribute to the live counters — those are
-// either historical archive (no MRR) or surfaced via the rolling
-// 30-day window which `metricsSummary` queries directly off the
-// `by_project_and_state` index.
+// Other states carry no MRR; metricsSummary counts the recent ones in its
+// 30-day scan.
 const COUNTED_STATES = ["Active", "InGracePeriod", "InBillingRetry"] as const;
 type CountedState = (typeof COUNTED_STATES)[number];
 
@@ -26,19 +20,14 @@ function isCountedState(state: string): state is CountedState {
 }
 
 type StatsContribution = {
-  // Currency the row contributes under. `null` when the row is in a
-  // counted state but has no priceAmountMicros/currency (e.g. fresh
-  // sub before the first webhook surfaced pricing) — those bump the
-  // state counter under the special "" currency bucket so we don't
-  // lose them entirely.
+  // "" for a counted sub with no price yet (before the first webhook), so it is
+  // still counted.
   currency: string;
   state: CountedState | null;
   mrrMicros: number;
 };
 
-// Compute what a single subscription row contributes to the stats
-// table. Returns null when the row is in a non-counted state — the
-// caller should just skip applying any delta.
+// What one row adds to the stats; null for a non-counted state.
 export function statsContributionFor(
   sub: Doc<"subscriptions">,
   billingPeriod: string | undefined,
@@ -62,22 +51,11 @@ export function statsContributionFor(
     sub.currency
       ? monthlyMicrosForSub(sub, billingPeriod)
       : 0;
-  // `isCountedState` already narrowed the union earlier, so sub.state
-  // is provably one of "Active" | "InGracePeriod" | "InBillingRetry"
-  // here.
   return { currency, state: sub.state, mrrMicros };
 }
 
-// Apply a (subscription, before, after) state-machine transition to
-// the stats table. Both `before` and `after` are nullable: insert =
-// `before == null`, delete = `after == null`. Pure DB writes — the
-// caller is responsible for fetching the current docs.
-//
-// The function fetches the relevant `subscriptionStats` row(s) on
-// demand. We accept the small extra read cost in exchange for not
-// requiring callers to pre-fetch — the alternative (caller passes
-// the stats row in) bleeds the aggregation invariant across every
-// call site.
+// Applies one transition to the stats: `before` null is an insert, `after` null
+// a delete. Reads the stats rows itself so callers never handle the aggregate.
 export async function applyStatsTransition(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -86,9 +64,7 @@ export async function applyStatsTransition(
 ): Promise<void> {
   // No-op when neither side counts.
   if (before === null && after === null) return;
-  // No-op when contribution didn't change. Cheap early-out for the
-  // common Active-renewal case where state + currency + MRR all stay
-  // the same.
+  // Common case: a renewal changes nothing.
   if (
     before !== null &&
     after !== null &&
@@ -101,9 +77,7 @@ export async function applyStatsTransition(
 
   const now = Date.now();
 
-  // Currency-cohort handling: if before/after differ in currency, we
-  // touch two rows (decrement before, increment after). When they
-  // match, one row is enough.
+  // A currency change touches two rows.
   if (before && after && before.currency === after.currency) {
     await touchStatsRow(ctx, projectId, before.currency, now, (row) => {
       const next = applyDelta(row, before, "subtract");
@@ -153,15 +127,11 @@ function applyDelta(
       next.inBillingRetry += sign;
       break;
     case null:
-      // No counted state to apply to — caller shouldn't have called
-      // us with this contribution, but guard anyway so the function
-      // is total.
+      // Unreachable for callers; keeps the switch total.
       break;
   }
-  // Defensive clamp: stats rows must never go negative. A negative
-  // count is a sign of a missed event somewhere upstream; clamping
-  // to zero keeps the dashboard sensible while we surface the
-  // underlying drift via the `recomputeSubscriptionStats` mutation.
+  // A negative count means a missed event; clamp it and let
+  // recomputeSubscriptionStats repair the drift.
   next.activeSubs = Math.max(0, next.activeSubs);
   next.inGracePeriod = Math.max(0, next.inGracePeriod);
   next.inBillingRetry = Math.max(0, next.inBillingRetry);
@@ -208,42 +178,22 @@ async function touchStatsRow(
   }
 }
 
-// Daily drift-correction cron entry point. Picks the most-stale
-// projects (one mutation, tiny index scan) and SCHEDULES each
-// project's recompute as a separate mutation via the Convex
-// scheduler. Per-project mutations get their own 40k document-read
-// budget — running them inline would force the picker mutation to
-// share its budget with N project recomputes, which exceeds the
-// 40k cap once batchSize × per-project-reads > 40k.
-//
-// Why: the incremental path in `applySubscriptionEvent` is correct in
-// steady state, but a missed invocation (action timeout, schema drift
-// during rollout, manual db.patch) can drift the counters. Running a
-// full recompute daily keeps the dashboard self-healing without needing
-// operator intervention.
+// Daily drift correction: the incremental path drifts after a missed call
+// (action timeout, schema drift during rollout, a manual db.patch), so the
+// stalest projects are fully recomputed. Each project runs as its own scheduled
+// mutation, with its own read budget instead of sharing the picker's.
 export const recomputeAllSubscriptionStats = internalMutation({
   args: {
-    // Per-tick cap on how many projects to schedule. Each project
-    // runs in its own mutation (independent 40k budget), so a higher
-    // batchSize is safe — but we still default conservatively so a
-    // deployment with thousands of projects doesn't queue them all
-    // at once.
+    // Projects per tick, kept modest so thousands are not queued at once.
     batchSize: v.optional(v.number()),
   },
   returns: v.object({ scheduled: v.number() }),
   handler: async (ctx, args) => {
-    // Default to 50 projects per daily tick: each runs as its own
-    // mutation so the picker's budget isn't shared. With cron daily
-    // cadence + batchSize=50, a deployment with up to 1500 projects
-    // cycles through every project at least monthly.
+    // 50 a day covers up to 1500 projects at least monthly.
     const limit = args.batchSize ?? 50;
-    // Walk the `by_updated_at` index ascending so the most-stale rows
-    // surface first. Take ~3× the project budget to dedupe by
-    // projectId (a project has one row per currency and we recompute
-    // the whole project once per batch slot) without walking past
-    // `limit` distinct projects' worth of stale data. Capped at
-    // SCAN_CAP so a corrupted clock skew can't make us scan the
-    // entire table.
+    // Stalest rows first. A project has a row per currency, so read ~3× the
+    // limit to find enough distinct projects; SCAN_CAP bounds the read even
+    // under clock skew.
     const SCAN_CAP = Math.max(limit * 3, 300);
     const stale = await ctx.db
       .query("subscriptionStats")
@@ -260,10 +210,6 @@ export const recomputeAllSubscriptionStats = internalMutation({
     }
     let scheduled = 0;
     for (const projectId of ordered) {
-      // Schedule each per-project recompute as its own mutation so
-      // the 40k document-read limit is per-project, not summed
-      // across the batch. `runAfter(0, ...)` queues immediately;
-      // Convex serializes them on its scheduler.
       await ctx.scheduler.runAfter(
         0,
         internal.subscriptions.stats.recomputeSubscriptionStats,
@@ -275,15 +221,8 @@ export const recomputeAllSubscriptionStats = internalMutation({
   },
 });
 
-// Hard upper bound on how many subscription rows the recompute walks
-// per project. Set conservatively below Convex's hard 40k document-
-// Per-page subscription read budget. 5_000 keeps a single page well
-// under Convex's 40k document-read mutation budget (with headroom for
-// the per-page product + existing-stats reads). Pages chain via
-// `ctx.scheduler.runAfter(0, ...)` so a project of ANY size completes
-// without ever blowing the per-mutation ceiling — the prior
-// "skip-when-exceeds 30k" path is gone (PR #124
-// (https://github.com/hyodotdev/openiap/pull/124) review).
+// Subscriptions per page: well under the 40k read budget with room for the
+// product and stats reads. Pages chain, so any project size completes.
 const RECOMPUTE_PAGE_SIZE = 5_000;
 
 type RecomputeBucket = {
@@ -309,16 +248,7 @@ async function runRecompute(
   ctx: MutationCtx,
   projectId: Id<"projects">,
 ): Promise<void> {
-  // Kicks off the paginated recompute. The first page processes
-  // RECOMPUTE_PAGE_SIZE rows and either schedules itself for the
-  // next page or commits to subscriptionStats when isDone.
-  //
-  // `runStartedAt` is the watermark for stale-write detection: the
-  // final commit aborts if any subscription row has been written
-  // since this timestamp, because the incremental path's
-  // `applyStatsTransition` will have already updated subscriptionStats
-  // for those writes and our paged snapshot would clobber them with
-  // older counts.
+  // `runStartedAt` lets the commit detect writes made during the recompute.
   await runRecomputePageInline(ctx, {
     projectId,
     cursor: null,
@@ -340,15 +270,9 @@ async function runRecomputePageInline(
   // account deletion starts. Stop before reading/rewriting aggregate rows.
   if (!(await getWritableProject(ctx, args.projectId))) return;
 
-  // Build periodByPlatformProduct from the per-platform product
-  // index, keyed by `${platform}:${productId}`. The same SKU can
-  // exist on both stores with different billing periods, so a
-  // single-key map would have one platform's period overwrite the
-  // other's and skew MRR (PR #124
-  // (https://github.com/hyodotdev/openiap/pull/124) review).
-  // We re-fetch on every page because product catalogs are small
-  // (typically 10-100 rows per platform per project) and re-reading
-  // is much cheaper than serializing the map through scheduler args.
+  // Keyed by platform too: one SKU can have a different period per store.
+  // Re-read on every page; catalogs are small and cheaper to read than to pass
+  // through scheduler args.
   const periodByPlatformProduct = new Map<string, string | undefined>();
   for (const platform of ["IOS", "Android"] as const) {
     const productRows = await ctx.db
@@ -435,13 +359,9 @@ async function runRecomputePageInline(
     return;
   }
 
-  // Concurrent-write detection. If any subscription row was updated
-  // since the recompute started, `applySubscriptionEvent` has already
-  // applied that delta to subscriptionStats — our paged snapshot is stale
-  // and must NOT overwrite it. Abort the commit; the next cron tick will
-  // pick this project back up. Convex mutations are transactional, so this
-  // read + the delete/insert below run in a single serialized txn — no
-  // further race window.
+  // A write since `runStartedAt` was already applied incrementally, so this
+  // snapshot is stale: skip the commit and let the next tick retry. The check
+  // shares the transaction with the writes below, so no race remains.
   const concurrentWrite = await ctx.db
     .query("subscriptions")
     .withIndex("by_project_and_updated", (q) =>
@@ -464,15 +384,9 @@ async function runRecomputePageInline(
     await ctx.db.delete(row._id);
   }
   if (buckets.size === 0) {
-    // Sentinel zero-row so the project still surfaces in the
-    // `by_updated_at` index for the next cron pick. Without this, a
-    // project whose subs are all in non-counted states (Expired /
-    // Refunded / etc.) would have ZERO rows after the delete loop
-    // above — the picker only discovers projects via
-    // subscriptionStats, so the project would fall out of drift
-    // correction permanently. The empty `""` currency bucket is
-    // ignored by metricsSummary's mrrAccumulators (it only sums
-    // currencies that have non-zero MRR + non-empty currency code).
+    // Zero-row sentinel: the picker finds projects only through
+    // subscriptionStats, so a project with no counted subs would drop out of
+    // drift correction for good. metricsSummary ignores the "" currency.
     await ctx.db.insert("subscriptionStats", {
       projectId: args.projectId,
       currency: "",
@@ -494,9 +408,8 @@ async function runRecomputePageInline(
   }
 }
 
-// Public mutation entry point for chained pages. Internal cron + the
-// kick-off `runRecompute` call into `runRecomputePageInline` directly;
-// only the scheduler dispatches into this exported handler.
+// Scheduler entry for chained pages; the kickoff calls runRecomputePageInline
+// directly.
 export const runRecomputePage = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -511,27 +424,14 @@ export const runRecomputePage = internalMutation({
   },
 });
 
-// Full rebuild of `subscriptionStats` for one project. Walks every
-// subscription row and computes the canonical counts from scratch.
-// Called from the migration / a manual reconciliation entry point —
-// NOT on the read path. Bounded by the project's actual subscription
-// count (no SUBS_SCAN_CAP); Convex paginates through the index so a
-// 100k-sub project completes in batches of ~5000.
-//
-// Returns the resulting (currency, counts) tuples for telemetry +
-// debugging.
+// Full rebuild of one project's subscriptionStats in pages of ~5000, for
+// migrations and manual reconciliation; never on the read path.
 export const recomputeSubscriptionStats = internalMutation({
   args: {
     projectId: v.id("projects"),
   },
-  // null because the recompute is now async-paged: the kick-off
-  // mutation processes the first page and chains the rest via
-  // `ctx.scheduler.runAfter` so each page gets its own 40k
-  // document-read budget. Reading subscriptionStats here would only
-  // see the first page's contribution for any project > PAGE_SIZE
-  // (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review).
-  // Callers that want post-recompute telemetry should query
-  // subscriptionStats directly after a few seconds.
+  // Null: later pages run on the scheduler, so read subscriptionStats
+  // afterwards for the result.
   returns: v.null(),
   handler: async (ctx, args) => {
     await runRecompute(ctx, args.projectId);

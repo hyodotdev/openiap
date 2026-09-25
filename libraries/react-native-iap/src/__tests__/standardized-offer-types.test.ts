@@ -1,13 +1,8 @@
 /**
- * Tests for standardized offer types and the input field naming convention.
- *
- * Key principle tested here:
- * - Response types (DiscountOffer, SubscriptionOffer, etc.) use Android suffix for platform-specific fields
- * - Input types (RequestPurchaseAndroidProps) do NOT use Android suffix since the parent type indicates platform
- *
- * Example:
- * - Response: DiscountOffer.offerTokenAndroid (suffix because it's cross-platform type)
- * - Input: RequestPurchaseAndroidProps.offerToken (no suffix, parent type is Android-specific)
+ * Tests for standardized offer types and the input field naming convention:
+ * cross-platform response types suffix platform-specific fields
+ * (DiscountOffer.offerTokenAndroid); Android input types do not, because the
+ * parent type already names the platform (RequestPurchaseAndroidProps.offerToken).
  */
 
 import type {
@@ -215,8 +210,7 @@ describe('Standardized Offer Types', () => {
 
   describe('Product with offer fields', () => {
     it('should have correct type structure for ProductAndroid with discountOffers', () => {
-      // This test validates the type structure rather than the API call
-      // The actual fetchProducts conversion is tested in index.test.ts
+      // Type structure only; index.test.ts covers the fetchProducts conversion.
       const mockProduct: ProductAndroid = {
         id: 'test_product',
         title: 'Test Product',
@@ -248,8 +242,7 @@ describe('Standardized Offer Types', () => {
     });
 
     it('should have correct type structure for ProductSubscriptionAndroid with subscriptionOffers', () => {
-      // This test validates the type structure rather than the API call
-      // The actual fetchProducts conversion is tested in index.test.ts
+      // Type structure only; index.test.ts covers the fetchProducts conversion.
       const mockSubscription: ProductSubscriptionAndroid = {
         id: 'subscription_product',
         title: 'Premium Subscription',
@@ -353,9 +346,7 @@ describe('Standardized Offer Types', () => {
 
   describe('RequestPurchaseAndroidProps with offerToken', () => {
     it('should support offerToken for one-time purchase discounts', () => {
-      // This tests the type structure for one-time purchase discount offers
-      // introduced in Google Play Billing Library 8.0
-      // Note: Input fields no longer have Android suffix (parent type indicates platform)
+      // One-time purchase discount offers (Google Play Billing Library 8.0).
       const purchaseRequest: RequestPurchaseAndroidProps = {
         skus: ['premium_upgrade'],
         offerToken: 'discount_offer_token_abc123',
@@ -382,8 +373,6 @@ describe('Standardized Offer Types', () => {
     });
 
     it('should extract offerTokenAndroid from DiscountOffer for purchase input', () => {
-      // Simulate getting a product with discount offers
-      // Note: Response types (DiscountOffer) keep Android suffix
       const discountOffer: DiscountOffer = {
         id: 'flash_sale',
         displayPrice: '$2.99',
@@ -394,8 +383,6 @@ describe('Standardized Offer Types', () => {
         percentageDiscountAndroid: 50,
       };
 
-      // Build purchase request using the offer token from the discount offer
-      // Input field uses offerToken (no suffix), value comes from response's offerTokenAndroid
       const purchaseRequest: RequestPurchaseAndroidProps = {
         skus: ['premium_upgrade'],
         offerToken: discountOffer.offerTokenAndroid ?? undefined,
@@ -406,9 +393,8 @@ describe('Standardized Offer Types', () => {
     });
 
     it('should support isOfferPersonalized for EU compliance', () => {
-      // isOfferPersonalized indicates when the price was customized for this user
-      // Required for EU Digital Services Act compliance
-      // Note: Input field uses isOfferPersonalized (no Android suffix)
+      // Flags a price customized for this user; required for EU Digital
+      // Services Act compliance.
       const personalizedRequest: RequestPurchaseAndroidProps = {
         skus: ['premium_product'],
         isOfferPersonalized: true,
@@ -425,8 +411,6 @@ describe('Standardized Offer Types', () => {
 
     it('should combine discountOffers offerTokenAndroid with purchase request', () => {
       // Full workflow: product → discount offer → purchase request
-      // Response type (ProductAndroid.discountOffers) uses offerTokenAndroid
-      // Input type (purchase request) uses offerToken (no suffix)
       const mockProduct: ProductAndroid = {
         id: 'consumable_gems',
         title: '100 Gems',

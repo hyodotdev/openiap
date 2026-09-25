@@ -5,6 +5,7 @@
  */
 export const FINDING_IDS = Object.freeze([
   "android-store-flavor-conflict",
+  "android-store-unknown",
   "android-store-flavor-mismatch",
   "android-store-not-play",
   "android-horizon-app-id-missing",

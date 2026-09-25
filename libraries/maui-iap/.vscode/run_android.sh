@@ -57,13 +57,15 @@ fi
 
 adb start-server >/dev/null
 
-DEVICE="${MAUI_ANDROID_DEVICE:-}"
+# ANDROID_SERIAL is the device every Android tool targets; the device passed
+# below as AdbTarget outranks it in the store selection, so honour it here.
+DEVICE="${MAUI_ANDROID_DEVICE:-${ANDROID_SERIAL:-}}"
 if [ -z "$DEVICE" ]; then
-  DEVICE="$(adb devices -l | awk 'NR > 1 && $2 == "device" && / usb:/ { print $1; exit }')"
+  DEVICE="$(adb devices -l | tr -d '\r' | awk 'NR > 1 && $2 == "device" && / usb:/ { print $1; exit }')"
 fi
 
 if [ -z "$DEVICE" ]; then
-  DEVICE="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
+  DEVICE="$(adb devices | tr -d '\r' | awk 'NR > 1 && $2 == "device" { print $1; exit }')"
 fi
 
 if [ -z "$DEVICE" ]; then
@@ -97,16 +99,18 @@ rm -f "$APP_DIR/bin/Debug/net10.0-android/$APP_ID-Signed.apk"
 rm -f "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID.apk"
 rm -f "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID-Signed.apk"
 
-echo "Building OpenIAP Google Play AAR..."
-(cd "$GOOGLE_DIR" && ./gradlew :openiap:assemblePlayRelease)
+echo "Building OpenIAP Google store AARs..."
+(cd "$GOOGLE_DIR" && ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)
 
 echo "Building MAUI Android module AAR..."
 (cd "$MAUI_ANDROID_DIR" && "$GOOGLE_DIR/gradlew" :openiap:assembleRelease)
 
 echo "Building and packaging MAUI Android APK. This can take 1-2 minutes after DLL output..."
+# AdbTarget makes the build link the store of this device.
 dotnet build "$PROJECT" \
   -f net10.0-android \
   -p:RuntimeIdentifier="$RID" \
+  -p:AdbTarget="-s $DEVICE" \
   -p:EmbedAssembliesIntoApk=true \
   -maxcpucount:1 \
   -tl:off \

@@ -536,11 +536,8 @@ export const removeProductClientPayloadWithApiKey = mutation({
   },
 });
 
-// Public mutation: upsert a product in kit's catalog. Authoritative
-// state lives in App Store Connect / Play Console; this row is a
-// kit-side cache so the dashboard, MCP server, and SDKs share one
-// canonical view. Phase 3 follow-ups will add ASC / Play push-sync
-// — until then, treat this as a hand-managed catalog.
+// Upserts a product in kit's catalog: a cache of App Store Connect / Play
+// Console state that the dashboard, MCP server, and SDKs share.
 export const upsertProduct = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -577,10 +574,8 @@ export const upsertProduct = mutation({
     const project = await resolveProjectForMutationArgs(ctx, args);
     if (!project) throw new Error("Invalid API key");
 
-    // Reject unsafe prices. The catalog row round-trips through JS
-    // numbers into push-sync (asc.ts / play.ts); values beyond the
-    // safe-integer range can already be rounded before they reach the
-    // store API.
+    // Push-sync carries prices as JS numbers, so a value past the safe-integer
+    // range could be rounded before it reaches the store.
     if (
       args.priceAmountMicros !== undefined &&
       (!Number.isSafeInteger(args.priceAmountMicros) ||
@@ -599,10 +594,8 @@ export const upsertProduct = mutation({
       )
       .unique();
 
-    // Throws on a malformed/duplicate locale or an over-long string so
-    // the operator sees the problem here rather than as an opaque 400
-    // from Play or ASC during the next push. Store-imported products can
-    // have a non-English base; reserve that actual locale, not en-US.
+    // Validate now instead of failing with an opaque store 400 on the next
+    // push. Reserve the row's actual base locale, which may not be en-US.
     const localizationsForValidation =
       args.localizations === undefined &&
       existing !== null &&
@@ -617,16 +610,9 @@ export const upsertProduct = mutation({
     );
     const regions = normalizeProductRegions(args.regions);
 
-    // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
-    // related tiers must share a group for StoreKit 2's native
-    // upgrade/downgrade UI to work. The Apple push-sync (asc.ts)
-    // falls back to using the productId as the group name when this
-    // is missing, which results in each subscription landing in its
-    // own fragmented group and silently breaks the upgrade flow.
-    // Reject the upsert before that drift can happen so the operator
-    // gets a loud, actionable error instead of a broken store
-    // experience two sync passes later (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // Related iOS subscription tiers must share a group for StoreKit 2
+    // upgrade/downgrade. Without a name, asc.ts falls back to the productId,
+    // giving each subscription its own group, so reject the upsert instead.
     if (
       args.platform === "IOS" &&
       args.type === "Subscription" &&
@@ -637,18 +623,12 @@ export const upsertProduct = mutation({
       );
     }
 
-    // Only the Android one-time push applies a region footprint. App
-    // Store Connect prices per-territory through a different resource
-    // this workflow does not touch, and Play's subscription update masks
-    // `listings` only, so a base plan's regional configs are fixed at
-    // create. Accepting the field for those would make it a phantom —
-    // stored, shown in the dashboard, and silently never applied.
+    // Only the Android one-time push applies regions. ASC territories use a
+    // resource this workflow does not touch, and Play's subscription update
+    // masks `listings` only, so regions stored there would never apply.
     const supportsRegions =
       args.platform === "Android" && args.type !== "Subscription";
-    // "all" is as much a declared footprint as a list is — it is what
-    // an operator picks to expand — so it has to be refused on the same
-    // surfaces, or the dashboard would offer a choice iOS silently
-    // drops.
+    // "all" is a declared footprint too, so it is refused on the same surfaces.
     const declaresFootprint =
       regions === "all" || Boolean(Array.isArray(regions) && regions.length);
     if (declaresFootprint && !supportsRegions) {
@@ -662,27 +642,20 @@ export const upsertProduct = mutation({
 
     const now = Date.now();
     if (existing) {
-      // State-only flips moved to `setProductState`. This mutation
-      // now treats every supplied field as authoritative — keeping
-      // the prior "blank title preserves existing" hack would still
-      // mask cases where a caller really did mean to clear a field.
+      // Every supplied field is authoritative (a blank title is not "keep");
+      // state-only changes use `setProductState`.
       await ctx.db.patch(existing._id, {
         type: args.type,
         title: args.title,
         description: args.description ?? existing.description,
-        // Explicitly authoritative, like every other field here: an
-        // operator who removes the last localization means to clear it.
-        // An explicitly supplied empty array is a clear request; Convex
-        // needs `null` for that, since `undefined` would be a no-op and
-        // silently keep republishing the old locales.
+        // An explicit `[]` clears them. Convex needs `null` for that: an
+        // `undefined` patch is a no-op and the old locales would republish.
         localizations:
           args.localizations === undefined
             ? existing.localizations
             : (localizations ?? null),
-        // Retyping an Android one-time product as a subscription, or
-        // touching an old iOS row written before this guard existed, must
-        // clear the phantom footprint. An omitted field only preserves the
-        // stored value on a surface where the Play worker can apply it.
+        // Clear regions where they cannot apply (a product retyped as a
+        // subscription, an old iOS row); an omitted field keeps them elsewhere.
         regions: !supportsRegions
           ? null
           : args.regions === undefined
@@ -694,24 +667,15 @@ export const upsertProduct = mutation({
         subscriptionGroupName:
           args.subscriptionGroupName ?? existing.subscriptionGroupName,
         reviewNote: args.reviewNote ?? existing.reviewNote,
-        // A dashboard / MCP edit is a new kit-authored version that
-        // needs another push pass even if the previous version was
-        // already Ready or Active. `listDraft*Products` is the worker
-        // queue, so move edited rows back to Draft unless the caller
-        // explicitly requested a state.
+        // An edit needs another push even if the row was Ready or Active, so
+        // it returns to Draft (the `listDraft*Products` queue) unless the
+        // caller set a state.
         state: nextStateForKitProductUpsert(args.state),
         storeRef: args.storeRef ?? existing.storeRef,
         updatedAt: now,
-        // ALWAYS claim kit-management on dashboard / MCP edits —
-        // an operator touching the row through this mutation is
-        // explicitly saying "I want this version to land on the
-        // store", which means push-sync should pick it up next
-        // run. Without overwriting, a pulled-then-edited row
-        // would stay `origin: "store"` and silently get skipped
-        // by `listDraft*Products`, dropping the operator's edit.
-        // Reverse direction (pull overwriting kit edits) is
-        // handled in `upsertFromStore`, which only back-fills
-        // `origin` when it's undefined.
+        // An edit claims the row for kit so push-sync picks it up; a row left
+        // `origin: "store"` is skipped by `listDraft*Products`. Pull-sync
+        // (`upsertFromStore`) only sets `origin` when it is undefined.
         origin: "kit" as const,
       });
       return { id: existing._id, created: false };
@@ -740,13 +704,9 @@ export const upsertProduct = mutation({
   },
 });
 
-// State-only mutation used by `manage_product` (MCP) and the
-// dashboard's enable/disable affordance. Distinct from `upsertProduct`
-// because the previous reuse pattern (passing a blank title +
-// hardcoded type so only `state` would update) would silently
-// overwrite the existing row's `type` — e.g. flipping a NonConsumable
-// to Subscription. Splitting the mutation prevents that class of
-// drive-by clobber.
+// State-only change for `manage_product` (MCP) and the dashboard's
+// enable/disable. Separate from `upsertProduct`, which would also overwrite
+// fields such as `type`.
 export const setProductState = mutation({
   args: {
     apiKey: v.optional(v.string()),
@@ -776,10 +736,8 @@ export const setProductState = mutation({
 
     await ctx.db.patch(existing._id, {
       state: args.state,
-      // State flips are operator intent too. In particular, marking a
-      // pulled row Removed must turn it into a kit-authored deletion
-      // request so pull-sync does not resurrect it before push-sync can
-      // remove it from the store.
+      // Operator intent: a pulled row marked Removed becomes a kit deletion
+      // request, so pull-sync cannot restore it before push-sync deletes it.
       origin: "kit" as const,
       updatedAt: Date.now(),
     });

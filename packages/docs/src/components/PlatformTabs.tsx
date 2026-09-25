@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, ReactNode } from 'react';
-import StaticExamples, { useStaticExamples } from './StaticExamples';
+import StaticExamples from './StaticExamples';
+import { useStaticExamples } from '../hooks/useStaticExamples';
 
 type Platform = 'ios' | 'android' | 'amazon' | 'horizon';
 
@@ -32,14 +33,16 @@ function platformFromHash(availablePlatforms: Platform[]): Platform | null {
 
 function PlatformTabs({ children }: PlatformTabsProps) {
   const isStatic = useStaticExamples();
+  // children is a new object each render; key the list on which platforms exist.
+  const platformKey = PLATFORM_ORDER.filter(
+    (platform) => children[platform] !== undefined
+  ).join(' ');
   const availablePlatforms = useMemo(
-    () => PLATFORM_ORDER.filter((platform) => children[platform] !== undefined),
-    [
-      children.ios !== undefined,
-      children.android !== undefined,
-      children.horizon !== undefined,
-      children.amazon !== undefined,
-    ]
+    () =>
+      PLATFORM_ORDER.filter((platform) =>
+        platformKey.split(' ').includes(platform)
+      ),
+    [platformKey]
   );
 
   const [activeTab, setActiveTab] = useState<Platform>(

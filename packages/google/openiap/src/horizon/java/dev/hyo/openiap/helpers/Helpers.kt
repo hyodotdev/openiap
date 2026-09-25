@@ -70,6 +70,19 @@ internal suspend fun queryPurchasesHorizon(
                 } ?: emptyList()
                 OpenIapLog.debug("queryPurchasesHorizon: Returning ${mapped.size} mapped purchases", TAG)
                 operation.succeed(mapped)
+            } else if (
+                result.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE &&
+                !purchaseList.isNullOrEmpty()
+            ) {
+                // Meta returns its durable cache with SERVICE_UNAVAILABLE when it
+                // cannot reach the store. Those purchases are real; an empty cache
+                // proves nothing, since it never holds consumables.
+                val cached = purchaseList.map { it.toPurchase() }
+                OpenIapLog.warn(
+                    "queryPurchasesHorizon: service unavailable, using ${cached.size} cached purchases",
+                    TAG
+                )
+                operation.succeed(cached)
             } else {
                 OpenIapLog.warn("queryPurchasesHorizon: Failed with code=${result.responseCode}", TAG)
                 operation.fail(

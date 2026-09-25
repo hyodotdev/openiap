@@ -1,0 +1,37 @@
+// An app with no store setup of its own: the plugin picks the store.
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'dev.hyo.openiap.fixture.app'
+  compileSdk 36
+  defaultConfig {
+    minSdk 24
+    // An app that followed the old setup docs requests the platform itself.
+    def strategy = project.findProperty('fixtureStrategy')
+    if (strategy) {
+      missingDimensionStrategy 'platform', strategy
+    }
+  }
+  // Or a flavor of another dimension requests it for its own variants.
+  def flavorStrategy = project.findProperty('fixtureFlavorStrategy')
+  if (flavorStrategy) {
+    flavorDimensions = ['tier']
+    productFlavors {
+      qa {
+        dimension 'tier'
+        missingDimensionStrategy 'platform', flavorStrategy
+      }
+    }
+  }
+}
+
+dependencies {
+  implementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'debugRuntimeClasspath')
+openIapFixturePrint('printReleaseStores', 'releaseRuntimeClasspath')

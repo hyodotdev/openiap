@@ -40,8 +40,8 @@ Give your AI the installed package's `SPEC.md`, `DESIGN.md`, and `generated/`
 artifacts. The package supplies the contract; your AI implements the backend.
 
 - **See what AI built:** the [recorded walkthrough](https://openiap.dev/commerce-protocol#build-walkthrough)
-  shows a real local HTTP + SQLite backend in six milestones, with captured
-  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/implementation#iapkit) explains what was tested. Give the
+  shows a real local HTTP + SQLite backend in seven milestones, with captured
+  responses. The [IAPKit comparison](https://openiap.dev/commerce-protocol/ecosystem#composition-proof) explains what was tested. Give the
   [build brief](https://openiap.dev/commerce-example/build-brief.md)
   to your AI to build the same flow in your own stack.
 - **Integrate your backend:** [Use a provider](https://openiap.dev/commerce-protocol/getting-started)
@@ -150,31 +150,8 @@ space. `SPEC.md` §4–§8 define the surface and authorization rules.
 
 ## Certifying a provider
 
-```js
-import Ajv from "ajv/dist/2020.js";
-import {
-  createRestAdapter,
-  createGraphqlAdapter,
-  runConformance,
-} from "@hyodotdev/openiap-commerce-protocol/conformance";
-
-const report = await runConformance({
-  adapters: [
-    createRestAdapter({ baseUrl, fetch, credentials }),
-    createGraphqlAdapter({ url: graphqlUrl, fetch, credentials }),
-  ],
-  Ajv,
-  // The same role-to-credential map the adapters use — required, so the
-  // runner can reject an error message that echoes a credential.
-  credentials,
-  // Required when your capability descriptor declares the events profile:
-  // your outbound webhook implementation, driven through SPEC.md §9's
-  // signing, verification, delivery, response, entitlement, and emission
-  // vectors.
-  eventsAdapter,
-});
-```
-
+Point the portable runner in `conformance/` at a test instance of your
+provider; [`SPEC.md` §11.2](./SPEC.md#112-the-portable-runner) has the script.
 The runner is offline, needs no hosted service, and imports no implementation;
 supply the Ajv 2020 class yourself, since the published runtime carries zero
 dependencies. It certifies the transport contract — never real store receipt
@@ -184,9 +161,11 @@ also pass an `eventsAdapter` covering the full `EventsAdapter` surface
 
 ## Validating
 
+From a repository clone (the npm package does not ship `scripts/` or `test/`):
+
 ```bash
-bun install
-bun run test
+bun install                                 # at the repository root
+cd specs/commerce-protocol && bun run test
 ```
 
 The suite recompiles every schema and binding artifact, validates every

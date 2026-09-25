@@ -384,11 +384,15 @@ export function createPlayStoreError(error: unknown): ReceiptVerificationError {
     return new PlayStoreInsufficientPermissionsError();
   }
 
-  if ((error as any).code === 404 || errorMessage.includes("not found")) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? error.code
+      : undefined;
+  if (code === 404 || errorMessage.includes("not found")) {
     return new PlayStorePurchaseNotFoundError();
   }
 
-  if ((error as any).code === 401) {
+  if (code === 401) {
     return new PlayStoreInvalidCredentialsError();
   }
 

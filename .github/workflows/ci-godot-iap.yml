@@ -8,6 +8,7 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
       - "openiap-versions.json"
@@ -19,6 +20,7 @@ on:
       - "scripts/ci/retry-gradle.sh"
       - "scripts/fetch-godot-lib.sh"
       - "libraries/godot-iap/**"
+      - "packages/google/compatibility/store-resolver/fake-adb"
       - "specs/client/codegen/plugins/gdscript.ts"
       - "specs/client/src/generated/types.gd"
       - "openiap-versions.json"
@@ -122,6 +124,9 @@ jobs:
 
       - name: Test wrapper mapping
         run: godot --headless --path Example --script res://tests/test_godot_iap.gd
+
+      - name: Test export store mapping
+        run: godot --headless --path Example --script res://tests/test_android_store.gd
 
   swift-test:
     name: Swift Test

@@ -17,28 +17,14 @@ import {
   type GoogleSubscriptionInfo,
 } from "./shared";
 
-// Module-level cache for the Play Developer API client per project.
-// Convex "use node" actions reuse the underlying process for warm
-// starts — a fresh service-account fetch + JSON parse + GoogleAuth
-// initialization on every webhook adds 50-200ms latency per
-// notification and burns Convex storage I/O proportional to traffic.
-// Caching the authenticated client survives across consecutive
-// webhook invocations on the same machine; cold starts re-build it.
+// Per-project Play client cache. Warm "use node" processes keep it, saving
+// 50-200ms and a storage read per webhook.
 //
-// TTL keeps the cache fresh enough that an operator-initiated
-// service-account rotation reaches us within an hour without manual
-// intervention — credentials don't change often, and a hung-on-old-
-// key state would surface as Play API 401s on the affected webhooks
-// (which then expire the cache via the catch path below).
+// Rotations are rare, so an hour's delay is fine; a Play auth failure drops
+// the entry sooner (see the catch in maybeFetchSubscriptionInfo).
 const PLAY_CLIENT_TTL_MS = 60 * 60 * 1000;
-// Bounded LRU cache. Convex action containers are reused across
-// projects, and an unbounded `Map<projectId, client>` would grow
-// without limit on a multi-tenant deployment — eventually leaking
-// memory in the long-running Node process. The cap keeps the cache
-// hot for the working set (most webhook traffic concentrates on a
-// small subset of high-volume projects) while stopping the long
-// tail of one-off projects from accumulating forever (PR #124
-// (https://github.com/hyodotdev/openiap/pull/124) review).
+// Capped: containers are shared across projects, so an unbounded map leaks
+// memory. Traffic concentrates on a few projects, so 100 covers the hot set.
 const PLAY_CLIENT_CACHE_MAX_ENTRIES = 100;
 const playClientCache = new Map<
   string,
@@ -53,9 +39,7 @@ const pubSubOidcClient = new OAuth2Client();
 const MAX_PUBSUB_OIDC_TOKEN_LENGTH = 16 * 1024;
 const MAX_PUBSUB_OIDC_AUDIENCES = 8;
 
-// `Map` preserves insertion order, so the first key in iteration is
-// the least-recently-set. We re-set on every cache hit (see below)
-// to bump the entry to the end, turning the Map into an LRU.
+// LRU: Map keeps insertion order, and a hit re-inserts the entry at the end.
 function trimPlayClientCacheLru(): void {
   while (playClientCache.size > PLAY_CLIENT_CACHE_MAX_ENTRIES) {
     const oldestKey = playClientCache.keys().next().value;
@@ -236,18 +220,12 @@ type IngestResult = {
   deduped: boolean;
 };
 
-// HTTP receiver invoked from `server/api/v1/webhooks.ts`. The route performs
-// an early OIDC check, and this public Convex boundary repeats it while binding
-// the sender to this project's uploaded Google service account.
+// Called from server/api/v1/webhooks.ts with message.data already decoded.
+// The route checks OIDC early; this public boundary checks it again and binds
+// the sender to the project's uploaded service account.
 //
-// The action expects the *parsed* RTDN body — the route is responsible
-// for base64-decoding `message.data` and shaping it into our
-// GoogleRtdnPayload. From here we optionally enrich with a fetch to
-// `androidpublisher.purchases.subscriptionsv2.get` (needs the project's
-// service-account JSON) and then call the idempotent insert mutation.
-//
-// At-least-once Pub/Sub delivery means we'll see duplicate `messageId`s
-// on retries; `recordWebhookEvent` collapses those into `deduped: true`.
+// Pub/Sub delivers at least once; recordWebhookEvent returns deduped: true
+// for a repeated messageId.
 export const ingestGoogleRtdn = action({
   args: {
     apiKey: v.string(),
@@ -310,12 +288,8 @@ export const ingestGoogleRtdn = action({
       authenticatedPlayAuth = playAuth;
     }
 
-    // Setup-status gate. Previously the HTTP layer ran a separate
-    // `getSetupStatus` query before invoking this action; inlining the
-    // check here cuts the second Convex round-trip per webhook.
-    // `mapWebhookError` translates "ANDROID_NOT_CONFIGURED" → 412 so
-    // the operator sees the same structured error the prior pre-check
-    // produced.
+    // Checked here, not in the route, to save a Convex round-trip.
+    // mapWebhookError maps ANDROID_NOT_CONFIGURED to 412.
     if (!project.androidPackageName) {
       throw new ConvexError({
         code: "ANDROID_NOT_CONFIGURED",
@@ -329,27 +303,18 @@ export const ingestGoogleRtdn = action({
       args.payload.packageName &&
       args.payload.packageName !== project.androidPackageName
     ) {
-      // Permanent input/config mismatch — Pub/Sub will retry forever
-      // unless we surface this as a 4xx. ConvexError → mapWebhookError
-      // → 400 so Google stops retrying a notification that can never
-      // succeed against this project.
+      // Permanent mismatch: mapWebhookError returns 400 so Pub/Sub stops
+      // retrying a notification that can never succeed for this project.
       throw new ConvexError({
         code: "PACKAGE_NAME_MISMATCH",
         message: `Package name mismatch: notification ${args.payload.packageName} vs project ${project.androidPackageName}`,
       });
     }
 
-    // Pre-flight idempotency probe: if this messageId already resolves through
-    // the source-aware webhookEvents index (or the phase-1 idempotency-key
-    // fallback), this is a Pub/Sub redelivery for an event we already
-    // recorded. Reapply the stored event BEFORE returning so a retry repairs
-    // the gap where the first attempt wrote webhookEvents and then failed
-    // before updating subscriptions. Still skip maybeFetchSubscriptionInfo so
-    // retries don't burn Play Developer
-    // API quota on every redelivery — kit's webhook receiver becomes a
-    // multiplier of Play API calls otherwise (one Pub/Sub retry per
-    // outage minute → one Play API call per retry). The downstream mutation
-    // reads the stored event and atomically marks its transition applied.
+    // A known messageId is a Pub/Sub redelivery. Reapply the stored event
+    // (idempotent) in case the first attempt recorded it but failed before
+    // updating the subscription, and skip the Play fetch so retries cost no
+    // API quota.
     const preFlightEvent = await ctx.runQuery(
       internal.webhooks.internal.lookupExistingEvent,
       {
@@ -432,9 +397,9 @@ export const ingestGoogleRtdn = action({
             productId: existingProductId,
           };
         } else {
-          // Modern RTDN omits subscriptionId. If neither Play enrichment nor an
-          // existing canonical token supplies identity, recording the message
-          // would make preflight dedupe permanently suppress the useful retry.
+          // Modern RTDN omits subscriptionId. With no product from Play or a
+          // stored token, throw rather than record: preflight dedupe would
+          // skip every retry.
           throw new Error("Google subscription product enrichment unavailable");
         }
       }
@@ -448,28 +413,17 @@ export const ingestGoogleRtdn = action({
       });
     } catch (error) {
       if (error instanceof WebhookNormalizationError) {
-        // Only `UnknownEventType` is "unsupported but well-formed" —
-        // ACK with a 200-class so Pub/Sub stops re-delivering it (the
-        // IAPKit state model has no transition for one-off notification kinds
-        // we don't model). The other two codes
-        // (`MissingNotificationId`, `MissingPurchaseToken`) indicate a
-        // malformed payload we genuinely cannot route — surface them
-        // as ConvexError so `mapWebhookError` translates to 4xx and
-        // the operator sees the rejection in their pubsub metrics
-        // instead of having broken events silently swallowed.
+        // UnknownEventType is well-formed but unmodeled: ACK it so Pub/Sub
+        // stops redelivering. The other codes mean a malformed payload; a
+        // 4xx puts the rejection in the operator's Pub/Sub metrics.
         if (error.code === "UnknownEventType") {
           console.warn(
             "[webhooks/google] dropping unsupported notification",
             error.code,
             error.message,
           );
-          // Throw a ConvexError so the route layer's `mapWebhookError`
-          // translates `UNSUPPORTED_EVENT` to a 200 ACK
-          // (webhooks.ts:788) instead of letting a plain Error 500 the
-          // Pub/Sub push and trigger Google's exponential retry loop
-          // on a payload kit will never accept. Matches the Apple
-          // path's ConvexError shape (PR #124
-          // (https://github.com/hyodotdev/openiap/pull/124) review).
+          // mapWebhookError ACKs this with 200, as on the Apple path; a plain
+          // Error would 500 and trigger Google's exponential retry.
           throw new ConvexError({
             code: "UNSUPPORTED_EVENT",
             message: error.message,
@@ -512,16 +466,13 @@ export const ingestGoogleRtdn = action({
       },
     );
 
-    // Always run applySubscriptionEvent — see the matching note in
-    // webhooks/apple.ts. The mutation is idempotent on webhookEvents.appliedAt,
-    // but skipping on dedup left the
-    // subscription stranded if a previous attempt persisted the event
-    // then crashed before patching the subscription row (every Google
-    // RTDN retry would dedup before reaching the state mutation).
+    // Apply even when deduped, as apple.ts does: an earlier attempt may have
+    // recorded the event and crashed before updating the subscription. The
+    // mutation is idempotent on webhookEvents.appliedAt.
     //
-    // TestNotification has no purchaseToken. Every purchase-bearing event goes
-    // through the single apply handler; it marks one-time rows applied without
-    // creating subscription state or commerce events.
+    // TestNotification has no purchaseToken. One-time purchases use the same
+    // handler, which marks them applied without creating subscription state or
+    // commerce events.
     if (normalized.purchaseToken) {
       await ctx.runMutation(
         internal.subscriptions.internal.applySubscriptionEvent,
@@ -540,21 +491,7 @@ export const ingestGoogleRtdn = action({
   },
 });
 
-// Enrichment with subscriptionsv2.get. Returns null when:
-// - the project has no Play service account configured (the caller permits
-//   only terminal lifecycle events to continue without enrichment),
-// - the notification is one-time / voided / test (no subscription to
-//   look up).
-// Transient Play API failures are rethrown so Pub/Sub retries before the
-// message is recorded with incomplete lifecycle data.
-/**
- * `Date.parse` returns NaN for any input it can't parse — and since
- * `webhookEvents.expiresAt`/`renewsAt` is typed as `v.number()` in the
- * schema, a NaN reaches Convex's validator and 500s the receiver. This
- * helper passes only finite numbers through; everything else collapses
- * to undefined so the downstream path uses the wall-clock dedup
- * heuristic instead.
- */
+/** Date.parse, but undefined instead of NaN for missing or bad input. */
 function parseEpochMs(input: string | undefined | null): number | undefined {
   if (!input) return undefined;
   const ms = Date.parse(input);
@@ -605,6 +542,9 @@ export function selectSubscriptionMoney<T>(
     : plan?.recurringPrice;
 }
 
+// Null for non-subscription notifications or a project with no service
+// account (the caller then admits only terminal events). Transient Play
+// failures throw so Pub/Sub retries before an incomplete event is recorded.
 async function maybeFetchSubscriptionInfo(
   ctx: { runAction: any; runQuery: any },
   projectId: unknown,
@@ -622,12 +562,9 @@ async function maybeFetchSubscriptionInfo(
     if (!playAuth) return null;
     const androidpublisher = playAuth.client;
 
-    // Per-request timeout — googleapis defaults to no timeout, and a
-    // hung Play Developer API call would otherwise stall this Pub/Sub
-    // ack until Convex's 10-min action ceiling kills the whole
-    // pipeline. 10s is generous for what's usually a sub-second request. A
-    // timeout rejects ingest so Pub/Sub retries without recording an
-    // under-enriched event first.
+    // googleapis has no default timeout; a hung call would hold the Pub/Sub
+    // ack until Convex's 10-minute action limit. The call is usually
+    // sub-second, and a timeout throws so Pub/Sub retries before recording.
     const response = await androidpublisher.purchases.subscriptionsv2.get(
       {
         packageName,
@@ -637,18 +574,13 @@ async function maybeFetchSubscriptionInfo(
     );
 
     const data = response.data;
-    // `subscriptionsv2.get` always returns the v2 shape with
-    // per-line-item `expiryTime`; the legacy `purchases.subscriptions.get`
-    // had a root-level `expiryTimeMillis`, but we never call that
-    // endpoint here.
+    // v2 has expiryTime per line item, not the legacy root expiryTimeMillis.
     //
-    // The current canonical model is singular. Never project one arbitrary
-    // line item from a base-plan/add-on bundle onto the whole subscription.
+    // The canonical model holds one product, so never project an arbitrary
+    // line item of a base-plan/add-on bundle onto the whole subscription.
     //
-    // We deliberately do NOT match by `latestSuccessfulOrderId`: that
-    // field carries a GPA Order ID, while the notification carries a
-    // `purchaseToken` (different identifier — PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review). The
+    // Don't match on latestSuccessfulOrderId: it is a GPA order ID, while the
+    // notification carries a purchaseToken.
     const lineItems = data.lineItems ?? [];
     const ambiguousLineItems = lineItems.length > 1;
     let matched = ambiguousLineItems
@@ -779,11 +711,8 @@ async function maybeFetchSubscriptionInfo(
         : data.canceledStateContext?.systemInitiatedCancellation
           ? "SYSTEM_INITIATED_CANCELLATION"
           : undefined,
-      // `Date.parse` returns NaN on malformed input, which would
-      // hit Convex's number validator and 500 the webhook ingest.
-      // Drop NaN to undefined so the receiver path falls back to the
-      // wall-clock dedup heuristic (PR #124
-      // (https://github.com/hyodotdev/openiap/pull/124) review).
+      // NaN would fail Convex's number validator and 500 the ingest;
+      // undefined falls back to wall-clock dedup.
       expiryTimeMillis: parseEpochMs(expiry),
       autoRenewingPlanRenewsTimeMillis: parseEpochMs(renews),
       willRenew,
@@ -799,29 +728,20 @@ async function maybeFetchSubscriptionInfo(
             : "catalog",
     };
   } catch (error) {
-    // Re-throw structured configuration errors so the route layer can map them
-    // to an actionable 4xx. Ordinary API failures are sanitized below and
-    // retried by Pub/Sub without recording the event first.
+    // Structured config errors pass through for the route to map to a 4xx;
+    // other failures are sanitized below and retried by Pub/Sub.
     if (error instanceof ConvexError) {
       throw error;
     }
-    // Sanitized: only the error name is logged. The full
-    // googleapis error object can include the original request URL with
-    // an OAuth bearer token and the response body — neither belongs in
-    // logs that get shipped to error aggregation.
+    // Only the error name reaches the aggregated logs: a googleapis error can
+    // carry the request URL with an OAuth bearer token, and the response body.
     const sanitized =
       error instanceof Error ? error.name : "(unknown error type)";
     const errorTextForDetection = error instanceof Error ? error.message : "";
-    // Auth-shaped failures (401/403, "invalid_grant", "Invalid JWT")
-    // typically mean the operator rotated the service account. Drop
-    // the cached client so the next webhook re-reads the file and
-    // picks up the new credentials immediately instead of waiting
-    // out the full TTL on a known-bad key. Prefer the structured
-    // error properties (`code` / `status`) the googleapis library
-    // ships on its GaxiosError shape — substring matching the
-    // serialized message also catches the case but is brittle
-    // (Google has changed wording across SDK versions). The string
-    // checks stay as a fallback for unwrapped errors.
+    // An auth failure usually means a rotated service account: drop the cached
+    // client so the next webhook reloads it instead of waiting out the TTL.
+    // GaxiosError's code/status is checked first because Google has reworded
+    // these messages across SDK versions; the strings cover unwrapped errors.
     const errorCode =
       typeof error === "object" && error !== null
         ? ((error as { code?: unknown }).code ??

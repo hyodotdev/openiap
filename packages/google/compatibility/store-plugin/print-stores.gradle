@@ -1,0 +1,30 @@
+// Registers a task that prints which OpenIAP store builds a configuration
+// resolved, in the one line verify-store-plugin.sh asserts on.
+ext.openIapFixturePrint = { String taskName, String configurationName ->
+  tasks.register(taskName) {
+    // AGP creates variant configurations after evaluation, so look it up here.
+    def label = "${project.name}:${configurationName}"
+    def modules = configurations.named(configurationName).map { configuration ->
+      def result = configuration.incoming.resolutionResult
+      // allComponents skips what failed, which would print a partial list.
+      def failed = result.allDependencies.findAll { it instanceof org.gradle.api.artifacts.result.UnresolvedDependencyResult }
+      if (failed) {
+        def causes = failed.collect { dependency ->
+          def chain = []
+          for (def failure = dependency.failure; failure != null; failure = failure.cause) {
+            chain << failure.message
+          }
+          chain.join(' > ')
+        }
+        throw new GradleException("${label} failed to resolve: ${causes.join('; ')}")
+      }
+      result.allComponents
+        .collect { it.id }
+        .findAll { it instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier }
+        .collect { it.module }
+        .findAll { it.startsWith('openiap-google') || it.startsWith('kmp-iap-android') }
+        .sort()
+    }
+    doLast { println("FIXTURE ${label}=${modules.get().join(',')}") }
+  }
+}

@@ -8,6 +8,10 @@ description: Run device-backed OpenIAP regression across native packages and fra
 Run this when a PR or release candidate needs real-device regression across
 OpenIAP native packages and framework examples.
 
+For a parallel run, split the matrix instead: `/e2e-tests-google` takes
+Play, Amazon, Horizon, and VegaOS; `/e2e-tests-apple` takes iOS. Both read
+this file as the row authority.
+
 ## Scope
 
 Use the narrowest scope that satisfies the request, but broaden when native
@@ -482,14 +486,16 @@ FireOS/Amazon Android path:
 
 ```bash
 cd libraries/expo-iap/example
-EXPO_IAP_FIREOS=1 bunx expo prebuild --platform android --clean
+bunx expo prebuild --platform android --clean
 cd android
-variant_report="$(./gradlew :app:dependencyInsight \
+# The build follows the connected device; the inline pin keeps a build-only run
+# exact without leaking into the next row.
+variant_report="$(ORG_GRADLE_PROJECT_openiapStore=amazon ./gradlew :app:dependencyInsight \
   --configuration debugRuntimeClasspath --dependency openiap-google)"
 printf '%s\n' "$variant_report" | grep -F 'Variant amazonDebugRuntimeElements'
 printf '%s\n' "$variant_report" | \
   grep -E 'ProductFlavor:platform[[:space:]]+\| amazon'
-./gradlew :app:assembleDebug
+ORG_GRADLE_PROJECT_openiapStore=amazon ./gradlew :app:assembleDebug
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
@@ -500,14 +506,16 @@ Horizon Android build and optional device path:
 
 ```bash
 cd libraries/expo-iap/example
-EXPO_IAP_HORIZON=1 bunx expo prebuild --platform android --clean
+bunx expo prebuild --platform android --clean
 cd android
-variant_report="$(./gradlew :app:dependencyInsight \
+# The build follows the connected device; the inline pin keeps a build-only run
+# exact without leaking into the next row.
+variant_report="$(ORG_GRADLE_PROJECT_openiapStore=horizon ./gradlew :app:dependencyInsight \
   --configuration debugRuntimeClasspath --dependency openiap-google)"
 printf '%s\n' "$variant_report" | grep -F 'Variant horizonDebugRuntimeElements'
 printf '%s\n' "$variant_report" | \
   grep -E 'ProductFlavor:platform[[:space:]]+\| horizon'
-./gradlew :app:assembleDebug
+ORG_GRADLE_PROJECT_openiapStore=horizon ./gradlew :app:assembleDebug
 # Build-only regression can stop here.
 : "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
 adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
@@ -579,7 +587,7 @@ FireOS/Amazon Android build and launch smoke:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PfireOsEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=amazon
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
@@ -590,7 +598,7 @@ Horizon Android build-only path:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PhorizonEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=horizon
 ```
 
 Normal iOS physical-device build and launch smoke:
@@ -666,7 +674,7 @@ FireOS/Amazon Android build and launch smoke:
 
 ```bash
 cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PfireOsEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=amazon
 # Build-only regression can stop here.
 # Flutter redirects its gradle output to `example/build/app/outputs/flutter-apk/`,
 # so this path is not the `android/app/build/...` layout the other examples use.
@@ -679,7 +687,7 @@ Horizon Android build-only path:
 
 ```bash
 cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PhorizonEnabled=true
+./gradlew :app:assembleDebug -PopeniapStore=horizon
 ```
 
 iOS physical-device build and launch smoke:
@@ -770,101 +778,29 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-ios --nologo
 ```
 
-Normal Android / Play build and launch smoke:
+Android build and launch smoke. The library is the same for every store; the
+example build links one, from `OpenIapStore` or, on a Debug build, the device
+`ANDROID_SERIAL` names. Its `openiap: store=... (source=...)` line says which.
 
 ```bash
-# The MAUI-owned Android facade AAR output path is shared, so build it for the
-# requested store immediately before the matching dotnet build. The library
-# build disables ProjectReference rebuilds because the Android binding is built
-# explicitly first.
 cd libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=play
+../../../packages/google/gradlew :openiap:assembleRelease
 cd ..
-dotnet build-server shutdown || true
-rm -rf \
-  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
-  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
-  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
-dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=play \
-  --nologo
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=play \
-  -p:BuildProjectReferences=false \
-  --nologo
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the Play, FireOS, or Horizon device}"
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net10.0-android \
-  -p:OpenIapAndroidStore=play \
+  -p:TargetFrameworks=net10.0-android \
   -p:EmbedAssembliesIntoApk=true \
   --nologo
 # Build-only regression can stop here.
-: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
 adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie || true
 adb -s "$ANDROID_SERIAL" install --no-incremental -r \
   example/OpenIap.Maui.Example/bin/Debug/net10.0-android/dev.hyo.martie-Signed.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
-FireOS/Amazon Android build and launch smoke:
-
-```bash
-cd libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
-cd ..
-dotnet build-server shutdown || true
-rm -rf \
-  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
-  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
-  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
-dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=amazon \
-  --nologo
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=amazon \
-  -p:BuildProjectReferences=false \
-  --nologo
-dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net10.0-android \
-  -p:OpenIapAndroidStore=amazon \
-  -p:EmbedAssembliesIntoApk=true \
-  --nologo
-# Build-only regression can stop here.
-: "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
-adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie || true
-adb -s "$FIREOS_SERIAL" install --no-incremental -r \
-  example/OpenIap.Maui.Example/bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk
-adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
-```
-
-Horizon Android build-only path:
-
-```bash
-cd libraries/maui-iap/android
-../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=horizon
-cd ..
-dotnet build-server shutdown || true
-rm -rf \
-  src/OpenIap.Maui.Bindings.Android/bin src/OpenIap.Maui.Bindings.Android/obj \
-  src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
-  example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
-dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=horizon \
-  --nologo
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net10.0-android \
-  -p:OpenIapAndroidStore=horizon \
-  -p:BuildProjectReferences=false \
-  --nologo
-dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net10.0-android \
-  -p:OpenIapAndroidStore=horizon \
-  --nologo
-```
+Run it once per store device. Without a device, pin the store instead:
+`-p:OpenIapStore=horizon`. `bash scripts/verify-store-selection.sh` covers the
+selection rule itself without hardware.
 
 iOS physical-device build and launch smoke:
 
@@ -900,6 +836,11 @@ make export-android
 adb -s "$ANDROID_SERIAL" install -r Example/android/Martie.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
+
+A headless Godot export runs `adb kill-server` on exit (editor setting
+`export/android/shutdown_adb_on_exit`, on by default). That drops every
+`adb reverse` rule and scrcpy session on every device, so re-create the
+`tcp:3100` rule before verifying, and export before the other Android rows.
 
 iOS build and launch smoke:
 

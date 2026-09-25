@@ -13,12 +13,8 @@ export type PurchaseStats = {
   horizon: number;
   amazon: number;
   /**
-   * Count of distinct Google `orderId`s across this project's purchase
-   * rows. On post-fix data this equals the number of `google` rows that
-   * carry an `orderId`, because `savePurchaseInternal`'s secondary
-   * dedup guarantees one row per orderId. Pre-fix / pre-backfill rows
-   * without an orderId stored don't contribute — they inflate `google`
-   * but not `googleOrders`.
+   * Distinct Google `orderId`s. savePurchaseInternal's secondary dedup keeps
+   * one row per orderId; rows without one count in `google` only.
    */
   googleOrders: number;
   valid: number;
@@ -87,11 +83,8 @@ export function mergePurchaseStatsDeltas(
 }
 
 /**
- * Result of applying a stats delta. `wasFirstValidTransition` lets
- * callers detect the "project just booked its first valid receipt"
- * activation moment without re-reading the stats row on the hot
- * path — they pass their intended delta in and get the transition
- * bool back from the same read/write cycle.
+ * `wasFirstValidTransition` flags the project's first valid receipt from the
+ * same read/write, without a second read on the hot path.
  */
 export type ApplyPurchaseStatsDeltaResult = {
   wasFirstValidTransition: boolean;
@@ -182,15 +175,9 @@ export async function applyPurchaseStatsDelta(
 }
 
 /**
- * Delta for inserting a new purchase row.
- *
- * `hasOrderId` drives the `googleOrders` counter separately from
- * `google`: a Google row without an `orderId` (pending-acknowledgement,
- * error body) still counts toward total / google / valid / invalid —
- * nothing about the existing call-count semantics changes — but it
- * doesn't increment `googleOrders`, because it doesn't represent a
- * logical Play Console order yet. Every store also contributes to its
- * own row-count bucket.
+ * Delta for inserting a purchase row. A Google row without an `orderId`
+ * (pending acknowledgement, error body) counts everywhere except
+ * `googleOrders`: it is not a Play Console order yet.
  */
 export function deltaForInsert(
   store: PurchaseStore,
@@ -210,12 +197,10 @@ export function deltaForInsert(
 }
 
 /**
- * Contributions still missing for one persisted purchase.
- *
- * `statsCounted` owns the original total/Apple/Google/order/validity buckets;
- * `storeStatsCounted` separately owns the later Horizon/Amazon buckets. Keeping
- * the two lanes explicit lets either migration run first without double
- * counting and lets a live update claim both atomically before transitioning.
+ * Contributions still missing for one persisted purchase. `statsCounted` owns
+ * the total/Apple/Google/order/validity buckets and `storeStatsCounted` the
+ * later Horizon/Amazon ones, so either migration can run first without double
+ * counting and a live update claims both atomically.
  */
 export function deltaForMissingPurchaseStats(
   store: PurchaseStore,
@@ -271,13 +256,9 @@ export function deltaForCountedPurchaseRemoval(
 }
 
 /**
- * Delta for updating an existing purchase row.
- *
- * Emits diffs for `store`, `isValid`, and the Google-orderId presence
- * transition. The last one lets a pending-acknowledgement row gain an
- * `orderId` on a later re-verify and bump `googleOrders` at that
- * point (and symmetrically back down if an orderId were ever cleared,
- * which shouldn't happen in practice but is guarded for correctness).
+ * Delta for updating a purchase row: `store`, `isValid`, and orderId presence,
+ * so a pending row that gains an orderId on re-verify bumps `googleOrders` (and
+ * a cleared one, never expected, lowers it).
  */
 export function deltaForUpdate(
   prevStore: PurchaseStore,
@@ -332,15 +313,9 @@ export async function deletePurchaseStatsForProject(
 }
 
 /**
- * Recompute the stats row for a project from scratch by scanning the
- * `by_project` index. Used by the backfill migration; not called from the
- * hot path. O(N) in receipts-per-project, but bounded per project.
- *
- * `googleOrders` is computed as the count of DISTINCT `orderId` values
- * across this project's google rows — so even if the table still
- * carries duplicate-orderId rows (collapse migration not yet run), the
- * counter reflects true logical orders and matches what the user sees
- * in Play Console.
+ * Rebuilds a project's stats row by scanning `by_project`; for the backfill
+ * migration, not the hot path. `googleOrders` counts distinct orderIds, so it
+ * matches Play Console even before duplicate rows are collapsed.
  */
 export async function recomputePurchaseStatsForProject(
   ctx: MutationCtx,

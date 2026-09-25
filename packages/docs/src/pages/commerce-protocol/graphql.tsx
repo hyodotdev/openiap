@@ -36,10 +36,13 @@ function CommerceGraphql() {
         for a provider.
       </p>
       <p>
-        The same six operations at one <code>POST</code> endpoint, whose path
-        each provider documents, executing exactly the generated schema
-        projection (<code>generated/bindings/operations.graphql</code>). The
-        same authentication and account rules apply to both bindings.
+        It serves the same six operations at one <code>POST</code> endpoint,
+        whose path each provider documents. The served schema defines everything
+        in the generated projection (
+        <code>generated/bindings/operations.graphql</code>) exactly as the
+        projection defines it; a newer compatible MINOR may add to it but never
+        change it. The same authentication and account rules apply to both
+        bindings.
       </p>
       <CommerceImplementationComparison topic="graphql" />
       <section>
@@ -62,9 +65,9 @@ function CommerceGraphql() {
             2
           )}
         </CodeBlock>
-        <CodeBlock language="bash">{`# Use your provider's GraphQL URL and complete server Authorization header.
+        <CodeBlock language="bash">{`# COMMERCE_GRAPHQL_URL is your provider's GraphQL endpoint.
 curl --fail-with-body "$COMMERCE_GRAPHQL_URL" \\
-  -H "Authorization: $COMMERCE_SERVER_AUTH" \\
+  -H "Authorization: Bearer $COMMERCE_SERVER_TOKEN" \\
   -H 'Content-Type: application/json' \\
   --data-binary @request.json`}</CodeBlock>
         <p>

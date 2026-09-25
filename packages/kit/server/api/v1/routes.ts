@@ -25,13 +25,7 @@ import { webhooksRoutes } from "./webhooks";
 import { subscriptionsRoutes } from "./subscriptions";
 import { productsRoutes } from "./products";
 
-// Variables that the request middleware chain attaches to the Hono
-// context. Declaring them here (and passing the generic to `new Hono()`)
-// lets handlers access `c.var.apiKey` / `c.set("verifyOutcome", ...)`
-// directly with full type safety, instead of the `as unknown` casts
-// that earlier flow-control between strongly-typed middleware (each
-// declaring its own Variables shape via createMiddleware) and the
-// untyped app instance required.
+// Context variables the middleware chain sets, typed so handlers need no casts.
 type V1AppVariables = {
   // apiKeyMiddleware
   apiKey: string;
@@ -121,10 +115,8 @@ app.get(
   }),
 );
 
-// Response headers set by every /purchase/verify response. Documented
-// here so SDK consumers can see them in the generated OpenAPI spec
-// (Redoc at /v1) and wire client-side retry logic without trial and
-// error.
+// Headers on every /purchase/verify response, declared so the OpenAPI spec
+// (Redoc at /v1) shows clients what to build retry logic on.
 const commonResponseHeaders = {
   "X-Correlation-Id": {
     description:
@@ -382,11 +374,8 @@ type ProductClientPayload = {
   updatedAt: number;
 };
 
-// Tell Hono's Context what `c.req.valid("json")` returns for this
-// route so we don't need a `"json" as never` cast + `as VerifyPurchaseJson`.
-// The `Input` generic on `Context<Env, Path, Input>` is what
-// `c.req.valid(target)` narrows against; declaring both `in` and `out`
-// keeps middleware composition (validator → handler) type-checked.
+// Types `c.req.valid("json")` for this route so the handler needs no cast;
+// declaring `in` and `out` keeps validator → handler type-checked.
 type VerifyPurchaseInput = {
   in: { json: VerifyPurchaseJson };
   out: { json: VerifyPurchaseJson };
@@ -440,9 +429,8 @@ const verifyPurchaseHandler = async (
           },
         );
       } catch (error) {
-        // Metadata is optional enrichment. Receipt verification remains the
-        // security boundary and must succeed even if this read is temporarily
-        // unavailable. Log only the error type; payload bodies are never logged.
+        // Optional enrichment: verification must still succeed if this read
+        // fails. Log only the error type, never payload bodies.
         console.error(
           "[purchase/verify] CLIENT_PAYLOAD_LOOKUP_FAILED: %s",
           error instanceof Error ? error.name : typeof error,
@@ -524,11 +512,9 @@ const verifyPurchaseHandler = async (
         return await sendReceiptResponse("google", google);
       }
       case "horizon": {
-        // Meta Horizon (Quest): the client doesn't hold a
-        // server-forgeable receipt, so verification identifies the
-        // entitlement by (userId, sku). The Convex action builds an
-        // `OC|APP_ID|APP_SECRET` token from the project's stored
-        // credentials — the client never sees the secret.
+        // Horizon has no receipt, so the entitlement is identified by
+        // (userId, sku). The action builds the `OC|APP_ID|APP_SECRET` token
+        // from stored credentials; the client never sees the secret.
         const horizon = await client.action(
           api.purchases.horizon.verifyMetaHorizonReceiptInternalV1,
           {
@@ -595,29 +581,20 @@ const verifyRequestLogger = requestLoggerMiddleware();
 const verifyReplayGuard = replayGuardMiddleware();
 const verifyInFlightLimit = inFlightLimitMiddleware();
 
-// Middleware order matters:
-//   1. apiKeyMiddleware — 401/403 before anything expensive.
-//   2. verifyRequestLogger — logs every attempt that passed auth-header
-//      shape validation for audit/debug.
-//   3. verifyRateLimit — global, source-IP, and per-key burst caps; also
-//      populates `apiKeyHash`.
-//   4. validator — rejects malformed payloads (400) before the guard
-//      below hashes the body.
-//   5. verifyReplayGuard — per-(key, payload) burst cap + 5-minute
-//      negative cooldown after an `isValid: false` from the store.
-//   6. verifyInFlightLimit — bounds accepted verification work already
-//      waiting on Convex or an upstream store. Rejects instead of queueing and
-//      tells the replay guard to refund attempts that never received a slot.
-//   7. verifyPurchaseHandler — the actual Convex call. The verify
-//      action increments the per-org monthly counter for telemetry
-//      (powers the dashboard usage view + sponsor CTA threshold)
-//      but does NOT grant unlimited throughput or enforce billing. Fair-use
-//      and safety are enforced by the edge layers above; high-volume apps
-//      must coordinate capacity or self-host.
-//
-// Held in a single tuple so `purchase/verify` (canonical) and
-// `verify-purchase` (compat alias) can't drift on order or contents
-// when guards are added or reshuffled.
+// Order matters:
+//   1. apiKeyMiddleware: 401/403 before anything expensive.
+//   2. verifyRequestLogger: logs every attempt with a well-formed auth header.
+//   3. verifyRateLimit: global, source-IP, and per-key caps; sets `apiKeyHash`.
+//   4. validator: 400 on a malformed body, before the guard hashes it.
+//   5. verifyReplayGuard: per-(key, payload) cap and a 5-minute cooldown
+//      after a store rejection.
+//   6. verifyInFlightLimit: caps verification work waiting on Convex or a
+//      store; rejects instead of queueing and refunds the replay guard.
+//   7. verifyPurchaseHandler: the Convex call. Its per-org monthly counter
+//      feeds the usage view and sponsor prompt; it enforces no billing and
+//      grants no unlimited throughput. High-volume apps coordinate capacity
+//      or self-host.
+// One tuple, so `purchase/verify` and its `verify-purchase` alias can't drift.
 const verifyMiddleware = [
   apiKeyMiddleware,
   verifyRequestLogger,
@@ -634,35 +611,21 @@ app.post(
   ...verifyMiddleware,
 );
 
-// Alias kept for compatibility with the path documented in the initial
-// PR description / test plan (`POST /v1/verify-purchase`). Not listed
-// separately in the OpenAPI output — both paths dispatch to the exact
-// same handler with the same middleware stack.
+// Compatibility alias, left out of the OpenAPI output.
 app.post("/verify-purchase", ...verifyMiddleware);
 
-// Lifecycle webhook receivers — Apple App Store Server Notifications v2
-// and Google Pub/Sub RTDN. These bypass header-based apiKeyMiddleware and the
-// purchase replay guard because Apple cannot send custom auth headers. The
-// receiver validates the path capability before applying the same bounded
-// key/IP/process limiter used by public APIs. Store authenticity is enforced
-// inside the receiver:
-//   - Apple: project apiKey is in the path; the action verifies the
-//     signedPayload against Apple's root certificates so a leaked URL
-//     can't be used to inject forged events.
-//   - Google: OIDC bearer JWT plus the path apiKey. Fly verifies signature and
-//     audience; Convex repeats both checks and binds the email to the project's
-//     uploaded Google service account.
+// Lifecycle webhooks (Apple ASN v2, Google RTDN). Apple can't send auth
+// headers, so these skip apiKeyMiddleware and the replay guard. The receiver
+// checks the path key, applies the public API limiter, and verifies store
+// authenticity itself (see webhooks.ts).
 app.route("/webhooks", webhooksRoutes);
 
-// Subscription state, entitlements, metrics, and SDK user-binding.
-// Provides the `/onesub/status` analog (`/v1/subscriptions/status/{apiKey}`)
-// plus the multi-product entitlements view that onesub gates feature
-// access on, and the metrics summary used by the kit dashboard.
+// Subscription state, entitlements (what onesub gates features on), dashboard
+// metrics, and SDK user binding. `/status/{apiKey}` is onesub's `/status`.
 app.route("/subscriptions", subscriptionsRoutes);
 
-// Product catalog (kit-side cache shared by the dashboard, MCP server,
-// and SDK helpers). Phase 3 will extend this with App Store Connect /
-// Play Developer push-sync; the surface stays the same.
+// Product catalog: kit's cache shared by the dashboard, MCP server, and SDK
+// helpers.
 app.route("/products", productsRoutes);
 
 export { app as apiRoutes };

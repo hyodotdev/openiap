@@ -41,12 +41,8 @@ type PlatformFilter = "all" | Platform;
 
 const DAY_MS = 86_400_000;
 
-// Stable empty defaults. The kickoff render before `useQuery`
-// returns has `metrics === undefined`; we still need to invoke
-// every memo in the same order on that render so React's
-// rules-of-hooks stay satisfied. Sharing these constants keeps the
-// memo dependency identity stable across renders so the memos
-// don't recompute when the empty defaults are passed in.
+// Shared empty defaults for renders before `metrics` loads, so memo deps
+// keep a stable identity instead of a new [] each render.
 const EMPTY_DAYS: ReadonlyArray<{
   day: string;
   currency: string;
@@ -124,21 +120,11 @@ export default function ProjectAnalytics() {
   const range = RANGES.find((r) => r.id === rangeId) ?? RANGES[1];
   const MAX_RANGE_DAYS = RANGES[RANGES.length - 1].days;
 
-  // Always fetch the largest range so flipping the range chiclet
-  // doesn't trigger a Convex refetch — we slice the result
-  // client-side. UTC-day boundaries are computed in the browser to
-  // keep the rollup table read-side consistent with the cron's
-  // writes (both use UTC); using local-day here would cause the
-  // chart's first/last column to half-cover when the user's tz is
-  // far from UTC, surfacing as a "missing yesterday" off-by-one.
-  //
-  // `now` is held in state and refreshed every minute so a user who
-  // leaves the dashboard open across a UTC midnight rollover gets a
-  // re-render that picks up the new day. `useMemo` keys on `now`,
-  // but `utcDayKey(now)` only changes once per day, so the chart
-  // doesn't refetch every minute — Convex's `useQuery` deep-equals
-  // the args object, and the day-key string is stable inside the
-  // same UTC day.
+  // Day keys are UTC to match the rollup cron; local days would half-cover
+  // the first/last column far from UTC, showing a "missing yesterday".
+  // `now` ticks every minute so a page left open past UTC midnight picks up
+  // the new day. `useQuery` compares args by value, so it refetches only
+  // when the day key changes.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 60_000);
@@ -151,32 +137,14 @@ export default function ProjectAnalytics() {
     return { maxFromDay: from, toDay: today };
   }, [now, MAX_RANGE_DAYS]);
 
-  // Per-range start day, derived without re-querying. Slicing the
-  // unfiltered fetch in JS keeps the page below from flashing on
-  // range/period clicks; only the bottom (charts + summary cards)
-  // re-derives.
   const fromDay = useMemo(
     () => utcDayKey(now - (range.days - 1) * DAY_MS),
     [now, range],
   );
 
-  // Fetch unfiltered for the maximum range — all filtering (range,
-  // platform, product, currency, period) happens client-side below.
-  // Two reasons:
-  //   1. Filter clicks must NOT trigger a Convex refetch (the prior
-  //      flicker the user reported was useQuery's stale→pending
-  //      transition rebuilding the whole subtree).
-  //   2. The platform cards always show the full breakdown
-  //      (All / iOS / Android), regardless of which filter is
-  //      active — so the cards need the unfiltered data anyway.
-  // `useQuery` in convex/react does not deep-compare its args
-  // between renders — an inline `{ ... }` literal allocates a new
-  // object every render and the underlying `convex.watchQuery`
-  // re-subscribes even when the values are identical. Memoise the
-  // args object so the subscription is only torn down and rebuilt
-  // when one of the actual inputs changes. The `now` tick stays
-  // off the dep list because `maxFromDay` / `toDay` are derived
-  // from it via `utcDayKey(...)` and only change at UTC midnight.
+  // Fetch the max range unfiltered and filter everything client-side: a
+  // refetch per filter click rebuilt the whole subtree (a visible flicker),
+  // and the platform cards need the unfiltered breakdown anyway.
   const queryArgs = useMemo(
     () => ({ projectId: project._id, fromDay: maxFromDay, toDay }),
     [project._id, maxFromDay, toDay],
@@ -186,29 +154,15 @@ export default function ProjectAnalytics() {
     queryArgs,
   );
 
-  // The loading-state early return has to live below ALL hooks so
-  // React's rules-of-hooks (every hook called in the same order on
-  // every render) stays satisfied — the memos below would
-  // otherwise be conditional on `metrics !== undefined`. We work
-  // off a stable empty default until the real data arrives, then
-  // bail to `<PageLoading />` after the hooks have been registered.
+  // The loading return comes after every hook (rules of hooks), so until
+  // data arrives the memos run on the empty defaults.
   const metricsDays = metrics?.days ?? EMPTY_DAYS;
   const metricsCurrencies = metrics?.currencies ?? EMPTY_STRINGS;
   const reportingCurrency = normalizeCurrencyCode(project.reportingCurrency);
 
-  // Multi-currency projects: we always pin to a single currency for
-  // chart rendering because revenueMicros can't be summed across
-  // currencies without an FX rate. `selectedCurrency` resolves to
-  // the explicit user choice, falling back to the project reporting
-  // currency. The currency selector below is REQUIRED (not
-  // clearable) when multiple currencies exist so a user can never
-  // end up in the broken "no currency selected, sum across all"
-  // state — otherwise the totals would mix USD + EUR + JPY into a
-  // single number labeled with one currency code.
-  //
-  // Empty-project case (no rollup rows yet) still resolves to the
-  // project reporting currency so the UI does not drift based on
-  // whichever store event arrives first.
+  // Chart revenue uses one currency: it can't be summed across currencies
+  // without an FX rate. That is the user's pick, else the reporting currency,
+  // also before any rollup rows exist.
   const currencyOptions = useMemo(
     () => Array.from(new Set([reportingCurrency, ...metricsCurrencies])).sort(),
     [reportingCurrency, metricsCurrencies],
@@ -230,35 +184,11 @@ export default function ProjectAnalytics() {
     [excludedReportingCurrencies, currency],
   );
 
-  // Client-side filtering. Range is also a client filter now (we
-  // fetched the max range above), so flipping range chiclets stays
-  // free — only the chart subtree re-derives. We always filter by
-  // `currency` (the resolved value above), not `selectedCurrency`,
-  // so the default-currency case still produces a single-currency
-  // chart on multi-currency projects.
-  //
-  // We deliberately KEEP rows older than `fromDay` in the row sets
-  // (only attribute / range filters are applied here). `aggregateByDay`
-  // uses those older rows to seed the `activeSubs` carry-forward at
-  // the start of the chart — without them, a project with active
-  // subscriptions but no events in the selected range would dip
-  // visually to zero on the first day.
-  //
-  // Two parallel pipelines:
-  //   - `revenueRows`: pinned to the selected chart currency.
-  //   - `reportingRevenueRows`: pinned to the project reporting
-  //     currency for headline totals.
-  //   - `lifecycleRows`: NOT pinned to currency. activeSubs / new /
-  //     renewals / cancellations / refunds are counts, not money,
-  //     and aggregating them across currencies gives the correct
-  //     project-wide total. Pinning them to a single currency would
-  //     make the "All platforms" card under-report on multi-currency
-  //     projects (the user pays in USD, but the count of cancels is
-  //     a single project-wide number regardless of where they paid).
-  //
-  // Memoised so the per-minute `now` tick (which only changes
-  // `fromDay` / `toDay` once per UTC day) doesn't re-run the full
-  // filter / aggregate / bucket pipeline on every render.
+  // Revenue rows filter on the resolved `currency`, never the nullable
+  // `selectedCurrency`. Lifecycle rows are counts, so they span every
+  // currency; pinning them would under-report "All platforms". Rows before
+  // `fromDay` stay in: `aggregateByDay` seeds `activeSubs` from them, so a
+  // range with no events doesn't dip to zero on its first day.
   const revenueRows = useMemo(
     () =>
       metricsDays.filter((row) => {
@@ -367,19 +297,13 @@ export default function ProjectAnalytics() {
     [lifecycleSeries, reportingRevenueByBucket],
   );
 
-  // Churn = (cancellations + refunds) / activeSubs at end of window.
-  // Same definition Stripe / RevenueCat surface in their headline
-  // dashboards. Guard against div-by-zero on a pre-revenue project.
+  // The churn definition Stripe and RevenueCat use in their dashboards.
   const churnRate =
     totals.activeSubsLast > 0
       ? ((totals.cancellations + totals.refunds) / totals.activeSubsLast) * 100
       : 0;
 
-  // Platform-card totals. Lifecycle counters (activeSubs / newSubs)
-  // come from a currency-unfiltered pass — the cards reflect the
-  // project-wide story, so pinning to one currency would
-  // under-count the "All platforms" total on multi-currency
-  // projects. Revenue stays currency-filtered for the FX reason.
+  // Same split as above: counts span currencies, revenue is one currency.
   const platformTotals = useMemo(() => {
     const lifecycleBaseRows = metricsDays.filter((row) => {
       if (row.day < fromDay) return false;
@@ -427,11 +351,8 @@ export default function ProjectAnalytics() {
         </p>
       </div>
 
-      {/* Webhook prerequisite callout. Verify alone doesn't tell IAPKit
-          when a renewal/cancel/refund happens — only Apple ASN v2 /
-          Google RTDN do — so a project without webhooks set up will
-          forever see an empty chart. Surface this prominently above
-          the data so the empty-state isn't ambiguous. */}
+      {/* Only ASN v2 / RTDN report renewals, cancels, and refunds, so
+          without webhooks the chart stays empty. */}
       <div className="border border-amber-500/30 bg-amber-500/5 rounded-lg p-4 flex items-start gap-3">
         <Webhook className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
         <div className="flex-1 text-sm">
@@ -459,11 +380,8 @@ export default function ProjectAnalytics() {
       </div>
 
       {metrics.truncated && (
-        // Server hit `REVENUE_SCAN_CAP` on the rollup scan, so the
-        // chart below is showing a partial view of the requested
-        // range. Surface this so an operator doesn't read flat
-        // numbers as a real revenue trough — they're a query-budget
-        // truncation, not a business signal.
+        // The scan hit `REVENUE_SCAN_CAP`, so the chart is partial; flat
+        // numbers here are truncation, not a revenue trough.
         <div className="border border-amber-500/40 bg-amber-500/10 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1 text-sm">
@@ -558,11 +476,9 @@ export default function ProjectAnalytics() {
         {currencyOptions.length > 1 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Currency:</span>
-            {/* No allowClear: revenue can't be summed across
-                currencies without an FX rate, so the chart must
-                always be pinned to exactly one. The project
-                reporting currency is the default; other currencies
-                are visible here for chart exploration only. */}
+            {/* No allowClear: the chart needs exactly one currency. Other
+                currencies are for the chart only; totals stay in the
+                reporting currency. */}
             <Select
               value={currency}
               onChange={(v) => setSelectedCurrency(v ?? null)}
@@ -820,11 +736,8 @@ function ChicletGroup({
   value: string;
   onChange: (id: string) => void;
 }) {
-  // Active state: primary-bordered card on top of the muted track.
-  // Hover state on inactive options: muted fill + foreground text.
-  // Both are now visually distinct in both light and dark modes —
-  // the prior bg-card vs bg-muted/40 combo collapsed to identical
-  // gray on dark, which is what the user reported.
+  // bg-card and bg-muted/40 look the same in dark mode, so the active option
+  // also gets a primary border.
   return (
     <div className="inline-flex gap-1 bg-muted/40 rounded-lg p-1 border border-border">
       {options.map((opt) => (
@@ -902,11 +815,6 @@ function EmptyState() {
   );
 }
 
-// Aggregate the per-currency / per-product / per-platform rollup rows
-// the query returns into a single per-day series. The query has
-// already filtered by the user's selected currency / product /
-// platform, so summation here is safe — we're collapsing
-// multi-row days into one chart row.
 type DailyRow = {
   day: string;
   activeSubs: number;
@@ -917,6 +825,8 @@ type DailyRow = {
   revenueMicros: number;
 };
 
+// Collapses rollup rows (one per currency, product, and platform) into one
+// row per day. Callers filter first, so summing here is safe.
 function aggregateByDay(
   rows: Array<DailyRow>,
   rangeDays: number,
@@ -939,11 +849,8 @@ function aggregateByDay(
   const fromTs = Date.parse(`${fromDay}T00:00:00.000Z`);
   const result: Array<DailyRow & { dayKey: string }> = [];
 
-  // Seed `lastActive` from the most-recent pre-`fromDay` snapshot
-  // so a project with active subs but no events in the selected
-  // range doesn't visibly dip to zero on the first chart day. The
-  // caller passes through pre-range rows for exactly this reason;
-  // pick the latest one whose day is strictly older than `fromDay`.
+  // Seed from the latest row before `fromDay` so the first day doesn't dip
+  // to zero.
   let lastActive = 0;
   let seedDay = "";
   for (const [day, row] of byDay) {
@@ -979,13 +886,9 @@ function aggregateByDay(
   return result;
 }
 
-// Bucket the daily series into the selected period (Daily / Weekly /
-// Monthly). Weekly buckets are ISO week (Mon-Sun). Monthly buckets
-// are calendar month. Aggregation rules:
-// - Sum: newSubs / renewals / cancellations / refunds / revenueMicros
-// - End-of-period snapshot: activeSubs (last day's value in each bucket)
-//
-// Active subs is NOT summed across days — that would inflate by N.
+// Weeks are ISO (Mon–Sun), months are calendar months. Counters and revenue
+// are summed; activeSubs takes the bucket's last day, since summing a
+// snapshot would multiply it by the number of days.
 function bucketByPeriod(
   daily: Array<DailyRow & { dayKey: string }>,
   period: PeriodId,
@@ -1065,9 +968,7 @@ function bucketByPeriod(
   }));
 }
 
-// Compute (bucketKey, label, sortKey) for a given day. sortKey
-// guarantees chronological order across years; label is the
-// short user-facing string drawn on the chart's x-axis.
+// `sortKey` keeps buckets in order across years; `label` is the x-axis text.
 function bucketLabelFor(
   dayKey: string,
   period: PeriodId,
@@ -1093,14 +994,9 @@ function bucketLabelFor(
   };
 }
 
-// Per-platform lifecycle totals (activeSubs / newSubs) for the
-// platform cards. Walks an UNFILTERED-by-currency row set so the
-// "All platforms" card shows the project-wide count rather than
-// just the active-currency slice. The rollup table is keyed by
-// `(day, productId, currency, platform)`, so a multi-product /
-// multi-currency project has many rows for the same day+platform;
-// activeSubs are summed across siblings on the most-recent day per
-// platform (newSubs are summed across all matching rows).
+// Takes rows across every currency. Rollup rows are keyed by
+// (day, productId, currency, platform), so activeSubs sums the rows of each
+// platform's latest day, while newSubs sums every row.
 function lifecycleForPlatform(
   rows: Array<{
     platform: Platform;
@@ -1131,9 +1027,7 @@ function lifecycleForPlatform(
   return { activeSubs, newSubs };
 }
 
-// Per-platform revenue total for the platform cards. Walks a
-// CURRENCY-FILTERED row set because `revenueMicros` can't be
-// summed across currencies without an FX rate.
+// Takes rows already pinned to one currency.
 function revenueForPlatform(
   rows: Array<{ platform: Platform; revenueMicros: number }>,
   filter: PlatformFilter,

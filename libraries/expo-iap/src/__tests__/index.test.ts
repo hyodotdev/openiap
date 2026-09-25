@@ -29,7 +29,10 @@ import {
   subscriptionBillingIssueListener,
   userChoiceBillingListenerAndroid,
   developerProvidedBillingListenerAndroid,
-  PurchaseInput,
+  type ProductType,
+  type PurchaseInput,
+  type RequestPurchaseAndroidProps,
+  type RequestSubscriptionAndroidProps,
   getActiveSubscriptions,
   hasActiveSubscriptions,
   openRedeemOfferCode,
@@ -58,6 +61,24 @@ const nativePurchase = (
   ...overrides,
 });
 
+const registeredListener = (index: number): ((payload: unknown) => void) => {
+  const call = jest.mocked(ExpoIapModule.addListener).mock.calls[index];
+  if (!call) {
+    throw new Error(`addListener call ${index} was not recorded`);
+  }
+  return call[1];
+};
+
+const purchaseUpdatedOptionsMock = () => {
+  const setOptions = ExpoIapModule.setPurchaseUpdatedListenerOptions;
+  if (!setOptions) {
+    throw new Error(
+      'The native mock defines setPurchaseUpdatedListenerOptions',
+    );
+  }
+  return jest.mocked(setOptions);
+};
+
 afterEach(() => {
   consoleLogSpy.mockClear();
 });
@@ -69,31 +90,29 @@ afterAll(() => {
 describe('Public API (index.ts)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (Platform as any).OS = 'ios';
-    (Platform as any).select = jest.fn((obj) => obj.ios);
+    Object.assign(Platform, {OS: 'ios'});
     (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
   });
 
   describe('listeners', () => {
     it('registers purchase updated listener', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const fn = jest.fn();
       const subscription = purchaseUpdatedListener(fn);
       expect(addListener).toHaveBeenCalledWith(
         OpenIapEvent.PurchaseUpdated,
         expect.any(Function),
       );
-      const passed = addListener.mock.calls[0][1];
-      const event = {id: 't', productId: 'p', store: 'apple'} as any;
+      const passed = registeredListener(0);
+      const event = {id: 't', productId: 'p', store: 'apple'};
       passed(event);
       expect(fn).toHaveBeenCalledWith(event);
       expect(typeof subscription.remove).toBe('function');
     });
 
     it('registers non-deduping purchase updated listener on iOS', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
-      const setOptions = (ExpoIapModule as any)
-        .setPurchaseUpdatedListenerOptions as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
+      const setOptions = purchaseUpdatedOptionsMock();
       const fn = jest.fn();
       const subscription = purchaseUpdatedListener(fn, {
         dedupeTransactionIOS: false,
@@ -109,7 +128,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('removes listener through native subscription when available', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const nativeRemove = jest.fn();
       addListener.mockReturnValueOnce({remove: nativeRemove});
 
@@ -121,12 +140,12 @@ describe('Public API (index.ts)', () => {
     });
 
     it('falls back to native removeListener when addListener returns void', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
-      const removeListener = (ExpoIapModule as any).removeListener as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
+      const removeListener = ExpoIapModule.removeListener;
       addListener.mockReturnValueOnce(undefined);
 
       const subscription = purchaseUpdatedListener(jest.fn());
-      const nativeListener = addListener.mock.calls[0][1];
+      const nativeListener = registeredListener(0);
       subscription.remove();
       subscription.remove();
 
@@ -138,7 +157,6 @@ describe('Public API (index.ts)', () => {
     });
 
     it('filters duplicate replay events for default listeners when a non-deduping listener is active', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const defaultListener = jest.fn();
       const nonDedupingListener = jest.fn();
 
@@ -150,13 +168,13 @@ describe('Public API (index.ts)', () => {
         },
       );
 
-      const defaultHandler = addListener.mock.calls[0][1];
-      const nonDedupingHandler = addListener.mock.calls[1][1];
+      const defaultHandler = registeredListener(0);
+      const nonDedupingHandler = registeredListener(1);
       const event = {
         id: 'expo-dedupe-replay',
         productId: 'p',
         platform: 'IOS',
-      } as any;
+      };
 
       defaultHandler(event);
       nonDedupingHandler(event);
@@ -169,17 +187,16 @@ describe('Public API (index.ts)', () => {
     });
 
     it('resets default listener duplicate history after endConnection', async () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
       const listener = jest.fn();
 
       purchaseUpdatedListener(listener);
-      const handler = addListener.mock.calls[0][1];
+      const handler = registeredListener(0);
       const event = {
         id: 'expo-dedupe-after-reconnect',
         productId: 'p',
         platform: 'IOS',
-      } as any;
+      };
 
       handler(event);
       handler(event);
@@ -192,11 +209,10 @@ describe('Public API (index.ts)', () => {
     });
 
     it('reapplies non-deduping purchase updated option after reconnect', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.initConnection as jest.Mock).mockResolvedValue(true);
       (ExpoIapModule.endConnection as jest.Mock).mockResolvedValue(true);
-      const setOptions = (ExpoIapModule as any)
-        .setPurchaseUpdatedListenerOptions as jest.Mock;
+      const setOptions = purchaseUpdatedOptionsMock();
 
       const subscription = purchaseUpdatedListener(jest.fn(), {
         dedupeTransactionIOS: false,
@@ -217,8 +233,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('removes non-deduping purchase updated listeners idempotently', () => {
-      const setOptions = (ExpoIapModule as any)
-        .setPurchaseUpdatedListenerOptions as jest.Mock;
+      const setOptions = purchaseUpdatedOptionsMock();
 
       const firstSubscription = purchaseUpdatedListener(jest.fn(), {
         dedupeTransactionIOS: false,
@@ -240,14 +255,14 @@ describe('Public API (index.ts)', () => {
     });
 
     it('registers purchase error listener', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const fn = jest.fn();
       purchaseErrorListener(fn);
       expect(addListener).toHaveBeenCalledWith(
         OpenIapEvent.PurchaseError,
         expect.any(Function),
       );
-      const passed = addListener.mock.calls[0][1];
+      const passed = registeredListener(0);
       const err = {
         message: 'm',
         code: 'query-product',
@@ -258,22 +273,21 @@ describe('Public API (index.ts)', () => {
         productType: 'subs',
         isEmptyProductList: false,
         subResponseCodeAndroid: 'user-ineligible',
-      } as any;
+      };
       passed(err);
       expect(fn).toHaveBeenCalledWith(err);
     });
 
     it('promotedProductListenerIOS warns on non‑iOS, adds on iOS', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const sub = promotedProductListenerIOS(jest.fn());
       expect(typeof sub.remove).toBe('function');
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
 
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      Object.assign(Platform, {OS: 'ios'});
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       promotedProductListenerIOS(jest.fn());
       expect(addListener).toHaveBeenCalledWith(
         'promoted-product-ios',
@@ -282,8 +296,8 @@ describe('Public API (index.ts)', () => {
     });
 
     it('promotedProductListenerIOS replays pending promoted product on iOS', async () => {
-      (Platform as any).OS = 'ios';
-      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      Object.assign(Platform, {OS: 'ios'});
+      const product = {id: 'promoted-product', platform: 'ios'};
       (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
         product,
       );
@@ -297,16 +311,15 @@ describe('Public API (index.ts)', () => {
     });
 
     it('promotedProductListenerIOS dedupes replayed promoted product', async () => {
-      (Platform as any).OS = 'ios';
-      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      Object.assign(Platform, {OS: 'ios'});
+      const product = {id: 'promoted-product', platform: 'ios'};
       (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(
         product,
       );
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const listener = jest.fn();
 
       promotedProductListenerIOS(listener);
-      const nativeListener = addListener.mock.calls[0][1];
+      const nativeListener = registeredListener(0);
       nativeListener('promoted-product');
       await Promise.resolve();
 
@@ -314,16 +327,15 @@ describe('Public API (index.ts)', () => {
     });
 
     it('promotedProductListenerIOS resolves native SKU payloads', async () => {
-      (Platform as any).OS = 'ios';
-      const product = {id: 'promoted-product', platform: 'ios'} as any;
+      Object.assign(Platform, {OS: 'ios'});
+      const product = {id: 'promoted-product', platform: 'ios'};
       (ExpoIapModule.getPromotedProductIOS as jest.Mock)
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(product);
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const listener = jest.fn();
 
       promotedProductListenerIOS(listener);
-      const nativeListener = addListener.mock.calls[0][1];
+      const nativeListener = registeredListener(0);
       nativeListener('promoted-product');
       await Promise.resolve();
 
@@ -332,15 +344,15 @@ describe('Public API (index.ts)', () => {
     });
 
     it('userChoiceBillingListenerAndroid warns on non‑Android, adds on Android', () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const sub = userChoiceBillingListenerAndroid(jest.fn());
       expect(typeof sub.remove).toBe('function');
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
 
-      (Platform as any).OS = 'android';
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      Object.assign(Platform, {OS: 'android'});
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       userChoiceBillingListenerAndroid(jest.fn());
       expect(addListener).toHaveBeenCalledWith(
         OpenIapEvent.UserChoiceBillingAndroid,
@@ -349,15 +361,15 @@ describe('Public API (index.ts)', () => {
     });
 
     it('developerProvidedBillingListenerAndroid warns on non‑Android, adds on Android', () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const sub = developerProvidedBillingListenerAndroid(jest.fn());
       expect(typeof sub.remove).toBe('function');
       expect(warnSpy).toHaveBeenCalled();
       warnSpy.mockRestore();
 
-      (Platform as any).OS = 'android';
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      Object.assign(Platform, {OS: 'android'});
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const fn = jest.fn();
       developerProvidedBillingListenerAndroid(fn);
       expect(addListener).toHaveBeenCalledWith(
@@ -367,21 +379,22 @@ describe('Public API (index.ts)', () => {
     });
 
     it('developerProvidedBillingListenerAndroid receives correct event data', () => {
-      (Platform as any).OS = 'android';
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      Object.assign(Platform, {OS: 'android'});
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const fn = jest.fn();
       developerProvidedBillingListenerAndroid(fn);
 
       // Get the callback that was registered
       const registeredCallback = addListener.mock.calls.find(
-        (call: any) => call[0] === OpenIapEvent.DeveloperProvidedBillingAndroid,
+        ([eventName]) =>
+          eventName === OpenIapEvent.DeveloperProvidedBillingAndroid,
       )?.[1];
 
       // Simulate event with external transaction token
       const mockDetails = {
         externalTransactionToken: 'ext-txn-token-12345',
       };
-      registeredCallback(mockDetails);
+      registeredCallback?.(mockDetails);
 
       expect(fn).toHaveBeenCalledWith(mockDetails);
       expect(fn.mock.calls[0][0].externalTransactionToken).toBe(
@@ -390,7 +403,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('subscriptionBillingIssueListener forwards the canonical purchase', () => {
-      const addListener = (ExpoIapModule as any).addListener as jest.Mock;
+      const addListener = jest.mocked(ExpoIapModule.addListener);
       const fn = jest.fn();
       subscriptionBillingIssueListener(fn);
 
@@ -400,14 +413,14 @@ describe('Public API (index.ts)', () => {
       );
 
       const registeredCallback = addListener.mock.calls.find(
-        (call: any) => call[0] === OpenIapEvent.SubscriptionBillingIssue,
+        ([eventName]) => eventName === OpenIapEvent.SubscriptionBillingIssue,
       )?.[1];
       const purchase = {
         id: 'billing-issue',
         productId: 'sub.monthly',
         store: 'apple',
-      } as any;
-      registeredCallback(purchase);
+      };
+      registeredCallback?.(purchase);
 
       expect(fn).toHaveBeenCalledWith(purchase);
     });
@@ -448,8 +461,7 @@ describe('Public API (index.ts)', () => {
 
   describe('fetchProducts', () => {
     it('filters iOS products by skus', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.fetchProducts as jest.Mock) = jest.fn().mockResolvedValue([
         {platform: 'ios', id: 'a'},
         {platform: 'ios', id: 'b'},
@@ -460,8 +472,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('filters Android products by skus', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.fetchProducts as jest.Mock) = jest.fn().mockResolvedValue([
         {platform: 'android', id: 'sub1'},
         {platform: 'android', id: 'sub2'},
@@ -479,32 +490,31 @@ describe('Public API (index.ts)', () => {
         fetchProducts({skus: [], type: 'in-app'}),
       ).rejects.toMatchObject({
         code: 'empty-sku-list',
-      } as any);
+      });
     });
 
     it('fetchProducts default path throws unsupported platform', async () => {
-      (Platform as any).OS = 'windows';
-      await expect(fetchProducts({skus: ['a']} as any)).rejects.toThrow(
+      Object.assign(Platform, {OS: 'windows'});
+      await expect(fetchProducts({skus: ['a']})).rejects.toThrow(
         /Unsupported platform/,
       );
     });
 
     it('rejects the removed inapp type alias', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.fetchProducts as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{platform: 'ios', id: 'legacy'}]);
 
       await expect(
-        fetchProducts({skus: ['legacy'], type: 'inapp' as any}),
+        // @ts-expect-error the removed alias reaches the runtime check
+        fetchProducts({skus: ['legacy'], type: 'inapp'}),
       ).rejects.toThrow(/Unsupported product type/);
       expect(ExpoIapModule.fetchProducts).not.toHaveBeenCalled();
     });
 
     it('returns results unchanged when querying all product types', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.fetchProducts as jest.Mock) = jest.fn().mockResolvedValue([
         {platform: 'ios', id: 'a'},
         {platform: 'ios', id: 'b'},
@@ -519,8 +529,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restores Android query diagnostics from the native error envelope', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       const payload = {
         code: 'query-product',
         message: 'Failed to query products',
@@ -545,11 +554,11 @@ describe('Public API (index.ts)', () => {
 
   describe('requestPurchase', () => {
     it('passes through iOS purchase params', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'x'});
-      const res: any = await requestPurchase({
+      const res = await requestPurchase({
         request: {
           apple: {
             sku: 'sku1',
@@ -571,19 +580,20 @@ describe('Public API (index.ts)', () => {
     });
 
     it('rejects query-only all on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest.fn();
       await expect(
         requestPurchase({
           request: {apple: {sku: 'skuX'}},
+          // @ts-expect-error query-only type reaches the runtime check
           type: 'all',
-        } as any),
+        }),
       ).rejects.toThrow(/only supported for product queries/);
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
     it('returns canonical iOS array purchases', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{id: 'a', store: 'apple'}]);
@@ -597,7 +607,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restores iOS purchase diagnostics from the native error envelope', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const payload = {
         code: 'sku-not-found',
         message: 'Product not found',
@@ -628,7 +638,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('returns empty array when iOS subs resolves null', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue(null);
@@ -642,8 +652,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('maps Android in-app request properly', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -660,7 +669,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('maps Android subs request using subscriptionOffers', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -682,7 +691,12 @@ describe('Public API (index.ts)', () => {
       );
     });
 
-    it.each([
+    it.each<
+      [
+        ProductType,
+        RequestPurchaseAndroidProps & RequestSubscriptionAndroidProps,
+      ]
+    >([
       ['in-app', {skus: ['coins'], subscriptionOffers: []}],
       [
         'in-app',
@@ -698,46 +712,50 @@ describe('Public API (index.ts)', () => {
     ])(
       'rejects branch-mismatched Android options for %s without native dispatch',
       async (type, google) => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         (ExpoIapModule.requestPurchase as jest.Mock) = jest.fn();
 
         await expect(
-          requestPurchase({request: {google} as any, type: type as any}),
+          requestPurchase({request: {google}, type}),
         ).rejects.toThrow(/must match the selected product type/);
         expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
       },
     );
 
     it('iOS rejects when sku missing', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await expect(
-        requestPurchase({request: {apple: {}} as any, type: 'in-app'} as any),
+        // @ts-expect-error a missing sku reaches the runtime check
+        requestPurchase({request: {apple: {}}, type: 'in-app'}),
       ).rejects.toMatchObject({code: ErrorCode.EmptySkuList});
     });
 
     it('Android rejects when skus missing', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
-        requestPurchase({request: {google: {}} as any, type: 'in-app'} as any),
+        // @ts-expect-error missing skus reach the runtime check
+        requestPurchase({request: {google: {}}, type: 'in-app'}),
       ).rejects.toThrow(/skus/);
     });
 
     it('Android invalid type throws', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
         requestPurchase({
-          request: {google: {skus: ['x']}} as any,
-          type: 'other' as any,
+          request: {google: {skus: ['x']}},
+          // @ts-expect-error an unknown type reaches the runtime check
+          type: 'other',
         }),
       ).rejects.toThrow(/Unsupported product type/);
     });
 
     it('Android rejects purchase requests for all product types', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
         requestPurchase({
-          request: {google: {skus: ['x']}} as any,
-          type: 'all' as any,
+          request: {google: {skus: ['x']}},
+          // @ts-expect-error query-only type reaches the runtime check
+          type: 'all',
         }),
       ).rejects.toMatchObject({
         code: ErrorCode.DeveloperError,
@@ -746,17 +764,18 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android subscription requests require skus array', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
         requestPurchase({
-          request: {google: {}} as any,
+          // @ts-expect-error missing skus reach the runtime check
+          request: {google: {}},
           type: 'subs',
         }),
       ).rejects.toThrow(/The `skus` property is required/);
     });
 
     it('Android subscription passes subscriptionProductReplacementParams to native module', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -790,7 +809,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android subscription passes subscriptionProductReplacementParams with all replacement modes', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -832,7 +851,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android subscription works without subscriptionProductReplacementParams (optional)', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -857,7 +876,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android forwards minimal in-app Billing Choice options', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -880,7 +899,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android forwards Billing Choice subscription replacement fields', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -915,7 +934,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android subscription passes canonical replacement parameters', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -951,21 +970,21 @@ describe('Public API (index.ts)', () => {
     });
 
     it('iOS maps withOffer through offerToRecordIOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const offer = {
         identifier: 'id',
         keyIdentifier: 'key',
         nonce: 'nonce',
         signature: 'sig',
         timestamp: 1234567890,
-      } as any;
+      };
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'x'});
       await requestPurchase({
         request: {apple: {sku: 'sku1', withOffer: offer}},
         type: 'in-app',
-      } as any);
+      });
       expect(ExpoIapModule.requestPurchase).toHaveBeenCalledWith({
         type: 'in-app',
         request: {
@@ -978,12 +997,12 @@ describe('Public API (index.ts)', () => {
     });
 
     it('iOS passes advancedCommerceData for attribution tracking', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'purchase-123'});
 
-      const res: any = await requestPurchase({
+      const res = await requestPurchase({
         request: {
           apple: {
             sku: 'com.example.premium',
@@ -1006,7 +1025,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('iOS passes advancedCommerceData for subscription purchase', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{id: 'sub-123', platform: 'ios'}]);
@@ -1036,7 +1055,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('iOS subscription passes advanced offer fields through', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{id: 'sub-advanced', platform: 'ios'}]);
@@ -1079,12 +1098,12 @@ describe('Public API (index.ts)', () => {
     });
 
     it('iOS works without advancedCommerceData (optional field)', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'purchase-no-acd'});
 
-      const res: any = await requestPurchase({
+      const res = await requestPurchase({
         request: {
           apple: {
             sku: 'com.example.product',
@@ -1105,7 +1124,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('uses canonical apple without a compatibility warning', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'canonical'});
@@ -1126,45 +1145,48 @@ describe('Public API (index.ts)', () => {
     });
 
     it('rejects the removed ios request alias', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'legacy'});
       const request = {
         request: {ios: {sku: 'legacy-ios'}},
         type: 'in-app',
-      } as any;
+      };
 
+      // @ts-expect-error the removed alias reaches the runtime check
       await expect(requestPurchase(request)).rejects.toThrow(/sku/);
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
     it('rejects the removed android request alias', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
       const request = {
         request: {android: {skus: ['legacy-android']}},
         type: 'in-app',
-      } as any;
+      };
 
+      // @ts-expect-error the removed alias reaches the runtime check
       await expect(requestPurchase(request)).rejects.toThrow(/skus/);
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
     it('does not revive legacy ios when canonical apple is explicitly null', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await expect(
         requestPurchase({
           request: {
             apple: null,
+            // @ts-expect-error the removed alias reaches the runtime check
             ios: {sku: 'legacy-ios'},
           },
           type: 'in-app',
-        } as any),
+        }),
       ).rejects.toThrow(/sku/);
 
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
@@ -1173,17 +1195,18 @@ describe('Public API (index.ts)', () => {
     });
 
     it('does not revive legacy android when canonical google is explicitly null', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
       await expect(
         requestPurchase({
           request: {
             google: null,
+            // @ts-expect-error the removed alias reaches the runtime check
             android: {skus: ['legacy-android']},
           },
           type: 'in-app',
-        } as any),
+        }),
       ).rejects.toThrow(/skus/);
 
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
@@ -1195,8 +1218,7 @@ describe('Public API (index.ts)', () => {
   describe('legacy wrappers and getters', () => {
     it('getAvailablePurchases: iOS and Android paths', async () => {
       // iOS path
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
@@ -1207,8 +1229,7 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(true, false);
 
       // Android path (unified getAvailableItems with options)
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValueOnce([
@@ -1226,8 +1247,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('getAvailablePurchases passes includeSuspendedAndroid option on Android', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValueOnce([
@@ -1247,11 +1267,8 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restorePurchases performs iOS sync then fetches purchases', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
-      const syncSpy = jest
-        .spyOn(iosMod as any, 'syncIOS')
-        .mockResolvedValue(true);
+      Object.assign(Platform, {OS: 'ios'});
+      const syncSpy = jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(true);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([
@@ -1266,11 +1283,8 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restorePurchases uses native Onside restore when active', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
-      const syncSpy = jest
-        .spyOn(iosMod as any, 'syncIOS')
-        .mockResolvedValue(true);
+      Object.assign(Platform, {OS: 'ios'});
+      const syncSpy = jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(true);
       Object.defineProperty(ExpoIapModule, 'USING_ONSIDE_SDK', {
         configurable: true,
         value: true,
@@ -1297,12 +1311,12 @@ describe('Public API (index.ts)', () => {
           true,
         );
       } finally {
-        delete (ExpoIapModule as any).USING_ONSIDE_SDK;
+        Reflect.deleteProperty(ExpoIapModule, 'USING_ONSIDE_SDK');
       }
     });
 
     it('getAvailablePurchases rejects mixed malformed results atomically', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([nativePurchase('valid'), {id: 'malformed'}]);
@@ -1313,7 +1327,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('getAvailablePurchases rejects a foreign store on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([
@@ -1329,7 +1343,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('getAvailablePurchases rejects a foreign store on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValue([
@@ -1345,9 +1359,9 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restorePurchases propagates iOS sync failure without querying', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const syncError = new Error('sync failed');
-      jest.spyOn(iosMod as any, 'syncIOS').mockRejectedValue(syncError);
+      jest.spyOn(iosMod, 'syncIOS').mockRejectedValue(syncError);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toBe(syncError);
@@ -1355,8 +1369,8 @@ describe('Public API (index.ts)', () => {
     });
 
     it('restorePurchases rejects a false iOS sync result', async () => {
-      (Platform as any).OS = 'ios';
-      jest.spyOn(iosMod as any, 'syncIOS').mockResolvedValue(false);
+      Object.assign(Platform, {OS: 'ios'});
+      jest.spyOn(iosMod, 'syncIOS').mockResolvedValue(false);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
 
       await expect(restorePurchases()).rejects.toMatchObject({
@@ -1368,9 +1382,8 @@ describe('Public API (index.ts)', () => {
 
   describe('finishTransaction', () => {
     it('iOS forwards purchase payload to native finishTransaction', async () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).select = (obj: any) => obj.ios;
-      const basePurchase = {
+      Object.assign(Platform, {OS: 'ios'});
+      const basePurchase: PurchaseInput = {
         store: 'apple',
         productId: 'prod.ios',
         isAutoRenewing: false,
@@ -1380,12 +1393,12 @@ describe('Public API (index.ts)', () => {
         transactionDate: Date.now(),
         id: 'transaction-identifier',
         transactionId: 'transaction-identifier',
-      } as PurchaseInput;
+      };
       (ExpoIapModule.finishTransaction as jest.Mock) = jest
         .fn()
         .mockResolvedValue(true);
       await expect(
-        finishTransaction({purchase: basePurchase as any}),
+        finishTransaction({purchase: basePurchase}),
       ).resolves.toBeUndefined();
       expect(ExpoIapModule.finishTransaction).toHaveBeenCalledWith(
         basePurchase,
@@ -1403,8 +1416,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('Android consume vs acknowledge flows', async () => {
-      (Platform as any).OS = 'android';
-      (Platform as any).select = (obj: any) => obj.android;
+      Object.assign(Platform, {OS: 'android'});
       (ExpoIapModule.consumePurchaseAndroid as jest.Mock) = jest
         .fn()
         .mockResolvedValue({responseCode: 0});
@@ -1412,8 +1424,8 @@ describe('Public API (index.ts)', () => {
         .fn()
         .mockResolvedValue({responseCode: 0});
 
-      const basePurchase = {
-        platform: 'android',
+      const basePurchase: PurchaseInput = {
+        store: 'google',
         productId: 'p',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1424,13 +1436,13 @@ describe('Public API (index.ts)', () => {
       };
 
       await finishTransaction({
-        purchase: basePurchase as any,
+        purchase: basePurchase,
         isConsumable: true,
       });
       expect(ExpoIapModule.consumePurchaseAndroid).toHaveBeenCalledWith('t');
 
       await finishTransaction({
-        purchase: basePurchase as any,
+        purchase: basePurchase,
         isConsumable: false,
       });
       expect(ExpoIapModule.acknowledgePurchaseAndroid).toHaveBeenCalledWith(
@@ -1442,14 +1454,14 @@ describe('Public API (index.ts)', () => {
       (ExpoIapModule.acknowledgePurchaseAndroid as jest.Mock).mockClear();
       const p = finishTransaction({
         purchase: {
-          platform: 'android',
+          store: 'google',
           productId: 'p',
           isAutoRenewing: false,
           purchaseState: 'purchased',
           quantity: 1,
           transactionDate: Date.now(),
           id: 'txn-missing-token',
-        } as any,
+        },
       });
       await expect(p).rejects.toMatchObject({
         message: expect.stringMatching(/Purchase token/i),
@@ -1459,67 +1471,68 @@ describe('Public API (index.ts)', () => {
     });
 
     it('finishTransaction rejects on unsupported platform', async () => {
-      const originalOs = (Platform as any).OS;
-      (Platform as any).OS = 'web';
+      const originalOs = Platform.OS;
+      Object.assign(Platform, {OS: 'web'});
       await expect(
         finishTransaction({
           purchase: {
             id: 'tid',
-            platform: 'web',
+            store: 'unknown',
             productId: 'prod.web',
             isAutoRenewing: false,
             purchaseState: 'purchased',
             purchaseToken: 'token',
             quantity: 1,
             transactionDate: Date.now(),
-          } as any,
+          },
         }),
       ).rejects.toThrow(/Unsupported platform/);
-      (Platform as any).OS = originalOs;
+      Object.assign(Platform, {OS: originalOs});
     });
   });
 
   describe('storefront', () => {
     it('getStorefront delegates to native getStorefront method', async () => {
       const nativeSpy = jest.fn().mockResolvedValue('US');
-      (ExpoIapModule as any).getStorefront = nativeSpy;
+      ExpoIapModule.getStorefront = nativeSpy;
 
       const res = await getStorefront();
 
       expect(nativeSpy).toHaveBeenCalledTimes(1);
       expect(res).toBe('US');
 
-      delete (ExpoIapModule as any).getStorefront;
+      delete ExpoIapModule.getStorefront;
     });
 
     it('getStorefront supports synchronous native responses', async () => {
       const nativeSpy = jest.fn().mockReturnValue('CA');
-      (ExpoIapModule as any).getStorefront = nativeSpy;
+      ExpoIapModule.getStorefront = nativeSpy;
 
       const res = await getStorefront();
 
       expect(nativeSpy).toHaveBeenCalledTimes(1);
       expect(res).toBe('CA');
 
-      delete (ExpoIapModule as any).getStorefront;
+      delete ExpoIapModule.getStorefront;
     });
 
     it.each([null, undefined, '', '   '])(
       'getStorefront rejects an empty native value (%p)',
       async (value) => {
-        (ExpoIapModule as any).getStorefront = jest.fn(() => value);
+        // @ts-expect-error empty native values reach the runtime validation
+        ExpoIapModule.getStorefront = jest.fn(() => value);
 
         await expect(getStorefront()).rejects.toMatchObject({
           code: ErrorCode.ServiceError,
           message: expect.stringContaining('no country code'),
         });
 
-        delete (ExpoIapModule as any).getStorefront;
+        delete ExpoIapModule.getStorefront;
       },
     );
 
     it('getStorefront rejects when the native method is missing', async () => {
-      delete (ExpoIapModule as any).getStorefront;
+      delete ExpoIapModule.getStorefront;
 
       await expect(getStorefront()).rejects.toMatchObject({
         code: ErrorCode.FeatureNotSupported,
@@ -1528,7 +1541,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('getStorefront normalizes native exceptions', async () => {
-      (ExpoIapModule as any).getStorefront = jest.fn(() => {
+      ExpoIapModule.getStorefront = jest.fn(() => {
         throw new Error('storefront exploded');
       });
 
@@ -1537,11 +1550,11 @@ describe('Public API (index.ts)', () => {
         debugMessage: 'storefront exploded',
       });
 
-      delete (ExpoIapModule as any).getStorefront;
+      delete ExpoIapModule.getStorefront;
     });
 
     it('getStorefront rejects unsupported platforms', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(getStorefront()).rejects.toMatchObject({
         code: ErrorCode.FeatureNotSupported,
@@ -1552,24 +1565,24 @@ describe('Public API (index.ts)', () => {
 
   describe('deep link', () => {
     it('deepLinkToSubscriptions iOS delegates, Android validates', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const iosSpy = jest
-        .spyOn(iosMod as any, 'deepLinkToSubscriptionsIOS')
-        .mockResolvedValue(undefined as any);
+        .spyOn(iosMod, 'deepLinkToSubscriptionsIOS')
+        .mockResolvedValue(undefined);
       await deepLinkToSubscriptions({});
       expect(iosSpy).toHaveBeenCalled();
       iosSpy.mockRestore();
 
-      (Platform as any).OS = 'android';
-      await expect(deepLinkToSubscriptions({} as any)).rejects.toThrow(
+      Object.assign(Platform, {OS: 'android'});
+      await expect(deepLinkToSubscriptions({})).rejects.toThrow(
         'packageName is required',
       );
-      await expect(
-        deepLinkToSubscriptions({skuAndroid: 's'} as any),
-      ).rejects.toThrow('packageName is required');
+      await expect(deepLinkToSubscriptions({skuAndroid: 's'})).rejects.toThrow(
+        'packageName is required',
+      );
       const andSpy = jest
-        .spyOn(androidMod as any, 'deepLinkToSubscriptionsAndroid')
-        .mockResolvedValue(undefined as any);
+        .spyOn(androidMod, 'deepLinkToSubscriptionsAndroid')
+        .mockResolvedValue(undefined);
       await deepLinkToSubscriptions({
         skuAndroid: 's',
         packageNameAndroid: 'com.app',
@@ -1582,7 +1595,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('deepLinkToSubscriptions rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(
         deepLinkToSubscriptions({
           skuAndroid: 's',
@@ -1592,7 +1605,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('openRedeemOfferCode resolves the iOS redemption result', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const purchase = nativePurchase('redeemed', {store: 'apple'});
       (
         ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
@@ -1606,7 +1619,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('openRedeemOfferCode maps the Android launch result to null', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       (
         ExpoIapModule.openRedeemOfferCodeAndroid as jest.Mock
       ).mockResolvedValueOnce(true);
@@ -1615,29 +1628,29 @@ describe('Public API (index.ts)', () => {
     });
 
     it('openRedeemOfferCode resolves null on Vega without launching', async () => {
-      (Platform as any).OS = 'kepler';
+      Object.assign(Platform, {OS: 'kepler'});
       await expect(openRedeemOfferCode()).resolves.toBeNull();
       expect(ExpoIapModule.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
     });
 
     it('openRedeemOfferCode rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(openRedeemOfferCode()).rejects.toThrow(
         /Unsupported platform: web/,
       );
     });
 
     it('requestPurchase rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(
-        requestPurchase({request: {} as any} as any),
+        requestPurchase({request: {}, type: 'in-app'}),
       ).rejects.toThrow(/Unsupported platform/);
     });
   });
 
   describe('getAvailablePurchases platform support', () => {
     it('rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(getAvailablePurchases()).rejects.toThrow(
         /Unsupported platform: web/,
@@ -1751,13 +1764,13 @@ describe('Public API (index.ts)', () => {
       const result = await getActiveSubscriptions(['premium_monthly']);
 
       expect(result).toEqual(mockIOSSubscription);
-      expect(result[0].renewalInfoIOS?.pendingUpgradeProductId).toBe(
+      expect(result[0]?.renewalInfoIOS?.pendingUpgradeProductId).toBe(
         'premium_yearly',
       );
     });
 
     it('handles Android subscriptions with autoRenewingAndroid', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockAndroidSubscription = [
         {
           productId: 'premium_monthly',
@@ -1776,11 +1789,11 @@ describe('Public API (index.ts)', () => {
       const result = await getActiveSubscriptions();
 
       expect(result).toEqual(mockAndroidSubscription);
-      expect(result[0].autoRenewingAndroid).toBe(false);
+      expect(result[0]?.autoRenewingAndroid).toBe(false);
     });
 
     it('rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(getActiveSubscriptions()).rejects.toThrow(
         /Unsupported platform: web/,
@@ -1884,7 +1897,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('rejects on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(hasActiveSubscriptions()).rejects.toThrow(
         /Unsupported platform: web/,
@@ -1898,7 +1911,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('calls native module on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {isValid: true, receiptData: 'data'};
       (ExpoIapModule.verifyPurchase as jest.Mock) = jest
         .fn()
@@ -1915,7 +1928,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('calls native module on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {isValid: true};
       (ExpoIapModule.verifyPurchase as jest.Mock) = jest
         .fn()
@@ -1942,7 +1955,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('forwards Horizon verification options to the native module', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {isValid: true, success: true};
       (ExpoIapModule.verifyPurchase as jest.Mock) = jest
         .fn()
@@ -1962,7 +1975,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(
         verifyPurchase({apple: {sku: 'com.example.product'}}),
@@ -1976,7 +1989,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('calls native module with IAPKit provider on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2019,7 +2032,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('calls native module on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2065,7 +2078,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(
         verifyPurchaseWithProvider({
@@ -2080,7 +2093,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('handles verification failure response', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {isValid: false, state: 'inauthentic', store: 'apple'},
@@ -2103,7 +2116,7 @@ describe('Public API (index.ts)', () => {
     });
 
     it('handles various IAPKit purchase states', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const states = [
         'entitled',
         'pending-acknowledgment',

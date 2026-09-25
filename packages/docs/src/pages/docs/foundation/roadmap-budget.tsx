@@ -1,7 +1,162 @@
+import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+type Status = 'Done' | 'In progress' | 'Not started';
+
+interface Deliverable {
+  name: string;
+  description: ReactNode;
+  status: Status;
+  /** Where the shipped part lives, or what is still missing. */
+  note?: ReactNode;
+}
+
+interface Phase {
+  id: string;
+  title: string;
+  deliverables: Deliverable[];
+}
+
+const ROADMAP: Phase[] = [
+  {
+    id: 'phase-1',
+    title: 'Phase 1: Foundation (Q2–Q3 2026)',
+    deliverables: [
+      {
+        name: 'Open governance model',
+        description:
+          'Published governance document with maintainer policies and decision-making process',
+        status: 'Done',
+        note: (
+          <>
+            <Link to="/docs/foundation/governance">Governance</Link>, still
+            marked draft
+          </>
+        ),
+      },
+      {
+        name: 'Specification documentation',
+        description: 'Normative documentation for both protocols',
+        status: 'In progress',
+        note: 'Commerce Protocol done; the Client Protocol has its schema and API reference but no normative prose yet',
+      },
+      {
+        name: 'Purchase verification profile',
+        description: 'Standardized server-side verification across stores',
+        status: 'Done',
+        note: (
+          <>
+            The Commerce Protocol{' '}
+            <Link to="/commerce-protocol/profiles">verification profile</Link>
+          </>
+        ),
+      },
+      {
+        name: 'Conformance test suite',
+        description:
+          'Shared behavioral expectations executed against every store implementation and verification provider, backed by a machine-checked capability matrix',
+        status: 'In progress',
+        note: 'Expo, React Native, Android, Apple and IAPKit cover documented subsets; Flutter, KMP, MAUI and Godot adapters are next',
+      },
+      {
+        name: 'Founding supporter outreach',
+        description: 'Engage 3–5 organizations as initial supporters',
+        status: 'In progress',
+      },
+    ],
+  },
+  {
+    id: 'phase-2',
+    title: 'Phase 2: Ecosystem Growth (Q4 2026–Q1 2027)',
+    deliverables: [
+      {
+        name: 'Security guidance document',
+        description:
+          'Transaction integrity best practices, fraud prevention patterns, audit-friendly purchase schema',
+        status: 'In progress',
+        note: (
+          <>
+            Receipt <Link to="/docs/features/validation">validation</Link>{' '}
+            guidance exists; integrity and fraud guidance does not
+          </>
+        ),
+      },
+      {
+        name: 'Expanded platform support',
+        description:
+          'Unity and Unreal Engine codegen plugins via the IR architecture',
+        status: 'Not started',
+      },
+      {
+        name: 'Secure provider interoperability spec',
+        description:
+          'Standardized handoff protocol between stores, apps, and verification services',
+        status: 'Done',
+        note: <Link to="/commerce-protocol">Commerce Protocol</Link>,
+      },
+      {
+        name: 'Formal spec versioning',
+        description:
+          'Semantic versioning for the specification with migration guides per platform',
+        status: 'Done',
+        note: (
+          <>
+            Both protocols are versioned; see{' '}
+            <Link to="/docs/updates/versions">Versions</Link>
+          </>
+        ),
+      },
+      {
+        name: 'Open funding channel',
+        description:
+          'Transparent funding channel for individual and corporate donors',
+        status: 'Done',
+        note: <Link to="/sponsors">Sponsors</Link>,
+      },
+    ],
+  },
+  {
+    id: 'phase-3',
+    title: 'Phase 3: Industry Standard (Q2–Q4 2027)',
+    deliverables: [
+      {
+        name: 'Conformance certification',
+        description:
+          'Formal certification process for libraries claiming OpenIAP compatibility',
+        status: 'Not started',
+      },
+      {
+        name: 'Third-party auditor guidelines',
+        description: 'Guidance for auditors reviewing verification providers',
+        status: 'Not started',
+        note: 'The provider integration spec itself shipped as the Commerce Protocol',
+      },
+      {
+        name: 'Alternative store support',
+        description: 'EU DMA compliance, alternative app store billing APIs',
+        status: 'In progress',
+        note: 'Amazon Appstore, Meta Horizon, Onside and external purchase links are supported; HarmonyOS, Galaxy Store and AppGallery are not',
+      },
+      {
+        name: 'Foundation hosting exploration',
+        description:
+          'Evaluate foundation hosting options for long-term neutral governance',
+        status: 'Not started',
+      },
+      {
+        name: 'Mentorship program',
+        description:
+          'Structured onboarding themes for new contributors (bindings, tests, docs)',
+        status: 'Not started',
+      },
+    ],
+  },
+];
 
 function RoadmapBudget() {
   useScrollToHash();
@@ -20,8 +175,8 @@ function RoadmapBudget() {
         as the governance structure is finalized.
       </Callout>
       <p>
-        This document outlines how OpenIAP plans to grow and how sponsorship
-        funding is allocated. Full transparency on where every dollar goes.
+        How OpenIAP plans to grow, what has shipped, and how sponsorship funding
+        is planned to be spent.
       </p>
 
       <section>
@@ -29,157 +184,37 @@ function RoadmapBudget() {
           Development Roadmap
         </AnchorLink>
 
-        <AnchorLink id="phase-1" level="h3">
-          Phase 1: Foundation (Q2–Q3 2026)
-        </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Deliverable</th>
-              <th>Description</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Open governance model</td>
-              <td>
-                Published governance document with maintainer policies and
-                decision-making process
-              </td>
-              <td>Done</td>
-            </tr>
-            <tr>
-              <td>Specification documentation</td>
-              <td>
-                Formal documentation of the GraphQL schema as the cross-platform
-                purchase specification
-              </td>
-              <td>In Progress</td>
-            </tr>
-            <tr>
-              <td>Purchase verification profile</td>
-              <td>
-                Standardized server-side receipt validation patterns for iOS and
-                Android
-              </td>
-              <td>Planned</td>
-            </tr>
-            <tr>
-              <td>Conformance test suite v1</td>
-              <td>
-                Shared behavioral expectations executed against every store
-                implementation and verification provider, backed by a
-                machine-checked capability matrix. Android stores, Apple, IAPKit
-                providers, React Native IAP, and Expo IAP are covered; Flutter,
-                KMP, MAUI, and Godot adapters are next.
-              </td>
-              <td>In Progress</td>
-            </tr>
-            <tr>
-              <td>Founding supporter outreach</td>
-              <td>Engage 3–5 organizations as initial supporters</td>
-              <td>In Progress</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <AnchorLink id="phase-2" level="h3">
-          Phase 2: Ecosystem Growth (Q4 2026–Q1 2027)
-        </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Deliverable</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Security guidance document</td>
-              <td>
-                Transaction integrity best practices, fraud prevention patterns,
-                audit-friendly purchase schema
-              </td>
-            </tr>
-            <tr>
-              <td>Expanded platform support</td>
-              <td>
-                Unity and Unreal Engine codegen plugins via the IR architecture
-              </td>
-            </tr>
-            <tr>
-              <td>Secure provider interoperability spec</td>
-              <td>
-                Standardized handoff protocol between stores, apps, and
-                verification services
-              </td>
-            </tr>
-            <tr>
-              <td>Formal spec versioning</td>
-              <td>
-                Semantic versioning for the specification with migration guides
-                per platform
-              </td>
-            </tr>
-            <tr>
-              <td>Open funding channel</td>
-              <td>
-                Transparent funding channel for individual and corporate donors
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <AnchorLink id="phase-3" level="h3">
-          Phase 3: Industry Standard (Q2–Q4 2027)
-        </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Deliverable</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Conformance certification</td>
-              <td>
-                Formal certification process for libraries claiming OpenIAP
-                compatibility
-              </td>
-            </tr>
-            <tr>
-              <td>Third-party auditor guidelines</td>
-              <td>Integration specs for verification service providers</td>
-            </tr>
-            <tr>
-              <td>Alternative store support</td>
-              <td>EU DMA compliance, alternative app store billing APIs</td>
-            </tr>
-            <tr>
-              <td>Foundation hosting exploration</td>
-              <td>
-                Evaluate foundation hosting options for long-term neutral
-                governance
-              </td>
-            </tr>
-            <tr>
-              <td>Mentorship program</td>
-              <td>
-                Structured onboarding themes for new contributors (bindings,
-                tests, docs)
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        {ROADMAP.map((phase) => (
+          <div key={phase.id}>
+            <AnchorLink id={phase.id} level="h3">
+              {phase.title}
+            </AnchorLink>
+            <DataTable
+              rows={phase.deliverables}
+              rowKey={(row) => row.name}
+              columns={[
+                { header: 'Deliverable', cell: (row) => row.name },
+                { header: 'Description', cell: (row) => row.description },
+                {
+                  header: 'Status',
+                  cell: (row) => (
+                    <>
+                      <strong>{row.status}</strong>
+                      {row.note ? <> — {row.note}</> : null}
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </div>
+        ))}
       </section>
 
       <section>
         <AnchorLink id="budget" level="h2">
           Budget Allocation
         </AnchorLink>
-        <p>How sponsorship funds are allocated across project needs:</p>
+        <p>The planned split of sponsorship funds:</p>
 
         <table className="doc-table">
           <thead>
@@ -289,8 +324,7 @@ function RoadmapBudget() {
                 >
                   kit.openiap.dev
                 </a>{' '}
-                receipt validation — community service funded through
-                OpenCollective
+                receipt validation
               </td>
             </tr>
             <tr>

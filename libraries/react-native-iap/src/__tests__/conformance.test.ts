@@ -2,10 +2,8 @@
 /**
  * react-native-iap's binding into the OpenIAP conformance suite.
  *
- * The Nitro module is replaced with a deterministic fake store, so the real
- * SDK wrappers in src/index.ts run against controlled store responses. This is
- * what makes purchase, completion, and restoration behaviors testable at all —
- * a real purchase cannot happen in CI.
+ * A deterministic fake store replaces the Nitro module, so the real wrappers in
+ * src/index.ts run against controlled responses; CI cannot make a real purchase.
  *
  * Behavior ids match packages/conformance/src/spec/behaviors.mjs.
  */

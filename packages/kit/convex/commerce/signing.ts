@@ -1,15 +1,14 @@
 // Pure helpers and shared tuning constants for outbound delivery: destination
-// URL safety, retry schedule and payload signing. Kept free of Convex types so
-// they unit-test directly, and so the claim mutation and the "use node" HTTP
-// action can share one set of numbers.
+// URL safety, retry schedule and payload signing. Free of Convex types, so they
+// unit-test directly and the claim mutation and the "use node" HTTP action
+// share one set of numbers.
 //
-// The wire constants come from the Commerce Protocol's published transport
-// record rather than being restated here. The spec package's runtime index
-// reads that record with node:fs, which the Convex isolate cannot do, so the
-// JSON artifact is imported directly and embedded at build time. The imports
-// are named so the bundler keeps the four constants and drops the signature
-// test corpus that shares the file. What deployed receivers already decode is
-// pinned in contract.test.ts, so a protocol rename fails there on purpose.
+// Wire constants come from the Commerce Protocol's transport record, never
+// restated. The spec package's runtime index reads it with node:fs, which the
+// Convex isolate cannot, so the JSON is imported and embedded at build time.
+// Named imports let the bundler keep these four constants and drop the
+// signature test corpus in the same file. contract.test.ts pins what deployed
+// receivers decode, so a protocol rename fails there on purpose.
 
 import {
   contentType,
@@ -130,10 +129,9 @@ export function isPublicIpAddress(rawAddress: string): boolean {
 }
 
 /**
- * `URL` canonicalizes `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so a textual
- * private-IPv4 check never fires on the mapped spelling even though `fetch`
- * still reaches loopback. Recover the embedded IPv4 from the trailing hextets
- * so one policy covers both spellings.
+ * `URL` rewrites `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, which a textual
+ * private-IPv4 check misses while `fetch` still reaches loopback. Recover the
+ * embedded IPv4 from the trailing hextets so one policy covers both spellings.
  */
 function embeddedIpv4(hostname: string): string | null {
   if (!hostname.includes(":")) return null;

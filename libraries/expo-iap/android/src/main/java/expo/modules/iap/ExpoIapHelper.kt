@@ -272,10 +272,7 @@ object ExpoIapHelper {
         )
     }
 
-    /**
-     * Helper to safely emit an event with error fallback.
-     * Reduces code duplication across listener handlers.
-     */
+    /** Emits an event, falling back to a purchase error if emitting fails. */
     private fun safeEmitEvent(
         module: Module,
         scope: CoroutineScope,
@@ -362,7 +359,7 @@ object ExpoIapHelper {
                     )
                 }.onFailure { error ->
                     ExpoIapLog.failure("buffer/send PURCHASE_ERROR", error)
-                    // Critical: if we can't emit the original error, at least try to emit a generic one
+                    // If the original error cannot be emitted, try a generic one.
                     val fallbackPayload =
                         mapOf(
                             "code" to OpenIapError.UnknownError.CODE,

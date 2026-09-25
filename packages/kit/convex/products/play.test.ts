@@ -50,11 +50,9 @@ describe("mapModernPlayOneTimeState", () => {
 });
 
 /**
- * Stubs the three Android Publisher calls the one-time upsert makes:
- * `onetimeproducts.get` (read-before-write), `convertRegionPrices`, and
- * the `onetimeproducts.patch` write. Each handler may return undefined
- * to fall through to a default, or throw a `{code}` object to simulate
- * an API error.
+ * Stubs the one-time upsert's three calls: `onetimeproducts.get`,
+ * `convertRegionPrices` and `onetimeproducts.patch`. A handler may return
+ * undefined for the default, or throw `{code}` to fake an API error.
  */
 function stubAndroidPublisher(handlers: {
   get?: () => unknown;
@@ -154,8 +152,7 @@ describe("upsertModernAndroidOneTimeProduct", () => {
     });
   });
 
-  // Issue #288: the push wrote a single hardcoded `regionCode: "US"`
-  // config, so products were silently unbuyable in every other market.
+  // #288: a lone US config left the product unbuyable everywhere else.
   it("publishes every region Play converts the base price into", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
       convert: () => ({
@@ -214,9 +211,8 @@ describe("upsertModernAndroidOneTimeProduct", () => {
     expect(outcome.manualAction).toBeUndefined();
   });
 
-  // The same replace semantics apply to the purchase-option list itself:
-  // kit only models `buy`, so anything the operator added in Play Console
-  // has to be echoed back or the push deletes it.
+  // `updateMask` replaces the purchase-option list too, so options kit does not
+  // model must be echoed back.
   it("never drops a purchase option kit doesn't model", async () => {
     const rentOption = {
       purchaseOptionId: "rent-48h",
@@ -257,9 +253,8 @@ describe("upsertModernAndroidOneTimeProduct", () => {
     expect(data.purchaseOptions?.[1]).toEqual(rentOption);
   });
 
-  // `updateMask: "purchaseOptions"` REPLACES the repeated field, so an
-  // update that didn't read first would delete every region it omits —
-  // silently un-selling a live product outside the converted set.
+  // `updateMask: "purchaseOptions"` replaces the list, so a region the update
+  // did not read first would be silently un-sold.
   it("never drops a region the product already had", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
       get: () => ({
@@ -568,33 +563,22 @@ describe("moneyToMicros", () => {
   });
 
   it("truncates nanos / 1000 conversion (sub-micro fraction is dropped, not rounded up)", () => {
-    // 999_999_999 nanos / 1000 = 999_999.999 → truncates to 999_999
-    // micros. We deliberately don't round up to 1_000_000; rounding
-    // would silently push prices across the unit boundary (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
-    // review — "999_999_999 nanos rounding up to a full unit"), and
-    // Play stores prices in micros internally so truncation matches
-    // the canonical representation.
+    // Truncates to 999_999 micros: rounding would cross the unit boundary, and
+    // Play stores truncated micros.
     expect(
       moneyToMicros({ currencyCode: "USD", units: "0", nanos: 999_999_999 }),
     ).toBe(999_999);
   });
 
   it("uses BigInt math to preserve precision up to Number.MAX_SAFE_INTEGER", () => {
-    // 9_007_199_254 KRW is the largest unit value that, multiplied by
-    // 1_000_000 (micros), stays at or below Number.MAX_SAFE_INTEGER
-    // (9_007_199_254_740_992). Beyond this the new guard correctly
-    // returns undefined to avoid silent IEEE 754 truncation.
+    // The largest unit count whose micros stay within Number.MAX_SAFE_INTEGER.
     expect(
       moneyToMicros({ currencyCode: "KRW", units: "9007199254", nanos: 0 }),
     ).toBe(9_007_199_254_000_000);
   });
 
   it("returns undefined when the converted micros exceed Number.MAX_SAFE_INTEGER", () => {
-    // 1e10 KRW * 1_000_000 micros > 2^53 — the schema stores
-    // priceAmountMicros as a JS number (double), so anything past
-    // the safe range would silently round-trip to a corrupted value.
-    // The guard surfaces "price unknown" so the dashboard can show
-    // an affordance instead of a wrong number.
+    // Past 2^53 micros a double corrupts the value, so the price is unknown.
     expect(
       moneyToMicros({ currencyCode: "KRW", units: "10000000000", nanos: 0 }),
     ).toBeUndefined();
@@ -789,9 +773,8 @@ describe("localized listings", () => {
   });
 });
 
-// Issue #288 follow-up found in review: conversion failure on an UPDATE
-// preserved every existing region verbatim, which silently threw away
-// the price change the operator had just made.
+// A failed conversion on an update must not silently drop the operator's price
+// change (#288).
 describe("conversion failure on an update", () => {
   it("still applies the new amount to regions using the base currency", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
@@ -891,10 +874,8 @@ describe("existing purchase-option fields", () => {
   });
 });
 
-// CodeRabbit caught this: `convertedRegionPrices` is an object, so a
-// bare truthiness check treats `{}` — Play answering with no
-// conversions — as success. The product would ship US-only while the
-// sync reported a clean push with no manual action.
+// `{}` from Play is a failed conversion; a truthiness check would ship US-only
+// and report a clean push.
 describe("empty conversion response", () => {
   it("is treated as a failed conversion, not a silent success", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
@@ -961,11 +942,8 @@ describe("empty conversion response", () => {
   });
 });
 
-// Found by live Play E2E, not by review: `convertRegionPrices` always
-// converts using Play's CURRENT region definitions, so pinning an older
-// regions version on the write makes Play reject any region whose
-// currency changed since — "Invalid currency for region code BG …
-// Expected BGN but got EUR".
+// Play converts with its current region definitions, so an older pinned version
+// rejects changed currencies ("Expected BGN but got EUR").
 describe("regions version alignment", () => {
   it("writes at the version the conversion was computed at", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
@@ -1174,10 +1152,8 @@ describe("explicit sales regions", () => {
   });
 });
 
-// Both pull-ranking fixes shipped without coverage. The KRW case is the
-// one the fix was for; the USD cases are the regression it originally
-// caused — Play prices several non-US regions in USD, so matching on
-// currency alone resolved a plain USD row to whichever Play listed first.
+// The KRW case keeps the authored currency; the USD cases guard against picking
+// a non-US region Play also prices in USD.
 describe("pickPlayRegionalPrice", () => {
   // Ordered the way Play returns them: US is NOT first.
   const candidates = [
@@ -1380,10 +1356,8 @@ describe("collectPlaySubscriptionOffers", () => {
   });
 });
 
-// Round 4: the regions-version fix only covered the success branch. On
-// the degraded path the write still echoes configs Play generated at a
-// NEWER version, so pinning the historical one reproduces the very
-// BG/BGN rejection the fix was for.
+// Without a conversion the write echoes configs Play generated at a newer
+// version; pinning the historical one hits the same BG/BGN rejection.
 describe("regions version on the degraded path", () => {
   it("follows the version the preserved configs came from", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
@@ -1419,11 +1393,8 @@ describe("regions version on the degraded path", () => {
   });
 });
 
-// The footprint has to survive a trip through the PUBLIC entry point,
-// not just the inner builder. It once shipped completely dead — the
-// legacy guard sat at the top of the wrapper, so every footprint threw
-// before Play was contacted — while every test here stayed green
-// because every one of them called the inner function directly.
+// Through the public entry point, not the inner builder: a guard in the wrapper
+// can break footprints while inner-function tests stay green.
 describe("sales regions through the public entry point", () => {
   function stubWrapper(handlers: {
     get?: () => unknown;
@@ -1738,9 +1709,8 @@ describe("sales regions edge cases", () => {
   });
 });
 
-// Round 5: the round-4 stale filter narrowed the numerator but left
-// `repriced` counting a different set, so a withdrawn-but-repriced
-// region made `stale` negative and silently dropped the whole warning.
+// A withdrawn but repriced region must not make `stale` negative and drop the
+// warning.
 describe("manual-action arithmetic", () => {
   it("reports stale regions when a withdrawn region was also repriced", async () => {
     const { androidpublisher } = stubAndroidPublisher({
@@ -1818,9 +1788,7 @@ describe("manual-action arithmetic", () => {
     );
   });
 
-  // Every regions test called `upsertModernAndroidOneTimeProduct`
-  // directly, so a guard hoisted into the WRAPPER broke the feature
-  // outright while the suite stayed green. These go through the wrapper.
+  // Through the wrapper, which the inner-function tests do not cover.
   it("reaches the modern API for a product with a region footprint", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
       convert: () => ({
@@ -1880,9 +1848,8 @@ describe("manual-action arithmetic", () => {
   });
 });
 
-// This merge is the only thing stopping a subscription patch deleting
-// locales an operator added in Play Console — `updateMask: "listings"`
-// replaces the array. It shipped with no coverage.
+// The merge is all that keeps a subscription patch from deleting locales added
+// in Play Console.
 describe("mergedSubscriptionListings", () => {
   function stubSubscriptions(handler: () => unknown) {
     return google.androidpublisher({
@@ -2296,13 +2263,9 @@ describe("regionsVersionFor precedence", () => {
   });
 });
 
-// The legacy `inappproducts` fallback is the other half of issue #288:
-// apps whose Play catalog predates the modern one-time-product API never
-// reach the conversion code above, so if this path forgets
-// `autoConvertMissingPrices` it publishes a merchant-currency-only SKU —
-// exactly the bug, just via a different door. Driven through the
-// exported wrapper so the fallback decision is exercised too, not just
-// the request builder.
+// The legacy half of #288: without `autoConvertMissingPrices` a pre-modern
+// catalog publishes a merchant-currency-only SKU. Driven through the wrapper so
+// the fallback decision is tested too.
 describe("legacy inappproducts fallback", () => {
   function stubLegacyFallback(modernError: { code: number; message?: string }) {
     const requests: Common.GaxiosOptions[] = [];

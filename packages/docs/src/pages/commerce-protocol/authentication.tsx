@@ -102,11 +102,12 @@ function CommerceAuthentication() {
         </p>
         <p>
           Providers issue their own credentials; the protocol does not impose a
-          key format. Credentials travel in the <code>Authorization</code>{' '}
-          header and never in a URL. A protected request without a credential
-          returns <code>UNAUTHORIZED</code>; a credential with the wrong role
-          returns <code>FORBIDDEN</code>. Separate credentials keep a shipped
-          app from looking up or changing other users’ accounts. Full rules:{' '}
+          key format. A credential travels as{' '}
+          <code>Authorization: Bearer &lt;credential&gt;</code>, never in a URL.
+          A protected request without a credential returns{' '}
+          <code>UNAUTHORIZED</code>; a credential with the wrong role returns{' '}
+          <code>FORBIDDEN</code>. Separate credentials keep a shipped app from
+          looking up or changing other users’ accounts. Full rules:{' '}
           <a
             href={`${SPEC_URL}#5-authentication-and-trust`}
             target="_blank"

@@ -4,39 +4,8 @@ import AnchorLink from '../../components/AnchorLink';
 import Callout from '../../components/Callout';
 import SEO from '../../components/SEO';
 import { Link } from 'react-router-dom';
-import CodeBlock from '../../components/CodeBlock';
 
 const SPEC_URL = COMMERCE_PROTOCOL_LINKS.spec;
-
-const RUNNER_SNIPPET = `import Ajv from "ajv/dist/2020.js";
-import {
-  createRestAdapter,
-  createGraphqlAdapter,
-  runConformance,
-} from "@hyodotdev/openiap-commerce-protocol/conformance";
-
-const baseUrl = process.env.COMMERCE_BASE_URL;
-const credentials = {
-  verification: process.env.COMMERCE_VERIFICATION_TOKEN,
-  server: process.env.COMMERCE_SERVER_TOKEN,
-};
-if (!baseUrl || !credentials.verification || !credentials.server) {
-  throw new Error("Set the test provider URL and both role tokens.");
-}
-const adapters = [createRestAdapter({ baseUrl, fetch, credentials })];
-if (process.env.COMMERCE_GRAPHQL_URL) {
-  adapters.push(createGraphqlAdapter({
-    url: process.env.COMMERCE_GRAPHQL_URL, fetch, credentials,
-  }));
-}
-const report = await runConformance({
-  adapters,
-  Ajv,
-  credentials,
-  // Add your eventsAdapter here if the provider declares the events profile.
-});
-console.log(JSON.stringify(report, null, 2));
-process.exitCode = report.ok ? 0 : 1;`;
 
 function CommerceConformance() {
   return (
@@ -97,13 +66,25 @@ function CommerceConformance() {
             <Link to="/commerce-protocol/getting-started#install-contract">
               contract installation guide
             </Link>{' '}
-            and add <code>ajv</code> with your package manager. Save this as{' '}
-            <code>check-conformance.mjs</code>
-            and run it with Node.js or Bun. The built-in adapters add the Bearer
-            prefix: supply token values without that prefix. Set
-            <code> COMMERCE_GRAPHQL_URL</code> only when testing that binding.
+            and add <code>ajv</code> with your package manager. Save the script
+            in{' '}
+            <a
+              href={`${SPEC_URL}#112-the-portable-runner`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              SPEC.md §11.2
+            </a>{' '}
+            as <code>check-conformance.mjs</code> and run it with Node.js or
+            Bun. Set <code>COMMERCE_BASE_URL</code>,{' '}
+            <code>COMMERCE_VERIFICATION_TOKEN</code>, and{' '}
+            <code>COMMERCE_SERVER_TOKEN</code> as in{' '}
+            <Link to="/commerce-protocol/getting-started#connect">
+              Connect to a provider
+            </Link>
+            , and <code>COMMERCE_GRAPHQL_URL</code> only when testing that
+            binding. The adapters send each credential as a Bearer token.
           </p>
-          <CodeBlock language="javascript">{RUNNER_SNIPPET}</CodeBlock>
           <p>
             The runner talks only through the <code>fetch</code> you give it;
             the URL may point to a local test provider. A provider whose

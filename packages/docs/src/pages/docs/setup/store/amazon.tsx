@@ -176,16 +176,17 @@ function AmazonStoreSetup() {
             <tr>
               <td>Native Android</td>
               <td>
-                Use <code>openiap-google-amazon</code> or select{' '}
-                <code>platform=amazon</code>.
+                The OpenIAP Gradle plugin: a connected Fire device on a debug
+                build; <code>openiapStore=amazon</code> pins it.
               </td>
               <td>Not a Kepler target.</td>
             </tr>
             <tr>
               <td>Expo</td>
               <td>
-                <code>modules.amazon.fireOS</code> in the <code>expo-iap</code>{' '}
-                config plugin.
+                Resolved at build time; an EAS profile pins a release with{' '}
+                <code>ORG_GRADLE_PROJECT_openiapStore=amazon</code>.{' '}
+                <code>android.amazon.appstoreKey</code> supplies the public key.
               </td>
               <td>
                 <code>modules.amazon.vegaOS</code>, with optional{' '}
@@ -195,7 +196,8 @@ function AmazonStoreSetup() {
             <tr>
               <td>React Native</td>
               <td>
-                <code>fireOsEnabled=true</code> in Gradle properties.
+                Resolved at build time by the shared Gradle resolver;{' '}
+                <code>openiapStore=amazon</code> pins it.
               </td>
               <td>
                 Separate React Native for Vega target with Kepler dependencies
@@ -205,31 +207,30 @@ function AmazonStoreSetup() {
             <tr>
               <td>Flutter</td>
               <td>
-                <code>fireOsEnabled=true</code> and app-level{' '}
-                <code>missingDimensionStrategy</code>.
+                Resolved at build time by the shared Gradle resolver;{' '}
+                <code>openiapStore=amazon</code> pins it.
               </td>
               <td>No Vega runtime target.</td>
             </tr>
             <tr>
               <td>KMP</td>
-              <td>
-                Build/publish the Android <code>amazonRelease</code> variant.
-              </td>
+              <td>The OpenIAP Gradle plugin, as for native Android.</td>
               <td>No Vega runtime target.</td>
             </tr>
             <tr>
               <td>MAUI</td>
               <td>
-                Build Android with <code>OpenIapAndroidStore=amazon</code>,{' '}
-                <code>fire</code>, <code>fireos</code>, or <code>fire-os</code>.
+                A connected Fire device on a Debug build;{' '}
+                <code>OpenIapStore=amazon</code> pins it.
               </td>
               <td>No Vega runtime target.</td>
             </tr>
             <tr>
               <td>Godot</td>
               <td>
-                Shared Amazon store and verification types exist; no dedicated
-                Fire OS flavor switch yet.
+                Left at <code>auto</code>, a debug export follows a connected
+                Fire device; for release, set <code>openiap/android_store</code>{' '}
+                to <code>amazon</code>.
               </td>
               <td>No Vega runtime target.</td>
             </tr>
@@ -243,40 +244,58 @@ function AmazonStoreSetup() {
         </AnchorLink>
         <p>
           Fire OS artifacts link the Amazon Appstore SDK and resolve purchases
-          through the Android <code>amazon</code> flavor.
+          through the Android <code>amazon</code> flavor. Every Fire OS build
+          also needs the Amazon public key: download{' '}
+          <code>AppstoreAuthenticationKey.pem</code> for the app from the Amazon
+          Developer Console and ship it in{' '}
+          <code>android/app/src/main/assets</code>. The SDK verifies receipts
+          with it, and it is inert on every other store, so it stays in the
+          project permanently.
         </p>
 
         <AnchorLink id="native-android" level="h3">
           Native Android
         </AnchorLink>
         <p>
-          Depend on the Amazon artifact and select the <code>amazon</code>{' '}
-          flavor in the app's Gradle build:
+          Depend on <code>openiap-google</code> and apply the OpenIAP Gradle
+          plugin; it links <code>openiap-google-amazon</code> instead when a
+          debug build finds a Fire device, or when{' '}
+          <code>openiapStore=amazon</code> pins a release.
         </p>
-        <CodeBlock language="kotlin">{`dependencies {
-    implementation("io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSIONS.google}")
+        <CodeBlock language="kotlin">{`// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }
 
-android {
-    defaultConfig {
-        missingDimensionStrategy("platform", "amazon")
-    }
+// app/build.gradle.kts
+dependencies {
+    implementation("io.github.hyochan.openiap:openiap-google:${OPENIAP_VERSIONS.google}")
 }`}</CodeBlock>
 
         <AnchorLink id="expo-fire-os" level="h3">
           Expo
         </AnchorLink>
         <p>
-          Expo apps use the config plugin. The plugin writes Gradle selection,
-          dependency injection, and Fire OS manifest cleanup during prebuild.
+          Expo apps keep the Amazon public key in the config plugin; the plugin
+          copies it into <code>android/app/src/main/assets</code> on every
+          prebuild and the Gradle build picks the store. An EAS build has no
+          Fire device to follow and a release build never looks, so pin every
+          EAS profile that must target Fire OS in its <code>env</code>.
         </p>
+        <CodeBlock language="json">{`{
+  "build": {
+    "fire": {
+      "env": { "ORG_GRADLE_PROJECT_openiapStore": "amazon" }
+    }
+  }
+}`}</CodeBlock>
         <CodeBlock language="typescript">{`plugins: [
   [
     'expo-iap',
     {
-      modules: {
+      android: {
         amazon: {
-          fireOS: true,
+          appstoreKey: './AppstoreAuthenticationKey.pem',
         },
       },
     },
@@ -287,25 +306,19 @@ android {
           React Native
         </AnchorLink>
         <p>
-          Bare React Native selects Fire OS at the Gradle layer; there is no RN
-          config plugin for Amazon options. The same switch also drives Horizon
-          OS (Meta Quest) builds — see{' '}
-          <Link to="/docs/setup/store/horizon">Horizon OS Setup</Link> — so keep{' '}
-          <code>horizonEnabled=false</code> in Amazon artifacts.
+          Bare React Native applies the same resolver script the library uses.
+          Place <code>AppstoreAuthenticationKey.pem</code> in{' '}
+          <code>android/app/src/main/assets</code>; an <code>amazon</code>{' '}
+          flavor, a connected Fire device on a debug build, or{' '}
+          <code>-PopeniapStore=amazon</code> then picks the store, exactly as
+          for <Link to="/docs/setup/store/horizon">Horizon OS</Link>.
         </p>
-        <CodeBlock language="properties">{`# android/gradle.properties
-fireOsEnabled=true
-horizonEnabled=false`}</CodeBlock>
         <CodeBlock language="groovy">{`// android/app/build.gradle
+apply from: new File(project(':react-native-iap').projectDir, 'openiap-store.gradle')
+
 android {
     defaultConfig {
-        def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-        def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-        if (horizonEnabled && fireOsEnabled) {
-            throw new GradleException("horizonEnabled and fireOsEnabled cannot both be true")
-        }
-        def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
-        missingDimensionStrategy "platform", flavor
+        missingDimensionStrategy "platform", openIapResolveStore('app').store
     }
 }`}</CodeBlock>
 
@@ -313,20 +326,17 @@ android {
           Flutter
         </AnchorLink>
         <p>
-          Flutter uses the same Gradle property model as bare React Native — set
-          the property, then map it to the plugin flavor in the app module:
+          Flutter applies the resolver from the plugin project. Keep the key in{' '}
+          <code>android/app/src/main/assets</code>; pin a release build with{' '}
+          <code>ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk</code>.
         </p>
-        <CodeBlock language="properties">{`# android/gradle.properties
-fireOsEnabled=true
-horizonEnabled=false`}</CodeBlock>
         <CodeBlock language="groovy">{`// android/app/build.gradle
-def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
+apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
+def openIapStore = openIapResolveStore('app', [allowNone: true]).store
 
 android {
     defaultConfig {
-        missingDimensionStrategy 'platform', flavor
+        missingDimensionStrategy 'platform', openIapStore == 'none' ? 'play' : openIapStore
     }
 }`}</CodeBlock>
 
@@ -334,12 +344,23 @@ android {
           KMP and MAUI
         </AnchorLink>
         <p>
-          KMP exposes the Android <code>amazonRelease</code> variant and sets{' '}
-          <code>OPENIAP_STORE="amazon"</code>. MAUI selects the Amazon AAR
-          flavor by MSBuild property.
+          KMP apps apply the same plugin in <code>settings.gradle.kts</code>,
+          which links kmp-iap&apos;s Amazon build. A MAUI Debug build follows a
+          connected Fire device; pin a release with the MSBuild property. Every
+          MAUI build also carries the libraries the other stores need (
+          <Link to="/docs/setup/maui#android-store">MAUI Setup</Link>). The
+          public key goes in the Android app&apos;s assets: a KMP app&apos;s{' '}
+          <code>src/androidMain/assets</code>, or a MAUI app&apos;s{' '}
+          <code>Platforms/Android/Assets</code>.
         </p>
-        <CodeBlock language="bash">{`./gradlew :library:assembleAmazonRelease
-dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
+        <CodeBlock language="bash">{`dotnet publish -f net10.0-android -c Release -p:OpenIapStore=amazon`}</CodeBlock>
+        <p>
+          A Godot export picks Amazon from a connected Fire device on a debug
+          export, or from <code>openiap/android_store=amazon</code>. Put{' '}
+          <code>AppstoreAuthenticationKey.pem</code> at the project root and add
+          it to the Android preset&apos;s filter for non-resource files; the
+          export packs it into the APK&apos;s assets, where the SDK reads it.
+        </p>
 
         <Callout
           kind="warning"
@@ -376,8 +397,9 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           install Amazon Kepler packages.
         </p>
         <p>
-          <code>fireOsEnabled</code> selects the Fire OS Android flavor only —
-          it is not a Vega selector and has no effect on Vega builds.
+          The Android store resolver (<code>openiapStore</code>, flavors,
+          connected devices) picks the Fire OS Android flavor only — it is not a
+          Vega selector and has no effect on Vega builds.
         </p>
         <p>
           Check the{' '}
@@ -397,9 +419,9 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           Expo
         </AnchorLink>
         <p>
-          Expo can prepare the Vega target from config. <code>fireOS</code> and{' '}
-          <code>vegaOS</code> can both be enabled, but they still produce
-          separate artifacts; keep both flags in <code>modules.amazon</code>.
+          Expo prepares the Vega target from <code>modules.amazon.vegaOS</code>.
+          The Fire OS build is a separate artifact that the Android build picks
+          like any other store.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
@@ -407,7 +429,6 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
     {
       modules: {
         amazon: {
-          fireOS: true,
           vegaOS: true,
         },
       },

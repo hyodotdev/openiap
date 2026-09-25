@@ -7,15 +7,15 @@ This example grew through seven executable milestones and their review revisions
 Each folder holds its AI task, source hashes, actual HTTP results, and verification in `run.json`;
 `source.tar.gz` runs independently and `changes.patch` shows the added code.
 
-| Step                                                   | Ask AI to build                                            | What the run demonstrates                                                                                                                             |
-| ------------------------------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [1. Contract](01-contract/run.json)                    | Load the published schemas and start a local server        | Inputs validate; storage is empty; discovery is unfinished and returns an error not permitted for the core operation.                                 |
-| [2. Verification](02-verify/run.json)                  | Recognize fixture evidence and persist the purchase        | A purchase exists, but nobody has access yet. Bad evidence and an upstream outage produce different results.                                          |
-| [3. Ownership](03-bind/run.json)                       | Bind through the backend and read access                   | Alice gains Premium. Verification credentials cannot bind, and Bob cannot take Alice's purchase.                                                      |
-| [4. Cancellation](04-cancel/run.json)                  | Stop renewal and queue the event atomically                | Alice keeps paid access. Discovery can now advertise an event the implementation actually emits.                                                      |
-| [5. Delivery](05-deliver/run.json)                     | Sign, retry, and deduplicate                               | A failed delivery retries after reopening storage. A repeated delivery has one inbox effect.                                                          |
-| [6. Reviewed recovery](06-recover-reviewed-8/run.json) | Enforce expiry, check persistence, and map client evidence | The reviewed final version adds atomic binding grants, rejects conflicting expiry, closes access at the deadline, and preserves storage on reopening. |
-| [7. Account deletion](07-account-erasure-interoperable-6/run.json) | Erase provider identity and delivered event copies | Repeated erasure, late events, in-flight fulfillment, and reopened storage cannot restore the account. |
+| Step                                               | Ask AI to build                                            | What the run demonstrates                                                                                                                             |
+| -------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [1. Contract](01-contract/run.json)                | Load the published schemas and start a local server        | Inputs validate; storage is empty; discovery is unfinished and returns an error not permitted for the core operation.                                 |
+| [2. Verification](02-verify/run.json)              | Recognize fixture evidence and persist the purchase        | A purchase exists, but nobody has access yet. Bad evidence and an upstream outage produce different results.                                          |
+| [3. Ownership](03-bind/run.json)                   | Bind through the backend and read access                   | Alice gains Premium. Verification credentials cannot bind, and Bob cannot take Alice's purchase.                                                      |
+| [4. Cancellation](04-cancel/run.json)              | Stop renewal and queue the event atomically                | Alice keeps paid access. Discovery can now advertise an event the implementation actually emits.                                                      |
+| [5. Delivery](05-deliver/run.json)                 | Sign, retry, and deduplicate                               | A failed delivery retries after reopening storage. A repeated delivery has one inbox effect.                                                          |
+| [6. Reviewed recovery](06-recover/run.json)        | Enforce expiry, check persistence, and map client evidence | The reviewed final version adds atomic binding grants, rejects conflicting expiry, closes access at the deadline, and preserves storage on reopening. |
+| [7. Account deletion](07-account-erasure/run.json) | Erase provider identity and delivered event copies         | Repeated erasure, late events, in-flight fulfillment, and reopened storage cannot restore the account.                                                |
 
 ## What review changed
 
@@ -43,10 +43,8 @@ transcripts or recordings of an AI editor typing. Code was adapted incrementally
 from an earlier internal prototype replaced by this example. No live store purchase or
 production-provider conformance is demonstrated.
 
-The original [step 6](06-recover/run.json) is retained before the reviewed final
-revision. Apply patches in predecessor order: follow each record's `previous`
-link back to the first checkpoint, then apply that chain from oldest to newest.
-Include intermediate review revisions; folder names do not determine the order.
+Apply patches in predecessor order: follow each record's `previous` link back
+to the first checkpoint, then apply that chain from oldest to newest.
 [verification.json](verification.json) records a fresh extraction, source hash
 comparison, patch application, and npm test for every archived revision.
 

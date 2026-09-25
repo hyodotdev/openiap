@@ -169,7 +169,7 @@ data class DiscountOffer(
 
 class DiscountOffer {
   final String? id;
-  final String displayPrice;                    // "\$4.99"
+  final String displayPrice;                    // "$4.99"
   final double price;                           // 4.99
   final String currency;                        // "USD"
   final DiscountOfferType type;

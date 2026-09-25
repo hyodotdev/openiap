@@ -61,6 +61,11 @@ const registry = {
     openCollectiveImageCache: "20260706",
     paypalUrl: "https://paypal.example",
     companyContactEmail: "sponsor@example.com",
+    tiers: {
+      source: "https://github.com/sponsors/example",
+      monthly: [{ name: "Community", usd: 25, includes: "Individual support" }],
+      oneTime: [{ name: "Boost", usd: 100, includes: "One-time support" }],
+    },
   },
 };
 
@@ -212,6 +217,22 @@ test("rejects generated block markers that are out of order", () => {
       ),
     /generated sponsor block markers are out of order/u,
   );
+});
+
+test("rejects a sponsor tier without a price", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-registry-"));
+
+  try {
+    writeSponsorAssets(root);
+    const unpriced = structuredClone(registry);
+    delete unpriced.funding.tiers.monthly[0].usd;
+    assert.throws(
+      () => validateRegistry(root, unpriced),
+      /funding\.tiers\.monthly\[0\]\.usd must be a positive whole number/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("rejects duplicate supporter ids and missing logo assets", () => {

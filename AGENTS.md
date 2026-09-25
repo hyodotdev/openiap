@@ -87,6 +87,14 @@ KISS and SSOT are mandatory release criteria. The canonical rules live in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
 Apply that section before implementation and during every review.
 
+### Clean Up Once It Works
+
+Once a change works, reread the diff for code smells — duplication, redundant
+fallbacks, `as any`, stale comments — and fix them without being asked,
+including ones you run into in code the change does not touch. Never write
+`as any`. The checklist is in
+[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#clean-up-once-it-works).
+
 ### Repository Layout
 
 Treat the directory ownership rules in
@@ -96,11 +104,14 @@ directory, and run `bun run audit:layout` after adding or moving directories.
 
 ### Comment Style
 
-Keep comments short — default to one line. AI-authored comments over-explain by
-default, so trim before committing: no restating the code, no narrating the
-change or its history (that belongs in the commit message), no explaining
-well-known APIs. Keep only what the code cannot show: platform quirks, non-obvious
-constraints, and why an obvious alternative was rejected. Full checklist in
+Keep comments short — default to one line — and write them for a person reading
+the code cold: the point first, plain words, one idea. AI-authored comments
+over-explain by default, so trim before committing: no restating the code, no
+narrating the change or its history (that belongs in the commit message), no
+explaining well-known APIs. Keep only what the code cannot show: platform
+quirks, non-obvious constraints, and why an obvious alternative was rejected.
+Trim a verbose comment wherever you meet one, not only in your own change. Full
+checklist in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
 
 ### Reader-First Documentation
@@ -366,6 +377,9 @@ Cursor-specific files.
 | `$opencollective-steward` | Manage OpenCollective profile and updates          | `$opencollective-steward`             |
 | `$iapkit-e2e-petgu`       | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
 | `$iapkit-e2e-martie`      | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
+| `$e2e-matrix-runner`      | Full device matrix: 6 frameworks x iOS/Play/Amazon/Horizon/Vega | `$e2e-matrix-runner`    |
+| `$e2e-matrix-runner-google` | Android half: 6 frameworks x Play/Amazon/Horizon + Vega  | `$e2e-matrix-runner-google` |
+| `$e2e-matrix-runner-apple` | Apple half: 6 frameworks x iOS + Onside build-only      | `$e2e-matrix-runner-apple` |
 | `/review-pr`              | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`             | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/audit-security`         | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
@@ -374,6 +388,8 @@ Cursor-specific files.
 | `/resolve-issue`          | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`             | Run the full monorepo health check                 | `/verify-all`                         |
 | `/e2e-tests`              | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
+| `/e2e-tests-google`      | Run Android-side device regression (Play/Amazon/Horizon/Vega) | `/e2e-tests-google`       |
+| `/e2e-tests-apple`        | Run Apple-side device regression (iOS)             | `/e2e-tests-apple`                    |
 | `/release`                | Release stable packages or an on-demand RC train   | `/release all stable`                 |
 | `/commit`                 | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
 

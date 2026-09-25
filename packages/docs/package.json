@@ -10,7 +10,7 @@
     "build": "bun run typecheck && bun scripts/check-commerce-composition.mjs && bunx vite build && node scripts/prerender.mjs",
     "test:discoverability": "node --test scripts/prerender.test.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit --pretty false && bunx vite build",
+    "lint": "eslint src --max-warnings 0",
     "preview": "bunx vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,css,json}\"",

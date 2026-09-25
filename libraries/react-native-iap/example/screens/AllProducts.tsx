@@ -17,49 +17,19 @@ import {
   NON_CONSUMABLE_PRODUCT_IDS,
 } from '../src/utils/constants';
 import {getErrorMessage} from '../src/utils/errorUtils';
-import type {
-  Product,
-  ProductSubscription,
-} from 'react-native-iap';
+import type {Product, ProductSubscription} from 'react-native-iap';
 
 /**
- * All Products Example - Show All Products and Subscriptions
+ * All Products Example: fetches in-app products and subscriptions separately
+ * and shows both in one list, as the API returns them.
  *
- * Demonstrates fetching all products (both in-app and subscriptions):
- * - Fetches in-app products and subscriptions separately
- * - Displays products and subscriptions as they come from the API
- * - Single view for all product types
- *
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- * 🎯 TypeScript Discriminated Union Type Narrowing Examples
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- *
- * This file demonstrates real-world usage of discriminated union type narrowing
- * with OpenIAP gql 1.2.4+ types. See the following functions for examples:
- *
- * Example 1 (Line ~134): getProductTypeLabel()
- *   - Shows basic type narrowing using the 'type' discriminator
- *   - Narrows Product | ProductSubscription -> ProductSubscription
- *
- * Example 2 (Line ~91): handleShowDetails()
- *   - Demonstrates combining 'platform' and 'type' discriminators
- *   - Shows how to narrow to specific types like ProductSubscriptionIOS
- *   - Includes console.log examples showing type-safe field access
- *
- * Key discriminator fields:
- * - `type`: 'in-app' | 'subs' - Distinguishes products from subscriptions
- * - `platform`: 'ios' | 'android' - Distinguishes platform-specific types
- *
- * Type hierarchy:
- * - Product = ProductIOS | ProductAndroid (type: 'in-app')
- * - ProductSubscription = ProductSubscriptionIOS | ProductSubscriptionAndroid (type: 'subs')
- *
- * Benefits:
- * ✅ Type-safe access to platform-specific fields and standardized offers
- * ✅ Compile-time errors prevent accessing non-existent fields
- * ✅ Better IDE autocomplete and IntelliSense
- * ✅ Runtime safety - no accessing undefined fields
- * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * Also shows discriminated-union narrowing on the OpenIAP gql 1.2.4+ types:
+ * - `type` ('in-app' | 'subs') separates Product (ProductIOS | ProductAndroid)
+ *   from ProductSubscription (ProductSubscriptionIOS | ProductSubscriptionAndroid).
+ * - `platform` ('ios' | 'android') narrows to the platform-specific type.
+ * getProductTypeLabel() narrows on `type`; handleShowDetails() combines both to
+ * reach types like ProductSubscriptionIOS. The compiler then checks access to
+ * platform-specific fields and standardized offers.
  */
 
 function AllProducts() {
@@ -123,10 +93,8 @@ function AllProducts() {
   }, [products, subscriptions]);
 
   /**
-   * 🎯 Type Narrowing Example 2: Platform + Type narrowing
-   *
-   * This demonstrates combining both 'platform' and 'type' discriminators
-   * to narrow down to a specific type (e.g., ProductSubscriptionIOS).
+   * Type narrowing example 2: combine `platform` and `type` to reach a specific
+   * type (e.g., ProductSubscriptionIOS).
    */
   const handleShowDetails = (product: Product | ProductSubscription) => {
     // Log type narrowing examples
@@ -152,10 +120,7 @@ function AllProducts() {
       } else if (product.platform === 'android') {
         // ✅ Narrowed to: ProductSubscriptionAndroid
         console.log('- Android Subscription detected');
-        console.log(
-          '- Offers:',
-          product.subscriptionOffers.length,
-        );
+        console.log('- Offers:', product.subscriptionOffers.length);
       }
     } else {
       // ✅ Narrowed to: Product (in-app)
@@ -176,12 +141,7 @@ function AllProducts() {
     setModalVisible(true);
   };
 
-  /**
-   * 🎯 Type Narrowing Example 1: Using 'type' discriminator
-   *
-   * This demonstrates how TypeScript narrows the union type
-   * Product | ProductSubscription using the 'type' field.
-   */
+  /** Type narrowing example 1: `type` narrows Product | ProductSubscription. */
   const getProductTypeLabel = (product: Product | ProductSubscription) => {
     // Type narrowing using 'type' discriminator
     if (product.type === 'subs') {

@@ -77,9 +77,9 @@ describe("checkDestinationUrl", () => {
     if (!result.ok) expect(result.reason).toBe("host-not-public");
   });
 
-  // `URL` rewrites these to `[::ffff:7f00:1]` and friends, so a check that only
-  // looks at the textual host lets loopback and the cloud metadata endpoint
-  // straight through while `fetch` still reaches them.
+  // `URL` rewrites these to `[::ffff:7f00:1]` and similar, so a textual host
+  // check would pass loopback and the cloud metadata endpoint, which `fetch`
+  // still reaches.
   it.each([
     "https://[::ffff:127.0.0.1]/hook",
     "https://[::ffff:169.254.169.254]/latest/meta-data",

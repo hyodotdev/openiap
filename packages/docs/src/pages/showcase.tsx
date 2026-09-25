@@ -1,12 +1,18 @@
+import type { CSSProperties } from 'react';
 import SEO from '../components/SEO';
 import {
   ShowcaseAppCard,
   ShowcaseSubmitCard,
   SHOWCASE_GUIDE_URL,
   SHOWCASE_DISCUSSION_URL,
-  showcaseGridStyle,
 } from '../components/ShowcaseCards';
 import { SHOWCASE_APPS } from '../lib/showcase';
+
+const showcaseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '1rem',
+};
 
 function Showcase() {
   return (

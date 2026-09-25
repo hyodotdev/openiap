@@ -93,9 +93,7 @@ function emptyBucket(
 function makeEvent(
   partial: Partial<Doc<"webhookEvents">> & Pick<Doc<"webhookEvents">, "type">,
 ): Doc<"webhookEvents"> {
-  // Cast — only the fields the helper reads matter. The rest of the
-  // shape is satisfied with sensible defaults so the test stays
-  // compact.
+  // Only the fields the helper reads matter.
   return {
     _id: "we_1" as never,
     _creationTime: 0,
@@ -164,11 +162,8 @@ describe("applyEventToBucket", () => {
   });
 
   it("Uncancel without same-day cancel produces a negative bucket (cross-day offset)", () => {
-    // The day-bucket counter is intentionally allowed to go
-    // negative: a cancel on day N and an uncancel on day N+1 must
-    // still net to zero when the dashboard sums per-day rollup
-    // rows into a weekly / monthly bucket. Clamping here would
-    // silently drop the offset.
+    // May go negative: a cancel and an uncancel on different days must net to
+    // zero over a period.
     const bucket = emptyBucket();
     applyEventToBucket(bucket, makeEvent({ type: "SubscriptionUncanceled" }));
     expect(bucket.cancellations).toBe(-1);
@@ -345,10 +340,8 @@ describe("isActiveAt", () => {
   });
 
   it("Expired with expiresAt > dayEnd → true (still active on the snapshot day)", () => {
-    // The whole point of including `Expired` in COUNTED_STATES: a
-    // sub that was active at end-of-day on a historical day, then
-    // expired later, must contribute to that historical day's
-    // activeSubs count.
+    // Why `Expired` is counted: a sub active at the end of a past day counts
+    // for that day.
     const sub = makeSub({
       state: "Expired",
       startedAt: Date.UTC(2026, 2, 1),
@@ -386,9 +379,9 @@ describe("isActiveAt", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────
-// Round-trip integration via in-memory DB. Same MemDb pattern as
-// `purchases/stats-integration.test.ts`, extended for index range
-// predicates (gte/lte) since revenueMetrics.ts uses them.
+// Round-trip integration via an in-memory DB: the MemDb from
+// `purchases/stats-integration.test.ts`, plus the gte/lte range predicates
+// revenueMetrics.ts uses.
 // ──────────────────────────────────────────────────────────────────────
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -451,12 +444,8 @@ class MemQuery {
   }
 
   filter(_cb: unknown): MemQuery {
-    // No-op `.filter()` would let a future production code path that
-    // narrows results via `.filter()` silently pass against the
-    // in-memory harness while real Convex returned a different set.
-    // Throw so the next caller is forced to wire predicate support
-    // up explicitly instead of running a green test on a broken
-    // assumption.
+    // Throw rather than no-op, so a production `.filter()` cannot pass here
+    // while real Convex returns a different set.
     void _cb;
     throw new Error(
       "MemQuery.filter is not implemented — wire it up before adding a .filter() call to production code under test.",
@@ -482,13 +471,8 @@ class MemQuery {
     return this.rows[0] ?? null;
   }
 
-  // Minimal stand-in for Convex's `paginate({ numItems, cursor })`.
-  // Cursor is the offset as a string. Real Convex returns an opaque
-  // cursor that includes a stable tiebreaker (the row `_id`); the
-  // test fixtures here are too small to ever exercise the
-  // tiebreaker, so an offset is sufficient to round-trip the
-  // production code path without forcing tests to wire up Convex's
-  // full pagination contract.
+  // Stand-in for `paginate()` with the offset as the cursor; the fixtures are
+  // too small to need Convex's `_id` tiebreaker.
   async paginate(opts: {
     numItems: number;
     cursor: string | null;
@@ -571,9 +555,7 @@ class MemDb {
   }
 }
 
-// Shared fixture: anchor "now" at a known UTC instant so day-key
-// math is deterministic across test runs / hosts. Picking 12:00 UTC
-// avoids any near-midnight edge case from leaking into assertions.
+// Noon UTC keeps day-key math deterministic and away from midnight.
 const NOW = Date.UTC(2026, 2, 15, 12, 0, 0); // 2026-03-15T12:00:00Z
 
 // Trailing window the populator covers: [today-2, today-1, today].
@@ -616,11 +598,8 @@ async function seedEvent(
   db: MemDb,
   partial: Partial<Doc<"webhookEvents">> & Pick<Doc<"webhookEvents">, "type">,
 ): Promise<void> {
-  // Default `occurredAt` to `receivedAt` if the test only set the
-  // latter — older tests use `receivedAt` to control which day the
-  // event belongs to, and the production code now buckets by
-  // `occurredAt`. Mirroring the values keeps those tests valid
-  // without forcing each one to specify both timestamps.
+  // occurredAt defaults to receivedAt, so tests that set only receivedAt still
+  // pick the event's day.
   const receivedAt = partial.receivedAt ?? NOW;
   const occurredAt = partial.occurredAt ?? receivedAt;
   await db.insert("webhookEvents", {
@@ -1237,11 +1216,8 @@ describe("runRecompute — round-trip integration", () => {
   });
 
   it("event arrived late (receivedAt > occurredAt) buckets by occurredAt", async () => {
-    // The whole point of separating `occurredAt` from `receivedAt`:
-    // a renewal that fired on D2 but landed in our webhook log today
-    // must contribute to D2's bucket, not today's. Otherwise a
-    // retry-delayed notification visibly flips its day on the
-    // dashboard.
+    // A renewal from D2 that arrived today belongs to D2; otherwise a delayed
+    // retry moves its day on the dashboard.
     await seedEvent(db, {
       type: "SubscriptionRenewed",
       priceAmountMicros: 9_990_000,
@@ -1256,11 +1232,8 @@ describe("runRecompute — round-trip integration", () => {
   });
 
   it("event whose occurredAt falls outside the trailing window is skipped", async () => {
-    // receivedAt is in the scan window (yesterday), but occurredAt
-    // is 10 days ago — outside [D2, TODAY]. The bucket for that
-    // older day isn't being recomputed this tick, so writing into
-    // it would either duplicate or stomp on a row not in the
-    // delete-then-insert window. Skip is correct.
+    // Received yesterday but occurred 10 days ago: that day is not recomputed
+    // this tick, so writing it would double-count or clobber a row.
     await seedEvent(db, {
       type: "SubscriptionStarted",
       priceAmountMicros: 9_990_000,
@@ -1273,13 +1246,8 @@ describe("runRecompute — round-trip integration", () => {
   });
 
   it("late-arrival event with receivedAt at end of window still buckets by occurredAt", async () => {
-    // The webhook receivers in `webhooks/apple.ts` and
-    // `webhooks/google.ts` always set `receivedAt >= occurredAt`,
-    // so an event whose `occurredAt` falls inside the trailing
-    // window necessarily has `receivedAt` inside it too. This test
-    // is the realistic shape: a renewal that occurred on D2 but
-    // didn't land in our DB until TODAY (Apple/Google retry tail).
-    // The bucket should attribute to D2.
+    // The realistic shape (receivers keep receivedAt >= occurredAt): occurred
+    // on D2, landed today through the store retry tail, and counts for D2.
     await seedEvent(db, {
       type: "SubscriptionStarted",
       priceAmountMicros: 9_990_000,

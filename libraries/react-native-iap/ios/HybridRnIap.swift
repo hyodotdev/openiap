@@ -142,8 +142,7 @@ class HybridRnIap: HybridRnIapSpec {
             let epoch = self.listenerLock.withLock { self.connectionEpoch }
 
             do {
-                // Note: iOS doesn't support alternative billing config parameter
-                // Config is ignored on iOS platform
+                // iOS ignores the alternative billing config.
                 self.attachCoreListenersIfNeeded(epoch: epoch)
                 let ok: Bool
                 if let connect {
@@ -454,7 +453,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             do {
                 RnIapLog.payload("getActiveSubscriptions", subscriptionIds ?? [])
-                // Call OpenIAP's native getActiveSubscriptions - includes renewalInfoIOS!
+                // OpenIAP's native getActiveSubscriptions includes renewalInfoIOS.
                 let subscriptions = try await self.runConnectedOperation {
                     try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
                 }
@@ -536,7 +535,7 @@ class HybridRnIap: HybridRnIapSpec {
     func verifyPurchase(params: NitroPurchaseVerificationParams) throws -> Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon> {
         return Promise.async {
             do {
-                // Extract SKU from apple options (new platform-specific structure)
+                // Extract SKU from the apple options
                 guard case .second(let appleOptions) = params.apple, !appleOptions.sku.isEmpty else {
                     throw OpenIapException.make(code: .developerError, message: "Missing required parameter: apple.sku")
                 }
@@ -2127,13 +2126,13 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    // MARK: - External Purchase (iOS 16.0+)
+    // MARK: - External Purchase
 
     func canPresentExternalPurchaseNoticeIOS() throws -> Promise<Bool> {
         return Promise.async {
             RnIapLog.payload("canPresentExternalPurchaseNoticeIOS", nil)
 
-            if #available(iOS 16.0, *) {
+            if #available(iOS 17.4, *) {
                 do {
                     let canPresent = try await self.runConnectedOperation {
                         try await OpenIapModule.shared.canPresentExternalPurchaseNoticeIOS()
@@ -2151,9 +2150,8 @@ class HybridRnIap: HybridRnIapSpec {
                     throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
                 }
             } else {
-                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 16.0 or later")
-                RnIapLog.failure("canPresentExternalPurchaseNoticeIOS", error: err)
-                throw err
+                RnIapLog.result("canPresentExternalPurchaseNoticeIOS", false)
+                return false
             }
         }
     }
@@ -2162,7 +2160,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             RnIapLog.payload("presentExternalPurchaseNoticeSheetIOS", nil)
 
-            if #available(iOS 16.0, *) {
+            if #available(iOS 17.4, *) {
                 do {
                     let result = try await self.runConnectedOperation {
                         try await OpenIapModule.shared.presentExternalPurchaseNoticeSheetIOS()
@@ -2196,7 +2194,7 @@ class HybridRnIap: HybridRnIapSpec {
                     throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
                 }
             } else {
-                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 16.0 or later")
+                let err = OpenIapException.make(code: .featureNotSupported, message: "External purchase notice requires iOS 17.4 or later")
                 RnIapLog.failure("presentExternalPurchaseNoticeSheetIOS", error: err)
                 throw err
             }
@@ -2298,8 +2296,7 @@ class HybridRnIap: HybridRnIapSpec {
         return Promise.async {
             RnIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", ["noticeType": noticeType.stringValue])
             do {
-                // Convert Nitro enum to OpenIAP enum
-                // Handle 'unspecified' by defaulting to 'browser' (workaround for Nitro requiring 2+ enum values)
+                // 'unspecified' exists only for Nitro's 2+ value rule; treat it as 'browser'.
                 let openIapNoticeType: OpenIAP.ExternalPurchaseCustomLinkNoticeTypeIOS
                 if noticeType == .unspecified {
                     RnIapLog.warn("showExternalPurchaseCustomLinkNoticeIOS received 'unspecified' noticeType, defaulting to 'browser'.")

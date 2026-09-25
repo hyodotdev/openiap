@@ -39,6 +39,8 @@ Behavior ids are permanent public identifiers. Renaming one is a breaking change
 
 ## Running the suite
 
+The package is private to this repository; it is not published to npm.
+
 ```js
 import { runConformance, formatReport } from "openiap-conformance";
 
@@ -50,8 +52,7 @@ process.exit(report.conformant ? 0 : 1);
 See the reference run:
 
 ```bash
-npx openiap-conformance-report          # from an install
-bun run --cwd packages/conformance report   # from this repo
+bun run --cwd packages/conformance report
 ```
 
 The reference client intentionally excludes server-side lifecycle behaviors,

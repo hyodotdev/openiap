@@ -18,10 +18,13 @@ import {
   UserRound,
   UserRoundX,
 } from 'lucide-react';
-import { Link, useNavigationType } from 'react-router-dom';
+import { Link, NavigationType, useNavigationType } from 'react-router-dom';
 import CodeBlock from './CodeBlock';
 import CommerceImplementationComparison from './CommerceImplementationComparison';
-import { COMMERCE_PROTOCOL_LINKS } from '../lib/config';
+import {
+  COMMERCE_PROTOCOL_INSTALL,
+  COMMERCE_PROTOCOL_LINKS,
+} from '../lib/config';
 import {
   COMMERCE_IMPLEMENTATIONS,
   COMMERCE_IMPLEMENTATION_TOPICS,
@@ -304,7 +307,7 @@ function requestCommand(request: ExampleRequest): string {
 }
 
 function responseValue(body: unknown, path: string): string {
-  let value = Array.isArray(body) ? body[0] : body;
+  let value: unknown = Array.isArray(body) ? body[0] : body;
   for (const key of path.split('.')) {
     value =
       value && typeof value === 'object'
@@ -383,7 +386,7 @@ function CommerceBuildWalkthrough({
       tabsRef.current?.scrollIntoView({
         block: 'start',
         behavior:
-          navigationType === 'POP' ||
+          navigationType === NavigationType.Pop ||
           window.matchMedia('(prefers-reduced-motion: reduce)').matches
             ? 'instant'
             : 'smooth',
@@ -1038,7 +1041,7 @@ function CommerceBuildWalkthrough({
               </details>
               <p className="commerce-capture-note">
                 Recorded {run.recordedAt.slice(0, 10)} · {run.checks.length}{' '}
-                checks in the completed example · openiap-commerce-protocol@
+                checks in the completed example · {COMMERCE_PROTOCOL_INSTALL}@
                 {run.standalone.version}.
               </p>
             </div>

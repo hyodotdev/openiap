@@ -30,7 +30,7 @@ const EXPLANATIONS = [
     description:
       'Your authenticated backend selects Alice and asks the provider to associate the verified purchase with her. Repeating this request keeps the same owner.',
     result:
-      'Continue on bound: true. A false result covers both unknown evidence and an ownership conflict; it never tells Bob whose purchase exists.',
+      'Continue on bound: true. For a store the provider integrates, a false result covers both unknown evidence and an ownership conflict; it never tells Bob whose purchase exists. Other stores fail with UNSUPPORTED_STORE instead.',
   },
   {
     name: 'entitlements',
@@ -57,7 +57,7 @@ const EXPLANATIONS = [
     description:
       'When Alice deletes her account, ask the provider to remove her identity from its subscription records and protocol event store. Repeating the request is safe.',
     result:
-      'accepted acknowledges the request. A provider may report an erasure job. Your backend and other event recipients must erase their own copies separately.',
+      'accepted acknowledges the request. A provider may report an erasure job; repeat the same request to read its status until completed. Your backend and other event recipients must erase their own copies separately.',
   },
 ] as const;
 
@@ -113,6 +113,10 @@ export default function CommerceOperations(): React.JSX.Element {
                   <code>
                     {operation.method} {operation.path}
                   </code>
+                </dd>
+                <dt>Success status</dt>
+                <dd>
+                  <code>{operation.successStatus}</code>
                 </dd>
                 <dt>Responsibility</dt>
                 <dd>

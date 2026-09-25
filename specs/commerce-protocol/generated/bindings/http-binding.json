@@ -16,8 +16,6 @@
     "UNAUTHORIZED": 401,
     "FORBIDDEN": 403,
     "NOT_FOUND": 404,
-    "PURCHASE_NOT_FOUND": 404,
-    "CONFLICT": 409,
     "UNSUPPORTED_STORE": 422,
     "RATE_LIMITED": 429,
     "INTERNAL_ERROR": 500,
@@ -55,6 +53,7 @@
         "INVALID_REQUEST",
         "UNAUTHORIZED",
         "FORBIDDEN",
+        "UNSUPPORTED_PROFILE",
         "RATE_LIMITED",
         "INTERNAL_ERROR"
       ],
@@ -74,6 +73,8 @@
         "INVALID_REQUEST",
         "UNAUTHORIZED",
         "FORBIDDEN",
+        "UNSUPPORTED_PROFILE",
+        "VERIFICATION_FAILED",
         "RATE_LIMITED",
         "INTERNAL_ERROR"
       ],
@@ -92,6 +93,7 @@
       "errors": [
         "INVALID_REQUEST",
         "UNAUTHORIZED",
+        "UNSUPPORTED_PROFILE",
         "UNSUPPORTED_STORE",
         "VERIFICATION_FAILED",
         "RATE_LIMITED",
@@ -113,6 +115,7 @@
         "INVALID_REQUEST",
         "UNAUTHORIZED",
         "FORBIDDEN",
+        "UNSUPPORTED_PROFILE",
         "UNSUPPORTED_STORE",
         "RATE_LIMITED",
         "INTERNAL_ERROR"
@@ -133,6 +136,7 @@
         "INVALID_REQUEST",
         "UNAUTHORIZED",
         "FORBIDDEN",
+        "UNSUPPORTED_PROFILE",
         "RATE_LIMITED",
         "INTERNAL_ERROR"
       ],

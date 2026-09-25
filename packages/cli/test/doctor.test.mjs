@@ -14,6 +14,7 @@ import test from "node:test";
 
 import { FINDING_IDS, doctor, formatText } from "../src/doctor.mjs";
 import { finding } from "../src/findings.mjs";
+import { STORE_ALIASES } from "../src/checks.mjs";
 import { readFileSync } from "node:fs";
 
 function project(files) {
@@ -157,6 +158,390 @@ test("the store the flags selected is the line cited as evidence", () => {
       );
       assert.equal(finding.actual, "amazon");
       assert.equal(finding.line, 1);
+    },
+  );
+});
+
+test("an openiapStore pin selects the store and is the evidence line", () => {
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties":
+        "org.gradle.jvmargs=-Xmx2048m\nopeniapStore=horizon\n",
+      "android/app/src/main/AndroidManifest.xml":
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+    },
+    (root) => {
+      const result = doctor(root);
+      assert.deepEqual(
+        result.findings.map((one) => one.id),
+        ["android-store-not-play"],
+      );
+      assert.equal(result.findings[0].actual, "horizon");
+      assert.equal(result.findings[0].line, 2);
+    },
+  );
+});
+
+test("store aliases resolve the way the Gradle resolver reads them", () => {
+  for (const [alias, store] of [
+    ["quest", "horizon"],
+    ["fire-os", "amazon"],
+    ["GooglePlay", "play"],
+  ]) {
+    withProject(
+      {
+        ...RN,
+        "android/gradle.properties": `openiapStore=${alias}\n`,
+        "android/app/src/main/AndroidManifest.xml":
+          '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+      },
+      (root) => {
+        const notPlay = doctor(root).findings.find(
+          (one) => one.id === "android-store-not-play",
+        );
+        assert.equal(notPlay?.actual, store === "play" ? undefined : store);
+      },
+    );
+  }
+});
+
+test("store aliases stay in sync with the Gradle resolver table", () => {
+  const gradle = readFileSync(
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../google/gradle/openiap-store.gradle",
+    ),
+    "utf8",
+  );
+  const block = gradle.match(/ext\.openIapStoreAliases\s*=\s*\[(.*?)\]/s)?.[1];
+  assert.ok(block, "alias map moved; update this sync test");
+  const uncommented = block.replace(/\/\/.*$/gm, "");
+  const pairs = [
+    ...uncommented.matchAll(/['"]?([\w-]+)['"]?\s*:\s*['"](\w+)['"]/g),
+  ];
+  assert.ok(pairs.length > 0, "alias map parse found no entries");
+  assert.deepEqual(
+    Object.fromEntries(pairs.map((m) => [m[1], m[2]])),
+    STORE_ALIASES,
+  );
+});
+
+test("openiapStore=auto pins nothing", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=auto\n" },
+    (root) => assert.deepEqual(ids(root), []),
+  );
+});
+
+test("a pin that disagrees with a legacy flag is a conflict", () => {
+  withProject(
+    {
+      ...EXPO,
+      "android/gradle.properties": "openiapStore=play\nfireOsEnabled=true\n",
+    },
+    (root) => {
+      const conflict = doctor(root).findings.find(
+        (one) => one.id === "android-store-flavor-conflict",
+      );
+      assert.equal(conflict.level, "error");
+      assert.equal(conflict.line, 1);
+    },
+  );
+});
+
+test("a value that is not a store is an error", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=bogus\n" },
+    (root) => {
+      const result = doctor(root);
+      const unknown = result.findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.ok(result.errors >= 1);
+    },
+  );
+});
+
+test("a prototype key is not a store", () => {
+  withProject(
+    { ...EXPO, "android/gradle.properties": "openiapStore=constructor\n" },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+    },
+  );
+});
+
+test("the Flutter opt-out is reported like another store, without a mismatch", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapStore=none\n",
+      "android/app/build.gradle":
+        'missingDimensionStrategy "platform", "play"\n',
+    },
+    (root) => {
+      const result = doctor(root);
+      assert.deepEqual(
+        result.findings.map((one) => one.id),
+        ["android-store-not-play"],
+      );
+      assert.equal(result.findings[0].actual, "none");
+    },
+  );
+});
+
+test("the opt-out is an error on a wrapper that cannot build it", () => {
+  withProject(
+    { ...RN, "android/gradle.properties": "openiapStore=none\n" },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.match(unknown.message, /not supported by react-native/u);
+    },
+  );
+});
+
+// Probed against the real resolver fixture: the doctor must not object to a
+// combination Gradle builds, nor stay quiet about one it refuses.
+test("the opt-out key is judged exactly as Gradle judges it", () => {
+  const conflicts = (properties) => {
+    let ids;
+    withProject(
+      {
+        "pubspec.yaml":
+          "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+        "android/gradle.properties": properties,
+      },
+      (root) => {
+        ids = doctor(root).findings.map((one) => one.id);
+      },
+    );
+    return ids;
+  };
+
+  // Gradle builds these three.
+  for (const properties of [
+    "openiapPlatform=none\n",
+    "openiapStore=auto\nopeniapPlatform=none\n",
+    "openiapStore=none\nopeniapPlatform=none\n",
+  ]) {
+    assert.ok(
+      !conflicts(properties).includes("android-store-flavor-conflict"),
+      `${JSON.stringify(properties)} builds, so it is not a conflict`,
+    );
+  }
+
+  // Gradle refuses these three.
+  assert.ok(
+    conflicts("openiapStore=play\nopeniapPlatform=none\n").includes(
+      "android-store-flavor-conflict",
+    ),
+  );
+  for (const properties of ["openiapPlatform=auto\n", "openiapPlatform=\n"]) {
+    assert.ok(
+      conflicts(properties).includes("android-store-unknown"),
+      `${JSON.stringify(properties)} fails the build`,
+    );
+  }
+});
+
+// `auto` is absent to the resolver, so the legacy opt-out still applies and a
+// wrapper that cannot build without a store SDK must hear about it.
+test("an opt-out masked by auto still fails a non-Flutter wrapper", () => {
+  for (const pin of ["openiapStore=auto\n", "openiapStore=\n"]) {
+    withProject(
+      {
+        "package.json": JSON.stringify({
+          dependencies: { "react-native-iap": "^16.0.0" },
+        }),
+        "android/gradle.properties": `${pin}openiapPlatform=none\n`,
+      },
+      (root) => {
+        const ids = doctor(root).findings;
+        assert.ok(
+          ids.some((one) => one.id === "android-store-unknown"),
+          `${JSON.stringify(pin)} beside the opt-out is unsupported here`,
+        );
+        // The opt-out lives on the legacy key, so that is the line to edit.
+        assert.match(
+          ids.find((one) => one.id === "android-store-unknown").message,
+          /openiapPlatform=none/u,
+        );
+      },
+    );
+  }
+});
+
+test("the legacy opt-out key is read, and only accepts none", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapPlatform=none\n",
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.equal(notPlay.actual, "none");
+      assert.match(notPlay.message, /openiapPlatform=none/u);
+    },
+  );
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapPlatform=horizon\n",
+    },
+    (root) => {
+      const unknown = doctor(root).findings.find(
+        (one) => one.id === "android-store-unknown",
+      );
+      assert.equal(unknown.level, "error");
+      assert.match(unknown.message, /only supports the opt-out value none/u);
+    },
+  );
+});
+
+// Each row matches what the resolver fixture does with the same gradle.properties.
+test("gradle.properties is judged the way Gradle judges it", () => {
+  const FLUTTER = {
+    "pubspec.yaml":
+      "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+  };
+  for (const [framework, properties, expected, message] of [
+    [
+      RN,
+      "horizonEnabled=true\n",
+      ["android-store-not-play"],
+      /pinned to the horizon store \(horizonEnabled=true\)/u,
+    ],
+    [
+      RN,
+      "openiapStore=auto\nfireOsEnabled=y\n",
+      ["android-store-not-play"],
+      /pinned to the amazon store \(fireOsEnabled=y\)/u,
+    ],
+    [
+      RN,
+      "horizonEnabled=true\nfireOsEnabled=true\n",
+      ["android-store-flavor-conflict"],
+      /both true/u,
+    ],
+    [
+      RN,
+      "openiapPlatform=horizon\n",
+      ["android-store-unknown"],
+      /only supports the opt-out value none/u,
+    ],
+    [
+      RN,
+      "openiapStore=none\n",
+      ["android-store-unknown"],
+      /openiapStore=none is not supported/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=auto\nopeniapPlatform=none\n",
+      ["android-store-not-play"],
+      /links no store SDK \(openiapPlatform=none\)/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=bogus\nopeniapPlatform=none\n",
+      ["android-store-unknown"],
+      /openiapStore=bogus is not a store/u,
+    ],
+    [
+      FLUTTER,
+      "openiapStore=none\nhorizonEnabled=true\n",
+      ["android-store-flavor-conflict"],
+      /openiapStore=none disagrees with horizonEnabled=true/u,
+    ],
+  ]) {
+    withProject(
+      { ...framework, "android/gradle.properties": properties },
+      (root) => {
+        const found = doctor(root).findings.filter((one) =>
+          one.id.startsWith("android-store"),
+        );
+        assert.deepEqual(
+          found.map((one) => one.id),
+          expected,
+          JSON.stringify(properties),
+        );
+        assert.match(found[0].message, message, JSON.stringify(properties));
+      },
+    );
+  }
+});
+
+test("an opt-out names the key that set it in the fix too", () => {
+  withProject(
+    {
+      "pubspec.yaml":
+        "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+      "android/gradle.properties": "openiapStore=auto\nopeniapPlatform=none\n",
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.match(notPlay.fix, /Remove openiapPlatform=none/u);
+      assert.equal(notPlay.line, 2);
+    },
+  );
+});
+
+test("the combinations Gradle refuses are errors, not a clean bill", () => {
+  // Each of these fails the Android build outright, so reporting it clean sends
+  // someone to the build to discover it.
+  for (const [properties, line] of [
+    ["openiapStore=play\nopeniapPlatform=none\n", 2],
+    ["openiapPlatform=none\nhorizonEnabled=true\n", 1],
+  ]) {
+    withProject(
+      {
+        "pubspec.yaml":
+          "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+        "android/gradle.properties": properties,
+      },
+      (root) => {
+        const conflict = doctor(root).findings.find(
+          (one) => one.id === "android-store-flavor-conflict",
+        );
+        assert.equal(conflict.level, "error");
+        assert.equal(conflict.line, line);
+      },
+    );
+  }
+});
+
+test("an unpinned project does not state a leftover literal as its store", () => {
+  withProject(
+    {
+      ...RN,
+      "android/app/build.gradle":
+        'missingDimensionStrategy "platform", "horizon"\n',
+      "android/app/src/main/AndroidManifest.xml":
+        '<manifest><application><meta-data android:name="com.meta.horizon.platform.HORIZON_APP_ID" android:value="1"/></application></manifest>',
+    },
+    (root) => {
+      const notPlay = doctor(root).findings.find(
+        (one) => one.id === "android-store-not-play",
+      );
+      assert.match(
+        notPlay.message,
+        /with no pin in gradle\.properties, each build resolves its own/u,
+      );
     },
   );
 });

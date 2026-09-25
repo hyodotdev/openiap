@@ -2,7 +2,7 @@
 
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-**Last updated:** 2026-08-19
+**Last updated:** 2026-09-24
 
 These Terms of Service (“Terms”) govern your access to and use of the services provided by Hyo Dev (“we”, “our”, “us”). By creating an account or using our services, you agree to be bound by these Terms.
 
@@ -111,21 +111,17 @@ We may throttle, reject, temporarily suspend, or block traffic that:
 - Appears to be abusive automation, denial-of-service activity, credential abuse, or deliberate safeguard evasion
 - Uses a disproportionate share of the hosted service in a way that materially affects other users
 
-If your application is expected to generate sustained high volume or consume a significant share of shared capacity, contact us before production launch. We ask organizations at that scale to help fund shared server capacity, monitoring, and security through [GitHub Sponsors](https://github.com/sponsors/hyodotdev), [OpenCollective](https://opencollective.com/openiap), or a separate written arrangement. Sponsorship supports the community service but does not by itself reserve capacity or create an SLA.
-
-The server is MIT-licensed and may be [self-hosted](https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio) when you need dedicated capacity, predictable scaling, or full operational control.
-
 ---
 
-## 9. Fees and Payment
+## 9. Funding and Heavy Use
 
-If applicable:
+The hosted service has no paid plans or usage fees. It runs as a shared pool of capacity, and sponsorship is meant to cover its running costs.
 
-- Fees are outlined on our website or in individual agreements
-- Payment is due as specified in your subscription plan
-- We may modify pricing with reasonable advance notice
+If your application is expected to generate sustained high volume or consume a significant share of shared capacity, contact us before production launch.
 
-Failure to pay may result in suspension or termination of your account.
+If an application's load strains the shared servers, we may remove it from the shared pool by throttling or suspending its traffic under Section 8. To keep using the hosted service at that volume, the organization may be required to sponsor the capacity it uses through [GitHub Sponsors](https://github.com/sponsors/hyodotdev), [OpenCollective](https://opencollective.com/openiap), or a separate written arrangement. Otherwise, it can [self-host](https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio) the MIT-licensed server, which is also the way to get dedicated capacity, predictable scaling, or full operational control.
+
+Sponsorship does not by itself reserve capacity or create an SLA.
 
 ---
 
@@ -142,7 +138,6 @@ Hyo Dev and OpenIAP retain their rights in trademarks, logos, branding, the oper
 We may suspend or terminate your access if:
 
 - You violate these Terms
-- You fail to pay fees
 - Your use poses security, legal, or operational risks
 
 You may terminate your account at any time by contacting us.

@@ -81,14 +81,8 @@ type PurchaseFlowProps = {
 };
 
 /**
- * Purchase Flow Example - In-App Products
- *
- * Demonstrates useIAP hook approach for in-app products:
- * - Uses useIAP hook for purchase management
- * - Handles purchase callbacks with proper types
- * - No manual promise handling required
- * - Clean success/error pattern through hooks
- * - Focused on one-time purchases (products)
+ * Purchase Flow Example: one-time in-app products through the useIAP hook,
+ * with typed success/error callbacks instead of manual promise handling.
  */
 
 function PurchaseFlow({
@@ -555,44 +549,21 @@ function PurchaseFlow({
 }
 
 /**
- * ============================================================================
- * Purchase Flow Container
- * ============================================================================
+ * Purchase Flow Container: the full in-app purchase flow in six steps.
  *
- * This component demonstrates the complete IAP purchase flow with 6 key steps:
- *
- * 1. INIT CONNECTION
- *    - useIAP hook automatically handles connection via initConnection()
- *    - `connected` state indicates when store is ready
- *
- * 2. SUBSCRIBE TO EVENTS
- *    - useIAP internally subscribes to purchase events
- *    - onPurchaseSuccess: Called when purchase completes successfully
- *    - onPurchaseError: Called when purchase fails or is cancelled
- *
- * 3. REQUEST PURCHASE (3 options)
- *    Option A: iOS-specific request with quantity
- *    Option B: Android-specific request with SKU array
- *    Option C: Cross-platform using `request` object (recommended)
- *
- * 4. VERIFY PURCHASE
- *    - Local (Device): Direct Apple/Google verification on the device
- *    - Local (IAPKit): Verify through a locally running IAPKit server
- *    - IAPKit: Verify through kit.openiap.dev
- *    - Skip verification: For testing only (not recommended for production)
- *
- * 5. GRANT ENTITLEMENT
- *    - Update your backend/database with purchase info
- *    - Unlock content or features for the user
- *    - (Handled by your app's business logic)
- *
- * 6. FINISH TRANSACTION
- *    - Call finishTransaction() to acknowledge the purchase
- *    - For consumables: isConsumable: true (allows re-purchase)
- *    - For non-consumables: isConsumable: false
- *    - CRITICAL: Always finish transactions to prevent issues
- *
- * ============================================================================
+ * 1. Init connection: useIAP calls initConnection(); `connected` turns true
+ *    when the store is ready.
+ * 2. Subscribe to events: useIAP subscribes internally. onPurchaseSuccess fires
+ *    when a purchase completes, onPurchaseError when it fails or is cancelled.
+ * 3. Request purchase: iOS-only with quantity, Android-only with a SKU array,
+ *    or cross-platform with the `request` object (recommended).
+ * 4. Verify: on the device (Local), through a locally running IAPKit server,
+ *    through kit.openiap.dev (IAPKit), or skip it (testing only; not
+ *    recommended for production).
+ * 5. Grant entitlement: your app's business logic updates your backend and
+ *    unlocks the content.
+ * 6. Finish: always call finishTransaction(). isConsumable: true lets a
+ *    consumable be bought again; use false for non-consumables.
  */
 function PurchaseFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
@@ -834,19 +805,14 @@ function PurchaseFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // Step 5: GRANT ENTITLEMENT
     // ──────────────────────────────────────────────────────────────────────
-    // Production integration point:
-    // - Save purchase record to database
-    // - Unlock premium features for user
-    // - Update user's subscription status
-    // Example: await yourBackend.grantEntitlement(purchase);
+    // In production, save the purchase, update the user's status, and unlock
+    // the features on your backend, e.g. await yourBackend.grantEntitlement(purchase);
 
     // ──────────────────────────────────────────────────────────────────────
     // Step 6: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // CRITICAL: Always finish transactions!
-    // - Consumables: Set isConsumable: true to allow re-purchase
-    // - Non-consumables: Set isConsumable: false
-    // - Failing to finish will cause issues on next app launch
+    // Always finish, or the transaction causes issues on the next app launch.
+    // isConsumable: true lets a consumable be bought again; false otherwise.
     try {
       await finishTransaction({
         purchase,
@@ -1008,16 +974,16 @@ function PurchaseFlowContainer() {
   // Three options for requesting purchases:
   //
   // Option A - iOS only:
-  //   requestPurchase({ request: { ios: { sku, quantity } }, type: 'in-app' })
+  //   requestPurchase({ request: { apple: { sku, quantity } }, type: 'in-app' })
   //
   // Option B - Android only:
-  //   requestPurchase({ request: { android: { skus: [sku] } }, type: 'in-app' })
+  //   requestPurchase({ request: { google: { skus: [sku] } }, type: 'in-app' })
   //
   // Option C - Cross-platform (recommended):
   //   requestPurchase({
   //     request: {
-  //       ios: { sku, quantity: 1 },
-  //       android: { skus: [sku] }
+  //       apple: { sku, quantity: 1 },
+  //       google: { skus: [sku] }
   //     },
   //     type: 'in-app'
   //   })

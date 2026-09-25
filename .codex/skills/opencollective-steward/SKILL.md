@@ -19,10 +19,14 @@ Use this skill to treat OpenCollective as an ongoing community-support surface f
 
 ## Live Edit Guardrails
 
-- On OpenCollective profile forms, verify that rich-text editor changes update the
-  backing hidden input before pressing Save. If the visible Trix editor changes
-  but the hidden value still contains the previous copy, do not save; the form
-  can submit stale content.
+- Edit the About copy at `https://opencollective.com/dashboard/openiap/info`;
+  the public profile has no edit control for it.
+- Before pressing Save on a rich-text field, confirm the form will submit the
+  new copy. On the dashboard Info page the hidden input keeps the loaded copy
+  because React pins its value, so read the editor component's `value` prop
+  instead. If it does not hold the new copy, do not save.
+- After saving, read the field back from the public GraphQL API
+  (`account(slug: "openiap") { longDescription }`) and compare it with the copy.
 - If browser editor state will not sync, use an explicit OpenCollective API token
   or ask the maintainer to paste the prepared copy manually. Do not infer auth
   tokens from browser state.

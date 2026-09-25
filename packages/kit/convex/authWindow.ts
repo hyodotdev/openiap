@@ -18,8 +18,8 @@ export function isResendProviderId(providerId: string): boolean {
   return providerId.startsWith("resend-otp");
 }
 
-// Grace period, then GitHub-only. Existing email accounts merge onto GitHub
-// by matching email, so closing costs access only when the emails differ.
+// Once closed, an email user loses access only if their GitHub email differs
+// from their account email.
 export function assertEmailSignInWindowOpen(
   providerId: string,
   now: number = Date.now(),

@@ -477,14 +477,12 @@ pod 'openiap', '~> ${versions.apple}'
 
 ### Kotlin (Android)
 \`\`\`kotlin
-// Gradle (build.gradle.kts)
+// app/build.gradle.kts
 implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
 
-// For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
-
-// For Fire OS (Amazon Appstore)
-implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
+// settings.gradle.kts, for Meta Horizon OS and Fire OS: keep the Play coordinate;
+// the plugin links openiap-google-horizon / -amazon by the store rule.
+plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
 \`\`\`
 
 ### Flutter
@@ -525,8 +523,9 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`packages/google\`.
 - Public surface: generated OpenIAP types plus \`useIAP\`, listener helpers,
   and platform-suffixed iOS/Android APIs.
-- Android builds select Play, Horizon, or Fire OS with Gradle properties
-  (\`horizonEnabled\`, \`fireOsEnabled\`). Vega OS uses a separate React Native
+- Android builds resolve the store at build time: an \`openiapStore\` pin, the
+  store flavor in the requested task, or on debug builds the connected device.
+  \`horizonEnabled\` and \`fireOsEnabled\` are deprecated. Vega OS uses a separate React Native
   for Vega target that resolves the \`kepler\` JavaScript adapter before
   creating the Nitro HybridObject.
 - Onside is not supported in \`react-native-iap\`; use \`expo-iap\` for Onside.
@@ -537,10 +536,13 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 - Implementation: Expo Modules wrapper over the same native OpenIAP packages.
 - Public surface: same hook, listener, query, mutation, and platform API
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
-- Config plugins can select Horizon, Fire OS, Vega OS, and Onside:
-  \`modules.horizon\` + \`android.horizon.appId\`,
-  \`modules.amazon.fireOS\`, \`modules.amazon.vegaOS\`, optional
-  \`android.amazon.vegaOS\` metadata, and \`modules.onside\`.
+- The Android store is resolved at build time: the connected device on a
+  local debug build, \`ORG_GRADLE_PROJECT_openiapStore\` in the EAS profile
+  env for EAS and release builds, which have no device to follow. The config plugin carries store values only:
+  \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, and opt-ins
+  \`modules.amazon.vegaOS\` (optional \`android.amazon.vegaOS\` metadata)
+  and \`modules.onside\`. \`modules.horizon\` / \`modules.amazon.fireOS\`
+  are deprecated pins.
 - Example app: \`libraries/expo-iap/example\`.
 
 ### flutter_inapp_purchase
@@ -576,10 +578,12 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   the official \`OpenIap.Maui.Bindings.iOS.resources.zip\` sidecar so no
   app-level \`NativeReference\` is required.
 - Android bridge: Xamarin.Android binding over the MAUI-owned
-  \`openiap-release.aar\`, which wraps the unbound
-  \`openiap-play-release.aar\` runtime dependency. Google Billing, Play
-  Services, Gson, AndroidX, and Kotlin Android libraries stay as NuGet
-  \`PackageReference\` dependencies so consuming apps can deduplicate them.
+  \`openiap-release.aar\`. The package carries every store's
+  \`openiap-google\` AAR, and its \`buildTransitive\` targets link one per
+  app build (\`OpenIapStore\`, else the device on a Debug build, else Play)
+  with that store's SDK from Maven. Play Services, Gson, AndroidX, Kotlin,
+  and kotlinx-serialization stay NuGet \`PackageReference\` dependencies, so
+  every MAUI build carries them whatever the store (MAUI only).
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
   implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
   app-facing IAPKit helpers mirror the TypeScript SDKs via
@@ -597,25 +601,31 @@ Canonical setup docs live under \`/docs/setup/store\`:
 
 - Google Play: default Android artifact, \`openiap-google\`.
 - Meta Horizon: Android \`horizon\` flavor, \`openiap-google-horizon\`.
-  Expo uses \`modules.horizon=true\` and \`android.horizon.appId\`.
-  React Native and Flutter use \`horizonEnabled=true\` plus app-owned manifest
-  metadata. KMP exposes \`horizonRelease\`. MAUI uses
-  \`OpenIapAndroidStore=horizon\`. Godot has no dedicated Horizon selector.
+  Expo keeps \`android.horizon.appId\` in the config plugin.
+  Expo, React Native and Flutter resolve it from \`openiapStore=horizon\`, an
+  \`assembleHorizon*\` task, or a connected Quest on a debug build, plus
+  app-owned manifest metadata. Native Android and KMP apps get the same rule
+  from the \`io.github.hyochan.openiap\` Gradle plugin. MAUI follows a
+  connected Quest on a Debug build, or pins \`OpenIapStore=horizon\`. Godot
+  follows a connected Quest on a debug export,
+  or pins \`openiap/android_store=horizon\`.
   Required values: Horizon app id from Meta Horizon Developer Hub
-  (Expo: \`android.horizon.appId\`; bare RN/Flutter examples commonly pass a
+  (Expo: \`android.horizon.appId\`; Godot: the \`openiap/horizon_app_id\` export
+  option; bare RN/Flutter examples commonly pass a
   Gradle property named \`horizonAppId\` into manifest meta-data), product SKUs,
   and verification
   values such as \`horizon.sku\`, \`horizon.userId\`, and
   \`horizon.accessToken\` when validating Horizon purchases.
 - Fire OS: Android \`amazon\` flavor,
-  \`openiap-google-amazon\`; use \`modules.amazon.fireOS=true\`
-  in the Expo config plugin, or
-  \`missingDimensionStrategy("platform", "amazon")\` in bare Android /
-  React Native / Flutter app Gradle config.
+  \`openiap-google-amazon\`, picked by the same rule: a connected Fire device
+  on a debug build, or \`openiapStore=amazon\` (Expo: in the EAS profile env).
+  Native Android and KMP apps get the rule from the \`io.github.hyochan.openiap\`
+  Gradle plugin.
   Runtime adapters are wired for native Android, \`react-native-iap\`,
-  \`expo-iap\`, \`flutter_inapp_purchase\`, KMP \`amazonRelease\`, and MAUI
-  \`OpenIapAndroidStore=amazon\`. Godot has shared Amazon types and
-  verification payloads but no dedicated Fire OS flavor switch.
+  \`expo-iap\`, \`flutter_inapp_purchase\`, KMP, and MAUI (a connected Fire
+  device on a Debug build, or \`OpenIapStore=amazon\`). Godot follows a
+  connected Fire device on a debug export, or pins
+  \`openiap/android_store=amazon\`.
   Required values: Android \`applicationId\` matching the Amazon Developer
   Console app, Amazon Appstore product ids / App Tester catalog entries, and
   the Amazon public key for Fire OS Android builds. Receipt verification and
@@ -628,8 +638,8 @@ Canonical setup docs live under \`/docs/setup/store\`:
   Bare React Native Vega targets
   provide their own \`manifest.toml\`, Kepler package metadata, and runtime
   dependencies.
-  \`modules.amazon.fireOS\` and \`modules.amazon.vegaOS\` can both be enabled
-  when an app produces separate Fire OS and Vega OS artifacts.
+  A Fire OS build of the same app is a separate artifact that the Android
+  build picks like any other store.
   Required values: Vega \`manifest.toml\` package id, title, interactive
   component id, Kepler runtime/module declarations, Amazon product ids, and
   Vega runtime dependencies. In Expo, optional \`android.amazon.vegaOS\` overrides
@@ -659,10 +669,9 @@ Fire OS maps OpenIAP calls to the Amazon Appstore SDK:
 
 Vega OS is not Fire OS and is not selected with \`fireOsEnabled=true\`; that
 flag is only for Android Fire OS builds. Use \`modules.amazon.vegaOS=true\`
-for the Vega runtime target in Expo, and \`modules.amazon.fireOS=true\` for
-separate Fire OS Android artifacts in the Expo config plugin. Bare React Native
-uses direct Gradle flavor selection for Fire OS and a separate Kepler target for
-Vega. Install
+for the Vega runtime target in Expo; the Fire OS Android artifact is picked by
+the store rule like any other store. Bare React Native uses the same rule for
+Fire OS and a separate Kepler target for Vega. Install
 \`@amazon-devices/keplerscript-appstore-iap-lib\` and let \`react-native-iap\`
 / \`expo-iap\` select the \`kepler\` adapter at runtime, similar to how Onside
 is selected at the runtime integration layer.
@@ -875,10 +884,11 @@ npm install react-native-iap
 \`\`\`
 
 \`\`\`kotlin
-// Gradle
+// settings.gradle.kts: links the Horizon or Amazon build by the store rule
+plugins { id("io.github.hyochan.openiap") version "${versions.google}" }
+
+// app/build.gradle.kts
 implementation("io.github.hyochan.openiap:openiap-google:${versions.google}")
-implementation("io.github.hyochan.openiap:openiap-google-horizon:${versions.google}")
-implementation("io.github.hyochan.openiap:openiap-google-amazon:${versions.google}")
 \`\`\`
 
 \`\`\`bash
@@ -913,8 +923,9 @@ Current NuGet package version: ${versions.maui}
 - \`maui-iap\`: \`OpenIap.Maui\` package with \`OpenIapClient.Instance\`,
   generated \`Types.cs\`, app-facing IAPKit helpers
   (\`OpenIapClient.KitApi\`), flattened OpenIAP-owned iOS
-  xcframework / Android AAR bindings, Google and AndroidX Android
-  dependencies as NuGet package references, and MAUI example flows matching
+  xcframework / Android AAR bindings, every store's Android AAR picked at
+  app build time, Play Services and AndroidX as NuGet package references,
+  and MAUI example flows matching
   \`expo-iap\`.
 
 ${deprecationMigrationReference}

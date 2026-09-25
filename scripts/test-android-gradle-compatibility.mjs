@@ -141,6 +141,11 @@ tasks.register('verifyCompatibility') {
       join(source, "android/build.gradle"),
       `${packageName}/android/build.gradle`,
     );
+    // The wrapper applies the store resolver, which it publishes as a real file.
+    copy(
+      join(repo, "packages/google/gradle/openiap-store.gradle"),
+      `${packageName}/android/openiap-store.gradle`,
+    );
     copy(join(source, "package.json"), `${packageName}/package.json`);
     copy(
       join(repo, "openiap-versions.json"),
@@ -257,9 +262,11 @@ gradle.projectsEvaluated {
 `,
   );
   console.log(`Checking AGP ${agp} (${mode}) in ${root}`);
+  // Through the CI retry wrapper: AGP's first-use NDK download is flaky.
   const result = spawnSync(
-    gradle,
+    join(repo, "scripts/ci/retry-gradle.sh"),
     [
+      gradle,
       "-p",
       root,
       "--no-daemon",

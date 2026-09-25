@@ -207,8 +207,8 @@ describe("compiler rejections for the operation surface", () => {
 
   it("rejects an @errorStatus for an unknown code", () => {
     const mutated = mutate(
-      '@errorStatus(code: "CONFLICT", http: 409)',
-      '@errorStatus(code: "NOT_A_CODE", http: 409)',
+      '@errorStatus(code: "NOT_FOUND", http: 404)',
+      '@errorStatus(code: "NOT_A_CODE", http: 404)',
     );
     expect(compile(mutated)).toThrow(
       "@errorStatus names unknown error code NOT_A_CODE",
@@ -217,12 +217,22 @@ describe("compiler rejections for the operation surface", () => {
 
   it("rejects a missing @errorStatus mapping", () => {
     const mutated = source.replace(
-      '  @errorStatus(code: "CONFLICT", http: 409)\n',
+      '  @errorStatus(code: "NOT_FOUND", http: 404)\n',
       "",
     );
     expect(mutated).not.toBe(source);
     expect(() => compileProtocolContract(mutated)).toThrow(
-      "@errorStatus is missing a mapping for CONFLICT",
+      "@errorStatus is missing a mapping for NOT_FOUND",
+    );
+  });
+
+  it("rejects a profile operation that cannot answer UNSUPPORTED_PROFILE", () => {
+    const mutated = mutate(
+      '      path: "/commerce/v1/users/erase"\n      successStatus: 202\n      idempotent: true\n      errors: [\n        "INVALID_REQUEST"\n        "UNAUTHORIZED"\n        "FORBIDDEN"\n        "UNSUPPORTED_PROFILE"\n',
+      '      path: "/commerce/v1/users/erase"\n      successStatus: 202\n      idempotent: true\n      errors: [\n        "INVALID_REQUEST"\n        "UNAUTHORIZED"\n        "FORBIDDEN"\n',
+    );
+    expect(compile(mutated)).toThrow(
+      "Mutation.eraseUser belongs to profile accountLifecycle and must declare UNSUPPORTED_PROFILE",
     );
   });
 
@@ -467,6 +477,28 @@ describe("SPEC.md stays in agreement with the generated contract", () => {
       );
       expect(spec, `${operation.name} row`).toMatch(row);
     }
+  });
+
+  it("names in sections 3 and 4.3 the codes the manifest declares for them", () => {
+    const manifest = JSON.parse(
+      readFileSync(at("generated/bindings/http-binding.json"), "utf8"),
+    );
+    const section = (heading) =>
+      spec.match(
+        new RegExp(`${escapeRegExp(heading)}\\s*\\n([\\s\\S]*?)(?=\\n#)`, "u"),
+      )?.[1];
+    expect(section("## 3. Profiles")).toContain("`UNSUPPORTED_PROFILE`");
+    for (const operation of manifest.operations) {
+      expect(
+        operation.errors.includes("UNSUPPORTED_PROFILE"),
+        operation.name,
+      ).toBe(operation.profile !== "core");
+    }
+    expect(section("### 4.3 entitlements")).toContain("`VERIFICATION_FAILED`");
+    expect(
+      manifest.operations.find((operation) => operation.name === "entitlements")
+        .errors,
+    ).toContain("VERIFICATION_FAILED");
   });
 
   it("names each profile's operations in section 3 as declared in the SDL", () => {

@@ -120,12 +120,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   /// Purchase updated event stream with listener options.
   ///
-  /// On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS]
-  /// to false to also receive StoreKit replay events for transaction IDs
-  /// already delivered during the current connection session. Android ignores
-  /// this flag. On iOS this configures shared native listener state for this
-  /// plugin instance; default streams still filter replayed IDs unless they
-  /// opt out with `dedupeTransactionIOS: false`.
+  /// On iOS, set [PurchaseUpdatedListenerOptions.dedupeTransactionIOS] to
+  /// false to also receive StoreKit replays of transaction IDs already
+  /// delivered this connection session. Native listener state is shared per
+  /// plugin instance, but streams that do not opt out still filter replays.
+  /// Android ignores the flag.
   Stream<gentype.Purchase> purchaseUpdatedListenerWithOptions(
     gentype.PurchaseUpdatedListenerOptions? options,
   ) {
@@ -278,9 +277,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Subscription billing-issue event stream (cross-platform).
   ///
   /// Emits when an active subscription needs user attention for a payment
-  /// problem. Unifies StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst 16.4+, visionOS 1.0+) and
-  /// Google Play Billing `Purchase.isSuspended` (Play Billing 8.1+). NOT
-  /// emitted on the Meta Horizon flavor (Billing 7.0 compat lacks the signal).
+  /// problem: StoreKit 2 `Message.Reason.billingIssue` (iOS / Mac Catalyst
+  /// 16.4+, visionOS 1.0+) or Play `Purchase.isSuspended` (Billing 8.1+).
+  /// Not emitted on Meta Horizon (its Billing 7.0 compat lacks the signal).
   Stream<gentype.Purchase> get subscriptionBillingIssueListener =>
       _subscriptionBillingIssueListener.stream;
 
@@ -444,7 +443,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         try {
           await _configurePurchaseListener(_setPurchaseListener);
 
-          // Build config map for the selected billing program.
           Map<String, dynamic>? config;
           if (billingChoiceScreenTypeAndroid != null ||
               enableBillingProgramAndroid != null) {
@@ -487,7 +485,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          // For flutter IAP compatibility, call endConnection directly
           await _channel.invokeMethod('endConnection');
 
           _isInitialized = false;
@@ -556,7 +553,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
         try {
           if (_platform.isIOS || _platform.isMacOS) {
-            // Extract props from the JSON representation
             final json = params.toJson();
             final requestKey =
                 type == 'in-app' ? 'requestPurchase' : 'requestSubscription';
@@ -598,7 +594,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           }
 
           if (_platform.isAndroid) {
-            // Extract props from the JSON representation
             final json = params.toJson();
             final requestKey =
                 type == 'in-app' ? 'requestPurchase' : 'requestSubscription';
@@ -612,12 +607,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            // Parse Android props based on type
             final androidProps = productType == gentype.ProductQueryType.InApp
                 ? gentype.RequestPurchaseAndroidProps.fromJson(androidData)
                 : gentype.RequestSubscriptionAndroidProps.fromJson(androidData);
 
-            // Handle both RequestPurchaseAndroidProps and RequestSubscriptionAndroidProps
             final List<String> skus;
             final bool? isOfferPersonalized;
             final String? obfuscatedAccount;
@@ -1704,9 +1697,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           }
 
           if (consumable) {
-            debugPrint(
-              '[FlutterInappPurchase] Android: Consuming product with token: ${purchase.purchaseToken}',
-            );
+            if (kDebugMode) {
+              debugPrint(
+                '[FlutterInappPurchase] Android: Consuming ${purchase.productId}',
+              );
+            }
             final result = await _channel.invokeMethod(
               'consumePurchaseAndroid',
               <String, dynamic>{'purchaseToken': purchase.purchaseToken},
@@ -1736,7 +1731,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
           if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledging purchase with token: ${purchase.purchaseToken}',
+              '[FlutterInappPurchase] Android: Acknowledging ${purchase.productId}',
             );
           }
 
@@ -1804,7 +1799,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] = true;
           } else if (kDebugMode) {
             debugPrint(
-              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.purchaseToken})',
+              '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.productId})',
             );
           }
           return;
@@ -1829,7 +1824,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         );
       };
 
-  /// Verify via a managed provider (currently IAPKit; the PurchaseVerificationProvider enum exposes only Iapkit today).
+  /// Verify via a managed provider (only IAPKit today).
   ///
   /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
   gentype.MutationVerifyPurchaseWithProviderHandler
@@ -1885,7 +1880,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 );
               }
 
-              // Parse result (can be Map or String)
               final Map<String, dynamic> resultMap;
               if (result is String) {
                 resultMap = jsonDecode(result) as Map<String, dynamic>;
@@ -1900,7 +1894,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 );
               }
 
-              // Parse iapkit result (single object, not array)
               gentype.RequestVerifyPurchaseWithIapkitResult parseIapkitResult(
                   dynamic value) {
                 if (value is! Map) {
@@ -2022,7 +2015,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 );
               }
 
-              // Parse errors if present
               final errorsData = resultMap['errors'] as List<dynamic>?;
               final errors = errorsData?.map((e) {
                 final errorMap = e is Map
@@ -2211,15 +2203,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         '[flutter_inapp_purchase] Processed ${products.length} products',
       );
 
-      // Return list directly based on query type
       if (queryType == gentype.ProductQueryType.All) {
-        // For 'All' type, return all products
         debugPrint(
           '[flutter_inapp_purchase] Type All: returning ${products.length} total products',
         );
         return products;
       } else if (queryType == gentype.ProductQueryType.Subs) {
-        // For subscription queries, return only subscriptions
         final subscriptions = products
             .whereType<gentype.ProductSubscription>()
             .toList(growable: false);
@@ -2228,7 +2217,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         );
         return subscriptions;
       } else {
-        // Default to in-app products
         final inApps = products.whereType<gentype.Product>().toList(
               growable: false,
             );
@@ -2300,7 +2288,6 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
           }
-          // Fetch available purchases using the public API
           await getAvailablePurchases();
         } catch (error) {
           if (error is PurchaseError) rethrow;
@@ -2359,9 +2346,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
       try {
         decoded = json.decode(result);
       } on FormatException catch (error) {
-        // Malformed JSON and a non-list payload are the same class of failure,
-        // so report one code instead of letting FormatException fall through
-        // to the generic catch and surface as ServiceError.
+        // Report malformed JSON like a non-list payload, not as ServiceError.
         throw PurchaseError(
           code: gentype.ErrorCode.BillingResponseJsonParseError,
           message: 'Failed to decode native active-subscription response: '
@@ -2434,10 +2419,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
 
         try {
-          // Use native getActiveSubscriptions for both iOS and Android
-          // This ensures we get complete ActiveSubscription objects including:
-          // - renewalInfoIOS on iOS (with upgrade/downgrade/cancellation status)
-          // - autoRenewingAndroid on Android
+          // Native on both platforms, so results carry renewalInfoIOS
+          // (upgrade/downgrade/cancellation status) and autoRenewingAndroid.
           final result = await _channel.invokeMethod(
             'getActiveSubscriptions',
             subscriptionIds,
@@ -2731,13 +2714,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
         }
       };
 
-  /// Open the Google Play offer/promo code redemption flow so the user can
-  /// enter a code.
+  /// Open the Play Store offer/promo code redeem page.
   ///
-  /// On Play builds, launches the Play Store redeem page. A listener can
-  /// receive the purchase while the app has an active billing connection;
-  /// reconcile available purchases when the app resumes. Unsupported store
-  /// flavors return false. Android counterpart of `presentCodeRedemptionSheetIOS`.
+  /// The purchase can reach a listener while billing is connected; reconcile
+  /// available purchases when the app resumes. Other store flavors return
+  /// false. Android counterpart of `presentCodeRedemptionSheetIOS`.
   ///
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
   @Deprecated(
@@ -2959,9 +2940,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           queryType: queryType,
         );
 
-        // Wrap list in the generated result union for OpenIAP compatibility.
-        // `All` must preserve product and subscription variants instead of
-        // flattening the mixed result into the product-only branch.
+        // `All` keeps each item's product or subscription variant instead of
+        // flattening the mix into the product-only branch.
         if (queryType == gentype.ProductQueryType.All) {
           final wrapped = products
               .map<gentype.ProductOrSubscription?>((product) {

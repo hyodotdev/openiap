@@ -61,8 +61,6 @@ extend schema
   @errorStatus(code: "UNAUTHORIZED", http: 401)
   @errorStatus(code: "FORBIDDEN", http: 403)
   @errorStatus(code: "NOT_FOUND", http: 404)
-  @errorStatus(code: "PURCHASE_NOT_FOUND", http: 404)
-  @errorStatus(code: "CONFLICT", http: 409)
   @errorStatus(code: "UNSUPPORTED_STORE", http: 422)
   @errorStatus(code: "RATE_LIMITED", http: 429)
   @errorStatus(code: "INTERNAL_ERROR", http: 500)

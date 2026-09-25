@@ -76,10 +76,9 @@ export async function savePurchaseInternal({
   verificationDurationMs,
   persistIfChanged,
 }: SavePurchaseArgs) {
-  // Verification runs as an action and can outlive the request that resolved
-  // its API key. Recheck deletion state in this final write transaction so an
-  // in-flight verification cannot recreate a purchase after the bounded
-  // project/account cascade has already drained the purchases table.
+  // Verification can outlive the request that resolved its API key. Recheck
+  // deletion here so a late write cannot recreate purchases the project or
+  // account deletion cascade already drained.
   const project = await ctx.db.get(projectId);
   if (!project || project.pendingDeletion) {
     throw new ConvexError("Project not found");
@@ -107,9 +106,8 @@ export async function savePurchaseInternal({
     expectedProductId,
   );
 
-  // Primary dedup: exact (projectId, remoteId) match. Most Apple and
-  // Horizon flows — plus Google flows where the client replays the
-  // same `purchaseToken` — hit this branch and stay on one row.
+  // Primary dedup on (projectId, remoteId): most Apple and Horizon flows, and
+  // Google replays of the same purchaseToken, stay on one row here.
   if (remoteId) {
     const existing = await ctx.db
       .query("purchases")
@@ -130,23 +128,10 @@ export async function savePurchaseInternal({
         (existing.productId ?? null) === productId
       )
         return existing._id;
-      // Defensive orderId-conflict resolution:
-      //
-      // If this patch transitions the row from "no orderId" (or a
-      // different orderId) to `orderId`, we must make sure no OTHER
-      // row in the same (projectId, applicationId) already owns that
-      // orderId — otherwise the invariant "at most one row per
-      // (projectId, applicationId, orderId)" would break and downstream
-      // `googleOrders` maintenance via `deltaForUpdate` would drift.
-      //
-      // This can happen in a narrow race: token `T1` first verified
-      // pre-ack (no orderId); Google later reissues to `T2` for the
-      // same logical order; a third call arrives with `T2` carrying
-      // `orderId=O1` and inserts a second row; then somehow a client
-      // replay with `T1` comes through and Google still resolves it
-      // with `orderId=O1`. Primary dedup hits the original pre-ack
-      // row, and without this guard we'd end up with two rows both
-      // claiming `O1`.
+      // At most one row may own an orderId per (projectId, applicationId), or
+      // googleOrders drifts. The race: token T1 is saved pre-ack without an
+      // orderId, Google reissues it as T2 and that call inserts a row with O1,
+      // then a T1 replay also resolves to O1.
       let conflictDelta: PurchaseStatsDelta = {};
       if (
         store === "google" &&
@@ -189,27 +174,15 @@ export async function savePurchaseInternal({
         },
         conflictDelta,
       );
-      // A retry after a transient Google / Apple failure can flip
-      // `isValid` from false to true on an existing row — same
-      // activation signal as a fresh insert, so fire the Mixpanel
-      // event here too.
       await maybeEmitFirstReceiptEvent(ctx, projectId, store, result);
       return existing._id;
     }
   }
 
-  // Secondary dedup (Google only): same (projectId, applicationId,
-  // orderId) where `orderId` is Google's stable per-transaction id.
-  // This is the path that collapses the 3x inflation Adam reported —
-  // Google reissues `purchaseToken` for the same logical order on
-  // re-validation / state transitions, so primary dedup misses even
-  // though it's the same purchase. When the response hasn't reached a
-  // state where Google assigns an `orderId` (e.g. pending
-  // acknowledgement), this block is skipped and we fall through to
-  // insert, matching pre-fix behavior for those rows. Non-Google
-  // stores already use stable identifiers as `remoteId`, so the
-  // secondary key is gated on `store === "google"` to avoid
-  // accidentally collapsing Apple or Horizon receipts.
+  // Secondary dedup (Google only): Google reissues purchaseToken for the same
+  // order on re-validation and state changes, so match its stable orderId.
+  // Before Google assigns one (e.g. pending acknowledgement) this falls
+  // through to insert. Other stores already use a stable remoteId.
   if (store === "google" && orderId) {
     const existingByOrder = await ctx.db
       .query("purchases")
@@ -229,9 +202,7 @@ export async function savePurchaseInternal({
         {
           store,
           applicationId,
-          // Advance `remoteId` to the newest `purchaseToken` so any
-          // future replay by the client hits the primary dedup branch
-          // above instead of landing here again.
+          // Newest purchaseToken, so a later replay hits primary dedup.
           remoteId,
           requestData,
           remoteResponse,
@@ -276,12 +247,6 @@ export async function savePurchaseInternal({
     ...(requestIp !== undefined ? { requestIp } : {}),
   });
 
-  // `applyPurchaseStatsDelta` returns `wasFirstValidTransition` so we
-  // can detect the "project just booked its first valid receipt"
-  // activation moment without doing a second read of the stats row.
-  // `maybeEmitFirstReceiptEvent` schedules the Mixpanel emit with
-  // `runAfter(0, ...)` so Mixpanel latency / outage never extends or
-  // fails the verify call.
   const result = await applyPurchaseStatsDelta(
     ctx,
     projectId,
@@ -309,23 +274,13 @@ type PurchasePatchArgs = {
   requestIp?: string;
 };
 
-/**
- * Drop a purchase row whose `orderId` conflicts with another row that
- * we're about to patch to own the same orderId, and roll the stats
- * counters back to match.
- *
- * Called only from the primary-dedup branch, so `row` is guaranteed
- * not to be the one we're keeping. We don't fight about which row
- * survives — the caller has already chosen the primary-dedup hit as
- * the survivor. This helper only cleans up the stranded duplicate.
- */
+/** Stats rollback for the row collapseConflictingOrderIdRow deletes. */
 function deltaForConflictingRowRemoval(
   row: Doc<"purchases">,
 ): PurchaseStatsDelta {
   const isValid = row.isValid ?? false;
-  // Align with `extractOrderIdFromRemoteResponse`, the backfill, and
-  // `markReceiptInvalid`: an empty-string `orderId` never represented
-  // a real Google order and must not count toward `googleOrders`.
+  // An empty orderId is not a real Google order, so it never counts toward
+  // googleOrders; the extractor, backfill, and markReceiptInvalid agree.
   const hadOrderId = typeof row.orderId === "string" && row.orderId.length > 0;
   return deltaForCountedPurchaseRemoval(
     row.store,
@@ -337,16 +292,9 @@ function deltaForConflictingRowRemoval(
 }
 
 /**
- * Drop a purchase row whose `orderId` conflicts with another row that
- * we're about to patch to own the same orderId, and return the stats
- * delta to fold into the subsequent patch call.
- *
- * Called only from the primary-dedup branch, so `row` is guaranteed
- * not to be the one we're keeping. We don't fight about which row
- * survives — the caller has already chosen the primary-dedup hit as
- * the survivor. This helper only cleans up the stranded duplicate
- * and hands the caller a delta it can merge with the patch's own
- * delta, so we touch the `purchaseStats` row once instead of twice.
+ * Delete the row that already owns the orderId being patched onto the
+ * primary-dedup hit, which always survives. Returns the stats delta to merge
+ * into that patch, so `purchaseStats` is written once.
  */
 async function collapseConflictingOrderIdRow(
   ctx: MutationCtx,
@@ -372,20 +320,13 @@ async function patchExistingPurchase(
 ): Promise<{ wasFirstValidTransition: boolean }> {
   const prevStore = existing.store;
   const prevIsValid = existing.isValid ?? false;
-  // Align with the extractor and the backfill: an empty-string
-  // `orderId` isn't a real Google order identifier. Treating it as
-  // "present" here would mis-decrement `googleOrders` on a later
-  // patch that brings in a real orderId.
+  // An empty orderId is not a real Google order; counting it as present would
+  // mis-decrement googleOrders when a later patch brings a real one.
   const prevHasOrderId =
     typeof existing.orderId === "string" && existing.orderId.length > 0;
-  // The patch below only WRITES `orderId` when a new value is present
-  // (`args.orderId !== null`). A subsequent re-verify that comes back
-  // without an orderId — e.g. an error body persisted by
-  // `persistFailedGoogleReceipt`, or a pending-acknowledgement probe
-  // on a previously acked token — leaves the stored `orderId` column
-  // untouched. `nextHasOrderId` must mirror that persisted state so
-  // `deltaForUpdate` doesn't decrement `googleOrders` for a row whose
-  // orderId hasn't actually gone away.
+  // The patch below writes orderId only when one is present. A re-verify
+  // without one (an error body from persistFailedGoogleReceipt, a pending-ack
+  // probe on an acked token) keeps the stored orderId, so it stays counted.
   const nextHasOrderId = prevHasOrderId || args.orderId !== null;
   // A legacy row may be reverified while the store-bucket migration is in
   // flight. Claim its original contribution in this same transaction before
@@ -422,10 +363,7 @@ async function patchExistingPurchase(
       : {}),
     ...(args.requestIp !== undefined ? { requestIp: args.requestIp } : {}),
   });
-  // Fold the patch's own delta together with any extra delta the
-  // caller passed (currently used by the primary-dedup orderId
-  // conflict resolver) so the `purchaseStats` row is read + written
-  // once per save, not once per sub-operation.
+  // Merge every delta so purchaseStats is read and written once per save.
   const patchDelta = deltaForUpdate(
     prevStore,
     prevIsValid,
@@ -442,13 +380,10 @@ async function patchExistingPurchase(
 }
 
 /**
- * Schedule the `first_receipt_verified` Mixpanel emit when a save
- * flipped the project's `valid` counter from 0 to >0. Shared between
- * the insert and update paths so an invalid→valid re-verify (retry
- * after a transient Google / Apple failure) gets the same activation
- * signal as a fresh successful verify. Uses `ctx.scheduler.runAfter`
- * so Mixpanel latency / outages never extend or fail the customer's
- * verify call.
+ * Schedule the `first_receipt_verified` Mixpanel event when a save takes the
+ * project's `valid` count from 0 to above 0. Updates count too: a retry after
+ * a transient Google / Apple failure can turn a row valid. Scheduled, so a
+ * Mixpanel outage never slows or fails the verify call.
  */
 async function maybeEmitFirstReceiptEvent(
   ctx: MutationCtx,

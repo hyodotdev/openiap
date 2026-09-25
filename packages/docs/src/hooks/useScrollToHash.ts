@@ -1,11 +1,21 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
+// Commerce links that swap a step in place pass this state to keep the scroll.
+export function keepsScroll(state: unknown): boolean {
+  return (
+    typeof state === 'object' &&
+    state !== null &&
+    'commerceKeepScroll' in state &&
+    state.commerceKeepScroll === true
+  );
+}
+
 export function useScrollToHash(offset = 80) {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.state?.commerceKeepScroll) return;
+    if (keepsScroll(location.state)) return;
 
     // Always scroll to top first when route changes
     if (!location.hash) {

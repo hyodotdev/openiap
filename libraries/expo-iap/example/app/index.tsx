@@ -7,12 +7,12 @@ import {
   View,
   Platform,
 } from 'react-native';
-import {useRouter} from 'expo-router';
+import {useRouter, type Href} from 'expo-router';
 import {getStorefront} from 'expo-iap';
 
 type MenuItem = {
   id: string;
-  href: string;
+  href: Href;
   icon: string;
   title: string;
   subtitle: string;
@@ -70,12 +70,7 @@ const MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-/**
- * Example App Landing Page
- *
- * Navigation to focused purchase flow implementations.
- * This demonstrates TypeScript-first, platform-agnostic approaches to in-app purchases.
- */
+/** Example app landing page: navigation to each purchase flow example. */
 export default function Home() {
   const router = useRouter();
   const [storefront, setStorefront] = useState<string | null>(null);
@@ -113,7 +108,7 @@ export default function Home() {
         focusable
         hasTVPreferredFocus={focusedIndex === index}
         onFocus={() => setFocusedIndex(index)}
-        onPress={() => router.push(item.href as any)}
+        onPress={() => router.push(item.href)}
         style={[
           styles.menuItem,
           focusedIndex === index && styles.menuItemFocused,

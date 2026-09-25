@@ -44,37 +44,77 @@ jest.mock('react-native', () => ({
 import * as IAP from '../../index';
 import {useIAP} from '../../hooks/useIAP';
 import {Platform} from 'react-native';
+import type {
+  FetchProductsResult,
+  ProductAndroid,
+  ProductSubscriptionAndroid,
+} from '../../types';
+
+const inAppProduct = (
+  id: string,
+  overrides: Partial<ProductAndroid> = {},
+): ProductAndroid => ({
+  currency: 'USD',
+  description: id,
+  displayPrice: '$1.00',
+  id,
+  nameAndroid: id,
+  platform: 'android',
+  title: id,
+  type: 'in-app',
+  ...overrides,
+});
+
+const subscriptionProduct = (
+  id: string,
+  overrides: Partial<ProductSubscriptionAndroid> = {},
+): ProductSubscriptionAndroid => ({
+  currency: 'USD',
+  description: id,
+  displayPrice: '$1.00',
+  id,
+  nameAndroid: id,
+  platform: 'android',
+  subscriptionOffers: [],
+  title: id,
+  type: 'subs',
+  ...overrides,
+});
 
 describe('hooks/useIAP (renderer)', () => {
   afterEach(() => {
     jest.clearAllMocks();
-    delete (global as any).RN_IAP_DEV_MODE;
+    Reflect.deleteProperty(globalThis, 'RN_IAP_DEV_MODE');
   });
 
   let capturedPurchaseListener: any;
-  let mockFetchProducts: jest.SpyInstance;
-  let mockGetAvailablePurchases: jest.SpyInstance;
-  let mockGetActiveSubscriptions: jest.SpyInstance;
-  let mockHasActiveSubscriptions: jest.SpyInstance;
-  let mockSyncIOS: jest.SpyInstance;
+  let mockFetchProducts: jest.SpiedFunction<typeof IAP.fetchProducts>;
+  let mockGetAvailablePurchases: jest.SpiedFunction<
+    typeof IAP.getAvailablePurchases
+  >;
+  let mockGetActiveSubscriptions: jest.SpiedFunction<
+    typeof IAP.getActiveSubscriptions
+  >;
+  let mockHasActiveSubscriptions: jest.SpiedFunction<
+    typeof IAP.hasActiveSubscriptions
+  >;
+  let mockSyncIOS: jest.SpiedFunction<typeof IAP.syncIOS>;
 
   beforeEach(() => {
     capturedPurchaseListener = undefined;
-    jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
+    jest.spyOn(IAP, 'initConnection').mockResolvedValue(true);
     mockGetAvailablePurchases = jest
       .spyOn(IAP, 'getAvailablePurchases')
-      .mockResolvedValue([] as any);
+      .mockResolvedValue([]);
     mockGetActiveSubscriptions = jest
       .spyOn(IAP, 'getActiveSubscriptions')
-      .mockResolvedValue([] as any);
+      .mockResolvedValue([]);
     mockHasActiveSubscriptions = jest
       .spyOn(IAP, 'hasActiveSubscriptions')
-      .mockResolvedValue(false as any);
-    jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined as any);
-    mockFetchProducts = jest
-      .spyOn(IAP, 'fetchProducts')
-      .mockResolvedValue([] as any);
-    mockSyncIOS = jest.spyOn(IAP, 'syncIOS').mockResolvedValue(true as any);
+      .mockResolvedValue(false);
+    jest.spyOn(IAP, 'finishTransaction').mockResolvedValue(undefined);
+    mockFetchProducts = jest.spyOn(IAP, 'fetchProducts').mockResolvedValue([]);
+    mockSyncIOS = jest.spyOn(IAP, 'syncIOS').mockResolvedValue(true);
     jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((cb: any) => {
       capturedPurchaseListener = cb;
       return {remove: jest.fn()};
@@ -155,7 +195,7 @@ describe('hooks/useIAP (renderer)', () => {
       () =>
         new Promise((resolve) => {
           resolveActiveSubscriptions = () => resolve([]);
-        }) as any,
+        }),
     );
 
     const onPurchaseSuccess = jest.fn();
@@ -359,11 +399,21 @@ describe('hooks/useIAP (renderer)', () => {
   });
 
   it('does not log product offer tokens', async () => {
-    (global as any).RN_IAP_DEV_MODE = true;
+    Object.assign(globalThis, {RN_IAP_DEV_MODE: true});
     const debug = jest.spyOn(console, 'debug').mockImplementation();
     mockFetchProducts.mockResolvedValueOnce([
-      {id: 'product1', discountOffers: [{offerTokenAndroid: 'secret-token'}]},
-    ] as any);
+      inAppProduct('product1', {
+        discountOffers: [
+          {
+            currency: 'USD',
+            displayPrice: '$0.50',
+            offerTokenAndroid: 'secret-token',
+            price: 0.5,
+            type: 'one-time',
+          },
+        ],
+      }),
+    ]);
 
     let api: any;
     const Harness = () => {
@@ -391,11 +441,11 @@ describe('hooks/useIAP (renderer)', () => {
   it('refreshes an existing product when it is fetched again', async () => {
     mockFetchProducts
       .mockResolvedValueOnce([
-        {id: 'product1', type: 'in-app', displayPrice: '$1.00'},
-      ] as any)
+        inAppProduct('product1', {displayPrice: '$1.00'}),
+      ])
       .mockResolvedValueOnce([
-        {id: 'product1', type: 'in-app', displayPrice: '$2.00'},
-      ] as any);
+        inAppProduct('product1', {displayPrice: '$2.00'}),
+      ]);
 
     let api: any;
     const Harness = () => {
@@ -424,11 +474,11 @@ describe('hooks/useIAP (renderer)', () => {
   it('refreshes an existing subscription when it is fetched again', async () => {
     mockFetchProducts
       .mockResolvedValueOnce([
-        {id: 'subscription1', type: 'subs', displayPrice: '$1.00'},
-      ] as any)
+        subscriptionProduct('subscription1', {displayPrice: '$1.00'}),
+      ])
       .mockResolvedValueOnce([
-        {id: 'subscription1', type: 'subs', displayPrice: '$2.00'},
-      ] as any);
+        subscriptionProduct('subscription1', {displayPrice: '$2.00'}),
+      ]);
 
     let api: any;
     const Harness = () => {
@@ -452,13 +502,13 @@ describe('hooks/useIAP (renderer)', () => {
   it('refreshes products and subscriptions fetched together', async () => {
     mockFetchProducts
       .mockResolvedValueOnce([
-        {id: 'product1', type: 'in-app', displayPrice: '$1.00'},
-        {id: 'subscription1', type: 'subs', displayPrice: '$2.00'},
-      ] as any)
+        inAppProduct('product1', {displayPrice: '$1.00'}),
+        subscriptionProduct('subscription1', {displayPrice: '$2.00'}),
+      ])
       .mockResolvedValueOnce([
-        {id: 'product1', type: 'in-app', displayPrice: '$3.00'},
-        {id: 'subscription1', type: 'subs', displayPrice: '$4.00'},
-      ] as any);
+        inAppProduct('product1', {displayPrice: '$3.00'}),
+        subscriptionProduct('subscription1', {displayPrice: '$4.00'}),
+      ]);
 
     let api: any;
     const Harness = () => {
@@ -489,9 +539,8 @@ describe('hooks/useIAP (renderer)', () => {
   });
 
   it('ignores an older all-products response for the same SKUs', async () => {
-    type ProductResult = {id: string; type: string; displayPrice: string};
-    let resolveFirst: ((value: ProductResult[]) => void) | undefined;
-    let resolveSecond: ((value: ProductResult[]) => void) | undefined;
+    let resolveFirst: ((value: FetchProductsResult) => void) | undefined;
+    let resolveSecond: ((value: FetchProductsResult) => void) | undefined;
     mockFetchProducts
       .mockImplementationOnce(
         () =>
@@ -530,16 +579,16 @@ describe('hooks/useIAP (renderer)', () => {
 
     await act(async () => {
       resolveSecond?.([
-        {id: 'product1', type: 'in-app', displayPrice: '$3.00'},
-        {id: 'subscription1', type: 'subs', displayPrice: '$4.00'},
+        inAppProduct('product1', {displayPrice: '$3.00'}),
+        subscriptionProduct('subscription1', {displayPrice: '$4.00'}),
       ]);
       await secondFetch!;
     });
 
     await act(async () => {
       resolveFirst?.([
-        {id: 'product1', type: 'in-app', displayPrice: '$1.00'},
-        {id: 'subscription1', type: 'subs', displayPrice: '$2.00'},
+        inAppProduct('product1', {displayPrice: '$1.00'}),
+        subscriptionProduct('subscription1', {displayPrice: '$2.00'}),
       ]);
       await firstFetch!;
     });
@@ -553,10 +602,8 @@ describe('hooks/useIAP (renderer)', () => {
   });
 
   it('delegates product fetches while the hook is disconnected', async () => {
-    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
-    mockFetchProducts.mockResolvedValueOnce([
-      {id: 'product1', type: 'in-app'},
-    ] as any);
+    jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false);
+    mockFetchProducts.mockResolvedValueOnce([inAppProduct('product1')]);
 
     let api: any;
     const Harness = () => {
@@ -582,10 +629,10 @@ describe('hooks/useIAP (renderer)', () => {
 
   it('surfaces the native error when fetching while disconnected', async () => {
     const originalPlatform = Platform.OS;
-    (Platform as any).OS = 'android';
+    Object.assign(Platform, {OS: 'android'});
     const notConnected = new Error('Billing client not ready');
     try {
-      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false);
       mockFetchProducts.mockRejectedValueOnce(notConnected);
 
       let api: any;
@@ -613,7 +660,7 @@ describe('hooks/useIAP (renderer)', () => {
       expect(thrown).toBe(notConnected);
       expect(api.products).toEqual([]);
     } finally {
-      (Platform as any).OS = originalPlatform;
+      Object.assign(Platform, {OS: originalPlatform});
     }
   });
 
@@ -767,7 +814,7 @@ describe('hooks/useIAP (renderer)', () => {
     });
 
     it('rejects when restorePurchases syncIOS returns false on iOS', async () => {
-      mockSyncIOS.mockResolvedValueOnce(false as any);
+      mockSyncIOS.mockResolvedValueOnce(false);
 
       let api: any;
       const onError = jest.fn();
@@ -981,7 +1028,7 @@ describe('hooks/useIAP (renderer)', () => {
 
       // Reset mock to track reconnect call
       (IAP.initConnection as jest.Mock).mockClear();
-      jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
+      jest.spyOn(IAP, 'initConnection').mockResolvedValue(true);
 
       let result: boolean | undefined;
       await act(async () => {
@@ -1004,7 +1051,7 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
-      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false as any);
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(false);
 
       let result: boolean | undefined;
       await act(async () => {
@@ -1086,13 +1133,13 @@ describe('hooks/useIAP (renderer)', () => {
           () =>
             new Promise((_, reject) => {
               rejectFirst = reject;
-            }) as any,
+            }),
         )
         .mockImplementationOnce(
           () =>
             new Promise((resolve) => {
               resolveSecond = resolve;
-            }) as any,
+            }),
         );
 
       let firstReconnect: Promise<boolean>;
@@ -1140,13 +1187,13 @@ describe('hooks/useIAP (renderer)', () => {
           () =>
             new Promise((resolve) => {
               resolveFirst = resolve;
-            }) as any,
+            }),
         )
         .mockImplementationOnce(
           () =>
             new Promise((resolve) => {
               resolveSecond = resolve;
-            }) as any,
+            }),
         );
 
       let firstReconnect: Promise<boolean>;
@@ -1192,7 +1239,7 @@ describe('hooks/useIAP (renderer)', () => {
 
       await IAP.endConnection();
       (IAP.purchaseUpdatedListener as jest.Mock).mockClear();
-      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true as any);
+      jest.spyOn(IAP, 'initConnection').mockResolvedValueOnce(true);
 
       await act(async () => {
         await api.reconnect();
@@ -1224,16 +1271,16 @@ describe('hooks/useIAP (renderer)', () => {
       const callOrder: string[] = [];
       jest.spyOn(IAP, 'initConnection').mockImplementation(async () => {
         callOrder.push('initConnection');
-        return true as any;
+        return true;
       });
-      jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((() => {
+      jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation(() => {
         callOrder.push('purchaseUpdatedListener');
         return {remove: jest.fn()};
-      }) as any);
-      jest.spyOn(IAP, 'purchaseErrorListener').mockImplementation((() => {
+      });
+      jest.spyOn(IAP, 'purchaseErrorListener').mockImplementation(() => {
         callOrder.push('purchaseErrorListener');
         return {remove: jest.fn()};
-      }) as any);
+      });
 
       const Harness = () => {
         useIAP();
@@ -1260,7 +1307,7 @@ describe('hooks/useIAP (renderer)', () => {
         () =>
           new Promise<boolean>((resolve) => {
             resolveInit = resolve;
-          }) as any,
+          }),
       );
 
       let api: any;
@@ -1294,11 +1341,11 @@ describe('hooks/useIAP (renderer)', () => {
       const purchaseErrorRemove = jest.fn();
       jest
         .spyOn(IAP, 'purchaseUpdatedListener')
-        .mockImplementation((() => ({remove: purchaseUpdateRemove})) as any);
+        .mockImplementation(() => ({remove: purchaseUpdateRemove}));
       jest
         .spyOn(IAP, 'purchaseErrorListener')
-        .mockImplementation((() => ({remove: purchaseErrorRemove})) as any);
-      jest.spyOn(IAP, 'initConnection').mockResolvedValue(false as any);
+        .mockImplementation(() => ({remove: purchaseErrorRemove}));
+      jest.spyOn(IAP, 'initConnection').mockResolvedValue(false);
 
       let api: any;
       const Harness = () => {
@@ -1322,10 +1369,10 @@ describe('hooks/useIAP (renderer)', () => {
       const purchaseErrorRemove = jest.fn();
       jest
         .spyOn(IAP, 'purchaseUpdatedListener')
-        .mockImplementation((() => ({remove: purchaseUpdateRemove})) as any);
+        .mockImplementation(() => ({remove: purchaseUpdateRemove}));
       jest
         .spyOn(IAP, 'purchaseErrorListener')
-        .mockImplementation((() => ({remove: purchaseErrorRemove})) as any);
+        .mockImplementation(() => ({remove: purchaseErrorRemove}));
       jest
         .spyOn(IAP, 'initConnection')
         .mockRejectedValue(new Error('init failed'));
@@ -1353,11 +1400,11 @@ describe('hooks/useIAP (renderer)', () => {
       const purchaseUpdateRemove = jest.fn();
       jest
         .spyOn(IAP, 'purchaseUpdatedListener')
-        .mockImplementation((() => ({remove: purchaseUpdateRemove})) as any);
-      jest.spyOn(IAP, 'purchaseErrorListener').mockImplementation((() => {
+        .mockImplementation(() => ({remove: purchaseUpdateRemove}));
+      jest.spyOn(IAP, 'purchaseErrorListener').mockImplementation(() => {
         throw new Error('listener attach failed');
-      }) as any);
-      jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
+      });
+      jest.spyOn(IAP, 'initConnection').mockResolvedValue(true);
 
       const onError = jest.fn();
       let api: any;

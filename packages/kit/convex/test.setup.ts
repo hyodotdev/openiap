@@ -18,12 +18,10 @@ type TestableRegisteredFunction<T> = T & {
 };
 
 /**
- * Restore Convex's runtime-only handler seam for focused unit tests.
- *
- * Convex deliberately strips `_handler` from some published declarations, even
- * though registered queries, mutations, and actions retain it at runtime.
- * Keeping the assertion here makes that test-only dependency explicit while
- * preserving each function's validated argument and return types.
+ * Exposes `_handler` to unit tests. Convex deliberately omits it from some
+ * published declarations, but registered queries, mutations, and actions keep
+ * it at runtime. The assertion keeps each function's validated argument and
+ * return types.
  */
 function assertHasTestHandler<T>(
   registeredFunction: T,

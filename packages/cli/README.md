@@ -72,12 +72,12 @@ the same files itself; running the CLI makes these particular checks consistent
 across developers, agents, and CI. Review a finding, fix its cause, and rerun
 the same command. Pin the CLI version in CI to keep the rule set consistent.
 
-| Need | Use |
-| --- | --- |
-| Decide where an app, paywall, backend, or data service connects | `init --role …`, or the [role guide](https://openiap.dev/commerce-protocol/ecosystem) directly |
-| Catch supported local configuration mistakes | `doctor --json` in the target app directory |
-| See verification, ownership, access, and delivery execute | The [runnable Commerce Protocol example](https://github.com/hyodotdev/openiap-commerce-protocol-example) |
-| Verify a provider's protocol behavior | The [conformance tools](https://openiap.dev/commerce-protocol/conformance) and tests for its declared profiles |
+| Need                                                            | Use                                                                                                            |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Decide where an app, paywall, backend, or data service connects | `init --role …`, or the [role guide](https://openiap.dev/commerce-protocol/ecosystem) directly                 |
+| Catch supported local configuration mistakes                    | `doctor --json` in the target app directory                                                                    |
+| See verification, ownership, access, and delivery execute       | The [runnable Commerce Protocol example](https://github.com/hyodotdev/openiap-commerce-protocol-example)       |
+| Verify a provider's protocol behavior                           | The [conformance tools](https://openiap.dev/commerce-protocol/conformance) and tests for its declared profiles |
 
 The CLI is not needed to run the example or use OpenIAP SDKs. The example is
 fixture-backed teaching code; neither its tests nor a clean `doctor` report
@@ -121,10 +121,11 @@ Most of these produce no error message that says what is actually wrong.
 
 | Check                               | Level   | What goes wrong without it                                                                                                                                                                                    |
 | ----------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `android-store-flavor-mismatch`     | error   | A half-finished regeneration links one store while the flags select another.                                                                                                                                  |
-| `android-store-flavor-conflict`     | error   | Both store flags are true. Gradle also refuses this; the doctor sees it before a build.                                                                                                                       |
-| `android-store-not-play`            | warning | The build targets Horizon or Amazon, so Play billing cannot connect on a Play device.                                                                                                                         |
-| `android-horizon-app-id-missing`    | warning | Horizon is selected but no manifest declares an app id.                                                                                                                                                       |
+| `android-store-flavor-mismatch`     | error   | A half-finished regeneration links one store while gradle.properties pins another.                                                                                                                            |
+| `android-store-flavor-conflict`     | error   | The `openiapStore` pin and the legacy flags disagree, or both legacy flags are true. Gradle also refuses this; the doctor sees it before a build.                                                             |
+| `android-store-unknown`             | error   | `openiapStore` names something that is not a store, so Gradle will refuse the build.                                                                                                                          |
+| `android-store-not-play`            | warning | The project is pinned to Horizon, Amazon, or no store at all, so Play billing cannot connect on a Play device. Without a pin the task flavor or the connected debug device picks the store per build.         |
+| `android-horizon-app-id-missing`    | warning | Horizon is pinned but no manifest declares an app id.                                                                                                                                                         |
 | `iapkit-secret-key-in-client`       | error   | A secret key is on a name that reaches the app bundle.                                                                                                                                                        |
 | `iapkit-secret-key-in-env`          | warning | A secret key is in an env file on a name nothing here proves is inlined.                                                                                                                                      |
 | `iapkit-secret-key-in-config`       | warning | Executable app configuration contains a secret, but its presence in the app bundle is unproven.                                                                                                               |

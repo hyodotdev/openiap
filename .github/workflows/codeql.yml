@@ -303,7 +303,7 @@ jobs:
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
             ../../../packages/google/gradlew \
             --no-daemon --no-build-cache --rerun-tasks \
-            :openiap:assembleRelease -PopenIapAndroidStore=play
+            :openiap:assembleRelease -PopeniapStore=play
 
       - name: Analyze
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4

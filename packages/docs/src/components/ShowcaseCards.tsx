@@ -9,12 +9,6 @@ export const SHOWCASE_DISCUSSION_URL =
 export const SHOWCASE_GUIDE_URL =
   'https://github.com/hyodotdev/openiap/blob/main/packages/docs/SHOWCASE.md';
 
-export const showcaseGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: '1rem',
-};
-
 const cardStyle: CSSProperties = {
   display: 'flex',
   gap: '1rem',

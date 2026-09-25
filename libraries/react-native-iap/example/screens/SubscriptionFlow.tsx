@@ -111,12 +111,9 @@ function formatPurchaseDate(transactionDate: Purchase['transactionDate']) {
   return Number.isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString();
 }
 
-// Extended type for ActiveSubscription with additional fields that may be present
-// but are not officially part of the ActiveSubscription type definition.
-// These fields are either:
-// - Detected/computed locally (basePlanId, _detectedBasePlanId)
-// - Available in the underlying Purchase but not mapped to ActiveSubscription (isUpgradedIOS)
-// - Platform-specific fields (purchaseTokenAndroid)
+// ActiveSubscription plus fields outside its type: computed locally (basePlanId,
+// _detectedBasePlanId), on the Purchase but not mapped (isUpgradedIOS), or
+// platform-specific (purchaseTokenAndroid).
 type ExtendedActiveSubscription = ActiveSubscription & {
   basePlanId?: string; // Android: detected from subscription offers
   purchaseTokenAndroid?: string; // Android: purchase token
@@ -156,8 +153,7 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
   let activeSub: ActiveSubscription | undefined = undefined;
 
   if (Platform.OS === 'ios') {
-    // On iOS, find the most recent subscription (in case both exist during transition)
-    // Sort by transaction date to get the most recent one
+    // On iOS, take the most recent subscription; both can exist mid-transition.
     const sortedSubs = [...premiumSubs].sort((a, b) => {
       const dateA = a.transactionDate ?? 0;
       const dateB = b.transactionDate ?? 0;
@@ -166,8 +162,7 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
 
     activeSub = sortedSubs[0];
 
-    // Check for the most recent purchase to determine actual plan
-    // First, check if both products exist (transition state)
+    // Check which products exist; both means a transition.
     const hasYearly = premiumSubs.some(
       (s) => s.productId === 'dev.hyo.martie.premium_year',
     );
@@ -267,19 +262,13 @@ const PlanChangeControls = React.memo(function PlanChangeControls({
 });
 
 /**
- * Subscription Flow Example - Subscription Products
+ * Subscription Flow Example: recurring subscriptions through the useIAP hook,
+ * with typed success/error callbacks instead of manual promise handling.
  *
- * Demonstrates useIAP hook approach for subscriptions:
- * - Uses useIAP hook for subscription management
- * - Handles subscription callbacks with proper types
- * - No manual promise handling required
- * - Clean success/error pattern through hooks
- * - Focused on recurring subscriptions
- *
- * New subscription status checking API:
- * - getActiveSubscriptions() - gets all active subscriptions automatically
- * - getActiveSubscriptions(['id1', 'id2']) - gets specific subscriptions
- * - activeSubscriptions state - automatically updated subscription list
+ * Status checks:
+ * - getActiveSubscriptions() - all active subscriptions
+ * - getActiveSubscriptions(['id1', 'id2']) - only those subscriptions
+ * - activeSubscriptions state - updated automatically
  */
 
 type SubscriptionFlowProps = {
@@ -356,7 +345,7 @@ function SubscriptionFlow({
       changeType: 'upgrade' | 'downgrade' | 'yearly' | 'monthly',
       currentBasePlanId: string,
     ) => {
-      // iOS doesn't use this function anymore as upgrade/downgrade is handled by App Store
+      // Unused on iOS: the App Store handles upgrades and downgrades.
       if (Platform.OS === 'ios') {
         return;
       }
@@ -896,9 +885,8 @@ function SubscriptionFlow({
                           ? '📅 Yearly Plan'
                           : '📆 Monthly Plan';
                     }
-                    // Method 2: Check localStorage for last purchased plan
+                    // Method 2: fall back to the last purchased plan in state
                     else {
-                      // Try to get from state
                       const storedPlan = lastPurchasedPlan;
 
                       if (storedPlan === 'premium-year') {
@@ -919,8 +907,6 @@ function SubscriptionFlow({
 
                   // We'll use this detectedBasePlanId in the button section below
                 }
-
-                // No need for separate handling since we already check both products above
 
                 return (
                   <View
@@ -980,7 +966,7 @@ function SubscriptionFlow({
                       </View>
                     )}
 
-                    {/* 🆕 NEW: renewalInfoIOS showcase */}
+                    {/* renewalInfoIOS showcase */}
                     {Platform.OS === 'ios' && sub.renewalInfoIOS && (
                       <View style={styles.renewalInfoSection}>
                         <Text style={styles.renewalInfoTitle}>
@@ -1104,7 +1090,7 @@ function SubscriptionFlow({
                             </View>
                           )}
 
-                        {/* 🆕 NEW: Renewal offer type */}
+                        {/* Renewal offer type */}
                         {sub.renewalInfoIOS.renewalOfferType && (
                           <View style={styles.statusRow}>
                             <Text style={styles.statusLabel}>
@@ -1116,7 +1102,7 @@ function SubscriptionFlow({
                           </View>
                         )}
 
-                        {/* 🆕 NEW: Renewal offer ID */}
+                        {/* Renewal offer ID */}
                         {sub.renewalInfoIOS.renewalOfferId && (
                           <View style={styles.statusRow}>
                             <Text style={styles.statusLabel}>🆕 Offer ID:</Text>
@@ -1126,7 +1112,7 @@ function SubscriptionFlow({
                           </View>
                         )}
 
-                        {/* 🆕 NEW: JSON Representation availability */}
+                        {/* JSON Representation availability */}
                         {sub.renewalInfoIOS.jsonRepresentation && (
                           <View style={styles.statusRow}>
                             <Text style={styles.statusLabel}>
@@ -1511,82 +1497,42 @@ function SubscriptionFlow({
 }
 
 /**
- * ============================================================================
- * Subscription Flow Container
- * ============================================================================
+ * Subscription Flow Container: the full subscription lifecycle and where iOS
+ * and Android differ.
  *
- * This component demonstrates the complete subscription lifecycle with proper
- * handling of platform-specific differences between iOS and Android.
+ * Client-side data: iOS exposes renewalInfoIOS with willAutoRenew,
+ * autoRenewPreference (next renewal product), pendingUpgradeProductId,
+ * expirationReason, gracePeriodExpirationDate, isInBillingRetry, renewalDate,
+ * and detailed state. The Android client only has auto-renew status
+ * (isAutoRenewing); everything else needs a server call. The server has it all.
  *
- * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ PLATFORM COMPARISON - Subscription Data Availability                    │
- * ├─────────────────────────────┬─────────────┬─────────────┬──────────────┤
- * │ Information                 │ iOS Client  │ Android     │ Server       │
- * ├─────────────────────────────┼─────────────┼─────────────┼──────────────┤
- * │ Auto-renew status           │ ✅ willAutoRenew │ ✅ isAutoRenewing │ ✅    │
- * │ Next renewal product        │ ✅ autoRenewPreference │ ❌    │ ✅           │
- * │ Pending upgrade/downgrade   │ ✅ pendingUpgradeProductId │ ❌ │ ✅        │
- * │ Expiration reason           │ ✅ expirationReason │ ❌      │ ✅           │
- * │ Grace period status         │ ✅ gracePeriodExpirationDate │ ❌ │ ✅      │
- * │ Billing retry status        │ ✅ isInBillingRetry │ ❌      │ ✅           │
- * │ Renewal date                │ ✅ renewalDate │ ❌         │ ✅           │
- * │ Detailed subscription state │ ✅           │ ❌          │ ✅           │
- * └─────────────────────────────┴─────────────┴─────────────┴──────────────┘
+ * Lifecycle:
+ * 1. App launch
+ *    - iOS: initConnection → getAvailablePurchases → check purchaseState →
+ *      validate with server → update entitlements → finishTransaction
+ *    - Android: initConnection → getAvailablePurchases → for pending purchases,
+ *      validate → acknowledge → grant entitlements
+ * 2. New purchase: requestPurchase → purchaseUpdatedListener receives the purchase
+ *    - Both platforms: check purchaseState ('purchased', 'pending' or
+ *      'unknown') → validate → deliver → finishTransaction
+ * 3. Status: getActiveSubscriptions
+ *    - iOS: check renewalInfoIOS. willAutoRenew = false → renewal prompt;
+ *      isInBillingRetry = true → payment issue; pendingUpgradeProductId →
+ *      pending change
+ *    - Android: check isActive; details need a server-side API call
+ * 4. Cancellation: willAutoRenew = false (iOS) or isAutoRenewing = false
+ *    (Android); access continues until expiry (iOS: expirationDate).
+ * 5. Expiration: getActiveSubscriptions returns empty → revoke access → offer
+ *    re-subscribe.
+ * 6. Restore: getAvailablePurchases (iOS: StoreKit fetches the Apple ID
+ *    history; Android: returns cached purchases) → validate each → grant
+ *    access → finishTransaction (iOS only).
  *
- * 💡 Key Takeaway: iOS provides rich subscription data client-side via
- *    renewalInfoIOS, while Android requires server-side calls for details.
- *
- * ============================================================================
- * SUBSCRIPTION LIFECYCLE FLOWS
- * ============================================================================
- *
- * 1. ON APP LAUNCH
- *    ├─ iOS: initConnection → getAvailablePurchases → check transactionState
- *    │       → validate with server → update entitlements → finishTransaction
- *    └─ Android: initConnection → getAvailablePurchases → for pending purchases
- *                → validate → acknowledge → grant entitlements
- *
- * 2. NEW PURCHASE FLOW
- *    ├─ iOS: requestPurchase → purchaseUpdatedListener receives PurchaseIOS
- *    │       → check transactionState (purchased/pending/failed/deferred)
- *    │       → validate → deliver → finishTransaction
- *    └─ Android: requestPurchase → purchaseUpdatedListener receives PurchaseAndroid
- *                → check purchaseState (0=pending, 1=purchased, 2=failed)
- *                → validate → acknowledge → grant entitlements
- *
- * 3. CHECKING SUBSCRIPTION STATUS
- *    ├─ iOS: getActiveSubscriptions → check renewalInfoIOS:
- *    │       • willAutoRenew = false → show renewal prompt
- *    │       • isInBillingRetry = true → show payment issue
- *    │       • pendingUpgradeProductId → show pending change
- *    └─ Android: getActiveSubscriptions → check isActive
- *                (detailed info requires server-side API call)
- *
- * 4. DETECTING CANCELLATIONS
- *    ├─ iOS: willAutoRenew = false (user still has access until expirationDate)
- *    └─ Android: isAutoRenewing = false (access until expiry)
- *
- * 5. HANDLING EXPIRATION
- *    └─ getActiveSubscriptions returns empty → revoke access → show re-subscribe
- *
- * 6. RESTORING PURCHASES
- *    ├─ iOS: getAvailablePurchases → StoreKit fetches from Apple ID history
- *    │       → validate each → grant access → finishTransaction
- *    └─ Android: getAvailablePurchases → returns cached purchases
- *                → validate each → grant access
- *
- * ============================================================================
- * WHEN TO VALIDATE (Server-side recommended)
- * ============================================================================
- * • After purchase — Verify the purchase is legitimate
- * • On restore — Check current status (active/cancelled/refunded/expired)
- * • Periodically for active subscriptions — Detect refunds and cancellations
- * • On app launch — Sync subscription state with server
- *
- * ⚠️ REFUND EDGE CASE: Refunds bypass client entirely. Server-side validation
- *    with App Store Server Notifications V2 (iOS) or RTDN (Android) is required.
- *
- * ============================================================================
+ * Validate server-side after purchase (legitimacy), on restore (current
+ * status: active/cancelled/refunded/expired), at launch (sync state), and
+ * periodically for active subscriptions (refunds, cancellations). Refunds
+ * bypass the client entirely, so they need App Store Server Notifications V2
+ * (iOS) or RTDN (Android).
  */
 function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
@@ -1770,7 +1716,7 @@ function SubscriptionFlowContainer() {
     // - 'iapkit-localhost': IAPKit provider through the local server
     // - 'iapkit': IAPKit provider through the hosted service
     //
-    // ⚠️ Server-side validation is recommended for production:
+    // For production, validate server-side:
     // - iOS: App Store Server API + App Store Server Notifications V2
     // - Android: Google Play Developer API + RTDN
     const currentVerificationMethod = verificationMethodRef.current;
@@ -1897,20 +1843,16 @@ function SubscriptionFlowContainer() {
     // ──────────────────────────────────────────────────────────────────────
     // STEP 4: GRANT ENTITLEMENT
     // ──────────────────────────────────────────────────────────────────────
-    // Production integration point:
-    // - Save subscription record to database
-    // - Unlock premium features for user
-    // - Update user's subscription status
-    // - Handle subscription tiers/levels
-    // Example: await yourBackend.grantSubscriptionEntitlement(purchase);
+    // In production, save the subscription, update the user's status, and
+    // unlock their tier's features on your backend, e.g.
+    // await yourBackend.grantSubscriptionEntitlement(purchase);
 
     // ──────────────────────────────────────────────────────────────────────
     // STEP 5: FINISH TRANSACTION
     // ──────────────────────────────────────────────────────────────────────
-    // CRITICAL: Always finish/acknowledge transactions!
-    // - iOS: finishTransaction removes from StoreKit queue
-    // - Android: Acknowledges purchase (required within 3 days)
-    // - Subscriptions are NOT consumable (isConsumable: false)
+    // Always finish: iOS removes the transaction from the StoreKit queue;
+    // Android acknowledges the purchase (required within 3 days).
+    // Subscriptions are not consumable (isConsumable: false).
     const isConsumable = false;
 
     const finishAndRefreshSubscription = async (
@@ -2037,8 +1979,7 @@ function SubscriptionFlowContainer() {
     // STEP 2: NEW PURCHASE FLOW - Success Handler
     // ────────────────────────────────────────────────────────────────────────
     // Called when purchaseUpdatedListener receives a successful purchase.
-    // iOS: Check transactionState (purchased/pending/failed/deferred)
-    // Android: Check purchaseState (0=pending, 1=purchased, 2=failed)
+    // Check purchaseState ('purchased', 'pending' or 'unknown') on both platforms.
     onPurchaseSuccess: dispatchPurchaseSuccess,
 
     // ────────────────────────────────────────────────────────────────────────
@@ -2094,8 +2035,7 @@ function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
   // ON APP LAUNCH: Fetch available subscription products
   // ──────────────────────────────────────────────────────────────────────────
-  // When the store connection is established, fetch subscription products.
-  // This populates the subscriptions array for display.
+  // Once connected, fetch the subscription products shown on screen.
   useEffect(() => {
     if (connected) {
       if (!fetchedProductsOnceRef.current) {
@@ -2147,7 +2087,7 @@ function SubscriptionFlowContainer() {
     }
   }, [availablePurchases, connected, dispatchPurchaseSuccess]);
 
-  // 🔍 LOG: Check discount and promotional offer data
+  // Log discount and promotional offer data
   useEffect(() => {
     if (subscriptions.length > 0) {
       console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -2191,21 +2131,15 @@ function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
   // CHECKING SUBSCRIPTION STATUS (Step 3 in lifecycle)
   // ──────────────────────────────────────────────────────────────────────────
-  // Periodically verify subscription status to detect:
-  // - Cancellations (willAutoRenew = false)
-  // - Billing issues (isInBillingRetry = true)
-  // - Pending upgrades/downgrades (pendingUpgradeProductId)
-  // - Grace period status (gracePeriodExpirationDate)
-  //
-  // iOS: Rich data available via renewalInfoIOS
-  // Android: Basic data available; detailed info requires server-side API
+  // Check periodically for cancellations (willAutoRenew = false), billing
+  // issues (isInBillingRetry = true), pending upgrades/downgrades
+  // (pendingUpgradeProductId), and grace periods (gracePeriodExpirationDate).
   const handleRefreshStatus = useCallback(async () => {
     if (!connected || isCheckingStatus) return;
 
     setIsCheckingStatus(true);
     try {
-      // Refresh active subscriptions - this is the key API for status checking
-      // Returns ActiveSubscription[] with platform-specific renewal info
+      // The key status API; results carry platform-specific renewal info.
       const activeSubs = await getActiveSubscriptions();
       console.log('\n===== Active Subscriptions Check =====');
       console.log('Total subscriptions:', activeSubs.length);
@@ -2243,7 +2177,7 @@ function SubscriptionFlowContainer() {
           console.log('  expirationDateIOS:', sub.expirationDateIOS);
           console.log('  environmentIOS:', sub.environmentIOS);
 
-          // 🔍 Check if renewalInfoIOS exists and log all fields
+          // Log every renewalInfoIOS field when present
           if (sub.renewalInfoIOS) {
             console.log('  ✅ renewalInfoIOS EXISTS:');
             console.log('    willAutoRenew:', sub.renewalInfoIOS.willAutoRenew);
@@ -2272,7 +2206,7 @@ function SubscriptionFlowContainer() {
               '    priceIncreaseStatus:',
               sub.renewalInfoIOS.priceIncreaseStatus,
             );
-            // 🆕 NEW FIELDS - Check if they're coming through correctly
+            // Confirm the renewal offer fields come through
             console.log(
               '    🆕 renewalOfferType:',
               sub.renewalInfoIOS.renewalOfferType,
@@ -2316,14 +2250,10 @@ function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
   // REQUEST SUBSCRIPTION PURCHASE
   // ──────────────────────────────────────────────────────────────────────────
-  // Initiates a subscription purchase. Platform-specific handling:
-  //
-  // iOS: Uses sku and optional appAccountToken for user tracking
-  //      StoreKit handles offer eligibility automatically
-  //
-  // Android: Requires subscriptionOffers with offerToken
-  //          Each offer represents a base plan (monthly/yearly) or promotional offer
-  //          The offerToken is obtained from subscriptionOffers (cross-platform type)
+  // iOS: pass the sku, plus an optional appAccountToken to track the user;
+  // StoreKit handles offer eligibility.
+  // Android: pass subscriptionOffers, each with the offerToken of a base plan
+  // (monthly/yearly) or promotional offer from the product's subscriptionOffers.
   const handleSubscription = useCallback(
     (itemId: string) => {
       setIsProcessing(true);
@@ -2371,9 +2301,6 @@ function SubscriptionFlowContainer() {
     [subscriptions],
   );
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // RESTORING PURCHASES
-  // ──────────────────────────────────────────────────────────────────────────
   // Retry loading subscriptions (useful when products fail to load initially)
   const handleRetryLoadSubscriptions = useCallback(() => {
     fetchProducts({
@@ -2389,11 +2316,8 @@ function SubscriptionFlowContainer() {
   // ──────────────────────────────────────────────────────────────────────────
   // MANAGE SUBSCRIPTIONS (Deep link to platform settings)
   // ──────────────────────────────────────────────────────────────────────────
-  // Opens the platform's subscription management screen where users can:
-  // - Cancel subscriptions
-  // - Change subscription plans (upgrade/downgrade)
-  // - Update payment methods
-  // - View subscription history
+  // Opens the platform's subscription management screen, where users cancel,
+  // change plans (upgrade/downgrade), update payment methods, and view history.
   const handleManageSubscriptions = useCallback(async () => {
     try {
       await deepLinkToSubscriptions();

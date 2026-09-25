@@ -119,9 +119,10 @@ jobs:
       - name: Build OpenIAP.xcframework (Apple)
         run: bash packages/apple/scripts/build-xcframework.sh
 
-      - name: Build Play AAR (Google)
+      # The package carries every store's AAR; the app build links one.
+      - name: Build store AARs (Google)
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayRelease
+        run: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
 
       - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
@@ -331,9 +332,10 @@ jobs:
       - name: Verify App Store toolchain provenance
         run: bash packages/apple/scripts/verify-app-store-xcframework.sh
 
-      - name: Build Play AAR (Google)
+      # The package carries every store's AAR; the app build links one.
+      - name: Build store AARs (Google)
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayRelease
+        run: ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease
 
       - name: Build MAUI Android module AAR
         working-directory: libraries/maui-iap/android
@@ -347,6 +349,22 @@ jobs:
             -c Release \
             -p:Version=$VERSION \
             -o ./nupkgs
+          # The app build picks one store AAR from android/; one in lib/ would
+          # link into every build.
+          CONTENTS=$(unzip -l ./nupkgs/OpenIap.Maui.*.nupkg | awk '{print $4}')
+          for entry in \
+            android/openiap-play-release.aar \
+            android/openiap-horizon-release.aar \
+            android/openiap-amazon-release.aar \
+            buildTransitive/OpenIap.Maui.props \
+            buildTransitive/OpenIap.Maui.targets \
+            lib/net10.0-android36.0/openiap-release.aar; do
+            printf '%s\n' "$CONTENTS" | grep -qx "$entry" || { echo "::error::$entry is missing from the package"; exit 1; }
+          done
+          if printf '%s\n' "$CONTENTS" | grep -E '^lib/.*openiap-(play|horizon|amazon)-release\.aar$'; then
+            echo "::error::a store AAR is in lib/, where every build would link it"
+            exit 1
+          fi
 
       - name: Check if NuGet package already published
         id: check_nuget

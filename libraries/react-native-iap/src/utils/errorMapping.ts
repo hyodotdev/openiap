@@ -10,10 +10,7 @@ import {
   type SubResponseCodeAndroid,
 } from '../types';
 
-/**
- * Error code for duplicate purchase events detected on iOS.
- * Now part of the official OpenIAP ErrorCode enum.
- */
+/** Error code for duplicate purchase events detected on iOS. */
 export const DUPLICATE_PURCHASE_CODE = ErrorCode.DuplicatePurchase;
 
 const ERROR_CODE_ALIASES: Record<string, ErrorCode> = {

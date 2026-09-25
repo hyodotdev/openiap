@@ -16,12 +16,8 @@ import { hashStoredSecretApiKeyPatch } from "./apiKeys/helpers.js";
 export const migrations = new Migrations<DataModel>(components.migrations);
 
 /**
- * Migration: Update subscription tiers to Developer/Pro/Enterprise
- *
- * Maps old tier names to new tier names:
- * - free, starter, growth, scale -> developer
- * - enterprise -> enterprise (unchanged)
- *
+ * Migration: move the old free/starter/growth/scale tiers to developer.
+ * Enterprise is unchanged.
  */
 export const updateSubscriptionTiers = migrations.define({
   table: "organizations",
@@ -61,10 +57,8 @@ export const removeLegacyProfileFields = migrations.define({
 });
 
 /**
- * Migration: Replace isAuthentic with isValid on purchases
- *
- * - Adds `isValid` field computed from `state` using isValidState()
- * - Removes deprecated `isAuthentic` field
+ * Migration: replace the deprecated `isAuthentic` with `isValid`, computed
+ * from `state` by isValidState().
  */
 export const replaceIsAuthenticWithIsValid = migrations.define({
   table: "purchases",
@@ -93,25 +87,20 @@ export const removePurchaseIdFromRequestData = migrations.define({
 });
 
 /**
- * Migration: Backfill the `purchaseStats` counter table row-by-row.
+ * Migration: backfill `purchaseStats` from `purchases`, one purchase and one
+ * stats upsert per mutation, so a large project never exceeds the
+ * per-transaction read/write budget.
  *
- * Iterates the `purchases` table. Each `migrateOne` call runs as its own
- * mutation — bounded to one purchase + one stats-row upsert — so
- * per-project receipt volume never blows the per-transaction read/write
- * budget. The base `statsCounted` and later `storeStatsCounted` sentinels
- * make the migration safe to resume after partial runs and coordinate it
- * with `backfillPurchaseStatsStoreBuckets` in either order. New purchases
- * from `savePurchaseInternal` are created with both sentinels set.
- * Complete this base backfill before running
- * `collapseDuplicatePurchasesByOrderId`; the cleanup fails fast when a
- * duplicate sibling has not claimed its base contribution.
+ * The `statsCounted` and `storeStatsCounted` sentinels make it resumable and
+ * let it run before or after `backfillPurchaseStatsStoreBuckets`. Writes
+ * during the run are safe: `savePurchaseInternal` creates purchases with both
+ * sentinels set, and processed rows are not revisited.
  *
- * Run ONCE per dataset. Concurrent writes during the migration window
- * are safe because: (a) new inserts are already marked counted, and
- * (b) rows already processed by the cursor won't be revisited.
- *
- * NOTE: supersedes the deprecated project-level backfill below, which
- * iterated every receipt for a project inside a single mutation.
+ * Run once per dataset, and finish it before
+ * `collapseDuplicatePurchasesByOrderId`, which fails fast on a duplicate
+ * sibling that has not claimed its base contribution. Replaces the deprecated
+ * `backfillPurchaseStats` below, which read every receipt of a project in one
+ * mutation.
  */
 export const backfillPurchaseStatsFromPurchases = migrations.define({
   table: "purchases",
@@ -119,10 +108,8 @@ export const backfillPurchaseStatsFromPurchases = migrations.define({
   migrateOne: async (ctx, doc) => {
     if (doc.statsCounted === true && doc.storeStatsCounted === true) return;
 
-    // Prefer the stored `orderId` column, but fall back to extracting
-    // from `remoteResponse` so the stats backfill can run before OR
-    // after `backfillPurchaseOrderIds` without losing googleOrders
-    // signal on rows whose column hasn't been populated yet.
+    // Fall back to `remoteResponse` so this can run before or after
+    // `backfillPurchaseOrderIds` and still count googleOrders.
     const hasOrderId =
       typeof doc.orderId === "string" && doc.orderId.length > 0
         ? true
@@ -151,11 +138,10 @@ export const backfillPurchaseStatsFromPurchases = migrations.define({
 });
 
 /**
- * @deprecated Use `backfillPurchaseStatsFromPurchases` instead. Kept
- * around only so the migration runner doesn't re-run already-completed
- * deployments under a new name; do not invoke on new installs.
- * Retained exported so the function map stays stable for any Convex
- * dashboard that already references it.
+ * @deprecated Use `backfillPurchaseStatsFromPurchases`; do not run it on new
+ * installs. Kept so the migration runner does not re-run completed
+ * deployments under a new name, and exported so its function path stays
+ * stable for Convex dashboards that reference it.
  */
 export const backfillPurchaseStats = migrations.define({
   table: "projects",
@@ -165,36 +151,26 @@ export const backfillPurchaseStats = migrations.define({
 });
 
 /**
- * Migration: Recompute every project's `purchaseStats` row from scratch.
+ * Migration: recompute every project's `purchaseStats` row from scratch.
  *
- * Run this as the FINAL step of the deploy sequence. Complete
- * `backfillPurchaseStatsFromPurchases` before
- * `collapseDuplicatePurchasesByOrderId`; the independent
- * `backfillPurchaseStatsStoreBuckets` migration may run before or after that
- * cleanup. Finish all of them (and `backfillPurchaseOrderIds`, when needed)
- * before this recompute.
- * The per-row `backfillPurchaseStatsFromPurchases` path can slightly
- * over-count `googleOrders` while duplicate-orderId rows still exist;
- * running this mutation last rebuilds `googleOrders` as the true
- * distinct-orderId count and re-aligns the total, per-store, valid, and
- * invalid counters against whatever the `purchases` table actually contains
- * after the collapse.
+ * Run it last. `backfillPurchaseStatsFromPurchases` must finish before
+ * `collapseDuplicatePurchasesByOrderId`; `backfillPurchaseStatsStoreBuckets`
+ * may run on either side of that cleanup. Finish all of them, and
+ * `backfillPurchaseOrderIds` when needed, before this: a recompute does not
+ * set the per-purchase sentinels, so a later row migration would count the
+ * same purchase again.
  *
- * Runs in a single mutation per project. For every project in the
- * current dataset this fits inside Convex's per-transaction read
- * budget (largest project is in the low thousands of rows). If any
- * single project grows past the limit (~hundreds of thousands of
- * receipts), switch to a paginated action that accumulates counts
- * across calls before writing the `purchaseStats` row once — the
- * pagination pattern used by `collapseDuplicatePurchasesByOrderId` is
- * a good template. This migration will fail fast (read-bytes limit
- * error) rather than produce a bad stats row, so the failure mode is
- * safe.
+ * Required after a non-dry duplicate cleanup deletes rows, otherwise an
+ * optional drift correction. The per-row backfill can over-count
+ * `googleOrders` while duplicate-orderId rows exist; this rebuilds it as the
+ * distinct-orderId count and realigns the total, per-store, valid, and
+ * invalid counters with the `purchases` table.
  *
- * Do not run this before the two row migrations above: a full recompute does
- * not mark per-purchase sentinels, so a later row migration would replay the
- * same contribution. Run it last whenever a non-dry duplicate cleanup
- * deletes rows; otherwise it remains an optional final drift-correction step.
+ * One mutation per project fits today's data (largest project: low thousands
+ * of rows). A project past the read limit (~hundreds of thousands of
+ * receipts) fails fast with a read-bytes error instead of writing a bad row;
+ * then switch to a paginated action that accumulates counts and writes the
+ * row once (`collapseDuplicatePurchasesByOrderId` shows the pagination).
  */
 export const recomputeAllPurchaseStats = migrations.define({
   table: "projects",
@@ -204,18 +180,16 @@ export const recomputeAllPurchaseStats = migrations.define({
 });
 
 /**
- * Migration: Populate the Horizon and Amazon purchase-stat buckets.
+ * Migration: populate the Horizon and Amazon purchase-stat buckets.
  *
- * This intentionally has a new migration identity. Deployments that already
- * completed `recomputeAllPurchaseStats` will not rerun that migration after
- * its implementation changes, and their legacy `purchaseStats` rows predate
- * the store-specific counters.
+ * A separate migration on purpose: the runner does not rerun a completed
+ * `recomputeAllPurchaseStats` after its code changes, and older
+ * `purchaseStats` rows predate the store-specific counters.
  *
- * Each mutation handles one purchase row. `storeStatsCounted` is written in
- * the same transaction as the Horizon/Amazon delta, so an interrupted or reset
- * run cannot double count a repaired row. New purchases are born marked after
- * updating the widened stats row and are therefore skipped safely while this
- * migration is in flight.
+ * One purchase per mutation, with `storeStatsCounted` set in the same
+ * transaction as the Horizon/Amazon delta, so an interrupted or reset run
+ * cannot double count. New purchases update the widened stats row and are
+ * born marked, so this skips them.
  */
 export const backfillPurchaseStatsStoreBuckets = migrations.define({
   table: "purchases",
@@ -240,11 +214,9 @@ export const backfillPurchaseStatsStoreBuckets = migrations.define({
 });
 
 /**
- * Migration: Backfill the `productId` column on existing purchases.
- *
- * `productId` is now extracted on write so the list query doesn't have
- * to JSON.parse every receipt's `remoteResponse` per page. This
- * populates the column for rows that pre-date that change.
+ * Migration: backfill the `productId` column on older purchases, so the list
+ * query need not JSON.parse each receipt's `remoteResponse`. New rows get it
+ * on write.
  */
 export const backfillPurchaseProductIds = migrations.define({
   table: "purchases",
@@ -270,33 +242,26 @@ export const backfillPurchaseProductIds = migrations.define({
 });
 
 /**
- * Migration: Backfill the `orderId` column on existing Google purchases.
+ * Migration: backfill the `orderId` column on older Google purchases so the
+ * `by_project_app_orderId` index covers them.
  *
- * `orderId` is Google's stable per-transaction identifier. We now
- * extract it on write and use it as the secondary dedup key in
- * `savePurchaseInternal`, which prevents the token-reissue inflation
- * Adam reported on Black Dust going forward. This migration populates
- * the column for rows that pre-date that change so the
- * `by_project_app_orderId` index can serve them too.
+ * `orderId` is Google's stable per-transaction id. `savePurchaseInternal`
+ * extracts it on write and uses it as the secondary dedup key, which
+ * prevents token-reissue inflation.
  *
- * Safe to run repeatedly: rows that already have `orderId` set are
- * skipped, and rows whose `remoteResponse` doesn't surface an orderId
- * (pending-acknowledgement, errors) stay untouched.
+ * Safe to rerun: rows with an `orderId` are skipped, and rows whose
+ * `remoteResponse` has none (pending acknowledgement, errors) stay untouched.
  *
- * NOTE: does NOT collapse duplicate rows — that's a separate,
- * destructive step deliberately kept out of the migration runner. See
- * `collapseDuplicatePurchasesByOrderId` in
- * [convex/purchases/cleanup.ts](convex/purchases/cleanup.ts) and the
- * deploy sequence in PR #10 (https://github.com/hyodotdev/openiap/pull/10) for the recommended order of operations.
+ * It does not collapse duplicate rows; that destructive step is kept out of
+ * the migration runner on purpose. See `collapseDuplicatePurchasesByOrderId`
+ * in convex/purchases/cleanup.ts, and `recomputeAllPurchaseStats` above for
+ * the order of operations.
  */
 export const backfillPurchaseOrderIds = migrations.define({
   table: "purchases",
   migrateOne: async (_ctx, doc) => {
-    // Only treat a NON-EMPTY string as "already backfilled". Empty
-    // strings shouldn't exist in practice (the extractor rejects them
-    // on the way in), but if one ever slipped through a manual write
-    // we should still re-extract from `remoteResponse` rather than
-    // preserving the broken value forever.
+    // Re-extract over an empty string too: the extractor never writes one,
+    // but a manual write could.
     if (typeof doc.orderId === "string" && doc.orderId.length > 0) {
       return doc;
     }
@@ -318,12 +283,11 @@ export const backfillPurchaseOrderIds = migrations.define({
 });
 
 /**
- * Migration: Backfill `organizationId` on existing `purchaseStats` rows.
+ * Migration: backfill `organizationId` on existing `purchaseStats` rows.
  *
- * The denormalized `organizationId` lets `getOrganizationReceiptStats`
- * query by org directly instead of walking every `projects` row (which
- * could carry large Horizon/iOS credential fields and trip Convex's
- * read-bytes limit on orgs with many projects).
+ * It lets `getOrganizationReceiptStats` query by org instead of reading every
+ * `projects` row, whose large Horizon/iOS credential fields can trip Convex's
+ * read-bytes limit on orgs with many projects.
  */
 export const backfillPurchaseStatsOrganizationId = migrations.define({
   table: "purchaseStats",

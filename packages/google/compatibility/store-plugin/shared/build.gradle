@@ -1,0 +1,24 @@
+// A shared KMP module on AGP's Kotlin Multiplatform library plugin, which has
+// no defaultConfig and selects dependency flavors its own way.
+plugins {
+  id 'org.jetbrains.kotlin.multiplatform'
+  id 'com.android.kotlin.multiplatform.library'
+}
+
+kotlin {
+  androidLibrary {
+    namespace = 'dev.hyo.openiap.fixture.shared'
+    compileSdk = 36
+    minSdk = 24
+  }
+  sourceSets {
+    commonMain {
+      dependencies {
+        implementation 'io.github.hyochan:kmp-iap:3.5.1'
+      }
+    }
+  }
+}
+
+apply from: rootProject.file('print-stores.gradle')
+openIapFixturePrint('printDebugStores', 'androidRuntimeClasspath')

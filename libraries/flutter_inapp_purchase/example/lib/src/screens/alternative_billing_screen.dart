@@ -118,11 +118,11 @@ Transaction ID: ${purchase.id}
 ''';
       });
 
-      // Finish transaction
+      // Demo: finishes without verification; only bulb packs are consumed.
       try {
         await FlutterInappPurchase.instance.finishTransaction(
           purchase: purchase,
-          isConsumable: true,
+          isConsumable: IapConstants.isConsumable(purchase.productId),
         );
       } catch (e) {
         debugPrint('[AlternativeBilling] Failed to finish transaction: $e');

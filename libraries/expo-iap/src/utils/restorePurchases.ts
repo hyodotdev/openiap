@@ -11,12 +11,11 @@ import {createPurchaseError} from './errorMapping';
  * a subsequent empty purchase query.
  */
 export const restorePurchasesIOSNative = async (): Promise<void> => {
-  const nativeModule = ExpoIapModule as any;
   const usingOnside =
-    nativeModule.USING_ONSIDE_SDK &&
-    typeof nativeModule.restorePurchases === 'function';
+    ExpoIapModule.USING_ONSIDE_SDK &&
+    typeof ExpoIapModule.restorePurchases === 'function';
   const restored = usingOnside
-    ? await nativeModule.restorePurchases()
+    ? await ExpoIapModule.restorePurchases?.()
     : await syncIOS();
 
   if (restored !== true) {

@@ -1,12 +1,6 @@
-// Bounded-parallelism mapper. Replaces a plain `Promise.all(items.map(fn))`
-// pattern with one that limits in-flight calls to `concurrency` —
-// useful for fan-outs against external APIs that throttle aggressively
-// (App Store Connect, Meta Graph, etc.) where unbounded parallelism
-// would trip 429s, but sequential `for await` would balloon wall-clock
-// time on large batches.
-//
-// Output preserves input order regardless of completion order so the
-// caller can pair results back to their source items by index.
+// `Promise.all(items.map(fn))` with at most `concurrency` calls in flight, for
+// APIs that throttle (App Store Connect, Meta Graph) where unbounded calls trip
+// 429s and a sequential loop is too slow. Results keep input order.
 export async function mapWithConcurrency<T, R>(
   items: ReadonlyArray<T>,
   concurrency: number,

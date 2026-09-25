@@ -287,13 +287,13 @@ describe('iOS Module Functions', () => {
         id: 'legacy-id',
         productId: mockSku,
         transactionId: 'txn-1',
-      } as any;
+      };
 
       (ExpoIapModule.currentEntitlementIOS as jest.Mock).mockResolvedValue(
         mockEntitlement,
       );
 
-      const result = (await currentEntitlementIOS(mockSku)) as any;
+      const result = await currentEntitlementIOS(mockSku);
 
       expect(ExpoIapModule.currentEntitlementIOS).toHaveBeenCalledWith(mockSku);
       expect(result?.id).toBe('legacy-id');
@@ -326,7 +326,7 @@ describe('iOS Module Functions', () => {
         mockTransaction,
       );
 
-      const result = (await latestTransactionIOS(mockSku)) as any;
+      const result = await latestTransactionIOS(mockSku);
 
       expect(ExpoIapModule.latestTransactionIOS).toHaveBeenCalledWith(mockSku);
       expect(result?.id).toBe('com.example.product');
@@ -385,12 +385,12 @@ describe('iOS Module Functions', () => {
     });
 
     it('should call showManageSubscriptionsIOS', async () => {
-      const mockPurchases: any[] = [validPurchase('txn-77')];
+      const mockPurchases = [validPurchase('txn-77')];
       (ExpoIapModule.showManageSubscriptionsIOS as jest.Mock).mockResolvedValue(
         mockPurchases,
       );
 
-      const result = (await showManageSubscriptionsIOS()) as any[];
+      const result = await showManageSubscriptionsIOS();
 
       expect(ExpoIapModule.showManageSubscriptionsIOS).toHaveBeenCalledTimes(1);
       expect(Array.isArray(result)).toBe(true);
@@ -543,7 +543,7 @@ describe('iOS Module Functions', () => {
       const result = await getPendingTransactionsIOS();
 
       expect(ExpoIapModule.getPendingTransactionsIOS).toHaveBeenCalledTimes(1);
-      expect(result[0].id).toBe('txn-pending');
+      expect(result[0]?.id).toBe('txn-pending');
     });
 
     it('clears iOS transactions', async () => {
@@ -795,13 +795,15 @@ describe('iOS Module Functions', () => {
 
       it('should throw when tokenType missing', async () => {
         await expect(
-          getExternalPurchaseCustomLinkTokenIOS(undefined as any),
+          // @ts-expect-error runtime guard
+          getExternalPurchaseCustomLinkTokenIOS(undefined),
         ).rejects.toThrow(/requires a tokenType/);
       });
 
       it('should throw when tokenType is empty string', async () => {
         await expect(
-          getExternalPurchaseCustomLinkTokenIOS('' as any),
+          // @ts-expect-error runtime guard
+          getExternalPurchaseCustomLinkTokenIOS(''),
         ).rejects.toThrow(/requires a tokenType/);
       });
 
@@ -860,13 +862,15 @@ describe('iOS Module Functions', () => {
 
       it('should throw when noticeType missing', async () => {
         await expect(
-          showExternalPurchaseCustomLinkNoticeIOS(undefined as any),
+          // @ts-expect-error runtime guard
+          showExternalPurchaseCustomLinkNoticeIOS(undefined),
         ).rejects.toThrow(/requires a noticeType/);
       });
 
       it('should throw when noticeType is empty string', async () => {
         await expect(
-          showExternalPurchaseCustomLinkNoticeIOS('' as any),
+          // @ts-expect-error runtime guard
+          showExternalPurchaseCustomLinkNoticeIOS(''),
         ).rejects.toThrow(/requires a noticeType/);
       });
 

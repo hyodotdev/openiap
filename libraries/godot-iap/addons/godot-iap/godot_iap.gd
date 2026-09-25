@@ -11,6 +11,7 @@ class_name GodotIapWrapper
 
 # Types from OpenIAP spec
 const Types = preload("types.gd")
+const AndroidStore = preload("android_store.gd")
 
 const APPLE_PLATFORMS := ["iOS", "macOS"]
 const APPLE_ASYNC_RESULT_CACHE_LIMIT := 64
@@ -77,6 +78,8 @@ var _apple_async_ui_timeout_seconds := 300.0
 
 # Platform detection
 var _platform: String = ""
+## OS.has_feature, swappable in tests: an editor run carries no export tags.
+var _has_feature: Callable = Callable(OS, "has_feature")
 
 
 func _is_apple() -> bool:
@@ -1592,7 +1595,7 @@ func get_promoted_product_ios() -> Variant:
 					return Types.ProductIOS.from_dict(parsed)
 	return null
 
-## Check if can present external purchase notice (iOS 18.2+).
+## Check if can present external purchase notice (iOS 17.4+).
 ## @return bool - true if external purchase notice can be presented
 ##
 ## See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
@@ -1602,7 +1605,7 @@ func can_present_external_purchase_notice_ios() -> bool:
 		return payload.get("success", false) and payload.get("canPresent", false)
 	return false
 
-## Present external purchase notice sheet (iOS 18.2+).
+## Present external purchase notice sheet (iOS 17.4+).
 ## @return Types.ExternalPurchaseNoticeResultIOS
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
@@ -1618,7 +1621,7 @@ func present_external_purchase_notice_sheet_ios() -> Variant:
 	var default_result = Types.ExternalPurchaseNoticeResultIOS.new()
 	return default_result
 
-## Present external purchase link (iOS 18.2+).
+## Present external purchase link.
 ## @param url: String - external purchase URL
 ## @return Types.ExternalPurchaseLinkResultIOS
 ##
@@ -2160,6 +2163,11 @@ func is_stub_mode() -> bool:
 ## Returns Types.IapStore enum value
 func get_store() -> Variant:
 	if _platform == "Android":
+		# Every store is an Android build; the export tags the one it linked.
+		if _has_feature.call(AndroidStore.store_feature("horizon")):
+			return Types.IapStore.HORIZON
+		if _has_feature.call(AndroidStore.store_feature("amazon")):
+			return Types.IapStore.AMAZON
 		return Types.IapStore.GOOGLE
 	elif _is_apple():
 		return Types.IapStore.APPLE

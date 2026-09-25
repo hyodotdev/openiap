@@ -120,11 +120,11 @@ ObjC entry points.
 Native artifacts must be present **before** `dotnet build` on the
 binding csprojs:
 
-| Artifact                   | Built by                                                                                                      | Path                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `openiap-play-release.aar` | `./gradlew :openiap:assemblePlayRelease` (in `packages/google`)                                               | `packages/google/openiap/build/outputs/aar/`            |
-| `openiap-release.aar`      | `../../../packages/google/gradlew :openiap:assembleRelease` (in `libraries/maui-iap/android`)                 | `libraries/maui-iap/android/openiap/build/outputs/aar/` |
-| `OpenIAP.xcframework`      | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/`                    |
+| Artifact                                              | Built by                                                                                                      | Path                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `openiap-<store>-release.aar` (play, horizon, amazon) | `./gradlew :openiap:assemble{Play,Horizon,Amazon}Release` (in `packages/google`)                              | `packages/google/openiap/build/outputs/aar/`            |
+| `openiap-release.aar`                                 | `../../../packages/google/gradlew :openiap:assembleRelease` (in `libraries/maui-iap/android`)                 | `libraries/maui-iap/android/openiap/build/outputs/aar/` |
+| `OpenIAP.xcframework`                                 | `bash packages/apple/scripts/build-xcframework.sh` (uses xcodegen + the wrapper at `packages/apple/wrapper/`) | `packages/apple/.build/xcframework/`                    |
 
 CI runs both before invoking the .NET binding builds — see
 [`.github/workflows/ci-maui-iap.yml`](../../.github/workflows/ci-maui-iap.yml)
@@ -140,12 +140,19 @@ so the main package flattens their outputs instead of declaring unpublished
 The package includes:
 
 - binding DLLs in `lib/<tfm>/`
-- Android AARs in `lib/net10.0-android36.0/`, limited to OpenIAP-owned artifacts: the
-  MAUI-owned module AAR and the unbound `openiap-play-release.aar` runtime
-  dependency
-- Android Google Billing, Play Services, Gson, AndroidX, and Kotlin runtime
-  libraries as normal NuGet `PackageReference` dependencies, not embedded AAR
-  copies
+- the MAUI-owned module AAR in `lib/net10.0-android36.0/`
+- every store's `openiap-<store>-release.aar` in `android/`, outside `lib/`,
+  where .NET would link all of them
+- `buildTransitive/OpenIap.Maui.targets` and `OpenIap.Maui.props`, which link
+  one store per app build: `OpenIapStore` (alias `OpenIapAndroidStore`), else
+  the device a Debug build deploys to, else Play. That store's SDK (Google
+  Play Billing, the Horizon billing libraries, or the Amazon Appstore SDK)
+  comes from Maven. `scripts/verify-store-selection.sh` covers the rule.
+- Play Services, DataTransport, kotlinx-serialization, Gson, AndroidX, and
+  Kotlin runtime libraries as normal NuGet `PackageReference` dependencies, not
+  embedded AAR copies. NuGet cannot vary them per store, so every MAUI build
+  carries them; Google Play Billing is not one of them, because its binding's
+  Java wrappers would link it into every store's build
 - iOS / macCatalyst `OpenIap.Maui.Bindings.iOS.resources.zip` sidecars
   next to the iOS binding DLLs
 

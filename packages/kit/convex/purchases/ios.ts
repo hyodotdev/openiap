@@ -268,14 +268,14 @@ export async function verifyJWSTransaction(
       appAppleId,
     );
 
-    // `enableOnlineChecks: true` makes verifyAndDecodeTransaction
-    // perform an HTTP call against Apple's CRL/OCSP endpoints, so a
-    // transient Apple-edge 5xx or DNS hiccup would otherwise bubble
-    // up as a permanent verification failure. Retry-on-transient
-    // matches the policy the Server API + Google Play paths use.
-    const verifiedTransaction = await retryOnTransient(() =>
-      verifier.verifyAndDecodeTransaction(jws),
-    );
+    // Online checks call Apple's CRL/OCSP endpoints, so transient failures
+    // retry, as on the other store paths. The type adds fields a StoreKit 2
+    // device JWS carries but the server library omits.
+    const verifiedTransaction: JWSTransactionDecodedPayload & {
+      gracePeriodExpiresDate?: number;
+      deviceVerification?: string;
+      deviceVerificationNonce?: string;
+    } = await retryOnTransient(() => verifier.verifyAndDecodeTransaction(jws));
 
     const transactionData = {
       transactionId: verifiedTransaction.transactionId,
@@ -295,17 +295,15 @@ export async function verifyJWSTransaction(
       subscriptionGroupIdentifier:
         verifiedTransaction.subscriptionGroupIdentifier,
       expiresDate: verifiedTransaction.expiresDate,
-      gracePeriodExpiresDate: (verifiedTransaction as any)
-        .gracePeriodExpiresDate,
+      gracePeriodExpiresDate: verifiedTransaction.gracePeriodExpiresDate,
       revocationDate: verifiedTransaction.revocationDate,
       revocationReason: verifiedTransaction.revocationReason,
-      deviceVerification: (verifiedTransaction as any).deviceVerification,
-      deviceVerificationNonce: (verifiedTransaction as any)
-        .deviceVerificationNonce,
+      deviceVerification: verifiedTransaction.deviceVerification,
+      deviceVerificationNonce: verifiedTransaction.deviceVerificationNonce,
       inAppOwnershipType: verifiedTransaction.inAppOwnershipType,
       signedDate: verifiedTransaction.signedDate,
       transactionReason: verifiedTransaction.transactionReason,
-      appTransactionId: (verifiedTransaction as any).appTransactionId,
+      appTransactionId: verifiedTransaction.appTransactionId,
     };
 
     return transactionData;
@@ -427,10 +425,8 @@ async function verifyTransactionWithServerApi(params: {
   );
 
   try {
-    // App Store Server API can return transient 5xx during incidents;
-    // retry matches the shared policy (max 3 attempts, sub-second
-    // backoff, 4xx fails fast). `extractHttpStatus` reads
-    // `httpStatusCode` from APIException so retry-on-5xx fires here.
+    // Retries the API's transient 5xx; extractHttpStatus reads APIException's
+    // httpStatusCode.
     const response = await retryOnTransient(() =>
       client.getTransactionInfo(decodedJwsPayload.transactionId as string),
     );

@@ -2,10 +2,9 @@
 
 // HTTP half of outbound delivery.
 //
-// Direction is strictly store → IAPKit → developer backend. This is
-// server-to-server only: destinations are HTTPS endpoints a project owner
-// registered, nothing here is reachable from a shipped app, and no
-// client-pullable stream exists.
+// Direction is strictly store → IAPKit → developer backend, server to server:
+// destinations are HTTPS endpoints a project owner registered, nothing here is
+// reachable from a shipped app, and no client-pullable stream exists.
 
 import { v } from "convex/values";
 import { lookup as dnsLookup } from "node:dns/promises";

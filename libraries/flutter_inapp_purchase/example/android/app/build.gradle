@@ -17,6 +17,8 @@ if (!usesBuiltInKotlin) {
 }
 
 apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
+// Same resolver as flutter_inapp_purchase, so the app and the plugin link one store.
+apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
 
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
 def openIapResolvedMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
@@ -25,14 +27,9 @@ def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIa
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')
 def openIapEspressoCoreVersion = openIapResolveDependencyVersion('androidx.test.espresso:espresso-core', 'openIapEspressoCoreVersion')
 
-// Read store flags from gradle.properties (default: Play)
-def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
-def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
-if (horizonEnabled && fireOsEnabled) {
-    throw new GradleException("flutter_inapp_purchase example: horizonEnabled and fireOsEnabled cannot both be true")
-}
-def openIapMinSdkVersion = fireOsEnabled ? Math.max(openIapResolvedMinSdkVersion, 24) : openIapResolvedMinSdkVersion
-def openIapFlavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
+// Same resolver as the plugin, so the app and flutter_inapp_purchase link one store.
+def openIapFlavor = openIapResolveStore('app', [allowNone: true]).store
+def openIapMinSdkVersion = openIapFlavor == 'amazon' ? Math.max(openIapResolvedMinSdkVersion, 24) : openIapResolvedMinSdkVersion
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
@@ -75,14 +72,14 @@ android {
         versionName = flutterVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Select platform flavor from plugin's product flavors
-        missingDimensionStrategy 'platform', openIapFlavor
+        // Select platform flavor from plugin's product flavors; none links no store SDK.
+        missingDimensionStrategy 'platform', openIapFlavor == 'none' ? 'play' : openIapFlavor
 
         // Configure Horizon App ID if enabled
         // Ships the shared example app id like the other OpenIAP examples; an
         // empty value would only surface as a startConnection crash on device.
         def horizonAppId = ""
-        if (horizonEnabled) {
+        if (openIapFlavor == 'horizon') {
             // Blank counts as absent: getProperty returns "" for a key present
             // with no value, and "" is non-null, so elvis alone would keep it.
             horizonAppId = localProperties.getProperty("HORIZON_APP_ID")?.trim() ?: "31705015229097839"

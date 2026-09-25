@@ -52,6 +52,8 @@ export default function ProjectProducts() {
   const enqueueSync = useMutation(api.products.jobs.enqueueProductSync);
   const cancelSync = useMutation(api.products.jobs.cancelProductSync);
   const dismissJob = useMutation(api.products.jobs.dismissCompletedJob);
+  // The sync worker writes progress to its `productSyncJobs` row, so these
+  // update without polling.
   const iosJob = useQuery(api.products.jobs.getActiveSyncJob, {
     projectId: project._id,
     platform: "IOS",
@@ -63,29 +65,12 @@ export default function ProjectProducts() {
   const listAscGroups = useAction(
     api.products.asc.listSubscriptionGroupsAppleIOS,
   );
-  // Cached ASC subscription group reference names for the
-  // autocomplete. Populated lazily — on first focus of the group
-  // input — so projects without ASC credentials configured don't
-  // hit the action and surface a credential error every page load.
+  // ASC subscription group names for the autocomplete, loaded on first focus
+  // so a project without ASC credentials doesn't hit a credential error on load.
   const [ascGroupNames, setAscGroupNames] = useState<string[] | null>(null);
   const [ascGroupLoadFailed, setAscGroupLoadFailed] = useState(false);
-  // Sync state now lives in `productSyncJobs` and is read reactively
-  // via `getActiveSyncJob` per platform — the worker writes progress
-  // back to the row, so the dashboard re-renders without polling.
-  //
-  // Toast policy: only fire a completion toast for jobs the operator
-  // *actively triggered in this mounted session*. We track the
-  // previous status per platform; a toast fires only on the
-  // transition `running/queued → succeeded/failed`, never on the
-  // first observed status. That way revisiting the page (where the
-  // first observation is already terminal) shows the result banner
-  // but does NOT pop a stale toast for a sync the operator didn't
-  // just run.
-  // Pull the field types straight off `SyncJob` (= `Doc<"productSyncJobs">`)
-  // so the snapshot stays in lockstep with the schema — adding a new
-  // status literal in `convex/schema.ts` automatically widens the
-  // local type instead of silently drifting (Gemini SSOT review on
-  // PR #128).
+  // Last seen job status per platform, for the completion-toast check below.
+  // Typed from `SyncJob` so a status added to the schema can't drift from it.
   type JobStatusSnapshot = {
     jobId: SyncJob["_id"];
     status: SyncJob["status"];
@@ -96,17 +81,11 @@ export default function ProjectProducts() {
     IOS: null,
     Android: null,
   });
-  // Job ids the operator triggered FROM THIS MOUNT (Sync / Dry-run /
-  // Reset clicks). Completion toasts gate on this so a terminal job from a
-  // previous session — left
-  // over after a code edit / HMR reload / page revisit — doesn't
-  // re-surface as if a sync had just happened. Reset on remount so
-  // the gate is automatic and never sticky.
+  // Job ids started from this mount (Sync, Dry-run, Reset). Only these get a
+  // completion toast, so a job left over from a reload or revisit stays quiet.
   const sessionTriggeredJobIdsRef = useRef<Set<string>>(new Set());
-  // The draft form holds every field the push-sync flow consumes.
-  // Optional fields are stored as empty strings here and converted to
-  // `undefined` on submit so an unfilled price doesn't end up
-  // overwriting an existing row's price with NaN.
+  // Optional fields stay "" here and become `undefined` on submit, so an
+  // empty price can't overwrite a stored price with NaN.
   const [draft, setDraft] = useState({
     productId: "",
     platform: "IOS" as "IOS" | "Android",
@@ -132,17 +111,13 @@ export default function ProjectProducts() {
   const [regionMode, setRegionMode] = useState<"inherit" | "all" | "list">(
     "inherit",
   );
-  // Only the Android one-time push applies a region footprint: ASC
-  // prices per territory through a resource this workflow doesn't touch,
-  // and Play fixes a base plan's regional configs at create. Hiding the
-  // field is how the operator learns that, instead of tripping the
-  // mutation's guard on save.
+  // Only the Android one-time push applies regions: ASC prices territories
+  // through a resource this flow doesn't touch, and Play fixes a base plan's
+  // regions at create. The field is hidden rather than rejected on save.
   const supportsSalesRegions =
     draft.platform === "Android" && draft.type !== "Subscription";
-  // Typing an existing productId means "edit this row", so show the
-  // locales it already has. Without this the field is write-only: the
-  // editor would look empty and the operator would have no way to see,
-  // correct, or intentionally keep what is stored.
+  // A typed productId that matches a stored row means "edit this row", so the
+  // editor can show what is stored instead of looking empty.
   const editingExisting = useMemo(
     () =>
       (products ?? []).find(
@@ -153,14 +128,9 @@ export default function ProjectProducts() {
     [products, draft.productId, draft.platform],
   );
   const baseListingLocale = editingExisting?.baseLocale ?? "en-US";
-  // Which stored row the editors were explicitly loaded from, or null.
-  //
-  // Loading is a button, not an effect. Inferring it from "the typed id
-  // happens to match a row" was rewritten three times and lost data
-  // three different ways — a half-typed id overwrote work in progress, a
-  // stale flag latched loading off forever, and a single blank language
-  // row made an apparently-empty editor delete a product's stored
-  // listings on save. An explicit action has none of those states.
+  // The stored row the editors were loaded from, or null. Loading is a button,
+  // not an effect: inferring it from a matching id overwrote half-typed work,
+  // latched loading off, and let a blank language row delete stored listings.
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const editingKey = editingExisting
     ? `${editingExisting.platform}\u0000${editingExisting.productId}`
@@ -212,40 +182,26 @@ export default function ProjectProducts() {
     };
   }, [clientPayloadSummaries, products]);
 
-  // Toast on the running → terminal transition only.
-  //
-  // Earlier versions used a "shown jobIds" set, which fired on
-  // every fresh mount because the ref reset to empty — landing on
-  // the page with a pre-existing terminal job re-toasted it every
-  // time. The transition rule means: the very first observation
-  // of a job (no matter its status) just records state without
-  // toasting; subsequent observations fire only when the status
-  // crossed from non-terminal to terminal.
+  // Toast only when a job moves from queued/running to terminal. The first
+  // observation just records its status, so a job that finished before this
+  // mount shows its banner without a toast (a seen-ids set resets on mount).
   useEffect(() => {
     for (const platform of ["IOS", "Android"] as const) {
       const job = platform === "IOS" ? iosJob : androidJob;
       if (!job) continue;
       const prev = prevJobStatusRef.current[platform];
       const terminal = job.status === "succeeded" || job.status === "failed";
-      // Update the snapshot before deciding whether to toast — so
-      // even if we don't toast (initial observation, dismissed, or
-      // unchanged status) we still track the latest state.
+      // Record the status before any of the `continue`s below.
       prevJobStatusRef.current[platform] = {
         jobId: job._id,
         status: job.status,
       };
       if (!terminal) continue;
       if (job.progress.phase === "dismissed") continue;
-      // Initial observation (no prev snapshot) OR a new jobId we've
-      // never seen → don't toast. We only toast for the same jobId
-      // when the previous render saw it in a non-terminal state.
+      // A job seen for the first time never toasts.
       if (!prev || prev.jobId !== job._id) continue;
       if (prev.status !== "queued" && prev.status !== "running") continue;
-      // Belt-and-braces: only toast for jobs the operator triggered
-      // FROM THIS MOUNT. Without this gate a sync started in another
-      // tab that completes while this tab is open would also pop a
-      // toast here, which the operator would read as "did I just
-      // run that?".
+      // A sync started in another tab would otherwise toast here too.
       if (!sessionTriggeredJobIdsRef.current.has(job._id)) continue;
       const label = platform === "IOS" ? "App Store Connect" : "Play Console";
       const result = job.result;
@@ -320,10 +276,8 @@ export default function ProjectProducts() {
 
   const onAdd = async () => {
     if (!draft.productId || !draft.title) return;
-    // Empty strings → undefined so the mutation's `?? existing.X`
-    // coalescing path kicks in for re-edits of an existing row, and
-    // so a brand-new row doesn't store the literal "" as its
-    // description / reviewNote.
+    // "" → undefined, so a re-edit keeps the stored value (`?? existing.X`)
+    // and a new row doesn't store "" as its description or review note.
     const description = draft.description.trim() || undefined;
     const reviewNote = draft.reviewNote.trim() || undefined;
     const priceAmountMicros = usdPriceToMicros(draft.priceUsd);
@@ -367,9 +321,8 @@ export default function ProjectProducts() {
         state: "Draft",
       });
     } catch (error) {
-      // The mutation rejects malformed locales, duplicates, and
-      // over-long store text. Without this the promise rejected into
-      // `void onAdd()` and the operator saw nothing happen.
+      // The mutation rejects malformed locales, duplicates, and over-long
+      // text; uncaught, that rejection vanished silently into `void onAdd()`.
       toast.error(convexErrorMessage(error) ?? "Could not save product");
       return;
     }
@@ -449,11 +402,7 @@ export default function ProjectProducts() {
   const onCancel = async (jobId: SyncJob["_id"], label: string) => {
     try {
       const result = await cancelSync({ projectId: project._id, jobId });
-      // The mutation returns `{ ok: false, reason: "not active" }`
-      // when the job already finished between render and click.
-      // Showing "cancellation requested" in that case is misleading
-      // — the caller didn't actually request anything because the
-      // job was already terminal (Copilot review on PR #127).
+      // "not active" means the job finished between render and click.
       if (result.ok) {
         toast.message(`${label} sync — cancellation requested`, {
           duration: 4_000,
@@ -874,10 +823,7 @@ type ProductRow = {
   updatedAt: number;
 };
 
-// Map a job's `progress.phase` to the button label. Adds counts for
-// the pull phases when available so the operator sees forward motion
-// instead of a static "Syncing…" while the worker walks dozens of
-// products.
+// Includes a count where the phase has one, so a long sync visibly moves.
 function formatJobPhaseLabel(job: SyncJob | null, storeLabel: string): string {
   if (!job) return `Syncing with ${storeLabel}…`;
   const phase = job.progress.phase;
@@ -905,15 +851,8 @@ function formatJobPhaseLabel(job: SyncJob | null, storeLabel: string): string {
   }
 }
 
-// Render a human-readable label for a single offer row. The dashboard
-// shows these as small badges under the subscription title so the
-// operator can see at a glance which plans/intros a sub carries
-// without drilling into the raw store data. Distinct from price
-// formatting because some offers (free trials) have no price.
-// Format the price column for a product row. Subscription rows
-// append the billing period ("USD 9.99 / 1 month") so iOS displays
-// the same shape as Play's base-plan badges; other types stay as
-// the bare price.
+// Subscriptions get their period ("USD 9.99 / 1 month") so iOS rows match
+// Play's base-plan badges; other types show the bare price.
 function formatPriceWithPeriod(
   priceAmountMicros: number,
   currency: string | undefined,
@@ -926,15 +865,14 @@ function formatPriceWithPeriod(
   return period ? `${base} / ${period}` : base;
 }
 
+// Badge label for one offer. Separate from price formatting because a free
+// trial has no price.
 function offerLabel(
   offer: ProductRow["offers"] extends Array<infer O> | undefined ? O : never,
 ): string {
   const period = offer.duration ? formatIsoDuration(offer.duration) : "";
-  // Drop the trailing "/ ?" placeholder when an offer's duration
-  // didn't sync through — surfaces as garbage to operators (LukasB
-  // saw "USD 10.99 / ?" on a Play base plan that lost its period
-  // somewhere between Play API and kit cache). Prefer rendering
-  // the bare price + a fallback when period is missing.
+  // A Play base plan can lose its period between the Play API and kit's
+  // cache; show the bare price then, never "USD 10.99 / ?".
   switch (offer.kind) {
     case "BasePlan":
       if (offer.priceAmountMicros !== undefined && offer.currency) {
@@ -968,9 +906,6 @@ function offerLabel(
   }
 }
 
-// Map ISO-8601 duration strings (P1W / P1M / P3D) to compact human
-// labels for the badge UI. Falls through with the raw value for
-// anything we don't recognize so the operator still sees something.
 function formatIsoDuration(iso: string): string {
   switch (iso) {
     case "P3D":
@@ -994,26 +929,10 @@ function formatIsoDuration(iso: string): string {
   }
 }
 
-// Reorder a flat product list into a consistent visual hierarchy
-// across iOS and Android:
-//
-//  1. Named iOS subscription groups first ("Subscription Group ·
-//     {name}" header — Apple's mandatory grouping for upgrade /
-//     downgrade UX).
-//  2. Subscriptions that don't carry a group name (always the case
-//     on Android since Play has no equivalent native concept; also
-//     covers iOS rows that pre-date group-name capture). Rendered
-//     under a generic "Subscriptions" header so the section read
-//     stays "subs first, then everything else" on every platform.
-//  3. "Other products" header + Consumable / NonConsumable rows.
-//
-// Without the "Subscriptions" delimiter on Android, subs and IAPs
-// rendered in raw insertion order — IAPs would land on top, the
-// reverse of iOS, and the operator couldn't visually distinguish
-// the two product types. With it the two platforms feel
-// symmetric (LukasB-DEV layout-alignment ask).
-//
-// Original row ordering is preserved within each cluster.
+// Orders rows as: named iOS subscription groups (Apple's upgrade/downgrade
+// unit), then ungrouped subscriptions under "Subscriptions" (Play has no
+// groups; older iOS rows lack a name), then "Other products". Both platforms
+// list subscriptions first; order within each cluster is kept.
 function groupRowsByHierarchy(
   rows: Array<ProductRow>,
 ): Array<
@@ -1060,11 +979,7 @@ function groupRowsByHierarchy(
       out.push({ kind: "row", row });
     }
   }
-  // Suppress the "Other products" delimiter when nothing else
-  // rendered above — a flat list of just IAPs needs no header.
-  // With at least one subscription cluster (named or unnamed)
-  // above, the delimiter is what visually closes the subscription
-  // section.
+  // A list with no subscriptions needs no "Other products" header.
   const hasSubsAbove = namedOrder.length > 0 || unnamedSubs.length > 0;
   if (hasSubsAbove && others.length > 0) {
     out.push({ kind: "otherHeader", id: "other-products" });
@@ -1075,13 +990,7 @@ function groupRowsByHierarchy(
   return out;
 }
 
-// Dry-run skips every POST/PATCH against the upstream store and
-// returns a `plannedWrites` list the toast/banner renders so the
-// operator can verify group, price tier, base plan, billing
-// period, deletions, etc. before committing. Store deletes have
-// platform-specific constraints (Apple product IDs cannot be reused;
-// Play subscriptions can only be deleted before a base plan has been
-// published), so previewing is the safer first step.
+// Previews a sync: no store writes, just the `plannedWrites` it would make.
 function DryRunButton({
   onDryRun,
   disabled,
@@ -1122,10 +1031,8 @@ function DryRunButton({
   );
 }
 
-// IAPKit does not currently implement Meta Horizon catalog sync. Surface that
-// product boundary here so an operator does not keep looking for a missing
-// "Sync with Meta" button or mistake synchronous entitlement verification for
-// background subscription tracking.
+// IAPKit has no Horizon catalog sync; this tells operators why there is no
+// Sync button and that verification is on-demand only.
 function HorizonCatalogNotice() {
   return (
     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-3 text-xs text-blue-700 dark:text-blue-200">
@@ -1152,10 +1059,8 @@ function HorizonCatalogNotice() {
   );
 }
 
-// Trigger for the local-purge confirm dialog. Tooltip explains the
-// scope (kit cache only, never store) so the operator isn't scared
-// off by the destructive icon. Disabled state covers both "sync in
-// progress" (would race with the worker) and "nothing to purge".
+// Opens the purge confirm. Disabled while a sync runs (it would race the
+// worker) and when there is nothing to purge.
 function ResetCatalogButton({
   onClick,
   disabled,
@@ -1190,14 +1095,9 @@ function ResetCatalogButton({
   );
 }
 
-// Renders inside the shared <Modal> so the destructive confirm
-// inherits the focus trap, escape handling, scroll lock, and
-// focus-restore behavior — keyboard users can't tab into the table
-// behind the backdrop while this is open (Copilot review on
-// PR #127). The warning list intentionally calls out the two real
-// risks of purge-then-sync: unpushed local edits get overwritten
-// on re-pull, and kit-only Draft rows that never made it to the
-// store disappear permanently.
+// Uses the shared <Modal> for its focus trap. The warnings name the two real
+// risks of purge-then-sync: unpushed edits are overwritten on re-pull, and
+// Draft rows never pushed to the store are lost for good.
 function PurgeConfirmDialog({
   open,
   platform,
@@ -1299,10 +1199,9 @@ function ProductGroup({
 }) {
   const storeLabel = platform === "IOS" ? "App Store Connect" : "Play Console";
   const isActive = job?.status === "queued" || job?.status === "running";
-  // The latest terminal result remains visible across reloads until dismissed.
-  // This is especially important for ASC manualActions: an operator may leave
-  // while the background job runs and still needs the follow-up instructions
-  // on return. `triggeredInSession` intentionally gates only completion toasts.
+  // A terminal result stays visible across reloads until dismissed, so an
+  // operator who left mid-sync still sees ASC manual actions on return. Only
+  // the completion toast is limited to jobs started in this session.
   const showResult = shouldShowProductSyncResult(job);
   const [purgeOpen, setPurgeOpen] = useState(false);
   return (
@@ -1363,11 +1262,8 @@ function ProductGroup({
         }}
       />
       {showResult && job ? (
-        // Theme-aware text colors — `-700` for the light surface,
-        // `-200` for the dark surface. The earlier dark-only
-        // palette (`text-rose-200` etc.) was unreadable in light
-        // mode against the bg-tint background (Gemini review on
-        // PR #127).
+        // `-700` text for light, `-200` for dark; `-200` alone is unreadable
+        // on the light tint.
         <div
           className={`px-4 py-2 border-b border-border flex items-start gap-2 text-xs ${
             job.status === "failed"
@@ -1621,10 +1517,7 @@ function Field({
   );
 }
 
-// Wrapped <select> so the chevron icon has breathing room and the
-// browser's default chrome doesn't crowd the text. `appearance-none`
-// hides the native arrow; we render our own ChevronDown inside the
-// trailing slot of the wrapper div.
+// `appearance-none` hides the native arrow; a padded ChevronDown replaces it.
 function SelectWithChevron({
   value,
   onChange,

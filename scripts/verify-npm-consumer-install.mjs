@@ -221,13 +221,14 @@ function listFiles(dir) {
   return result;
 }
 
-function prepareVersionFile(packageRoot) {
-  const versionFile = path.join(packageRoot, 'openiap-versions.json');
+// npm drops symlinks, so pack a linked file as a copy of its target and put the
+// link back afterwards. A checkout without symlinks stores the target as text.
+function prepareLinkedFile(linkedFile) {
   let isSymlink = false;
   let target = null;
   let originalContent = null;
   try {
-    target = fs.readlinkSync(versionFile);
+    target = fs.readlinkSync(linkedFile);
     isSymlink = true;
   } catch (error) {
     if (error?.code === 'ENOENT') return () => {};
@@ -235,7 +236,7 @@ function prepareVersionFile(packageRoot) {
   }
   if (!isSymlink) {
     try {
-      originalContent = fs.readFileSync(versionFile);
+      originalContent = fs.readFileSync(linkedFile);
     } catch (error) {
       if (error?.code === 'ENOENT' || error?.code === 'EISDIR') {
         return () => {};
@@ -243,23 +244,23 @@ function prepareVersionFile(packageRoot) {
       throw error;
     }
     const content = originalContent.toString('utf8').trim();
-    if (content.startsWith('.') && content.endsWith('.json') && !content.includes('\n')) {
+    if (content.startsWith('.') && !content.includes('\n') && path.basename(content) === path.basename(linkedFile)) {
       target = content;
     }
   }
   if (!target) return () => {};
 
-  const resolvedTarget = path.resolve(path.dirname(versionFile), target);
+  const resolvedTarget = path.resolve(path.dirname(linkedFile), target);
   try {
-    fs.rmSync(versionFile);
-    fs.copyFileSync(resolvedTarget, versionFile);
+    fs.rmSync(linkedFile);
+    fs.copyFileSync(resolvedTarget, linkedFile);
   } catch (error) {
     try {
-      fs.rmSync(versionFile, {force: true});
+      fs.rmSync(linkedFile, {force: true});
       if (isSymlink) {
-        fs.symlinkSync(target, versionFile);
+        fs.symlinkSync(target, linkedFile);
       } else {
-        fs.writeFileSync(versionFile, originalContent);
+        fs.writeFileSync(linkedFile, originalContent);
       }
     } catch {
       // Preserve the original failure; the restore attempt is best-effort.
@@ -268,11 +269,11 @@ function prepareVersionFile(packageRoot) {
   }
 
   return () => {
-    fs.rmSync(versionFile, {force: true});
+    fs.rmSync(linkedFile, {force: true});
     if (isSymlink) {
-      fs.symlinkSync(target, versionFile);
+      fs.symlinkSync(target, linkedFile);
     } else {
-      fs.writeFileSync(versionFile, originalContent);
+      fs.writeFileSync(linkedFile, originalContent);
     }
   };
 }
@@ -348,12 +349,14 @@ if (sourcePackageJson.name !== options.packageName) {
 }
 
 let tempRoot = null;
-let restoreVersionFile = () => {};
+const restoreLinkedFiles = [];
 let success = false;
 
 try {
   tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), `${options.packageName.replaceAll('/', '-')}-consumer-`));
-  restoreVersionFile = prepareVersionFile(packageRoot);
+  for (const requiredPath of options.required) {
+    restoreLinkedFiles.push(prepareLinkedFile(path.join(packageRoot, requiredPath)));
+  }
 
   const packArgs = ['pack', '--json', '--pack-destination', tempRoot];
   if (options.packIgnoreScripts) packArgs.push('--ignore-scripts');
@@ -394,11 +397,13 @@ try {
   success = true;
 } finally {
   let restoreError = null;
-  try {
-    restoreVersionFile();
-  } catch (error) {
-    restoreError = error;
-    console.error('Failed to restore version file:', error);
+  for (const restore of restoreLinkedFiles.reverse()) {
+    try {
+      restore();
+    } catch (error) {
+      restoreError ??= error;
+      console.error('Failed to restore a linked file:', error);
+    }
   }
   if (tempRoot && !readBooleanEnv('OPENIAP_KEEP_NPM_CONSUMER_SMOKE_TMP')) {
     try {

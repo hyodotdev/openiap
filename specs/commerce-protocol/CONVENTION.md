@@ -156,9 +156,11 @@ vocabularies directly. It fails when either side drifts.
 
 IAPKit's runtime imports the generated schemas, the HTTP manifest, and
 `vectors/signatures.json` directly rather than `src/index.mjs`, because the
-Convex isolate cannot load files with `node:fs`. A change to one of those
-artifacts therefore reaches IAPKit at build time rather than through a version
-bump.
+Convex isolate cannot load files with `node:fs`. Its GraphQL endpoint builds
+its schema from `generated/bindings/operations-sdl.json`, the JSON-wrapped
+projection that survives its single-file server bundle. A change to one of
+those artifacts therefore reaches IAPKit at build time rather than through a
+version bump.
 
 That is the right behaviour for a value IAPKit only consumes, and the wrong one
 for a value it puts on the wire, where silently following a rename would break
@@ -167,6 +169,12 @@ tests. Renaming one here fails a kit test on purpose —
 `convex/commerce/contract.test.ts` for the header names, the content type, and
 the signature prefix, and `convex/commerce/spec.conformance.test.ts` for the
 emitted `eventVersion`. The fix is a migration decision in kit, not a test edit.
+
+One example is on the wire as well: IAPKit serves
+`examples/provider-capabilities.json`, minus its `$comment`, as its live
+`providerCapabilities` response, and `convex/commerce/spec.conformance.test.ts`
+pins that file to IAPKit's own capability map. Editing it changes what IAPKit
+advertises, so treat the edit as an IAPKit release decision, not an example fix.
 
 That test belongs to kit, not to this package: the specification does not depend
 on its implementation. When a spec change makes it fail, the correct fix is

@@ -1,0 +1,134 @@
+<Project>
+  <!--
+    Links one Android store into an app, by the rule every OpenIAP build shares:
+    OpenIapStore (alias OpenIapAndroidStore), then on a Debug build the adb
+    device AdbTarget or ANDROID_SERIAL names, or the single attached one, then
+    Play. NuGet dependencies are fixed at restore, so what any store needs from
+    NuGet (Play Services for Billing, kotlinx.serialization for Horizon) is in
+    every build; only the store's own AAR and SDKs are chosen here.
+  -->
+  <!-- NuGet imports the props itself; a project reference imports only this file. -->
+  <Import Project="$(MSBuildThisFileDirectory)OpenIap.Maui.props" Condition="'$(_OpenIapMauiPropsImported)' != 'true'" />
+
+  <PropertyGroup>
+    <!-- OpenIapStore wins over the alias, as openiapStore does in Gradle. A new
+         property, since a -p value on the alias cannot be reassigned. -->
+    <_OpenIapStoreInput>$(OpenIapAndroidStore)</_OpenIapStoreInput>
+    <_OpenIapStoreInputName>OpenIapAndroidStore</_OpenIapStoreInputName>
+    <_OpenIapStoreInput Condition="'$(OpenIapStore.Trim())' != ''">$(OpenIapStore)</_OpenIapStoreInput>
+    <_OpenIapStoreInputName Condition="'$(OpenIapStore.Trim())' != ''">OpenIapStore</_OpenIapStoreInputName>
+    <OpenIapStoreKey>$(_OpenIapStoreInput.Trim().ToLowerInvariant())</OpenIapStoreKey>
+    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == '' or '$(OpenIapStoreKey)' == 'auto'">auto</OpenIapStorePin>
+    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'play' or '$(OpenIapStoreKey)' == 'google' or '$(OpenIapStoreKey)' == 'gplay' or '$(OpenIapStoreKey)' == 'googleplay' or '$(OpenIapStoreKey)' == 'google-play' or '$(OpenIapStoreKey)' == 'gms'">play</OpenIapStorePin>
+    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'horizon' or '$(OpenIapStoreKey)' == 'meta' or '$(OpenIapStoreKey)' == 'quest'">horizon</OpenIapStorePin>
+    <OpenIapStorePin Condition="'$(OpenIapStoreKey)' == 'amazon' or '$(OpenIapStoreKey)' == 'fire' or '$(OpenIapStoreKey)' == 'fireos' or '$(OpenIapStoreKey)' == 'fire-os'">amazon</OpenIapStorePin>
+    <OpenIapGoogleAarDirectory Condition="'$(OpenIapGoogleAarDirectory)' == ''">$(MSBuildThisFileDirectory)..\android\</OpenIapGoogleAarDirectory>
+  </PropertyGroup>
+
+  <!-- A release build never looks at a device, so its SDK cannot depend on what is plugged in. -->
+  <Target Name="_OpenIapProbeAndroidDevice"
+          DependsOnTargets="_ResolveMonoAndroidSdks"
+          Condition="'$(AndroidApplication)' == 'true' and '$(OpenIapStorePin)' == 'auto' and '$(Configuration)' == 'Debug' and '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <_OpenIapAdbExe>$(AdbToolExe)</_OpenIapAdbExe>
+      <_OpenIapAdbExe Condition="'$(_OpenIapAdbExe)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">adb.exe</_OpenIapAdbExe>
+      <_OpenIapAdbExe Condition="'$(_OpenIapAdbExe)' == ''">adb</_OpenIapAdbExe>
+      <_OpenIapAdbDir>$(AdbToolPath)</_OpenIapAdbDir>
+      <_OpenIapAdbDir Condition="'$(_OpenIapAdbDir)' == '' and '$(_AndroidSdkDirectory)' != ''">$([System.IO.Path]::Combine('$(_AndroidSdkDirectory)', 'platform-tools'))</_OpenIapAdbDir>
+      <_OpenIapAdb>$([System.IO.Path]::Combine('$(_OpenIapAdbDir)', '$(_OpenIapAdbExe)'))</_OpenIapAdb>
+      <!-- The IDE's deploy target first, then the variable every Android tool reads. -->
+      <_OpenIapRequestedSerial>$(ANDROID_SERIAL.Trim())</_OpenIapRequestedSerial>
+      <_OpenIapRequestedSerial Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(AdbTarget)', '-s\s+\S+'))">$([System.Text.RegularExpressions.Regex]::Replace('$(AdbTarget)', '^.*-s\s+(\S+).*$', '$1'))</_OpenIapRequestedSerial>
+    </PropertyGroup>
+
+    <Exec Command="&quot;$(_OpenIapAdb)&quot; devices" ConsoleToMSBuild="true" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" ItemName="_OpenIapAdbLine" />
+    </Exec>
+    <ItemGroup>
+      <_OpenIapAdbDevice Include="$([System.Text.RegularExpressions.Regex]::Replace('%(_OpenIapAdbLine.Identity)', '\s+device\s*$', ''))"
+                         Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_OpenIapAdbLine.Identity)', '^\S+\s+device\s*$'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_OpenIapAdbText>@(_OpenIapAdbLine)</_OpenIapAdbText>
+      <!-- adb always prints this header, so without it adb itself failed. -->
+      <_OpenIapAdbAnswered Condition="$(_OpenIapAdbText.Contains('List of devices attached'))">true</_OpenIapAdbAnswered>
+      <_OpenIapDevices>;@(_OpenIapAdbDevice);</_OpenIapDevices>
+      <_OpenIapSerial Condition="'$(_OpenIapRequestedSerial)' != '' and $(_OpenIapDevices.Contains(';$(_OpenIapRequestedSerial);'))">$(_OpenIapRequestedSerial)</_OpenIapSerial>
+      <_OpenIapSerial Condition="'$(_OpenIapRequestedSerial)' == '' and '@(_OpenIapAdbDevice->Count())' == '1'">@(_OpenIapAdbDevice)</_OpenIapSerial>
+      <_OpenIapProbeReason Condition="'$(_OpenIapAdbAnswered)' != 'true'">adb did not answer</_OpenIapProbeReason>
+      <_OpenIapProbeReason Condition="'$(_OpenIapAdbAnswered)' == 'true' and '$(_OpenIapSerial)' == ''">no single connected device</_OpenIapProbeReason>
+    </PropertyGroup>
+    <Message Importance="high"
+             Condition="'$(_OpenIapAdbAnswered)' == 'true' and '$(_OpenIapRequestedSerial)' != '' and '$(_OpenIapSerial)' == ''"
+             Text="openiap: $(_OpenIapRequestedSerial) is not attached; not selecting a store from a device" />
+
+    <Exec Condition="'$(_OpenIapSerial)' != ''" Command="&quot;$(_OpenIapAdb)&quot; -s &quot;$(_OpenIapSerial)&quot; shell pm list features" ConsoleToMSBuild="true" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_OpenIapFeatures" />
+    </Exec>
+    <Exec Condition="'$(_OpenIapSerial)' != ''" Command="&quot;$(_OpenIapAdb)&quot; -s &quot;$(_OpenIapSerial)&quot; shell getprop ro.product.manufacturer" ConsoleToMSBuild="true" IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true" EchoOff="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="_OpenIapManufacturer" />
+    </Exec>
+    <PropertyGroup Condition="'$(_OpenIapSerial)' != ''">
+      <_OpenIapManufacturer>$(_OpenIapManufacturer.Trim())</_OpenIapManufacturer>
+      <!-- A device that drops after the listing answers with nothing, which is not a Play signal. -->
+      <_OpenIapProbeReason Condition="'$(_OpenIapFeatures.Trim())' == '' and '$(_OpenIapManufacturer)' == ''">$(_OpenIapSerial) stopped responding</_OpenIapProbeReason>
+      <_OpenIapDeviceStore Condition="'$(_OpenIapProbeReason)' == ''">play</_OpenIapDeviceStore>
+      <_OpenIapDeviceStore Condition="'$(_OpenIapDeviceStore)' == 'play' and ($(_OpenIapFeatures.Contains('feature:amazon.hardware.fire_tv')) or '$(_OpenIapManufacturer.ToLowerInvariant())' == 'amazon')">amazon</_OpenIapDeviceStore>
+      <_OpenIapDeviceStore Condition="'$(_OpenIapDeviceStore)' != '' and ($(_OpenIapFeatures.Contains('feature:horizonos.software.horizon_os')) or $(_OpenIapFeatures.Contains('feature:oculus.hardware.standalone_vr')))">horizon</_OpenIapDeviceStore>
+      <_OpenIapManufacturer Condition="'$(_OpenIapManufacturer)' == ''">unknown</_OpenIapManufacturer>
+      <_OpenIapProbeReason Condition="'$(_OpenIapDeviceStore)' != ''">device $(_OpenIapSerial), manufacturer $(_OpenIapManufacturer)</_OpenIapProbeReason>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="_OpenIapLinkAndroidStore"
+          DependsOnTargets="_OpenIapProbeAndroidDevice"
+          BeforeTargets="_CreatePropertiesCache;_MavenRestore;_CategorizeAndroidLibraries"
+          Condition="'$(AndroidApplication)' == 'true'">
+    <Error Condition="'$(OpenIapStorePin)' == ''"
+           Text="$(_OpenIapStoreInputName)='$(_OpenIapStoreInput)' is not a store. Use play, horizon, amazon, or auto (aliases: google/gplay/googleplay/google-play/gms, meta/quest, fire/fireos/fire-os)." />
+    <PropertyGroup>
+      <OpenIapLinkedStore>$(OpenIapStorePin)</OpenIapLinkedStore>
+      <_OpenIapSource>explicit</_OpenIapSource>
+      <_OpenIapReason>$(_OpenIapStoreInputName)=$(_OpenIapStoreInput.Trim())</_OpenIapReason>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(OpenIapStorePin)' == 'auto'">
+      <OpenIapLinkedStore>play</OpenIapLinkedStore>
+      <_OpenIapSource>default</_OpenIapSource>
+      <_OpenIapReason>$(Configuration) build</_OpenIapReason>
+      <_OpenIapReason Condition="'$(_OpenIapProbeReason)' != ''">$(_OpenIapProbeReason)</_OpenIapReason>
+      <OpenIapLinkedStore Condition="'$(_OpenIapDeviceStore)' != ''">$(_OpenIapDeviceStore)</OpenIapLinkedStore>
+      <_OpenIapSource Condition="'$(_OpenIapDeviceStore)' != ''">device</_OpenIapSource>
+    </PropertyGroup>
+    <PropertyGroup>
+      <_OpenIapGoogleAar>$([System.IO.Path]::GetFullPath('$(OpenIapGoogleAarDirectory)openiap-$(OpenIapLinkedStore)-release.aar'))</_OpenIapGoogleAar>
+    </PropertyGroup>
+    <Message Importance="high" Text="openiap: store=$(OpenIapLinkedStore) (source=$(_OpenIapSource); $(_OpenIapReason))" />
+    <Error Condition="!Exists('$(_OpenIapGoogleAar)')" Text="openiap: $(_OpenIapGoogleAar) is missing, so the $(OpenIapLinkedStore) store cannot be linked." />
+
+    <ItemGroup>
+      <AndroidLibrary Include="$(_OpenIapGoogleAar)" Bind="false" />
+      <!-- MSBuild compares timestamps, and another store's AARs can be older than
+           the last build, so a changed store must rewrite the properties cache. -->
+      <_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'play'">
+      <AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />
+      <!-- billing:9.1.0's POM dependencies. The package's own NuGet dependencies
+           provide them, but the verifier only credits an app's direct references.
+           When MauiPlayBillingVersion in OpenIap.Maui.props moves, re-pin this
+           list from the new billing POM by hand. -->
+      <AndroidIgnoredJavaDependency Include="androidx.activity:activity:1.2.3;androidx.core:core:1.15.0;com.google.android.datatransport:transport-api:3.0.0;com.google.android.datatransport:transport-backend-cct:3.1.8;com.google.android.datatransport:transport-runtime:3.1.8;com.google.android.gms:play-services-base:18.5.0;com.google.android.gms:play-services-basement:18.9.0;com.google.android.gms:play-services-location:19.0.0;com.google.android.gms:play-services-tasks:18.2.0" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'horizon'">
+      <AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />
+      <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:core-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+      <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:user-age-category-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+      <AndroidMavenLibrary Include="com.meta.horizon.platform.sdk:iap-kotlin" Version="$(MauiHorizonPlatformKotlinVersion)" Bind="false" />
+      <!-- Supplied by the package's Xamarin.KotlinX.Serialization.Json dependency. -->
+      <AndroidIgnoredJavaDependency Include="org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(OpenIapLinkedStore)' == 'amazon'">
+      <AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />
+    </ItemGroup>
+  </Target>
+</Project>

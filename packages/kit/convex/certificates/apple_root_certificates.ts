@@ -1,11 +1,6 @@
 /**
- * Apple Root Certificates
- *
- * These are Apple's public root certificates used for iOS receipt verification.
- * They serve as trust anchors for validating certificate chains in App Store receipts.
- *
- * Certificates are embedded as Base64 strings to ensure they're always available
- * in the Convex runtime environment without requiring file system access.
+ * Apple's public root certificates, the trust anchors for App Store receipt
+ * chains. Embedded as Base64 because the Convex runtime has no file system.
  *
  * Source: https://www.apple.com/certificateauthority/
  * Last updated: 2025-09-17T20:16:12.251Z
@@ -47,10 +42,7 @@ export const APPLE_ROOT_CERTIFICATES = [
   },
 ] as const;
 
-/**
- * Load Apple root certificates as Buffer array
- * Converts the embedded Base64 strings to Buffers for use with Apple's library
- */
+/** Decodes the embedded certificates to Buffers for Apple's library. */
 export function loadAppleRootCertificates(): Buffer[] {
   const certificates: Buffer[] = [];
 

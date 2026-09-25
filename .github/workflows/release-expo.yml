@@ -407,7 +407,7 @@ jobs:
           fi
           PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/expo-iap-*' | grep -v "$VERSION" | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/expo-iap/" ":(top,exclude)libraries/expo-iap/.claude/" ":(top,exclude)libraries/expo-iap/AGENTS.md" ":(top,exclude)libraries/expo-iap/CLAUDE.md")
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/expo-iap/" ":(top)packages/google/gradle/openiap-store.gradle" ":(top,exclude)libraries/expo-iap/.claude/" ":(top,exclude)libraries/expo-iap/AGENTS.md" ":(top,exclude)libraries/expo-iap/CLAUDE.md")
           fi
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates. See the consolidated release notes for details."
@@ -617,10 +617,12 @@ jobs:
 
       - name: Resolve symlinks for npm publish
         run: |
-          # npm ignores symlinks — replace with real file
-          if [ -L openiap-versions.json ]; then
-            cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
-          fi
+          # npm drops symlinks, so publish the linked files as copies.
+          for link in openiap-versions.json android/openiap-store.gradle; do
+            if [ -L "$link" ]; then
+              cp --remove-destination "$(readlink -f "$link")" "$link"
+            fi
+          done
 
       - name: Consumer install smoke test
         run: bun run verify:consumer-install --pack-ignore-scripts

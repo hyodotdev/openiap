@@ -6,24 +6,16 @@ import { IAPKIT_MCP_LOOPBACK_HEADER } from "@hyodotdev/openiap-mcp-server/kit-cl
 
 import { parsePositiveNumber } from "../../utils/env";
 
-// Per-machine, in-memory token bucket protecting /api/v1/* from abuse
-// (stolen-key replay, buggy client retry loops, DoS on the verification
-// pipeline). These are fair-use defaults for shared hosted capacity,
-// not a promise of unlimited global-app traffic. Large apps must plan
-// from peak request rate, contact the maintainers before launch, or
-// self-host with limits sized for their own workload.
+// Per-machine, in-memory token buckets guarding /api/v1/* against stolen-key
+// replay, client retry loops, and DoS on verification. They are fair-use
+// defaults for shared capacity, not a promise of unlimited traffic: large
+// apps plan from peak rate, contact the maintainers before launch, or
+// self-host with their own limits.
 //
-// Pairs with the per-(key, payload) replay-guard in `replay-guard.ts`:
-//   - This file: "how many verify calls /sec from one API key?" (any payload)
-//   - replay-guard: "how many verify calls /sec for the *same* payload?"
-// A determined abuser needs valid-looking payloads to evade replay-guard,
-// and staying under this file's rate to evade the burst cap — which
-// limits their reach enough that Apple / Google's own API rate limits
-// become the next line of defense.
-//
-// These edge buckets shed malformed and high-volume traffic cheaply. A
-// persistent per-project backstop in Convex also protects the public actions
-// from callers that bypass this process.
+// This file caps calls per API key (any payload); `replay-guard.ts` caps
+// calls for the same payload. An abuser who stays under both is slow enough
+// that the stores' own API rate limits are the next defense. A per-project
+// backstop in Convex also covers callers that bypass this process.
 
 export interface Bucket {
   tokens: number;
@@ -33,9 +25,8 @@ export interface Bucket {
 export interface RateLimitConfig {
   capacity: number;
   refillPerSecond: number;
-  /** Upper bound on the bucket store — protects against memory exhaustion
-   * when a malicious/ignorant client churns random keys. When exceeded,
-   * the least-recently-used entry is evicted. */
+  /** Store size cap; past it the least-recently-used entry is evicted, so
+   * churning random keys can't exhaust memory. */
   maxStoreSize: number;
   /** Idle entries older than this are removed opportunistically. */
   ttlMs: number;
@@ -83,17 +74,13 @@ export function hashApiKey(apiKey: string): string {
     .slice(0, 16);
 }
 
-// parsePositiveNumber was extracted to ../../utils/env so server.ts
-// and this file share one defensive-parse implementation. Re-export
-// keeps the existing `import { parsePositiveNumber } from "./rate-limit"`
-// in the test file working without requiring a churn commit.
+// Re-exported for the tests that import it from here.
 export { parsePositiveNumber };
 
 /**
- * Evict least-recently-used entries until the store fits within
- * `maxSize`. Relies on Map's insertion-order iteration: every accepted
- * request deletes-and-reinserts its bucket so the key moves to the
- * tail, leaving the oldest untouched at the head.
+ * Evicts least-recently-used entries until the store fits `maxSize`. Map
+ * iteration order is LRU order because every accepted request re-inserts
+ * its key.
  */
 function evictIfNeeded(
   store: Map<string, Bucket>,
@@ -101,9 +88,8 @@ function evictIfNeeded(
   nowMs: number,
   ttlMs: number,
 ): void {
-  // Map order is LRU order, so stale entries are contiguous at the head.
-  // Removing only that prefix makes cleanup amortized O(1) instead of
-  // scanning every key on every mobile request.
+  // Stale entries sit together at the head, so pruning only that prefix is
+  // amortized O(1) instead of a scan per request.
   while (store.size > 0) {
     const oldestKey = store.keys().next().value;
     if (oldestKey === undefined) break;
@@ -151,8 +137,7 @@ export function tryConsume(
     };
   }
 
-  // LRU bump: delete + re-set so this key moves to the tail of the
-  // Map's insertion order. Cheap (O(1)) and keeps eviction honest.
+  // LRU bump: re-insert to move the key to the tail.
   store.delete(keyHash);
   store.set(keyHash, bucket);
 
@@ -179,13 +164,10 @@ export function tryConsume(
   return { allowed: false, remaining: 0, retryAfterSec };
 }
 
-// Defaults tuned for shared hosted traffic:
-//   - 600 tokens of burst absorbs push-notification-driven startup
-//     storms and retry-after-transient-5xx spikes.
-//   - 10 tokens/sec refill = 600/min sustained. One million requests
-//     per day already average ~11.6/sec before peak clustering, so an
-//     app at that scale must reduce call frequency, contact OpenIAP for
-//     shared capacity planning, or self-host and tune via env.
+// A 600-token burst absorbs push-driven startup storms and 5xx retries; a
+// 10/sec refill sustains 600/min. One million requests a day already
+// averages ~11.6/sec before peaks, so an app at that scale calls less,
+// plans capacity with OpenIAP, or self-hosts and tunes via env.
 const DEFAULT_CAPACITY = parsePositiveNumber(
   process.env.RATE_LIMIT_CAPACITY,
   600,
@@ -196,14 +178,9 @@ const DEFAULT_REFILL_PER_SEC = parsePositiveNumber(
   10,
   0.001,
 );
-// 10k buckets ≈ 10k × (16-hex key + two numbers) ≈ ~1 MB of resident
-// memory — far below the Fly machine's 512 MB budget, but large enough
-// to hold every legitimate caller's state for the machine's lifetime.
-// `apiKeyMiddleware` does not validate keys against the database before
-// this middleware runs (the Convex-side verify action does), so without
-// this cap an attacker could fill the Map with arbitrary random
-// "api keys" until the process OOMs. LRU eviction under the cap keeps
-// the window sized for real traffic.
+// 10k buckets ≈ 1 MB, enough for every real caller. Keys aren't checked
+// against the database before this runs (Convex does that later), so without
+// the cap random "api keys" could fill the Map until the process OOMs.
 const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
   process.env.RATE_LIMIT_MAX_STORE,
   10_000,
@@ -244,9 +221,8 @@ const DEFAULT_IP_MAX_STORE_SIZE = parsePositiveNumber(
   1,
 );
 
-// Variables exposed to downstream middleware. `apiKeyHash` is set
-// here so the request-logger doesn't re-hash the key on every request
-// (cheap individually, but this is on the hot path of every verify).
+// `apiKeyHash` is set here so the request logger doesn't re-hash the key on
+// the verify hot path.
 type RateLimitVars = {
   apiKey: string;
   apiKeyHash?: string;
@@ -265,11 +241,8 @@ export function rateLimitMiddleware(
   return createMiddleware<{ Variables: RateLimitVars }>(async (c, next) => {
     const apiKey = c.var.apiKey;
 
-    // apiKeyMiddleware must run first. Reaching this branch means the
-    // middleware chain was wired in the wrong order — a server-side
-    // defect, not a client auth problem. Return 500 with a distinct
-    // code so dashboards don't bucket this under legitimate
-    // MISSING_API_KEY 401s from unauthenticated clients.
+    // apiKeyMiddleware didn't run first: a server defect, so a distinct 500
+    // rather than a client's MISSING_API_KEY 401.
     if (!apiKey) {
       return c.json(
         {
@@ -285,8 +258,6 @@ export function rateLimitMiddleware(
     }
 
     const keyHash = hashApiKey(apiKey);
-    // Stash for downstream (request-logger reads `c.var.apiKeyHash`
-    // to avoid re-hashing).
     c.set("apiKeyHash", keyHash);
     const result = tryConsume(
       store,
@@ -420,14 +391,12 @@ async function applyRateLimitAxes(
 }
 
 /**
- * Cost guard shared by receipt verification and every publishable-key API.
+ * Cost guard for receipt verification and every publishable-key API.
  *
- * Three in-memory axes are intentionally used instead of a Convex counter:
- * key protects a leaked credential, IP bounds random-key churn, and global
- * bounds a distributed spike reaching one Fly process. Every store has TTL
- * cleanup plus an LRU cap, so attacker-controlled identifiers cannot grow
- * memory without bound. With multiple Fly machines the limits multiply by
- * the machine count; deployment usage limits remain the cross-machine brake.
+ * Three in-memory axes instead of a Convex counter: key limits a leaked
+ * credential, IP limits random-key churn, global limits a distributed spike
+ * on one Fly process. Every store has a TTL and an LRU cap. Limits multiply
+ * with the machine count; deployment usage limits are the cross-machine brake.
  */
 export function multiAxisRateLimitMiddleware(
   config: MultiAxisRateLimitConfig = {},
@@ -589,10 +558,8 @@ function normalizeIp(value?: string | null): string | undefined {
 }
 
 export function getRequestIp(c: Context): string | undefined {
-  // The current public topology terminates at Fly, which overwrites this
-  // platform header. Caller-controlled Forwarded/X-Forwarded-For and
-  // CDN-specific headers are intentionally ignored; trusting them on a direct
-  // ingress would let an attacker rotate the per-IP bucket. Local/direct
-  // requests without Fly's header share the bounded "unknown" bucket.
+  // Fly overwrites this header at the edge. Forwarded, X-Forwarded-For, and
+  // CDN headers are caller-controlled and ignored, or an attacker could
+  // rotate the per-IP bucket. Requests without it share the "unknown" bucket.
   return normalizeIp(c.req.header("fly-client-ip"));
 }

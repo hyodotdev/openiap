@@ -335,7 +335,7 @@ export const apiData: ApiItem[] = [
     id: 'present-external-purchase-link-ios',
     title: 'presentExternalPurchaseLinkIOS',
     category: 'iOS Specific',
-    description: 'Open the external purchase URL in Safari (iOS 18.2+)',
+    description: 'Open the external purchase URL in Safari (iOS 16+)',
     parameters: 'url: String!',
     returns: 'ExternalPurchaseLinkResultIOS!',
     path: '/docs/apis/ios/present-external-purchase-link-ios',
@@ -506,7 +506,7 @@ export const apiData: ApiItem[] = [
     title: 'External Purchase',
     category: 'Documentation',
     description:
-      'External purchase links for iOS - redirect users to external payment websites (iOS 16.0+)',
+      'External purchase links for iOS - redirect users to external payment websites (iOS 17.4+)',
     path: '/docs/features/external-purchase',
   },
   {

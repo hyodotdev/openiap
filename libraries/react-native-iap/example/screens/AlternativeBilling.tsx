@@ -16,9 +16,7 @@ import {
   initConnection,
   endConnection,
   presentExternalPurchaseLinkIOS,
-  // Billing Programs API (Android 8.2.0+)
-  // Note: enableBillingProgramAndroid must be set in InitConnectionConfig
-  // For User Choice Billing, use 'user-choice-billing' in enableBillingProgramAndroid
+  // Billing Programs API (Android 8.2.0+); enable the program in InitConnectionConfig
   isBillingProgramAvailableAndroid,
   createBillingProgramReportingDetailsAndroid,
   launchExternalLinkAndroid,

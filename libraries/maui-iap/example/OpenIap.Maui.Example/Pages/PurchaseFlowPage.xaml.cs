@@ -19,6 +19,7 @@ public partial class PurchaseFlowPage : ContentPage
     private string? _purchaseResult;
     private Purchase? _lastPurchase;
     private bool _isProcessing;
+    private readonly HashSet<string> _handledTransactionIds = new();
     private IDisposable? _purchaseSub;
     private IDisposable? _errorSub;
     private bool _refreshingPurchases;
@@ -398,12 +399,15 @@ public partial class PurchaseFlowPage : ContentPage
     private async void OnPurchase(Purchase purchase)
     {
         var common = (PurchaseCommon)purchase;
+        // The request result and PurchaseUpdated both deliver the same purchase.
+        if (!string.IsNullOrEmpty(common.Id) && !_handledTransactionIds.Add(common.Id)) return;
         _lastPurchase = purchase;
         _isProcessing = false;
         UpdateResult($"Purchase completed successfully (state: {common.PurchaseState.ToJson()}).");
         RenderProducts();
 
         var verificationPassed = true;
+        (string Title, string Message)? verificationAlert = null;
 
         // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
@@ -454,10 +458,9 @@ public partial class PurchaseFlowPage : ContentPage
                         {
                             verificationPassed = ik.IsValid;
                             var emoji = ik.IsValid ? "✅" : "⚠️";
-                            await DisplayAlertAsync(
+                            verificationAlert = (
                                 $"{emoji} {VerificationLabel(_verification)} Verification",
-                                $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
-                                "OK");
+                                $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}");
                         }
                         else
                         {
@@ -476,22 +479,37 @@ public partial class PurchaseFlowPage : ContentPage
 
         if (!verificationPassed)
         {
+            _handledTransactionIds.Remove(common.Id);
             UpdateResult("Purchase verification failed; the transaction was not finalized.");
             RenderProducts();
+            if (verificationAlert is { } rejected) await DisplayAlertAsync(rejected.Title, rejected.Message, "OK");
             return;
         }
 
         var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
-        _ = FinishPurchaseTransactionAsync(purchase, consumable);
+        var finishError = await FinishPurchaseTransactionAsync(purchase, consumable);
+        if (finishError is not null) _handledTransactionIds.Remove(common.Id);
 
         // Step 5: refresh available purchases to update the UI without blocking
         // the success path on slow StoreKit Transaction.all enumeration.
         _ = RefreshAvailablePurchasesAsync(showAlert: false);
+        UpdateResult(finishError is null
+            ? "Purchase completed and finished successfully."
+            : $"Purchase verified, but finishing it failed: {finishError}");
         RenderProducts();
-        await DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
+
+        // Dialogs wait for the user; one shown before the finish leaves the
+        // transaction open if the app closes while it is up.
+        if (verificationAlert is { } verified) await DisplayAlertAsync(verified.Title, verified.Message, "OK");
+        if (finishError is not null)
+            await DisplayAlertAsync("Finish Failed", finishError, "OK");
+        else
+            await DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
     }
 
-    private static async Task FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
+    // Null on success. A failed finish leaves the transaction open, so the
+    // failure has to reach the UI rather than the console.
+    private static async Task<string?> FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
     {
         try
         {
@@ -499,14 +517,15 @@ public partial class PurchaseFlowPage : ContentPage
             await mutate.FinishTransactionAsync(
                 purchase: new PurchaseInput(purchase),
                 isConsumable: isConsumable).WaitAsync(TimeSpan.FromSeconds(10));
+            return null;
         }
         catch (TimeoutException)
         {
-            Console.WriteLine("[PurchaseFlow] finishTransaction timed out; continuing UI flow");
+            return "finishTransaction timed out after 10 seconds";
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PurchaseFlow] finishTransaction failed: {ex.Message}");
+            return ErrorUtils.ExtractErrorMessage(ex);
         }
     }
 

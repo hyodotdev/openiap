@@ -25,9 +25,7 @@ const useLocalDev =
 export default ({config}: ConfigContext): ExpoConfig => {
   // Check if building for TV (set EXPO_TV=1 before prebuild)
   const isTV = process.env.EXPO_TV === '1';
-  const isFireOsEnabled = process.env.EXPO_IAP_FIREOS === '1';
   const isVegaEnabled = process.env.EXPO_IAP_VEGA === '1';
-  const isHorizonEnabled = process.env.EXPO_IAP_HORIZON === '1';
   const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const iapPluginOptions: ExpoIapPluginOptions = {
@@ -42,24 +40,20 @@ export default ({config}: ConfigContext): ExpoConfig => {
     modules: {
       // Onside module: iOS only (alternative billing for Korea)
       onside: isOnsideEnabled,
-      // Horizon module: Android only (Meta Quest/VR devices)
-      horizon: isHorizonEnabled,
-      // Amazon modules: Fire OS Android flavor and Vega OS runtime target
+      // The Android store follows the connected device; vegaOS generates the Vega target
       amazon: {
-        fireOS: isFireOsEnabled,
         vegaOS: isVegaEnabled,
       },
     },
     android: {
-      // Horizon App ID for Meta Quest/VR devices (required when modules.horizon is true)
+      // Horizon App ID, written on every prebuild and inert outside Quest
       horizon: {
         appId: '31705015229097839',
       },
     },
     ios: {
-      // iOS Alternative Billing configuration (optional)
-      // Uncomment and configure for external purchase support
-      // NOTE: Requires Apple approval and proper provisioning profile
+      // Optional: uncomment for external purchase support.
+      // Requires Apple approval and a matching provisioning profile.
       // alternativeBilling: {
       //   // Required: Countries where external purchases are supported (ISO 3166-1 alpha-2)
       //   countries: ['kr', 'nl'],

@@ -5,6 +5,7 @@ import * as RNIap from 'react-native-iap';
 import {SUBSCRIPTION_PRODUCT_IDS} from '../../src/utils/constants';
 import type {
   MutationFinishTransactionArgs,
+  ProductSubscriptionAndroid,
   Purchase,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
@@ -23,18 +24,22 @@ jest.mock(
 const requestPurchaseMock = RNIap.requestPurchase as jest.Mock;
 const deepLinkToSubscriptionsMock = RNIap.deepLinkToSubscriptions as jest.Mock;
 
-const sampleSubscription = {
-  type: 'subs' as const,
+// The extra token-like field exercises the console redaction.
+const sampleSubscription: ProductSubscriptionAndroid & {
+  offerTokenAndroid: string;
+} = {
+  type: 'subs',
   id: 'dev.hyo.martie.premium',
   title: 'Premium Subscription',
   description: 'Access all premium features',
   displayPrice: '$9.99/month',
   price: 9.99,
   currency: 'USD',
-  platform: 'android' as const,
+  platform: 'android',
   nameAndroid: 'Premium Subscription',
+  subscriptionOffers: [],
   offerTokenAndroid: 'offer-secret',
-} as any; // Mock object, actual types vary by platform
+};
 
 describe('SubscriptionFlow Screen', () => {
   let onPurchaseSuccess: ((purchase: any) => Promise<void> | void) | undefined;
@@ -161,7 +166,10 @@ describe('SubscriptionFlow Screen', () => {
       activeSubscriptions: [
         {
           productId: 'dev.hyo.martie.premium',
-        } as any,
+          transactionId: 'trans-1',
+          transactionDate: Date.now(),
+          isActive: true,
+        },
       ],
     });
 
@@ -818,11 +826,12 @@ describe('SubscriptionFlow Screen', () => {
 
   it('does not acknowledge while IAPKit verification is pending', async () => {
     Platform.OS = 'android';
-    const purchase = {
+    const purchase: Purchase = {
       id: 'transaction-sub-race-1',
-      platform: 'android',
+      isAutoRenewing: true,
       productId: 'dev.hyo.martie.premium',
       purchaseToken: 'google-sub-token-race-1',
+      quantity: 1,
       store: 'google',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
@@ -859,7 +868,7 @@ describe('SubscriptionFlow Screen', () => {
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
 
     mockIapState({
-      availablePurchases: [purchase as any],
+      availablePurchases: [purchase],
       finishTransaction,
       verifyPurchaseWithProvider,
     });
@@ -1127,7 +1136,7 @@ describe('SubscriptionFlow Screen', () => {
           transactionId: 'trans-1',
           transactionDate: Date.now(),
           isActive: true,
-        } as any,
+        },
       ],
       subscriptions: [
         {
@@ -1218,7 +1227,10 @@ describe('SubscriptionFlow Screen', () => {
       activeSubscriptions: [
         {
           productId: 'dev.hyo.martie.premium',
-        } as any,
+          transactionId: 'trans-1',
+          transactionDate: Date.now(),
+          isActive: true,
+        },
       ],
     });
 
@@ -1336,23 +1348,27 @@ describe('SubscriptionFlow Screen', () => {
           transactionDate: Date.now(),
           isActive: true,
           purchaseToken: 'mock-purchase-token-123',
-        } as any,
+        },
       ],
       subscriptions: [
         {
           ...sampleSubscription,
           subscriptionOffers: [
             {
+              id: 'premium',
               basePlanIdAndroid: 'premium',
               offerTokenAndroid: 'offer-token-monthly',
               displayPrice: '$9.99',
-              type: 'subs',
+              price: 9.99,
+              type: 'promotional',
             },
             {
+              id: 'premium-year',
               basePlanIdAndroid: 'premium-year',
               offerTokenAndroid: 'offer-token-yearly',
               displayPrice: '$99.99',
-              type: 'subs',
+              price: 99.99,
+              type: 'promotional',
             },
           ],
         },

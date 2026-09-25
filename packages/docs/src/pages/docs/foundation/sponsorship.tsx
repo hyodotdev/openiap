@@ -1,9 +1,16 @@
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { CURRENT_SPONSORS, FUNDING_LINKS } from '../../../lib/sponsors';
+import {
+  CURRENT_SPONSORS,
+  FUNDING_LINKS,
+  SPONSOR_TIERS,
+} from '../../../lib/sponsors';
 import { Link } from 'react-router-dom';
+
+const formatUsd = (usd: number): string => `$${usd.toLocaleString('en-US')}`;
 
 function Sponsorship() {
   useScrollToHash();
@@ -48,8 +55,8 @@ function Sponsorship() {
                 <strong>Reduced bus factor</strong>
               </td>
               <td>
-                Multiple maintainers and a governance structure ensure the
-                project doesn't depend on one person
+                The project has one maintainer today; sponsorship funds the
+                maintainer time and governance meant to reduce that risk
               </td>
             </tr>
             <tr>
@@ -73,11 +80,12 @@ function Sponsorship() {
             </tr>
             <tr>
               <td>
-                <strong>Security verification profiles</strong>
+                <strong>Verification profile</strong>
               </td>
               <td>
-                Industry-standard receipt validation and fraud prevention
-                patterns you don't have to build yourself
+                A standard server-side purchase verification contract, the
+                Commerce Protocol, that your backend or provider can implement
+                instead of building its own
               </td>
             </tr>
             <tr>
@@ -124,154 +132,34 @@ function Sponsorship() {
         <AnchorLink id="tiers" level="h2">
           Sponsorship Tiers
         </AnchorLink>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.5rem',
-            marginTop: '1.5rem',
-          }}
-        >
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              padding: '2rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--border-color)',
-            }}
+        <p>
+          Monthly tiers, as offered on{' '}
+          <a
+            href={SPONSOR_TIERS.source}
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <h3
-              style={{
-                color: '#cd7f32',
-                marginBottom: '0.5rem',
-                fontSize: '1.2rem',
-              }}
-            >
-              Bronze
-            </h3>
-            <p
-              style={{
-                color: 'var(--primary-color)',
-                fontWeight: '600',
-                fontSize: '1.5rem',
-                marginBottom: '1rem',
-              }}
-            >
-              $100/month
-            </p>
-            <ul style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-              <li>Logo on project README</li>
-              <li>Listed on sponsors page</li>
-              <li>Community supporter badge</li>
-            </ul>
-          </div>
-
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              padding: '2rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <h3
-              style={{
-                color: '#C0C0C0',
-                marginBottom: '0.5rem',
-                fontSize: '1.2rem',
-              }}
-            >
-              Silver
-            </h3>
-            <p
-              style={{
-                color: 'var(--primary-color)',
-                fontWeight: '600',
-                fontSize: '1.5rem',
-                marginBottom: '1rem',
-              }}
-            >
-              $300/month
-            </p>
-            <ul style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-              <li>Everything in Bronze</li>
-              <li>Logo featured in README with link</li>
-              <li>Quarterly progress report</li>
-            </ul>
-          </div>
-
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              padding: '2rem',
-              borderRadius: '0.75rem',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <h3
-              style={{
-                color: '#FFD700',
-                marginBottom: '0.5rem',
-                fontSize: '1.2rem',
-              }}
-            >
-              Gold
-            </h3>
-            <p
-              style={{
-                color: 'var(--primary-color)',
-                fontWeight: '600',
-                fontSize: '1.5rem',
-                marginBottom: '1rem',
-              }}
-            >
-              $500/month
-            </p>
-            <ul style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-              <li>Everything in Silver</li>
-              <li>Large logo across all repositories</li>
-              <li>Priority issue triage</li>
-              <li>Monthly maintainer sync call</li>
-            </ul>
-          </div>
-
-          <div
-            style={{
-              background: 'var(--bg-secondary)',
-              padding: '2rem',
-              borderRadius: '0.75rem',
-              border: '2px solid var(--primary-color)',
-            }}
-          >
-            <h3
-              style={{
-                color: 'var(--primary-color)',
-                marginBottom: '0.5rem',
-                fontSize: '1.2rem',
-              }}
-            >
-              Founding Supporter
-            </h3>
-            <p
-              style={{
-                color: 'var(--primary-color)',
-                fontWeight: '600',
-                fontSize: '1.5rem',
-                marginBottom: '1rem',
-              }}
-            >
-              $1,000/month
-            </p>
-            <ul style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-              <li>Everything in Gold</li>
-              <li>Named as Founding Supporter permanently</li>
-              <li>Advisory Board seat (when formed)</li>
-              <li>Input on roadmap priorities</li>
-              <li>Featured case study on website</li>
-            </ul>
-          </div>
-        </div>
+            GitHub Sponsors
+          </a>
+          :
+        </p>
+        <DataTable
+          rows={[...SPONSOR_TIERS.monthly]}
+          rowKey={(row) => row.name}
+          columns={[
+            { header: 'Tier', cell: (row) => <strong>{row.name}</strong> },
+            { header: 'Monthly', cell: (row) => formatUsd(row.usd) },
+            { header: 'Includes', cell: (row) => row.includes },
+          ]}
+        />
+        <p>
+          One-time support:{' '}
+          {SPONSOR_TIERS.oneTime
+            .map((tier) => `${tier.name} (${formatUsd(tier.usd)})`)
+            .join(', ')}
+          . Sponsorship buys recognition and priority, not a service-level
+          agreement or reserved engineering capacity.
+        </p>
       </section>
 
       <section>
@@ -279,123 +167,38 @@ function Sponsorship() {
           Sponsorship Channels
         </AnchorLink>
         <p>
-          OpenIAP keeps project money and personal maintainer support on
-          separate, clearly labeled rails:
+          Sponsor through{' '}
+          <a
+            href={FUNDING_LINKS.githubUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Sponsors
+          </a>{' '}
+          or{' '}
+          <a
+            href={FUNDING_LINKS.openCollectiveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenCollective
+          </a>
+          , which offers the same monthly tiers with a public ledger. The{' '}
+          <Link to="/sponsors">Sponsors page</Link> lists every channel.
         </p>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Channel</th>
-              <th>Use It For</th>
-              <th>Where the Money Goes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <a
-                  href={FUNDING_LINKS.openCollectiveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  OpenCollective
-                </a>
-              </td>
-              <td>
-                Corporate sponsorship tiers, project funding, IAPKit community
-                instance infrastructure
-              </td>
-              <td>
-                The project fund, with a public ledger — expenses (hosting,
-                maintainer compensation per the{' '}
-                <Link to="/docs/foundation/roadmap-budget">
-                  budget allocation
-                </Link>
-                ) are transparent
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <a
-                  href={FUNDING_LINKS.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  GitHub Sponsors
-                </a>
-              </td>
-              <td>Personal appreciation for the maintainer's work</td>
-              <td>
-                The maintainer directly — disclosed here for transparency, and
-                separate from project accounting
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </section>
 
       <section>
         <AnchorLink id="what-funding-supports" level="h2">
-          What Your Funding Supports
+          What Funding Supports
         </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Area</th>
-              <th>Activities</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>Specification Development</strong>
-              </td>
-              <td>
-                GraphQL schema evolution, IR codegen plugins, new platform
-                bindings
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Security</strong>
-              </td>
-              <td>
-                Verification profiles, receipt validation patterns, audit-ready
-                schemas
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Testing Infrastructure</strong>
-              </td>
-              <td>
-                Conformance tests, CI/CD pipelines, cross-platform test matrix
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Documentation</strong>
-              </td>
-              <td>
-                API docs, migration guides, tutorials, AI assistant context
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Community</strong>
-              </td>
-              <td>
-                Contributor onboarding, mentorship programs, conference presence
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Operations</strong>
-              </td>
-              <td>Hosting, domain, CI compute, release management</td>
-            </tr>
-          </tbody>
-        </table>
+        <p>
+          The planned split of sponsorship funds is on{' '}
+          <Link to="/docs/foundation/roadmap-budget#budget">
+            Roadmap &amp; Budget
+          </Link>
+          .
+        </p>
       </section>
 
       <section>
@@ -403,35 +206,11 @@ function Sponsorship() {
           The Security Value
         </AnchorLink>
         <p>
-          OpenIAP is more than developer experience — it's purchase
-          infrastructure with a security layer:
-        </p>
-        <ul>
-          <li>
-            <strong>Purchase verification profiles</strong> — standardized
-            server-side validation
-          </li>
-          <li>
-            <strong>Receipt validation best practices</strong> — cross-platform
-            guidance to prevent manipulation
-          </li>
-          <li>
-            <strong>Transaction integrity</strong> — audit-friendly schemas with
-            structured logging
-          </li>
-          <li>
-            <strong>Secure provider interoperability</strong> — safe handoffs
-            between stores and apps
-          </li>
-          <li>
-            <strong>Fraud reduction</strong> — shared patterns to detect and
-            prevent purchase fraud
-          </li>
-        </ul>
-        <p>
-          By building security into the standard itself, every library in the
-          OpenIAP ecosystem inherits these protections — reducing risk for the
-          entire community.
+          Purchase verification is standardized in the Commerce Protocol{' '}
+          <Link to="/commerce-protocol/profiles">verification profile</Link>,
+          with <Link to="/docs/features/validation">validation guidance</Link>{' '}
+          for each store. Integrity and fraud guidance is on the{' '}
+          <Link to="/docs/foundation/roadmap-budget#roadmap">roadmap</Link>.
         </p>
       </section>
 

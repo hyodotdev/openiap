@@ -1,14 +1,10 @@
 /**
- * Debug logger for React Native IAP
- * Only logs when explicitly enabled for library development
- * Silent for all library users (even in their dev mode)
+ * Debug logger for React Native IAP.
+ * log/debug/info print only when library developers set RN_IAP_DEV_MODE=true,
+ * so apps stay silent even in their dev builds. warn/error always print.
  */
 
-// Check if we're in library development mode
-// This will be false for library users, even in their dev environment
 const isLibraryDevelopment = () => {
-  // Only show logs if explicitly enabled via environment variable
-  // Library developers can set: RN_IAP_DEV_MODE=true
   const g = globalThis as {
     process?: {env?: Record<string, string | undefined>};
     RN_IAP_DEV_MODE?: boolean;
@@ -23,23 +19,19 @@ export const RnIapConsole = {
     if (isLibraryDevelopment()) {
       console.log('[RN-IAP]', ...args);
     }
-    // Silent for library users
   },
 
   debug: (...args: any[]) => {
     if (isLibraryDevelopment()) {
       console.debug('[RN-IAP Debug]', ...args);
     }
-    // Silent for library users
   },
 
   warn: (...args: any[]) => {
-    // Warnings are always shown
     console.warn('[RN-IAP]', ...args);
   },
 
   error: (...args: any[]) => {
-    // Errors are always shown
     console.error('[RN-IAP]', ...args);
   },
 
@@ -47,6 +39,5 @@ export const RnIapConsole = {
     if (isLibraryDevelopment()) {
       console.info('[RN-IAP]', ...args);
     }
-    // Silent for library users
   },
 };

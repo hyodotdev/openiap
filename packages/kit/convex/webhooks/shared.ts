@@ -1,14 +1,9 @@
-// Pure normalization helpers that map Apple ASN v2 and Google RTDN
-// payloads to IAPKit's private persisted lifecycle-event shape.
+// Pure normalizers from Apple ASN v2 and Google RTDN payloads to IAPKit's
+// private persisted lifecycle-event shape. Framework-free (no "use node",
+// Convex or store SDK imports) so it runs in Convex, vitest and the Hono
+// server; `apple.ts` and `google.ts` verify and decode, then call in here.
 //
-// This file is intentionally framework-free (no "use node", no Convex
-// imports, no Apple/Google SDK imports) so it can run in the browser-
-// safe Convex runtime, in vitest, and inside the Hono server bundle.
-// The verifying receivers in `apple.ts` / `google.ts` decode the JWS
-// (Apple) or Pub/Sub envelope (Google) and then hand the decoded
-// payload here.
-//
-// SSOT for the mapping is `knowledge/external/webhook-mapping.md`.
+// Mapping SSOT: `knowledge/external/webhook-mapping.md`.
 
 import type { DataProvenance } from "../commerce/contract";
 
@@ -180,10 +175,8 @@ export type AppleDecodedTransaction = {
   expiresDate?: number | null;
   revocationReason?: number | null;
   currency?: string | null;
-  // ASN v2 reports `price` in **milliunits** — 1/1000 of a currency
-  // unit. Apple's docs use "milliunits" (NOT "millicents"). $9.99 is
-  // 9990 milliunits; convert to micros (1/1_000_000 of a unit) by
-  // multiplying by 1000.
+  // Milliunits (1/1000 of a unit; Apple says milliunits, not millicents): $9.99
+  // is 9990, and ×1000 gives micros.
   // https://developer.apple.com/documentation/appstoreserverapi/jwstransactiondecodedpayload/price
   price?: number | null;
 };
@@ -395,12 +388,8 @@ export function normalizeAppleAsn(
     );
   }
 
-  // TestNotification has no transaction/renewal data and therefore no
-  // purchaseToken — the schema's purchaseToken column is optional so
-  // we leave it undefined for those rows instead of synthesizing a
-  // placeholder (which would pollute by-token lookups). Dedup uses
-  // (projectId, source, sourceNotificationId) and doesn't depend on
-  // purchaseToken either, so the test event still flows end-to-end.
+  // A TestNotification has no purchaseToken: leave it undefined, not a
+  // placeholder that would pollute by-token lookups. Dedup ignores the token.
   const purchaseToken =
     transaction?.originalTransactionId ??
     transaction?.transactionId ??
@@ -413,11 +402,7 @@ export function normalizeAppleAsn(
     );
   }
 
-  // Apple reports `price` in milliunits (1/1000 of a currency unit —
-  // see the note on AppleDecodedTransaction.price above). openiap
-  // exposes micros (1/1_000_000) to match Google's
-  // `priceAmountMicros` convention, so milliunits → micros is a 1000×
-  // multiplier (e.g. $9.99 → 9990 milliunits → 9_990_000 micros).
+  // Price: milliunits × 1000 = micros, matching Google's priceAmountMicros.
   const immediateUpgrade =
     type === "SubscriptionProductChanged" && payload.subtype === "UPGRADE";
   const usesNextBillingTerms =

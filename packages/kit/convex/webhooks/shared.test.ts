@@ -129,19 +129,15 @@ const baseTransaction: AppleDecodedTransaction = {
   type: "Auto-Renewable Subscription",
   productId: "com.example.premium_monthly",
   expiresDate: 1_713_592_000_000,
-  // ASN reports `price` in milliunits (1/1000 of a currency unit —
-  // $9.99 → 9990). Earlier draft mistakenly called these "millicents"
-  // and applied a 10× multiplier, which #123 review correctly flagged.
+  // Milliunits (1/1000 of a unit): $9.99 is 9990.
   price: 9_990,
   currency: "USD",
 };
 
 describe("normalizeAppleAsn", () => {
-  // Apple sends DID_FAIL_TO_RENEW/GRACE_PERIOD *after* the paid period has
-  // already ended, so the transaction's expiresDate is in the past. Taking it
-  // as the entitlement deadline ends access at the instant grace begins, which
-  // is the opposite of what a grace period is for. gracePeriodExpiresDate is
-  // the date Apple provides for exactly this.
+  // Apple sends DID_FAIL_TO_RENEW/GRACE_PERIOD after the paid period ended, so
+  // the transaction's expiresDate is already past; gracePeriodExpiresDate is
+  // the grace deadline.
   it("uses gracePeriodExpiresDate so a customer in grace keeps access", () => {
     const elapsedPeriodEnd = 1_713_592_000_000;
     const graceEnds = elapsedPeriodEnd + 16 * 24 * 60 * 60 * 1000;
@@ -477,11 +473,9 @@ describe("normalizeAppleAsn", () => {
 
 describe("mapGoogleSubscriptionNotificationType", () => {
   it("maps the documented numeric codes to spec event types", () => {
-    // RTDN code reference:
     // https://developer.android.com/google/play/billing/rtdn-reference#sub
-    // Codes 1 / 4 were swapped in an earlier draft (caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123)
-    // review). 1 = RECOVERED, 4 = PURCHASED. 7 = RESTARTED maps to
-    // Uncanceled (auto-renew re-enabled), not Started.
+    // 1 = RECOVERED, 4 = PURCHASED; 7 = RESTARTED is Uncanceled (auto-renew
+    // back on), not Started.
     expect(mapGoogleSubscriptionNotificationType(1)).toBe(
       "SubscriptionRecovered",
     );

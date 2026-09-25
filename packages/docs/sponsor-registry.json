@@ -55,6 +55,68 @@
     "openCollectiveSlug": "openiap",
     "openCollectiveImageCache": "20260706",
     "paypalUrl": "https://www.paypal.me/dooboolab",
-    "companyContactEmail": "hyo@hyo.dev"
+    "companyContactEmail": "hyo@hyo.dev",
+    "tiers": {
+      "source": "https://github.com/sponsors/hyodotdev",
+      "monthly": [
+        {
+          "name": "Community",
+          "usd": 25,
+          "includes": "Support OpenIAP as an individual"
+        },
+        {
+          "name": "Bronze",
+          "usd": 100,
+          "includes": "Name in the OpenIAP sponsors section"
+        },
+        {
+          "name": "Silver",
+          "usd": 300,
+          "includes": "Company logo in the OpenIAP sponsors section"
+        },
+        {
+          "name": "Gold",
+          "usd": 500,
+          "includes": "Larger logo placement and recognition"
+        },
+        {
+          "name": "Angel",
+          "usd": 1000,
+          "includes": "Featured across OpenIAP repositories and sponsor pages, and priority awareness of issues affecting your platform"
+        },
+        {
+          "name": "Partner",
+          "usd": 2000,
+          "includes": "Prominent placement, and priority triage for production-impacting issues"
+        },
+        {
+          "name": "Strategic",
+          "usd": 5000,
+          "includes": "Top placement, and priority collaboration on roadmap and platform planning; contact the project lead before sponsoring"
+        }
+      ],
+      "oneTime": [
+        {
+          "name": "One-time Support",
+          "usd": 100,
+          "includes": "Maintenance, documentation and platform stability"
+        },
+        {
+          "name": "Project Boost",
+          "usd": 500,
+          "includes": "Focused maintenance and compatibility work"
+        },
+        {
+          "name": "Production Boost",
+          "usd": 1000,
+          "includes": "Release stability and platform maintenance"
+        },
+        {
+          "name": "Engineering Support",
+          "usd": 3000,
+          "includes": "Targeted maintenance, compatibility work or platform investigation; custom implementation is scoped separately"
+        }
+      ]
+    }
   }
 }

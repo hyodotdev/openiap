@@ -34,12 +34,11 @@ import {
 
 // Read-only order lookup for the dashboard (discussion #284).
 //
-// Auth: dashboard session + organization membership — this is support
-// tooling for project operators, not part of the public /api/v1
-// surface, so it never accepts an apiKey.
+// Auth: dashboard session plus organization membership, never an apiKey. This
+// is operator support tooling, not part of the public /api/v1 surface.
 //
-// Privacy: nothing is persisted. The action proxies the store API with
-// the project's already-configured credentials and returns the result.
+// Privacy: nothing is persisted; the action proxies the store API with the
+// project's already-configured credentials.
 
 export const lookupOrder = action({
   args: {
@@ -101,10 +100,9 @@ async function lookupAppleOrder(
     );
   }
 
-  // Order lookup always runs against production (order IDs do not exist
-  // in sandbox), and SignedDataVerifier refuses to construct for
-  // production without the app's Apple ID. Fail with an actionable
-  // message here instead of deep inside JWS verification.
+  // Order lookup is production-only (order IDs do not exist in sandbox), and
+  // SignedDataVerifier refuses to construct for production without the app's
+  // Apple ID. Fail here with an actionable message before JWS verification.
   if (project.iosAppAppleId === undefined) {
     throw new ConvexError(
       "Apple order lookup verifies against production, which requires the project's App Apple ID (Settings → iOS).",
@@ -119,8 +117,7 @@ async function lookupAppleOrder(
 
   const credentials = await getAppStoreServerCredentials(ctx, project);
 
-  // Order IDs only exist for real App Store orders; the lookup endpoint
-  // has no sandbox counterpart, so the client always targets production.
+  // The order lookup endpoint has no sandbox counterpart.
   const client = new AppStoreServerAPIClient(
     credentials.privateKey,
     credentials.keyId,
@@ -179,12 +176,10 @@ async function lookupAppleOrder(
     result.summary = summary;
   }
 
-  // Only auto-renewable orders have a subscription status. Every Apple
-  // transaction carries an originalTransactionId (it equals
-  // transactionId for one-time purchases), so gating on that alone
-  // would fire this request — and surface a failure notice — for
-  // consumable orders too. This mirrors the Google path, which gates on
-  // the line item actually being a subscription.
+  // Only auto-renewable orders have a subscription status. Gate on the type,
+  // not originalTransactionId: every Apple transaction has one (equal to
+  // transactionId for one-time purchases), so consumables would get this
+  // request and a failure notice. Google gates on a subscription line item.
   const subscriptionTransactionIds = transactions
     .filter(
       (transaction) =>
@@ -252,9 +247,8 @@ async function fetchAppleSubscriptionStatus(
 
     return result;
   } catch (error) {
-    // APIException carries its detail on errorMessage/httpStatusCode —
-    // its `message` is always empty — so read it through the same
-    // formatter the main lookup uses, and never surface a blank notice.
+    // APIException's `message` is always empty; its detail is on errorMessage
+    // and httpStatusCode, which the main lookup's formatter reads.
     return {
       error: formatAppleApiError(error) || "Subscription status request failed",
     };
@@ -278,10 +272,9 @@ function describeAppleSubscriptionStatus(status: number | undefined): string {
   }
 }
 
-// The renewal/transaction payloads inside a status response come from
-// Apple over TLS; decoding without signature re-verification is
-// acceptable for read-only display, mirroring how the App Store Server
-// library models these fields.
+// Skips signature re-verification: these payloads come from Apple over TLS
+// and are only displayed. Mirrors how the App Store Server library models
+// these fields.
 function decodeJwsPayloadLoose(jws: string): Record<string, unknown> | null {
   const parts = jws.split(".");
   if (parts.length !== 3) return null;

@@ -5,16 +5,16 @@ purchase flow and prove each milestone before adding the next.
 
 ## Read these first
 
-Use my project's package manager to install `openiap-commerce-protocol`.
+Use my project's package manager to install `@hyodotdev/openiap-commerce-protocol`.
 For example, with npm:
 
 ```sh
-npm install openiap-commerce-protocol
+npm install @hyodotdev/openiap-commerce-protocol
 ```
 
 The equivalent commands are `pnpm add`, `yarn add`, or `bun add` followed by the
 same package name. Read these files from the installed package directory
-(normally `node_modules/openiap-commerce-protocol/`):
+(normally `node_modules/@hyodotdev/openiap-commerce-protocol/`):
 
 - `SPEC.md`: normative behavior, authorization, lifecycle, and delivery rules.
 - `generated/openapi/commerce-protocol.openapi.json`: REST request/response API.
@@ -22,10 +22,9 @@ same package name. Read these files from the installed package directory
 - `generated/schemas/commerce-protocol.bundle.schema.json`: offline validation.
 - `conformance/` and `vectors/`: portable checks and signature fixtures.
 
-For architecture, use the [implementation guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md)
-and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf). Package 0.1.0
-does not include `DESIGN.md`; read that optional file only when it exists in
-your installed version.
+For architecture, read the package's `DESIGN.md` (also published as the
+[whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf)) and the
+example's [implementation guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/docs/build/README.md).
 
 The package supplies the contract and test artifacts, not a running backend.
 Implement the backend in my project. Do not require an OpenIAP or IAPKit checkout,
@@ -52,7 +51,7 @@ Build these milestones in order:
 1. **Contract:** serve capabilities and validate requests and responses against
    the generated artifacts. Start with an empty persistent database. Advertise
    only demonstrated support; do not claim partially implemented profiles.
-   Package 0.1.0 (protocol 1.0) requires a nonempty event list. Until an event emitter exists,
+   The protocol 1.0 descriptor requires a nonempty `eventTypes` list. Until an event emitter exists,
    treat this as unfinished scaffolding, not a provider ready for integration.
    Core discovery cannot use `UNSUPPORTED_PROFILE` as a valid fallback.
 2. **Verification:** accept known fixture evidence, reject invalid evidence, and

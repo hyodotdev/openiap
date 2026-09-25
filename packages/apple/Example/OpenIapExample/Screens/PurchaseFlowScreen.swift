@@ -37,6 +37,12 @@ struct PurchaseFlowScreen: View {
         Bundle.main.object(forInfoDictionaryKey: "IAPKIT_API_KEY") as? String
     }
 
+    // Local IAPKit origin (set in scheme or Info.plist); nil uses the hosted server.
+    private var iapkitBaseUrl: String? {
+        ProcessInfo.processInfo.environment["IAPKIT_BASE_URL"] ??
+        Bundle.main.object(forInfoDictionaryKey: "IAPKIT_BASE_URL") as? String
+    }
+
     // Product IDs configured in App Store Connect
     private let productIds: [String] = [
         "dev.hyo.martie.10bulbs",
@@ -497,6 +503,7 @@ struct PurchaseFlowScreen: View {
                     apple: RequestVerifyPurchaseWithIapkitAppleProps(
                         jws: jws
                     ),
+                    baseUrl: iapkitBaseUrl,
                     google: nil,
                     // Client payload is public configuration, never entitlement authority or secrets.
                     includeClientPayload: true

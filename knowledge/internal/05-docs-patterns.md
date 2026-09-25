@@ -432,5 +432,5 @@ the `next` branch. Preserve the change evidence, then write one concise,
 package-grouped entry after stable promotion on `main`.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
-Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
-`apple`.
+Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
+`google`, and `apple`.

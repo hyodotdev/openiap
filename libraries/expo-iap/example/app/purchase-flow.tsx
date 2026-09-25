@@ -116,14 +116,8 @@ type PurchaseFlowProps = {
 };
 
 /**
- * Purchase Flow Example - In-App Products
- *
- * Demonstrates useIAP hook approach for in-app products:
- * - Uses useIAP hook for purchase management
- * - Handles purchase callbacks with proper types
- * - No manual promise handling required
- * - Clean success/error pattern through hooks
- * - Focused on one-time purchases (products)
+ * Purchase Flow example: one-time in-app products through the useIAP hook,
+ * with results delivered to its success and error callbacks.
  */
 
 function PurchaseFlow({
@@ -729,17 +723,14 @@ function PurchaseFlow({
 }
 
 /**
- * PurchaseFlowContainer - Main IAP Flow Controller
- *
- * IAP Flow Steps:
- * ============================================================
+ * PurchaseFlowContainer: the in-app purchase flow. Steps, marked in the code
+ * below:
  * 1. initConnection     - Store connection (handled by useIAP)
  * 2. subscribeEvent     - Event subscription (onPurchaseSuccess/onPurchaseError)
  * 3. requestPurchase    - 3 options: Apple, Google, Google with offers
- * 4. verify purchase - local device | local IAPKit | hosted IAPKit | skip
+ * 4. verify purchase    - local device | local IAPKit | hosted IAPKit | skip
  * 5. grant entitlement  - Update availablePurchases state
  * 6. finish transaction - Call finishTransaction to complete
- * ============================================================
  */
 function PurchaseFlowContainer() {
   // ============================================================

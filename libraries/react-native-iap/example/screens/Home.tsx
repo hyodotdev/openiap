@@ -15,7 +15,7 @@ type HomeScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 type Props = {
-  navigation: HomeScreenNavigationProp;
+  navigation: Pick<HomeScreenNavigationProp, 'navigate'>;
 };
 
 const Home: React.FC<Props> = ({navigation}) => {

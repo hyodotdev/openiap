@@ -1542,10 +1542,9 @@ function checkE2eExampleIds() {
     'adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie',
     'adb -s "$ANDROID_SERIAL" install --no-incremental -r',
     'adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1',
-    'adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie',
-    'adb -s "$FIREOS_SERIAL" install --no-incremental -r',
-    "bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
-    'adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1',
+    "bin/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
+    "Run it once per store device",
+    "scripts/verify-store-selection.sh",
     "-p:RuntimeIdentifier=ios-arm64",
     "bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app",
     "xcrun devicectl device process launch",
@@ -2437,7 +2436,7 @@ function checkFlutter() {
   );
   expectIncludes(
     "libraries/expo-iap/src/utils/restorePurchases.ts",
-    ["nativeModule.USING_ONSIDE_SDK", "nativeModule.restorePurchases"],
+    ["ExpoIapModule.USING_ONSIDE_SDK", "ExpoIapModule.restorePurchases"],
     "Expo Onside restore routing",
   );
   expectNotIncludes(
@@ -3766,10 +3765,38 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Expo Horizon App ID removed metadata aliases",
   );
+  // Godot has no tracked manifest; the export option writes the meta-data.
+  expectIncludes(
+    "libraries/godot-iap/addons/godot-iap/godot_iap_plugin.gd",
+    [
+      'HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"',
+      "func _get_android_manifest_application_element_contents(",
+      "AndroidStore.horizon_app_id_meta_data(",
+    ],
+    "Godot Horizon App ID export option",
+  );
+  // The Godot example uses the same Martie app id as the other examples.
+  const exampleHorizonAppId = /HORIZON_APP_ID"\s+android:value="(\d+)"/.exec(
+    read(
+      "libraries/react-native-iap/example/android/app/src/main/AndroidManifest.xml",
+    ),
+  )?.[1];
+  if (!exampleHorizonAppId) {
+    fail(
+      "react-native-iap example manifest: the Horizon app id could not be read",
+    );
+  } else {
+    expectIncludes(
+      "libraries/godot-iap/Example/export_presets.cfg",
+      [`openiap/horizon_app_id="${exampleHorizonAppId}"`],
+      "Godot example Horizon App ID",
+    );
+  }
   for (const file of [
     "packages/google/Example/src/main/AndroidManifest.xml",
     "libraries/react-native-iap/example/android/app/src/main/AndroidManifest.xml",
     "libraries/flutter_inapp_purchase/example/android/app/src/main/AndroidManifest.xml",
+    "libraries/godot-iap/addons/godot-iap/android_store.gd",
     "packages/docs/src/pages/docs/setup/store/horizon.tsx",
   ]) {
     expectIncludes(
@@ -6053,8 +6080,20 @@ function checkFrameworkDependencyHygiene() {
         "verify-npm-consumer-install.mjs",
         `--package-name ${packageName}`,
         "--required openiap-versions.json",
+        "--required android/openiap-store.gradle",
       ],
       `${packageJsonPath} must expose npm consumer smoke test`,
+    );
+  }
+  // npm drops symlinks, and both wrappers link these two files.
+  for (const workflowPath of [
+    ".github/workflows/release-expo.yml",
+    ".github/workflows/release-react-native.yml",
+  ]) {
+    expectIncludes(
+      workflowPath,
+      ["for link in openiap-versions.json android/openiap-store.gradle; do"],
+      `${workflowPath} must publish the linked files as copies`,
     );
   }
   expectIncludes(
@@ -7285,6 +7324,171 @@ function checkFrameworkDependencyHygiene() {
       ],
       "Google example overlapping Android versions must not drift from openiap module",
     );
+    // A Gradle script cannot ship in the AAR, so each wrapper links the
+    // google-owned resolver into android/ and its package publishes the file.
+    for (const wrapper of [
+      "libraries/react-native-iap/android",
+      "libraries/expo-iap/android",
+      "libraries/flutter_inapp_purchase/android",
+    ]) {
+      expectSymlinkTarget(
+        `${wrapper}/openiap-store.gradle`,
+        "../../../packages/google/gradle/openiap-store.gradle",
+        `${wrapper}/openiap-store.gradle`,
+      );
+      expectIncludes(
+        `${wrapper}/build.gradle`,
+        ["apply from: project.file('openiap-store.gradle')", "openIapResolveStore("],
+        "Android wrappers must select the store through openiap-store.gradle",
+      );
+      expectNotIncludes(
+        `${wrapper}/build.gradle`,
+        [
+          "findProperty('horizonEnabled')",
+          "findProperty('fireOsEnabled')",
+          "findProperty('openiapStore')",
+          "findProperty('openiapPlatform')",
+        ],
+        "Android wrappers must read the store only through openiap-store.gradle",
+      );
+    }
+    // Five store alias tables (Groovy, JS, Kotlin, GDScript, MSBuild) cannot
+    // share code, so they must match entry for entry.
+    const aliasTables = {
+      "packages/google/gradle/openiap-store.gradle": (text) => {
+        const block = /ext\.openIapStoreAliases = \[([\s\S]*?)\]/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/'?([A-Za-z0-9._-]+)'?\s*:\s*'([a-z]+)'/g)].map(
+              (one) => [one[1], one[2]],
+            )
+          : null;
+      },
+      "packages/cli/src/checks.mjs": (text) => {
+        const block = /const STORE_ALIASES = \{([\s\S]*?)\n\};/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/"?([A-Za-z0-9._-]+)"?\s*:\s*"([a-z]+)"/g)].map(
+              (one) => [one[1], one[2]],
+            )
+          : null;
+      },
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt": (
+        text,
+      ) => {
+        const block = /private val storeAliases = mapOf\(([\s\S]*?)\n\)/.exec(
+          text,
+        )?.[1];
+        return block
+          ? [
+              ...block.matchAll(
+                /"([A-Za-z0-9._-]+)"\s*to\s*"([a-z]+)"/g,
+              ),
+            ].map((one) => [one[1], one[2]])
+          : null;
+      },
+      "libraries/godot-iap/addons/godot-iap/android_store.gd": (text) => {
+        const block = /const ALIASES := \{([\s\S]*?)\n\}/.exec(text)?.[1];
+        return block
+          ? [...block.matchAll(/"([A-Za-z0-9._-]+)"\s*:\s*"([a-z]+)"/g)].map((one) => [
+              one[1],
+              one[2],
+            ])
+          : null;
+      },
+    };
+    const parsedAliases = {};
+    for (const [file, parse] of Object.entries(aliasTables)) {
+      expectFile(file);
+      if (!exists(file)) continue;
+      const entries = parse(read(file));
+      if (!entries || entries.length === 0) {
+        fail(`${file}: the store alias table could not be read`);
+        continue;
+      }
+      parsedAliases[file] = new Map(entries);
+    }
+    // Godot has no opt-out build, so `none` is the one id it may omit.
+    const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
+    // The facade maps aliases onto the three ids; the ids and the opt-out are
+    // not keys there, and it has no device so `auto` never reaches it.
+    const facadeFile =
+      "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt";
+    const facadeSkips = new Set(["play", "horizon", "amazon", "auto", "none"]);
+    const reference = parsedAliases["packages/google/gradle/openiap-store.gradle"];
+    if (reference) {
+      for (const [file, table] of Object.entries(parsedAliases)) {
+        if (file === "packages/google/gradle/openiap-store.gradle") continue;
+        for (const [alias, store] of reference) {
+          if (file === godotFile && store === "none") continue;
+          if (file === facadeFile && facadeSkips.has(alias)) continue;
+          const mine = table.get(alias);
+          if (mine === undefined) {
+            fail(`${file}: store alias ${JSON.stringify(alias)} is missing`);
+          } else if (mine !== store) {
+            fail(
+              `${file}: store alias ${JSON.stringify(alias)} resolves to ${mine}, not ${store}`,
+            );
+          }
+        }
+        for (const alias of table.keys()) {
+          if (!reference.has(alias)) {
+            fail(`${file}: store alias ${JSON.stringify(alias)} is not in the resolver`);
+          }
+        }
+      }
+    }
+    // A Godot debug export probes the device too, so it reads the same features.
+    const resolverFile = "packages/google/gradle/openiap-store.gradle";
+    if (exists(resolverFile) && exists(godotFile)) {
+      const features = (file) =>
+        [...new Set(read(file).match(/feature:[a-z0-9._]+/g) ?? [])]
+          .sort()
+          .join(", ");
+      const expected = features(resolverFile);
+      if (!expected) {
+        fail(`${resolverFile}: the device feature checks could not be read`);
+      } else {
+        for (const probe of [godotFile, "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+          if (exists(probe) && features(probe) !== expected) {
+            fail(
+              `${probe}: device features [${features(probe)}] differ from the resolver's [${expected}]`,
+            );
+          }
+        }
+      }
+    }
+    // MSBuild cannot hold a table, so check every alias appears in a condition.
+    // The app build resolves the store there, device step included.
+    for (const csproj of ["libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+      expectFile(csproj);
+      if (!exists(csproj) || !reference) continue;
+      const text = read(csproj);
+      for (const [alias, store] of reference) {
+        if (store === "none") continue;
+        const condition = new RegExp(
+          `'\\$\\(OpenIapStoreKey\\)' == '${alias}'[^>]*>${store}<`,
+        );
+        if (!condition.test(text.replace(/\n\s*/g, " "))) {
+          fail(
+            `${csproj}: store alias ${JSON.stringify(alias)} does not select ${store}`,
+          );
+        }
+      }
+    }
+    for (const app of [
+      "libraries/react-native-iap/example/android/app/build.gradle",
+      "libraries/flutter_inapp_purchase/example/android/app/build.gradle",
+    ]) {
+      expectIncludes(
+        app,
+        ["openiap-store.gradle", "openIapResolveStore('app'"],
+        "Example apps must apply the same store resolver as the library",
+      );
+      expectNotIncludes(
+        app,
+        ["findProperty('horizonEnabled')", "findProperty('fireOsEnabled')"],
+        "Example apps must not read the legacy store flags themselves",
+      );
+    }
     expectIncludes(
       "libraries/expo-iap/android/build.gradle",
       [
@@ -8037,16 +8241,18 @@ function checkFrameworkDependencyHygiene() {
   );
 
   const mauiProps = read("libraries/maui-iap/src/Directory.Build.props");
-  const mauiBillingVersion = mauiProps.match(
+  // The app build reads the store SDK versions from the package itself.
+  const mauiStoreProps = read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props");
+  const mauiBillingVersion = mauiStoreProps.match(
     /<MauiPlayBillingVersion>([^<]+)<\/MauiPlayBillingVersion>/,
   )?.[1];
-  const mauiAmazonAppstoreSdkVersion = mauiProps.match(
+  const mauiAmazonAppstoreSdkVersion = mauiStoreProps.match(
     /<MauiAmazonAppstoreSdkVersion>([^<]+)<\/MauiAmazonAppstoreSdkVersion>/,
   )?.[1];
-  const mauiHorizonBillingCompatibilityVersion = mauiProps.match(
+  const mauiHorizonBillingCompatibilityVersion = mauiStoreProps.match(
     /<MauiHorizonBillingCompatibilityVersion>([^<]+)<\/MauiHorizonBillingCompatibilityVersion>/,
   )?.[1];
-  const mauiHorizonPlatformKotlinVersion = mauiProps.match(
+  const mauiHorizonPlatformKotlinVersion = mauiStoreProps.match(
     /<MauiHorizonPlatformKotlinVersion>([^<]+)<\/MauiHorizonPlatformKotlinVersion>/,
   )?.[1];
   const mauiHorizonSerializationNuGetVersion = mauiProps.match(
@@ -8055,9 +8261,13 @@ function checkFrameworkDependencyHygiene() {
   const mauiGsonVersion = mauiProps.match(
     /<MauiGsonVersion>([^<]+)<\/MauiGsonVersion>/,
   )?.[1];
-  const mauiBillingClientNuGetVersion = mauiProps.match(
-    /<MauiBillingClientNuGetVersion>([^<]+)<\/MauiBillingClientNuGetVersion>/,
-  )?.[1];
+  const mauiPlayServicesVersions = [
+    "MauiPlayServicesBaseVersion",
+    "MauiPlayServicesBasementVersion",
+    "MauiPlayServicesLocationVersion",
+    "MauiPlayServicesTasksVersion",
+    "MauiDataTransportVersion",
+  ].map((name) => [name, mauiProps.match(new RegExp(`<${name}>([^<]+)</${name}>`))?.[1]]);
   const mauiGoogleGsonNuGetVersion = mauiProps.match(
     /<MauiGoogleGsonNuGetVersion>([^<]+)<\/MauiGoogleGsonNuGetVersion>/,
   )?.[1];
@@ -8089,13 +8299,15 @@ function checkFrameworkDependencyHygiene() {
       "MauiHorizonBillingCompatibilityVersion",
       "MauiHorizonPlatformKotlinVersion",
       "MauiHorizonSerializationNuGetVersion",
-      "MauiBillingClientNuGetVersion",
+      "MauiPlayServicesBaseVersion",
+      "MauiDataTransportVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
       "MauiAndroidXCollectionVersion",
       "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "mauiGsonVersion",
+      "buildTransitive/OpenIap.Maui.props",
     ],
     "root version sync must update MAUI Android dependency versions from packages/google",
   );
@@ -8124,13 +8336,13 @@ function checkFrameworkDependencyHygiene() {
     "libraries/maui-iap/src/Directory.Build.props",
     [
       "Generated by scripts/sync-versions.sh",
-      "MauiPlayBillingVersion",
-      "MauiAmazonAppstoreSdkVersion",
-      "MauiHorizonBillingCompatibilityVersion",
-      "MauiHorizonPlatformKotlinVersion",
       "MauiHorizonSerializationNuGetVersion",
       "MauiGsonVersion",
-      "MauiBillingClientNuGetVersion",
+      "MauiPlayServicesBaseVersion",
+      "MauiPlayServicesBasementVersion",
+      "MauiPlayServicesLocationVersion",
+      "MauiPlayServicesTasksVersion",
+      "MauiDataTransportVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
       "MauiAndroidXCollectionVersion",
@@ -8141,20 +8353,32 @@ function checkFrameworkDependencyHygiene() {
     ],
     "MAUI Directory.Build.props must be generated by version sync",
   );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.props",
+    [
+      "Generated by scripts/sync-versions.sh",
+      "_OpenIapMauiPropsImported",
+      "MauiPlayBillingVersion",
+      "MauiAmazonAppstoreSdkVersion",
+      "MauiHorizonBillingCompatibilityVersion",
+      "MauiHorizonPlatformKotlinVersion",
+    ],
+    "MAUI store SDK versions must be generated beside the package targets",
+  );
   if (!mauiBillingVersion) {
-    fail("MAUI Directory.Build.props must define MauiPlayBillingVersion");
+    fail("MAUI OpenIap.Maui.props must define MauiPlayBillingVersion");
   }
   if (!mauiAmazonAppstoreSdkVersion) {
-    fail("MAUI Directory.Build.props must define MauiAmazonAppstoreSdkVersion");
+    fail("MAUI OpenIap.Maui.props must define MauiAmazonAppstoreSdkVersion");
   }
   if (!mauiHorizonBillingCompatibilityVersion) {
     fail(
-      "MAUI Directory.Build.props must define MauiHorizonBillingCompatibilityVersion",
+      "MAUI OpenIap.Maui.props must define MauiHorizonBillingCompatibilityVersion",
     );
   }
   if (!mauiHorizonPlatformKotlinVersion) {
     fail(
-      "MAUI Directory.Build.props must define MauiHorizonPlatformKotlinVersion",
+      "MAUI OpenIap.Maui.props must define MauiHorizonPlatformKotlinVersion",
     );
   }
   if (!mauiHorizonSerializationNuGetVersion) {
@@ -8165,10 +8389,8 @@ function checkFrameworkDependencyHygiene() {
   if (!mauiGsonVersion) {
     fail("MAUI Directory.Build.props must define MauiGsonVersion");
   }
-  if (!mauiBillingClientNuGetVersion) {
-    fail(
-      "MAUI Directory.Build.props must define MauiBillingClientNuGetVersion",
-    );
+  for (const [name, value] of mauiPlayServicesVersions) {
+    if (!value) fail(`MAUI Directory.Build.props must define ${name}`);
   }
   if (!mauiGoogleGsonNuGetVersion) {
     fail("MAUI Directory.Build.props must define MauiGoogleGsonNuGetVersion");
@@ -8188,6 +8410,17 @@ function checkFrameworkDependencyHygiene() {
     fail(
       "MAUI Directory.Build.props must define MauiAndroidXFragmentKtxVersion",
     );
+  } else {
+    // From 1.9.0 fragment-ktx ships no classes. An older one duplicates the
+    // classes Fragment 1.9 absorbed, which current Play Services pulls in (#483).
+    const [major, minor] = mauiAndroidXFragmentKtxVersion
+      .split(".")
+      .map(Number);
+    if (major < 1 || (major === 1 && minor < 9)) {
+      fail(
+        `MAUI Xamarin.AndroidX.Fragment.Ktx ${mauiAndroidXFragmentKtxVersion} duplicates Fragment 1.9 classes; use 1.9.0 or later`,
+      );
+    }
   }
   if (!mauiAndroidXLifecycleVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXLifecycleVersion");
@@ -8203,13 +8436,14 @@ function checkFrameworkDependencyHygiene() {
         `MAUI Android Billing Maven version ${mauiBillingVersion} must match packages/google ${googleBillingVersions[0]}`,
       );
     }
+    // Billing's POM dependencies are exempted from verification by exact
+    // version, so a Billing bump has to revisit that list.
     if (
-      mauiBillingClientNuGetVersion &&
-      mauiBillingClientNuGetVersion !== googleBillingVersions[0] &&
-      !mauiBillingClientNuGetVersion.startsWith(`${googleBillingVersions[0]}.`)
+      exists("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets") &&
+      !read("libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets").includes(`billing:${googleBillingVersions[0]}'s POM dependencies`)
     ) {
       fail(
-        `MAUI Android BillingClient NuGet version ${mauiBillingClientNuGetVersion} must track packages/google ${googleBillingVersions[0]}`,
+        `libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets: the Billing dependency exemptions must be revisited for billing ${googleBillingVersions[0]}`,
       );
     }
   }
@@ -8276,10 +8510,8 @@ function checkFrameworkDependencyHygiene() {
       'readGoogleVariable("coroutinesVersion")',
       "compileSdk = googleCompileSdk",
       "minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)",
-      "openIapAndroidStore",
-      "openiap-google-amazon",
-      "openiap-google-horizon",
-      'missingDimensionStrategy("platform", openIapAndroidStore)',
+      '"openiap-google-$openIapStore"',
+      'missingDimensionStrategy("platform", openIapStore)',
       "mauiGsonVersion",
       'implementation("androidx.core:core:$googleCoreVersion")',
       "com.google.code.gson:gson:$gsonVersion",
@@ -8329,28 +8561,28 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
     [
-      "Xamarin.Android.Google.BillingClient",
-      'Version="$(MauiBillingClientNuGetVersion)"',
+      "openiap-release.aar",
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
-      "OpenIapAndroidStore",
-      "OpenIapGoogleAarFlavor",
-      "openiap-$(OpenIapGoogleAarFlavor)-release.aar",
-      "com.amazon.device:amazon-appstore-sdk",
-      'Version="$(MauiAmazonAppstoreSdkVersion)"',
-      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
-      'Version="$(MauiHorizonBillingCompatibilityVersion)"',
-      "com.meta.horizon.platform.sdk:core-kotlin",
-      "com.meta.horizon.platform.sdk:user-age-category-kotlin",
-      "com.meta.horizon.platform.sdk:iap-kotlin",
-      'Version="$(MauiHorizonPlatformKotlinVersion)"',
-      "Xamarin.KotlinX.Serialization.Json",
-      "Xamarin.KotlinX.Serialization.Json.Jvm",
-      'Version="$(MauiHorizonSerializationNuGetVersion)"',
     ],
     "MAUI Android binding dependency versions",
+  );
+  expectNotIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
+    [
+      "OpenIapAndroidStore",
+      "OpenIapGoogleAarFlavor",
+      "OpenIapGoogleAarPath",
+      "openiap-play-release.aar",
+      "openiap-horizon-release.aar",
+      "openiap-amazon-release.aar",
+      "Xamarin.Android.Google.BillingClient",
+      "com.amazon.device",
+      "com.meta.horizon",
+    ],
+    "MAUI Android binding must stay store-agnostic; the app build picks the store",
   );
   expectNotIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
@@ -8371,9 +8603,14 @@ function checkFrameworkDependencyHygiene() {
       "net10.0-android",
       "net10.0-ios",
       "net10.0-maccatalyst",
-      "Xamarin.Android.Google.BillingClient",
-      'Version="$(MauiBillingClientNuGetVersion)"',
-      "Condition=\"'$(OpenIapGoogleAarFlavor)' == 'play'\"",
+      "Xamarin.GooglePlayServices.Base",
+      'Version="$(MauiPlayServicesBaseVersion)"',
+      "Xamarin.GooglePlayServices.Location",
+      "Xamarin.Google.Android.DataTransport.TransportRuntime",
+      'Version="$(MauiDataTransportVersion)"',
+      "Xamarin.KotlinX.Serialization.Json",
+      "Xamarin.KotlinX.Serialization.Json.Jvm",
+      'Version="$(MauiHorizonSerializationNuGetVersion)"',
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
       "Xamarin.AndroidX.Activity",
@@ -8395,22 +8632,46 @@ function checkFrameworkDependencyHygiene() {
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
       "openiap-release.aar",
-      "OpenIapAndroidStore",
-      "OpenIapGoogleAarFlavor",
-      "openiap-$(OpenIapGoogleAarFlavor)-release.aar",
-      "com.amazon.device:amazon-appstore-sdk",
-      'Version="$(MauiAmazonAppstoreSdkVersion)"',
-      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
-      'Version="$(MauiHorizonBillingCompatibilityVersion)"',
+      "openiap-play-release.aar",
+      "openiap-horizon-release.aar",
+      "openiap-amazon-release.aar",
+      'PackagePath="android"',
+      "buildTransitive\\OpenIap.Maui.props;buildTransitive\\OpenIap.Maui.targets",
+      "_OpenIapRequireStoreAars",
+    ],
+    "MAUI Android package dependency versions",
+  );
+  expectNotIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    ["Xamarin.Android.Google.BillingClient", "OpenIapGoogleAarFlavor", "AndroidMavenLibrary"],
+    "MAUI package must not link Billing through its NuGet binding, whose Java wrappers need it in every store's build",
+  );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+    [
+      '<AndroidMavenLibrary Include="com.android.billingclient:billing" Version="$(MauiPlayBillingVersion)" Repository="Google" Bind="false" />',
+      '<AndroidMavenLibrary Include="com.amazon.device:amazon-appstore-sdk" Version="$(MauiAmazonAppstoreSdkVersion)" Bind="false" />',
+      '<AndroidMavenLibrary Include="com.meta.horizon.billingclient.api:horizon-billing-compatibility" Version="$(MauiHorizonBillingCompatibilityVersion)" Bind="false" />',
       "com.meta.horizon.platform.sdk:core-kotlin",
       "com.meta.horizon.platform.sdk:user-age-category-kotlin",
       "com.meta.horizon.platform.sdk:iap-kotlin",
       'Version="$(MauiHorizonPlatformKotlinVersion)"',
-      "Xamarin.KotlinX.Serialization.Json",
-      "Xamarin.KotlinX.Serialization.Json.Jvm",
-      'Version="$(MauiHorizonSerializationNuGetVersion)"',
+      '<_PropertyCacheItems Include="OpenIapLinkedStore=$(OpenIapLinkedStore)" />',
+      "_CreatePropertiesCache",
+      "'$(Configuration)' == 'Debug'",
+      "AdbTarget",
+      "ANDROID_SERIAL",
     ],
-    "MAUI Android package dependency versions",
+    "MAUI store selection must link one store's SDKs and rebuild when the store changes",
+  );
+  // A project reference does not import buildTransitive, so the example must.
+  expectIncludes(
+    "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
+    [
+      "<OpenIapGoogleAarDirectory>",
+      '<Import Project="..\\..\\src\\OpenIap.Maui\\buildTransitive\\OpenIap.Maui.targets" />',
+    ],
+    "MAUI example must import the store selection a NuGet install gets automatically",
   );
   expectIncludes(
     "libraries/maui-iap/Directory.Build.props",
@@ -8419,16 +8680,13 @@ function checkFrameworkDependencyHygiene() {
       "obj/**;bin/**",
       "<MauiControlsVersion>10.0.90</MauiControlsVersion>",
       "<MicrosoftExtensionsLoggingDebugVersion>10.0.10</MicrosoftExtensionsLoggingDebugVersion>",
-      "BaseIntermediateOutputPath",
-      "BaseOutputPath",
-      "$(OpenIapAndroidStore)",
     ],
-    "MAUI Android store builds must use isolated MSBuild outputs",
+    "MAUI shared build properties",
   );
   expectIncludes(
     "libraries/maui-iap/src/Directory.Build.props",
     ['<Import Project="..\\Directory.Build.props" />'],
-    "generated MAUI dependency props must preserve store output isolation",
+    "generated MAUI dependency props must import the shared build properties",
   );
   expectNotIncludes(
     "packages/apple/Sources/OpenIapModule+ObjC.swift",
@@ -8495,7 +8753,8 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/src/pages/docs/setup/maui.tsx",
     [
       ".NET 10 SDK",
-      "Google Play Billing, Play Services",
+      "shared dependencies (Play Services, AndroidX, Kotlin, Gson)",
+      "MAUI only: every build carries the shared store libraries",
       "net10.0-ios;net10.0-android;net10.0-maccatalyst",
       "OpenIap.Maui 2.x",
       "supports .NET 10 only",
@@ -9188,6 +9447,23 @@ function checkXcode27StoreKitCoverage() {
     ["<key>_UIApplicationSceneManifest</key>"],
     "Flutter Xcode 27 scene manifest must use the canonical key",
   );
+  for (const platform of ["iOS", "MacCatalyst"]) {
+    expectIncludes(
+      `libraries/maui-iap/example/OpenIap.Maui.Example/Platforms/${platform}/Info.plist`,
+      [
+        "<key>UIApplicationSceneManifest</key>",
+        "<key>UIWindowSceneSessionRoleApplication</key>",
+        "<string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>",
+        "<string>SceneDelegate</string>",
+      ],
+      `MAUI Xcode 27 ${platform} scene manifest`,
+    );
+    expectIncludes(
+      `libraries/maui-iap/example/OpenIap.Maui.Example/Platforms/${platform}/SceneDelegate.cs`,
+      ['[Register("SceneDelegate")]', ": MauiUISceneDelegate"],
+      `MAUI Xcode 27 ${platform} scene delegate`,
+    );
+  }
   for (const workflowPath of [
     ".github/workflows/ci-react-native-iap.yml",
     ".github/workflows/ci-expo-iap.yml",

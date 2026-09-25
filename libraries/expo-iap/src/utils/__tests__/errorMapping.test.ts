@@ -52,7 +52,7 @@ describe('errorMapping utils', () => {
     expect(getUserFriendlyErrorMessage({code: ErrorCode.EmptySkuList})).toMatch(
       /No product IDs/i,
     );
-    expect(getUserFriendlyErrorMessage({code: 'UNKNOWN'} as any)).toBe(
+    expect(getUserFriendlyErrorMessage({code: 'UNKNOWN'})).toBe(
       'An unexpected error occurred',
     );
   });

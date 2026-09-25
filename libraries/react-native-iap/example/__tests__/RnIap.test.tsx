@@ -185,11 +185,11 @@ describe('RnIap Complete Test Suite', () => {
 
   describe('Android-specific APIs', () => {
     beforeEach(() => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
     });
 
     afterEach(() => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
     });
 
     it('should export acknowledgePurchaseAndroid', () => {

@@ -144,10 +144,8 @@ export interface UseIAPOptions {
    */
   purchaseUpdatedListenerOptions?: PurchaseUpdatedListenerOptions | null;
   /**
-   * Callback for general errors from hook methods like fetchProducts,
-   * getAvailablePurchases, getActiveSubscriptions, restorePurchases, etc.
-   * These are Promise-based operations that can fail due to network issues
-   * or store unavailability.
+   * Called when a hook method such as fetchProducts, getAvailablePurchases,
+   * getActiveSubscriptions or restorePurchases fails.
    */
   onError?: (error: Error) => void;
   onPromotedProductIOS?: (product: Product) => void;
@@ -162,8 +160,7 @@ export interface UseIAPOptions {
   /** Fires when a subscription enters a billing-issue state. */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
   /**
-   * Enable a specific billing program for Android (8.2.0+)
-   * When set, enables the specified billing program for external transactions.
+   * Enable a specific billing program for Android (8.2.0+).
    * Use 'external-payments' for Developer Provided Billing (Japan only, 8.3.0+).
    * Use 'user-choice-billing' for User Choice Billing (7.0+).
    * Use 'billing-choice' for Billing Choice (9.1.0+).
@@ -198,7 +195,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const startedInitializationGenerationRef = useRef(0);
   const deliveredPurchaseKeysRef = useRef(new Set<string>());
 
-  // Helper function to merge arrays with duplicate checking
   const mergeWithDuplicateCheck = useCallback(
     <T>(
       existingItems: T[],
@@ -293,7 +289,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     return true;
   }, []);
 
-  // Helper function to invoke onError callback
   const invokeOnError = useCallback((error: unknown) => {
     if (optionsRef.current?.onError) {
       optionsRef.current.onError(
@@ -310,7 +305,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * @returns Promise that resolves when the request is dispatched; results land in the
    *   hook's reactive `products` / `subscriptions` state.
    * @throws When the store rejects the request (empty `skus`, not connected,
-   *   network/store error). Unknown SKUs are simply omitted from the result, not thrown.
+   *   network/store error). Unknown SKUs are omitted from the result, not thrown.
    *
    * @example
    * ```ts
@@ -321,8 +316,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * });
    * ```
    *
-   * @remarks This is a regular promise-based call. Don't confuse with `request*` APIs
-   *   (`requestPurchase`), which are event-based.
+   * @remarks Promise-based, unlike the event-based `request*` APIs such as `requestPurchase`.
    *
    * @see {@link https://openiap.dev/docs/apis/fetch-products}
    */
@@ -397,8 +391,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * List the user's unfinished purchases — non-consumables, active subscriptions, and any
-   * pending transactions not yet finished.
+   * List the user's unfinished purchases: non-consumables, active subscriptions,
+   * and pending transactions.
    *
    * @param options Optional `PurchaseOptions`. iOS-only flags:
    *   `alsoPublishToEventListenerIOS`, `onlyIncludeActiveItemsIOS`.
@@ -491,7 +485,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    * }
    * ```
    *
-   * @remarks **Critical:** Android purchases must be finalized within 3 days or Google
+   * @remarks Android purchases must be finalized within 3 days or Google
    *   auto-refunds. iOS unfinished transactions replay on every app launch.
    *
    * @see {@link https://openiap.dev/docs/apis/finish-transaction}
@@ -532,15 +526,15 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Initiate a purchase or subscription flow. The result is delivered through
-   * `purchaseUpdatedListener` — NOT the return value.
+   * Initiate a purchase or subscription flow. The result arrives through
+   * `purchaseUpdatedListener` / `purchaseErrorListener`, not the return value.
    *
    * @param props `RequestPurchaseProps`, discriminated by `type`:
    *   - `type: 'in-app'` — pass `request.apple.sku` (iOS) and/or `request.google.skus` (Android).
    *   - `type: 'subs'`  — same shape, plus `request.google.subscriptionOffers: [{ sku, offerToken }]`.
    * @returns Promise that resolves when the request is dispatched; the actual purchase
    *   outcome lands in the hook's `onPurchaseSuccess` / `onPurchaseError` callbacks.
-   * @throws Synchronous rejection from the store (e.g. `E_NOT_PREPARED`, validation failure).
+   * @throws Synchronous rejection from the store (e.g. `ErrorCode.NotPrepared`, validation failure).
    *
    * @example
    * ```ts
@@ -552,9 +546,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
    *   type: 'in-app',
    * });
    * ```
-   *
-   * @remarks Event-based. Listen for the result via {@link purchaseUpdatedListener} /
-   *   {@link purchaseErrorListener}, or use `useIAP({ onPurchaseSuccess, onPurchaseError })`.
    *
    * @see {@link https://openiap.dev/docs/apis/request-purchase}
    */
@@ -623,7 +614,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   }, []);
 
   /**
-   * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
+   * Verify via a managed provider; `iapkit` (IAPKit) is the only one.
    *
    * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */
@@ -634,7 +625,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [],
   );
 
-  // Build the canonical billing-program connection config.
   const buildConnectionConfig = useCallback(():
     | InitConnectionConfig
     | undefined => {
@@ -664,18 +654,14 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       }
       startedInitializationGenerationRef.current = generation;
 
-      // CRITICAL: Register listeners BEFORE initConnection to avoid race condition
-      // Events might fire immediately after initConnection, so listeners must be ready
-      // Register purchase update listener BEFORE initConnection to avoid race conditions.
+      // Register listeners before initConnection; events can fire as soon as it connects.
       subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
         async (purchase: Purchase) => {
           if (!markPurchaseDelivered(purchase)) {
             return;
           }
 
-          // Refresh subscription status for both iOS and Android subscription purchases.
-          // refreshSubscriptionStatus internally checks whether the product is a known
-          // subscription, so it is safe to call unconditionally for any purchase event.
+          // Safe for any purchase: it skips products that are not known subscriptions.
           await refreshSubscriptionStatus(purchase.productId);
 
           if (optionsRef.current?.onPurchaseSuccess) {
@@ -685,7 +671,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         optionsRef.current?.purchaseUpdatedListenerOptions,
       );
 
-      // Register purchase error listener EARLY. Ignore init-related errors until connected.
       subscriptionsRef.current.purchaseError = purchaseErrorListener(
         (error: PurchaseError) => {
           if (
@@ -736,7 +721,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         });
 
       if (Platform.OS === 'ios') {
-        // iOS promoted products listener
         subscriptionsRef.current.promotedProductIOS =
           promotedProductListenerIOS((product: Product) => {
             setPromotedProductIOS(product);
@@ -747,7 +731,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
           });
       }
 
-      // NOW call initConnection after listeners are ready
       const config = buildConnectionConfig();
 
       try {
@@ -764,7 +747,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         }
         setConnected(result);
         if (!result) {
-          // If connection failed, clean up listeners
           ExpoIapConsole.warn(
             '[useIAP] Connection failed, cleaning up listeners...',
           );
@@ -783,7 +765,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         }
         ExpoIapConsole.error('initConnection failed:', error);
         invokeOnError(error);
-        // Clean up listeners on error
         subscriptionsRef.current.purchaseUpdate?.remove();
         subscriptionsRef.current.promotedProductIOS?.remove();
         subscriptionsRef.current.purchaseUpdate = undefined;
@@ -798,9 +779,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     ],
   );
 
-  // Manual reconnect method for when the initial auto-connect fails.
-  // Re-runs initConnection and updates the connected state.
-  // Re-registers event listeners if they were cleaned up during a previous failure.
   const reconnect = useCallback(async (): Promise<boolean> => {
     const config = buildConnectionConfig();
 
@@ -891,11 +869,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     verifyPurchase,
     verifyPurchaseWithProvider,
     restorePurchases: restorePurchasesInternal,
-    // internal getters kept for hook state management
     getPromotedProductIOS,
     getActiveSubscriptions: getActiveSubscriptionsInternal,
     hasActiveSubscriptions: hasActiveSubscriptionsInternal,
-    // Reconnect method for manual retry
     reconnect,
     getBillingChoiceInfoAndroid,
     isBillingProgramAvailableAndroid,

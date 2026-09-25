@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
@@ -111,20 +112,34 @@ function MauiSetup() {
         <p>
           Your app references a single package, <code>OpenIap.Maui</code>. The
           OpenIAP-owned iOS and Android bindings are bundled inside it, while
-          shared dependencies (Google Play Billing, Play Services, AndroidX,
-          Kotlin, Gson) remain ordinary NuGet dependencies so NuGet can
-          deduplicate them with the rest of your dependency graph.
+          shared dependencies (Play Services, AndroidX, Kotlin, Gson) remain
+          ordinary NuGet dependencies so NuGet can deduplicate them with the
+          rest of your dependency graph. The store SDK itself (Google Play
+          Billing, the Horizon billing library, or the Amazon Appstore SDK) is
+          linked when the app builds; see{' '}
+          <a href="#android-store">Android Store</a>.
         </p>
 
         <p>
           If you are working from this monorepo before publishing, use a project
-          reference to the main project only. The example app re-declares local
-          native references because MSBuild does not propagate those
-          transitively through <code>ProjectReference</code>. Published NuGet
-          consumers do not need that.
+          reference to the main project only. MSBuild does not propagate native
+          references or the package&apos;s build files through{' '}
+          <code>ProjectReference</code>, so the example app re-declares its
+          native references and imports the Android store selection, pointing it
+          at the store AARs built in <code>packages/google</code>. Published
+          NuGet consumers do not need either.
         </p>
         <CodeBlock language="xml">
-          {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
+          {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />
+
+<PropertyGroup>
+  <OpenIapGoogleAarDirectory>path/to/openiap/packages/google/openiap/build/outputs/aar/</OpenIapGoogleAarDirectory>
+</PropertyGroup>
+<Import Project="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets" />
+
+<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+  <NativeReference Include="path/to/openiap/packages/apple/.build/xcframework/OpenIAP.xcframework" Kind="Framework" SmartLink="True" ForceLoad="True" />
+</ItemGroup>`}
         </CodeBlock>
         <p>
           Building the Apple library from source requires Xcode 27; the
@@ -136,6 +151,46 @@ function MauiSetup() {
           OpenIap.Maui 2.x supports .NET 10 only. Retarget every{' '}
           <code>net9.0-*</code> TFM to the matching <code>net10.0-*</code> TFM
           and update the MAUI workload before upgrading the package.
+        </Callout>
+      </section>
+
+      <section>
+        <h2 id="android-store" className="anchor-heading">
+          Android Store
+          <a href="#android-store" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <p>
+          A Debug build links the store of the device it deploys to — the
+          IDE&apos;s target (<code>AdbTarget</code>), else the one{' '}
+          <code>ANDROID_SERIAL</code> names, else the only one attached: a Quest
+          gets Meta Horizon, a Fire device the Amazon Appstore, anything else
+          Google Play. Only the <code>Debug</code> configuration looks at a
+          device; Release and any other configuration link Google Play, so pin
+          every build that ships to another store with <code>OpenIapStore</code>
+          . The build logs its choice as{' '}
+          <code>openiap: store=horizon (source=device; ...)</code>.
+        </p>
+        <CodeBlock language="bash">
+          {`dotnet publish -f net10.0-android -c Release -p:OpenIapStore=horizon`}
+        </CodeBlock>
+        <Callout
+          kind="warning"
+          title="MAUI only: every build carries the shared store libraries"
+        >
+          NuGet fixes a package&apos;s dependencies before the build knows the
+          store, so every MAUI Android build carries the NuGet libraries any
+          store needs: Play Services and DataTransport (about 3.1 MB, used by
+          Google Play Billing) and kotlinx-serialization-json (up to 0.9 MB,
+          used by Horizon). Play Services also merges its manifest entries into
+          Quest and Fire builds: the <code>ACCESS_NETWORK_STATE</code>{' '}
+          permission, DataTransport&apos;s services and receiver,{' '}
+          <code>GoogleApiActivity</code>, and the{' '}
+          <code>com.google.android.gms.version</code> meta-data, all idle there.
+          The store SDK itself is linked for the chosen store only. React
+          Native, Expo, Flutter, Godot, KMP, and native Android builds link only
+          the chosen store&apos;s dependencies.
         </Callout>
       </section>
 
@@ -189,6 +244,58 @@ function MauiSetup() {
             purchases.
           </li>
         </ul>
+
+        <Callout kind="important" title="Building with Xcode 27?">
+          <p>
+            iOS 27 terminates an app built with that SDK unless it adopts the
+            UIScene lifecycle, before OpenIAP or StoreKit can run. Apple states
+            the same requirement for Mac Catalyst 27. See the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              Xcode 27 UIScene checklist
+            </Link>
+            . MAUI supplies the delegate, but the linker keeps it only when a
+            registered subclass names it, so add one per Apple platform folder:
+          </p>
+          <CodeBlock language="csharp">
+            {`// Platforms/iOS/SceneDelegate.cs (mirror in Platforms/MacCatalyst)
+using Foundation;
+using Microsoft.Maui;
+
+[Register("SceneDelegate")]
+public class SceneDelegate : MauiUISceneDelegate
+{
+}`}
+          </CodeBlock>
+          <p>
+            Then point <code>Info.plist</code> at it in both folders:
+          </p>
+          <CodeBlock language="xml">
+            {`<key>UIApplicationSceneManifest</key>
+<dict>
+  <key>UIApplicationSupportsMultipleScenes</key>
+  <false/>
+  <key>UISceneConfigurations</key>
+  <dict>
+    <key>UIWindowSceneSessionRoleApplication</key>
+    <array>
+      <dict>
+        <key>UISceneConfigurationName</key>
+        <string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>
+        <key>UISceneDelegateClassName</key>
+        <string>SceneDelegate</string>
+      </dict>
+    </array>
+  </dict>
+</dict>`}
+          </CodeBlock>
+          <p>
+            An empty <code>UISceneConfigurations</code> stops the crash but
+            leaves a black screen, and an incremental <code>dotnet build</code>{' '}
+            reuses the old <code>Info.plist</code> &mdash; delete{' '}
+            <code>bin/</code> and <code>obj/</code> for that target framework
+            after editing it.
+          </p>
+        </Callout>
 
         <h3 id="android-config" className="anchor-heading">
           Android
@@ -453,13 +560,13 @@ if (!ended) Console.WriteLine("Store teardown did not complete");`}
           Billing.
         </p>
         <p>
-          The example app builds against the in-repo Android library, so rebuild
-          the OpenIAP Android AARs once before the first run (published-package
-          consumers skip this step):
+          The example app builds against the in-repo Android library, so build
+          every store&apos;s OpenIAP Android AAR once before the first run
+          (published-package consumers skip this step):
         </p>
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:
-(cd packages/google && ./gradlew :openiap:assemblePlayRelease)
+(cd packages/google && ./gradlew :openiap:assemblePlayRelease :openiap:assembleHorizonRelease :openiap:assembleAmazonRelease)
 (cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)`}
         </CodeBlock>
         <p>
@@ -484,9 +591,9 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device
           launcher auto-selects a connected USB device when one is available,
-          and the Android launcher builds both Android AARs before uninstalling
-          and rebuilding the example app so stale APKs do not keep old
-          BillingClient code.
+          and the Android launcher builds the Android AARs and passes its device
+          to the build, so the example links that device&apos;s store, before
+          uninstalling and rebuilding the example app.
         </p>
       </section>
 

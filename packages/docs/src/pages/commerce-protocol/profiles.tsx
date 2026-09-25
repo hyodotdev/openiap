@@ -122,7 +122,8 @@ export default function CommerceProfiles(): React.JSX.Element {
       <p>
         The provider lists its complete profiles in{' '}
         <Link to="/commerce-protocol/capabilities">capabilities</Link>. An
-        unfinished profile must not be advertised.{' '}
+        unfinished profile must not be advertised, and a call to an operation
+        from an unlisted profile fails with <code>UNSUPPORTED_PROFILE</code>.{' '}
         <Link to="/commerce-protocol/conformance">Conformance checks</Link> test
         the promise against the contract.
       </p>

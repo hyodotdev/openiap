@@ -213,7 +213,7 @@ type UseIap = {
     options: VerifyPurchaseProps,
   ) => Promise<VerifyPurchaseResult>;
   /**
-   * Verify via a managed provider — currently only `iapkit` (IAPKit). The PurchaseVerificationProvider enum exposes no other provider literal today.
+   * Verify via a managed provider. `iapkit` (IAPKit) is the only one.
    *
    * @see {@link https://openiap.dev/docs/features/validation#verify-purchase-with-provider}
    */
@@ -301,13 +301,11 @@ export interface UseIapOptions {
     details: DeveloperProvidedBillingDetailsAndroid,
   ) => void;
   /**
-   * Fires when a subscription enters a billing-issue state
-   * (StoreKit 2 Message.billingIssue on iOS / Mac Catalyst 16.4+ and visionOS 1.0+, Purchase.isSuspended on
-   * Play Billing 8.1+). Not invoked on Meta Horizon or Amazon Appstore.
-   *
-   * Recommended: call deepLinkToSubscriptions on the returned purchase so
-   * the user can update their payment method in the platform subscription
-   * center.
+   * Fires when a subscription enters a billing-issue state (StoreKit 2
+   * Message.billingIssue on iOS / Mac Catalyst 16.4+ and visionOS 1.0+,
+   * Purchase.isSuspended on Play Billing 8.1+); never on Meta Horizon or Amazon
+   * Appstore. Recommended: call deepLinkToSubscriptions so the user can update
+   * their payment method in the platform subscription center.
    */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
   /**
@@ -538,11 +536,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const finishTransaction = useCallback(
     async (args: MutationFinishTransactionArgs): Promise<void> => {
-      // Directly delegate to root API finishTransaction without catching errors.
-      // This allows the root API's error handling logic to work correctly, including:
-      // - iOS: treating "Transaction not found" as success (already-finished transactions)
-      // - Proper validation and error messages for required fields
-      // Users should handle errors in their onPurchaseSuccess callback if needed.
+      // Errors propagate: the root API owns validation and error handling,
+      // including treating iOS "Transaction not found" as already finished.
+      // Callers handle failures in onPurchaseSuccess.
       await finishTransactionInternal(args);
     },
     [],
@@ -759,9 +755,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
           return;
         }
 
-        // Android retains events emitted during connection setup in bounded
-        // native queues; registration flushes that backlog after Nitro is ready.
-        // Other platforms preserve the existing post-init listener ordering.
+        // Android buffers events emitted during connection setup in bounded
+        // native queues; registering here flushes them once Nitro is ready.
         registerListeners();
         setConnected(true);
       } catch (error) {

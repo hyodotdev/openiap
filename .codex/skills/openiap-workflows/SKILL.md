@@ -50,6 +50,10 @@ natural-language requests, execute the matching workflow:
   `.claude/commands/verify-all.md`.
 - E2E tests, device regression, connected-device purchase flow checks, or
   "e2e-tests": read `.claude/commands/e2e-tests.md`.
+- Android E2E tests, Play/Amazon/Horizon/VegaOS regression, or
+  "e2e-tests-google": read `.claude/commands/e2e-tests-google.md`.
+- Apple E2E tests, iOS regression, or "e2e-tests-apple": read
+  `.claude/commands/e2e-tests-apple.md`.
 - Stable releases, RC/next releases, registry publication, or package deploys:
   read `.claude/commands/release.md`.
 - Commit, push, or create PR: read `.claude/commands/commit.md`.
@@ -60,6 +64,7 @@ instruction narrows the scope.
 For `e2e-tests`, an unqualified request means the full regression matrix in the
 command file, including native packages, framework libraries, build-only
 platform rows, connected-device rows, and explicit blocked/unsupported rows.
+A request naming one platform runs only that half's scoped file.
 
 ## Internal Workflow Change Guard
 

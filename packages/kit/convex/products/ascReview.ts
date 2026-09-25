@@ -934,14 +934,9 @@ export async function upsertAscReviewLocalization(args: {
 }
 
 /**
- * Whether a locked review version already carries exactly the listings
- * kit would push.
- *
- * Takes the whole set rather than one locale: the push writes every
- * locale on the row, so comparing only the base pair would report
- * "matches" for a Draft whose sole change is a translation — and that
- * Draft would then be marked pushed without the translation shipping.
- * One list fetch serves every comparison.
+ * Whether a locked review version already carries exactly the listings kit
+ * would push. Compares every locale, not just the base pair, so a
+ * translation-only change is never marked pushed. One list fetch serves all.
  *
  * @returns The first locale that differs, or undefined when all match.
  */
@@ -1061,10 +1056,9 @@ export async function submitAscReviewVersions(args: {
   } catch (error) {
     if (isAbortError(error)) throw error;
     if (statusOf(error) === undefined) {
-      // Apple has no idempotency key/client reference on this endpoint. A
-      // statusless transport failure can mean the draft was created but the
-      // response was lost; an empty remote draft is indistinguishable from a
-      // human-created one, so fail safely and ask the operator to inspect it.
+      // This endpoint has no idempotency key, and a statusless failure may
+      // mean the draft was created anyway. An empty draft looks like a
+      // human-created one, so stop and ask the operator to inspect it.
       return {
         outcomes: args.items.map((item) => unknownStatusOutcome(item, error)),
       };

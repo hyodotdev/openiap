@@ -13,15 +13,15 @@ several roles. These are product roles, not additional protocol profiles.
 
 ## Start with working code
 
-[Download the complete example](https://github.com/hyodotdev/openiap-commerce-protocol-example/archive/refs/heads/main.zip)
+[Download the complete example](https://openiap.dev/commerce-example/source.tar.gz)
 and extract it into an empty directory. It contains `client-bridge.mjs`,
 `consumer.mjs`, `webhooks.mjs`, the backend, and their executable checks.
 The [example repository](https://github.com/hyodotdev/openiap-commerce-protocol-example)
-contains the same project and its build history.
+holds its build history; its current branch can differ from this recorded source.
 
 Use your favorite package manager: `npm install`, `pnpm install`, `yarn install`,
-or `bun install`. This example's runtime is Bun. The contract is
-`openiap-commerce-protocol` package 0.1.0, protocol 1.0; it does not require Bun.
+or `bun install`. This example's runtime is Bun. The contract is the
+`@hyodotdev/openiap-commerce-protocol` package, protocol 1.0; it does not require Bun.
 
 - `npm run demo:bridge`: maps Apple, Google, Amazon, and Horizon OpenIAP purchase fields into the
   installed verification schema; rejects missing or unsupported evidence.
@@ -44,11 +44,11 @@ linked handlers and checks for the responsibility you own. The installed
 specification defines the required behavior; neither implementation changes it.
 
 Inspect this repository's purchase flow and choose the role from the table.
-Install `openiap-commerce-protocol` with this repository's package manager.
+Install `@hyodotdev/openiap-commerce-protocol` with this repository's package manager.
 Read its `SPEC.md`, generated bindings and schemas, and signature/lifecycle
-vectors for the role being implemented. Package 0.1.0 does not ship `DESIGN.md`;
-the [role guide](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/INTEGRATE.md)
-and [whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf) give context.
+vectors for the role being implemented. Its `DESIGN.md` (also published as the
+[whitepaper](https://openiap.dev/commerce-protocol-rationale.pdf)) and the
+[role guide](https://openiap.dev/commerce-protocol/ecosystem) give context.
 
 Implement the selected role using the product's existing framework and design
 system. Deliver usable code and a short connection example, not a list of work
@@ -71,7 +71,7 @@ for the app team. Follow these boundaries:
 3. **Commerce:** provide core discovery and implement every operation/obligation
    of each advertised profile and binding. Account lifecycle includes erasure.
    Keep one authoritative ownership and entitlement service for each app/project,
-   even when it delegates verification. Use [backend build brief](https://github.com/hyodotdev/openiap-commerce-protocol-example/blob/main/BUILD.md) for the backend
+   even when it delegates verification. Use [backend build brief](https://openiap.dev/commerce-example/build-brief.md) for the backend
    implementation sequence. The fixture backend advertises no complete profiles.
 4. **Data:** reuse or port `webhooks.mjs` and `consumer.mjs`. Authenticate exact
    body bytes before parsing, validate, durably deduplicate in the configured
@@ -94,12 +94,12 @@ implement that callback by copying a user ID from the request body.
 Follow the six-step purchase flow with your chosen store. Verification and
 binding use these evidence shapes:
 
-| Store | Purchase evidence | IAPKit access path |
-| --- | --- | --- |
-| Apple | `apple.jws` from the store purchase | Bind the verified subscription; read its current state and listen for lifecycle events |
-| Google | `google.purchaseToken` | Bind the verified subscription; read its current state and listen for lifecycle events |
-| Amazon | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS |
-| Meta Horizon | `horizon.userId`, `horizon.sku` | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta |
+| Store        | Purchase evidence                                              | IAPKit access path                                                                     |
+| ------------ | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Apple        | `apple.jws` from the store purchase                            | Bind the verified subscription; read its current state and listen for lifecycle events |
+| Google       | `google.purchaseToken`                                         | Bind the verified subscription; read its current state and listen for lifecycle events |
+| Amazon       | `amazon.userId`, `amazon.receiptId`, optional `amazon.sandbox` | Bind the verified receipt; each entitlement read rechecks RVS                          |
+| Meta Horizon | `horizon.userId`, `horizon.sku`                                | Bind the verified store-user/SKU pair; each entitlement read rechecks Meta             |
 
 For Amazon and Horizon, use `entitlements.productIds` for access. IAPKit does
 not invent a subscription record, expiry date, or lifecycle event for these

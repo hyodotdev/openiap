@@ -336,14 +336,14 @@ class OpenIapErrorTest {
     fun `FeatureNotSupported has correct code and message`() {
         val error = OpenIapError.FeatureNotSupported()
         assertEquals(ErrorCode.FeatureNotSupported.rawValue, error.code)
-        assertEquals("Requested feature is not supported by Play Store", error.message)
+        assertEquals("Requested feature is not supported by the store", error.message)
     }
 
     @Test
     fun `ServiceDisconnected has correct code and message`() {
         val error = OpenIapError.ServiceDisconnected()
         assertEquals("service-disconnected", error.code)
-        assertEquals("Play Store service is not connected", error.message)
+        assertEquals("Store service is not connected", error.message)
     }
 
     @Test

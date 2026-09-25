@@ -141,11 +141,10 @@ interface ApplySubscriptionEventResult {
   subscriptionId?: Id<"subscriptions">;
 }
 
-// Apply a webhook event to the canonical `subscriptions` table. The event's
-// durable appliedAt marker is committed in the same Convex transaction as
-// the subscription and stats writes, so both retry gaps are safe: a crash
-// before this mutation can be repaired, while any event this mutation already
-// processed can never be replayed after a newer lastEventId replaces it.
+// Applies a webhook event to `subscriptions`. The event's appliedAt marker
+// commits in the same transaction as the subscription and stats writes, so a
+// crash before this mutation can be repaired and a processed event is never
+// replayed after a newer lastEventId.
 import { emitCommerceEvent } from "../commerce/internal";
 
 export const applySubscriptionEvent = internalMutation({
@@ -165,7 +164,7 @@ export async function applySubscriptionEventHandler(
   ctx: MutationCtx,
   args: ApplySubscriptionEventArgs,
 ): Promise<ApplySubscriptionEventResult> {
-  const project = await assertProjectWritable(ctx, args.projectId);
+  await assertProjectWritable(ctx, args.projectId);
   const storedEvent = await ctx.db.get(args.eventId);
   if (!storedEvent || storedEvent.projectId !== args.projectId) {
     throw new Error("Webhook event not found for project");
@@ -373,13 +372,10 @@ export async function applySubscriptionEventHandler(
   // predecessor can expire after its replacement became active.
   const orderingExisting = existingByCurrentToken;
 
-  // Rollout compatibility for events written before appliedAt existed. The
-  // current last event proves itself applied; an event older than the current
-  // last event must be marked handled without being allowed to roll state
-  // backwards. Store timestamps are only millisecond-precision, so ingestion
-  // order breaks ties between distinct same-timestamp events. A recorded-but-
-  // unapplied newest event still falls through and repairs the original
-  // action/mutation gap.
+  // For events from before appliedAt existed: the current last event counts as
+  // applied, and an older one is marked handled without rolling state back.
+  // Millisecond store timestamps can tie, so ingestion order breaks ties. An
+  // unapplied newest event falls through and repairs the action/mutation gap.
   if (
     orderingExisting?.lastEventSourceNotificationId ===
     storedEvent.sourceNotificationId
@@ -554,10 +550,10 @@ export async function applySubscriptionEventHandler(
     existing !== null &&
     existing.lastEventId === undefined &&
     priorStoreSnapshot === null;
-  // Computed before persistSubscriptionSnapshot stamps lastEvent* onto the
-  // row: a record bootstrapped by receipt verification has no store history,
-  // so a price change or deferral arriving as its first store event has no
-  // baseline to describe. The mapping vectors pin these to no event.
+  // Computed before persistSubscriptionSnapshot stamps lastEvent*: a row
+  // bootstrapped by receipt verification has no store history, so a price
+  // change or deferral as its first store event has no baseline. The mapping
+  // vectors pin these to no event.
   const priceOrDeferralWithoutBaseline =
     existing !== null &&
     existing.lastEventId === undefined &&
@@ -601,9 +597,6 @@ export async function applySubscriptionEventHandler(
   });
   await ctx.db.patch(storedEvent._id, { appliedAt: now });
   const active = entitlementActive(transition.next, now);
-  // A record bootstrapped by receipt verification has no store history, so a
-  // price change or deferral arriving as its first store event has no
-  // baseline to describe. The mapping vectors pin these to no event.
   const commerceTransition = linkedStartedOnActivePredecessor
     ? effectiveTransition
     : firstStoreEventAfterVerification
@@ -1150,17 +1143,9 @@ export async function getCurrentProductIdByTokenHandler(
   return subscription?.productId ?? null;
 }
 
-// Look up a product's billing period from the kit-side catalog. We
-// Look up the row for the EXACT (platform, productId) — `products` is
-// keyed by (projectId, platform, productId) precisely because the
-// same SKU can exist on both stores with different billing periods.
-// Earlier behaviour preferred iOS over Android by walking both
-// platforms, which made an Android subscription inherit the iOS
-// period when those rows diverged and skewed `mrrMicros` on both the
-// incremental delta and the next recompute (PR #124
-// (https://github.com/hyodotdev/openiap/pull/124) review). Returns
-// undefined when the product isn't tracked or has no billingPeriod —
-// monthlyMicrosForSub treats that as a P1M fallback.
+// Billing period for the exact (platform, productId): one SKU can have a
+// different period per store. Undefined when untracked or unset;
+// monthlyMicrosForSub then assumes P1M.
 async function fetchBillingPeriod(
   ctx: MutationCtx,
   projectId: Id<"projects">,

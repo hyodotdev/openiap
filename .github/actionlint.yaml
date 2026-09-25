@@ -1,0 +1,4 @@
+# The self-hosted Mac runner's label, so actionlint does not report it as unknown.
+self-hosted-runner:
+  labels:
+    - xcode-27

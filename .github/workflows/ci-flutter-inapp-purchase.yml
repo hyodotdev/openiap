@@ -9,6 +9,7 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "packages/google/gradle/openiap-store.gradle"
       - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
@@ -23,6 +24,7 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "packages/google/gradle/openiap-store.gradle"
       - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
@@ -107,7 +109,7 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase/example
         run: |
           flutter pub get
-          ./android/gradlew -p android :app:processDebugManifest -PhorizonEnabled=true
+          ./android/gradlew -p android :app:processDebugManifest -PopeniapStore=horizon
           node "$GITHUB_WORKSPACE/scripts/verify-horizon-merged-manifest.mjs" \
             build/app/intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml
 

@@ -662,6 +662,7 @@ struct SubscriptionFlowScreen: View {
                         apple: RequestVerifyPurchaseWithIapkitAppleProps(
                             jws: jws
                         ),
+                        baseUrl: iapkitBaseUrl,
                         google: nil
                     ),
                     provider: .iapkit

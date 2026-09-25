@@ -1,17 +1,9 @@
 import type { Doc } from "../_generated/dataModel";
 
-// Normalize a subscription's billing-period price to a per-month
-// micros figure so MRR can sum across products with different billing
-// periods. Formula uses calendar averages — yearly /12, weekly *4.345
-// (= 52.14/12), bi-weekly *2.17, daily *30.44 — chosen to land in the
-// same order of magnitude as the standard SaaS MRR convention. The
-// previous implementation summed `priceAmountMicros` raw, so a $120/yr
-// plan inflated MRR by 12×.
-//
-// Lives in its own file so both `query.ts` (read path) and `stats.ts`
-// (incremental aggregation) share the same calculation — splitting it
-// into two copies would let MRR drift between the live counter and a
-// future scan-based recomputation.
+// A subscription's price per month, so MRR can sum across billing periods.
+// Calendar averages: yearly /12, weekly ×4.345 (52.14/12), bi-weekly ×2.17,
+// daily ×30.44. Shared by query.ts and stats.ts so the live counter and a
+// recompute cannot drift.
 export function monthlyMicrosForSub(
   sub: Doc<"subscriptions">,
   productPeriod: string | undefined,
@@ -37,13 +29,8 @@ export function monthlyMicrosForSub(
       return amount;
     case undefined:
     default:
-      // One-time products (NonConsumable / Consumable) and rows
-      // with missing billing metadata don't contribute to recurring
-      // revenue. The previous fall-through to `amount` inflated MRR
-      // by the full sticker price every time a one-time purchase
-      // landed in `subscriptions` — which only happens when a
-      // catalog row was mis-classified, but a mis-classification
-      // shouldn't quietly skew the dashboard headline.
+      // One-time products and rows without billing metadata add no MRR, even
+      // when a mis-classified one lands in `subscriptions`.
       return 0;
   }
 }

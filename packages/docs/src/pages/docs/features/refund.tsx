@@ -170,7 +170,7 @@ val status = openIapStore.beginRefundRequestIOS(sku = purchase.productId)
 when (status) {
     "success" -> println("Refund request submitted")
     "userCancelled" -> println("User cancelled refund flow")
-    else -> println("Refund request status: \$status")
+    else -> println("Refund request status: $status")
 }`}</CodeBlock>
                     ),
                     kmp: (
@@ -182,7 +182,7 @@ val status = kmpIAP.beginRefundRequestIOS(sku = purchase.productId)
 when (status) {
     "success" -> println("Refund request submitted")
     "userCancelled" -> println("User cancelled refund flow")
-    else -> println("Refund request status: \$status")
+    else -> println("Refund request status: $status")
 }`}</CodeBlock>
                     ),
                     dart: (
@@ -199,7 +199,7 @@ switch (status) {
     print('User cancelled refund flow');
     break;
   default:
-    print('Refund request status: \$status');
+    print('Refund request status: $status');
 }`}</CodeBlock>
                     ),
                     csharp: (

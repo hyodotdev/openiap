@@ -72,55 +72,52 @@ flutter run
 flutter build apk --release
 ```
 
+### Store selection
+
+The build picks the Android store; nothing in the project changes between
+stores. First match wins:
+
+1. `-PopeniapStore=horizon|amazon|play` (or the same key in
+   `android/gradle.properties`) pins it.
+2. A flavor names it, in an app that declares those flavors:
+   `flutter build apk --flavor horizon`. This example declares none, so pin
+   the store or let the device pick it.
+3. On debug builds, the connected Quest or Fire device names it — the one
+   `ANDROID_SERIAL` selects, or the only one attached.
+4. Google Play otherwise.
+
+Gradle prints `openiap: store=... (source=...)` once per build.
+
 ### Meta Horizon (Meta Quest)
 
-To use Meta Horizon billing:
-
-1. **Enable Horizon** in `android/gradle.properties`:
-
-   ```properties
-   horizonEnabled=true
-   ```
-
-2. **Add Horizon App ID** to `android/local.properties`:
+1. **Add the Horizon App ID** to `android/local.properties`; it is inert on
+   other stores, so it stays there permanently:
 
    ```properties
    HORIZON_APP_ID=your_horizon_app_id_here
    ```
 
-3. **Run on Quest**:
-   ```bash
-   flutter run -d Quest
-   flutter build apk --release
-   ```
-
-**No flavor specification needed!** The build system automatically selects the correct billing platform based on `horizonEnabled` or `fireOsEnabled`.
-
-### Fire OS
-
-To use Fire OS IAP through the Amazon Appstore SDK:
-
-1. **Enable Fire OS** in `android/gradle.properties`:
-
-   ```properties
-   fireOsEnabled=true
-   ```
-
-2. **Keep Horizon disabled** in the same build:
-
-   ```properties
-   horizonEnabled=false
-   ```
-
-3. **Test with Amazon App Tester** on a Fire OS or compatible Android test device:
+2. **Run on Quest** with the headset as the only connected device, or pin the
+   store for a release build through the Gradle property:
 
    ```bash
    flutter run
-   flutter build apk --release
+   ORG_GRADLE_PROJECT_openiapStore=horizon flutter build apk --release
    ```
 
-The build system automatically selects the Fire OS `amazon` flavor based on
-`fireOsEnabled`.
+### Fire OS
+
+1. **Add the Amazon public key** `AppstoreAuthenticationKey.pem` to
+   `android/app/src/main/assets/` (download it from the Amazon Developer
+   Console); it is inert on other stores.
+
+2. **Test with Amazon App Tester** on a Fire device as the only connected
+   device, or pin the store for the release build:
+
+   ```bash
+   flutter run
+   ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk --release
+   ```
 
 ### No Android IAP
 
@@ -128,14 +125,11 @@ To keep the Flutter package for iOS or macOS while excluding Android store
 SDKs, set this in `android/gradle.properties`:
 
 ```properties
-openiapPlatform=none
+openiapStore=none
 ```
 
-Run `flutter clean` before rebuilding after changing this property.
-
-`openiapPlatform=none` cannot be combined with `horizonEnabled` or
-`fireOsEnabled`; disable both legacy store flags first, or the Android build
-fails with `openiapPlatform=none conflicts with legacy store flags`.
+Run `flutter clean` before rebuilding after changing this property. The legacy
+`openiapPlatform=none` spelling still works with a deprecation warning.
 
 `initConnection()` then returns `false`, and Android store operations report
 `ErrorCode.IapNotAvailable`. The APK contains no Play Billing, Horizon, or
@@ -146,7 +140,8 @@ SDKs.
 
 ### Android Studio
 
-Just click **Run** - the build system automatically selects the right platform based on `horizonEnabled` or `fireOsEnabled` in `gradle.properties`.
+Just click **Run** — on a debug build the connected Quest or Fire device
+selects the store, and `openiapStore` in `gradle.properties` overrides it.
 
 ### VS Code
 
@@ -154,6 +149,11 @@ Press F5 or click **Start Debugging** - works out of the box!
 
 ## Testing
 
-- **Google Play**: Test on any Android device with Google Play Store (default)
-- **Meta Horizon**: Set `horizonEnabled=true` and test on Meta Quest devices
-- **Fire OS**: Set `fireOsEnabled=true` and test with Amazon App Tester
+- **Google Play**: test on any Android device with the Play Store (default)
+- **Meta Horizon**: plug in a Quest, or set `openiapStore=horizon`
+- **Fire OS**: plug in a Fire device, or set `openiapStore=amazon`, and test
+  with Amazon App Tester
+
+`horizonEnabled` and `fireOsEnabled` are deprecated but still read, with a
+warning, so a stale one still selects a store and fails the build if it
+disagrees with `openiapStore`. Delete them rather than leaving them set.

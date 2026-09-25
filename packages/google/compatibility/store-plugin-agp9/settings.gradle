@@ -1,0 +1,26 @@
+// ../store-plugin's KMP modules on AGP 9, which changed how the KMP library
+// plugin selects dependencies.
+pluginManagement {
+  includeBuild('../../gradle-plugin')
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+plugins {
+  id 'io.github.hyochan.openiap'
+}
+
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = 'store-plugin-agp9-fixture'
+include ':shared', ':consumer'
+project(':shared').projectDir = new File(settingsDir, '../store-plugin/shared')
+project(':consumer').projectDir = new File(settingsDir, '../store-plugin/consumer')

@@ -44,8 +44,8 @@ const STUDY_GROUPS: StudyGroup[] = [
           'Payment vulnerabilities trace back to payment SDK design, ambiguous documentation, and vulnerable sample code, which lead merchants into the mistakes that follow.',
         applied: (
           <>
-            The reason OpenIAP exists as one audited specification with
-            consistent SDKs and a{' '}
+            The reason OpenIAP exists as one specification with consistent SDKs
+            and a{' '}
             <Link to="/docs/security/compliance#conformance">
               conformance suite
             </Link>
@@ -67,8 +67,8 @@ const STUDY_GROUPS: StudyGroup[] = [
         applied: (
           <>
             The differential mode of the conformance runner, which runs adapters
-            side by side and reports divergences. Ships as{' '}
-            <code>openiap-conformance/differential</code> with suite 3.0.0.
+            side by side and reports divergences. It is part of suite 3.0.0 in
+            the repository and is not published to npm.
           </>
         ),
       },
@@ -80,8 +80,8 @@ const STUDY_GROUPS: StudyGroup[] = [
         applied: (
           <>
             The versioned behavior registry: each behavior pins down semantics
-            the GraphQL schema alone cannot, so six SDKs cannot drift apart
-            silently.
+            the GraphQL schema alone cannot, so the SDKs bound to it cannot
+            drift apart silently.
           </>
         ),
       },
@@ -94,8 +94,8 @@ const STUDY_GROUPS: StudyGroup[] = [
           <>
             The metamorphic relation registry used to verify live store behavior
             — for example, a purchased item must appear in a following restore.
-            Ships as <code>openiap-conformance/metamorphic</code> with suite
-            3.0.0.
+            It is part of suite 3.0.0 in the repository and is not published to
+            npm.
           </>
         ),
       },
@@ -125,8 +125,8 @@ const STUDY_GROUPS: StudyGroup[] = [
           '20.1% of non-major upgrades in Maven Central contain breaking changes.',
         applied: (
           <>
-            The same guard, plus the version floor policy in{' '}
-            <code>openiap-versions.json</code> that release audits enforce.
+            The same guard, plus the Client Protocol version check that release
+            workflows run before publishing.
           </>
         ),
       },
@@ -155,10 +155,9 @@ const STUDY_GROUPS: StudyGroup[] = [
           'Documentation is the dominant obstacle to learning an API. The 2009 article surveys and interviews developers; the 2011 field study, across more than 440 professional developers, is the source of the documentation factors.',
         applied: (
           <>
-            The reader-first standard every OpenIAP doc follows, and the
-            issue-mining pipeline that collects nine years of failure reports
-            across the six SDK ecosystems as the evidence base for
-            troubleshooting docs.
+            The reader-first standard every OpenIAP doc follows. A study of nine
+            years of failure reports across the six SDK ecosystems has mined its
+            corpus but not classified any issue yet.
           </>
         ),
       },

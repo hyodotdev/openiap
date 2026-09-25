@@ -43,37 +43,21 @@ export const hasLegacyEmailAccount = internalQuery({
     ),
 });
 
-// Read budget per cron tick. We walk this many candidate users (oldest
-// first, capped at the 24h boundary) before yielding to the next tick;
-// keeps Convex's per-transaction read budget bounded.
+// Candidate users read per tick, oldest first, up to the 24h boundary.
 const CLEANUP_READ_BUDGET = 5000;
 
-// Write budget per cron tick. Each delete fires 1 user delete + N auth
-// session deletes (typically 1-3 per user), so 200 users × ~4 writes
-// = ~800 writes — well under Convex's per-mutation write budget. The
-// remainder rolls into the next cron tick.
+// Deletes per tick: ~4 writes each (the user plus 1-3 sessions), ~800 in all,
+// well under the write limit. The rest waits for the next tick.
 const CLEANUP_DELETE_BUDGET = 200;
 
 const CLEANUP_JOB_NAME = "cleanupIncompleteUsers";
 
-// Clean up incomplete users (users older than 24h without profiles).
-//
-// We persist a creation-time cursor between ticks so the loop doesn't
-// repeatedly scan the same legitimate-user prefix on every run. Without
-// the cursor, once N legit users had aged past 24h (where N exceeds the
-// read budget), the cleanup would burn its entire budget on profiled
-// users and never reach genuinely incomplete signups behind them.
-//
-// Each tick:
-//   1. Resume past `cursor` (last successfully-processed user).
-//   2. Walk by `_creationTime` ascending up to the read budget.
-//   3. Skip users with profiles via the `by_user` index (they're
-//      legitimate accounts) and advance the cursor past them.
-//   4. Delete profile-less users + their auth sessions, advancing the
-//      cursor only after a successful delete.
-//   5. When we cross the 24h boundary, advance the cursor to the
-//      boundary minus a small slack — "nothing left to do for now",
-//      next tick picks up newly-aged users.
+// Deletes users older than 24h that never got a profile. A creation-time cursor
+// persists between ticks: without it, once more profiled users than the read
+// budget passed 24h, every tick would spend its budget on them and never reach
+// the incomplete signups behind. The cursor moves past profiled users and after
+// each successful delete, and parks at the 24h boundary (minus a small slack)
+// once caught up.
 export const cleanupIncompleteUsers = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();

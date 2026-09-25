@@ -1,8 +1,8 @@
+import { Link } from 'react-router-dom';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { FUNDING_LINKS } from '../../../lib/sponsors';
 
 function Governance() {
   useScrollToHash();
@@ -20,11 +20,7 @@ function Governance() {
         The Foundation section is currently being prepared. Content may change
         as the governance structure is finalized.
       </Callout>
-      <p>
-        OpenIAP is an open-source project providing a neutral interoperability
-        standard for in-app purchase APIs and verification across platforms.
-        This page describes the governance model for the project.
-      </p>
+      <p>How decisions are made in OpenIAP, and who makes them.</p>
 
       <section>
         <AnchorLink id="mission" level="h2">
@@ -162,16 +158,10 @@ function Governance() {
         <AnchorLink id="routine-decisions" level="h3">
           Routine Decisions
         </AnchorLink>
-        <ul>
-          <li>
-            Bug fixes, documentation improvements, minor refactors: Maintainer
-            approval + merge
-          </li>
-          <li>
-            New features within existing scope: PR review by 1+ maintainer,
-            72-hour comment period for significant changes
-          </li>
-        </ul>
+        <p>
+          The project lead merges a change once CI, the repository audits and
+          automated review pass.
+        </p>
 
         <AnchorLink id="significant-decisions" level="h3">
           Significant Decisions
@@ -179,8 +169,16 @@ function Governance() {
         <p>These require broader discussion and explicit approval:</p>
         <ul>
           <li>
-            <strong>Specification changes</strong> (GraphQL schema modifications
-            affecting generated types)
+            <strong>Specification changes</strong> to either protocol: the
+            Client Protocol GraphQL schema, or the Commerce Protocol, which
+            follows its own{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/CONVENTION.md#changing-the-contract"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              change rules
+            </a>
           </li>
           <li>
             <strong>New platform support</strong> (adding a new language plugin
@@ -197,18 +195,12 @@ function Governance() {
           </li>
         </ul>
 
-        <p>Process for significant decisions:</p>
-        <ol>
-          <li>Open a GitHub Issue or Discussion with the proposal</li>
-          <li>Allow minimum 7-day comment period</li>
-          <li>
-            Project Lead (or TSC) makes final decision, documenting rationale
-          </li>
-          <li>
-            For specification changes: affected platform maintainers must be
-            consulted
-          </li>
-        </ol>
+        <p>
+          Today the project lead decides and records the rationale in the pull
+          request. Once the TSC forms, a significant decision starts as a GitHub
+          issue or discussion with at least a 7-day comment period, and affected
+          platform maintainers are consulted on specification changes.
+        </p>
 
         <AnchorLink id="spec-change-process" level="h3">
           Specification Change Process
@@ -227,12 +219,12 @@ function Governance() {
             Swift, Kotlin, Dart, C#, and GDScript generated types
           </li>
           <li>
-            <strong>Review Period</strong>: Minimum 14-day review period for
-            platform maintainers
+            <strong>Review Period</strong>: none required today; 14 days for
+            platform maintainers once the TSC forms
           </li>
           <li>
-            <strong>Approval</strong>: Requires Project Lead approval + no
-            unresolved objections from platform maintainers
+            <strong>Approval</strong>: Project Lead approval, and no unresolved
+            objections from platform maintainers once the TSC forms
           </li>
           <li>
             <strong>Implementation</strong>: Schema change + regeneration of all
@@ -260,9 +252,9 @@ function Governance() {
           process above. Reports identify their authors and actual reviewers; a
           project-authored fixture does not count as independent company
           validation. The{' '}
-          <a href="/commerce-protocol/ecosystem#composition-proof">
+          <Link to="/commerce-protocol/ecosystem#composition-proof">
             runnable composition example
-          </a>{' '}
+          </Link>{' '}
           provides a starting point for another implementer to reproduce and
           challenge the expected results.
         </p>
@@ -283,7 +275,9 @@ function Governance() {
           </li>
           <li>
             <strong>Major releases</strong> (breaking changes): Project Lead
-            approval + 30-day notice to community
+            approval, announced on{' '}
+            <Link to="/docs/updates/announcements">Announcements</Link> before
+            the release
           </li>
           <li>
             <strong>Specification releases</strong>: Follow the Specification
@@ -291,42 +285,11 @@ function Governance() {
           </li>
         </ul>
 
-        <h4>Release Artifacts</h4>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Package</th>
-              <th>Distribution</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Apple</td>
-              <td>CocoaPods + Swift Package Manager</td>
-            </tr>
-            <tr>
-              <td>Google</td>
-              <td>Maven Central</td>
-            </tr>
-            <tr>
-              <td>Documentation</td>
-              <td>
-                <a
-                  href="https://openiap.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap.dev
-                </a>{' '}
-                (Vercel)
-              </td>
-            </tr>
-            <tr>
-              <td>Versions</td>
-              <td>Synchronized by CI/CD (never manual)</td>
-            </tr>
-          </tbody>
-        </table>
+        <p>
+          Versions are set by CI, never by hand. Every package and where it is
+          published is listed on{' '}
+          <Link to="/docs/updates/versions">Versions</Link>.
+        </p>
       </section>
 
       <section>
@@ -348,9 +311,6 @@ function Governance() {
           Contributions
         </AnchorLink>
         <ul>
-          <li>
-            All contributors must agree to the project's contribution terms
-          </li>
           <li>
             <strong>DCO (Developer Certificate of Origin)</strong>: adoption is
             planned as part of foundation onboarding. Until CI enforcement is
@@ -425,7 +385,7 @@ function Governance() {
           Hosted Services
         </AnchorLink>
         <p>
-          The IAPKit instance at{' '}
+          Hyo Dev operates the IAPKit instance at{' '}
           <a
             href="https://kit.openiap.dev"
             target="_blank"
@@ -433,23 +393,27 @@ function Governance() {
           >
             kit.openiap.dev
           </a>{' '}
-          is a{' '}
-          <strong>community service operated under project governance</strong>:
-          its source is open (<code>packages/kit</code>, MIT, self-hostable as a
-          single binary), its infrastructure costs are funded through the
-          project's{' '}
+          under its{' '}
           <a
-            href={FUNDING_LINKS.openCollectiveUrl}
+            href="https://kit.openiap.dev/terms-of-service"
             target="_blank"
             rel="noopener noreferrer"
           >
-            OpenCollective
-          </a>{' '}
-          with transparent expenses, and its fair-use and capacity policies are
-          documented in the package README. It is operated by project
-          maintainers on the project's behalf — not as a separate commercial
-          offering — and would transfer with the other project assets upon
-          foundation hosting.
+            terms of service
+          </a>
+          . It runs as a shared pool, free within its{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/README.md#hosted-fair-use-and-capacity-planning"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            fair-use limits
+          </a>
+          , and its running costs are meant to be covered by sponsorship; the
+          plan is to share those costs openly as usage grows. An organization
+          whose load strains the shared servers may be removed from the pool; to
+          keep using it, sponsorship may be required, or it can self-host the
+          server (<code>packages/kit</code>, MIT).
         </p>
       </section>
 
@@ -459,7 +423,15 @@ function Governance() {
         </AnchorLink>
         <p>
           All participants in the OpenIAP project are expected to follow the
-          project's Code of Conduct. Violations should be reported to{' '}
+          project&apos;s{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/CODE_OF_CONDUCT.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Code of Conduct
+          </a>
+          . Violations should be reported to{' '}
           <a href="mailto:conduct@hyo.dev">conduct@hyo.dev</a> (or the
           designated conduct committee, when formed).
         </p>
@@ -470,21 +442,9 @@ function Governance() {
           Amendments
         </AnchorLink>
         <p>
-          This governance document may be amended through the Significant
-          Decisions process described above. Changes require a minimum 14-day
-          review period and explicit approval from the Project Lead (or TSC
-          majority, when formed).
-        </p>
-        <p
-          style={{
-            marginTop: '2rem',
-            fontStyle: 'italic',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          This governance model is designed to evolve. As OpenIAP grows, we are
-          committed to transitioning toward broader community governance while
-          maintaining the project's technical integrity and mission.
+          This page changes through a reviewed pull request the Project Lead
+          approves. Once the TSC forms, an amendment gets a 14-day review period
+          and needs a TSC majority.
         </p>
       </section>
     </div>

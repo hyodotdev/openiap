@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-18T18:47:47.947Z
+> Last updated: 2026-09-24T20:51:39.505Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -666,6 +666,25 @@ contracts; it requires meeting them with the fewest independent concepts.
   consolidated. Prefer one understandable path over several defensive fallback
   paths.
 
+#### Clean Up Once It Works
+
+A change is not done when it first passes. Reread the diff and the code it
+touches for smells, and fix them without being asked. A smell you run into
+while working counts too, even in code the change does not touch:
+
+- duplicated logic, parallel branches that compute one decision, and helpers
+  copied between files;
+- layers, fallbacks, or checks that another part of the system already
+  guarantees;
+- `as any`, which is never allowed. Type the value or narrow it; in tests, use
+  typed fixtures and `jest.mocked`, and mark input a test passes on purpose to
+  reach a runtime check with `// @ts-expect-error` and the reason.
+  `as unknown as T` hides the same problem;
+- comments the code now contradicts, comments longer than their point, and
+  dead or unreachable code (see "Write for a Human Reading It Cold").
+
+Rerun the checks afterwards: a cleanup that changes behavior is a bug.
+
 ### 1. Explicit Over Implicit
 
 Always be explicit about types and intentions:
@@ -940,6 +959,38 @@ isActive = purchaseState == PurchaseState.Purchased
 
 Section banners (`// --- Runner ---`) are fine when a file has genuinely
 distinct parts; do not add them to short files.
+
+### Write for a Human Reading It Cold
+
+A comment is read by someone who did not write the code and has one question.
+Answer it in plain words they can take in at a glance.
+
+- Lead with the point. Put the constraint or the reason first, not a setup.
+- One idea per comment, in short sentences. If it needs "because ... so ...
+  which means ...", split it or cut it.
+- Use ordinary words and name concrete things: the store, the task, the file.
+  Avoid abstract phrasing such as "a signal that disagrees stops the build"
+  when "an openiapStore pin and a Horizon task fail the build" says it.
+- Say it once. A rule explained in the file header is not re-explained at each
+  use; the use can say nothing, or point at the header.
+- Leave out how the code got here: review rounds, earlier bugs, "once", "twice",
+  "used to". That history is in git.
+
+These are the habits that make a comment read like AI prose. Remove them on
+sight, in the code you change and in the code you pass through.
+
+```groovy
+// ❌ INCORRECT — an essay: history, hedges, and three ideas in one block
+// Gradle task options that take a separate value, derived from `help --task`
+// over `tasks --all` under a Gradle 8 and a Gradle 9, because each major has
+// tasks the other does not ... Anything unlisted is treated as a flag, so a
+// flag never eats the task after it ... The cost runs the other way ...
+
+// ✅ CORRECT — what the list is, and what happens when it is incomplete
+// Task options that take a separate value, from Gradle's `help --task` output.
+// An unlisted option's value may be read as a task; the graph check then fails
+// unless the value also names a task the build runs.
+```
 
 ### Doc Comments Are Not the Docs Site
 
@@ -1240,7 +1291,7 @@ For every new/changed handler in the generated types, verify **all five** of the
 | **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                        | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                                                                                                                                                  |
 | **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                              | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                                                                                                                                                   |
 | **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                  | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                                                                                                                                                               |
-| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                     |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                    |
 | **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the native purchase-listener contract; static facade is `OpenIap.Maui.OpenIapClient`; app-facing IAPKit helpers are exposed via `OpenIapClient.KitApi(...)` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | OpenIap.Maui 2.x targets supported .NET 10 only. The example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net10.0-android / net10.0-ios / net10.0-maccatalyst; package CI builds net10 shared, Android, iOS, and macCatalyst TFMs; xUnit covers generated serialization, error mapping, and the `KitApiClient` HTTP contract (manual device testing remains for purchase flow) |
 
 ### Platform suffix rule (who needs what)
@@ -1329,6 +1380,103 @@ The Google package supports **three build flavors**:
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
 - `src/amazon/` - Amazon Appstore specific implementations
+
+### Store Selection
+
+One rule picks the Android store everywhere, and the developer never edits a
+file to switch. Credentials (the Horizon app id, the Amazon
+`AppstoreAuthenticationKey.pem`) stay in the project permanently and are inert
+on the other stores; they never select anything.
+
+```text
+1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
+             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read, deprecation warning)
+2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
+3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the single
+             attached one -> Quest = horizon, Fire = amazon
+4. play
+```
+
+A store pin against a different task flavor, two store flavors named by the
+requested tasks, and a pin against a legacy flag each fail the build. Opting out
+with `openiapStore=none` never conflicts with a task flavor, because it links
+nothing; it does still conflict with a legacy flag that names a store. An anchor
+task that
+builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
+openiap-google — is not that case and is allowed. The device is a fallback, not a
+competing signal — a pin or a flavor outranks it without complaint. A release
+build never consults a device, and several attached devices select nothing
+unless `ANDROID_SERIAL` names one. The device step works under the
+configuration cache: Gradle re-runs the probe before reusing a cached
+configuration, so a different device reconfigures the build. The choice is
+logged once:
+`openiap: store=<id> (source=explicit|variant|device|default; <reason>)`.
+
+**Vocabulary.** Store ids are `play`, `horizon`, `amazon`, plus `auto` (the
+default) and `none` (the Flutter opt-out that links no Android IAP SDK). Aliases
+are normalized at the input boundary only: `google`, `gplay`, `googleplay`,
+`google-play`, `gms` → `play`; `meta`, `quest` → `horizon`; `fire`, `fireos`,
+`fire-os` → `amazon`. `IapStore` in the schema is the _runtime_ store on a
+purchase and keeps its own names.
+
+**SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule;
+edit only that file. A Gradle script cannot ship in the AAR, so
+`libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
+`libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
+`openiap-versions.json`, and `bun audit:parity` checks the link targets. Each
+wrapper publishes it as a real file: the npm release steps copy it over the
+link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
+(`packages/google/gradle-plugin`, id `io.github.hyochan.openiap`) packs the same
+file into its jar at build time. Every other build system reads the same names:
+
+| Consumer                            | Input                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
+| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` still pin, with a warning    |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
+| maui-iap                            | package targets at app build: `OpenIapStore` (alias `OpenIapAndroidStore`), Debug-build device, play |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
+
+`bun audit:parity` compares all five alias tables — the resolver, the doctor,
+the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
+targets — because a store that resolves differently in two layers of one build
+is exactly what this mechanism exists to prevent.
+
+**Regression suite.** Every rule above is asserted by
+`packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
+Android job. It covers abbreviated task names such as `aHR`, which once let
+a Horizon build link the Play SDK and now fail at the task-graph check:
+
+```bash
+cd packages/google && bash scripts/verify-store-resolver.sh
+```
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
+
+It applies the real resolver to the fixture in
+`packages/google/compatibility/store-resolver`, so no Android SDK, device, or
+network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
+reports whatever device the case declares. Each case asserts a resolved
+`store/source` pair, or that the build fails with a named message. The suite
+covers pins and their aliases, the legacy flags and their conflicts, the
+`none` opt-out, task flavors, every conflict that must fail, device selection
+for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
+devices, release builds, `clean`, and the configuration cache.
+
+**Add a case whenever the rule changes.** A wrong store is invisible on the
+machine that built it — it only appears when the artifact reaches a device that
+cannot serve that billing SDK, which is after release. The suite is the only
+thing standing between a rule change and that outcome, so a new signal, alias,
+or conflict lands with its case in the same commit.
+
+**iOS.** There is one store axis (App Store vs. an alternative marketplace such
+as Onside). Marketplace SDKs are linked at build time by an explicit opt-in and
+the runtime routes by install source; nothing is guessed at build time.
 
 ### Critical Rules
 
@@ -2160,8 +2308,8 @@ the `next` branch. Preserve the change evidence, then write one concise,
 package-grouped entry after stable promotion on `main`.
 
 Do not use `openiap-versions.json` to derive React Native, Expo, Flutter,
-Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
-`apple`.
+Godot, KMP, or MAUI versions; that manifest tracks only `clientProtocol`,
+`google`, and `apple`.
 
 
 ---
@@ -4610,8 +4758,8 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                              | Query win-back offer eligibility before purchase                                                    |
 | Consumable transaction history                                 | iOS 18.0                              | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
 | StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)     |
-| UI context for purchases                                       | iOS 18.2                              | Required for proper payment sheet display                                                           |
-| External purchase notice                                       | iOS 17.4                              | `ExternalPurchase.presentNoticeSheet()`                                                             |
+| UI context for purchases                                       | iOS 17.0                              | `purchase(confirmIn:)` takes a `UIScene`; iOS 18.2 adds `UIViewController`, macOS 15.2 `NSWindow`   |
+| External purchase notice token                                 | iOS 17.4                              | `ExternalPurchase.canPresent`; `presentNoticeSheet()` returns a token                               |
 | `appTransactionID`                                             | iOS 18.4                              | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
 | `originalPlatform`                                             | iOS 18.4                              | Original purchase platform (back-deployed to iOS 15)                                                |
 | `Transaction.offerPeriod`                                      | iOS 18.4                              | Offer period information on Transaction                                                             |
@@ -4960,9 +5108,11 @@ if renewalInfo.renewalOfferType == .winBack {
 }
 ```
 
-## UI Context for Purchases (iOS 18.2+)
+## UI Context for Purchases
 
-Beginning in iOS 18.2, purchase methods require a UI context to properly display payment sheets:
+`purchase(confirmIn:)` takes a `UIScene` from iOS 17.0; iOS 18.2 adds a
+`UIViewController` overload and macOS 15.2 an `NSWindow` one. Apple recommends a UI-context purchase API over
+`purchase(options:)` everywhere except watchOS:
 
 ```swift
 // iOS/iPadOS/tvOS/visionOS: UIViewController
@@ -5141,10 +5291,11 @@ By default, `Transaction.all` omits finished consumables. Opt in by adding this 
 With the key set, finished consumable transactions are included in
 `Transaction.all`, `Transaction.latest(for:)`, and `Product.latestTransaction`.
 
-## External Purchase Support (iOS 17.4+)
+## External Purchase Support
 
-`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchaseLink.open(url:)`
-ship on iOS 17.4+. The follow-on custom-link APIs
+`ExternalPurchase.presentNoticeSheet()` ships on iOS 15.4. `canPresent` and the
+sheet's `continuedWithExternalPurchaseToken(token:)` result arrive in iOS 17.4.
+`ExternalPurchaseLink.open(url:)` is iOS 17.5+. The custom-link APIs
 (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`,
 `token(for:)`) are iOS 18.1+.
 
@@ -5414,7 +5565,9 @@ executable projection validators consume.
 | `generated/vectors/lifecycle.json`                       | Generated entitlement, first-binding, and event-emission vectors implementations reproduce      |
 | `generated/bindings/http-binding.json`                   | Generated HTTP manifest: method, path, auth role, statuses, and schema pointer per operation    |
 | `generated/bindings/operations.graphql`                  | Generated executable GraphQL projection the GraphQL binding serves                              |
+| `generated/bindings/operations-sdl.json`                 | Generated JSON wrapper of `operations.graphql` for bundlers; the SDL is byte-identical          |
 | `generated/bindings/graphql-operations.json`             | Generated canonical full-selection GraphQL documents                                            |
+| `generated/bindings/introspection-signature.json`        | Generated structural signature the runner checks served introspection against (§11.3)           |
 | `generated/openapi/commerce-protocol.openapi.json`       | Generated OpenAPI 3.1 document for the REST binding                                             |
 | `generated/vectors/operations.json`                      | Generated operation conformance vectors                                                         |
 | `conformance/`                                           | The portable conformance runner and its independent mock provider                               |
@@ -5494,11 +5647,18 @@ consumer doing revenue reconciliation SHOULD accept only `store`.
 **Identifiers** are opaque strings. A consumer MUST NOT parse structure out of
 one.
 
-**Enumerations** are closed unless this document says otherwise. Four value
-spaces are deliberately open — `environment` here, `store` below,
-`cancellationReason` on the subscription snapshot, and `eventType`, which §12
-grows in a MINOR version — and a consumer MUST tolerate a value it does not
-recognise in any of them, and MUST NOT act on one it does not know.
+**Enumerations** are closed unless this document says otherwise. These value
+spaces are open, and a MINOR version can add a value to any of them (§12):
+
+- `store` (below) and `environment`
+- `cancellationReason` (§2.2)
+- `eventType` (§9.1)
+- the verification `state` (§4.1) and the erasure job `status` (§4.5)
+- protocol error codes (§8)
+- profile and binding names (§3, §10.1)
+
+Whoever reads one MUST tolerate a value it does not recognise and MUST NOT act
+on one it does not know. §8 says how a caller treats an unrecognised error code.
 
 **Store, not platform.** This specification keys on `store`, never on device
 platform. One device platform can host several stores — an Android build can
@@ -5548,8 +5708,9 @@ unlike `price`, it carries no provenance.
 
 Entitlement is carried as `subscription.active`, and where a `subscription`
 member is present that is the field to read — never a re-derivation from
-`state`. A store that keeps no canonical subscription record sends no snapshot;
-there the `entitlement.*` event type itself carries the decision (§9.5).
+`state`. An `entitlement.*` event may omit the snapshot where the store keeps no
+canonical subscription record; its event type then carries the decision (§9.5).
+No implementation emits that shape yet (§14).
 
 **Entitlement is not derivable from `state` alone**, and this is where naive
 implementations go wrong:
@@ -5666,7 +5827,11 @@ a consumer MUST ignore a profile name it does not recognise.
 A provider implements a profile **completely or not at all**. It MUST declare
 in its capability descriptor (§10) every profile it serves and MUST NOT
 declare one it serves partially or does not pass conformance for (§11).
-Profiles version independently as MAJOR.MINOR; a caller pins on the major.
+A provider whose descriptor lists profiles MUST fail an operation from any
+profile it does not list with `UNSUPPORTED_PROFILE`. Authorization comes first
+(§5): a credential the provider did not issue for the operation's role still
+gets `UNAUTHORIZED` or `FORBIDDEN`. Profiles version independently as
+MAJOR.MINOR; a caller pins on the major.
 
 ---
 
@@ -5720,10 +5885,12 @@ input to it, select or mutate account state.
 
 ### 4.2 subscriptionStatus
 
-A developer backend reads one user's subscription standing: an `active` gate
-for the user as a whole, plus the most relevant record — the current
-entitling subscription when one exists, otherwise the provider's most recent
-record as context, and no record member at all when the provider has none.
+A developer backend reads one user's subscription standing. `active` says
+whether the user holds a currently entitling subscription. The result also
+carries the most relevant record — the current entitling subscription when one
+exists, otherwise the provider's most recent record as context, and no record
+member at all when the provider has none. Access that does not come from a
+subscription appears only in `entitlements` (§4.3).
 
 The snapshot is **tokenless by construction**: no purchase token, store
 transaction identity, signed receipt, or provider-internal record identifier
@@ -5732,10 +5899,17 @@ because with it a shipped app could walk arbitrary user identities.
 
 ### 4.3 entitlements
 
-The access decision for one user: every product whose gate is open at the
-provider's read time, with the entitling records. Unknown, expired, and
-ambiguous records contribute nothing. The same tokenless and server-role
-rules as §4.2 apply.
+The access decision for one user: `productIds` lists every product whose gate
+is open at the provider's read time, and `subscriptions` the entitling
+subscription records. A product can be granted without a subscription record,
+such as a durable purchase, so `productIds` may name products no record
+carries; every record's product is in `productIds`. Unknown, expired, and
+ambiguous records contribute nothing. The same tokenless and server-role rules
+as §4.2 apply.
+
+A provider that rechecks access with a store and cannot get its answer MUST
+fail the read with `VERIFICATION_FAILED` (§8) rather than answer from what it
+has.
 
 ### 4.4 bindPurchase
 
@@ -5744,12 +5918,13 @@ the identity space of §2.4. Server role only: token possession is
 deliberately not proof of ownership, so binding is a decision the caller's
 authenticated backend makes, never a shipped app.
 
-Binding is idempotent and never moves an existing binding. `bound: false`
-covers every non-binding outcome — unknown evidence, evidence bound to a
-different user, a store the provider cannot bind — without distinguishing
-them, so the operation cannot probe whether someone else's purchase exists.
-How a provider recovers a purchase bound to the wrong user is management
-plane, outside this contract.
+Binding is idempotent and never moves an existing binding. For a store the
+provider integrates, `bound: false` covers every non-binding outcome — unknown
+evidence, evidence bound to a different user — without distinguishing them, so
+the operation cannot probe whether someone else's purchase exists. A store the
+provider does not integrate is `UNSUPPORTED_STORE`, as in §4.1. How a provider
+recovers a purchase bound to the wrong user is management plane, outside this
+contract.
 
 ### 4.5 eraseUser
 
@@ -5775,8 +5950,8 @@ runner reads it the same way a caller does.
 ## 5. Authentication and trust
 
 The protocol standardizes **roles and rules**, not credential formats. How a
-provider issues, names, or rotates credentials is its own business; no
-prefix, length, or issuer is part of this contract.
+provider issues, names, or rotates credentials is its own business; a
+credential's prefix, length, and issuer are outside this contract.
 
 | Role             | Holder                             | May call                                             |
 | ---------------- | ---------------------------------- | ---------------------------------------------------- |
@@ -5786,27 +5961,27 @@ prefix, length, or issuer is part of this contract.
 
 Both bindings MUST enforce:
 
-- Credentials travel in the `Authorization` header. A provider MUST NOT
-  accept a secret in a URL path or query string, where proxies and logs
-  retain it.
+- A credential travels as `Authorization: Bearer <credential>` (RFC 6750).
+  A provider MUST NOT accept a secret in a URL path or query string, where
+  proxies and logs retain it.
 - Auth failures fail close: no credential is `UNAUTHORIZED`, a credential of
   the wrong role is `FORBIDDEN`, and neither response reveals whether the
   target of the call exists.
 - For an operation that requires the **server** role, authorization precedes
-  input validation: a caller without a valid server credential MUST receive
-  `UNAUTHORIZED` or `FORBIDDEN`, never a verdict about its input — an
+  input validation. A caller without a valid server credential MUST receive
+  `UNAUTHORIZED` or `FORBIDDEN`, never a verdict about its input: an
   input-validation answer would let an unauthenticated caller map the
   privileged surface (which stores bind, which members exist, which bounds
-  apply). Transport-shape failures — an unparseable or oversized body, or a
-  GraphQL document that fails parsing or validation — MAY still precede
-  authorization: they say nothing operation-specific. Variable coercion
-  against the operation input IS input validation, not transport shape — a
-  GraphQL engine coerces variables before any resolver runs, so a provider
-  that authorizes only inside resolvers violates this rule and MUST
-  authorize the operation before executing the document. Verification-role
-  operations are exempt
-  because their input schema is the published client contract an application
-  already ships with.
+  apply).
+  - Verification-role operations are exempt, because their input schema is
+    the published client contract an application already ships with.
+  - Transport-shape failures MAY still precede authorization, because they
+    say nothing operation-specific: an unparseable or oversized body, or a
+    GraphQL document that fails parsing or validation.
+  - Variable coercion against the operation input is input validation, not
+    transport shape. A GraphQL engine coerces variables before any resolver
+    runs, so a provider MUST authorize the operation before executing the
+    document; authorizing only inside resolvers violates this rule.
 - The verification role and the server role are distinct credentials. A
   provider MUST NOT let a verification credential reach an account read or
   mutation, which is what blocks arbitrary-`userId` lookups from shipped
@@ -5841,6 +6016,8 @@ offline bundle.
   `Content-Type: application/json`.
 - Success is exactly the operation's `successStatus`. Every failure returns
   the status §8 assigns to its code, with a `ProtocolErrorResponse` body.
+- A request whose method and path under `/commerce/v1` match no operation
+  fails with `NOT_FOUND`.
 - An unrecognised input member is ignored (§4), and a caller MUST ignore
   unrecognised result members — the same open-object rule the event envelope
   follows.
@@ -5886,15 +6063,17 @@ provider MAY still gate introspection behind a credential.
   delivered at `200`. This includes a refusal decided before execution,
   such as an authorization or rate-limit rejection; a pre-execution refusal
   omits the `data` member.
-- A request-level failure — the document or variables themselves could not
-  be processed: unparseable document, validation failure, variable coercion
-  — MAY carry no protocol code or MAY carry the generic `INVALID_REQUEST`,
-  never a more specific code. The two categories are exclusive per envelope:
-  one `errors` array is either all coded or all codeless — a codeless entry
-  riding beside coded ones would be invisible to every code check. It omits the `data` member entirely, and only
-  the codeless form MAY be delivered as HTTP `400` instead of `200`. A
-  caller treats either form as `INVALID_REQUEST`; only where the request
-  died differs.
+- A request-level failure is one where the document or variables could not
+  be processed: an unparseable document, a validation failure, or variable
+  coercion.
+  - It MAY carry no protocol code or the generic `INVALID_REQUEST`, never a
+    more specific code.
+  - Its response omits the `data` member entirely.
+  - Only its codeless form MAY be delivered as HTTP `400` instead of `200`.
+  - A caller treats either form as `INVALID_REQUEST`; only where the request
+    died differs.
+- One `errors` array is either all coded or all codeless. A codeless entry
+  beside coded ones would be invisible to every code check.
 - GraphQL cannot express omitted-versus-null on a selected member: a member
   the provider omitted comes back as `null`. Operation types therefore never
   make `null` meaningful (the compiler rejects a nullable omittable member),
@@ -5922,13 +6101,11 @@ traces, or implementation source paths.
 | `INVALID_REQUEST`     | 400  | The input is malformed or fails the operation schema                         |
 | `UNAUTHORIZED`        | 401  | No usable credential was presented                                           |
 | `FORBIDDEN`           | 403  | The credential's role may not call this operation                            |
-| `NOT_FOUND`           | 404  | The addressed resource does not exist                                        |
-| `PURCHASE_NOT_FOUND`  | 404  | The evidenced purchase is unknown, where an operation distinguishes that     |
-| `CONFLICT`            | 409  | The request contradicts current state                                        |
+| `NOT_FOUND`           | 404  | The REST method and path match no operation (§6)                             |
 | `UNSUPPORTED_STORE`   | 422  | The provider does not integrate the named store                              |
 | `RATE_LIMITED`        | 429  | Too many requests; retry after the signalled delay                           |
 | `INTERNAL_ERROR`      | 500  | The provider failed internally                                               |
-| `UNSUPPORTED_PROFILE` | 501  | The operation belongs to a profile this provider does not serve              |
+| `UNSUPPORTED_PROFILE` | 501  | The operation belongs to a profile the provider does not declare (§3)        |
 | `VERIFICATION_FAILED` | 502  | The provider could not obtain a verdict — never the store rejecting evidence |
 
 The space is open: a MINOR version can add a code, so a caller MUST treat an
@@ -6380,9 +6557,10 @@ The consumer revokes access on `entitlement.revoked`. It could equally act on
 same meaning for every store — including a store that produces no subscription
 lifecycle at all (§10).
 
-> On such a store the event arrives with **no `subscription` member**, because
-> there is no canonical record to snapshot. `eventType` alone then carries the
-> access decision, which is why the reference consumer below handles both.
+> For such a store an entitlement event would carry **no `subscription`
+> member**, because there is no canonical record to snapshot, and `eventType`
+> alone would carry the access decision. No implementation emits that shape yet
+> (§14), but the schema allows it, so the reference consumer below handles both.
 
 #### What the consumer had to know
 
@@ -6489,8 +6667,9 @@ Each capability carries **two** booleans, deliberately separate:
 
 They differ in practice. Amazon publishes Real-Time Notifications that a given
 backend may not have integrated; that is an implementation gap, not a store
-limitation, and collapsing the two into one boolean hides which one it is. A
-`notes` string is **required** whenever either is false or the two disagree.
+limitation, and collapsing the two into one boolean hides which one it is.
+`implementation` MUST NOT be true where `provider` is false. A `notes` string
+is **required** whenever either is false.
 
 `examples/provider-capabilities.json` is the reference implementation's own
 descriptor. Read its `implementation` axis as one backend's answer, not as the
@@ -6589,17 +6768,37 @@ import {
   runConformance,
 } from "@hyodotdev/openiap-commerce-protocol/conformance";
 
+// Bare credential values; the adapters send them as Bearer tokens (§5).
+const credentials = {
+  verification: process.env.COMMERCE_VERIFICATION_TOKEN,
+  server: process.env.COMMERCE_SERVER_TOKEN,
+};
+const adapters = [
+  createRestAdapter({
+    baseUrl: process.env.COMMERCE_BASE_URL,
+    fetch,
+    credentials,
+  }),
+];
+if (process.env.COMMERCE_GRAPHQL_URL) {
+  adapters.push(
+    createGraphqlAdapter({
+      url: process.env.COMMERCE_GRAPHQL_URL,
+      fetch,
+      credentials,
+    }),
+  );
+}
+
 const report = await runConformance({
-  adapters: [
-    createRestAdapter({ baseUrl, fetch, credentials }),
-    createGraphqlAdapter({ url: graphqlUrl, fetch, credentials }),
-  ],
+  adapters,
   Ajv,
-  // The same role-to-credential map the adapters use — required, so the
-  // runner can reject an error message that echoes a credential.
+  // Required: the runner rejects an error message that echoes a credential.
   credentials,
-  eventsAdapter, // required when the descriptor declares the events profile
+  // Add your eventsAdapter here if the descriptor declares the events profile.
 });
+console.log(JSON.stringify(report, null, 2));
+process.exitCode = report.ok ? 0 : 1;
 ```
 
 It is offline and decentralized by construction: it talks only through the
@@ -6617,33 +6816,39 @@ signing-only adapter.
 ### 11.3 What the vectors prove — and what they cannot
 
 The operation vectors (`generated/vectors/operations.json`) exercise auth
-negatives, invalid and unknown-member inputs, unsupported stores, mismatched
-evidence, idempotent repeats, tokenless responses, error-code and
-HTTP-status agreement, capability honesty, and REST/GraphQL parity. Their
-purchase evidence is fake but well-formed, so a provider without store
-credentials still verifies its transport contract; a verdict for that
-evidence is accepted as either a schema-valid result or
-`VERIFICATION_FAILED`.
+negatives, invalid and unknown-member inputs, unsupported stores and profiles,
+mismatched evidence, unknown users, idempotent repeats, tokenless responses,
+error-code and HTTP-status agreement, capability honesty, and REST/GraphQL
+parity. Their purchase evidence is fake but well-formed, so a provider without
+store credentials still verifies its transport contract; a verdict for that
+evidence is accepted as either a schema-valid result or `VERIFICATION_FAILED`.
 
 They therefore certify the **contract**, not the **stores**: passing says
 nothing about whether real Apple or Google receipts validate correctly.
-Beyond the operation vectors, the runner also checks the capability
-descriptor's version agreement against the manifest and — on the GraphQL
-binding — probes that the endpoint is a real executor (a malformed document,
-an undefined field, and a mistyped variable must each be rejected, without
-echoing the submitted value; introspection, where enabled, must agree
-STRUCTURALLY with the generated signature — kinds, field and argument types
-with their nullability, input members, closed enum value sets, and closed
-object member sets. A compatible MINOR may add types, nullable arguments, and
-members to open objects; it cannot extend a closed object). Event Delivery conformance is likewise separate — §9's
-signature, delivery-envelope, response-semantics, and lifecycle vectors
-cover it, driven through the provider's events adapter — and a signing-only
-provider does not pass it. The events vectors do not reach everything §9
-requires of a production emitter: the §9.3 event-document schema, §9.4.4
-backoff and dead-lettering, §9.4.5 destination safety, and §9.2 store
-mapping are certified by an implementation's own tests, not by this
-adapter surface. And a provider can pass while serving fixture data;
-conformance is a floor, not an audit.
+
+Beyond the operation vectors, the runner checks:
+
+- that the capability descriptor's versions agree with the manifest;
+- on the GraphQL binding, that the endpoint is a real executor: a malformed
+  document, an undefined field, and a mistyped variable must each be rejected
+  without echoing the submitted value;
+- that introspection, where enabled, agrees structurally with the generated
+  signature: kinds, field and argument types with their nullability, input
+  members, closed enum value sets, and closed object member sets. A
+  compatible MINOR may add types, nullable arguments, and members to open
+  objects; it cannot extend a closed object.
+
+The adapters reach declared operations only, so §6's `NOT_FOUND` for an
+unmatched method and path is certified by an implementation's own tests.
+
+Event Delivery conformance is separate. §9's signature, delivery-envelope,
+response-semantics, and lifecycle vectors cover it, driven through the
+provider's events adapter, and a signing-only provider does not pass it. The
+events vectors do not reach everything §9 requires of a production emitter:
+the §9.3 event-document schema, §9.4.4 backoff and dead-lettering, §9.4.5
+destination safety, and §9.2 store mapping are certified by an
+implementation's own tests, not by this adapter surface. And a provider can
+pass while serving fixture data; conformance is a floor, not an audit.
 
 ---
 
@@ -6659,9 +6864,9 @@ facts table use the same value as `commerceProtocolVersion`. **Consumers pin on 
 A MINOR that leaves the event body untouched does not oblige an emitter to
 change `eventVersion`: that member names the version the body conforms to, not
 the newest version published. Until the first stable package release, 1.0 stays
-open for additive documents, so a new document does not move the protocol
-version at all. The npm package version is separate again, and moves only when
-the release workflow publishes.
+open for additive changes: a new document, or an existing error code declared on
+another operation, does not move the protocol version at all. The npm package
+version is separate again, and moves only when the release workflow publishes.
 
 While the package major is `0`, that latitude extends to renaming a wire
 member: the protocol major does not move, because moving it would relocate
@@ -6695,7 +6900,7 @@ the retired name for as long as the code lives.
 | --------------------------------------------------------------------------------------------------------- | ----------------- |
 | New optional member on an open object                                                                     | MINOR             |
 | New event type                                                                                            | MINOR             |
-| New value in an open value space (`store`, `environment`, `cancellationReason`, `eventType`)              | MINOR             |
+| New value in an open value space (§2.1 lists them)                                                        | MINOR             |
 | New operation, new profile, or new optional operation input member                                        | MINOR             |
 | New protocol error code, or a new evidence member for a new store                                         | MINOR             |
 | New document: a schema root, its example, and a MUST tying it to an existing document                     | MINOR once stable |
@@ -6821,6 +7026,16 @@ storage or tooling.
   product; what is absent is the one-time purchase's economic-event taxonomy.
 - **Refund amounts and partial refunds.** `subscription.refunded` reports that a
   refund occurred, not how much was returned.
+- **Entitlement events without a subscription snapshot.** The event schema
+  allows an `entitlement.*` event with no `subscription` member, the shape a
+  store with no canonical subscription record would produce (§2.3, §9.5). No
+  implementation emits one yet.
+- **Purchase-not-found and conflict errors.** No 1.0 operation reports an
+  unknown purchase or a conflicting state as an error: `bindPurchase` answers
+  `bound: false` for both (§4.4). A later version that needs them adds codes
+  (§12). PURCHASE_NOT_FOUND and CONFLICT were removed before 1.0 without a
+  version move: no operation ever declared them, so pinned callers only
+  delete dead branches.
 - **Trial and introductory-offer state.** Offers are catalog metadata here, not
   a property of a live subscription.
 - **Storefront and country.**

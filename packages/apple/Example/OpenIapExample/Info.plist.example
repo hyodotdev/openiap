@@ -5,5 +5,16 @@
 	<key>IAPKIT_API_KEY</key>
 	<!-- Use an openiap-kit_pk_ publishable key. Never embed an openiap-kit_sk_ secret key. -->
 	<string>openiap-kit_pk_your_publishable_key_here</string>
+	<key>IAPKIT_BASE_URL</key>
+	<!-- Origin of a local IAPKit server; empty uses kit.openiap.dev. -->
+	<string></string>
+	<key>NSAppTransportSecurity</key>
+	<!-- Reaches a Local (IAPKit) server on the Mac's LAN address. -->
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

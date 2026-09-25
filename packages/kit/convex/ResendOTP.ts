@@ -191,14 +191,10 @@ const createOTPEmailTemplate = (code: string, lang: "en" | "ko" | "ja") => {
   };
 };
 
-// Three locale-specific Resend providers exist only because pre-existing
-// email-only users authenticate via the original provider id they signed
-// up under (resend-otp-{en,ko,ja}). New email signups are gated off in
-// auth.ts; once those legacy users are migrated to GitHub OAuth, the
-// Ko/Ja providers can be retired and the dashboard's English-only policy
-// becomes uniform end-to-end. Until then, keep the providers but
-// generate them through a factory so the only per-locale state is the
-// id, the email template, and the user-facing error strings.
+// One provider per locale because existing email-only users sign in under
+// the provider id they signed up with (resend-otp-{en,ko,ja}); auth.ts
+// blocks new email signups. Retire ko/ja once those users move to GitHub,
+// making the dashboard English-only end to end.
 type OTPLocale = "en" | "ko" | "ja";
 
 const otpErrorMessages: Record<

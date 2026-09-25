@@ -498,10 +498,9 @@ describe("mapBillingPeriodToAsc", () => {
 
   it("defaults undefined / unknown periods to ONE_MONTH so push doesn't silently drop the picker", () => {
     expect(mapBillingPeriodToAsc(undefined)).toBe("ONE_MONTH");
-    // Unknown periods throw — silently coercing to ONE_MONTH used
-    // to provision the wrong subscription duration in ASC, which is
-    // much harder to unwind than a failed sync. The throw is caught
-    // inside processOneDraft and recorded as a per-row failure.
+    // Unknown periods throw rather than become ONE_MONTH: a wrong duration in
+    // ASC is much harder to undo than a failed sync. processOneDraft records
+    // the throw as a per-row failure.
     const wider = mapBillingPeriodToAsc as (
       period: string | undefined,
     ) => string;

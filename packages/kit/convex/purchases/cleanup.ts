@@ -25,12 +25,8 @@ export type CollapseDuplicateResult = {
 };
 
 /**
- * Implementation of `collapseDuplicatePurchasesByOrderId`.
- *
- * Lifted out of the `internalMutation` wrapper so the unit tests
- * under `cleanup.test.ts` can drive it with a narrow in-memory
- * `ctx.db` stand-in without reaching into Convex's registered
- * mutation internals.
+ * Handler of `collapseDuplicatePurchasesByOrderId`, exported so tests can pass
+ * an in-memory `ctx.db`.
  */
 export async function collapseDuplicatePurchasesByOrderIdHandler(
   ctx: MutationCtx,
@@ -43,10 +39,7 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
     .query("purchases")
     .paginate({ cursor: args.cursor ?? null, numItems: batchSize });
 
-  // Step 1: gather every unique eligible group represented in the
-  // page. We key by the composite group id so multiple page rows
-  // from the same group collapse to a single entry here — that's
-  // what prevents the "one index query per eligible row" shape.
+  // One entry per group in the page, so each group costs one index query.
   type GroupKey = {
     projectId: Id<"projects">;
     applicationId: string;
@@ -69,9 +62,7 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
 
   let duplicateGroupsProcessed = 0;
   let rowsDeleted = 0;
-  // Accumulate per-project deltas so the `purchaseStats` row for
-  // each project is read + patched once per call, regardless of
-  // how many rows we deleted from that project in this batch.
+  // One purchaseStats read and patch per project per call.
   const projectDeltas = new Map<Id<"projects">, PurchaseStatsDelta>();
 
   for (const { projectId, applicationId, orderId } of pageGroups.values()) {
@@ -85,15 +76,9 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
       )
       .collect();
 
-    // Defensive filter: the `by_project_app_orderId` index doesn't
-    // know about `store`, so in principle a manually-written or
-    // future non-Google row with an `orderId` set could share a
-    // group key with Google siblings. Collapsing an Apple / Horizon
-    // row (or, worse, picking one as the "newest" survivor of a
-    // Google group) would silently corrupt counters and drop real
-    // receipts. Narrow the candidate set to Google rows with a
-    // non-empty orderId BEFORE picking the survivor, and only emit
-    // stats deltas for the rows we actually delete.
+    // The index ignores `store`, so a non-Google row with an orderId could join
+    // a group. Keep only Google rows with an orderId before picking the
+    // survivor, or real receipts could be deleted.
     const siblings = indexHits.filter(
       (r) =>
         r.store === "google" &&
@@ -166,56 +151,25 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
 }
 
 /**
- * Collapse duplicate purchase rows that share a Google Play `orderId`.
+ * Collapses purchase rows that share a Google Play `orderId`, left from before
+ * the orderId dedup, when Google reissued `purchaseToken` for one order.
  *
- * Context: before the orderId-based secondary dedup landed, Google's
- * practice of reissuing `purchaseToken` for the same logical order
- * could produce multiple rows for one transaction — the inflation
- * shape Adam reported on Black Dust. The `savePurchaseInternal` fix
- * prevents new rows of that shape; this mutation cleans up rows that
- * predate the fix.
+ * Per `(projectId, applicationId, orderId)` group with more than one row: keep
+ * the newest, delete the rest, and decrement the row counters per deleted row,
+ * but not `googleOrders` (the survivor keeps the orderId). Fails before
+ * deleting if a sibling has not been through
+ * `backfillPurchaseStatsFromPurchases`; Convex then rolls back the whole call.
+ * Rows without an `orderId`, including pending acknowledgements, are never
+ * touched.
  *
- * Behavior for each `(projectId, applicationId, orderId)` group with
- * N > 1 rows:
- *   - keep the row with the greatest `_creationTime` (newest)
- *   - delete the older rows
- *   - accumulate a `purchaseStats` delta per project that decrements
- *     the sentinel-owned row counters per deleted row. We DO NOT
- *     decrement `googleOrders` — that counter
- *     represents the count of distinct Google orderIds, which is
- *     unchanged by removing a duplicate (the surviving sibling still
- *     carries the same orderId).
- *   - fail before deletion if any sibling has not completed
- *     `backfillPurchaseStatsFromPurchases`. Convex rolls the mutation
- *     back if a later group fails the same check.
+ * Migration order: finish `backfillPurchaseStatsFromPurchases`, run this, then
+ * `recomputeAllPurchaseStats` whenever a non-dry run deleted rows.
+ * `backfillPurchaseStatsStoreBuckets` may run before or after this, but must
+ * finish before that recompute.
  *
- * Required migration order: complete
- * `backfillPurchaseStatsFromPurchases`, run this duplicate cleanup,
- * then run `recomputeAllPurchaseStats` last whenever non-dry cleanup
- * deletes rows. The recompute is optional only when cleanup is not run
- * or reports `rowsDeleted: 0`. `backfillPurchaseStatsStoreBuckets` is
- * independent of the Google duplicate cleanup and may run before or
- * after it, but it must also finish before the recompute when one is
- * required.
- *
- * Rows with no `orderId` are NEVER touched — they can't be safely
- * correlated to any logical order and include legitimate
- * pending-acknowledgement rows.
- *
- * Pagination: processes up to `batchSize` rows per call (default
- * 200). Returns a `cursor` that the caller threads through until
- * `isDone`. Within each page we:
- *   1. Bucket eligible rows by `(projectId, applicationId, orderId)`
- *      so we issue AT MOST one sibling lookup per unique group in the
- *      page — the group's full membership (including cross-page
- *      siblings) is resolved in that single index query.
- *   2. Delete every non-newest sibling in a group with N > 1 rows.
- *   3. Accumulate per-project stats deltas and apply them ONCE per
- *      project at the end of the call, instead of issuing a separate
- *      `purchaseStats` read/patch for every deleted row.
- *
- * `dryRun: true` reports the would-be deletions without touching data.
- * Use it to confirm scope before flipping the switch.
+ * Pages of `batchSize` rows (default 200); thread `cursor` until `isDone`.
+ * Each group costs one sibling lookup and each project one stats write.
+ * `dryRun: true` reports the deletions without writing.
  */
 export const collapseDuplicatePurchasesByOrderId = internalMutation({
   args: {

@@ -217,6 +217,7 @@ test:
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_api_surface.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_envelope_parsing.gd
 	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_godot_iap.gd
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_android_store.gd
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts

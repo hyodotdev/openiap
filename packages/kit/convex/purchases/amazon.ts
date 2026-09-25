@@ -562,13 +562,12 @@ export async function verifyAmazonReceipt(
 }
 
 /**
- * Reconcile active Amazon purchase snapshots without inventing subscription
- * semantics. One attempt per claimed row plus the 10-second request timeout
- * caps the 20-row worst case near 200 seconds, below the five-minute cron
- * interval so independent workers do not overlap their per-worker TPS budget.
- * Starts are spaced by 200ms (at most 5 TPS), reserving half of Amazon's
- * documented 10 TPS ceiling for the two foreground lanes: receipt verification
- * and the entitlement rechecks, which draw on their own admission bucket.
+ * Reconciles active Amazon purchase snapshots without inventing subscription
+ * semantics. One attempt per claimed row with a 10s timeout keeps 20 rows near
+ * 200s, inside the five-minute cron interval, so workers do not overlap.
+ * Starts are 200ms apart (at most 5 TPS), leaving half of Amazon's documented
+ * 10 TPS for receipt verification and entitlement rechecks, which have their
+ * own admission bucket.
  */
 export const reconcileAmazonPurchases = internalAction({
   args: {},

@@ -62,12 +62,31 @@ const APP_BUILD_FILES = [
   "android/app/build.gradle.kts",
 ];
 
+// Same table as packages/google/gradle/openiap-store.gradle.
+export const STORE_ALIASES = {
+  play: "play",
+  google: "play",
+  gplay: "play",
+  googleplay: "play",
+  "google-play": "play",
+  gms: "play",
+  horizon: "horizon",
+  meta: "horizon",
+  quest: "horizon",
+  amazon: "amazon",
+  fire: "amazon",
+  fireos: "amazon",
+  "fire-os": "amazon",
+  none: "none",
+  auto: "auto",
+};
+
 /**
- * A generated Android project is written in one pass, so its store flag and
- * its flavor literal always agree when they are fresh. A disagreement means a
- * half-finished regeneration, and the app links a store the device may not run.
+ * Reports the store gradle.properties pins (openiapStore or a legacy flag) and
+ * a leftover platform strategy in app/build.gradle that disagrees with it.
+ * Without a pin Gradle picks the store per build, which no file records.
  */
-export function androidStoreChecks(root) {
+export function androidStoreChecks(root, framework) {
   const propertiesText = read(root, "android/gradle.properties");
   const app = readFirst(root, APP_BUILD_FILES);
   // Either file alone still proves which store the build links.
@@ -81,8 +100,61 @@ export function androidStoreChecks(root) {
     );
   const horizon = enabled("horizonEnabled");
   const fireOs = enabled("fireOsEnabled");
+  const storeEntry = properties?.get("openiapStore");
+  const storeValue = storeEntry?.value.trim().toLowerCase() ?? "";
+  // openIapNormalizeStore: a blank value is absent, and only an alias is a store.
+  const explicit =
+    storeValue === ""
+      ? null
+      : Object.hasOwn(STORE_ALIASES, storeValue)
+        ? STORE_ALIASES[storeValue]
+        : "unknown";
+  const pinned =
+    explicit !== null && explicit !== "auto" && explicit !== "unknown";
+  // The legacy keys still pin, with a deprecation warning: openiapPlatform=none
+  // opts out, and fireOsEnabled or horizonEnabled picks a store.
+  const platformEntry = properties?.get("openiapPlatform");
+  const platformValue = platformEntry?.value.trim().toLowerCase() ?? "";
+  const optOut = platformEntry !== undefined && platformValue === "none";
+  const [legacyName, legacy] = optOut
+    ? ["openiapPlatform", "none"]
+    : fireOs
+      ? ["fireOsEnabled", "amazon"]
+      : horizon
+        ? ["horizonEnabled", "horizon"]
+        : [null, null];
+  const legacyEntry = legacy ? properties.get(legacyName) : undefined;
+  const legacyKey = legacy
+    ? `${legacyName}=${oneLine(legacyEntry.value)}`
+    : null;
   const findings = [];
 
+  // Each refusal is a GradleException in openIapExplicitStore: the build stops
+  // before it links anything, so none of these projects is reported as a store.
+  if (explicit === "unknown") {
+    findings.push(
+      finding(
+        "android-store-unknown",
+        "error",
+        "android/gradle.properties",
+        `openiapStore=${oneLine(storeEntry.value)} is not a store.`,
+        "Use play, horizon, amazon, or auto; none is the Flutter opt-out.",
+        { line: storeEntry?.line },
+      ),
+    );
+  }
+  if (platformEntry && !optOut) {
+    findings.push(
+      finding(
+        "android-store-unknown",
+        "error",
+        "android/gradle.properties",
+        `openiapPlatform=${oneLine(platformEntry.value)} only supports the opt-out value none.`,
+        "Use openiapStore to pick a store.",
+        { line: platformEntry?.line },
+      ),
+    );
+  }
   if (horizon && fireOs) {
     findings.push(
       finding(
@@ -92,6 +164,52 @@ export function androidStoreChecks(root) {
         "horizonEnabled and fireOsEnabled are both true.",
         "Leave one store enabled and regenerate the Android project.",
         { line: properties.get("horizonEnabled")?.line },
+      ),
+    );
+  } else if (optOut && (horizon || fireOs)) {
+    findings.push(
+      finding(
+        "android-store-flavor-conflict",
+        "error",
+        "android/gradle.properties",
+        `openiapPlatform=none conflicts with ${fireOs ? "fireOsEnabled" : "horizonEnabled"}=true.`,
+        "Drop the legacy store flag, or drop the opt-out.",
+        { line: platformEntry?.line },
+      ),
+    );
+  } else if (pinned && legacy && legacy !== explicit) {
+    findings.push(
+      finding(
+        "android-store-flavor-conflict",
+        "error",
+        "android/gradle.properties",
+        `openiapStore=${explicit} disagrees with ${legacyKey}.`,
+        optOut
+          ? "Keep openiapStore; openiapPlatform is the legacy spelling of the opt-out."
+          : "Keep the openiapStore pin and delete the legacy flags.",
+        { line: (optOut ? platformEntry : storeEntry)?.line },
+      ),
+    );
+  }
+
+  // What gradle.properties pins every build of this checkout to, if anything.
+  // -P and ORG_GRADLE_PROJECT_ pins are invisible here.
+  const decided = findings.length > 0 ? null : pinned ? explicit : legacy;
+  const pinKey = pinned
+    ? `openiapStore=${oneLine(storeEntry.value)}`
+    : legacyKey;
+  const pinLine = (pinned ? storeEntry : legacyEntry)?.line;
+  // Only flutter_inapp_purchase compiles a no-op Android implementation; every
+  // other wrapper fails the build on this value.
+  if (decided === "none" && framework && framework !== "flutter") {
+    findings.push(
+      finding(
+        "android-store-unknown",
+        "error",
+        "android/gradle.properties",
+        `${pinKey} is not supported by ${framework}.`,
+        "Remove the opt-out; only flutter_inapp_purchase builds without an Android store SDK.",
+        { line: pinLine },
       ),
     );
   }
@@ -112,29 +230,25 @@ export function androidStoreChecks(root) {
   const linksNonPlay = stores.includes("play")
     ? undefined
     : stores.find((one) => one !== "play");
-  // Build types may legitimately link different stores, so a mismatch is not
-  // about how many are declared: it is that none of them is the one the flags
-  // selected, which only a half-finished regeneration produces.
   const hasStoreFlags =
     properties?.has("fireOsEnabled") || properties?.has("horizonEnabled");
-  const selects = hasStoreFlags
-    ? fireOs
-      ? "amazon"
-      : horizon
-        ? "horizon"
-        : "play"
-    : null;
+  // Flags both false still state Play, which a leftover literal can contradict.
+  const selects = findings.length
+    ? null
+    : (decided ?? (hasStoreFlags ? "play" : null));
   // A computed flavor may well resolve to the selected store, so a mismatch is
   // only provable when every strategy names a store and none of them is it.
+  // `none` links no store, so a leftover literal is inert rather than wrong.
   const missing =
     selects !== null &&
+    selects !== "none" &&
     !computed &&
     stores.length > 0 &&
     !stores.includes(selects);
   const declared = stores.length === 1 && !computed ? stores[0] : null;
   const line = strategies[0]?.number;
 
-  // With both flags true `selected` is this tool's own tiebreak, not something
+  // With both flags true `selects` is this tool's own tiebreak, not something
   // gradle.properties states, and the conflict finding already covers it.
   if (missing && !(horizon && fireOs)) {
     findings.push(
@@ -149,24 +263,36 @@ export function androidStoreChecks(root) {
     );
   }
 
-  const store = linksNonPlay ?? declared ?? selects;
-  if (store && store !== "play") {
-    const evidence =
-      declared || linksNonPlay ? app.file : "android/gradle.properties";
-    const enabledFlag = fireOs ? "fireOsEnabled" : "horizonEnabled";
+  // The wrappers link the store the resolver picks, so a pin decides it and a
+  // literal left in the app file only records what an older project linked.
+  const store = decided ?? linksNonPlay ?? declared;
+  const refused = findings.some((one) => one.level === "error");
+  if (!refused && store && store !== "play") {
+    let message;
+    let fix;
+    if (!decided) {
+      message = `This Android project last linked the ${store} store; with no pin in gradle.properties, each build resolves its own.`;
+      fix = `The ${store} strategy left in ${app.file} no longer selects the store; remove it, and pin with openiapStore only where a build must target ${store}.`;
+    } else if (store === "none") {
+      message = `This Android project links no store SDK (${pinKey}).`;
+      fix = `Remove ${pinKey} before testing purchases on a device.`;
+    } else {
+      message = computed
+        ? `gradle.properties selects the ${store} store (${pinKey}), and the build computes its flavor from it.`
+        : `This Android project is pinned to the ${store} store (${pinKey}).`;
+      fix = `Google Play billing will not connect from this build. Remove ${pinned ? "the openiapStore pin" : `${pinKey}, a deprecated pin,`} before testing on a Play device; without a pin, the task flavor or the connected debug device selects the store.`;
+    }
     findings.push(
       finding(
         "android-store-not-play",
         "warning",
-        evidence,
-        computed && !linksNonPlay
-          ? `gradle.properties selects the ${store} store, and the build computes its flavor from it.`
-          : `This Android project is built for the ${store} store.`,
-        `Google Play billing will not connect from this build. Regenerate without the ${store} flags before testing on a Play device.`,
+        decided ? "android/gradle.properties" : app.file,
+        message,
+        fix,
         {
-          line: linksNonPlay
-            ? strategies.find((one) => one.match[1] === linksNonPlay)?.number
-            : properties?.get(enabledFlag)?.line,
+          line: decided
+            ? pinLine
+            : strategies.find((one) => one.match[1] === store)?.number,
           actual: store,
         },
       ),

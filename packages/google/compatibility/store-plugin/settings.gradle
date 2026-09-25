@@ -1,0 +1,24 @@
+// Uses the published openiap-google and kmp-iap as an outside app does, with the
+// plugin built from source.
+pluginManagement {
+  includeBuild('../../gradle-plugin')
+  repositories {
+    google()
+    mavenCentral()
+    gradlePluginPortal()
+  }
+}
+
+plugins {
+  id 'io.github.hyochan.openiap'
+}
+
+dependencyResolutionManagement {
+  repositories {
+    google()
+    mavenCentral()
+  }
+}
+
+rootProject.name = 'store-plugin-fixture'
+include ':app', ':flavored', ':shared', ':consumer', ':classic', ':mixed', ':unversioned'

@@ -1,13 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 /**
- * In-memory reimplementation of the index resolution that
- * `getProjectByApiKey` (internal) depends on. The convex function itself
- * wraps `getApiKeyByKey` + a `projects.by_api_key` fallback; the
- * behavior under test is the **ordering** and **fallback** logic.
- *
- * Scoped narrow on purpose — just enough to catch regressions in the
- * "preferred path first, legacy fallback second" contract.
+ * In-memory copy of `getProjectByApiKey`'s lookup (`getApiKeyByKey`, then the
+ * legacy `projects.by_api_key` fallback), to pin that order.
  */
 
 type Project = { _id: string; apiKey?: string; pendingDeletion?: boolean };

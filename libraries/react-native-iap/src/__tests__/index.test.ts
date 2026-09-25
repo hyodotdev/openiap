@@ -84,8 +84,8 @@ jest.mock('react-native-nitro-modules', () => ({
   },
 }));
 
-// Import after mocks using require to ensure init-time mocks apply cleanly
-// (explicit require is used here to avoid dynamic import and to cooperate with jest.resetModules)
+// Require after the mocks so init-time mocks apply; require (not a dynamic
+// import) also works with jest.resetModules.
 let IAP: any = require('../index');
 
 describe('Public API (src/index.ts)', () => {
@@ -110,7 +110,7 @@ describe('Public API (src/index.ts)', () => {
       () => purchaseUpdatedToken++,
     );
     // Default to iOS in tests; override per-case
-    (Platform as any).OS = 'ios';
+    Object.assign(Platform, {OS: 'ios'});
     // Re-require module to ensure fresh state if needed
     jest.resetModules();
     jest.dontMock('react-native');
@@ -134,8 +134,7 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('platform detection helpers', () => {
-    // Note: More comprehensive platform detection tests are in platform-detection.test.ts
-    // which properly resets modules for accurate Platform detection testing
+    // platform-detection.test.ts covers the rest; it resets modules per case.
     it('isNitroReady returns true when Nitro is initialized', () => {
       expect(IAP.isNitroReady()).toBe(true);
     });
@@ -290,7 +289,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('removes the Android native listener by token and re-attaches on next subscribe', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const sub1 = IAP.purchaseUpdatedListener(jest.fn());
       const sub2 = IAP.purchaseUpdatedListener(jest.fn());
 
@@ -378,7 +377,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('promotedProductListenerIOS warns and no-ops on non‑iOS', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const sub = IAP.promotedProductListenerIOS(jest.fn());
       expect(typeof sub.remove).toBe('function');
@@ -387,9 +386,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('promotedProductListenerIOS on iOS converts and forwards product', () => {
-      (Platform as any).OS = 'ios';
-      (Platform as any).isTV = false;
-      (Platform as any).isMacCatalyst = false;
+      Object.assign(Platform, {OS: 'ios'});
       const nitroProduct = {
         id: 'sku1',
         title: 'Title',
@@ -515,7 +512,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('detaches the Android native error listener after the last JS listener is removed', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const sub1 = IAP.purchaseErrorListener(jest.fn());
       const sub2 = IAP.purchaseErrorListener(jest.fn());
       const nativeHandler = mockIap.addPurchaseErrorListener.mock.calls[0][0];
@@ -545,7 +542,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('passes developer-rendered Billing Choice config to native', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const config = {
         billingChoiceScreenTypeAndroid: 'developer-rendered',
         enableBillingProgramAndroid: 'billing-choice',
@@ -808,7 +805,7 @@ describe('Public API (src/index.ts)', () => {
         options: undefined,
       },
     ])('retries deferred $name after initConnection', async (testCase) => {
-      (Platform as any).OS = testCase.platform;
+      Object.assign(Platform, {OS: testCase.platform});
       mockIap[testCase.nativeMethod] = jest.fn().mockImplementationOnce(() => {
         throw new Error('Nitro runtime not installed');
       });
@@ -824,7 +821,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('fetchProducts', () => {
     it('rejects when no SKUs provided', async () => {
-      await expect(IAP.fetchProducts({skus: [] as any} as any)).rejects.toThrow(
+      await expect(IAP.fetchProducts({skus: []})).rejects.toThrow(
         /No SKUs provided/,
       );
     });
@@ -842,7 +839,7 @@ describe('Public API (src/index.ts)', () => {
         await expect(
           IAP.fetchProducts({
             skus: ['coins'],
-            type: type as any,
+            type,
           }),
         ).rejects.toThrow(/Unsupported product type/);
         expect(mockIap.fetchProducts).not.toHaveBeenCalled();
@@ -850,7 +847,7 @@ describe('Public API (src/index.ts)', () => {
     );
 
     it('validates and maps products for a single type', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.fetchProducts.mockResolvedValueOnce([
         // valid
         {
@@ -877,7 +874,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('fetches both inapp and subs when type = all', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.fetchProducts.mockResolvedValueOnce([
         {
           id: 'x',
@@ -938,11 +935,11 @@ describe('Public API (src/index.ts)', () => {
 
   describe('requestPurchase', () => {
     it('rejects all without dispatching a purchase', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
         IAP.requestPurchase({
           request: {google: {skus: ['p1']}},
-          type: 'all' as any,
+          type: 'all',
         }),
       ).rejects.toMatchObject({
         code: ErrorCode.DeveloperError,
@@ -952,37 +949,37 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('requires apple.sku on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await expect(
         IAP.requestPurchase({
-          request: {apple: {}} as any,
+          request: {apple: {}},
           type: 'in-app',
         }),
       ).rejects.toThrow(/sku/);
     });
 
     it('requires google.skus on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
         IAP.requestPurchase({
-          request: {google: {}} as any,
+          request: {google: {}},
           type: 'in-app',
         }),
       ).rejects.toThrow(/skus/);
     });
 
     it('throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(
         IAP.requestPurchase({
-          request: {apple: {sku: 'p1'}} as any,
+          request: {apple: {sku: 'p1'}},
           type: 'in-app',
         }),
       ).rejects.toThrow(/Unsupported platform: web/);
     });
 
     it('passes unified request to native', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {google: {skus: ['p1']}},
         type: 'in-app',
@@ -995,7 +992,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS subs does not auto-set andDangerouslyFinishTransactionAutomatically when not provided', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await IAP.requestPurchase({
         request: {apple: {sku: 'sub1'}},
         type: 'subs',
@@ -1008,7 +1005,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS passes withOffer through to native', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const offer = {
         identifier: 'offer-id',
         keyIdentifier: 'key-id',
@@ -1033,7 +1030,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android subs fills empty subscriptionOffers array when missing', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {google: {skus: ['sub1']}},
         type: 'subs',
@@ -1043,7 +1040,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android subs forwards subscriptionOffers when provided', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {
@@ -1071,14 +1068,14 @@ describe('Public API (src/index.ts)', () => {
     ])(
       'Android subs rejects malformed explicit offers without dispatching: %j',
       async (subscriptionOffers) => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         await expect(
           IAP.requestPurchase({
             request: {
               google: {
                 skus: ['sub1'],
                 subscriptionOffers,
-              } as any,
+              },
             },
             type: 'subs',
           }),
@@ -1103,16 +1100,16 @@ describe('Public API (src/index.ts)', () => {
     ])(
       'rejects branch-mismatched Android options for %s without dispatching',
       async (type, google) => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         await expect(
-          IAP.requestPurchase({request: {google} as any, type: type as any}),
+          IAP.requestPurchase({request: {google}, type}),
         ).rejects.toThrow(/must match the selected product type/);
         expect(mockIap.requestPurchase).not.toHaveBeenCalled();
       },
     );
 
     it('Android subs forwards subscriptionProductReplacementParams when provided', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {
@@ -1134,7 +1131,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android subs does not include subscriptionProductReplacementParams when not provided', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {
@@ -1151,7 +1148,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android forwards minimal in-app Billing Choice options', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {
@@ -1171,7 +1168,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android forwards Billing Choice subscription replacement fields', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {
@@ -1201,7 +1198,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android subs supports all replacement modes', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const replacementModes = [
         'unknown-replacement-mode',
         'with-time-proration',
@@ -1236,7 +1233,7 @@ describe('Public API (src/index.ts)', () => {
 
     // New tests for google/apple field support
     it('supports apple field (recommended) on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await IAP.requestPurchase({
         request: {apple: {sku: 'premium_sub'}},
         type: 'in-app',
@@ -1248,7 +1245,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('supports google field (recommended) on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {google: {skus: ['premium_sub']}},
         type: 'in-app',
@@ -1260,7 +1257,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS passes advancedCommerceData through to native', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await IAP.requestPurchase({
         request: {
           apple: {
@@ -1275,7 +1272,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS passes advancedCommerceData with JSON format', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const advancedData = '{"signatureInfo": {"token": "affiliate_123"}}';
       await IAP.requestPurchase({
         request: {
@@ -1291,7 +1288,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS subs forwards advanced subscription offer fields', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await IAP.requestPurchase({
         request: {
           apple: {
@@ -1324,7 +1321,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('getAvailablePurchases', () => {
     it('iOS path passes deprecation-compatible flags', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getAvailablePurchases.mockImplementationOnce(async () => []);
       await IAP.getAvailablePurchases({
         alsoPublishToEventListenerIOS: true,
@@ -1343,7 +1340,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android path merges inapp+subs results', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const nitro = (id: string) => ({
         id: `t-${id}`,
         productId: id,
@@ -1367,7 +1364,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('rejects a mixed valid and malformed native purchase list', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const valid = {
         id: 'transaction-valid',
         productId: 'valid',
@@ -1387,8 +1384,8 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('rejects a non-array native purchase payload', async () => {
-      (Platform as any).OS = 'ios';
-      mockIap.getAvailablePurchases.mockResolvedValueOnce(null as any);
+      Object.assign(Platform, {OS: 'ios'});
+      mockIap.getAvailablePurchases.mockResolvedValueOnce(null);
 
       await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
         code: 'billing-response-json-parse-error',
@@ -1396,14 +1393,14 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('preserves an authoritative empty native purchase list', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getAvailablePurchases.mockResolvedValueOnce([]);
 
       await expect(IAP.getAvailablePurchases()).resolves.toEqual([]);
     });
 
     it('rejects a foreign store in an iOS available-purchase list', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getAvailablePurchases.mockResolvedValueOnce([
         {
           id: 'foreign',
@@ -1423,7 +1420,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('rejects a foreign store in an Android available-purchase list', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.getAvailablePurchases
         .mockResolvedValueOnce([
           {
@@ -1488,7 +1485,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(IAP.getAvailablePurchases()).rejects.toThrow(
         /Unsupported platform: web/,
       );
@@ -1497,21 +1494,21 @@ describe('Public API (src/index.ts)', () => {
 
   describe('finishTransaction', () => {
     it('iOS requires purchase.id and returns success state', async () => {
-      (Platform as any).OS = 'ios';
-      await expect(
-        IAP.finishTransaction({purchase: {id: ''} as any}),
-      ).rejects.toThrow(/required/);
+      Object.assign(Platform, {OS: 'ios'});
+      await expect(IAP.finishTransaction({purchase: {id: ''}})).rejects.toThrow(
+        /required/,
+      );
 
       mockIap.finishTransaction.mockResolvedValueOnce(true);
       await expect(
-        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+        IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).resolves.toBeUndefined();
     });
 
     it('Android requires token; maps consume flag', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(
-        IAP.finishTransaction({purchase: {productId: 'p'} as any}),
+        IAP.finishTransaction({purchase: {productId: 'p'}}),
       ).rejects.toThrow(/token/i);
 
       mockIap.finishTransaction.mockResolvedValueOnce({
@@ -1521,7 +1518,7 @@ describe('Public API (src/index.ts)', () => {
         purchaseToken: 'tok',
       });
       await IAP.finishTransaction({
-        purchase: {productId: 'p', purchaseToken: 'tok'} as any,
+        purchase: {productId: 'p', purchaseToken: 'tok'},
         isConsumable: true,
       });
       expect(mockIap.finishTransaction).toHaveBeenCalledWith({
@@ -1530,17 +1527,17 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('iOS: treats already-finished error as success', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.finishTransaction.mockRejectedValueOnce(
         new Error('Transaction not found'),
       );
       await expect(
-        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+        IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).resolves.toBeUndefined();
     });
 
     it('iOS: propagates native finish failures', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const error = new Error(
         JSON.stringify({
           code: 'service-error',
@@ -1550,7 +1547,7 @@ describe('Public API (src/index.ts)', () => {
       mockIap.finishTransaction.mockRejectedValueOnce(error);
 
       await expect(
-        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+        IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).rejects.toMatchObject({
         code: ErrorCode.ServiceError,
         message: 'StoreKit network failure',
@@ -1558,16 +1555,16 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(
-        IAP.finishTransaction({purchase: {id: 'tid'} as any}),
+        IAP.finishTransaction({purchase: {id: 'tid'}}),
       ).rejects.toThrow(/Unsupported platform: web/);
     });
   });
 
   describe('storefront helpers', () => {
     it('getStorefront uses unified native method when available on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getStorefront = jest.fn(async () => 'USA');
       await expect(IAP.getStorefront()).resolves.toBe('USA');
       expect(mockIap.getStorefront).toHaveBeenCalledTimes(1);
@@ -1576,7 +1573,7 @@ describe('Public API (src/index.ts)', () => {
     it('getStorefront uses unified method on Android', async () => {
       const expected = 'KOR';
       mockIap.getStorefront = jest.fn(async () => expected);
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.getStorefront()).resolves.toBe(expected);
       expect(mockIap.getStorefront).toHaveBeenCalledTimes(1);
     });
@@ -1584,7 +1581,7 @@ describe('Public API (src/index.ts)', () => {
     it.each([null, undefined, '', '   '])(
       'getStorefront rejects an empty native value (%p)',
       async (value) => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.getStorefront = jest.fn(async () => value);
 
         await expect(IAP.getStorefront()).rejects.toMatchObject({
@@ -1595,7 +1592,7 @@ describe('Public API (src/index.ts)', () => {
     );
 
     it('getStorefront normalizes native exceptions', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.getStorefront = jest.fn(async () => {
         throw new Error('storefront exploded');
       });
@@ -1607,7 +1604,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('getStorefront rejects unsupported platforms', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
 
       await expect(IAP.getStorefront()).rejects.toMatchObject({
         code: IAP.ErrorCode.FeatureNotSupported,
@@ -1618,9 +1615,9 @@ describe('Public API (src/index.ts)', () => {
 
   describe('iOS-only helpers', () => {
     it('getAppTransactionIOS returns value on iOS and throws on Android', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await expect(IAP.getAppTransactionIOS()).resolves.toBeNull();
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.getAppTransactionIOS()).rejects.toThrow(
         /only available on iOS/,
       );
@@ -1668,7 +1665,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('presentCodeRedemptionSheetIOS returns the verified purchase', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
         id: 'redeemed-transaction',
         transactionId: 'redeemed-transaction',
@@ -1687,12 +1684,12 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('presentCodeRedemptionSheetIOS returns null on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
     });
 
     it('getPendingTransactionsIOS maps purchases', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const nitro = {
         id: 't1',
         transactionId: 't1',
@@ -1709,7 +1706,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('showManageSubscriptionsIOS maps purchases', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const nitro = {
         id: 't2',
         transactionId: 't2',
@@ -1734,7 +1731,7 @@ describe('Public API (src/index.ts)', () => {
     ])(
       '%s rejects a mixed non-Apple batch atomically',
       async (apiName, nativeName) => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const valid = {
           id: 'apple-transaction',
           transactionId: 'apple-transaction',
@@ -1757,12 +1754,12 @@ describe('Public API (src/index.ts)', () => {
     );
 
     it('showManageSubscriptionsIOS returns [] on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.showManageSubscriptionsIOS()).resolves.toEqual([]);
     });
 
     it('getPromotedProductIOS maps the native product', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const nitroProduct = {
         id: 'sku2',
         title: 'Title2',
@@ -1779,13 +1776,13 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('clearTransactionIOS resolves without throwing', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.clearTransactionIOS = jest.fn(async () => undefined);
       await expect(IAP.clearTransactionIOS()).resolves.toBe(true);
     });
 
     it('clearTransactionIOS surfaces native failures', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.clearTransactionIOS = jest.fn(async () => {
         throw {code: 'service-error', message: 'Clear failed'};
       });
@@ -1797,13 +1794,13 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('beginRefundRequestIOS returns status string', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.beginRefundRequestIOS = jest.fn(async () => 'success');
       await expect(IAP.beginRefundRequestIOS('sku')).resolves.toBe('success');
     });
 
     it('subscriptionStatusIOS converts items', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.subscriptionStatusIOS = jest.fn(async () => [
         {
           state: 1,
@@ -1818,7 +1815,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('currentEntitlementIOS and latestTransactionIOS map purchases', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const nitro = {
         id: 't3',
         transactionId: 't3',
@@ -1839,26 +1836,26 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('isEligibleForIntroOfferIOS returns boolean', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.isEligibleForIntroOfferIOS = jest.fn(async () => true);
       await expect(IAP.isEligibleForIntroOfferIOS('group')).resolves.toBe(true);
     });
 
     it('getReceiptDataIOS returns string', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getReceiptDataIOS = jest.fn(async () => 'r');
       await expect(IAP.getReceiptDataIOS()).resolves.toBe('r');
     });
 
     it('requestReceiptRefreshIOS prefers native method when available', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.requestReceiptRefreshIOS = jest.fn(async () => 'refresh');
       await expect(IAP.requestReceiptRefreshIOS()).resolves.toBe('refresh');
       expect(mockIap.requestReceiptRefreshIOS).toHaveBeenCalled();
     });
 
     it('requestReceiptRefreshIOS falls back to getReceiptDataIOS when missing', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       delete mockIap.requestReceiptRefreshIOS;
       mockIap.getReceiptDataIOS = jest.fn(async () => 'fallback-refresh');
       await expect(IAP.requestReceiptRefreshIOS()).resolves.toBe(
@@ -1868,25 +1865,25 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('isTransactionVerifiedIOS returns boolean', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.isTransactionVerifiedIOS = jest.fn(async () => true);
       await expect(IAP.isTransactionVerifiedIOS('sku')).resolves.toBe(true);
     });
 
     it('getTransactionJwsIOS returns string', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.getTransactionJwsIOS = jest.fn(async () => 'jws');
       await expect(IAP.getTransactionJwsIOS('sku')).resolves.toBe('jws');
     });
 
     it('syncIOS calls native sync', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.syncIOS = jest.fn(async () => true);
       await expect(IAP.syncIOS()).resolves.toBe(true);
     });
 
     it('syncIOS preserves Nitro user cancellation without error logging', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.syncIOS = jest.fn(async () => {
         throw new Error(
           'Error Domain=com.margelo.nitro.rniap Code=-1 ' +
@@ -1903,14 +1900,14 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('restorePurchases on iOS calls syncIOS first', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.syncIOS = jest.fn(async () => true);
       await IAP.restorePurchases();
       expect(mockIap.syncIOS).toHaveBeenCalled();
     });
 
     it('restorePurchases on iOS rejects when syncIOS returns false', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.syncIOS = jest.fn(async () => false);
 
       await expect(IAP.restorePurchases()).rejects.toMatchObject({
@@ -1923,7 +1920,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('Android user choice billing listener', () => {
     it('fans out native events, isolates callbacks, and removes listeners', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const first = IAP.userChoiceBillingListenerAndroid(() => {
         throw new Error('consumer failed');
       });
@@ -1954,7 +1951,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('returns an inert subscription outside Android', () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const subscription = IAP.userChoiceBillingListenerAndroid(jest.fn());
       expect(() => subscription.remove()).not.toThrow();
       expect(
@@ -1963,7 +1960,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('reattaches the listener after Nitro initializes', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.addUserChoiceBillingListenerAndroid.mockImplementationOnce(() => {
         throw new Error('Nitro runtime not installed');
       });
@@ -1983,7 +1980,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('surfaces unexpected native listener failures', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.addUserChoiceBillingListenerAndroid.mockImplementationOnce(() => {
         throw new Error('native listener failed');
       });
@@ -2005,7 +2002,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('Android-only wrappers', () => {
     it('acknowledgePurchaseAndroid calls unified finishTransaction', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.finishTransaction.mockResolvedValueOnce({
         responseCode: 0,
         code: '0',
@@ -2020,7 +2017,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('consumePurchaseAndroid calls unified finishTransaction', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.finishTransaction.mockResolvedValueOnce({
         responseCode: 0,
         code: '0',
@@ -2035,14 +2032,14 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('openRedeemOfferCodeAndroid delegates to the native store handler', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
       await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(true);
       expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
     });
 
     it('openRedeemOfferCodeAndroid throws on non-Android', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       await expect(IAP.openRedeemOfferCodeAndroid()).rejects.toThrow(
         'openRedeemOfferCodeAndroid is only supported on Android',
       );
@@ -2050,7 +2047,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('openRedeemOfferCodeAndroid preserves unsupported store results', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(false);
       await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(false);
     });
@@ -2058,7 +2055,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('verifyPurchase', () => {
     it('iOS path maps NitroPurchaseVerificationResultIOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: true,
         receiptData: 'r',
@@ -2078,7 +2075,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Android path maps NitroPurchaseVerificationResultAndroid', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: false,
         autoRenewing: false,
@@ -2118,7 +2115,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('Horizon path forwards options and maps its result variant', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: true,
         grantTime: 1744148687,
@@ -2150,7 +2147,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('uses the normalized Google variant when Horizon options are empty', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: false,
         productId: 'sku',
@@ -2165,7 +2162,7 @@ describe('Public API (src/index.ts)', () => {
           accessToken: 'acc',
         },
         horizon: {},
-      } as any);
+      });
 
       expect(mockIap.verifyPurchase).toHaveBeenCalledWith({
         apple: null,
@@ -2191,46 +2188,46 @@ describe('Public API (src/index.ts)', () => {
 
   describe('Non‑iOS branches', () => {
     it('isEligibleForIntroOfferIOS returns false on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.isEligibleForIntroOfferIOS('group')).resolves.toBe(
         false,
       );
     });
 
     it('getReceiptDataIOS throws on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.getReceiptDataIOS()).rejects.toThrow(
         /only available on iOS/,
       );
     });
 
     it('isTransactionVerifiedIOS returns false on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.isTransactionVerifiedIOS('sku')).resolves.toBe(false);
     });
 
     it('getTransactionJwsIOS returns null on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.getTransactionJwsIOS('sku')).resolves.toBeNull();
     });
 
     it('getPendingTransactionsIOS returns [] on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.getPendingTransactionsIOS()).resolves.toEqual([]);
     });
 
     it('currentEntitlementIOS returns null on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.currentEntitlementIOS('sku')).resolves.toBeNull();
     });
 
     it('latestTransactionIOS returns null on non‑iOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await expect(IAP.latestTransactionIOS('sku')).resolves.toBeNull();
     });
 
     it('restorePurchases on Android does not call syncIOS', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.syncIOS = jest.fn(async () => true);
       await expect(IAP.restorePurchases()).resolves.toBeUndefined();
       expect(mockIap.syncIOS).not.toHaveBeenCalled();
@@ -2239,7 +2236,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('Cross‑platform helpers', () => {
     it('deepLinkToSubscriptions calls Android native deeplink when on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.deepLinkToSubscriptionsAndroid = jest.fn(async () => undefined);
       await expect(
         IAP.deepLinkToSubscriptions({
@@ -2254,14 +2251,14 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('deepLinkToSubscriptions uses iOS deeplink when available', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.deepLinkToSubscriptionsIOS = jest.fn(async () => true);
       await expect(IAP.deepLinkToSubscriptions()).resolves.toBeUndefined();
       expect(mockIap.deepLinkToSubscriptionsIOS).toHaveBeenCalled();
     });
 
     it('deepLinkToSubscriptions falls back to manage subscriptions when deeplink missing', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       delete mockIap.deepLinkToSubscriptionsIOS;
       mockIap.showManageSubscriptionsIOS = jest.fn(async () => []);
       await expect(IAP.deepLinkToSubscriptions()).resolves.toBeUndefined();
@@ -2269,7 +2266,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('deepLinkToSubscriptions surfaces iOS native failures', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.deepLinkToSubscriptionsIOS = jest.fn(async () => {
         throw new Error('scene missing');
       });
@@ -2279,14 +2276,14 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('deepLinkToSubscriptions throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(IAP.deepLinkToSubscriptions()).rejects.toThrow(
         'Unsupported platform: web',
       );
     });
 
     it('openRedeemOfferCode resolves the synchronously reported purchase on iOS', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
         id: 'redeemed-transaction',
         transactionId: 'redeemed-transaction',
@@ -2306,13 +2303,13 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('openRedeemOfferCode resolves null when the iOS sheet reports nothing', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce(null);
       await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
     });
 
     it('openRedeemOfferCode launches the Play redeem page and resolves null on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.openRedeemOfferCodeAndroid.mockResolvedValueOnce(true);
       await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
       expect(mockIap.openRedeemOfferCodeAndroid).toHaveBeenCalledTimes(1);
@@ -2343,7 +2340,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('openRedeemOfferCode throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
+      Object.assign(Platform, {OS: 'web'});
       await expect(IAP.openRedeemOfferCode()).rejects.toThrow(
         'Unsupported platform: web',
       );
@@ -2366,7 +2363,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('getActiveSubscriptions', () => {
       it('iOS: should call native getActiveSubscriptions and map results', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
 
         const mockActiveSubscriptions = [
           {
@@ -2429,7 +2426,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('iOS: should pass subscription IDs to native method', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
 
         mockIap.getActiveSubscriptions.mockResolvedValueOnce([]);
 
@@ -2442,7 +2439,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('Android: should call native getActiveSubscriptions with Android fields', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
 
         const mockActiveSubscriptions = [
           {
@@ -2502,7 +2499,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return empty array when no subscriptions available', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.getActiveSubscriptions.mockResolvedValueOnce([]);
 
         const result = await IAP.getActiveSubscriptions();
@@ -2511,7 +2508,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should handle errors and rethrow them', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const error = new Error('Failed to fetch');
         mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
 
@@ -2523,7 +2520,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('hasActiveSubscriptions', () => {
       it('should return true when there are active subscriptions', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.getActiveSubscriptions.mockResolvedValueOnce([
           {productId: 'sub1', isActive: true},
         ]);
@@ -2534,7 +2531,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false when there are no active subscriptions', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.getActiveSubscriptions.mockResolvedValueOnce([]);
 
         const result = await IAP.hasActiveSubscriptions();
@@ -2545,7 +2542,7 @@ describe('Public API (src/index.ts)', () => {
       it.each(['ios', 'android'] as const)(
         'should reject when subscription status cannot be determined on %s',
         async (platform) => {
-          (Platform as any).OS = platform;
+          Object.assign(Platform, {OS: platform});
           const error = new Error('Failed to fetch');
           mockIap.getActiveSubscriptions.mockRejectedValueOnce(error);
 
@@ -2563,7 +2560,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should call native verifyPurchaseWithProvider with correct params', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2615,7 +2612,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle Android verification', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2642,7 +2639,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should pass Amazon IAPKit payloads through on Android', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2684,7 +2681,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should throw error when provider is not iapkit', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'none',
         iapkit: null,
@@ -2703,7 +2700,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle verification failure states', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2727,7 +2724,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle native errors', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       mockIap.verifyPurchaseWithProvider.mockRejectedValueOnce(
         new Error('Network error'),
       );
@@ -2744,7 +2741,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle null iapkit param', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: [],
@@ -2762,7 +2759,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle various IAPKit purchase states', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const states = [
         'entitled',
         'pending-acknowledgment',
@@ -2795,7 +2792,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle inauthentic verification response', async () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {isValid: false, state: 'inauthentic', store: 'apple'},
@@ -2815,7 +2812,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle ready-to-consume state for consumables', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {isValid: true, state: 'ready-to-consume', store: 'google'},
@@ -2838,7 +2835,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should handle pending-acknowledgment state for subscriptions', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
@@ -2867,7 +2864,7 @@ describe('Public API (src/index.ts)', () => {
 
   describe('developerProvidedBillingListenerAndroid (External Payments 8.3.0+)', () => {
     it('should warn and no-op on non-Android', () => {
-      (Platform as any).OS = 'ios';
+      Object.assign(Platform, {OS: 'ios'});
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const sub = IAP.developerProvidedBillingListenerAndroid(jest.fn());
       expect(typeof sub.remove).toBe('function');
@@ -2879,7 +2876,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('should attach listener and forward details on Android', () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       mockIap.addDeveloperProvidedBillingListenerAndroid = jest.fn();
       mockIap.removeDeveloperProvidedBillingListenerAndroid = jest.fn();
 
@@ -2919,7 +2916,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('enableBillingProgramAndroid', () => {
       it('should call native method on Android', () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         IAP.enableBillingProgramAndroid('external-offer');
         expect(mockIap.enableBillingProgramAndroid).toHaveBeenCalledWith(
           'external-offer',
@@ -2927,7 +2924,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support external-payments program (8.3.0+)', () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         IAP.enableBillingProgramAndroid('external-payments');
         expect(mockIap.enableBillingProgramAndroid).toHaveBeenCalledWith(
           'external-payments',
@@ -2935,7 +2932,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support billing-choice program (9.1.0+)', () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         IAP.enableBillingProgramAndroid('billing-choice');
         expect(mockIap.enableBillingProgramAndroid).toHaveBeenCalledWith(
           'billing-choice',
@@ -2943,7 +2940,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should warn and return early on non-Android', () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         IAP.enableBillingProgramAndroid('external-offer');
         expect(mockIap.enableBillingProgramAndroid).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledWith(
@@ -2953,7 +2950,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should handle errors gracefully', () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.enableBillingProgramAndroid.mockImplementationOnce(() => {
           throw new Error('Native error');
         });
@@ -2965,7 +2962,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support external-content-link program', () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         IAP.enableBillingProgramAndroid('external-content-link');
         expect(mockIap.enableBillingProgramAndroid).toHaveBeenCalledWith(
           'external-content-link',
@@ -2975,7 +2972,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('isBillingProgramAvailableAndroid', () => {
       it('should return availability result on Android', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.isBillingProgramAvailableAndroid.mockResolvedValueOnce({
           billingProgram: 'external-offer',
           isAvailable: true,
@@ -2992,7 +2989,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false when program not available', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.isBillingProgramAvailableAndroid.mockResolvedValueOnce({
           billingProgram: 'external-offer',
           isAvailable: false,
@@ -3005,14 +3002,14 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(
           IAP.isBillingProgramAvailableAndroid('external-offer'),
         ).rejects.toThrow('Billing Programs API is only supported on Android');
       });
 
       it('should handle native errors', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.isBillingProgramAvailableAndroid.mockRejectedValueOnce(
           new Error('Service unavailable'),
         );
@@ -3023,7 +3020,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support external-content-link program', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.isBillingProgramAvailableAndroid.mockResolvedValueOnce({
           billingProgram: 'external-content-link',
           isAvailable: true,
@@ -3039,7 +3036,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('getBillingChoiceInfoAndroid', () => {
       it('should request Billing Choice info with defaults on Android', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         const result = await IAP.getBillingChoiceInfoAndroid({});
 
         expect(mockIap.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
@@ -3053,8 +3050,8 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should request Billing Choice info with defaults when params are omitted', async () => {
-        (Platform as any).OS = 'android';
-        const result = await (IAP.getBillingChoiceInfoAndroid as any)();
+        Object.assign(Platform, {OS: 'android'});
+        const result = await IAP.getBillingChoiceInfoAndroid();
 
         expect(mockIap.getBillingChoiceInfoAndroid).toHaveBeenCalledWith({
           billingProgram: 'billing-choice',
@@ -3067,7 +3064,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(IAP.getBillingChoiceInfoAndroid({})).rejects.toThrow(
           'Billing Choice API is only supported on Android',
         );
@@ -3076,7 +3073,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('createBillingProgramReportingDetailsAndroid', () => {
       it('should return reporting details with token on Android', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.createBillingProgramReportingDetailsAndroid.mockResolvedValueOnce(
           {
             billingProgram: 'external-offer',
@@ -3097,7 +3094,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(
           IAP.createBillingProgramReportingDetailsAndroid('external-offer'),
         ).rejects.toThrow('Billing Programs API is only supported on Android');
@@ -3107,7 +3104,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should handle native errors', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.createBillingProgramReportingDetailsAndroid.mockRejectedValueOnce(
           new Error('Token creation failed'),
         );
@@ -3118,7 +3115,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support external-content-link program', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.createBillingProgramReportingDetailsAndroid.mockResolvedValueOnce(
           {
             billingProgram: 'external-content-link',
@@ -3135,7 +3132,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should pass developerBillingType for Billing Choice reporting details', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.createBillingProgramReportingDetailsAndroid.mockResolvedValueOnce(
           {
             billingProgram: 'billing-choice',
@@ -3157,7 +3154,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('showBillingProgramInformationDialogAndroid', () => {
       it('should show Billing Choice information dialog with default program', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         const result = await IAP.showBillingProgramInformationDialogAndroid({
           externalTransactionToken: 'choice-token-123',
         });
@@ -3173,7 +3170,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(
           IAP.showBillingProgramInformationDialogAndroid({
             externalTransactionToken: 'choice-token-123',
@@ -3187,7 +3184,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('showInAppMessagesAndroid', () => {
       it('should delegate to native in-app messages method', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         const result = await IAP.showInAppMessagesAndroid({
           categories: ['transactional'],
         });
@@ -3199,7 +3196,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(
           IAP.showInAppMessagesAndroid({categories: ['transactional']}),
         ).rejects.toThrow('In-app messages are only supported on Android');
@@ -3216,7 +3213,7 @@ describe('Public API (src/index.ts)', () => {
       };
 
       it('should return true when user accepts on Android', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.launchExternalLinkAndroid.mockResolvedValueOnce(true);
 
         const result = await IAP.launchExternalLinkAndroid(defaultParams);
@@ -3231,7 +3228,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('forwards Billing Choice external transaction token', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         const params = {
           ...defaultParams,
           billingProgram: 'billing-choice' as const,
@@ -3244,7 +3241,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false when user declines', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.launchExternalLinkAndroid.mockResolvedValueOnce(false);
 
         const result = await IAP.launchExternalLinkAndroid(defaultParams);
@@ -3253,14 +3250,14 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-Android', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         await expect(
           IAP.launchExternalLinkAndroid(defaultParams),
         ).rejects.toThrow('Billing Programs API is only supported on Android');
       });
 
       it('should handle native errors', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.launchExternalLinkAndroid.mockRejectedValueOnce(
           new Error('Launch failed'),
         );
@@ -3271,7 +3268,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support external-content-link program', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.launchExternalLinkAndroid.mockResolvedValueOnce(true);
 
         const params = {
@@ -3287,7 +3284,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should support caller-will-launch-link mode', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
         mockIap.launchExternalLinkAndroid.mockResolvedValueOnce(true);
 
         const params = {
@@ -3307,7 +3304,7 @@ describe('Public API (src/index.ts)', () => {
   describe('ExternalPurchaseCustomLink APIs (iOS 18.1+)', () => {
     describe('isEligibleForExternalPurchaseCustomLinkIOS', () => {
       it('should return true when eligible on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.isEligibleForExternalPurchaseCustomLinkIOS = jest.fn(
           async () => true,
         );
@@ -3321,7 +3318,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false when not eligible on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.isEligibleForExternalPurchaseCustomLinkIOS = jest.fn(
           async () => false,
         );
@@ -3332,7 +3329,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false on non-iOS platforms', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
 
         const result = await IAP.isEligibleForExternalPurchaseCustomLinkIOS();
 
@@ -3340,7 +3337,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return false on error', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.isEligibleForExternalPurchaseCustomLinkIOS = jest.fn(
           async () => {
             throw new Error('Feature not supported');
@@ -3355,7 +3352,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('getExternalPurchaseCustomLinkTokenIOS', () => {
       it('should return token for acquisition type on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const mockResult = {
           token: 'external-purchase-token-123',
           error: null,
@@ -3375,7 +3372,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return token for services type on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const mockResult = {
           token: 'services-token-456',
           error: null,
@@ -3394,7 +3391,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-iOS platforms', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
 
         await expect(
           IAP.getExternalPurchaseCustomLinkTokenIOS('acquisition'),
@@ -3404,7 +3401,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw native errors', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.getExternalPurchaseCustomLinkTokenIOS = jest.fn(async () => {
           throw new Error('Token generation failed');
         });
@@ -3417,7 +3414,7 @@ describe('Public API (src/index.ts)', () => {
 
     describe('showExternalPurchaseCustomLinkNoticeIOS', () => {
       it('should return continued=true when user agrees on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const mockResult = {
           continued: true,
           error: null,
@@ -3437,7 +3434,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should return continued=false when user declines on iOS', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const mockResult = {
           continued: false,
           error: null,
@@ -3453,7 +3450,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw on non-iOS platforms', async () => {
-        (Platform as any).OS = 'android';
+        Object.assign(Platform, {OS: 'android'});
 
         await expect(
           IAP.showExternalPurchaseCustomLinkNoticeIOS('browser'),
@@ -3463,7 +3460,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should throw native errors', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         mockIap.showExternalPurchaseCustomLinkNoticeIOS = jest.fn(async () => {
           throw new Error('Notice display failed');
         });
@@ -3474,7 +3471,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       it('should handle unspecified noticeType gracefully', async () => {
-        (Platform as any).OS = 'ios';
+        Object.assign(Platform, {OS: 'ios'});
         const mockResult = {
           continued: true,
           error: null,
@@ -3684,7 +3681,7 @@ describe('Public API (src/index.ts)', () => {
 
       replaceNativeMethod('initConnection', jest.fn().mockResolvedValue(true));
       expect(IAP.isNitroReady()).toBe(true);
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const existingListener = jest.fn();
       IAP.purchaseUpdatedListener(existingListener);
       replaceNativeMethod(
@@ -3746,7 +3743,7 @@ describe('Public API (src/index.ts)', () => {
           }),
       },
     ])('surfaces Android $name failures', async (testCase) => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       const nativeError = new Error('android failure');
       replaceNativeMethod(
         testCase.nativeMethod,
@@ -3888,7 +3885,7 @@ describe('Public API (src/index.ts)', () => {
     ])(
       'rolls back a failed $name registration',
       ({platform, api, nativeMethod, payload}) => {
-        (Platform as any).OS = platform;
+        Object.assign(Platform, {OS: platform});
         mockIap[nativeMethod].mockImplementationOnce(() => {
           throw new Error('native listener failed');
         });
@@ -3951,7 +3948,7 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('forwards optional Android purchase fields', async () => {
-      (Platform as any).OS = 'android';
+      Object.assign(Platform, {OS: 'android'});
       await IAP.requestPurchase({
         request: {
           google: {

@@ -389,6 +389,16 @@ describe("provider capabilities", () => {
     expect(validateCapabilities()(doc)).toBe(false);
   });
 
+  it("rejects implementation:true where provider is false, even with notes (SPEC 10)", () => {
+    const doc = readExample("provider-capabilities.json");
+    doc.stores.amazon.serverNotifications = {
+      provider: false,
+      implementation: true,
+      notes: "Claims to consume notifications the store does not send.",
+    };
+    expect(validateCapabilities()(doc)).toBe(false);
+  });
+
   it("accepts a store this version does not name, since the value space is open", () => {
     const doc = readExample("provider-capabilities.json");
     doc.stores.nintendo = doc.stores.apple;

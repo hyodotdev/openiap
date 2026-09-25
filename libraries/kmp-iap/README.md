@@ -40,6 +40,17 @@ dependencies {
 Use the latest version from
 [Maven Central](https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap).
 
+kmp-iap publishes a Play, Horizon, and Amazon Android build. Apply the OpenIAP
+Gradle plugin in `settings.gradle.kts` so Gradle can pick one for every module;
+see [Pick the Android store](https://openiap.dev/docs/setup/kmp#android-store).
+
+```kotlin
+// settings.gradle.kts
+plugins {
+    id("io.github.hyochan.openiap") version "<openiap-google version>"
+}
+```
+
 ## 🚀 Quick Start
 
 ### Option 1: Using Global Instance (Simple)

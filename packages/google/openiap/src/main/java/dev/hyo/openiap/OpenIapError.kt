@@ -357,7 +357,8 @@ sealed class OpenIapError : Exception() {
 
         companion object {
             val CODE = ErrorCode.FeatureNotSupported.rawValue
-            const val MESSAGE = "Requested feature is not supported by Play Store"
+            // Shared by the play, horizon and amazon flavors, so it cannot name one store.
+            const val MESSAGE = "Requested feature is not supported by the store"
         }
     }
 
@@ -367,7 +368,8 @@ sealed class OpenIapError : Exception() {
 
         companion object {
             val CODE = ErrorCode.ServiceDisconnected.rawValue
-            const val MESSAGE = "Play Store service is not connected"
+            // Shared by every store flavor, like FeatureNotSupported.
+            const val MESSAGE = "Store service is not connected"
         }
     }
 

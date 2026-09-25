@@ -12,10 +12,9 @@ function parseTimeToMillis(time?: string | null): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-// Read-only order lookup (dashboard support tooling, discussion #284).
-// No rows are persisted: the action proxies the store APIs with the
-// project's already-configured credentials and returns a normalized
-// summary plus the raw payloads for the collapsible technical section.
+// Read-only order lookup (dashboard support tooling, discussion #284). Nothing
+// is persisted; the response is a normalized summary plus the raw payloads for
+// the collapsible technical section.
 
 export const orderLookupStoreValidator = v.union(
   v.literal("apple"),
@@ -74,19 +73,16 @@ export const orderLookupResponseValidator = v.object({
 
 export type OrderLookupResponse = Infer<typeof orderLookupResponseValidator>;
 
-// App Store Server API order IDs are alphanumeric, and the client
-// concatenates the value straight into the request path without
-// percent-encoding — so anything else is rejected before it can steer
-// the authenticated request to a different API path.
+// App Store Server API order IDs are alphanumeric, and the client puts the
+// value into the request path without percent-encoding. Reject anything else
+// so it cannot steer the authenticated request to a different API path.
 export function isValidAppleOrderId(orderId: string): boolean {
   return /^[A-Za-z0-9]+$/.test(orderId);
 }
 
-// getAllSubscriptionStatuses returns every subscription group the
-// customer holds in this app, each with one entry per subscription.
-// Pick the entry belonging to the looked-up order instead of the first
-// one, or a customer with several subscriptions would see an unrelated
-// subscription's status reported as this order's.
+// getAllSubscriptionStatuses returns every subscription group the customer
+// holds in this app, one entry per subscription. Pick the looked-up order's
+// entry, not the first, or another subscription's status shows as this order's.
 export function selectAppleSubscriptionItem<
   T extends { originalTransactionId?: string },
 >(

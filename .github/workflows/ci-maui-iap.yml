@@ -89,7 +89,7 @@ jobs:
   android-binding:
     name: Android binding (net10.0-android)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -112,11 +112,7 @@ jobs:
       - name: Install MAUI workload
         run: dotnet workload install maui-android --skip-sign-check
 
-      # The Android binding consumes the selected Google AAR as an unbound
-      # runtime dependency, plus the MAUI-owned OpenIapMauiModule AAR as the
-      # bound facade. Build all Google store artifacts up front, then rebuild
-      # the MAUI facade/binding/library for each store because the facade AAR
-      # output path is shared across store selections.
+      # The app build links one store's AAR, so build all three for the suite below.
       - name: Build Google AARs
         working-directory: packages/google
         run: |
@@ -125,7 +121,7 @@ jobs:
             :openiap:assembleAmazonRelease \
             :openiap:assembleHorizonRelease
 
-      # `-p:TargetFrameworks=net10.0-android` (PLURAL) isolates each store build.
+      # `-p:TargetFrameworks=net10.0-android` (PLURAL) isolates the Android build.
       # The singular `-f net10.0-android` filters the inner
       # build but leaves the implicit restore walking ALL 4 TFMs in the
       # project's multi-target list. That makes restore load the
@@ -135,22 +131,25 @@ jobs:
         working-directory: libraries/maui-iap
         run: |
           DOTNET_BUILD_ARGS=(/m:1 /nr:false -p:UseSharedCompilation=false --nologo)
-          for store in play amazon horizon; do
-            printf '\n== Building MAUI Android store: %s (net10.0) ==\n' "$store"
-            dotnet build-server shutdown || true
-            rm -rf \
-              src/OpenIap.Maui.Bindings.Android/bin \
-              src/OpenIap.Maui.Bindings.Android/obj
-            (
-              cd android
+          (
+            cd android
+            # One facade AAR serves every store, so it must compile against each
+            # store's openiap-google API, not only the Play one it ships with.
+            for store in horizon amazon; do
               "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-                ../../../packages/google/gradlew \
-                :openiap:assembleRelease \
-                -PopenIapAndroidStore="$store"
-            )
-            dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore="$store" "${DOTNET_BUILD_ARGS[@]}"
-            dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
-          done
+                ../../../packages/google/gradlew :openiap:compileReleaseKotlin -PopeniapStore="$store"
+            done
+            "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+              ../../../packages/google/gradlew :openiap:assembleRelease
+          )
+          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android "${DOTNET_BUILD_ARGS[@]}"
+          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
+
+      # A wrong store is invisible until the app reaches a device, so the rule
+      # is asserted here against a fake adb.
+      - name: Verify the store selection
+        working-directory: libraries/maui-iap
+        run: bash scripts/verify-store-selection.sh --apk
 
   app-store-artifact:
     name: App Store artifact (Xcode 26.6)

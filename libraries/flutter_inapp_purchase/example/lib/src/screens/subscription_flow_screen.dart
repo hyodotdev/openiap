@@ -194,6 +194,14 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
         }
 
         if (isPurchased) {
+          // Claim the key before verifying, since a redelivery can land
+          // mid-flight; a failed attempt releases it below.
+          if (transactionKey.isNotEmpty &&
+              !_processedTransactionIds.add(transactionKey)) {
+            debugPrint('  ⚠️ Transaction already in progress');
+            return;
+          }
+
           debugPrint('✅ Purchase detected as successful, updating UI...');
           debugPrint('  _isProcessing before setState: $_isProcessing');
 
@@ -224,9 +232,9 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           if (!verificationOk) {
             debugPrint(
                 '⚠️ Skipping finishTransaction because IAPKit verification did not return isValid=true');
-            // Leave the transaction unfinished so the platform retries on the
-            // next foreground (and don't mark `transactionKey` processed —
-            // the next listener emit gets a fresh chance).
+            // Leave the transaction unfinished so the platform retries, and
+            // release the key so the next listener emit gets a fresh chance.
+            _processedTransactionIds.remove(transactionKey);
             return;
           }
 
@@ -243,12 +251,10 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             debugPrint('Error finishing transaction: $e');
           }
 
-          // Only mark this transactionKey processed once verification AND
-          // finishTransaction have both succeeded; otherwise a transient
-          // failure would permanently short-circuit retries for the rest
-          // of the session.
-          if (finishedOk && transactionKey.isNotEmpty) {
-            _processedTransactionIds.add(transactionKey);
+          // A transient finish failure must not short-circuit retries for
+          // the rest of the session.
+          if (!finishedOk) {
+            _processedTransactionIds.remove(transactionKey);
           }
 
           // Refresh subscriptions after a short delay to ensure transaction is processed

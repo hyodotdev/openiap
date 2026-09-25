@@ -390,9 +390,8 @@ describe('Standardized Offer Types', () => {
 
   describe('RequestPurchaseAndroidProps with offerTokenAndroid', () => {
     it('should support offerTokenAndroid for one-time purchase discounts', () => {
-      // This tests the type structure for one-time purchase discount offers
-      // introduced in Google Play Billing Library 8.0
-      // Note: Input fields no longer have Android suffix (parent type indicates platform)
+      // One-time purchase discount offers (Google Play Billing Library 8.0).
+      // Input fields have no Android suffix; the parent type indicates the platform.
       const purchaseRequest = {
         skus: ['premium_upgrade'],
         offerToken: 'discount_offer_token_abc123',

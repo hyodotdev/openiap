@@ -78,7 +78,7 @@ function AlternativeBillingScreen() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const isVega = isVegaOS();
 
-  // Initialize with billing program config (new API)
+  // Initialize with billing program config
   const {connected, products, fetchProducts, finishTransaction} = useIAP({
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
@@ -148,7 +148,7 @@ function AlternativeBillingScreen() {
         // Wait a bit for cleanup
         await new Promise((resolve) => setTimeout(resolve, 500));
 
-        // Reinitialize with new program (new API)
+        // Reinitialize with new program
         const config =
           Platform.OS === 'android'
             ? {enableBillingProgramAndroid: newProgram}
@@ -293,7 +293,7 @@ function AlternativeBillingScreen() {
     [billingProgram],
   );
 
-  // Handle Android User Choice Billing (new enableBillingProgramAndroid: 'user-choice-billing')
+  // Handle Android User Choice Billing (enableBillingProgramAndroid: 'user-choice-billing')
   const handleAndroidUserChoiceBilling = useCallback((product: Product) => {
     console.log('[Android] Starting user choice billing:', product.id);
 
@@ -311,9 +311,6 @@ function AlternativeBillingScreen() {
       // developerBillingOption can be set to specify developer billing behavior
     })
       .then(() => {
-        // Google will show selection dialog
-        // If user selects Google Play: onPurchaseUpdated callback
-        // If user selects alternative: No callback (manual flow required)
         setPurchaseResult(
           `🔄 User choice dialog shown\n\nProduct: ${product.id}\n\nIf user selects:\n- Google Play: onPurchaseUpdated callback\n- Alternative: Manual flow required`,
         );

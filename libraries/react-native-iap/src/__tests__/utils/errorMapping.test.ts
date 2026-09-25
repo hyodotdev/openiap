@@ -17,16 +17,16 @@ describe('utils/errorMapping', () => {
       isUserCancelledError({
         code: ErrorCode.UserCancelled,
         message: 'x',
-      } as any),
+      }),
     ).toBe(true);
-    expect(
-      isUserCancelledError({code: 'E_USER_CANCELED', message: 'x'} as any),
-    ).toBe(true);
+    expect(isUserCancelledError({code: 'E_USER_CANCELED', message: 'x'})).toBe(
+      true,
+    );
     expect(
       isUserCancelledError({
         code: ErrorCode.NetworkError,
         message: 'x',
-      } as any),
+      }),
     ).toBe(false);
   });
 
@@ -41,13 +41,13 @@ describe('utils/errorMapping', () => {
       ErrorCode.SyncError,
     ];
     for (const code of recoverables) {
-      expect(isRecoverableError({code, message: 'x'} as any)).toBe(true);
+      expect(isRecoverableError({code, message: 'x'})).toBe(true);
     }
     expect(
       isRecoverableError({
         code: ErrorCode.UserCancelled,
         message: 'x',
-      } as any),
+      }),
     ).toBe(false);
   });
 
@@ -56,19 +56,19 @@ describe('utils/errorMapping', () => {
       isDuplicatePurchaseError({
         code: DUPLICATE_PURCHASE_CODE,
         message: 'x',
-      } as any),
+      }),
     ).toBe(true);
     expect(
       isDuplicatePurchaseError({
         code: 'duplicate-purchase',
         message: 'x',
-      } as any),
+      }),
     ).toBe(true);
     expect(
       isDuplicatePurchaseError({
         code: ErrorCode.UserCancelled,
         message: 'x',
-      } as any),
+      }),
     ).toBe(false);
   });
 
@@ -77,7 +77,7 @@ describe('utils/errorMapping', () => {
       isRecoverableError({
         code: DUPLICATE_PURCHASE_CODE,
         message: 'x',
-      } as any),
+      }),
     ).toBe(true);
   });
 
@@ -86,7 +86,7 @@ describe('utils/errorMapping', () => {
       getUserFriendlyErrorMessage({
         code: DUPLICATE_PURCHASE_CODE,
         message: 'ignored',
-      } as any),
+      }),
     ).toBe(
       'This purchase has already been processed. Try restoring purchases.',
     );
@@ -97,13 +97,13 @@ describe('utils/errorMapping', () => {
       getUserFriendlyErrorMessage({
         code: ErrorCode.UserCancelled,
         message: 'ignored',
-      } as any),
+      }),
     ).toBe('Purchase cancelled');
     expect(
       getUserFriendlyErrorMessage({
         code: ErrorCode.NetworkError,
         message: 'ignored',
-      } as any),
+      }),
     ).toBe(
       'Network connection error. Please check your internet connection and try again.',
     );
@@ -111,15 +111,15 @@ describe('utils/errorMapping', () => {
       getUserFriendlyErrorMessage({
         code: ErrorCode.IapNotAvailable,
         message: 'ignored',
-      } as any),
+      }),
     ).toBe('In-app purchases are not available on this device');
 
     // default fallback
     expect(
       getUserFriendlyErrorMessage({
-        code: 'E_UNKNOWN_CUSTOM' as any,
+        code: 'E_UNKNOWN_CUSTOM',
         message: 'custom',
-      } as any),
+      }),
     ).toBe('custom');
   });
 

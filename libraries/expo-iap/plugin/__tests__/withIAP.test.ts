@@ -1,5 +1,5 @@
 import type {ExpoConfig} from '@expo/config-types';
-import {WarningAggregator} from 'expo/config-plugins';
+import {compileModsAsync, WarningAggregator} from 'expo/config-plugins';
 import plugin, {
   applyOnsideInfoPlist,
   computeAutolinkModules,
@@ -8,9 +8,13 @@ import plugin, {
   normalizeGeneratedGroovyAppBuildGradle,
   normalizeGeneratedGroovyProjectBuildGradle,
   resolveAlternativeBillingIOS,
+  resolveAmazonAppstoreKey,
   resolveAmazonPlatformFlags,
   resolveHorizonAppId,
   resolveModuleSelection,
+  resolvePinnedAndroidStore,
+  storeGradleProperties,
+  syncAmazonAppstoreKey,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
 } from '../src/withIAP';
@@ -84,73 +88,13 @@ jest.mock('expo/config-plugins', () => {
 });
 
 describe('android configuration', () => {
-  const dependencyVersion = require('../../openiap-versions.json').google;
-  const dependencyRegex = new RegExp(
-    `io\\.github\\.hyochan\\.openiap:openiap-google:${dependencyVersion}`,
-    'g',
-  );
-
-  it('adds OpenIAP dependency when missing', () => {
-    const baseGradle = 'dependencies {\n}\n';
-    const result = modifyAppBuildGradle(baseGradle, 'groovy');
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
-    );
-    const matches = result.match(dependencyRegex) ?? [];
-    expect(matches).toHaveLength(1);
+  it('leaves an app build file without OpenIAP lines untouched', () => {
+    const baseGradle =
+      'android {\n    defaultConfig {\n    }\n}\ndependencies {\n}\n';
+    expect(modifyAppBuildGradle(baseGradle, 'groovy')).toBe(baseGradle);
   });
 
-  it('keeps existing dependency untouched', () => {
-    const baseGradle = `dependencies {\n    implementation "io.github.hyochan.openiap:openiap-google:0.0.1"\n}\n`;
-    const result = modifyAppBuildGradle(baseGradle, 'groovy');
-    const matches = result.match(dependencyRegex) ?? [];
-    expect(matches).toHaveLength(1);
-    expect(result).not.toContain('openiap-google:0.0.1');
-  });
-
-  it('uses Fire OS artifact and flavor when Fire OS is enabled', () => {
-    const baseGradle = [
-      'android {',
-      '    defaultConfig {',
-      '    }',
-      '}',
-      'dependencies {',
-      '    implementation "io.github.hyochan.openiap:openiap-google-horizon:0.0.1"',
-      '}',
-      '',
-    ].join('\n');
-    const result = modifyAppBuildGradle(baseGradle, 'groovy', false, true);
-
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}"`,
-    );
-    expect(result).toContain(
-      '        missingDimensionStrategy "platform", "amazon"',
-    );
-    expect(result).not.toContain('openiap-google-horizon:0.0.1');
-  });
-
-  it('prefers Fire OS over Horizon when both store flags are enabled', () => {
-    const baseGradle = [
-      'android {',
-      '    defaultConfig {',
-      '    }',
-      '}',
-      'dependencies {',
-      '}',
-      '',
-    ].join('\n');
-    const result = modifyAppBuildGradle(baseGradle, 'kotlin', true, true);
-
-    expect(result).toContain(
-      `    implementation("io.github.hyochan.openiap:openiap-google-amazon:${dependencyVersion}")`,
-    );
-    expect(result).toContain(
-      '        missingDimensionStrategy("platform", "amazon")',
-    );
-  });
-
-  it('replaces stale platform strategy when returning to Play', () => {
+  it('strips the dependency and fixed strategy that older plugin versions wrote', () => {
     const baseGradle = [
       'android {',
       '    defaultConfig {',
@@ -159,16 +103,293 @@ describe('android configuration', () => {
       '}',
       'dependencies {',
       '    implementation "io.github.hyochan.openiap:openiap-google-amazon:0.0.1"',
+      '    implementation "io.github.hyochan.openiap:openiap-google:0.0.1"',
       '}',
       '',
     ].join('\n');
     const result = modifyAppBuildGradle(baseGradle, 'groovy');
 
-    expect(result).toContain(
-      `    implementation "io.github.hyochan.openiap:openiap-google:${dependencyVersion}"`,
+    expect(result).not.toContain('openiap-google');
+    expect(result).not.toContain('missingDimensionStrategy');
+    expect(result).toContain('dependencies {');
+  });
+
+  it('strips Kotlin DSL dependency and strategy lines too', () => {
+    const baseGradle = [
+      'android {',
+      '    defaultConfig {',
+      '        missingDimensionStrategy("platform", "horizon")',
+      '    }',
+      '}',
+      'dependencies {',
+      '    implementation("io.github.hyochan.openiap:openiap-google-horizon:0.0.1")',
+      '}',
+      '',
+    ].join('\n');
+    const result = modifyAppBuildGradle(baseGradle, 'kt');
+
+    expect(result).not.toContain('openiap-google');
+    expect(result).not.toContain('missingDimensionStrategy');
+  });
+
+  it('pins the store only when a module flag asks for it', () => {
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: false,
+        isHorizonEnabled: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: false,
+        isHorizonEnabled: true,
+      }),
+    ).toBe('horizon');
+  });
+
+  it('warns that a module pin is deprecated but still applies it', () => {
+    // Dropping the pin silently would move an existing Quest release to Play.
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      modules: {horizon: true},
+    });
+
+    expect(warn).toHaveBeenCalledWith(
+      'expo-iap',
+      expect.stringMatching(
+        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated.*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
+      ),
     );
-    expect(result).not.toContain('openiap-google-amazon:0.0.1');
-    expect(result).toContain('missingDimensionStrategy "platform", "play"');
+  });
+
+  it('does not warn when nothing pins the store', () => {
+    const warn = WarningAggregator.addWarningAndroid as jest.Mock;
+    warn.mockClear();
+    plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
+
+    expect(
+      warn.mock.calls.some(([, message]) =>
+        /deprecated/u.test(String(message)),
+      ),
+    ).toBe(false);
+  });
+
+  it('refuses two modules naming different stores', () => {
+    // An APK links one billing SDK, so picking one silently would ship the
+    // other store's users a build that cannot talk to their store.
+    expect(() =>
+      resolvePinnedAndroidStore({
+        isFireOsEnabled: true,
+        isHorizonEnabled: true,
+      }),
+    ).toThrow(/both enabled/u);
+  });
+
+  it('fails the prebuild on two store modules instead of skipping every mod', () => {
+    // The plugin's catch-all once turned this into a warning and returned the
+    // config with no expo-iap changes.
+    expect(() =>
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        modules: {horizon: true, amazon: {fireOS: true}},
+      }),
+    ).toThrow(/both enabled/u);
+  });
+
+  it('keeps the published iOS setup when enableLocalDev has no localPath', () => {
+    const result = plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+      enableLocalDev: true,
+    }) as ExpoConfig & {mods?: {ios?: Record<string, unknown>}};
+    expect(result.mods?.ios?.podfile).toBeDefined();
+  });
+
+  it('moves the local pod when localPath moves', async () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-pod-'));
+    const podfile = path.join(projectRoot, 'ios', 'Podfile');
+    try {
+      fs.mkdirSync(path.dirname(podfile), {recursive: true});
+      fs.writeFileSync(
+        podfile,
+        "target 'app' do\n  use_expo_modules!\n\n  pod 'openiap', :path => '../gone/apple'\nend\n",
+      );
+      const apple = path.resolve(__dirname, '../../../../packages/apple');
+      await compileModsAsync(
+        plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+          enableLocalDev: true,
+          localPath: {ios: apple},
+        }) as ExpoConfig,
+        {projectRoot, platforms: ['ios']},
+      );
+      expect(fs.readFileSync(podfile, 'utf8')).toContain(
+        `pod 'openiap', :path => '${path.relative(
+          path.dirname(podfile),
+          apple,
+        )}'`,
+      );
+    } finally {
+      fs.rmSync(projectRoot, {recursive: true, force: true});
+    }
+  });
+
+  const rootBuild = 'buildscript {\n  repositories {\n    google()\n  }\n}\n';
+  const appBuild =
+    'android {\n    defaultConfig {\n    }\n}\n\ndependencies {\n    // React Native sets this version\n    implementation("com.facebook.react:react-android")\n}\n';
+  it.each([
+    {
+      dsl: 'Groovy',
+      ext: '',
+      settings: "rootProject.name = 'app'\ninclude ':app'\n",
+      include: "include ':openiap-google'",
+      dependency: "implementation project(':openiap-google')",
+    },
+    {
+      dsl: 'Kotlin',
+      ext: '.kts',
+      settings: 'rootProject.name = "app"\ninclude(":app")\n',
+      include: 'include(":openiap-google")',
+      dependency: 'implementation(project(":openiap-google"))',
+    },
+  ])(
+    "drops an earlier local build's $dsl DSL wiring on a published prebuild",
+    async ({ext, settings, include, dependency}) => {
+      const fs = jest.requireActual('fs') as typeof import('fs');
+      const os = jest.requireActual('os') as typeof import('os');
+      const path = jest.requireActual('path') as typeof import('path');
+      const projectRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'expo-iap-local-'),
+      );
+      const android = path.join(projectRoot, 'android');
+      const settingsFile = `settings.gradle${ext}`;
+      const rootFile = `build.gradle${ext}`;
+      const appFile = `app/build.gradle${ext}`;
+      const files: Record<string, string> = {
+        [settingsFile]: settings,
+        [rootFile]: rootBuild,
+        [appFile]: appBuild,
+        'gradle.properties': 'org.gradle.jvmargs=-Xmx2g\n',
+        'app/src/main/AndroidManifest.xml':
+          '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n  <application android:name=".MainApplication"/>\n</manifest>\n',
+      };
+      const read = () =>
+        Object.fromEntries(
+          [settingsFile, rootFile, appFile].map((file) => [
+            file,
+            fs.readFileSync(path.join(android, file), 'utf8'),
+          ]),
+        );
+      const prebuild = (options: ExpoIapPluginOptions) =>
+        compileModsAsync(
+          plugin(
+            {name: 'app', slug: 'app'} as ExpoConfig,
+            options,
+          ) as ExpoConfig,
+          {projectRoot, platforms: ['android']},
+        );
+      const local: ExpoIapPluginOptions = {
+        enableLocalDev: true,
+        localPath: {
+          android: path.resolve(__dirname, '../../../../packages/google'),
+        },
+      };
+      try {
+        for (const [file, contents] of Object.entries(files)) {
+          fs.mkdirSync(path.dirname(path.join(android, file)), {
+            recursive: true,
+          });
+          fs.writeFileSync(path.join(android, file), contents);
+        }
+
+        await prebuild(local);
+        const linked = read();
+        expect(linked[settingsFile]).toContain(include);
+        expect(linked[appFile]).toContain(dependency);
+        expect(linked[rootFile]).toContain('openIapResolveStore');
+
+        // expo-iap links an included :openiap-google in place of Maven.
+        await prebuild({});
+        const published = read();
+        expect(published[settingsFile]).not.toContain(include);
+        expect(published[settingsFile]).not.toContain('projectDir');
+        expect(published[rootFile]).toBe(rootBuild);
+        expect(published[appFile]).toBe(appBuild);
+
+        await prebuild(local);
+        await prebuild({});
+        expect(read()).toEqual(published);
+
+        // A local build that links only the iOS package uses the published Android one.
+        await prebuild(local);
+        await prebuild({
+          enableLocalDev: true,
+          localPath: {
+            ios: path.resolve(__dirname, '../../../../packages/apple'),
+          },
+        });
+        expect(read()).toEqual(published);
+      } finally {
+        fs.rmSync(projectRoot, {recursive: true, force: true});
+      }
+    },
+  );
+
+  it('writes the pin gradle.properties carries, and clears a stale one', () => {
+    // The pin is the only file the prebuild leaves behind that selects a store,
+    // so a stale key from an earlier prebuild would outrank the device.
+    const properties = [
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+      {type: 'property', key: 'openiapStore', value: 'horizon'},
+      // A leftover opt-out would make Gradle refuse the pin outright.
+      {type: 'property', key: 'openiapPlatform', value: 'none'},
+      {type: 'property', key: 'horizonEnabled', value: 'true'},
+      {type: 'property', key: 'fireOsEnabled', value: 'false'},
+    ];
+    expect(storeGradleProperties(properties, 'amazon')).toEqual([
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+      {type: 'property', key: 'openiapStore', value: 'amazon'},
+    ]);
+    expect(storeGradleProperties(properties, null)).toEqual([
+      {type: 'property', key: 'org.gradle.jvmargs', value: '-Xmx2g'},
+    ]);
+  });
+
+  it('reads the Amazon Appstore key path from android.amazon', () => {
+    expect(
+      resolveAmazonAppstoreKey({
+        android: {
+          amazon: {appstoreKey: './keys/AppstoreAuthenticationKey.pem'},
+        },
+      }),
+    ).toBe('./keys/AppstoreAuthenticationKey.pem');
+    expect(resolveAmazonAppstoreKey({})).toBeUndefined();
+  });
+
+  it('removes a copied Amazon key once its source is gone', () => {
+    const fs = jest.requireActual('fs') as typeof import('fs');
+    const os = jest.requireActual('os') as typeof import('os');
+    const path = jest.requireActual('path') as typeof import('path');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'expo-iap-key-'));
+    const source = path.join(dir, 'AppstoreAuthenticationKey.pem');
+    const target = path.join(
+      dir,
+      'android',
+      'assets',
+      'AppstoreAuthenticationKey.pem',
+    );
+    try {
+      fs.writeFileSync(source, 'key');
+      expect(syncAmazonAppstoreKey(source, target)).toBe(true);
+      expect(fs.readFileSync(target, 'utf8')).toBe('key');
+
+      // A stale copy would keep verifying with a key the config no longer finds.
+      fs.rmSync(source);
+      expect(syncAmazonAppstoreKey(source, target)).toBe(false);
+      expect(fs.existsSync(target)).toBe(false);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
   });
 
   it('normalizes Expo generated Groovy root Gradle syntax', () => {
@@ -269,20 +490,23 @@ describe('android configuration', () => {
     });
   });
 
-  it('lets Fire OS take precedence over Horizon for Android flavor selection', () => {
-    expect(
-      resolveAmazonPlatformFlags({
-        modules: {
-          horizon: true,
-          amazon: {fireOS: true, vegaOS: false},
-        },
-      }),
-    ).toEqual({
+  it('reports Fire OS and Horizon as both set so the pin can refuse them', () => {
+    const flags = resolveAmazonPlatformFlags({
+      modules: {
+        horizon: true,
+        amazon: {fireOS: true, vegaOS: false},
+      },
+    });
+
+    expect(flags).toEqual({
       isFireOsEnabled: true,
       isVegaEnabled: false,
-      isHorizonEnabled: false,
+      isHorizonEnabled: true,
       isOnsideEnabled: false,
     });
+    // Gradle and the doctor both fail this combination; silently preferring
+    // Fire OS here would ship a store the config never asked for.
+    expect(() => resolvePinnedAndroidStore(flags)).toThrow(/both enabled/);
   });
 
   it('uses Expo IAP platform env flags when module options are absent', () => {
@@ -302,7 +526,7 @@ describe('android configuration', () => {
       expect(resolveAmazonPlatformFlags(undefined)).toEqual({
         isFireOsEnabled: true,
         isVegaEnabled: true,
-        isHorizonEnabled: false,
+        isHorizonEnabled: true,
         isOnsideEnabled: true,
       });
     } finally {
@@ -480,7 +704,7 @@ describe('android configuration', () => {
     ).toBeUndefined();
   });
 
-  it('removes Horizon App ID metadata outside Horizon builds', () => {
+  it('removes Horizon App ID metadata when no app id is configured', () => {
     const manifest = {
       manifest: {
         application: [
@@ -510,7 +734,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('removed');
+    expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('removed');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -527,13 +751,13 @@ describe('android configuration', () => {
     ]);
   });
 
-  it('adds Horizon App ID metadata only for Horizon builds', () => {
+  it('adds Horizon App ID metadata whenever an app id is configured', () => {
     const manifest = {manifest: {}};
 
-    expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('unchanged');
+    expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('unchanged');
     expect(manifest.manifest).not.toHaveProperty('application');
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application?.[0]?.['meta-data']).toEqual([
       {
         $: {
@@ -568,7 +792,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -607,7 +831,7 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
+    expect(syncHorizonAppIdMetaData(manifest, '123')).toBe('added');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
       {
         $: {
@@ -673,7 +897,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
+    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

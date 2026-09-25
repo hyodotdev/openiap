@@ -1,3 +1,4 @@
+import java.util.Locale
 import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -65,32 +66,22 @@ val googleMinSdk = readGoogleAndroidInt("minSdk")
 val mauiAndroidMinSdk = readMauiAndroidMinSdk()
 val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
-val horizonEnabled = providers.gradleProperty("horizonEnabled").orNull?.toBooleanStrictOrNull() ?: false
-val fireOsEnabled = providers.gradleProperty("fireOsEnabled").orNull?.toBooleanStrictOrNull() ?: false
-if (horizonEnabled && fireOsEnabled) {
-    error("maui-iap Android: horizonEnabled and fireOsEnabled cannot both be true")
+// One facade AAR serves every store: it ships compiled against Play, and CI
+// also compiles it against Horizon and Amazon with -PopeniapStore.
+for (legacy in listOf("openIapAndroidStore", "OpenIapAndroidStore")) {
+  if (providers.gradleProperty(legacy).isPresent) {
+    error("'$legacy' was replaced by -PopeniapStore=<play|horizon|amazon>; remove the legacy flag.")
+  }
 }
-
-fun normalizeOpenIapStore(value: String?): String =
-    when (value?.lowercase()) {
-        null, "", "play", "google", "gms", "googleplay", "google-play" -> "play"
-        "horizon", "meta", "quest" -> "horizon"
-        "amazon", "fire", "fireos", "fire-os" -> "amazon"
-        else -> error("maui-iap Android: unsupported openIapAndroidStore '$value'")
-    }
-
-val requestedOpenIapStore = providers.gradleProperty("openIapAndroidStore").orNull
-    ?: providers.gradleProperty("OpenIapAndroidStore").orNull
-val openIapAndroidStore = when {
-    fireOsEnabled -> "amazon"
-    horizonEnabled -> "horizon"
-    else -> normalizeOpenIapStore(requestedOpenIapStore)
+val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull?.trim()?.lowercase(Locale.ROOT)
+val openIapStore = when (requestedOpenIapStore) {
+  null -> "play"
+  "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
+  "horizon", "meta", "quest" -> "horizon"
+  "amazon", "fire", "fireos", "fire-os" -> "amazon"
+  else -> error("Unsupported -PopeniapStore='$requestedOpenIapStore'. Use play, horizon, or amazon (default: play).")
 }
-val openIapGoogleArtifact = when (openIapAndroidStore) {
-    "amazon" -> "openiap-google-amazon"
-    "horizon" -> "openiap-google-horizon"
-    else -> "openiap-google"
-}
+val openIapGoogleArtifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
 
 android {
     namespace = "dev.hyo.openiap.maui"
@@ -98,7 +89,7 @@ android {
 
     defaultConfig {
         minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)
-        missingDimensionStrategy("platform", openIapAndroidStore)
+        missingDimensionStrategy("platform", openIapStore)
     }
 
     buildTypes {

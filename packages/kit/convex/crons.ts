@@ -5,12 +5,11 @@ import { COMMERCE_EVENT_RETENTION_MS } from "./commerce/signing";
 
 const crons = cronJobs();
 
-// Reset monthly request counts at the beginning of each month
 crons.monthly(
   "reset monthly request counts",
   {
-    day: 1, // First day of the month
-    hourUTC: 0, // Midnight UTC
+    day: 1,
+    hourUTC: 0,
     minuteUTC: 0,
   },
   internal.organizations.internal.resetMonthlyRequestCounts,
@@ -26,21 +25,18 @@ crons.daily(
   internal.users.internal.cleanupIncompleteUsers,
 );
 
-// Drain organizations flagged `pendingDeletion: true`. Runs separately
-// from the user-account-deletion path so an individual user's teardown
-// never blocks on global orphan-org backlog. Each tick processes one
-// org one bounded page at a time; we run every 5 minutes so a deletion
-// queue clears within minutes, not hours.
+// Separate from user-account deletion so a user's teardown never waits on
+// the orphan-org backlog. Each tick drains one bounded page of one org;
+// every 5 minutes clears a queue in minutes, not hours.
 crons.interval(
   "drain pending-deletion organizations",
   { minutes: 5 },
   internal.userProfiles.internal.drainPendingDeletionOrganizations,
 );
 
-// Recovery sweep for direct project deletions. The initiating mutation and
-// each bounded payload page schedule their own immediate continuation; this
-// five-minute sweep resumes any project left pending by a cancelled/failed
-// scheduled function.
+// Recovery sweep: direct project deletion schedules its own continuation
+// after each bounded page, and this resumes a project left pending when a
+// scheduled function was cancelled or failed.
 crons.interval(
   "drain pending-deletion projects",
   { minutes: 5 },
@@ -64,9 +60,8 @@ crons.interval(
   {},
 );
 
-// Prune webhook events older than the 30-day retention window. Runs hourly
-// with a small per-tick batch size so stored lifecycle history and analytics
-// reads remain bounded.
+// 30-day retention, pruned hourly in small batches so stored lifecycle
+// history and analytics reads stay bounded.
 crons.interval(
   "prune webhook events past retention",
   { hours: 1 },
@@ -115,23 +110,17 @@ crons.interval(
   {},
 );
 
-// Daily drift correction for the incrementally-maintained
-// `subscriptionStats` table. The incremental path in
-// applySubscriptionEvent is correct in steady state, but a missed
-// invocation (action timeout, manual db.patch, schema drift during
-// rollout) can drift the counters. Recomputing the most-stale 100
-// projects per tick keeps the dashboard self-healing without operator
-// intervention.
+// `subscriptionStats` is maintained incrementally by applySubscriptionEvent,
+// which is correct in steady state but drifts after a missed invocation
+// (action timeout, manual db.patch, schema drift during rollout).
+// Recomputing the most-stale projects daily heals it without an operator.
 crons.interval(
   "recompute subscription stats (drift correction)",
   { hours: 24 },
   internal.subscriptions.stats.recomputeAllSubscriptionStats,
-  // batchSize=50 projects per daily tick. Each project recompute
-  // runs as its own scheduled mutation (independent 40k document-
-  // read budget), so the picker mutation only does a tiny index
-  // scan + 50 schedule calls. With daily cadence + batchSize=50,
-  // a deployment with up to 1500 projects cycles through every
-  // project at least monthly.
+  // Each project recomputes in its own scheduled mutation (own 40k-read
+  // budget), so the picker is an index scan plus 50 schedule calls. 50 a
+  // day cycles up to 1,500 projects at least monthly.
   { batchSize: 50 },
 );
 
@@ -151,22 +140,16 @@ crons.interval(
   {},
 );
 
-// Revenue rollup. Walks `webhookEvents` over the trailing 3-day
-// window and refreshes the `revenueMetricsDaily` rows that power
-// the Analytics dashboard. Trailing window covers Apple ASN v2 and
-// Google RTDN late-arrival retries (real-world p99 < 48h); each
-// tick overwrites the trailing window so a webhook arriving up to 3
-// days late still lands in its correct day's bucket.
+// Rebuilds the `revenueMetricsDaily` rows behind the Analytics dashboard
+// from the last 3 days of `webhookEvents`. The window covers Apple ASN v2
+// and Google RTDN late retries (real-world p99 < 48h), so a webhook up to 3
+// days late still lands in its day's bucket.
 //
-// 10-minute cadence (vs. daily for the stats drift cron) keeps the
-// dashboard close to real time — at daily cadence with batchSize=50
-// a 500-project deployment cycled in 10 days, which is unacceptable
-// staleness for revenue analytics. The picker walks
-// `revenueMetricsRunStatus.by_run` so it self-rotates regardless
-// of how often it runs; each per-project recompute is its own
-// scheduled mutation with an independent 40k document-read budget.
-// 100 projects × 6 ticks/hour × 24h = 14,400 project-runs/day,
-// which keeps the typical deployment current within minutes.
+// Every 10 minutes, not daily: daily at batchSize 50 took 10 days to cycle
+// 500 projects. The picker rotates through `revenueMetricsRunStatus.by_run`
+// at any cadence, and each project recomputes in its own scheduled mutation
+// (own 40k-read budget). 100 × 6/hour × 24h = 14,400 project-runs a day,
+// keeping a typical deployment current within minutes.
 crons.interval(
   "recompute revenue metrics",
   { minutes: 10 },
@@ -174,12 +157,10 @@ crons.interval(
   { batchSize: 100 },
 );
 
-// Mark stuck product-sync jobs as failed. Convex caps actions at
-// ~10min; the worker sets `expectedDeadline = startedAt + 9min`,
-// and this reaper flips anything still `running` past
-// `deadline + 1min` to failed("worker timed out"). Without it, a
-// crashed action permanently pins the project's "active job" slot
-// and the dashboard's button stays disabled forever.
+// Convex caps actions at ~10 minutes. The worker sets `expectedDeadline` to
+// startedAt + 9 minutes, and this fails any job still `running` a minute
+// past it; otherwise a crashed action holds the project's active-job slot
+// forever and the dashboard's sync button stays disabled.
 crons.interval(
   "reap stale product sync jobs",
   { minutes: 5 },

@@ -288,7 +288,7 @@ function TypesIndex() {
     ) {
       return;
     }
-    navigate(redirect, { replace: true });
+    void navigate(redirect, { replace: true });
   }, [location.hash, location.pathname, navigate]);
 
   return (

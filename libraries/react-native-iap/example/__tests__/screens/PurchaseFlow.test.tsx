@@ -887,10 +887,12 @@ describe('PurchaseFlow Screen', () => {
 
   it('does not consume while IAPKit verification is pending', async () => {
     Platform.OS = 'android';
-    const purchase = {
+    const purchase: Purchase = {
       id: 'transaction-race-1',
+      isAutoRenewing: false,
       productId: 'dev.hyo.martie.10bulbs',
       purchaseToken: 'google-token-race-1',
+      quantity: 1,
       store: 'google',
       transactionDate: Date.now(),
       purchaseState: 'purchased',
@@ -927,7 +929,7 @@ describe('PurchaseFlow Screen', () => {
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
 
     mockIapState({
-      availablePurchases: [purchase as any],
+      availablePurchases: [purchase],
       finishTransaction,
       verifyPurchaseWithProvider,
     });

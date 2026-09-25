@@ -251,15 +251,45 @@ describe("the portable conformance runner", () => {
     expect(failure.failures.join(" ")).toContain("disagrees");
   });
 
-  it("rejects entitlements whose productIds do not match the active subscriptions", async () => {
+  it("accepts productIds that name a grant with no subscription record (SPEC 4.3)", async () => {
+    const provider = createMockProvider();
+    const rest = createRestAdapter({
+      baseUrl: BASE_URL,
+      fetch: provider.fetch,
+      credentials: provider.credentials,
+    });
+    const access = await rest.request({
+      operation: "entitlements",
+      input: { userId: operationVectors.fixtures.userId },
+      credential: "server",
+    });
+    // The fixture really carries such a grant, so the pass below covers it.
+    const recorded = access.data.subscriptions.map((s) => s.productId);
+    expect(
+      access.data.productIds.filter((id) => !recorded.includes(id)),
+    ).not.toEqual([]);
+    const report = await runConformance({
+      adapters: [rest],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+  });
+
+  it("rejects entitlements that leave a subscription's product out of productIds", async () => {
     const provider = createMockProvider();
     const skewFetch = async (url, options) => {
       const response = await provider.fetch(url, options);
       if (String(url).includes("/commerce/v1/entitlements")) {
         const body = await response.json();
-        if (Array.isArray(body.productIds)) {
-          body.productIds = [...body.productIds, "ghost.product"];
-        }
+        const recorded = new Set(
+          (body.subscriptions ?? []).map((s) => s.productId),
+        );
+        body.productIds = (body.productIds ?? []).filter(
+          (id) => !recorded.has(id),
+        );
         return new Response(JSON.stringify(body), {
           status: response.status,
           headers: { "Content-Type": "application/json" },
@@ -282,7 +312,169 @@ describe("the portable conformance runner", () => {
       (r) => r.id === "entitlements.success.contract",
     );
     expect(failure.ok).toBe(false);
-    expect(failure.failures.join(" ")).toContain("deduplicated set");
+    expect(failure.failures.join(" ")).toContain("missing from productIds");
+  });
+
+  it.each([
+    ["opens the gate without a subscription", { active: true }],
+    [
+      "invents a record",
+      {
+        active: false,
+        subscription: {
+          productId: "mock.premium",
+          state: "Expired",
+          active: false,
+        },
+      },
+    ],
+  ])(
+    "rejects a status for an unknown user that %s (SPEC 4.2)",
+    async (_label, answer) => {
+      const provider = createMockProvider();
+      const unknownUser = operationVectors.fixtures.unknownUserId;
+      const statusFetch = async (url, options) => {
+        const response = await provider.fetch(url, options);
+        const { pathname, searchParams } = new URL(String(url));
+        if (
+          pathname === "/commerce/v1/subscriptions/status" &&
+          searchParams.get("userId") === unknownUser
+        ) {
+          return response2(answer, response);
+        }
+        return response;
+      };
+      const report = await runConformance({
+        adapters: [
+          createRestAdapter({
+            baseUrl: BASE_URL,
+            fetch: statusFetch,
+            credentials: provider.credentials,
+          }),
+        ],
+        Ajv,
+        credentials: provider.credentials,
+      });
+      const failure = report.results.find(
+        (r) => r.id === "subscriptionStatus.unknown-user.inactive",
+      );
+      expect(failure.ok).toBe(false);
+      expect(report.ok).toBe(false);
+    },
+  );
+
+  it("rejects bound:false for a store the provider does not integrate (SPEC 4.4)", async () => {
+    const provider = createMockProvider();
+    const quietFetch = async (url, options) => {
+      const response = await provider.fetch(url, options);
+      if (
+        String(url).endsWith("/commerce/v1/purchases/bind") &&
+        response.status === 422
+      ) {
+        return new Response(JSON.stringify({ bound: false }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return response;
+    };
+    const report = await runConformance({
+      adapters: [
+        createRestAdapter({
+          baseUrl: BASE_URL,
+          fetch: quietFetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    const failure = report.results.find(
+      (r) => r.id === "bindPurchase.store.unsupported",
+    );
+    expect(failure.ok).toBe(false);
+    expect(report.ok).toBe(false);
+  });
+
+  it("certifies a partial provider that refuses undeclared profiles with UNSUPPORTED_PROFILE", async () => {
+    const provider = createMockProvider({
+      profiles: ["verification", "entitlements"],
+    });
+    const report = await runConformance({
+      adapters: adaptersFor(provider),
+      Ajv,
+      credentials: provider.credentials,
+    });
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+    const ran = report.results.map((r) => `${r.binding}:${r.id}`);
+    for (const binding of ["rest", "graphql"]) {
+      for (const operation of ["bindPurchase", "eraseUser"]) {
+        expect(ran).toContain(`${binding}:${operation}.profile.unsupported`);
+        expect(ran).not.toContain(`${binding}:${operation}.success.contract`);
+      }
+      expect(ran).not.toContain(
+        `${binding}:verifyPurchase.profile.unsupported`,
+      );
+    }
+  });
+
+  it("skips profile refusals for a role no declared profile uses (SPEC 3, 5)", async () => {
+    const provider = createMockProvider({ profiles: ["verification"] });
+    // The provider never issued this server credential, so it answers
+    // UNAUTHORIZED, which SPEC 5 puts ahead of UNSUPPORTED_PROFILE.
+    const credentials = {
+      ...provider.credentials,
+      server: "never-issued-server-credential",
+    };
+    const report = await runConformance({
+      adapters: adaptersFor({ ...provider, credentials }),
+      Ajv,
+      credentials,
+    });
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+    const ran = report.results.map((r) => r.id);
+    for (const operation of [
+      "subscriptionStatus",
+      "entitlements",
+      "eraseUser",
+    ]) {
+      expect(ran).not.toContain(`${operation}.profile.unsupported`);
+    }
+    expect(ran).toContain("graphql.executor-probe");
+  });
+
+  it("fails a partial provider that still answers an undeclared profile", async () => {
+    const provider = createMockProvider();
+    const undeclaredFetch = async (url, options) => {
+      const response = await provider.fetch(url, options);
+      if (String(url).includes("/commerce/v1/capabilities")) {
+        const body = await response.json();
+        delete body.profiles.accountLifecycle;
+        return response2(body, response);
+      }
+      return response;
+    };
+    const report = await runConformance({
+      adapters: [
+        createRestAdapter({
+          baseUrl: BASE_URL,
+          fetch: undeclaredFetch,
+          credentials: provider.credentials,
+        }),
+      ],
+      Ajv,
+      credentials: provider.credentials,
+    });
+    const failure = report.results.find(
+      (r) => r.id === "bindPurchase.profile.unsupported",
+    );
+    expect(failure.ok).toBe(false);
+    expect(failure.failures.join(" ")).toContain("expected an error");
+    expect(report.ok).toBe(false);
   });
 
   it("rejects a provider that skips auth", async () => {
@@ -2247,7 +2439,7 @@ describe("the portable conformance runner", () => {
           "verifyPurchase.success.contract",
           "bindPurchase.success.contract",
           "bindPurchase.unknown-evidence.not-bound",
-          "bindPurchase.unbindable-store.not-bound",
+          "bindPurchase.unknown-evidence.not-bound.horizon",
         ].includes(result.id),
       ),
     ).toBe(false);
@@ -2461,6 +2653,28 @@ describe("the portable conformance runner", () => {
       ],
       Ajv,
       credentials: { verification: provider.credentials.verification },
+    });
+    const probe = report.results.find((r) => r.id === "graphql.executor-probe");
+    expect(probe.ok, probe.failures.join(" ")).toBe(true);
+    expect(report.ok, JSON.stringify(report.results.filter((r) => !r.ok))).toBe(
+      true,
+    );
+  });
+
+  it("certifies an accountLifecycle-only GraphQL provider (server role outside entitlements)", async () => {
+    // bindPurchase/eraseUser are server-role but live in accountLifecycle, so
+    // the probe must select the server role even though entitlements is unserved.
+    const provider = createMockProvider({ profiles: ["accountLifecycle"] });
+    const report = await runConformance({
+      adapters: [
+        createGraphqlAdapter({
+          url: GRAPHQL_URL,
+          fetch: provider.fetch,
+          credentials: { server: provider.credentials.server },
+        }),
+      ],
+      Ajv,
+      credentials: { server: provider.credentials.server },
     });
     const probe = report.results.find((r) => r.id === "graphql.executor-probe");
     expect(probe.ok, probe.failures.join(" ")).toBe(true);

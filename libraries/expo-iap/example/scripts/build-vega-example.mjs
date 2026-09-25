@@ -120,10 +120,9 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
   fs.writeFileSync(path.join(moduleRoot, main), source, 'utf8');
 };
 
-// Example sources import the library by relative path from any nesting depth
-// (`../../src/...` directly under example/src, `../../../src/...` one level
-// deeper). The Vega build copies the example without the library checkout, so
-// every depth must resolve to the published module instead.
+// The Vega build copies the example without the library checkout, so relative
+// library imports at every depth (`../../src/...`, `../../../src/...`) must
+// resolve to the published module.
 const expoSourceImportPattern =
   /from (['"])(?:\.\.\/)+src(\/types|\/utils\/errorMapping)?\1/gu;
 

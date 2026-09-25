@@ -30,12 +30,10 @@ instances you don't control.
 > IAPKit is provided **as-is** with best-effort support. There is no
 > SLA on the community instance. If you need guaranteed response times,
 > self-host from `packages/kit/` (single binary) or contact the maintainers
-> before launch. Organizations expecting to use a significant share of shared
-> capacity are asked to help fund project infrastructure through
-> [OpenCollective][openiap-opencollective] (project fund; covers
-> hosting costs transparently) or
-> [GitHub Sponsors][openiap-github-sponsors] (maintainer
-> sponsorship).
+> before launch. An organization whose load strains the shared servers may be
+> removed from the shared pool; to continue, it can sponsor through
+> [OpenCollective][openiap-opencollective] or
+> [GitHub Sponsors][openiap-github-sponsors], or self-host.
 
 ## What's Inside
 
@@ -164,11 +162,11 @@ bun run build:all      # Vite build + Bun compile → ./openiap-kit-server
 
 ### Hosted fair use and capacity planning
 
-The community-operated service is a shared, community-funded resource for the
-OpenIAP ecosystem. It is free to use without a request-based billing meter, but
-it is not unlimited infrastructure and does not include dedicated capacity or
-an SLA. Clients must cache stable reads, avoid continuous polling, and honor
-`429 Retry-After` and `503 Retry-After` responses.
+The hosted service is a shared resource for the OpenIAP ecosystem, and its
+running costs are meant to be covered by sponsorship. It is free to use without
+a request-based billing meter, but it is not unlimited infrastructure and does
+not include dedicated capacity or an SLA. Clients must cache stable reads, avoid
+continuous polling, and honor `429 Retry-After` and `503 Retry-After` responses.
 
 Traffic that looks like abusive automation, denial-of-service activity, or
 deliberate safeguard evasion may be throttled or blocked to protect other
@@ -185,15 +183,14 @@ or the user explicitly refreshes it.
 
 If an organization expects sustained high volume or a meaningful share of the
 hosted service, [contact the maintainers][openiap-company-contact] before production
-launch. We ask organizations at that scale to help fund server capacity,
-monitoring, security, and load testing through
-[OpenCollective][openiap-opencollective] (the project fund with
-transparent hosting expenses) or
-[GitHub Sponsors][openiap-github-sponsors] (maintainer
-sponsorship). Sponsorship supports the
-shared service; it does not automatically reserve capacity or create an SLA.
-Self-host this MIT-licensed server when you need predictable scaling, dedicated
-resources, or full operational control.
+launch. If its load strains the shared servers, it may be removed from the
+shared pool. To keep using the hosted service at that volume, it may be
+required to sponsor the capacity it uses through
+[OpenCollective][openiap-opencollective] or
+[GitHub Sponsors][openiap-github-sponsors]; otherwise, it can self-host this
+MIT-licensed server, which also gives predictable scaling, dedicated resources,
+and full operational control. Sponsorship does not reserve capacity or create an
+SLA. The plan is to share the service's costs openly as usage grows.
 
 ### Health check
 

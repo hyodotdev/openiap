@@ -357,6 +357,29 @@ void main() {
       await iap.finishTransaction(purchase: _androidPurchase('failure'));
     });
 
+    test('Android finish logs never include the purchase token', () async {
+      const token = 'secret-purchase-token';
+      final logs = <String>[];
+      debugPrint = (String? message, {int? wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => null);
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      await iap.finishTransaction(
+        purchase: _androidPurchase(token),
+        isConsumable: true,
+      );
+      // A null acknowledge response also logs the retry line.
+      await iap.finishTransaction(purchase: _androidPurchase(token));
+
+      expect(logs.where((log) => log.contains('premium')), hasLength(3));
+      expect(logs.where((log) => log.contains(token)), isEmpty);
+    });
+
     test('finishes Apple transactions and rejects unsupported platforms',
         () async {
       final calls = <MethodCall>[];

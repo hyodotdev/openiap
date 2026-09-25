@@ -17,8 +17,6 @@ describe('Core Functions Tests', () => {
       expect(typeof ExpoIap.fetchProducts).toBe('function');
     });
 
-    // v3: legacy helpers removed
-
     it('should export requestPurchase function', () => {
       expect(ExpoIap.requestPurchase).toBeDefined();
       expect(typeof ExpoIap.requestPurchase).toBe('function');

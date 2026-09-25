@@ -321,13 +321,10 @@ export const updateProject = mutation({
     // distinction. Used by `products/asc.ts` push-sync.
     iosAscIssuerId: v.optional(v.string()),
     iosAscKeyId: v.optional(v.string()),
-    // Meta Horizon (Quest / VR) — piggybacks on the Android section
-    // in the dashboard since the client SDK is Google-Play-Billing-
-    // compatible. Validation only runs when horizonEnabled === true.
-    // horizonAppSecret intentionally accepts only a fresh value from
-    // the client: the UI never prefills the existing secret (the query
-    // omits it), so an undefined value here means "leave existing
-    // untouched". A `null` from the Horizon-off branch clears it.
+    // Meta Horizon sits in the dashboard's Android section (its SDK is Play
+    // Billing compatible) and is validated only when enabled. The UI never
+    // prefills horizonAppSecret, so undefined keeps the stored secret and null
+    // clears it.
     horizonEnabled: v.optional(v.boolean()),
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
@@ -396,13 +393,8 @@ export const updateProject = mutation({
       );
     }
 
-    // Horizon fields: validated only when the feature is being
-    // enabled or when populated values are supplied. Toggling off
-    // clears the credential fields so a stale secret can't linger in
-    // the DB after the user deselected Horizon support. Convex treats
-    // `undefined` in a patch object as "leave alone", so we use
-    // explicit `null` to actually drop the column — the schema widens
-    // both fields to allow null.
+    // Turning Horizon off clears its credentials so no stale secret lingers;
+    // null, because a patch ignores undefined.
     if (args.horizonEnabled !== undefined) {
       updates.horizonEnabled = args.horizonEnabled;
       if (args.horizonEnabled === false) {
@@ -434,11 +426,9 @@ export const updateProject = mutation({
       updates.amazonSandboxEnabled = args.amazonSandboxEnabled;
     }
 
-    // Invariant: enabling Horizon without both credentials leaves the
-    // project in a state where verify calls would throw
-    // META_HORIZON_APP_{ID,SECRET}_NOT_CONFIGURED. Fail closed instead
-    // — check against what the project WILL look like after the patch
-    // (pending args + existing row), not just what's in args.
+    // Enabling Horizon needs both credentials, checked against the patched
+    // result (args plus the existing row); otherwise verify throws
+    // META_HORIZON_APP_{ID,SECRET}_NOT_CONFIGURED.
     if (args.horizonEnabled === true) {
       const effectiveAppId =
         updates.horizonAppId !== undefined

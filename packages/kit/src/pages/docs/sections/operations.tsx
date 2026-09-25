@@ -95,8 +95,9 @@ export default function OperationsPage() {
         <a className="text-primary underline" href="mailto:hyo@hyo.dev">
           hyo@hyo.dev
         </a>{" "}
-        before launch. We ask organizations at that scale to help fund shared
-        capacity, monitoring, security, and load testing through{" "}
+        before launch. If an app&apos;s load strains the shared servers, it may
+        be removed from the shared pool. To keep using the hosted service at
+        that volume, sponsorship may be required through{" "}
         <a
           className="text-primary underline"
           href="https://github.com/sponsors/hyodotdev"
@@ -114,9 +115,9 @@ export default function OperationsPage() {
         >
           OpenCollective
         </a>
-        . Sponsorship strengthens the shared service; it does not automatically
-        reserve capacity or create an SLA. For predictable scaling, self-host
-        the MIT-licensed server.
+        ; otherwise, self-host the MIT-licensed server, which also gives
+        predictable scaling. Sponsorship does not reserve capacity or create an
+        SLA.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Correlation IDs</h2>

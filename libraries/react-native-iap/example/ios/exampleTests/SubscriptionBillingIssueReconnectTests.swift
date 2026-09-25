@@ -2,15 +2,13 @@ import XCTest
 import OpenIAP
 @testable import NitroIap
 
-/// Reconnect regression coverage for the iOS subscriptionBillingIssue listener.
+/// Reconnect regression coverage for the iOS subscriptionBillingIssue listener:
+/// native subscriptions exist only for an initialized connection, and a
+/// completed `endConnection()` leaves no stale subscription or callback.
 ///
-/// Covers listener attachment and cleanup across a disconnect/reconnect cycle.
-/// Native subscriptions must only exist for an initialized connection, and a
-/// completed `endConnection()` must leave no stale subscription or callback.
-///
-/// Reflection note: the sub + listeners are `private` in HybridRnIap so `@testable`
-/// alone cannot read them. `Mirror` ignores Swift access control at runtime, so we
-/// use it to assert the post-conditions without widening the production API surface.
+/// The subscription and listeners are `private` in HybridRnIap, out of reach for
+/// `@testable`; `Mirror` ignores access control at runtime, so the tests read
+/// them without widening the production API.
 @available(iOS 15.0, macOS 14.0, tvOS 15.0, watchOS 8.0, *)
 final class SubscriptionBillingIssueReconnectTests: XCTestCase {
 

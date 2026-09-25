@@ -229,7 +229,7 @@ id through a Gradle placeholder:
 
 - `packages/google/Example`, via `:Example:processHorizonDebugManifest`
 - `libraries/flutter_inapp_purchase/example`, via
-  `:app:processDebugManifest -PhorizonEnabled=true`
+  `:app:processDebugManifest -PopeniapStore=horizon`
 
 Both merge the manifest without building an APK. The other examples ship the
 literal in their own manifest or config, so the declaration check covers them.

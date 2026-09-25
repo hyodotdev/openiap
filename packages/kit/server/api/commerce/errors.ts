@@ -27,10 +27,10 @@ export function protocolErrorStatus(code: string): number {
 
 /**
  * Maps a Convex-reported error code onto the portable code space, or returns
- * null when the code is not one of the transport-level classes (auth, input,
- * rate limit). A null lets the caller fall back to the operation's own default
- * — VERIFICATION_FAILED on the verify path — so a structured store/provider
- * verification error surfaces as 502, not a generic 500.
+ * null when the code is not one of the classes it names (auth, input, rate
+ * limit, internal). A null lets the caller fall back to the operation's own
+ * default — VERIFICATION_FAILED wherever the store is asked — so a structured
+ * store error surfaces as 502, not a generic 500.
  */
 export function protocolCodeForConvexError(code: string): string | null {
   switch (code) {
@@ -43,8 +43,8 @@ export function protocolCodeForConvexError(code: string): string | null {
       return "INVALID_REQUEST";
     case "RATE_LIMITED":
       return "RATE_LIMITED";
-    case "CONFLICT":
-      return "CONFLICT";
+    case "INTERNAL_ERROR":
+      return "INTERNAL_ERROR";
     default:
       return null;
   }

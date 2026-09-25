@@ -161,7 +161,7 @@ final class RedemptionManager {
 
     func start() async throws {
         iapStore.onPurchaseSuccess = { purchase in
-            print("Redeemed product: \(purchase.productId)")
+            print("Redeemed product: \\(purchase.productId)")
         }
         try await iapStore.initConnection()
         guard iapStore.isConnected else {
@@ -177,7 +177,7 @@ final class RedemptionManager {
         do {
             try await iapStore.endConnection()
         } catch {
-            print("Store teardown failed: \(error.localizedDescription)")
+            print("Store teardown failed: \\(error.localizedDescription)")
         }
     }
 }`}</CodeBlock>

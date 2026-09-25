@@ -585,11 +585,9 @@ describe("product client payload mutations", () => {
   });
 });
 
-// The dashboard's delete-all depends entirely on this distinction, and
-// nothing asserted it: `undefined` means "not specified, keep what is
-// stored", an explicit `[]` means "the operator removed them all".
-// Convex treats `undefined` in a patch as a no-op, which is why the
-// clear has to become `null`.
+// The dashboard's delete-all relies on this: `undefined` keeps the stored
+// list, an explicit `[]` clears it. Convex ignores `undefined` in a patch,
+// so the clear has to become `null`.
 describe("upsertProduct localization clearing contract", () => {
   const PROJECT = "projects_a" as Id<"projects">;
 

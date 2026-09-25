@@ -13,10 +13,8 @@ const productionDrainPendingDeletionOrganizations = testableFunction(
 );
 
 /**
- * In-memory stand-in for the slice of `ctx.db` that the
- * `drainAccountDeletionBatch` phases + `drainOrganizationPage` helper
- * touch. Purpose-built to exercise the deletion ordering without pulling
- * in `convex-test`.
+ * In-memory `ctx.db` for the account-deletion drain and
+ * `drainOrganizationPage`, to test deletion order without convex-test.
  */
 
 type Row = Record<string, unknown> & { _id: string; _creationTime: number };
@@ -316,10 +314,8 @@ describe("drainAccountDeletionBatch — phase ordering", () => {
         version: 1,
       });
     }
-    // Representative rows from every domain that the old account-local
-    // cascade missed. The test now invokes the production handler, so these
-    // assertions verify account deletion actually delegates to the shared
-    // project cascade instead of merely keeping a duplicate test port green.
+    // A row from each domain an account-local cascade missed: the production
+    // handler must delegate to the shared project cascade.
     const webhookEventId = await ctx.db.insert("webhookEvents", { projectId });
     const commerceEventId = await ctx.db.insert("commerceEvents", {
       projectId,

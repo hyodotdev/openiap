@@ -108,7 +108,6 @@ describe('iOS Functions Tests', () => {
 
   describe('iOS Module Functions', () => {
     it('should export all iOS-specific functions', () => {
-      // New IOS suffix functions
       expect(ExpoIap.syncIOS).toBeDefined();
       expect(ExpoIap.isEligibleForIntroOfferIOS).toBeDefined();
       expect(ExpoIap.subscriptionStatusIOS).toBeDefined();

@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   XCircle,
 } from "lucide-react";
+import type { HarmonizedPurchaseState } from "@/convex";
 import { formatReceiptDate, getPurchaseStateDisplay } from "./receipt-utils";
 
 const storeIndicatorConfig = {
@@ -38,7 +39,7 @@ type PurchaseRow = {
   _id: string;
   store: string;
   isValid?: boolean | null;
-  state?: string | null;
+  state?: HarmonizedPurchaseState | null;
   requestIp?: string | null;
   verificationDurationMs?: number | null;
   _creationTime: number;
@@ -206,7 +207,7 @@ export function PurchasesTable({
                   void navigate(detailPath);
                 };
                 const { label, variant } = getPurchaseStateDisplay(
-                  purchase.state as any,
+                  purchase.state,
                 );
                 const storeLabel =
                   storeIndicatorConfig[purchase.store as StoreIndicatorKey]

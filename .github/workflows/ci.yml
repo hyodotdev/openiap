@@ -302,7 +302,7 @@ jobs:
       - name: The doctor exits 1 on a project it proves is broken
         run: |
           mkdir -p /tmp/doctor-fixture/android/app
-          printf 'horizonEnabled=false\nfireOsEnabled=false\n' \
+          printf 'openiapStore=play\n' \
             > /tmp/doctor-fixture/android/gradle.properties
           printf 'missingDimensionStrategy "platform", "horizon"\n' \
             > /tmp/doctor-fixture/android/app/build.gradle
@@ -581,6 +581,17 @@ jobs:
       - name: Verify Kotlin 2.1 consumer compatibility
         working-directory: packages/google
         run: bash scripts/verify-kotlin-2.1-consumer.sh
+
+      # A wrong store is invisible until the artifact reaches a device, so the
+      # selection rule is asserted here rather than on hardware.
+      - name: Verify the store resolver
+        working-directory: packages/google
+        run: bash scripts/verify-store-resolver.sh
+
+      # The plugin carries that rule to apps linking the published artifacts.
+      - name: Verify the store plugin
+        working-directory: packages/google
+        run: bash scripts/verify-store-plugin.sh
 
       # Run every store flavor so flavor-specific API-23 regressions cannot
       # bypass lint coverage.

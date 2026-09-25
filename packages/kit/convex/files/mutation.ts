@@ -14,14 +14,11 @@ import {
 import { validateFileUpload } from "./validation";
 
 export const FILE_UPLOAD_RESERVATION_TTL_MS = 15 * 60 * 1000;
-// Convex upload URLs last one hour and an upload POST may run for two minutes.
-// Keep a small buffer beyond both limits so every successfully uploaded blob
-// can still be reclaimed by the terminal save call.
+// Convex upload URLs last one hour and an upload POST can take two minutes;
+// the margin lets the final save call still reclaim any uploaded blob.
 export const FILE_UPLOAD_RESERVATION_CLEANUP_TTL_MS = 75 * 60 * 1000;
-// Four project file kinds can be uploaded from settings. Keep room for one
-// retry of each while still bounding reservation-table growth per user and
-// target. The indexed range read makes concurrent issuance respect the cap via
-// Convex OCC.
+// Four uploadable file kinds, one retry each. The indexed range read makes
+// concurrent requests respect the cap through Convex OCC.
 export const MAX_ACTIVE_FILE_UPLOAD_RESERVATIONS_PER_TARGET = 8;
 export const GOOGLE_SERVICE_ACCOUNT_CLEANUP_BATCH_SIZE = 16;
 export const GOOGLE_SERVICE_ACCOUNT_RECOVERY_PROJECT_BATCH_SIZE = 20;
@@ -115,10 +112,8 @@ async function deleteUnclaimedUpload(
   ctx: MutationCtx,
   storageId: Id<"_storage">,
 ): Promise<void> {
-  // `generateUploadUrl` and `saveFile` are separate mutations. If deletion
-  // starts between them, the uploaded blob has no file row for the cascade to
-  // discover. Missing storage is already-clean; transient failures propagate
-  // so Convex can retry instead of committing a leak.
+  // A deletion that runs between `generateUploadUrl` and `saveFile` cannot
+  // find this blob, which has no file row yet, so reclaim it here.
   await deleteStorageIfUnreferenced(ctx, storageId);
 }
 
@@ -126,9 +121,8 @@ export const saveFile = mutation({
   args: {
     organizationId: v.id("organizations"),
     projectId: v.optional(v.id("projects")),
-    // This opaque, one-time ID is the capability issued alongside the upload
-    // URL. It lets this mutation reclaim only an upload whose target was
-    // authorized before an account/project deletion invalidated the session.
+    // One-time, target-bound capability issued with the upload URL. It still
+    // lets this mutation reclaim the upload after a deletion ends the session.
     uploadReservationId: v.id("fileUploadReservations"),
     storageId: v.id("_storage"),
     fileName: v.string(),
@@ -167,16 +161,14 @@ export const saveFile = mutation({
 
     const userId = await getAuthUserId(ctx);
     if (userId && userId !== reservation.createdBy) {
-      // Do not let a signed-in user consume another user's leaked capability.
-      // In particular, never turn a mismatched reservation into an arbitrary
-      // storage-deletion primitive.
+      // Someone else's leaked reservation must not become a way for a
+      // signed-in user to delete arbitrary storage.
       throw new ConvexError("Invalid upload reservation");
     }
 
     if (reservation.expiresAt <= now) {
-      // Saving is no longer permitted, but the still-valid cleanup-only grace
-      // capability closes the slow-upload race without leaving the newly-known
-      // storageId orphaned. It remains target/creator-bound and one-time.
+      // Too late to save, but still in the cleanup grace: reclaim the slow
+      // upload so its blob is not orphaned.
       await deleteUnclaimedUpload(ctx, args.storageId);
       await ctx.db.delete(reservation._id);
       return {
@@ -185,9 +177,8 @@ export const saveFile = mutation({
       };
     }
 
-    // The reservation is already target-bound, so raw target rows are safe to
-    // inspect even when account deletion has removed the issuing user's auth
-    // session and membership. That is the exact race the capability closes.
+    // Read the target rows directly: the reservation already authorizes this
+    // target, even after account deletion removed the session and membership.
     const organization = await ctx.db.get(args.organizationId);
 
     let projectUnavailable = false;
@@ -202,9 +193,7 @@ export const saveFile = mutation({
     if (!organization || organization.pendingDeletion || projectUnavailable) {
       await deleteUnclaimedUpload(ctx, args.storageId);
       await ctx.db.delete(reservation._id);
-      // Throwing here would roll the storage deletion back with the mutation.
-      // Return a discriminated result so the caller can surface the failure
-      // while Convex commits the orphan-blob cleanup.
+      // Return, not throw: a throw would roll back the blob deletion.
       return {
         success: false as const,
         code: "TARGET_PENDING_DELETION" as const,
@@ -220,9 +209,8 @@ export const saveFile = mutation({
       };
     }
 
-    // A current membership is still required for the successful write path.
-    // A valid one-time capability permits cleanup—not saving—after membership
-    // disappears between the upload POST and this mutation.
+    // Saving needs a current membership. If it was lost after the upload
+    // POST, the capability permits cleanup only.
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
@@ -251,11 +239,7 @@ export const saveFile = mutation({
       };
     }
 
-    // Bind each upload to exactly one application reference. Organization
-    // avatars also reference `_storage` directly, so the shared indexed check
-    // must protect both active claims and cleanup paths. Its range reads give
-    // Convex a serializable dependency, preventing a concurrent reference from
-    // being created between this check and the file insert.
+    // One application reference per blob (see `isStorageReferenced`).
     if (await isStorageReferenced(ctx, args.storageId)) {
       await ctx.db.delete(reservation._id);
       return {
@@ -264,10 +248,9 @@ export const saveFile = mutation({
       };
     }
 
-    // Read the system storage row immediately before inserting the file row.
-    // A concurrent pending-deletion cleanup writes that same storage row, so
-    // Convex OCC retries this mutation; the retry then observes null instead
-    // of committing a dangling files document.
+    // Read the storage row right before the insert. A concurrent deletion
+    // cleanup writes the same row, so OCC retries this mutation, which then
+    // sees null instead of inserting a dangling file row.
     const uploadedFile = await ctx.db.system.get("_storage", args.storageId);
     if (!uploadedFile) {
       await ctx.db.delete(reservation._id);
@@ -629,9 +612,7 @@ export const rejectAppleReviewScreenshotValidation = internalMutation({
     const boundStorageId =
       reservation.pendingAppleReviewScreenshotStorageId ??
       reservation.validatedAppleReviewScreenshot?.storageId;
-    // A concurrent validation may already have bound this capability to a
-    // different blob. Reclaim this failed caller's unclaimed object without
-    // consuming the other in-flight operation's reservation.
+    // Keep the reservation if a concurrent validation bound it to another blob.
     if (!boundStorageId || boundStorageId === args.storageId) {
       await ctx.db.delete(reservation._id);
     }

@@ -10,8 +10,8 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                              | Query win-back offer eligibility before purchase                                                    |
 | Consumable transaction history                                 | iOS 18.0                              | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
 | StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)     |
-| UI context for purchases                                       | iOS 18.2                              | Required for proper payment sheet display                                                           |
-| External purchase notice                                       | iOS 17.4                              | `ExternalPurchase.presentNoticeSheet()`                                                             |
+| UI context for purchases                                       | iOS 17.0                              | `purchase(confirmIn:)` takes a `UIScene`; iOS 18.2 adds `UIViewController`, macOS 15.2 `NSWindow`   |
+| External purchase notice token                                 | iOS 17.4                              | `ExternalPurchase.canPresent`; `presentNoticeSheet()` returns a token                               |
 | `appTransactionID`                                             | iOS 18.4                              | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
 | `originalPlatform`                                             | iOS 18.4                              | Original purchase platform (back-deployed to iOS 15)                                                |
 | `Transaction.offerPeriod`                                      | iOS 18.4                              | Offer period information on Transaction                                                             |
@@ -360,9 +360,11 @@ if renewalInfo.renewalOfferType == .winBack {
 }
 ```
 
-## UI Context for Purchases (iOS 18.2+)
+## UI Context for Purchases
 
-Beginning in iOS 18.2, purchase methods require a UI context to properly display payment sheets:
+`purchase(confirmIn:)` takes a `UIScene` from iOS 17.0; iOS 18.2 adds a
+`UIViewController` overload and macOS 15.2 an `NSWindow` one. Apple recommends a UI-context purchase API over
+`purchase(options:)` everywhere except watchOS:
 
 ```swift
 // iOS/iPadOS/tvOS/visionOS: UIViewController
@@ -541,10 +543,11 @@ By default, `Transaction.all` omits finished consumables. Opt in by adding this 
 With the key set, finished consumable transactions are included in
 `Transaction.all`, `Transaction.latest(for:)`, and `Product.latestTransaction`.
 
-## External Purchase Support (iOS 17.4+)
+## External Purchase Support
 
-`ExternalPurchase.presentNoticeSheet()` / `ExternalPurchaseLink.open(url:)`
-ship on iOS 17.4+. The follow-on custom-link APIs
+`ExternalPurchase.presentNoticeSheet()` ships on iOS 15.4. `canPresent` and the
+sheet's `continuedWithExternalPurchaseToken(token:)` result arrive in iOS 17.4.
+`ExternalPurchaseLink.open(url:)` is iOS 17.5+. The custom-link APIs
 (`ExternalPurchaseCustomLink.isEligible`, `showNotice(type:)`,
 `token(for:)`) are iOS 18.1+.
 

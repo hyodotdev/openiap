@@ -79,9 +79,7 @@ enum RnIapHelper {
         return encoded
     }
 
-    // The currently published native OpenIAP package reports an encoding
-    // failure as an empty dictionary. Reject that sentinel so a partial batch
-    // can never be surfaced as a successful purchase query.
+    // Rejects the same empty-dictionary sentinel as encodeRequired.
     static func purchasesRequired(_ purchases: [OpenIAP.Purchase]) throws -> [[String: Any]] {
         try purchases.map { purchase in
             let encoded = OpenIapSerialization.purchase(purchase)

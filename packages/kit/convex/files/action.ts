@@ -97,9 +97,8 @@ export const validateAppleReviewScreenshotUpload = action({
     ) {
       throw new ConvexError("Invalid upload reservation");
     }
-    // A signed-in user must never consume somebody else's leaked capability.
-    // A missing session is different: the target-bound one-time reservation
-    // still authorizes cleanup of the just-uploaded unclaimed blob.
+    // Reject a signed-in user holding someone else's reservation. With no
+    // session, the one-time reservation still authorizes cleaning up the blob.
     if (userId && reservation.createdBy !== userId) {
       throw new ConvexError("Invalid upload reservation");
     }
@@ -289,22 +288,9 @@ export const validateGoogleServiceAccountUpload = action({
   },
 });
 
-// Public action to download an uploaded credential file (Apple .p8 or
-// Google service-account JSON). The dashboard's Settings page calls
-// this so an org admin can re-fetch the original file they uploaded —
-// useful when rotating keys, copying to a new project, or
-// double-checking the file kit holds matches the one in App Store
-// Connect / Play Console.
-//
-// Auth: same admin-or-owner check `files.mutation.remove` enforces.
-// Members can't download because the .p8 / service-account JSON are
-// effectively credentials.
-//
-// Returns the file content as a base64 string so the frontend can
-// reconstruct a Blob and trigger a browser download. We don't return
-// a storage URL because Convex storage URLs are publicly fetchable —
-// the auth check belongs in this action, not on a URL the browser
-// hands to a third-party.
+// Admin/owner download of an uploaded credential (.p8 or service-account
+// JSON), gated like `files.mutation.remove`. Returns base64, not a storage
+// URL, because Convex storage URLs are publicly fetchable.
 export const downloadFile = action({
   args: { fileId: v.id("files") },
   returns: v.object({
@@ -321,11 +307,7 @@ export const downloadFile = action({
       throw new ConvexError("Not authenticated");
     }
 
-    // The Convex `files` table stores the MIME type in `fileType` (see
-    // `files/internal.ts`). The prior typing pulled `mimeType` and so
-    // every download fell back to `application/octet-stream` — the
-    // dashboard would then build the Blob with the wrong content type
-    // and the browser would mis-handle the .p8 / .json download.
+    // The files table stores the MIME type as `fileType`, not `mimeType`.
     const file: {
       _id: Id<"files">;
       fileName: string;

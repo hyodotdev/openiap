@@ -33,6 +33,9 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 	# Untracked developer settings. The example includes it so a debug export can
 	# reach a local IAPKit server; a release export must never carry the key.
 	const LOCAL_SETTINGS_PATH = "res://iapkit.cfg"
+	const AndroidStore = preload("res://addons/godot-iap/android_store.gd")
+	const ANDROID_STORE_OPTION = "openiap/android_store"
+	const HORIZON_APP_ID_OPTION = "openiap/horizon_app_id"
 	const IOS_FRAMEWORKS: Array[String] = [
 		"res://addons/godot-iap/bin/ios/GodotIap.framework",
 		"res://addons/godot-iap/bin/ios/SwiftGodotRuntime.framework",
@@ -93,8 +96,92 @@ class GodotIapExportPlugin extends EditorExportPlugin:
 		else:
 			return PackedStringArray(["res://addons/godot-iap/android/GodotIap.release.aar"])
 
+	func _get_export_options(platform: EditorExportPlatform) -> Array[Dictionary]:
+		if not (platform is EditorExportPlatformAndroid):
+			return []
+		return [{
+			"option": {
+				"name": ANDROID_STORE_OPTION,
+				"type": TYPE_STRING,
+				"hint": PROPERTY_HINT_ENUM,
+				"hint_string": ",".join(AndroidStore.STORES),
+			},
+			"default_value": "auto",
+		}, {
+			"option": {
+				"name": HORIZON_APP_ID_OPTION,
+				"type": TYPE_STRING,
+			},
+			"default_value": "",
+		}]
+
+	func _get_android_manifest_application_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
+		var value = get_option(HORIZON_APP_ID_OPTION)
+		var app_id := "" if value == null else str(value).strip_edges()
+		if app_id.is_empty():
+			return ""
+		var meta_data := AndroidStore.horizon_app_id_meta_data(app_id)
+		if meta_data.is_empty():
+			push_error("[GodotIap] %s must be the numeric app id from Meta Horizon Developer Hub" % HORIZON_APP_ID_OPTION)
+		return meta_data
+
+	# One answer per export: the dependencies and the feature tag must agree, and
+	# the device is probed once.
+	var _android_stores := {}
+
+	func _export_end() -> void:
+		_android_stores.clear()
+
+	## The store this Android export links, or "" when the option names none.
+	func _android_store(debug: bool) -> String:
+		var option = get_option(ANDROID_STORE_OPTION)
+		var key := "%s|%s" % [debug, option]
+		if _android_stores.has(key):
+			return _android_stores[key]
+		var store := AndroidStore.normalize(option)
+		if store == "auto":
+			var resolution := AndroidStore.resolve_auto(debug, _adb_path() if debug else "")
+			store = resolution.store
+			print("[GodotIap] openiap: store=%s (source=%s; %s)" % [resolution.store, resolution.source, resolution.reason])
+		elif not store.is_empty():
+			print("[GodotIap] openiap: store=%s (source=explicit; %s)" % [store, ANDROID_STORE_OPTION])
+		_android_stores[key] = store
+		return store
+
+	func _get_export_features(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
+		if not (platform is EditorExportPlatformAndroid):
+			return PackedStringArray()
+		var feature := AndroidStore.store_feature(_android_store(debug))
+		return PackedStringArray([feature]) if not feature.is_empty() else PackedStringArray()
+
 	func _get_android_dependencies(platform: EditorExportPlatform, debug: bool) -> PackedStringArray:
-		return _read_android_remote_dependencies()
+		var store := _android_store(debug)
+		if store.is_empty():
+			# Godot's export API cannot abort here, so fall back to Play (the
+			# untagged default) instead of shipping the AAR without OpenIAP classes.
+			push_error("[GodotIap] %s must be one of: %s; falling back to Play" % [ANDROID_STORE_OPTION, ", ".join(AndroidStore.STORES)])
+			store = "play"
+		var dependencies := PackedStringArray()
+		for dependency in _read_android_remote_dependencies():
+			dependencies.append(AndroidStore.artifact(dependency, store))
+		return dependencies
+
+	# The editor's SDK setting first, then the Gradle resolver's fallbacks.
+	func _adb_path() -> String:
+		var roots := PackedStringArray()
+		var settings := EditorInterface.get_editor_settings()
+		if settings.has_setting("export/android/android_sdk_path"):
+			roots.append(str(settings.get_setting("export/android/android_sdk_path")))
+		roots.append(OS.get_environment("ANDROID_HOME"))
+		roots.append(OS.get_environment("ANDROID_SDK_ROOT"))
+		for root in roots:
+			if root.strip_edges().is_empty():
+				continue
+			for name in ["adb", "adb.exe"]:
+				var candidate := root.path_join("platform-tools").path_join(name)
+				if FileAccess.file_exists(candidate):
+					return candidate
+		return "adb"
 
 	func _read_android_remote_dependencies() -> PackedStringArray:
 		if not FileAccess.file_exists(ANDROID_GDAP_PATH):

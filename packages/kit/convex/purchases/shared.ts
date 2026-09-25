@@ -9,7 +9,7 @@ import {
   HarmonizedPurchaseState,
 } from "./purchaseState";
 
-// Copy of TransactionReason enum and Type enum from @apple/app-store-server-library (to avoid importing the library because it required node)
+// Copied from @apple/app-store-server-library, which requires Node.
 export enum AppStoreTransactionReason {
   PURCHASE = "PURCHASE",
   RENEWAL = "RENEWAL",
@@ -303,12 +303,9 @@ function hasConsumptionFlag(consumptionState?: string): boolean {
   }
 }
 
-// Anchored fallback for Google states the switch above doesn't list
-// (e.g. future `CONSUMPTION_STATE_*_CONSUMED` variants). The earlier
-// loose `.includes("CONSUMED")` check would have wrongly matched
-// arbitrary substrings like `RECONSUMED`; key on word-boundary tokens
-// (`_CONSUMED` suffix or full equality) and treat any `_NOT_CONSUMED`
-// suffix or `YET_TO_BE_CONSUMED` substring as a negative.
+// Fallback for Google states the switch does not list (future `*_CONSUMED`
+// variants): match a `_CONSUMED` suffix or the whole token, never a substring
+// like RECONSUMED; `_NOT_CONSUMED` and `YET_TO_BE_CONSUMED` are negative.
 function matchesConsumedToken(normalized: string): boolean {
   const isConsumedToken =
     normalized.endsWith("_CONSUMED") || normalized === "CONSUMED";
@@ -527,20 +524,12 @@ export function isValidState(state: HarmonizedPurchaseState): boolean {
 }
 
 /**
- * Extract Google Play's stable `orderId` from the raw receipt response
- * stored at receipt time. Returns null for non-Google stores, for
- * responses that haven't reached a state where Google assigns an
- * `orderId` yet (e.g. pending-acknowledgement products), and for
- * payloads we can't parse.
- *
- * This is the secondary dedup key for Google receipts — see
- * `savePurchaseInternal`. Apple flows already use
- * `originalTransactionId` as a stable `remoteId`, and Horizon uses
- * `(userId, sku)`, so neither needs an orderId-level fallback.
- *
- * Kept here (not in android.ts) so the migration that backfills the
- * `orderId` column and the write path share one implementation, and
- * so no node-only import is introduced.
+ * Google Play's stable `orderId` from a stored receipt response, the secondary
+ * dedup key in `savePurchaseInternal`. Null for other stores (Apple's
+ * `originalTransactionId` and Horizon's `(userId, sku)` are already stable),
+ * before Google assigns one (pending acknowledgement), or when the payload does
+ * not parse. Lives here so the backfill migration and the write path share it
+ * without a Node-only import.
  */
 export function extractOrderIdFromRemoteResponse(
   store: "apple" | "google" | "horizon" | "amazon",
@@ -569,12 +558,9 @@ export function extractOrderIdFromRemoteResponse(
       return (parsed as { orderId: string }).orderId;
     }
 
-    // Subscriptions V2: the top-level identifier is `latestOrderId`,
-    // with `lineItems[].latestSuccessfulOrderId` as the per-line
-    // fallback. `mapSubscriptionResponseToReceiptData` in android.ts
-    // selects an expected product first, then the longest-dated line
-    // item, so mirror that selection here to keep the write-time
-    // columns and the verified receipt in sync.
+    // Subscriptions V2: `latestOrderId`, else the line item's
+    // `latestSuccessfulOrderId`, selected the way android.ts's
+    // mapSubscriptionResponseToReceiptData selects it.
     if ("lineItems" in parsed && Array.isArray(parsed.lineItems)) {
       const lineItem = selectGoogleSubscriptionLineItem(
         parsed.lineItems,
@@ -606,14 +592,8 @@ export function extractOrderIdFromRemoteResponse(
 }
 
 /**
- * Extract a best-effort product id from the raw store response stored
- * at receipt time. Returns null when the payload isn't present or
- * doesn't expose a usable productId field.
- *
- * Kept here so the write path (`savePurchaseInternal`) and the read
- * path can share one implementation — and so the productId column can
- * be backfilled from `remoteResponse` by the migration without
- * importing from a query module.
+ * Best-effort product id from a stored receipt response, or null. Shared by
+ * `savePurchaseInternal`, the read path and the backfill migration.
  */
 export function extractProductIdFromRemoteResponse(
   store: "apple" | "google" | "horizon" | "amazon",
@@ -672,11 +652,8 @@ export function extractProductIdFromRemoteResponse(
 
       if (
         store === "horizon" &&
-        // Meta's `verify_entitlement` response shape is
-        // `{ success, grant_time }` — no productId. The horizon
-        // action packs the SKU into the persisted remoteResponse
-        // under a `sku` field so stats + admin views can still
-        // display what was purchased.
+        // Meta's verify_entitlement returns only `{ success, grant_time }`, so
+        // the horizon action stores the SKU under `sku`.
         "sku" in parsed &&
         typeof (parsed as { sku?: unknown }).sku === "string"
       ) {

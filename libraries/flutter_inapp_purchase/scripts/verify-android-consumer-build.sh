@@ -33,9 +33,10 @@ rm -rf \
   "$local_google_copy/.gradle" \
   "$local_google_copy/build"
 
-rm -f "$package_copy/openiap-versions.json"
+rm -f "$package_copy/openiap-versions.json" "$package_copy/android/openiap-store.gradle"
 cp "$repo_root/openiap-versions.json" "$package_copy/openiap-versions.json"
 cp "$repo_root/openiap-versions.json" "$tmp_root/openiap-versions.json"
+cp "$repo_root/packages/google/gradle/openiap-store.gradle" "$package_copy/android/openiap-store.gradle"
 
 flutter create --platforms=android -t app --project-name openiap_consumer_smoke "$consumer_app"
 
@@ -131,7 +132,7 @@ fi
 
   flutter build apk --debug
 
-  printf '\nopeniapPlatform=none\n' >> android/gradle.properties
+  printf '\nopeniapStore=none\n' >> android/gradle.properties
   flutter clean
   flutter pub get
   flutter build apk --debug

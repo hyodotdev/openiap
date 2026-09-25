@@ -4,6 +4,7 @@ import {
   WarningAggregator,
   withAndroidManifest,
   withAppBuildGradle,
+  withDangerousMod,
   withGradleProperties,
   withInfoPlist,
   withPodfile,
@@ -12,7 +13,7 @@ import {
 import type {ExpoConfig} from '@expo/config-types';
 import * as fs from 'fs';
 import * as path from 'path';
-import withLocalOpenIAP from './withLocalOpenIAP';
+import withLocalOpenIAP, {withoutLocalOpenIAPAndroid} from './withLocalOpenIAP';
 import withVega, {type VegaProjectOptions} from './withVega';
 import {
   withIosAlternativeBilling,
@@ -39,26 +40,6 @@ const logOnce = (() => {
     }
   };
 })();
-
-const addLineToGradle = (
-  content: string,
-  anchor: RegExp | string,
-  lineToAdd: string,
-  offset: number = 1,
-): string => {
-  const lines = content.split('\n');
-  const index = lines.findIndex((line) => line.match(anchor));
-  if (index === -1) {
-    WarningAggregator.addWarningAndroid(
-      'expo-iap',
-      `dependencies { ... } block not found; skipping injection: ${lineToAdd.trim()}`,
-    );
-    return content;
-  } else {
-    lines.splice(index + offset, 0, lineToAdd);
-  }
-  return lines.join('\n');
-};
 
 const HORIZON_APP_ID_META_DATA_NAME =
   'com.meta.horizon.platform.HORIZON_APP_ID';
@@ -144,9 +125,9 @@ export const normalizeGeneratedGroovyAppBuildGradle = (
   return modified;
 };
 
+// The app id is inert outside Quest, so every build carries it.
 export function syncHorizonAppIdMetaData(
   manifest: AndroidManifestLike,
-  isHorizonEnabled?: boolean,
   horizonAppId?: string,
 ): HorizonAppIdSyncResult {
   const application = manifest.manifest.application?.[0];
@@ -155,7 +136,7 @@ export function syncHorizonAppIdMetaData(
   }
   const existingMetaData = application?.['meta-data'];
 
-  if (!isHorizonEnabled) {
+  if (!horizonAppId) {
     if (!Array.isArray(existingMetaData)) return 'unchanged';
 
     const nextMetaData = existingMetaData.filter(
@@ -168,8 +149,6 @@ export function syncHorizonAppIdMetaData(
     application['meta-data'] = nextMetaData;
     return 'removed';
   }
-
-  if (!horizonAppId) return 'unchanged';
 
   if (
     !manifest.manifest.application ||
@@ -199,138 +178,143 @@ export function syncHorizonAppIdMetaData(
   return hadExistingAppId ? 'updated' : 'added';
 }
 
+const OPENIAP_DEPENDENCY_LINE =
+  /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
+const PLATFORM_STRATEGY_LINE =
+  /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
+
+// The expo-iap module owns the OpenIAP dependency and the store choice, so the
+// app build file carries neither; a copy an older plugin wrote is removed.
 export const modifyAppBuildGradle = (
   gradle: string,
-  language: 'groovy' | 'kotlin',
-  isHorizonEnabled?: boolean,
-  isFireOsEnabled?: boolean,
+  language: 'groovy' | 'kt',
 ): string => {
-  function loadOpenIapAndroidVersion(): string {
-    try {
-      const parsed = require('../../openiap-versions.json');
-      const googleVersion =
-        typeof parsed?.google === 'string' ? parsed.google.trim() : '';
-      if (!googleVersion) {
-        throw new Error(
-          'expo-iap: "google" version missing or invalid in openiap-versions.json',
-        );
-      }
-      return googleVersion;
-    } catch (error) {
-      throw new Error(
-        `expo-iap: Unable to load openiap-versions.json (${
-          error instanceof Error ? error.message : error
-        })`,
-      );
-    }
-  }
-
   let modified =
     language === 'groovy'
       ? normalizeGeneratedGroovyAppBuildGradle(gradle)
       : gradle;
 
-  let openIapAndroidVersion: string;
-  try {
-    openIapAndroidVersion = loadOpenIapAndroidVersion();
-  } catch (error) {
-    WarningAggregator.addWarningAndroid(
-      'expo-iap',
-      `expo-iap: Failed to resolve OpenIAP version (${
-        error instanceof Error ? error.message : error
-      })`,
-    );
-    return gradle;
-  }
-
-  let flavor: 'amazon' | 'horizon' | 'play' = 'play';
-  let artifactId:
-    'openiap-google-amazon' | 'openiap-google-horizon' | 'openiap-google' =
-    'openiap-google';
-  if (isFireOsEnabled) {
-    flavor = 'amazon';
-    artifactId = 'openiap-google-amazon';
-  } else if (isHorizonEnabled) {
-    flavor = 'horizon';
-    artifactId = 'openiap-google-horizon';
-  }
-
-  // Ensure OpenIAP dependency exists at desired version in app-level build.gradle(.kts)
-  const impl = (ga: string, v: string) =>
-    language === 'kotlin'
-      ? `    implementation("${ga}:${v}")`
-      : `    implementation "${ga}:${v}"`;
-  const openiapDep = impl(
-    `io.github.hyochan.openiap:${artifactId}`,
-    openIapAndroidVersion,
-  );
-
-  // Remove any existing openiap-google flavor lines (any version, groovy/kotlin, implementation/api)
-  const openiapAnyLine =
-    /^\s*(?:implementation|api)\s*\(?\s*["']io\.github\.hyochan\.openiap:openiap-google(?:-(?:horizon|amazon))?:[^"']+["']\s*\)?\s*$/gm;
-  const withoutExistingOpeniap = modified.replace(openiapAnyLine, '');
-  const hadExisting = withoutExistingOpeniap !== modified;
-  if (hadExisting) {
-    modified = withoutExistingOpeniap.replace(/\n{3,}/g, '\n\n');
-  }
-
-  // Ensure the desired dependency line is present
-  if (
-    !new RegExp(
-      String.raw`io\.github\.hyochan\.openiap:${artifactId}:${openIapAndroidVersion}`,
-    ).test(modified)
-  ) {
-    // Insert just after the opening `dependencies {` line
-    modified = addLineToGradle(modified, /dependencies\s*{/, openiapDep, 1);
+  const withoutDependency = modified.replace(OPENIAP_DEPENDENCY_LINE, '');
+  if (withoutDependency !== modified) {
+    modified = withoutDependency.replace(/\n{3,}/g, '\n\n');
     logOnce(
-      hadExisting
-        ? `🛠️ expo-iap: Replaced OpenIAP dependency with ${openIapAndroidVersion}`
-        : `🛠️ expo-iap: Added OpenIAP dependency (${openIapAndroidVersion}) to build.gradle`,
+      '🧹 expo-iap: Removed the OpenIAP dependency from app build.gradle; the module provides it',
     );
   }
 
-  // Remove stale OpenIAP platform strategies even when returning to the default
-  // Play artifact. Otherwise a previous Fire OS/Horizon prebuild can keep
-  // selecting the wrong local flavor.
-  const strategyPattern =
-    /^\s*missingDimensionStrategy\s*\(?\s*["']platform["']\s*,\s*["'](play|horizon|amazon)["']\s*\)?\s*$/gm;
-  const withoutExistingStrategy = modified.replace(strategyPattern, '');
-  if (withoutExistingStrategy !== modified) {
-    modified = withoutExistingStrategy;
-    logOnce('🧹 Removed existing missingDimensionStrategy for platform');
-  }
-
-  const defaultConfigRegex = /defaultConfig\s*{/;
-  if (defaultConfigRegex.test(modified)) {
-    const strategyLine =
-      language === 'kotlin'
-        ? `        missingDimensionStrategy("platform", "${flavor}")`
-        : `        missingDimensionStrategy "platform", "${flavor}"`;
-
-    // Add the new strategy
-    if (!/missingDimensionStrategy.*platform/.test(modified)) {
-      modified = addLineToGradle(modified, defaultConfigRegex, strategyLine, 1);
-      logOnce(
-        `🛠️ expo-iap: Added missingDimensionStrategy for ${flavor} flavor`,
-      );
-    }
+  const removedStrategies: string[] = [];
+  const withoutStrategy = modified.replace(PLATFORM_STRATEGY_LINE, (line) => {
+    removedStrategies.push(line.trim());
+    return '';
+  });
+  if (withoutStrategy !== modified) {
+    modified = withoutStrategy;
+    logOnce(
+      `🧹 expo-iap: Removed fixed platform strategies (${removedStrategies.join('; ')}) — the store is resolved at build time; pin it with openiapStore instead`,
+    );
   }
 
   return modified;
 };
 
+export type AndroidStorePin = 'horizon' | 'amazon' | null;
+
+const STORE_PROPERTY_KEYS = [
+  'openiapStore',
+  'openiapPlatform',
+  'horizonEnabled',
+  'fireOsEnabled',
+];
+
+type GradleProperty = {type: string; key?: string; value?: string};
+
+// A pin outranks everything else, so a key an earlier prebuild left is removed.
+export function storeGradleProperties<T extends GradleProperty>(
+  properties: T[],
+  pinnedStore: AndroidStorePin,
+): T[] {
+  const kept = properties.filter(
+    (item) =>
+      item.type !== 'property' || !STORE_PROPERTY_KEYS.includes(item.key ?? ''),
+  );
+  const removed = properties
+    .filter(
+      (item) =>
+        item.type === 'property' &&
+        STORE_PROPERTY_KEYS.includes(item.key ?? ''),
+    )
+    .map((item) => `${item.key}=${item.value ?? ''}`);
+  const netRemoved = pinnedStore
+    ? removed.filter((entry) => entry !== `openiapStore=${pinnedStore}`)
+    : removed;
+  if (netRemoved.length > 0) {
+    const suffix = pinnedStore
+      ? `re-pinned openiapStore=${pinnedStore}`
+      : 'store now resolves automatically';
+    logOnce(
+      `🧹 expo-iap: Removed stale store properties (${netRemoved.join(', ')}) — ${suffix}`,
+    );
+  }
+  return pinnedStore
+    ? [
+        ...kept,
+        {type: 'property', key: 'openiapStore', value: pinnedStore} as T,
+      ]
+    : kept;
+}
+export const AMAZON_APPSTORE_KEY_FILE = 'AppstoreAuthenticationKey.pem';
+
+// Copies the key into the app, or removes the old copy when the source is gone.
+export function syncAmazonAppstoreKey(source: string, target: string): boolean {
+  if (!fs.existsSync(source)) {
+    fs.rmSync(target, {force: true});
+    return false;
+  }
+  fs.mkdirSync(path.dirname(target), {recursive: true});
+  fs.copyFileSync(source, target);
+  return true;
+}
+
+// Amazon reads the key from assets to verify receipts; it is inert elsewhere.
+const withAmazonAppstoreKey: ConfigPlugin<string> = (config, keyPath) =>
+  withDangerousMod(config, [
+    'android',
+    async (config) => {
+      const {projectRoot, platformProjectRoot} = config.modRequest;
+      const source = path.resolve(projectRoot, keyPath);
+      const target = path.join(
+        platformProjectRoot,
+        'app',
+        'src',
+        'main',
+        'assets',
+        AMAZON_APPSTORE_KEY_FILE,
+      );
+      if (!syncAmazonAppstoreKey(source, target)) {
+        WarningAggregator.addWarningAndroid(
+          'expo-iap',
+          `Amazon Appstore key not found at ${source}; Fire OS builds cannot verify receipts without it.`,
+        );
+        return config;
+      }
+      logOnce(
+        `✅ expo-iap: Copied ${AMAZON_APPSTORE_KEY_FILE} into android/app/src/main/assets`,
+      );
+      return config;
+    },
+  ]);
+
 const withIapAndroid: ConfigPlugin<
   {
-    addDeps?: boolean;
     horizonAppId?: string;
-    isHorizonEnabled?: boolean;
-    isFireOsEnabled?: boolean;
+    pinnedStore?: AndroidStorePin;
+    amazonAppstoreKey?: string;
   } | void
 > = (config, props) => {
-  const addDeps = props?.addDeps ?? true;
+  const pinnedStore = props?.pinnedStore ?? null;
 
   config = withProjectBuildGradle(config, (config) => {
-    const language = (config.modResults as any).language || 'groovy';
+    const {language} = config.modResults;
     if (language === 'groovy') {
       config.modResults.contents = normalizeGeneratedGroovyProjectBuildGradle(
         config.modResults.contents,
@@ -340,53 +324,23 @@ const withIapAndroid: ConfigPlugin<
   });
 
   config = withAppBuildGradle(config, (config) => {
-    const language = (config.modResults as any).language || 'groovy';
-    const normalized =
-      language === 'groovy'
-        ? normalizeGeneratedGroovyAppBuildGradle(config.modResults.contents)
-        : config.modResults.contents;
-
-    config.modResults.contents = addDeps
-      ? modifyAppBuildGradle(
-          normalized,
-          language,
-          props?.isHorizonEnabled,
-          props?.isFireOsEnabled,
-        )
-      : normalized;
-
-    return config;
-  });
-
-  // Set store flags in gradle.properties so expo-iap module can pick them up.
-  config = withGradleProperties(config, (config) => {
-    const horizonValue = props?.isHorizonEnabled ?? false;
-    const fireOsValue = props?.isFireOsEnabled ?? false;
-
-    config.modResults = config.modResults.filter(
-      (item) =>
-        item.type !== 'property' ||
-        !['horizonEnabled', 'fireOsEnabled'].includes(item.key),
+    const {language} = config.modResults;
+    config.modResults.contents = modifyAppBuildGradle(
+      config.modResults.contents,
+      language,
     );
-
-    config.modResults.push({
-      type: 'property',
-      key: 'horizonEnabled',
-      value: String(horizonValue),
-    });
-    config.modResults.push({
-      type: 'property',
-      key: 'fireOsEnabled',
-      value: String(fireOsValue),
-    });
-
-    logOnce(`✅ Set horizonEnabled=${horizonValue} in gradle.properties`);
-    logOnce(`✅ Set fireOsEnabled=${fireOsValue} in gradle.properties`);
-
     return config;
   });
 
-  // Note: missingDimensionStrategy for local dev is handled in withLocalOpenIAP
+  config = withGradleProperties(config, (config) => {
+    config.modResults = storeGradleProperties(config.modResults, pinnedStore);
+    logOnce(
+      pinnedStore
+        ? `✅ expo-iap: Set openiapStore=${pinnedStore} in gradle.properties`
+        : 'ℹ️ expo-iap: No store pin; Gradle picks the store from the task flavor or the connected debug device',
+    );
+    return config;
+  });
 
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
@@ -400,7 +354,7 @@ const withIapAndroid: ConfigPlugin<
     manifest.manifest['uses-permission'] = permissions;
     const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
 
-    if (props?.isFireOsEnabled) {
+    if (pinnedStore === 'amazon') {
       const nextPermissions = permissions.filter(
         (p) => p.$['android:name'] !== 'com.android.vending.BILLING',
       );
@@ -426,7 +380,6 @@ const withIapAndroid: ConfigPlugin<
 
     const horizonAppIdSync = syncHorizonAppIdMetaData(
       manifest,
-      props?.isHorizonEnabled,
       props?.horizonAppId,
     );
     if (horizonAppIdSync === 'removed') {
@@ -445,6 +398,10 @@ const withIapAndroid: ConfigPlugin<
 
     return config;
   });
+
+  if (props?.amazonAppstoreKey) {
+    config = withAmazonAppstoreKey(config, props.amazonAppstoreKey);
+  }
 
   return config;
 };
@@ -765,11 +722,10 @@ export function resolveAmazonPlatformFlags(
     ? moduleAmazon?.vegaOS === true
     : isEnvFlagEnabled('EXPO_IAP_VEGA');
   const modules = options?.modules;
-  const isHorizonEnabled = isFireOsEnabled
-    ? false
-    : hasOwnKey(modules, 'horizon')
-      ? modules?.horizon === true
-      : isEnvFlagEnabled('EXPO_IAP_HORIZON');
+  // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
+  const isHorizonEnabled = hasOwnKey(modules, 'horizon')
+    ? modules?.horizon === true
+    : isEnvFlagEnabled('EXPO_IAP_HORIZON');
   const isOnsideEnabled = hasOwnKey(modules, 'onside')
     ? modules?.onside === true
     : isEnvFlagEnabled('EXPO_IAP_ONSIDE');
@@ -788,6 +744,44 @@ export function resolveHorizonAppId(
   return options?.android?.horizon?.appId ?? undefined;
 }
 
+export function resolveAmazonAppstoreKey(
+  options?: ExpoIapPluginOptions | void,
+): string | undefined {
+  return options?.android?.amazon?.appstoreKey ?? undefined;
+}
+
+// A module flag pins the store for every build; without one, Gradle picks it.
+// The flags are deprecated but still pin, so a Quest or Fire release keeps its store.
+export function resolvePinnedAndroidStore(
+  flags: Pick<AmazonPlatformFlags, 'isFireOsEnabled' | 'isHorizonEnabled'>,
+): AndroidStorePin {
+  // An APK links one billing SDK.
+  if (flags.isFireOsEnabled && flags.isHorizonEnabled) {
+    throw new Error(
+      'expo-iap: modules.amazon.fireOS and modules.horizon are both enabled; ' +
+        'an Android build links one store, so enable one of them.',
+    );
+  }
+  return flags.isFireOsEnabled
+    ? 'amazon'
+    : flags.isHorizonEnabled
+    ? 'horizon'
+    : null;
+}
+
+export function deprecatedStorePinWarning(store: 'horizon' | 'amazon'): string {
+  const key =
+    store === 'horizon'
+      ? 'modules.horizon (or EXPO_IAP_HORIZON)'
+      : 'modules.amazon.fireOS (or EXPO_IAP_FIREOS)';
+  const device = store === 'horizon' ? 'Quest' : 'Fire device';
+  return (
+    `${key} is deprecated: a local debug build already follows the connected ${device}. ` +
+    `Pin every EAS or release build that must target it with ORG_GRADLE_PROJECT_openiapStore=${store} ` +
+    `in the build profile env; until then ${key} still pins every build of this prebuild.`
+  );
+}
+
 export function resolveAlternativeBillingIOS(
   options?: ExpoIapPluginOptions | void,
 ): IOSAlternativeBillingConfig | undefined {
@@ -803,16 +797,16 @@ export function resolveVegaProjectOptions(
 }
 
 /**
- * Determines which modules to include based on configuration.
- * - ExpoIap: Always included (standard StoreKit 2 support)
- * - Onside: Only when modules.onside is true (iOS alternative billing)
+ * Determines which native modules to include: ExpoIap (StoreKit 2) and/or
+ * Onside (iOS alternative billing).
  */
 export function resolveModuleSelection(
   config: ExpoConfig,
   options?: ExpoIapPluginCommonOptions | void,
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    ExpoIapPluginCommonOptions | undefined;
+    | ExpoIapPluginCommonOptions
+    | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 
@@ -847,6 +841,11 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 ) => {
   const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
+  // Outside the try, whose catch would turn this error into a warning.
+  const pinnedStore = resolvePinnedAndroidStore({
+    isFireOsEnabled,
+    isHorizonEnabled,
+  });
 
   try {
     // Add iapkitApiKey to extra if provided
@@ -859,10 +858,21 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     }
 
     const horizonAppId = resolveHorizonAppId(options);
+    const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
+    if (pinnedStore) {
+      WarningAggregator.addWarningAndroid(
+        'expo-iap',
+        deprecatedStorePinWarning(pinnedStore),
+      );
+    }
     const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
 
     logOnce(
-      `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, isHorizonEnabled=${isHorizonEnabled}, isFireOsEnabled=${isFireOsEnabled}, isVegaEnabled=${isVegaEnabled}, isOnsideEnabled=${isOnsideEnabled}`,
+      `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, pinnedStore=${
+        pinnedStore ?? 'auto'
+      }, amazonAppstoreKey=${
+        amazonAppstoreKey ?? 'none'
+      }, isVegaEnabled=${isVegaEnabled}, isOnsideEnabled=${isOnsideEnabled}`,
     );
 
     const {includeExpoIap, includeOnside} = resolveModuleSelection(
@@ -889,56 +899,53 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 
     // Respect explicit flag; fall back to presence of localPath only when flag is unset
     const isLocalDev = options?.enableLocalDev ?? !!options?.localPath;
-    // Apply Android modifications (skip adding deps when linking local module)
     let result = withIapAndroid(config, {
-      addDeps: !isLocalDev,
       horizonAppId,
-      isHorizonEnabled,
-      isFireOsEnabled,
+      pinnedStore,
+      amazonAppstoreKey,
     });
 
-    // iOS: choose one path to avoid overlap
-    if (isLocalDev) {
-      if (!options?.localPath) {
-        WarningAggregator.addWarningIOS(
-          'expo-iap',
-          'enableLocalDev is true but no localPath provided. Skipping local OpenIAP integration.',
-        );
-      } else {
-        const raw = options.localPath;
-        const resolved =
-          typeof raw === 'string'
-            ? path.resolve(raw)
-            : {
-                ios: raw.ios ? path.resolve(raw.ios) : undefined,
-                android: raw.android ? path.resolve(raw.android) : undefined,
-              };
+    // One path per prebuild: the local checkout, or the published packages.
+    const localPath = isLocalDev ? options?.localPath : undefined;
+    if (isLocalDev && !localPath) {
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        'enableLocalDev is true but no localPath provided. Using the published OpenIAP instead.',
+      );
+    }
+    if (localPath) {
+      const resolved =
+        typeof localPath === 'string'
+          ? path.resolve(localPath)
+          : {
+              ios: localPath.ios ? path.resolve(localPath.ios) : undefined,
+              android: localPath.android
+                ? path.resolve(localPath.android)
+                : undefined,
+            };
 
-        const preview =
-          typeof resolved === 'string'
-            ? resolved
-            : `ios=${resolved.ios ?? 'auto'}, android=${
-                resolved.android ?? 'auto'
-              }`;
-        logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
-        if (includeOnside) {
-          result = withOnsideInfoPlist(result);
-        }
-        result = withLocalOpenIAP(result, {
-          localPath: resolved,
-          iosAlternativeBilling,
-          horizonAppId,
-          isHorizonEnabled,
-          isFireOsEnabled,
-          enableOnside: includeOnside,
-        });
+      const preview =
+        typeof resolved === 'string'
+          ? resolved
+          : `ios=${resolved.ios ?? 'auto'}, android=${
+              resolved.android ?? 'auto'
+            }`;
+      logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
+      if (includeOnside) {
+        result = withOnsideInfoPlist(result);
       }
+      result = withLocalOpenIAP(result, {
+        localPath: resolved,
+        iosAlternativeBilling,
+        enableOnside: includeOnside,
+      });
     } else {
       // Ensure iOS Podfile is set up to resolve public CocoaPods specs
       result = withIapIOS(result, {
         enableOnside: includeOnside,
         iosAlternativeBilling,
       });
+      result = withoutLocalOpenIAPAndroid(result);
       if (includeExpoIap) {
         logOnce('📦 [expo-iap] Using OpenIAP from CocoaPods');
       }

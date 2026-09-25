@@ -1,10 +1,8 @@
 // Proves IAPKit conforms to the OpenIAP Commerce Protocol.
 //
-// The specification is the authority: its JSON Schema validates real payloads
-// this implementation builds, and its published vocabulary is compared against
-// the one this implementation ships. Neither list is restated here, so the two
-// cannot drift silently — if kit gains an event type the spec does not declare,
-// this file fails.
+// The specification is the authority: its JSON Schema validates payloads kit
+// builds, and its published vocabulary is compared with kit's. Neither list is
+// restated here, so an event type kit gains but the spec lacks fails this file.
 
 import Ajv from "ajv/dist/2020.js";
 import {
@@ -60,9 +58,8 @@ import {
   TIMESTAMP_HEADER,
 } from "./signing";
 
-// kit is an ESM package, so `require` only exists through the test runner's
-// interop shim. Resolve the specification's published subpaths the way any
-// ESM consumer would instead of depending on that.
+// kit is ESM, so `require` exists only through the test runner's interop shim.
+// Resolve the spec's published subpaths the way any ESM consumer would.
 const resolveSpec = createRequire(import.meta.url).resolve;
 
 function validator() {
@@ -121,10 +118,9 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
   });
 
   it("reads the extension bounds the specification sets", () => {
-    // kit imports these rather than pinning them: they constrain the sanitizer
-    // and no receiver decodes them, so following the protocol is correct. Both
-    // sides read one schema, so what this proves is that kit maps the same
-    // three fields — the values themselves are pinned in the spec package.
+    // Imported, not pinned: they constrain the sanitizer and no receiver
+    // decodes them. Both sides read one schema, so this proves only that kit
+    // maps the same three fields; the spec package pins the values.
     expect({
       maxEntries: MAX_EXTENSION_ENTRIES,
       maxKeyLength: MAX_EXTENSION_KEY_LENGTH,
@@ -133,9 +129,8 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
   });
 
   it("maps the transport constants the specification publishes", () => {
-    // Both sides read one file, so this is a mapping check: it catches kit
-    // reading the wrong key, not a protocol change. The alarm for a rename is
-    // the golden in contract.test.ts.
+    // Both sides read one file, so this only catches kit reading the wrong key.
+    // The golden in contract.test.ts is what catches a protocol rename.
     expect(SIGNATURE_HEADER).toBe(WEBHOOK.signatureHeader);
     expect(TIMESTAMP_HEADER).toBe(WEBHOOK.timestampHeader);
     expect(EVENT_ID_HEADER).toBe(WEBHOOK.eventIdHeader);
@@ -162,8 +157,8 @@ describe("IAPKit conforms to the OpenIAP Commerce Protocol", () => {
     }[];
   };
 
-  // SPEC.md 9.4.2 fixes the signed material. Every other signing test here is
-  // self-relative, so it could be changed wholesale without one of them failing.
+  // SPEC.md 9.4.2 fixes the signed material. The other signing tests are
+  // self-relative, so only these vectors fail if signing changes wholesale.
   it.each(signatureVectors.cases.map((c) => [c.name, c] as const))(
     "reproduces the %s signature vector",
     async (_name, vector) => {
@@ -202,9 +197,9 @@ describe("built payloads validate against the specification schema", () => {
   });
 
   it("kit's emitter produces lifecycle events for Apple and Google only", async () => {
-    // storeForPlatform maps the inbound platform enum, which has two members.
-    // Horizon and Amazon reach kit through verification, not notifications —
-    // which is exactly what their capability descriptor declares.
+    // storeForPlatform maps a two-member platform enum. Horizon and Amazon
+    // reach kit through verification, not notifications, as their capability
+    // descriptor declares.
     for (const [platform, expectedStore] of [
       ["IOS", "apple"],
       ["Android", "google"],
@@ -248,8 +243,8 @@ describe("built payloads validate against the specification schema", () => {
 
 describe("the subscription state vocabulary matches", () => {
   it("kit's own state vocabulary is one the specification declares", () => {
-    // Reading the spec's enum and validating it against the spec's enum proves
-    // nothing. The real claim is that kit's union is a subset of it.
+    // Checking the spec's enum against itself proves nothing; the claim is that
+    // kit's union is a subset of it.
     const source = readFileSync(
       fileURLToPath(new URL("../webhooks/shared.ts", import.meta.url)),
       "utf8",
@@ -332,10 +327,9 @@ describe("kit's capabilities agree with the published descriptor", () => {
     );
   });
 
-  // kit knows one axis: what it implements. The descriptor carries both, and
-  // fabricating the provider axis from kit's boolean is the conflation the
-  // two-axis model exists to prevent — it would claim Amazon publishes no
-  // notification channel merely because kit consumes none.
+  // kit knows only the implementation axis. Deriving the provider axis from
+  // kit's boolean is the conflation the two-axis model prevents: it would claim
+  // Amazon publishes no notification channel because kit consumes none.
   it.each(Object.keys(PROVIDER_CAPABILITIES))(
     "%s implementation axis matches kit",
     (store) => {
@@ -414,10 +408,9 @@ describe("kit reproduces the specification's lifecycle vectors", () => {
     },
   );
 
-  // Drives kit's REAL emitter. Re-deriving the expected list from
-  // entitledBefore/entitledAfter would just restate the generator's formula and
-  // could never fail — the point is to make `emitCommerceEvent` itself produce
-  // the events the vectors demand.
+  // Drives the real `emitCommerceEvent`. Deriving the expected list from
+  // entitledBefore/entitledAfter would restate the generator's formula and
+  // could never fail.
   const KIT_TRANSITIONS = Object.keys(
     TRANSITION_TO_EVENT,
   ) as LifecycleTransition[];
@@ -530,8 +523,7 @@ describe("kit can produce everything the store mapping promises", () => {
 
   it("records an unconsumed channel as a kit gap, not a store limitation", () => {
     // Amazon is the live case: the store publishes a channel, kit integrates
-    // no receiver. Collapsing that into "the store has none" is the exact
-    // conflation the two-axis capability model exists to prevent.
+    // no receiver.
     expect(mapping.stores.amazon.notificationChannel).not.toBeNull();
     expect(PROVIDER_CAPABILITIES.amazon.supportsServerNotifications).toBe(
       false,
@@ -550,9 +542,8 @@ describe("kit can produce everything the store mapping promises", () => {
 });
 
 /**
- * Stands in for a MutationCtx. `destinations` lets a test exercise the
- * fan-out and the per-destination event-type filter, which a context that
- * always answers "no destinations" would hide entirely.
+ * Stands in for a MutationCtx. `destinations` lets a test exercise fan-out and
+ * the per-destination event-type filter.
  */
 function emitterContext(
   destinations: { _id: string; eventTypes?: string[] }[] = [],
@@ -644,10 +635,9 @@ describe("kit's cancellation vocabulary is one the specification names", () => {
 });
 
 describe("what the emitter writes is a valid specification event", () => {
-  // The two halves of this file never met: one validated a hand-written row,
-  // the other checked event-type strings. Neither took what emitCommerceEvent
-  // actually inserted and ran it through the wire builder and the published
-  // schema — which is the only assertion that makes this a conformance test.
+  // End to end: what emitCommerceEvent inserts must pass buildEventPayload and
+  // the published schema. The suites above validate a hand-written row or
+  // check only event-type strings.
   const validate = validateEvent();
 
   it("a full lifecycle emission survives buildEventPayload and the schema", async () => {
@@ -794,9 +784,8 @@ describe("what the emitter writes is a valid specification event", () => {
 });
 
 describe("every mapping row produces the event it promises", () => {
-  // The mapping table is prose until something runs it. Without this, a row can
-  // claim any event that merely exists in the vocabulary and stay green — which
-  // is exactly how several rows drifted from the pipeline.
+  // Runs each mapping row through the pipeline. Otherwise a row can claim any
+  // event in the vocabulary and stay green.
   type Row = {
     storeNotification: string;
     storeNotificationCode?: string;
@@ -836,11 +825,10 @@ describe("every mapping row produces the event it promises", () => {
   function emittedFor(store: string, row: Row): string | null {
     const internalType = internalTypeFor(store, row);
     if (!internalType) return null;
-    // This drives the state machine directly, so it models "no prior store
-    // event" as "no record" — one of the two cases the qualifier covers. The
-    // other, a record with no store history, is reached only through the full
-    // handler and is exercised in subscriptions/internal.test.ts ("starts
-    // rather than recovers when a record exists with no store history").
+    // Drives the state machine directly, so it models "no prior store event"
+    // as no record. The other case, a record with no store history, needs the
+    // full handler; subscriptions/internal.test.ts covers it ("starts rather
+    // than recovers when a record exists with no store history").
     const current = row.whenNoPriorStoreEvent
       ? null
       : {
@@ -869,10 +857,9 @@ describe("every mapping row produces the event it promises", () => {
     ),
   );
 
-  // The implementation's own code table, read from its source. Google sends a
-  // number; the readable name lives only in a trailing comment, so without this
-  // the table's names are decoration the test never executes — swap two and it
-  // stays green while an implementer maps the wrong notification.
+  // The implementation's code table, read from its source. Google sends a
+  // number and the name lives only in a trailing comment; without this, two
+  // swapped names stay green while an implementer maps the wrong notification.
   const googleCodeNames = (() => {
     const source = readFileSync(
       fileURLToPath(new URL("../webhooks/shared.ts", import.meta.url)),
@@ -880,9 +867,8 @@ describe("every mapping row produces the event it promises", () => {
     );
     const start = source.indexOf("const GOOGLE_SUB_TYPE_MAP");
     expect(start, "GOOGLE_SUB_TYPE_MAP not found").toBeGreaterThan(-1);
-    // End at the object's own closing brace rather than at whatever declaration
-    // happens to follow it: a negative indexOf would silently swallow the rest
-    // of the file and inflate the table.
+    // End at the object's own closing brace, not the next declaration: a -1
+    // indexOf would silently swallow the rest of the file into the table.
     const end = source.indexOf("\n};", start);
     expect(end, "GOOGLE_SUB_TYPE_MAP is unterminated").toBeGreaterThan(start);
     const block = source.slice(start, end);
@@ -938,9 +924,8 @@ describe("every mapping row produces the event it promises", () => {
     }
   });
 
-  // Both sides of the previous check came from the same object, so it could
-  // never fail. Coverage has to be measured against the implementation's own
-  // inventory, which is what the Google code check already does.
+  // Measure coverage against the receiver's own switch cases, as the Google
+  // code check does; comparing the mapping with itself could never fail.
   const appleHandledTypes = (() => {
     const source = readFileSync(
       fileURLToPath(new URL("../webhooks/shared.ts", import.meta.url)),

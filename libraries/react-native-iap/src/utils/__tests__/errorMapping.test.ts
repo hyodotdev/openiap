@@ -145,7 +145,7 @@ describe('errorMapping', () => {
           ErrorCodeUtils.isValidForPlatform(ErrorCode.UserCancelled, 'android'),
         ).toBe(true);
         expect(
-          ErrorCodeUtils.isValidForPlatform(ErrorCode.Unknown as any, 'ios'),
+          ErrorCodeUtils.isValidForPlatform(ErrorCode.Unknown, 'ios'),
         ).toBe(true);
       });
     });

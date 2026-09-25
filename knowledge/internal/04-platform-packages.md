@@ -209,7 +209,7 @@ For every new/changed handler in the generated types, verify **all five** of the
 | **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                        | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                                                                                                                                                  |
 | **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                              | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                                                                                                                                                   |
 | **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                  | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                                                                                                                                                               |
-| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                     |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                    |
 | **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the native purchase-listener contract; static facade is `OpenIap.Maui.OpenIapClient`; app-facing IAPKit helpers are exposed via `OpenIapClient.KitApi(...)` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | OpenIap.Maui 2.x targets supported .NET 10 only. The example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net10.0-android / net10.0-ios / net10.0-maccatalyst; package CI builds net10 shared, Android, iOS, and macCatalyst TFMs; xUnit covers generated serialization, error mapping, and the `KitApiClient` HTTP contract (manual device testing remains for purchase flow) |
 
 ### Platform suffix rule (who needs what)
@@ -298,6 +298,103 @@ The Google package supports **three build flavors**:
 - `src/play/` - Play Store specific implementations
 - `src/horizon/` - Meta Horizon specific implementations
 - `src/amazon/` - Amazon Appstore specific implementations
+
+### Store Selection
+
+One rule picks the Android store everywhere, and the developer never edits a
+file to switch. Credentials (the Horizon app id, the Amazon
+`AppstoreAuthenticationKey.pem`) stay in the project permanently and are inert
+on the other stores; they never select anything.
+
+```text
+1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
+             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read, deprecation warning)
+2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
+3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the single
+             attached one -> Quest = horizon, Fire = amazon
+4. play
+```
+
+A store pin against a different task flavor, two store flavors named by the
+requested tasks, and a pin against a legacy flag each fail the build. Opting out
+with `openiapStore=none` never conflicts with a task flavor, because it links
+nothing; it does still conflict with a legacy flag that names a store. An anchor
+task that
+builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
+openiap-google — is not that case and is allowed. The device is a fallback, not a
+competing signal — a pin or a flavor outranks it without complaint. A release
+build never consults a device, and several attached devices select nothing
+unless `ANDROID_SERIAL` names one. The device step works under the
+configuration cache: Gradle re-runs the probe before reusing a cached
+configuration, so a different device reconfigures the build. The choice is
+logged once:
+`openiap: store=<id> (source=explicit|variant|device|default; <reason>)`.
+
+**Vocabulary.** Store ids are `play`, `horizon`, `amazon`, plus `auto` (the
+default) and `none` (the Flutter opt-out that links no Android IAP SDK). Aliases
+are normalized at the input boundary only: `google`, `gplay`, `googleplay`,
+`google-play`, `gms` → `play`; `meta`, `quest` → `horizon`; `fire`, `fireos`,
+`fire-os` → `amazon`. `IapStore` in the schema is the _runtime_ store on a
+purchase and keeps its own names.
+
+**SSOT.** `packages/google/gradle/openiap-store.gradle` implements the rule;
+edit only that file. A Gradle script cannot ship in the AAR, so
+`libraries/react-native-iap/android`, `libraries/expo-iap/android`, and
+`libraries/flutter_inapp_purchase/android` symlink it, as the libraries do with
+`openiap-versions.json`, and `bun audit:parity` checks the link targets. Each
+wrapper publishes it as a real file: the npm release steps copy it over the
+link, and `dart pub publish` follows the link. The OpenIAP Gradle plugin
+(`packages/google/gradle-plugin`, id `io.github.hyochan.openiap`) packs the same
+file into its jar at build time. Every other build system reads the same names:
+
+| Consumer                            | Input                                                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
+| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` still pin, with a warning    |
+| kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
+| OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
+| maui-iap                            | package targets at app build: `OpenIapStore` (alias `OpenIapAndroidStore`), Debug-build device, play |
+| godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
+| `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
+
+`bun audit:parity` compares all five alias tables — the resolver, the doctor,
+the Godot helper, the runtime facade in `OpenIapStore.kt` and the MAUI package
+targets — because a store that resolves differently in two layers of one build
+is exactly what this mechanism exists to prevent.
+
+**Regression suite.** Every rule above is asserted by
+`packages/google/scripts/verify-store-resolver.sh`, which CI runs in the Test
+Android job. It covers abbreviated task names such as `aHR`, which once let
+a Horizon build link the Play SDK and now fail at the task-graph check:
+
+```bash
+cd packages/google && bash scripts/verify-store-resolver.sh
+```
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
+
+It applies the real resolver to the fixture in
+`packages/google/compatibility/store-resolver`, so no Android SDK, device, or
+network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
+reports whatever device the case declares. Each case asserts a resolved
+`store/source` pair, or that the build fails with a named message. The suite
+covers pins and their aliases, the legacy flags and their conflicts, the
+`none` opt-out, task flavors, every conflict that must fail, device selection
+for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
+devices, release builds, `clean`, and the configuration cache.
+
+**Add a case whenever the rule changes.** A wrong store is invisible on the
+machine that built it — it only appears when the artifact reaches a device that
+cannot serve that billing SDK, which is after release. The suite is the only
+thing standing between a rule change and that outcome, so a new signal, alias,
+or conflict lands with its case in the same commit.
+
+**iOS.** There is one store axis (App Store vs. an alternative marketplace such
+as Onside). Marketplace SDKs are linked at build time by an explicit opt-in and
+the runtime routes by install source; nothing is guessed at build time.
 
 ### Critical Rules
 

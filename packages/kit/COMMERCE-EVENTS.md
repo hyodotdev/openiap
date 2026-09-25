@@ -74,12 +74,12 @@ is unchanged until then; a released row needs a fresh `bindPurchase` before it
 is read again.
 
 The read fails closed rather than answering partially, so a store it cannot
-reach fails the whole operation. Disabling a store the project already sells
-through has the same effect: the rows it granted stay bound and valid, and
-omitting them would be a partial answer. Re-enabling the store restores the
-read. Nothing else releases those rows — the recheck throws before it can mark
-them invalid, so the bind cap never reclaims them, and only `eraseUser` clears
-the binding.
+reach fails the whole operation with `VERIFICATION_FAILED`. Disabling a store
+the project already sells through has the same effect: the rows it granted stay
+bound and valid, and omitting them would be a partial answer. Re-enabling the
+store restores the read. Nothing else releases those rows — the recheck throws
+before it can mark them invalid, so the bind cap never reclaims them, and only
+`eraseUser` clears the binding.
 
 `entitlements` rechecks these linked purchases with RVS or Meta Graph before
 returning `productIds`. Rechecks draw on their own per-project bucket (300
@@ -303,56 +303,12 @@ because a client can replay an older valid transaction.
 
 ## Integrating without touching IAPKit core
 
-Register a destination, verify the signature, switch on `eventType`. Nothing
-provider-specific is required, and no integration code belongs in this package:
-
-```ts
-// The header carries one `v1=` value normally and two during rotation, so
-// compare against each rather than against the header as a whole.
-const expected = Buffer.from(
-  `v1=${hmacSha256(secret, `${timestamp}.${rawBody}`)}`,
-);
-const presented =
-  typeof headerSignature === "string"
-    ? headerSignature.split(",").map((part) => part.trim())
-    : [];
-const signatureMatches = presented.some((signature) => {
-  const candidate = Buffer.from(signature);
-  return (
-    candidate.length === expected.length && timingSafeEqual(candidate, expected)
-  );
-});
-if (!signatureMatches) return 401;
-const timestampSeconds = Number(timestamp);
-if (
-  !Number.isFinite(timestampSeconds) ||
-  Math.abs(nowSeconds - timestampSeconds) > 300
-) {
-  return 401;
-}
-if (headerEventId !== event.eventId) return 401;
-
-if (!event.userId || !event.productId) {
-  await queueForAccountCorrelationOnce(event.eventId, event);
-  return 202;
-}
-
-// Enforce event-id uniqueness in the same database transaction as the effect.
-await applyEventOnce(event.eventId, () => {
-  if (event.previousProductId) {
-    revokeAccess(event.userId, event.previousProductId);
-    grantAccess(event.userId, event.productId);
-  }
-  switch (event.eventType) {
-    case "entitlement.granted":
-      grantAccess(event.userId, event.productId);
-      break;
-    case "entitlement.revoked":
-      revokeAccess(event.userId, event.productId);
-      break;
-  }
-});
-```
+Register a destination, then build the receiver the way the reference consumer
+in [Commerce Protocol SPEC §9.5](https://github.com/hyodotdev/openiap/blob/main/specs/commerce-protocol/SPEC.md#95-example-consumer-flow)
+does: verify the signature over the exact body bytes, record each `eventId`
+once, and take access from `subscription.active` without granting past its
+`expiresAt`. Nothing provider-specific is required, and no integration code
+belongs in this package.
 
 Call bind-user promptly after verification. If a store webhook arrives first,
 IAPKit emits a correlated `entitlement.granted` after binding so the receiver

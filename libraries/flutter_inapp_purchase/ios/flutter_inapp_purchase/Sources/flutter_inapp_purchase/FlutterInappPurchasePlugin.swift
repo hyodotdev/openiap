@@ -329,15 +329,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
 
         // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
         case "isEligibleForExternalPurchaseCustomLinkIOS":
-            if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
                 isEligibleForExternalPurchaseCustomLinkIOS(result: result)
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.0+, or tvOS 18.1+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, or tvOS 18.1+", details: nil))
             }
 
         case "getExternalPurchaseCustomLinkTokenIOS":
-            if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
                 if let args = call.arguments as? [String: Any],
                    let tokenType = args["tokenType"] as? String {
                     getExternalPurchaseCustomLinkTokenIOS(tokenType: tokenType, result: result)
@@ -349,11 +349,11 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 }
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.0+, or tvOS 18.1+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, or tvOS 18.1+", details: nil))
             }
 
         case "showExternalPurchaseCustomLinkNoticeIOS":
-            if #available(iOS 18.1, macOS 15.0, tvOS 18.1, *) {
+            if #available(iOS 18.1, macOS 15.1, tvOS 18.1, *) {
                 if let args = call.arguments as? [String: Any],
                    let noticeType = args["noticeType"] as? String {
                     showExternalPurchaseCustomLinkNoticeIOS(noticeType: noticeType, result: result)
@@ -365,7 +365,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 }
             } else {
                 let code: ErrorCode = .featureNotSupported
-                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.0+, or tvOS 18.1+", details: nil))
+                result(FlutterError(code: code.rawValue, message: "ExternalPurchaseCustomLink requires iOS 18.1+, macOS 15.1+, or tvOS 18.1+", details: nil))
             }
 
         case "verifyPurchaseWithProvider":
@@ -1241,7 +1241,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
 
     // MARK: - ExternalPurchaseCustomLink (iOS 18.1+)
 
-    @available(iOS 18.1, macOS 15.0, tvOS 18.1, *)
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, *)
     private func isEligibleForExternalPurchaseCustomLinkIOS(result: @escaping FlutterResult) {
         FlutterIapLog.debug("isEligibleForExternalPurchaseCustomLinkIOS called")
         Task { @MainActor in
@@ -1261,7 +1261,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    @available(iOS 18.1, macOS 15.0, tvOS 18.1, *)
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, *)
     private func getExternalPurchaseCustomLinkTokenIOS(tokenType: String, result: @escaping FlutterResult) {
         FlutterIapLog.payload("getExternalPurchaseCustomLinkTokenIOS", payload: ["tokenType": tokenType])
         Task { @MainActor in
@@ -1287,7 +1287,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    @available(iOS 18.1, macOS 15.0, tvOS 18.1, *)
+    @available(iOS 18.1, macOS 15.1, tvOS 18.1, *)
     private func showExternalPurchaseCustomLinkNoticeIOS(noticeType: String, result: @escaping FlutterResult) {
         FlutterIapLog.payload("showExternalPurchaseCustomLinkNoticeIOS", payload: ["noticeType": noticeType])
         Task { @MainActor in
