@@ -800,17 +800,18 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     wrappers,
     /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
   );
-  // Pushes keep the xcode-27 split; PR legs stay hosted except godot, which
-  // may ride the owner-gated Mac.
+  // Pushes stay on the public macos-26 image; PR legs use the runner gate,
+  // which may hand the owner's own PRs to the self-hosted Mac.
   assert.match(
     wrappers,
-    /github\.event_name != 'pull_request'\s+&& \(matrix\.component == 'godot' && 'macos-26' \|\| 'xcode-27'\)/u,
+    /github\.event_name != 'pull_request' && 'macos-26'/u,
   );
   assert.match(wrappers, /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u);
-  // A PR routed to the self-hosted Mac must match that machine's own Xcode.
+  // Only a PR routed to the self-hosted Mac matches that machine's own
+  // Xcode; every hosted leg pins 26.6.
   assert.match(
     wrappers,
-    /EXPECTED_XCODE_MAJOR: >-\s+\$\{\{ \(github\.event_name == 'pull_request'\s+&& needs\.pick-mac-runner\.outputs\.runner != 'self-mac'\)\s+&& '26' \|\| '27' \}\}/u,
+    /EXPECTED_XCODE_MAJOR: >-\s+\$\{\{ \(github\.event_name == 'pull_request'\s+&& needs\.pick-mac-runner\.outputs\.runner == 'self-mac'\)\s+&& '27' \|\| '26' \}\}/u,
   );
   assert.match(
     wrappers,
