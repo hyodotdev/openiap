@@ -6234,12 +6234,11 @@ function checkFrameworkDependencyHygiene() {
       // unread.
       'node scripts/list-review-threads.mjs "$PR_NUMBER"',
       "Do\nnot inline it again",
-      '.body == "@coderabbitai review"',
-      '(.body | contains("CodeRabbit review command invocation"))',
-      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i")',
-      // Pins the exclusions, not just the matches: without them the cleanup
-      // deletes CodeRabbit findings that carry the invocation marker.
-      'test("analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)"; "i") | not',
+      // The deletion filter lives in a tested script; the script's own
+      // fixtures pin the matches and the exclusions, so the doc only pins
+      // the invocation. Prose cannot be tested; the script can.
+      "node scripts/delete-review-automation-comments.mjs $PR_NUMBER",
+      "Do not inline\nit again",
       "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     ],
     "review-pr must preserve the requested five-minute polling cadence",

@@ -71,7 +71,7 @@ gh issue edit $ISSUE_NUMBER --repo hyodotdev/openiap --add-label "<label1>,<labe
 | Mentions `packages/apple` or iOS      | `📱 iOS`           |
 | Mentions `packages/google` or Android | `🤖 android`       |
 | Mentions `packages/docs`              | `📖 documentation` |
-| Mentions `specs/client`               | `⬡ gql`            |
+| Mentions `specs/client`               | `⬡ protocol`       |
 | Mentions `react-native-iap`           | `react-native-iap` |
 | Mentions `expo-iap`                   | `expo-iap`         |
 | Mentions `flutter_inapp_purchase`     | `flutter-iap`      |

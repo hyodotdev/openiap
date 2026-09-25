@@ -241,6 +241,23 @@ background process.
 
 Guard against infinite loops: if a reviewer keeps flagging the same finding after two fix attempts, stop scheduling wake-ups and hand back to the user with a summary of what remains disputed.
 
+## Review Decision: Approve or Reject
+
+A reviewed PR from someone else must end with a decision, never silence.
+Once the gate in item 4 holds for the current head:
+
+- **Approve** when the diff is correct and CI is green:
+  `gh pr review $PR_NUMBER --approve`. Then, when the user authorized the
+  merge, merge and leave one short appreciation comment naming what was
+  good about the change — outcome first, one or two sentences, no
+  investigation narrative.
+- **Request changes** when findings remain: `gh pr review $PR_NUMBER
+  --request-changes --body "..."`. State each blocking reason plainly
+  with file:line evidence. No merge.
+
+Own PRs cannot be self-approved: get CI green and hand the merge to the
+maintainer instead of approving.
+
 ### Cleanup Review Automation Comments
 
 **Run this cleanup at the START of every polling round, not only at loop end.**
@@ -267,26 +284,19 @@ analysis chain and a finding in it. So the positive phrases say what noise looks
 like, and `analysis chain|script executed|actionable comments posted|walkthrough`
 plus the CodeRabbit HTML markers say what must never be deleted.
 
-Use the issue comments API because PR conversation comments are issue comments:
+Use the issue comments API because PR conversation comments are issue comments.
+`scripts/delete-review-automation-comments.mjs` owns the filter — the same
+script the merge-time cleanup workflow runs, so rounds and merges sweep the
+same set. Prose cannot be tested; the script can:
 
 ```bash
-gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
-  .[]
-  | select(
-      .body == "@coderabbitai review"
-      or (
-        .user.login == "coderabbitai[bot]"
-        and (
-          (.body | contains("CodeRabbit review command invocation"))
-          or (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit|review limit reached"; "i"))
-        )
-        and (.body | test("analysis chain|script executed|actionable comments posted|walkthrough|<!-- (cr-|fingerprinting)"; "i") | not)
-      )
-    )
-  | .id' | while read comment_id; do
-  [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"
-done
+node scripts/delete-review-automation-comments.mjs $PR_NUMBER
 ```
+
+Pass `--dry-run` to list matches without deleting. Its fixtures cover the
+trigger, the bot acknowledgement and skip shapes, and every exclusion —
+`node --test scripts/delete-review-automation-comments.test.mjs`. Do not inline
+it again.
 
 ### Replying to Inline Review Comments
 
