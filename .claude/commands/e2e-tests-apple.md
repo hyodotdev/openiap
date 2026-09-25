@@ -6,7 +6,7 @@ description: Run Apple-side device-backed OpenIAP regression on iOS using packag
 # E2E Tests Apple — iOS
 
 Run this for the Apple half of OpenIAP device regression, alone or in
-parallel with `/e2e-tests-android`. For the full matrix in one run, use
+parallel with `/e2e-tests-google`. For the full matrix in one run, use
 `/e2e-tests` instead. For a delegated hardware run, use
 `$e2e-matrix-runner-apple`.
 

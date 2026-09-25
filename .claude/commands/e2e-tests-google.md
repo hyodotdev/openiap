@@ -1,14 +1,14 @@
 ---
-name: e2e-tests-android
+name: e2e-tests-google
 description: Run Android-side device-backed OpenIAP regression across Google Play, Amazon Appstore, Meta Horizon, and VegaOS using packages/google and framework examples. Use when the user asks for Android e2e tests or the Android half of a parallel e2e run.
 ---
 
-# E2E Tests Android — Play / Amazon / Horizon / VegaOS
+# E2E Tests Google — Play / Amazon / Horizon / VegaOS
 
 Run this for the Android half of OpenIAP device regression, alone or in
 parallel with `/e2e-tests-apple`. For the full matrix in one run, use
 `/e2e-tests` instead. For a delegated hardware run, use
-`$e2e-matrix-runner-android`.
+`$e2e-matrix-runner-google`.
 
 `e2e-tests.md` is the authority on what a row means and how to verify one.
 Read it first and follow the sections named below; this file only narrows the

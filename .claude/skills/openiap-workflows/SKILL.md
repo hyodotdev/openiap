@@ -27,7 +27,7 @@ reading the command file (or invoke the slash command directly when available):
 - Resolve a GitHub issue → `.claude/commands/resolve-issue.md` (`/resolve-issue`)
 - Verify all / monorepo health check → `.claude/commands/verify-all.md` (`/verify-all`)
 - Device-backed E2E regression → `.claude/commands/e2e-tests.md` (`/e2e-tests`)
-- Android device-backed E2E regression → `.claude/commands/e2e-tests-android.md` (`/e2e-tests-android`)
+- Android device-backed E2E regression → `.claude/commands/e2e-tests-google.md` (`/e2e-tests-google`)
 - Apple device-backed E2E regression → `.claude/commands/e2e-tests-apple.md` (`/e2e-tests-apple`)
 - Stable or RC/next releases → `.claude/commands/release.md` (`/release`)
 - Commit, push, or create PR → `.claude/commands/commit.md` (`/commit`)

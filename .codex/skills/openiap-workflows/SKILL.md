@@ -51,7 +51,7 @@ natural-language requests, execute the matching workflow:
 - E2E tests, device regression, connected-device purchase flow checks, or
   "e2e-tests": read `.claude/commands/e2e-tests.md`.
 - Android E2E tests, Play/Amazon/Horizon/VegaOS regression, or
-  "e2e-tests-android": read `.claude/commands/e2e-tests-android.md`.
+  "e2e-tests-google": read `.claude/commands/e2e-tests-google.md`.
 - Apple E2E tests, iOS regression, or "e2e-tests-apple": read
   `.claude/commands/e2e-tests-apple.md`.
 - Stable releases, RC/next releases, registry publication, or package deploys:

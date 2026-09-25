@@ -6,7 +6,7 @@ description: Run the Apple half of the OpenIAP device matrix — six frameworks 
 # E2E Matrix Runner Apple
 
 Run every cell of the matrix below on a physical iPhone and report a row for
-each. Run alone or in parallel with `$e2e-matrix-runner-android`; for the
+each. Run alone or in parallel with `$e2e-matrix-runner-google`; for the
 full matrix in one run, use `$e2e-matrix-runner`.
 
 `.claude/commands/e2e-tests-apple.md` scopes this run and

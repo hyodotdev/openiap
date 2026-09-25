@@ -1,15 +1,15 @@
 ---
-name: e2e-matrix-runner-android
+name: e2e-matrix-runner-google
 description: Run the Android half of the OpenIAP device matrix — six frameworks across Google Play, Amazon Appstore, and Meta Horizon, plus VegaOS — on real hardware and report one row per cell with evidence. Use when asked for Android e2e or the Android half of a parallel device run.
 ---
 
-# E2E Matrix Runner Android
+# E2E Matrix Runner Google
 
 Run every cell of the matrix below on real hardware and report a row for
 each. Run alone or in parallel with `$e2e-matrix-runner-apple`; for the full
 matrix in one run, use `$e2e-matrix-runner`.
 
-`.claude/commands/e2e-tests-android.md` scopes this run and
+`.claude/commands/e2e-tests-google.md` scopes this run and
 `.claude/commands/e2e-tests.md` is the authority on what a row means and how
 to verify one — read both before starting and follow them. The full
 `.codex/skills/e2e-matrix-runner/SKILL.md` is the authority on driving

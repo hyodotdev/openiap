@@ -378,7 +378,7 @@ Cursor-specific files.
 | `$iapkit-e2e-petgu`       | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
 | `$iapkit-e2e-martie`      | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
 | `$e2e-matrix-runner`      | Full device matrix: 6 frameworks x iOS/Play/Amazon/Horizon/Vega | `$e2e-matrix-runner`    |
-| `$e2e-matrix-runner-android` | Android half: 6 frameworks x Play/Amazon/Horizon + Vega  | `$e2e-matrix-runner-android` |
+| `$e2e-matrix-runner-google` | Android half: 6 frameworks x Play/Amazon/Horizon + Vega  | `$e2e-matrix-runner-google` |
 | `$e2e-matrix-runner-apple` | Apple half: 6 frameworks x iOS + Onside build-only      | `$e2e-matrix-runner-apple` |
 | `/review-pr`              | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`             | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
@@ -388,7 +388,7 @@ Cursor-specific files.
 | `/resolve-issue`          | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`             | Run the full monorepo health check                 | `/verify-all`                         |
 | `/e2e-tests`              | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |
-| `/e2e-tests-android`      | Run Android-side device regression (Play/Amazon/Horizon/Vega) | `/e2e-tests-android`       |
+| `/e2e-tests-google`      | Run Android-side device regression (Play/Amazon/Horizon/Vega) | `/e2e-tests-google`       |
 | `/e2e-tests-apple`        | Run Apple-side device regression (iOS)             | `/e2e-tests-apple`                    |
 | `/release`                | Release stable packages or an on-demand RC train   | `/release all stable`                 |
 | `/commit`                 | Branch, commit, push, and optionally create PR     | `/commit --all --pr`                  |
