@@ -108,6 +108,7 @@ android {
         create("play") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"play\"")
+            consumerProguardFiles("consumer-rules-play.pro")
             isDefault = true
         }
         // Horizon flavor - Meta Horizon Billing only

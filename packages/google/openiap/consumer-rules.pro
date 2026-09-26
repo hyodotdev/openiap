@@ -1,4 +1,2 @@
-# Keep OpenIAP public API
--keep public class dev.hyo.openiap.OpenIAP { public *; }
--keep public class dev.hyo.openiap.models.** { *; }
+# Keep the listener interfaces that framework bridges implement.
 -keep public class dev.hyo.openiap.listener.** { *; }
