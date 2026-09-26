@@ -17,7 +17,7 @@
     },
     "packages/apple": {
       "name": "@hyodotdev/openiap-ios",
-      "version": "3.4.0",
+      "version": "3.6.0",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },
@@ -82,7 +82,7 @@
     },
     "packages/google": {
       "name": "@hyodotdev/openiap-android",
-      "version": "3.5.2",
+      "version": "3.6.0",
       "dependencies": {
         "@hyodotdev/openiap-client-protocol": "workspace:*",
       },

@@ -72,6 +72,25 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const BUILD_TIME_STORE_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '3.6.0', tag: '3.6.0' },
+  { name: 'openiap-google', version: '3.6.0', tag: 'google-3.6.0' },
+  {
+    name: 'react-native-iap',
+    version: '16.7.0',
+    tag: 'react-native-iap-16.7.0',
+  },
+  { name: 'expo-iap', version: '5.8.0', tag: 'expo-iap-5.8.0' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.0',
+    tag: 'flutter-iap-10.7.0',
+  },
+  { name: 'godot-iap', version: '3.6.0', tag: 'godot-iap-3.6.0' },
+  { name: 'kmp-iap', version: '3.6.0', tag: 'kmp-iap-3.6.0' },
+  { name: 'maui-iap', version: '2.6.0', tag: 'maui-iap-2.6.0' },
+];
+
 const GODOT_EMBED_REPORT_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'godot-iap', version: '3.5.2', tag: 'godot-iap-3.5.2' },
 ];
@@ -409,6 +428,143 @@ function Releases() {
 
   const allNotes: Note[] = [
     {
+      id: 'build-time-store-resolution-2026-09-26',
+      aliases: BUILD_TIME_STORE_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-26'),
+      element: (
+        <div key="build-time-store-resolution-2026-09-26" style={noteCardStyle}>
+          {BUILD_TIME_STORE_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="build-time-store-resolution-2026-09-26" level="h4">
+            September 26, 2026 - Your test device picks the store now
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Every framework now resolves the Android store at build time with
+            one shared rule: an explicit <code>openiapStore</code> pin, a store
+            flavor in the Gradle task, the Quest or Fire device plugged in on
+            debug builds, otherwise Play. No more per-framework flags, and
+            conflicting signals fail the build instead of shipping the wrong
+            billing SDK. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/489"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #489
+            </a>{' '}
+            and the{' '}
+            <a
+              href="https://hyodotdev.medium.com/your-test-device-picks-the-store-now-not-your-config-flags-560dfd3dc89d"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              announcement post
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.6.0</strong> - ships the shared{' '}
+              <code>openiap-store.gradle</code> resolver and the{' '}
+              <code>io.github.hyochan.openiap</code> Gradle plugin. Horizon
+              purchases from the durable cache survive{' '}
+              <code>SERVICE_UNAVAILABLE</code>, and errors name the actual
+              store.
+            </li>
+            <li>
+              <strong>openiap-apple 3.4.0 → 3.6.0</strong> - picks up the shared
+              client protocol changes behind this release.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                react-native-iap 16.7.0, expo-iap 5.8.0, and
+                flutter_inapp_purchase 10.7.0
+              </strong>{' '}
+              - run the same shared resolver. Expo&apos;s{' '}
+              <code>modules.horizon</code> and{' '}
+              <code>modules.amazon.fireOS</code> still pin but are deprecated;
+              move the pin to <code>ORG_GRADLE_PROJECT_openiapStore</code>.
+            </li>
+            <li>
+              <strong>kmp-iap 3.6.0</strong> - gains a{' '}
+              <code>Store.HORIZON</code> entry, so add the branch if you switch
+              exhaustively over <code>Store</code>.
+            </li>
+            <li>
+              <strong>godot-iap 3.6.0</strong> - adds the{' '}
+              <code>openiap/android_store</code> export option (
+              <code>auto</code> follows the debug device) and{' '}
+              <code>openiap/horizon_app_id</code>.
+            </li>
+            <li>
+              <strong>maui-iap 2.6.0</strong> - links one store&apos;s AAR per
+              build. NuGet resolves dependencies at restore time, so every build
+              carries the Play billing client regardless of store.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Verified</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              CI resolver, Gradle plugin, MAUI packaging, and Godot store
+              suites, plus flag-free debug builds on a Pixel, a Quest, a Fire
+              tablet, and a Vega TV with live sandbox purchases on Play, Amazon,
+              and Vega.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {BUILD_TIME_STORE_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+    {
       id: 'framework-build-play-offers-2026-09-20',
       aliases: FRAMEWORK_PLAY_FIX_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-20'),
@@ -436,8 +592,14 @@ function Releases() {
             .
           </p>
 
-          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Framework libraries</h5>
-          <ul style={{ margin: 0 }}>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
             <li>
               <strong>react-native-iap 16.6.2 and expo-iap 5.6.3</strong> - fix
               debug logger TypeScript errors in apps without Node.js global
@@ -474,7 +636,7 @@ function Releases() {
             }}
           >
             <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-            <ul style={{ margin: 0 }}>
+            <ul>
               {FRAMEWORK_PLAY_FIX_RELEASES.map((release) => (
                 <li key={release.tag}>
                   <a
@@ -533,7 +695,7 @@ function Releases() {
           </p>
 
           <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul style={{ margin: 0 }}>
+          <ul>
             {GODOT_EMBED_REPORT_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
@@ -776,7 +938,7 @@ function Releases() {
           </Callout>
 
           <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul style={{ margin: 0 }}>
+          <ul>
             {GODOT_RUNTIME_EMBED_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
@@ -842,7 +1004,7 @@ function Releases() {
           </p>
 
           <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul style={{ margin: 0 }}>
+          <ul>
             {COMMERCE_RENAME_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
@@ -965,7 +1127,7 @@ function Releases() {
           </p>
 
           <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul style={{ margin: 0 }}>
+          <ul>
             {PROTOCOL_SPLIT_RELEASES.map((release) => (
               <li key={release.tag}>
                 <a
@@ -10604,7 +10766,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
             >
               <a
                 href="/docs/types/android/one-time-purchase-offer-detail-android"
-                style={{ fontSize: '0.85rem' }}
+                style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>
                   ProductAndroidOneTimePurchaseOfferDetail.purchaseOptionId
@@ -10612,7 +10774,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               </a>
               <a
                 href="/docs/types/discount-offer"
-                style={{ fontSize: '0.85rem' }}
+                style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>DiscountOffer.purchaseOptionIdAndroid</code>
               </a>
@@ -10648,7 +10810,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
             >
               <a
                 href="/docs/types/android/subscription-offer-android"
-                style={{ fontSize: '0.85rem' }}
+                style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>
                   ProductSubscriptionAndroidOfferDetails.installmentPlanDetails
@@ -10656,7 +10818,7 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
               </a>
               <a
                 href="/docs/types/subscription-offer"
-                style={{ fontSize: '0.85rem' }}
+                style={{ fontSize: '0.85rem', minWidth: 0 }}
               >
                 <code>SubscriptionOffer.installmentPlanDetailsAndroid</code>
               </a>
@@ -10694,7 +10856,10 @@ product.priceFormatStyle.locale.currencyCode`}</CodeBlock>
                 marginTop: '0.5rem',
               }}
             >
-              <a href="/docs/types/purchase" style={{ fontSize: '0.85rem' }}>
+              <a
+                href="/docs/types/purchase"
+                style={{ fontSize: '0.85rem', minWidth: 0 }}
+              >
                 <code>PurchaseAndroid.pendingPurchaseUpdateAndroid</code>
               </a>
             </div>
@@ -12657,7 +12822,9 @@ result.error                  // optional error`}</CodeBlock>
 
       <Pagination itemsPerPage={itemsPerPage} initialPage={initialPage}>
         {sortedNotes.map((note) => (
-          <section key={note.id}>{note.element}</section>
+          <section key={note.id} className="release-note">
+            {note.element}
+          </section>
         ))}
       </Pagination>
     </div>

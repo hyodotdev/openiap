@@ -12,9 +12,11 @@ on:
 permissions:
   contents: read
 
+# One group per PR or branch: a new push cancels the queued macOS legs of
+# the run it supersedes instead of stacking behind them.
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: codeql-${{ github.event.pull_request.number || github.ref_name }}
+  cancel-in-progress: true
 
 env:
   XCODE_VERSION: 26.6

@@ -755,12 +755,9 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   );
   assert.match(
     workflow,
-    /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.run_id \}\}/u,
+    /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref_name \}\}/u,
   );
-  assert.match(
-    workflow,
-    /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,
-  );
+  assert.match(workflow, /cancel-in-progress: true/u);
   assert.match(scope, /swift_core:/u);
   assert.match(swiftCore, /needs: \[codeql-scope, pick-mac-runner\]/u);
   assert.match(
@@ -802,10 +799,7 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   );
   // Pushes stay on the public macos-26 image; PR legs use the runner gate,
   // which may hand the owner's own PRs to the self-hosted Mac.
-  assert.match(
-    wrappers,
-    /github\.event_name != 'pull_request' && 'macos-26'/u,
-  );
+  assert.match(wrappers, /github\.event_name != 'pull_request' && 'macos-26'/u);
   assert.match(wrappers, /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u);
   // Only a PR routed to the self-hosted Mac matches that machine's own
   // Xcode; every hosted leg pins 26.6.

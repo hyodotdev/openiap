@@ -720,6 +720,12 @@
   line-height: 1.6;
 }
 
+/* Release notes keep every list at one shallow indent. */
+.doc-page .release-note ul {
+  margin-left: 0;
+  padding-left: 1.25rem;
+}
+
 /* Type definition */
 .type-definition {
   font-family: 'Courier New', monospace;

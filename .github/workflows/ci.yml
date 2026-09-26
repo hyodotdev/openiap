@@ -477,6 +477,9 @@ jobs:
       - name: Audit sponsor surfaces
         run: npm run audit:sponsors
 
+      - name: Audit orphan release tags
+        run: npm run audit:orphan-tags
+
   test-gql:
     name: Test OpenIAP Client Spec
     runs-on: ubuntu-latest
