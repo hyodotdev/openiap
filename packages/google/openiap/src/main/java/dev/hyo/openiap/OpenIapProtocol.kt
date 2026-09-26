@@ -70,9 +70,9 @@ interface OpenIapProtocol {
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**
      * Enable a billing program for the next connection; call before initConnection.
-     * Stores other than Google Play ignore it.
+     * Only Google Play acts on it, so other implementations need not override it.
      */
-    fun enableBillingProgram(program: BillingProgramAndroid)
+    fun enableBillingProgram(program: BillingProgramAndroid) {}
 
     /**
      * Check if a billing program is available for this user/device.
