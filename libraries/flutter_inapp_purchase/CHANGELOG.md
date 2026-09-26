@@ -1,5 +1,22 @@
 # Changelog
 
+## 10.7.0 (2026-09-26)
+
+- chore(release): openiap-google@3.6.0
+- chore(release): openiap-apple@3.6.0
+- fix: surface amazon free trials as a subscription offer (#488)
+- feat: resolve the Android store at build time (#482)
+- fix: close the pending-train, evidence, and store-reporting gaps (#481)
+- docs(agents): tighten PR body style rules (#471)
+- fix: close first-party CodeQL findings and harden Scorecard posture (#470)
+- docs: re-record the commerce evidence and retire the last of the spec era
+- refactor: version the two protocols, and retire the spec number (#467)
+- test(amazon): gate the registration order that #460 turns on (#466)
+- chore(release): openiap-google@3.5.2
+- fix(google): Amazon purchase dialog and billing-disconnect notification (#462)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-10.7.0
+
+
 ## 10.6.1 (2026-09-11)
 
 - chore(release): openiap-google@3.5.1
