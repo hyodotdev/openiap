@@ -200,8 +200,9 @@ item in that list must link to the corresponding GitHub Release. A card written
 in a PR ahead of its release links the expected tags instead of using `Planned
 Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 
-`bun run audit:docs` fails bare package/version entries under published
-`Package Releases` blocks so link regressions are caught before publishing.
+`bun run audit:docs` fails bare package/version entries under `Package Releases`
+blocks and any `Planned Package Releases` heading, so link regressions are
+caught before publishing.
 
 RC and npm `next` releases are managed on the on-demand `next` branch and do
 not get release-history entries. Add one grouped entry only when the train is

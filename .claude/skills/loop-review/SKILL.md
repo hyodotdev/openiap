@@ -1,6 +1,6 @@
 ---
 name: loop-review
-description: "Run OpenIAP's complete latest-main-to-production loop: review-self, PR review and merge, exact-main cleanup, sequential stable releases, consolidated release docs, and production docs deployment."
+description: "Run OpenIAP's complete latest-main-to-production loop: review-self, PR review and merge, exact-main cleanup, sequential stable releases, release-note verification, and production docs deployment."
 ---
 
 # Loop Review (Claude Code)
@@ -18,8 +18,9 @@ Use Claude Code's matching skills or commands for each delegated phase:
 - `/e2e-tests` for the device-regression gate — hand back to the user to run it
   rather than merging, since it needs real devices and store accounts.
 - `/ship-release` for affected-only sequential stable publication, registry
-  verification, consolidated release docs, and production docs deployment.
-- `/generate-doc` for the release-note entry and exact package links.
+  verification, release-note verification, and production docs deployment.
+- `/generate-doc` for the release card the PR carries and its expected package
+  links.
 - `ScheduleWakeup` for every five-minute re-entry; never use a shell sleep loop.
 
 Do not merge until the canonical exact-head clean gate is satisfied, and stop

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T16:31:31.992Z
+> Last updated: 2026-09-26T17:20:20.257Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2195,14 +2195,18 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 
 ### Docs Ship With The Change
 
-A PR that changes a published package carries its documentation: the guides the
-change affects and the release card for the next version. Write the card as
-already published, because the train ships right after the merge: a `Package
-Releases` block with the expected versions and their future GitHub Release
-links, and shipped wording such as "fixes" or "adds". When an unreleased card
-for the same train exists, update it instead of adding another. After the train
-publishes, the release only verifies each version and link and corrects the
-card on `main` where one differs.
+A PR into `main` that changes a published package carries its documentation:
+the guides the change affects and the release card for the next version. Write
+the card as already published, because the train ships right after the merge: a
+`Package Releases` block with the expected versions and their future GitHub
+Release links, and shipped wording such as "fixes" or "adds". When an
+unreleased card for the same train exists, update it instead of adding another.
+After the train publishes, the release only verifies each version and link and
+corrects the card on `main` where one differs.
+
+Production docs wait for the train: `npm run deploy` refuses a release page that
+links a release not yet published. If a train stops partway and will not
+resume, trim its card on `main` to the packages that published before deploying.
 
 ### Release Note Writing Limits
 
@@ -2708,11 +2712,14 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces.
+PR, deploy the docs and verify both surfaces. If the PR also carries a release
+card, deploy once its train publishes; the deploy refuses unpublished release
+links.
 
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, and stale or unpublished local snapshots.
+versions, other branches, stale or unpublished local snapshots, and a release
+page that links a release not yet published.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
@@ -3070,8 +3077,9 @@ item in that list must link to the corresponding GitHub Release. A card written
 in a PR ahead of its release links the expected tags instead of using `Planned
 Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 
-`bun run audit:docs` fails bare package/version entries under published
-`Package Releases` blocks so link regressions are caught before publishing.
+`bun run audit:docs` fails bare package/version entries under `Package Releases`
+blocks and any `Planned Package Releases` heading, so link regressions are
+caught before publishing.
 
 RC and npm `next` releases are managed on the on-demand `next` branch and do
 not get release-history entries. Add one grouped entry only when the train is

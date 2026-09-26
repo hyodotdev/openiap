@@ -304,14 +304,18 @@ Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`
 
 ### Docs Ship With The Change
 
-A PR that changes a published package carries its documentation: the guides the
-change affects and the release card for the next version. Write the card as
-already published, because the train ships right after the merge: a `Package
-Releases` block with the expected versions and their future GitHub Release
-links, and shipped wording such as "fixes" or "adds". When an unreleased card
-for the same train exists, update it instead of adding another. After the train
-publishes, the release only verifies each version and link and corrects the
-card on `main` where one differs.
+A PR into `main` that changes a published package carries its documentation:
+the guides the change affects and the release card for the next version. Write
+the card as already published, because the train ships right after the merge: a
+`Package Releases` block with the expected versions and their future GitHub
+Release links, and shipped wording such as "fixes" or "adds". When an
+unreleased card for the same train exists, update it instead of adding another.
+After the train publishes, the release only verifies each version and link and
+corrects the card on `main` where one differs.
+
+Production docs wait for the train: `npm run deploy` refuses a release page that
+links a release not yet published. If a train stops partway and will not
+resume, trim its card on `main` to the packages that published before deploying.
 
 ### Release Note Writing Limits
 

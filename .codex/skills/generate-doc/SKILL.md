@@ -6,7 +6,7 @@ description: Use for OpenIAP documentation generation work, especially the relea
 # Generate OpenIAP Docs
 
 Use this skill when the user asks to generate or update OpenIAP docs, and for
-the release card every PR that changes a published package carries.
+the release card every PR into `main` that changes a published package carries.
 
 ## Required Reading
 
@@ -23,9 +23,9 @@ read the package or library convention file before editing that code.
 
 ## Release Note Mode
 
-A PR writes its release card before the release, in assumed-published form;
-"Docs Ship With The Change" in `knowledge/internal/05-docs-patterns.md` is the
-canonical rule.
+A PR into `main` writes its release card before the release, as already
+published; "Docs Ship With The Change" in
+`knowledge/internal/05-docs-patterns.md` is the canonical rule.
 
 RC and npm `next` releases live on the on-demand `next` branch and do not get a
 release-history entry. Gather their changes as source material, but add the
@@ -127,7 +127,7 @@ remain available.
 
 Write every resolved target into the release card with its expected tag link.
 Do not leave versionless package bullets, `(planned)` labels, or a
-`Planned Package Releases` list in assumed-published mode. Ask for confirmation
+`Planned Package Releases` list. Ask for confirmation
 only when repository evidence names conflicting target versions or it is unclear
 whether work belongs to the existing train.
 
@@ -143,8 +143,7 @@ Follow the existing card pattern:
 - Use a stable kebab-case `id` with the date.
 - Use `new Date('YYYY-MM-DD')`.
 - Use `AnchorLink` for the heading.
-- Keep package links in a `Package Releases` list when using assumed-published
-  mode.
+- Keep package links in a `Package Releases` list.
 - Name the expected version in each package-specific bullet, as well as in the
   linked `Package Releases` list.
 - Link issues and PRs when they exist.

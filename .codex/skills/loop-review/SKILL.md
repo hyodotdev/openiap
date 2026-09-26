@@ -69,8 +69,8 @@ Implement the requested scope and run the checks required by each touched path.
 Keep generated files, documentation, previews, and knowledge context in sync
 through their canonical workflows. A change to a published package also updates
 the guides it affects and the release card for the next version, written as
-already published with `$generate-doc`. Do not proceed while the working diff has a
-known failing required check.
+already published with `$generate-doc`. Do not proceed while the working diff
+has a known failing required check.
 
 Once it works, clean it up before review: apply "Clean Up Once It Works" in
 `knowledge/internal/03-coding-style.md` to the diff and to smells met along the
@@ -202,10 +202,10 @@ Follow `.codex/skills/ship-release/SKILL.md` as the release SSOT:
    commit, fast-forward `main` again. Do not start the next release until the
    GitHub Release and public registry or downloadable artifact are verified.
 3. Check the release card that merged with the PR against the exact published
-   versions and GitHub Release links, and correct what differs with
-   `$generate-doc`.
-4. Run `$review-self` over the complete docs and workflow diff until two
-   consecutive five-minute snapshots are clean. Any edit resets the count.
+   versions and GitHub Release links. If nothing differs, go to step 6.
+4. Correct what differs with `$generate-doc`, then run `$review-self` over that
+   docs diff until two consecutive five-minute snapshots are clean. Any edit
+   resets the count.
 5. Commit and push the reviewed release note and process-documentation changes
    directly to `main`. If review finds a product-code fix, return it to the PR
    loop instead of committing that fix directly to `main`. Do not open a PR for
@@ -231,4 +231,6 @@ describe a pending or partially reviewed PR as clean.
 After merge, stop the shipping phase when an affected release fails, its public
 artifact cannot be verified, production docs cannot be verified, or continuing
 would require a code change outside the reviewed PR. Preserve every successful
-release and report the exact resume point.
+release and report the exact resume point. Do not deploy docs while the card
+links an unpublished release; if the train will not resume, trim the card to
+what published through steps 4 and 5 first.

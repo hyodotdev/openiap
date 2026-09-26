@@ -174,7 +174,9 @@ Train rules (mistake guards):
   train is registry-verified, check the card's versions and links against the
   published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
-  and do not open a PR for that post-release docs-only commit. Then run the docs
+  and do not open a PR for that post-release docs-only commit. The deploy
+  refuses a page that links an unpublished release, so a train that stops
+  partway resumes or trims its card to what published first. Then run the docs
   deployment. There is no Docs release workflow and no docs tag; if a Docs
   GitHub Release is requested, explain that the docs site is not a versioned
   artifact.

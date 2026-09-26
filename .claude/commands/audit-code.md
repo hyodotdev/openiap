@@ -221,11 +221,12 @@ Update the documentation site for users:
 - Do not add RC or npm `next` publications from the `next` branch. Preserve the
   change evidence and add one grouped entry when the train reaches stable `main`.
 - Verify every package version from its real metadata before writing the release list:
-  `openiap-versions.json` only for `spec`, `google`, and `apple`;
+  `openiap-versions.json` only for `clientProtocol`, `google`, and `apple`;
   framework versions come from each library's package metadata
-- Derive planned versions from the explicit release plan and stable metadata;
+- Derive expected versions from the explicit release plan and stable metadata;
   release workflows own package-version commits
-- Add GitHub Release links only after `gh release view <tag>` confirms the tag exists
+- Link each package to its expected GitHub Release tag, per "Docs Ship With The
+  Change" in `knowledge/internal/05-docs-patterns.md`
 - Document ALL changes: new features, bug fixes, breaking changes
 - Add entry at the TOP of `allNotes` array (newest first)
 

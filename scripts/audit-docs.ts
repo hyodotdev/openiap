@@ -1456,10 +1456,9 @@ function formatQuotedList(values: string[]): string {
 }
 
 /**
- * Released `Package Releases` blocks should link every package/version item to
- * the GitHub Release. If a workflow is still publishing, keep the heading as
- * `Planned Package Releases`; once it is changed to `Package Releases`, bare
- * package text is a docs regression.
+ * `Package Releases` blocks link every package/version item to its GitHub
+ * Release. A card written in a PR ahead of its release links the expected tags,
+ * so `Planned Package Releases` is no longer used.
  */
 // Release workflows link a version's own anchor, e.g.
 // /docs/updates/releases#godot-iap-3.5.1. The page paginates and resolves a
@@ -1558,14 +1557,21 @@ function auditReleaseNotePackageLinks(filePath: string): Drift[] {
 
   let headingMatch: RegExpExecArray | null;
   while ((headingMatch = headingRe.exec(src)) !== null) {
-    const heading = headingMatch[1];
+    if (headingMatch[1] !== "Package Releases") {
+      drifts.push({
+        file: filePath,
+        line: lineNumberAt(src, headingMatch.index),
+        rule: "R9",
+        message:
+          "Write the card as published: use `Package Releases` with each expected GitHub Release link, not `Planned Package Releases`.",
+      });
+      continue;
+    }
     const ulStart = src.indexOf("<ul", headingRe.lastIndex);
     if (ulStart === -1) continue;
     const ulEnd = src.indexOf("</ul>", ulStart);
     if (ulEnd === -1) continue;
     const ul = src.slice(ulStart, ulEnd);
-
-    if (heading !== "Package Releases") continue;
 
     const liRe = /<li\b[^>]*>([\s\S]*?)<\/li>/g;
     let liMatch: RegExpExecArray | null;
@@ -1579,7 +1585,7 @@ function auditReleaseNotePackageLinks(filePath: string): Drift[] {
         line: lineNumberAt(src, ulStart + liMatch.index),
         rule: "R9",
         message:
-          "`Package Releases` entries must link package/version items to their GitHub Release URL. Use `Planned Package Releases` only while a release is not published.",
+          "`Package Releases` entries must link package/version items to their GitHub Release URL, the expected one for a release that has not published yet.",
       });
     }
   }

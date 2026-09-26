@@ -368,11 +368,14 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces.
+PR, deploy the docs and verify both surfaces. If the PR also carries a release
+card, deploy once its train publishes; the deploy refuses unpublished release
+links.
 
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, and stale or unpublished local snapshots.
+versions, other branches, stale or unpublished local snapshots, and a release
+page that links a release not yet published.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
