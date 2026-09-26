@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-25T17:11:40.022Z
+> Last updated: 2026-09-26T15:21:34.573Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1453,11 +1453,6 @@ a Horizon build link the Play SDK and now fail at the task-graph check:
 cd packages/google && bash scripts/verify-store-resolver.sh
 ```
 
-`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
-store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
-a KMP library module, and a module with its own `platform` flavors (which the
-plugin leaves alone). It needs an Android SDK and the network.
-
 It applies the real resolver to the fixture in
 `packages/google/compatibility/store-resolver`, so no Android SDK, device, or
 network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
@@ -1467,6 +1462,17 @@ covers pins and their aliases, the legacy flags and their conflicts, the
 `none` opt-out, task flavors, every conflict that must fail, device selection
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
+
+`scripts/verify-release-consumer.sh` is the only check that runs R8, as an
+app's release build does. It builds a minified release app per store from the
+locally published artifacts and asserts that each links only its store's SDK,
+that R8 keeps that SDK, and that the Amazon receiver keeps its name. It also
+needs an Android SDK and the network.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
