@@ -1,0 +1,37 @@
+plugins {
+  id 'com.android.application' version '8.13.2'
+}
+
+layout.buildDirectory.set(file(providers.gradleProperty('consumerBuildDirectory').get()))
+
+// Picks the artifact the way the React Native, Expo, and Flutter wrappers do.
+apply from: new File(rootDir, '../../gradle/openiap-store.gradle')
+def store = openIapResolveStore('release-consumer').store
+def artifact = store == 'play' ? 'openiap-google' : "openiap-google-${store}"
+
+android {
+  namespace = 'dev.hyo.openiap.compatibility.release'
+  compileSdk = 36
+
+  defaultConfig {
+    applicationId = 'dev.hyo.openiap.compatibility.release'
+    minSdk = 23
+    targetSdk = 36
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled = true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    }
+  }
+
+  // Lint has its own CI step; this build checks what R8 links.
+  lint {
+    checkReleaseBuilds = false
+  }
+}
+
+dependencies {
+  implementation "io.github.hyochan.openiap:${artifact}:${providers.gradleProperty('openIapVersion').get()}"
+}

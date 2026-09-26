@@ -35,7 +35,7 @@ jobs:
   compile-check:
     name: Compile Check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -65,6 +65,17 @@ jobs:
             :example:composeApp:assemblePlayDebug \
             :example:composeApp:assembleHorizonDebug \
             :example:composeApp:assembleAmazonDebug
+
+      # R8 runs only in an app's release build, over kmp-iap and openiap-google.
+      - name: Build minified release apps per store
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
+            --no-parallel \
+            -Dorg.gradle.jvmargs=-Xmx8192M \
+            -Dkotlin.daemon.jvm.options=-Xmx4096M \
+            :example:composeApp:assemblePlayRelease \
+            :example:composeApp:assembleHorizonRelease \
+            :example:composeApp:assembleAmazonRelease
 
   ios-compile-check:
     name: iOS Compile Check

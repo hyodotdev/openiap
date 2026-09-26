@@ -52,7 +52,8 @@ result is stable.
    - public contracts, naming, compatibility, generated-file rules, and
      cross-package or SDK parity;
    - missing or weak tests, documentation, examples, migrations, and operational
-     safeguards required by the change;
+     safeguards required by the change, including, for a published package,
+     the guides it affects and its release card for the next version;
    - the canonical KISS/SSOT release rules in
      `knowledge/internal/03-coding-style.md`;
    - code smells in the diff, the code it touches, and any code read during

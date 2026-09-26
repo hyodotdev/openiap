@@ -168,11 +168,15 @@ Train rules (mistake guards):
   Maven Central POMs publicly fetchable) and its package metadata is
   synchronized on `main`. Workflow success is not deployment; poll the
   registry.
-- **Release notes last.** After every package in the train is
-  registry-verified, add the consolidated entry to
-  `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
+- **Release notes ship in the PR.** The consolidated card in
+  `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
+  written ahead of the release (see `generate-doc`). After every package in the
+  train is registry-verified, check the card's versions and links against the
+  published releases and correct any that differ; if that needs an edit,
   commit it directly to `main` together with any release-process doc updates,
-  and do not open a PR for that post-release docs-only commit; then run the docs
+  and do not open a PR for that post-release docs-only commit. The deploy
+  refuses a page that links an unpublished release, so a train that stops
+  partway resumes or trims its card to what published first. Then run the docs
   deployment. There is no Docs release workflow and no docs tag; if a Docs
   GitHub Release is requested, explain that the docs site is not a versioned
   artifact.
@@ -236,9 +240,9 @@ independent version edits:
    tag. A branch-ref checkout of an existing tag does not align npm's OIDC event
    SHA. If the tag predates this publisher lane, do not retrofit provenance;
    release a new reviewed version.
-9. After every affected artifact is publicly available, use `generate-doc` to
-   add one consolidated release entry with the actual published versions and
-   GitHub Release links, then deploy docs last. A docs deployment creates no
+9. After every affected artifact is publicly available, check the release card
+   that merged with the PR against the published versions and GitHub Release
+   links (see `generate-doc`), correct what differs, then deploy docs last. A docs deployment creates no
    tag and no GitHub Release.
 
 Every `current` retry that finds an existing tag must run

@@ -632,19 +632,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @param program The billing program to enable
      */
-    fun enableBillingProgram(program: BillingProgramAndroid) {
-        // Use reflection to call enableBillingProgram on the module
-        // This is needed because the method is only available in the Play flavor
-        try {
-            val method = module.javaClass.getMethod("enableBillingProgram", BillingProgramAndroid::class.java)
-            method.invoke(module, program)
-            OpenIapLog.debug("Billing program enabled via store: $program", "OpenIapStore")
-        } catch (e: NoSuchMethodException) {
-            OpenIapLog.warn("enableBillingProgram not available (Horizon flavor or older library)", "OpenIapStore")
-        } catch (e: Exception) {
-            OpenIapLog.error("Failed to enable billing program: ${e.message}", e, "OpenIapStore")
-        }
-    }
+    fun enableBillingProgram(program: BillingProgramAndroid) = module.enableBillingProgram(program)
 
     // -------------------------------------------------------------------------
     // Event listeners passthrough

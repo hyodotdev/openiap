@@ -368,11 +368,15 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces.
+PR, deploy the docs and verify both surfaces. If the PR also carries a release
+card, deploy once its train publishes; the deploy refuses unpublished release
+links.
 
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, and stale or unpublished local snapshots.
+versions, other branches, stale or unpublished local snapshots, and a release
+page that links a GitHub Release not yet published, which it lists with an
+authenticated `gh`.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
@@ -461,10 +465,11 @@ Use these checks before writing a release list:
 | KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
 | MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
-If the release is not published yet, use planned wording and plain text. If the
-release is published, verify the tag exists with `gh release view <tag>` before
-linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
+A PR writes its card ahead of the release with the expected tag links, per
+"Docs Ship With The Change" in `05-docs-patterns.md`. After the release
+publishes, verify each tag with `gh release view <tag>` and correct the card
+where a version differs. This prevents stale Package Releases tables such as
+documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Do not add RC or npm `next` releases to the stable release history. Collect
 their user-facing changes and write one package-grouped entry when the release

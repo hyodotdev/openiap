@@ -248,13 +248,12 @@ openiapStore=horizon`}
           for the full rule.
         </p>
 
-        <h4>ProGuard Rules (if using ProGuard)</h4>
-        <CodeBlock language="text">
-          {`# In-App Purchase
--keep class com.android.billingclient.** { *; }
--keep class io.github.hyochan.kmpiap.** { *; }
--keepattributes *Annotation*`}
-        </CodeBlock>
+        <h4>R8 and ProGuard</h4>
+        <p>
+          No rules to add. From 3.6.1, kmp-iap and the openiap store artifact
+          ship the R8 rules each store needs, so minified release builds work as
+          they are.
+        </p>
       </section>
 
       <section>

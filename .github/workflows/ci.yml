@@ -599,6 +599,11 @@ jobs:
         working-directory: packages/google
         run: bash scripts/verify-store-plugin.sh
 
+      # Nothing above runs R8; an app's release build does.
+      - name: Verify minified release builds per store
+        working-directory: packages/google
+        run: bash scripts/verify-release-consumer.sh
+
       # Run every store flavor so flavor-specific API-23 regressions cannot
       # bypass lint coverage.
       - name: Lint Android API compatibility

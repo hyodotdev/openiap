@@ -1076,6 +1076,10 @@ class OpenIapModule(
 
     override fun removeConnectionStateListener(listener: OpenIapConnectionStateListener) = Unit
 
+    override fun enableBillingProgram(program: BillingProgramAndroid) {
+        OpenIapLog.warn("enableBillingProgram is not supported on Amazon Appstore (no-op)", TAG)
+    }
+
     override suspend fun isBillingProgramAvailable(
         program: BillingProgramAndroid
     ): BillingProgramAvailabilityResultAndroid = BillingProgramAvailabilityResultAndroid(

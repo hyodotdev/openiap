@@ -161,10 +161,17 @@ android {
         }
     }
 
+    // Shrunk like a shipped app, so CI's release builds run R8 over kmp-iap.
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
+    }
+
+    // CI builds release to check R8; lint has its own checks.
+    lint {
+        checkReleaseBuilds = false
     }
 
     compileOptions {

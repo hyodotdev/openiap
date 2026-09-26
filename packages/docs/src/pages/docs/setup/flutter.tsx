@@ -235,16 +235,12 @@ function FlutterSetup() {
           &quot;no pin&quot;, so the opt-out beside it still applies.
         </p>
 
-        <h4>ProGuard Rules (if using ProGuard)</h4>
+        <h4>R8 and ProGuard</h4>
         <p>
-          Add to your <code>android/app/proguard-rules.pro</code>:
+          No rules to add. From 10.7.1, the Android store artifact ships the
+          keep rules its billing SDK needs, so minified release builds work as
+          they are.
         </p>
-        <CodeBlock language="text">
-          {`# In-App Purchase
--keep class dev.hyo.** { *; }
--keep class com.android.vending.billing.**
--keepattributes *Annotation*`}
-        </CodeBlock>
       </section>
 
       <section>

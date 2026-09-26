@@ -1,13 +1,12 @@
 ---
 name: generate-doc
-description: Use for OpenIAP documentation generation work, especially pre-deployment release-note entries in packages/docs/src/pages/docs/updates/releases.tsx that must name the expected native and framework versions, link their future GitHub Releases, and update an existing unreleased train instead of creating a duplicate.
+description: Use for OpenIAP documentation generation work, especially the release-note card each PR carries in packages/docs/src/pages/docs/updates/releases.tsx, written as already published with the expected native and framework versions and their future GitHub Release links, updating an existing unreleased train instead of creating a duplicate.
 ---
 
 # Generate OpenIAP Docs
 
-Use this skill when the user asks to generate or update OpenIAP docs, especially
-release notes that should be written as if package releases are already
-published.
+Use this skill when the user asks to generate or update OpenIAP docs, and for
+the release card every PR into `main` that changes a published package carries.
 
 ## Required Reading
 
@@ -24,15 +23,16 @@ read the package or library convention file before editing that code.
 
 ## Release Note Mode
 
-Current scope: pre-deployment notes written in assumed-published form.
+A PR into `main` writes its release card before the release, as already
+published; "Docs Ship With The Change" in
+`knowledge/internal/05-docs-patterns.md` is the canonical rule.
 
 RC and npm `next` releases live on the on-demand `next` branch and do not get a
 release-history entry. Gather their changes as source material, but add the
 consolidated docs entry only when the train is promoted to a stable release on
 `main`. Production `npm run deploy` is stable-only.
 
-Use shipped wording only when the user explicitly says to assume deployment or
-write the docs as already released. In that mode:
+Write every card this way:
 
 - Use `Package Releases`, not `Planned Package Releases`.
 - Link expected release/package URLs exactly as the release will publish them.
@@ -41,9 +41,8 @@ write the docs as already released. In that mode:
 - State in your response that the links are expected release links until actual
   deployment is complete.
 
-For non-assumed releases, follow the release-note verification rules in
-`knowledge/internal/05-docs-patterns.md` and
-`knowledge/internal/06-git-deployment.md`; do not invent shipped links.
+After the train publishes, compare each version and link with the published
+releases and correct only what differs.
 
 ## Existing Unreleased Train
 
@@ -128,7 +127,7 @@ remain available.
 
 Write every resolved target into the release card with its expected tag link.
 Do not leave versionless package bullets, `(planned)` labels, or a
-`Planned Package Releases` list in assumed-published mode. Ask for confirmation
+`Planned Package Releases` list. Ask for confirmation
 only when repository evidence names conflicting target versions or it is unclear
 whether work belongs to the existing train.
 
@@ -144,8 +143,7 @@ Follow the existing card pattern:
 - Use a stable kebab-case `id` with the date.
 - Use `new Date('YYYY-MM-DD')`.
 - Use `AnchorLink` for the heading.
-- Keep package links in a `Package Releases` list when using assumed-published
-  mode.
+- Keep package links in a `Package Releases` list.
 - Name the expected version in each package-specific bullet, as well as in the
   linked `Package Releases` list.
 - Link issues and PRs when they exist.

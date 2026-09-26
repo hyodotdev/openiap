@@ -124,6 +124,14 @@ canonical standard in
 [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#reader-first-writing-standard),
 including its stricter release-note limits.
 
+### Docs Ship With The Change
+
+A PR into `main` that changes a published package also updates the guides it
+affects and the release card for the next version, written as already
+published; after the release, only verify the versions and deploy. Canonical
+rule in
+[`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#docs-ship-with-the-change).
+
 ### GitHub Writing Style
 
 Write pull request bodies, review replies, issue comments, and release text the

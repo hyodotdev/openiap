@@ -371,11 +371,6 @@ a Horizon build link the Play SDK and now fail at the task-graph check:
 cd packages/google && bash scripts/verify-store-resolver.sh
 ```
 
-`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
-store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
-a KMP library module, and a module with its own `platform` flavors (which the
-plugin leaves alone). It needs an Android SDK and the network.
-
 It applies the real resolver to the fixture in
 `packages/google/compatibility/store-resolver`, so no Android SDK, device, or
 network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
@@ -385,6 +380,21 @@ covers pins and their aliases, the legacy flags and their conflicts, the
 `none` opt-out, task flavors, every conflict that must fail, device selection
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
+
+`scripts/verify-release-consumer.sh` is the only check that runs R8, as an
+app's release build does. It builds a minified release app per store from the
+locally published artifacts and asserts that each links only its store's SDK
+and that R8 keeps what runs by name: every Play Billing class and method the
+Play module looks up by reflection (read from its source), and every Amazon SDK
+class, because that SDK fills its own classes by reflection. It also needs an
+Android SDK and the network. A store SDK that needs R8 rules gets them in its
+flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so apps never add
+them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
@@ -423,6 +433,11 @@ the runtime routes by install source; nothing is guessed at build time.
    no connection to drop, so its implementation is a documented no-op
    ([#408](https://github.com/hyodotdev/openiap/issues/408)). `bun audit:parity`
    pins the notification in both flavors.
+8. **Call openiap directly, never by reflection.** R8 removes what only
+   reflection reaches, so the call works in debug and silently does nothing in
+   a minified release. A method that only some flavors support belongs on
+   `OpenIapProtocol`, with a no-op in the others. `bun audit:parity` rejects
+   reflective lookups in the shared source and the framework bridges.
 
 ### Build Commands
 

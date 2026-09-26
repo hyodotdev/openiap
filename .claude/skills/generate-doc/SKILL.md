@@ -1,6 +1,6 @@
 ---
 name: generate-doc
-description: Use for OpenIAP documentation generation work, especially pre-deployment release-note entries in packages/docs/src/pages/docs/updates/releases.tsx that must name the expected native and framework versions, link their future GitHub Releases, and update an existing unreleased train instead of creating a duplicate.
+description: Use for OpenIAP documentation generation work, especially the release-note card each PR carries in packages/docs/src/pages/docs/updates/releases.tsx, written as already published with the expected native and framework versions and their future GitHub Release links, updating an existing unreleased train instead of creating a duplicate.
 ---
 
 # Generate OpenIAP Docs (Claude Code)

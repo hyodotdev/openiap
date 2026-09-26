@@ -327,19 +327,10 @@ class HybridRnIap : HybridRnIapSpec() {
                                 "userChoiceBillingListener",
                                 mapOf("products" to details.products, "token" to details.externalTransactionToken)
                             )
-                            val originalTransactionId = runCatching {
-                                details.javaClass
-                                    .getMethod("getOriginalExternalTransactionId")
-                                    .invoke(details) as? String
-                            }.getOrNull()
-                            val productDetails = runCatching {
-                                (details.javaClass.getMethod("getProductDetailsAndroid").invoke(details) as? List<*>)
-                                    ?.mapNotNull { it as? dev.hyo.openiap.DeveloperProvidedBillingProductAndroid }
-                            }.getOrNull()
                             val nitroDetails = UserChoiceBillingDetails(
                                 externalTransactionToken = details.externalTransactionToken,
-                                originalExternalTransactionId = originalTransactionId.wrapVariant(),
-                                productDetailsAndroid = productDetails?.map { product ->
+                                originalExternalTransactionId = details.originalExternalTransactionId.wrapVariant(),
+                                productDetailsAndroid = details.productDetailsAndroid?.map { product ->
                                     DeveloperProvidedBillingProductAndroid(
                                         id = product.id,
                                         offerToken = product.offerToken.wrapVariant(),

@@ -1,6 +1,6 @@
 ---
 name: ship-release
-description: Merge a verified OpenIAP PR, release every affected stable package one at a time, verify each public registry, publish the consolidated release note, stabilize it with review-self, and deploy production docs. Use when the user explicitly asks for this full post-review shipping workflow.
+description: Merge a verified OpenIAP PR, release every affected stable package one at a time, verify each public registry, verify the release note the PR carried, stabilize any correction with review-self, and deploy production docs. Use when the user explicitly asks for this full post-review shipping workflow.
 ---
 
 # Ship an OpenIAP Release
@@ -67,7 +67,10 @@ For each package:
    the new version before starting the next package.
 
 Do not run package releases concurrently. Stop on the first failed gate and
-report the exact workflow job and package state.
+report the exact workflow job and package state. Leave production docs
+undeployed while the card links a release that has not published; if the train
+will not resume, trim the card to the packages that published, through §4,
+before deploying.
 
 Godot releases also require the authenticated Godot Asset Library listing to be
 updated. Prepare the edit when possible, request action-time confirmation before
@@ -75,22 +78,24 @@ the public form submission, and report it as an explicit remaining manual step
 when authentication is unavailable. Never reuse credentials supplied for a
 different service.
 
-## 3. Write the shipped release note
+## 3. Verify the release note
 
-After every package version and public URL is known, use `generate-doc` to add
-or update the consolidated release card in
-`packages/docs/src/pages/docs/updates/releases.tsx`.
+The merged PR carried the consolidated release card in
+`packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`). After
+every package version and public URL is known:
 
-- Read versions from current package metadata, not from the release plan.
-- Link the real package tags. The docs/spec tag may be the expected tag until
-  the docs release is created.
+- Compare each version and link on the card with current package metadata and
+  the published tags, and correct any that differ.
+- If the PR carried no card, add it with `generate-doc` and report the gap.
 - Lead with user-visible behavior, include required migration or platform
   caveats once, and omit version-bump mechanics.
 - Add no versioned IAPKit entry; it is a service.
 
-## 4. Stabilize and commit
+If nothing differs, go to §5.
 
-Run `review-self` against the complete docs and workflow diff until two
+## 4. Stabilize and commit a correction
+
+When §3 changed the card, run `review-self` against the docs diff until two
 consecutive full snapshots are clean at least five minutes apart. A material
 change resets the clean count. Run all path-specific validation, including the
 docs build, docs and release-state audits, skill validation, and

@@ -1590,7 +1590,7 @@ class OpenIapModule(
      *
      * @param program The billing program to enable
      */
-    fun enableBillingProgram(program: BillingProgramAndroid) {
+    override fun enableBillingProgram(program: BillingProgramAndroid) {
         if (program != BillingProgramAndroid.Unspecified) {
             synchronized(connectionLifecycleLock) {
                 pendingBillingPrograms.add(program)

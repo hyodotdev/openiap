@@ -302,6 +302,21 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Docs Ship With The Change
+
+A PR into `main` that changes a published package carries its documentation:
+the guides the change affects and the release card for the next version. Write
+the card as already published, because the train ships right after the merge: a
+`Package Releases` block with the expected versions and their future GitHub
+Release links, and shipped wording such as "fixes" or "adds". When an
+unreleased card for the same train exists, update it instead of adding another.
+After the train publishes, the release only verifies each version and link and
+corrects the card on `main` where one differs.
+
+Production docs wait for the train: `npm run deploy` refuses a release page that
+links a release not yet published. If a train stops partway and will not
+resume, trim its card on `main` to the packages that published before deploying.
+
 ### Release Note Writing Limits
 
 Apply the project-wide Reader-First Writing Standard above. Release notes are a
@@ -408,21 +423,17 @@ Before adding or editing a `Package Releases` list:
 1. `git fetch origin main --tags` (or `git fetch --no-tags origin main` if
    local stale tags would fail).
 2. Read the current package metadata from `origin/main`, not from memory.
-3. For planned patch releases, add exactly one patch version to each affected
-   framework package and label the block `Planned Package Releases`.
-4. If the user explicitly asks to write the note as already released, says to
-   "assume it will be deployed/published", or asks to follow the existing linked
-   release-note style, do **not** use `Planned Package Releases` or
-   `(planned)`. Write the block as `Package Releases`, add the expected GitHub
-   Release tag link (for example `godot-iap-2.2.8`), and use shipped wording
-   such as "Publishes" / "Ships" instead of "Prepares".
-5. For links to releases that should already exist in GitHub, confirm each tag
-   exists with `gh release view <tag> --repo hyodotdev/openiap` before adding an
-   `<a href>`. This existence check is skipped only when step 4 applies because
-   the user explicitly requested an assumed post-release note.
-6. If a release workflow is still running and the user has not requested an
-   already-released note, keep the entry as plain text with planned wording. Add
-   links only after the GitHub Release exists.
+3. Give each affected package its expected next version: the next patch for a
+   backward-compatible fix, the next minor for a backward-compatible feature,
+   the next major for a breaking change. Reuse the targets on an unreleased
+   card for the same train.
+4. Write the block as `Package Releases` with each expected tag link (for
+   example `godot-iap-2.2.8`), per "Docs Ship With The Change". Do not use
+   `Planned Package Releases` or `(planned)`.
+5. When editing a card whose train already published, confirm each tag exists
+   with `gh release view <tag> --repo hyodotdev/openiap` before changing a link.
+6. After the train publishes, compare every version and link on its card with
+   the published releases and correct any that differ.
 7. Run `bun run audit:docs`; the audit fails when a published
    `Package Releases` block contains a package/version item without a GitHub
    Release link.

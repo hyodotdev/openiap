@@ -1445,6 +1445,33 @@ test("production docs require a verified Vercel deployment result", (context) =>
         "",
       ].join("\n"),
     );
+    // Stands in for `gh release list`, printing the published release tags.
+    writeExecutable(
+      resolve(temporaryRoot, "mock-bin/gh"),
+      [
+        "#!/bin/sh",
+        'if [ -n "${MOCK_GH_FAIL:-}" ]; then',
+        "  exit 1",
+        "fi",
+        "printf '%s\\n' ${MOCK_GH_RELEASES:-}",
+        "",
+      ].join("\n"),
+    );
+    // A card for an unreleased train, and a historical link the deploy knows never published.
+    mkdirSync(resolve(temporaryRoot, "packages/docs/src/pages/docs/updates"), {
+      recursive: true,
+    });
+    writeFileSync(
+      resolve(
+        temporaryRoot,
+        "packages/docs/src/pages/docs/updates/releases.tsx",
+      ),
+      [
+        "const RELEASES = [{ name: 'openiap-google', version: '9.9.9', tag: 'google-9.9.9' }];",
+        'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/google-3.5.3";',
+        "",
+      ].join("\n"),
+    );
 
     execFileSync("git", ["init", "-q", "-b", "main"], {
       cwd: temporaryRoot,
@@ -1471,6 +1498,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     delete environment.VERCEL_PROJECT_ID;
     delete environment.VERCEL_ORG_ID;
     environment.PATH = `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`;
+    environment.MOCK_GH_RELEASES = "google-9.9.9";
     const runDeploy = (mockOutput = "", environmentOverrides = {}) =>
       spawnSync("bash", ["scripts/deploy.sh"], {
         cwd: temporaryRoot,
@@ -1482,6 +1510,20 @@ test("production docs require a verified Vercel deployment result", (context) =>
         },
         input: "y\n",
       });
+
+    const unpublished = runDeploy("", { MOCK_GH_RELEASES: "" });
+    assert.notEqual(unpublished.status, 0);
+    assert.match(
+      unpublished.stdout,
+      /links releases that are not published yet/,
+    );
+    assert.match(unpublished.stdout, /google-9\.9\.9/);
+    assert.doesNotMatch(unpublished.stdout, /google-3\.5\.3/);
+    assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
+
+    const noReleaseList = runDeploy("", { MOCK_GH_FAIL: "1" });
+    assert.notEqual(noReleaseList.status, 0);
+    assert.match(noReleaseList.stdout, /Could not list GitHub Releases/);
 
     const unlinked = runDeploy();
     assert.notEqual(unlinked.status, 0);

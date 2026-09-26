@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-25T17:11:40.022Z
+> Last updated: 2026-09-26T17:36:18.906Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1453,11 +1453,6 @@ a Horizon build link the Play SDK and now fail at the task-graph check:
 cd packages/google && bash scripts/verify-store-resolver.sh
 ```
 
-`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
-store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
-a KMP library module, and a module with its own `platform` flavors (which the
-plugin leaves alone). It needs an Android SDK and the network.
-
 It applies the real resolver to the fixture in
 `packages/google/compatibility/store-resolver`, so no Android SDK, device, or
 network is needed; `compatibility/store-resolver/fake-adb` stands in for adb and
@@ -1467,6 +1462,21 @@ covers pins and their aliases, the legacy flags and their conflicts, the
 `none` opt-out, task flavors, every conflict that must fail, device selection
 for Quest, Fire and everything else, `ANDROID_SERIAL`, several attached
 devices, release builds, `clean`, and the configuration cache.
+
+`scripts/verify-store-plugin.sh` covers what the plugin adds: that the resolved
+store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
+a KMP library module, and a module with its own `platform` flavors (which the
+plugin leaves alone). It needs an Android SDK and the network.
+
+`scripts/verify-release-consumer.sh` is the only check that runs R8, as an
+app's release build does. It builds a minified release app per store from the
+locally published artifacts and asserts that each links only its store's SDK
+and that R8 keeps what runs by name: every Play Billing class and method the
+Play module looks up by reflection (read from its source), and every Amazon SDK
+class, because that SDK fills its own classes by reflection. It also needs an
+Android SDK and the network. A store SDK that needs R8 rules gets them in its
+flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so apps never add
+them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
@@ -1505,6 +1515,11 @@ the runtime routes by install source; nothing is guessed at build time.
    no connection to drop, so its implementation is a documented no-op
    ([#408](https://github.com/hyodotdev/openiap/issues/408)). `bun audit:parity`
    pins the notification in both flavors.
+8. **Call openiap directly, never by reflection.** R8 removes what only
+   reflection reaches, so the call works in debug and silently does nothing in
+   a minified release. A method that only some flavors support belongs on
+   `OpenIapProtocol`, with a no-op in the others. `bun audit:parity` rejects
+   reflective lookups in the shared source and the framework bridges.
 
 ### Build Commands
 
@@ -2178,6 +2193,21 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Docs Ship With The Change
+
+A PR into `main` that changes a published package carries its documentation:
+the guides the change affects and the release card for the next version. Write
+the card as already published, because the train ships right after the merge: a
+`Package Releases` block with the expected versions and their future GitHub
+Release links, and shipped wording such as "fixes" or "adds". When an
+unreleased card for the same train exists, update it instead of adding another.
+After the train publishes, the release only verifies each version and link and
+corrects the card on `main` where one differs.
+
+Production docs wait for the train: `npm run deploy` refuses a release page that
+links a release not yet published. If a train stops partway and will not
+resume, trim its card on `main` to the packages that published before deploying.
+
 ### Release Note Writing Limits
 
 Apply the project-wide Reader-First Writing Standard above. Release notes are a
@@ -2284,21 +2314,17 @@ Before adding or editing a `Package Releases` list:
 1. `git fetch origin main --tags` (or `git fetch --no-tags origin main` if
    local stale tags would fail).
 2. Read the current package metadata from `origin/main`, not from memory.
-3. For planned patch releases, add exactly one patch version to each affected
-   framework package and label the block `Planned Package Releases`.
-4. If the user explicitly asks to write the note as already released, says to
-   "assume it will be deployed/published", or asks to follow the existing linked
-   release-note style, do **not** use `Planned Package Releases` or
-   `(planned)`. Write the block as `Package Releases`, add the expected GitHub
-   Release tag link (for example `godot-iap-2.2.8`), and use shipped wording
-   such as "Publishes" / "Ships" instead of "Prepares".
-5. For links to releases that should already exist in GitHub, confirm each tag
-   exists with `gh release view <tag> --repo hyodotdev/openiap` before adding an
-   `<a href>`. This existence check is skipped only when step 4 applies because
-   the user explicitly requested an assumed post-release note.
-6. If a release workflow is still running and the user has not requested an
-   already-released note, keep the entry as plain text with planned wording. Add
-   links only after the GitHub Release exists.
+3. Give each affected package its expected next version: the next patch for a
+   backward-compatible fix, the next minor for a backward-compatible feature,
+   the next major for a breaking change. Reuse the targets on an unreleased
+   card for the same train.
+4. Write the block as `Package Releases` with each expected tag link (for
+   example `godot-iap-2.2.8`), per "Docs Ship With The Change". Do not use
+   `Planned Package Releases` or `(planned)`.
+5. When editing a card whose train already published, confirm each tag exists
+   with `gh release view <tag> --repo hyodotdev/openiap` before changing a link.
+6. After the train publishes, compare every version and link on its card with
+   the published releases and correct any that differ.
 7. Run `bun run audit:docs`; the audit fails when a published
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
@@ -2686,11 +2712,15 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces.
+PR, deploy the docs and verify both surfaces. If the PR also carries a release
+card, deploy once its train publishes; the deploy refuses unpublished release
+links.
 
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, and stale or unpublished local snapshots.
+versions, other branches, stale or unpublished local snapshots, and a release
+page that links a GitHub Release not yet published, which it lists with an
+authenticated `gh`.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
@@ -2779,10 +2809,11 @@ Use these checks before writing a release list:
 | KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
 | MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
-If the release is not published yet, use planned wording and plain text. If the
-release is published, verify the tag exists with `gh release view <tag>` before
-linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
+A PR writes its card ahead of the release with the expected tag links, per
+"Docs Ship With The Change" in `05-docs-patterns.md`. After the release
+publishes, verify each tag with `gh release view <tag>` and correct the card
+where a version differs. This prevents stale Package Releases tables such as
+documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Do not add RC or npm `next` releases to the stable release history. Collect
 their user-facing changes and write one package-grouped entry when the release
@@ -3043,12 +3074,13 @@ strips the `Android` suffix from method names.
 ### R9 — Published package release lists use links
 
 When a release-note block is labeled `Package Releases`, every package/version
-item in that list must link to the corresponding GitHub Release. Use
-`Planned Package Releases` only while the release workflow is still running or
-the GitHub Release does not exist yet.
+item in that list must link to the corresponding GitHub Release. A card written
+in a PR ahead of its release links the expected tags instead of using `Planned
+Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 
-`bun run audit:docs` fails bare package/version entries under published
-`Package Releases` blocks so link regressions are caught before publishing.
+`bun run audit:docs` fails bare package/version entries under `Package Releases`
+blocks and any `Planned Package Releases` heading, so link regressions are
+caught before publishing.
 
 RC and npm `next` releases are managed on the on-demand `next` branch and do
 not get release-history entries. Add one grouped entry only when the train is

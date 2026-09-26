@@ -64,6 +64,32 @@ if [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
     exit 1
 fi
 
+# A release card merges with its PR, before its packages publish, so production
+# docs wait until every release the page links is out. Release workflows push the
+# tag before publishing and create the GitHub Release last, so a tag alone is not
+# proof.
+echo -e "${BLUE}🔗 Checking release links...${NC}"
+RELEASES_PAGE="packages/docs/src/pages/docs/updates/releases.tsx"
+# Older cards that link releases which never published; drop each once its card is fixed.
+UNPUBLISHED_HISTORY="2.1.6 2.2.2 3.5.0 apple-2.0.0 flutter-iap-10.6.2 google-3.5.3 kmp-iap-3.5.2 maui-iap-1.0.1 maui-iap-2.5.1"
+if ! PUBLISHED_RELEASES=$(gh release list --repo hyodotdev/openiap --limit 5000 \
+    --exclude-drafts --json tagName --jq '.[].tagName'); then
+    echo -e "${RED}❌ Could not list GitHub Releases; install gh and run gh auth login${NC}"
+    exit 1
+fi
+UNPUBLISHED_LINKS=$(
+    {
+        grep -oE "hyodotdev/openiap/releases/tag/[A-Za-z0-9._-]+" "$RELEASES_PAGE" | sed 's|.*/tag/||'
+        grep -oE "tag: '[^']+'" "$RELEASES_PAGE" | sed -E "s/tag: '(.*)'/\1/"
+    } | sort -u | grep -vxF -f <(printf '%s\n' $PUBLISHED_RELEASES $UNPUBLISHED_HISTORY) || true
+)
+if [ -n "$UNPUBLISHED_LINKS" ]; then
+    echo -e "${RED}❌ The release page links releases that are not published yet:${NC}"
+    echo "$UNPUBLISHED_LINKS"
+    echo -e "${YELLOW}Finish the release train, or trim its card to the packages that published.${NC}"
+    exit 1
+fi
+
 # Check if Vercel CLI is installed
 if ! command -v vercel &> /dev/null; then
     echo -e "${YELLOW}⚠️  Vercel CLI not found. Installing v${VERCEL_CLI_VERSION} globally...${NC}"

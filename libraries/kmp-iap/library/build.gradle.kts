@@ -312,10 +312,12 @@ android {
         create("horizon") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+            consumerProguardFiles("consumer-rules-non-play.pro")
         }
         create("amazon") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
+            consumerProguardFiles("consumer-rules-non-play.pro")
         }
     }
     buildFeatures {
