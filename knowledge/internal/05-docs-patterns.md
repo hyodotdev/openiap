@@ -130,7 +130,7 @@ When a feature has sub-pages (e.g., Subscription > Upgrade/Downgrade, Alternativ
 
 ### Directory Structure
 
-```
+```sh
 src/pages/docs/features/
 ├── subscription/
 │   ├── index.tsx              # Main subscription page
@@ -246,7 +246,7 @@ Rules:
 
 When a component has sub-components that are only used within it:
 
-```
+```sh
 // For a component with internal sub-components
 src/components/AuthModal/
   ├── index.tsx        // Main AuthModal component
@@ -313,9 +313,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-Production docs wait for the train: `npm run deploy` refuses a release page that
-links a release not yet published. If a train stops partway and will not
-resume, trim its card on `main` to the packages that published before deploying.
+By default, `npm run deploy` waits for every linked release to publish. To
+deploy docs earlier, use `-f` or `--force` as described in
+[Deploying Documentation](./06-git-deployment.md#deploying-documentation).
+If a train will not resume, trim its card to the packages that published.
 
 ### Release Note Writing Limits
 
@@ -357,6 +358,11 @@ from issue #206 without duplicating release history across package-local files:
   diff before drafting the note.
 - Group user-visible changes by affected platform package or framework library:
   Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and MAUI.
+- Name each package and version once in its behavior group. For several
+  changes, use one parent list item with a bold package/version label and
+  nested change bullets; do not repeat the label on each change. A single
+  change can follow the label inline. The separate `Package Releases` link
+  list may repeat the package/version label.
 - Omit packages with no user-visible change and keep each remaining group to the
   smallest set of useful upgrade notes.
 - Do not replace package-specific behavior with a generic "framework parity"
@@ -383,8 +389,7 @@ const allNotes: Note[] = [
     element: (
       <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
         <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
-          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature
-          Description
+          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature Description
         </AnchorLink>
         {/* Content here */}
       </div>
