@@ -18,13 +18,18 @@ EXPECTED_VERCEL_ORG_ID="team_qB5U5TU9IKqAL2KyQsj0duy3"
 echo -e "${BLUE}🚀 OpenIAP Deployment Script${NC}"
 echo ""
 
-# The docs site is not versioned. Only the Client Protocol and the Commerce
-# Protocol carry versions, each in its own package manifest.
-if [ -n "${1:-}" ]; then
-    echo -e "${RED}❌ Error: the docs site has no version to select${NC}"
-    echo -e "${YELLOW}Received '$1'. Run the script with no arguments.${NC}"
-    exit 1
-fi
+# npm consumes -f/--force and forwards it through npm_config_force.
+FORCE_DEPLOY="${npm_config_force:-false}"
+for arg in "$@"; do
+    case "$arg" in
+        -f|--force) FORCE_DEPLOY=true ;;
+        *)
+            echo -e "${RED}❌ Unsupported argument: '$arg'; the docs site has no version to select${NC}"
+            echo "Usage: npm run deploy [-f|--force]"
+            exit 1
+            ;;
+    esac
+done
 
 # Version metadata still has to be internally consistent before it ships.
 if ! node scripts/release-branch-policy.mjs assert-client-protocol; then
@@ -42,15 +47,16 @@ fi
 
 echo -e "${BLUE}🔍 Checking Git status...${NC}"
 
-# Check if there are uncommitted changes
 if [[ -n $(git status -s) ]]; then
-    echo -e "${RED}❌ Production deployment requires a clean worktree${NC}"
-    git status -s
-    exit 1
+    if [ "$FORCE_DEPLOY" != true ]; then
+        echo -e "${RED}❌ Production deployment requires a clean worktree${NC}"
+        git status -s
+        exit 1
+    fi
+    echo -e "${YELLOW}⚠️  Deploying local uncommitted changes (--force).${NC}"
 fi
 
-# Refuse stale, ahead-only, or otherwise unpublished main snapshots. Production
-# docs must match the exact commit currently recorded by origin/main.
+# Default deployments must match origin/main; --force deploys the local snapshot.
 echo -e "${BLUE}🔄 Verifying origin/main...${NC}"
 if ! git fetch --no-tags origin main; then
     echo -e "${RED}❌ Could not refresh origin/main${NC}"
@@ -59,13 +65,15 @@ fi
 LOCAL_HEAD=$(git rev-parse HEAD)
 REMOTE_HEAD=$(git rev-parse origin/main)
 if [ "$LOCAL_HEAD" != "$REMOTE_HEAD" ]; then
-    echo -e "${RED}❌ Local main must exactly match origin/main before deployment${NC}"
-    echo -e "${YELLOW}Run git pull --ff-only origin main, or push/reconcile local commits first.${NC}"
-    exit 1
+    if [ "$FORCE_DEPLOY" != true ]; then
+        echo -e "${RED}❌ Local main must exactly match origin/main before deployment${NC}"
+        echo -e "${YELLOW}Run git pull --ff-only origin main, or push/reconcile local commits first.${NC}"
+        exit 1
+    fi
+    echo -e "${YELLOW}⚠️  Deploying local main, which differs from origin/main (--force).${NC}"
 fi
 
-# Release cards merge before their packages publish, so deploy only once every
-# linked GitHub Release exists; workflows push the tag first and release last.
+# Release cards merge before publication; require an explicit flag to deploy them early.
 echo -e "${BLUE}🔗 Checking release links...${NC}"
 RELEASES_PAGE="packages/docs/src/pages/docs/updates/releases.tsx"
 if [ ! -f "$RELEASES_PAGE" ]; then
@@ -73,7 +81,7 @@ if [ ! -f "$RELEASES_PAGE" ]; then
     exit 1
 fi
 # Older cards that link releases which never published; drop each once its card is fixed.
-UNPUBLISHED_HISTORY="2.1.6 2.2.2 3.5.0 apple-2.0.0 flutter-iap-10.6.2 google-3.5.3 kmp-iap-3.5.2 maui-iap-1.0.1 maui-iap-2.5.1"
+UNPUBLISHED_HISTORY=(2.1.6 2.2.2 3.5.0 apple-2.0.0 flutter-iap-10.6.2 google-3.5.3 kmp-iap-3.5.2 maui-iap-1.0.1 maui-iap-2.5.1)
 if ! PUBLISHED_RELEASES=$(gh release list --repo hyodotdev/openiap --limit 5000 \
     --exclude-drafts --json tagName --jq '.[].tagName'); then
     echo -e "${RED}❌ Could not list GitHub Releases; install gh and run gh auth login${NC}"
@@ -89,13 +97,17 @@ if [ -z "$LINKED_TAGS" ]; then
     echo -e "${RED}❌ Found no release links in $RELEASES_PAGE; update this check${NC}"
     exit 1
 fi
-UNPUBLISHED_LINKS=$(grep -vxF -f <(printf '%s\n' $PUBLISHED_RELEASES $UNPUBLISHED_HISTORY) \
+UNPUBLISHED_LINKS=$(grep -vxF -f <(printf '%s\n' "$PUBLISHED_RELEASES" "${UNPUBLISHED_HISTORY[@]}") \
     <<< "$LINKED_TAGS" || true)
 if [ -n "$UNPUBLISHED_LINKS" ]; then
-    echo -e "${RED}❌ The release page links releases that are not published yet:${NC}"
+    echo -e "${YELLOW}⚠️  The release page links releases that are not published yet:${NC}"
     echo "$UNPUBLISHED_LINKS"
-    echo -e "${YELLOW}Finish the release train, or trim its card to the packages that published.${NC}"
-    exit 1
+    if [ "$FORCE_DEPLOY" != true ]; then
+        echo -e "${RED}❌ Finish the release train, or trim its card to the packages that published.${NC}"
+        echo -e "${YELLOW}To deploy docs before publication: npm run deploy --force${NC}"
+        exit 1
+    fi
+    echo -e "${YELLOW}Proceeding with unpublished release links (--force).${NC}"
 fi
 
 # Check if Vercel CLI is installed
@@ -157,7 +169,7 @@ if ! ./scripts/sync-versions.sh; then
     exit 1
 fi
 
-if [[ -n $(git status -s) ]]; then
+if [[ "$FORCE_DEPLOY" != true && -n $(git status -s) ]]; then
     echo -e "${RED}❌ Version metadata was not synchronized on main${NC}"
     echo -e "${YELLOW}Commit the canonical version metadata before deploying.${NC}"
     git status -s

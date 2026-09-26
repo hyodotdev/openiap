@@ -368,14 +368,16 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces. The deploy refuses while any card
-links an unpublished release, so it waits for a train that is still publishing.
+PR, deploy the docs and verify both surfaces. Release cards normally wait for
+their packages to publish; use the flag below to deploy them earlier.
 
-Production documentation is stable-only and must deploy from a clean `main`
-checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, stale or unpublished local snapshots, and a release
-page that links a GitHub Release not yet published, which it lists with an
-authenticated `gh`.
+Production documentation is stable-only and deploys from `main`. By default,
+the worktree must be clean, `HEAD` must match `origin/main`, and every linked
+GitHub Release must be published. `-f` or `--force` deploys the local snapshot:
+it permits uncommitted changes, a different commit from `origin/main`, and
+unpublished release links with warnings. The clean-worktree check after
+version synchronization is also skipped. Branch, version consistency, GitHub
+lookup, Vercel target, typecheck, and build checks still apply.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
@@ -386,6 +388,10 @@ reports success only after Vercel returns a ready production deployment.
 ```bash
 # From monorepo root
 npm run deploy
+
+# Deploy local changes or docs ahead of package publication
+npm run deploy -f
+# Equivalent: npm run deploy --force
 ```
 
 This will:

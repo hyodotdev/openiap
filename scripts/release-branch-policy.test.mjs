@@ -1415,7 +1415,12 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     writeExecutable(
       resolve(temporaryRoot, "scripts/sync-versions.sh"),
-      "#!/bin/sh\nexit 0\n",
+      [
+        "#!/bin/sh",
+        'if [ -n "${MOCK_SYNC_DIRTY:-}" ]; then echo synced > sync-output.txt; fi',
+        "exit 0",
+        "",
+      ].join("\n"),
     );
     writeFileSync(
       resolve(temporaryRoot, "openiap-versions.json"),
@@ -1427,7 +1432,19 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     writeExecutable(
       resolve(temporaryRoot, "mock-bin/node"),
-      "#!/bin/sh\nexit 0\n",
+      [
+        "#!/bin/sh",
+        'if [ "${1:-}" = "scripts/release-branch-policy.mjs" ]; then exit 0; fi',
+        'exec "$MOCK_REAL_NODE" "$@"',
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      resolve(temporaryRoot, "package.json"),
+      JSON.stringify({
+        private: true,
+        scripts: { deploy: "bash scripts/deploy.sh" },
+      }),
     );
     writeExecutable(
       resolve(temporaryRoot, "mock-bin/bun"),
@@ -1498,10 +1515,12 @@ test("production docs require a verified Vercel deployment result", (context) =>
     const environment = { ...process.env };
     delete environment.VERCEL_PROJECT_ID;
     delete environment.VERCEL_ORG_ID;
+    delete environment.npm_config_force;
+    environment.MOCK_REAL_NODE = process.execPath;
     environment.PATH = `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`;
     environment.MOCK_GH_RELEASES = "google-9.9.9 expo-iap-9.9.9";
-    const runDeploy = (mockOutput = "", environmentOverrides = {}) =>
-      spawnSync("bash", ["scripts/deploy.sh"], {
+    const runDeploy = (mockOutput = "", environmentOverrides = {}, args = []) =>
+      spawnSync("bash", ["scripts/deploy.sh", ...args], {
         cwd: temporaryRoot,
         encoding: "utf8",
         env: {
@@ -1522,6 +1541,18 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(unpublished.stdout, /expo-iap-9\.9\.9/);
     assert.doesNotMatch(unpublished.stdout, /google-3\.5\.3/);
     assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
+    assert.match(unpublished.stdout, /npm run deploy --force/);
+
+    for (const args of [
+      ["--unknown"],
+      ["3.6.1"],
+      ["--force", "3.6.1"],
+    ]) {
+      const invalidArguments = runDeploy("", {}, args);
+      assert.notEqual(invalidArguments.status, 0);
+      assert.match(invalidArguments.stdout, /Unsupported argument/);
+      assert.doesNotMatch(invalidArguments.stdout, /Checking Git status/);
+    }
 
     const noReleaseList = runDeploy("", { MOCK_GH_FAIL: "1" });
     assert.notEqual(noReleaseList.status, 0);
@@ -1574,6 +1605,43 @@ test("production docs require a verified Vercel deployment result", (context) =>
 
     const readyOutput =
       '{"status":"ok","deployment":{"id":"dpl_test","url":"https://openiap-test.vercel.app","readyState":"READY","target":"production"}}';
+    for (const flag of ["-f", "--force"]) {
+      const early = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [flag]);
+      assert.equal(early.status, 0, early.stderr || early.stdout);
+      assert.match(early.stdout, /google-9\.9\.9/);
+      assert.match(early.stdout, /Proceeding with unpublished release links/);
+      assert.match(early.stdout, /Successfully deployed to Vercel/);
+
+      const npmEarly = spawnSync("npm", ["run", "deploy", flag], {
+        cwd: temporaryRoot,
+        encoding: "utf8",
+        env: {
+          ...environment,
+          MOCK_GH_RELEASES: "",
+          MOCK_VERCEL_OUTPUT: readyOutput,
+        },
+        input: "y\n",
+      });
+      assert.equal(npmEarly.status, 0, npmEarly.stderr || npmEarly.stdout);
+      assert.match(npmEarly.stdout, /Proceeding with unpublished release links/);
+      assert.match(npmEarly.stdout, /Successfully deployed to Vercel/);
+    }
+
+    const earlyWithoutReleaseList = runDeploy(
+      readyOutput,
+      { MOCK_GH_FAIL: "1" },
+      ["--force"],
+    );
+    assert.notEqual(earlyWithoutReleaseList.status, 0);
+    assert.match(
+      earlyWithoutReleaseList.stdout,
+      /Could not list GitHub Releases/,
+    );
+    assert.doesNotMatch(
+      earlyWithoutReleaseList.stdout,
+      /Successfully deployed to Vercel/,
+    );
+
     const conflictingEnvironment = runDeploy(readyOutput, {
       VERCEL_PROJECT_ID: "prj_other",
       VERCEL_ORG_ID: "team_qB5U5TU9IKqAL2KyQsj0duy3",
@@ -1602,6 +1670,45 @@ test("production docs require a verified Vercel deployment result", (context) =>
       ready.stdout,
       /Successfully deployed to Vercel: https:\/\/openiap-test\.vercel\.app/,
     );
+
+    for (const args of [[], ["--force"]]) {
+      const syncDirty = runDeploy(readyOutput, { MOCK_SYNC_DIRTY: "1" }, args);
+      if (args.length === 0) {
+        assert.notEqual(syncDirty.status, 0);
+        assert.match(syncDirty.stdout, /Version metadata was not synchronized/);
+        assert.doesNotMatch(syncDirty.stdout, /Successfully deployed to Vercel/);
+      } else {
+        assert.equal(syncDirty.status, 0, syncDirty.stderr || syncDirty.stdout);
+        assert.match(syncDirty.stdout, /Successfully deployed to Vercel/);
+      }
+      rmSync(resolve(temporaryRoot, "sync-output.txt"));
+    }
+
+    const localWork = resolve(temporaryRoot, "uncommitted.txt");
+    writeFileSync(localWork, "local work\n");
+    const dirty = runDeploy(readyOutput);
+    assert.notEqual(dirty.status, 0);
+    assert.match(dirty.stdout, /requires a clean worktree/);
+    assert.doesNotMatch(dirty.stdout, /Successfully deployed to Vercel/);
+    for (const flag of ["-f", "--force"]) {
+      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [flag]);
+      assert.equal(dirtyEarly.status, 0, dirtyEarly.stderr || dirtyEarly.stdout);
+      assert.match(dirtyEarly.stdout, /Deploying local uncommitted changes/);
+      assert.match(dirtyEarly.stdout, /Successfully deployed to Vercel/);
+      assert.equal(readFileSync(localWork, "utf8"), "local work\n");
+    }
+
+    execFileSync("git", ["add", "uncommitted.txt"], { cwd: temporaryRoot });
+    execFileSync("git", ["commit", "-q", "-m", "local commit"], {
+      cwd: temporaryRoot,
+    });
+    const ahead = runDeploy(readyOutput);
+    assert.notEqual(ahead.status, 0);
+    assert.match(ahead.stdout, /Local main must exactly match origin\/main/);
+    const forcedAhead = runDeploy(readyOutput, {}, ["--force"]);
+    assert.equal(forcedAhead.status, 0, forcedAhead.stderr || forcedAhead.stdout);
+    assert.match(forcedAhead.stdout, /Deploying local main, which differs/);
+    assert.match(forcedAhead.stdout, /Successfully deployed to Vercel/);
   } finally {
     rmSync(temporaryRoot, { force: true, recursive: true });
     rmSync(remoteRoot, { force: true, recursive: true });

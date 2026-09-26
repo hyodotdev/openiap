@@ -387,14 +387,14 @@ a KMP library module, and a module with its own `platform` flavors (which the
 plugin leaves alone). It needs an Android SDK and the network.
 
 `scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
-and kmp CI does the same for its example app. It builds a minified release app per store from the
-locally published artifacts and asserts that each links only its store's SDK
-and that R8 keeps what runs by name: every Play Billing class and method the
-Play module looks up by reflection (read from its source), and every Amazon SDK
-class, because that SDK fills its own classes by reflection. It also needs an
-Android SDK and the network. A store SDK that needs R8 rules gets them in its
-flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so apps never add
-them by hand.
+and kmp CI does the same for its example app. It builds a minified release app
+per store from the locally published artifacts and asserts that each links only
+its store's SDK and that R8 keeps what runs by name: every Play Billing class
+and method the Play module looks up by reflection (read from its source), and
+every Amazon SDK class, because that SDK fills its own classes by reflection. It
+also needs an Android SDK and the network. A store SDK that needs R8 rules gets
+them in its flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so
+apps never add them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that

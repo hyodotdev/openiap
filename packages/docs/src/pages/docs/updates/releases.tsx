@@ -481,21 +481,26 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 3.6.1</strong> - fixes minified Horizon
-              builds that failed on <code>javax.annotation.Nullable</code>, and
-              keeps the Amazon Appstore SDK classes it fills by reflection, so
-              Amazon purchases work in release builds.
-            </li>
-            <li>
-              <strong>openiap-google 3.6.1</strong> - keeps the Play Billing
-              APIs behind External Payments, Billing Choice, external links,
-              user choice billing, automatic reconnection, and{' '}
-              <code>isSuspended</code>, which R8 used to strip.
-            </li>
-            <li>
-              <strong>openiap-google 3.6.1</strong> -{' '}
-              <code>OpenIapStore.enableBillingProgram</code> now takes effect in
-              release builds; Horizon and Amazon ignore it with a warning.
+              <strong>openiap-google 3.6.1</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Fixes minified Horizon builds that failed on{' '}
+                  <code>javax.annotation.Nullable</code>.
+                </li>
+                <li>
+                  Preserves the Amazon Appstore SDK classes and fields used by
+                  reflection, so purchases work in release builds.
+                </li>
+                <li>
+                  Preserves Play Billing support for External Payments, Billing
+                  Choice, external links, user choice billing, automatic
+                  reconnection, and <code>isSuspended</code> after R8 shrinking.
+                </li>
+                <li>
+                  <code>OpenIapStore.enableBillingProgram</code> takes effect in
+                  release builds; Horizon and Amazon ignore it with a warning.
+                </li>
+              </ul>
             </li>
           </ul>
 

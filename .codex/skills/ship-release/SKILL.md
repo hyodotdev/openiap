@@ -67,10 +67,10 @@ For each package:
    the new version before starting the next package.
 
 Do not run package releases concurrently. Stop on the first failed gate and
-report the exact workflow job and package state. Leave production docs
-undeployed while the card links a release that has not published; if the train
-will not resume, trim the card to the packages that published, through §4,
-before deploying.
+report the exact workflow job and package state. If the user requests docs
+before package publication, use the explicit flag documented in
+`knowledge/internal/06-git-deployment.md#deploying-documentation`. If the train
+will not resume, trim the card to the packages that published through §4.
 
 Godot releases also require the authenticated Godot Asset Library listing to be
 updated. Prepare the edit when possible, request action-time confirmation before

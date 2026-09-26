@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T18:10:10.634Z
+> Last updated: 2026-09-26T18:35:25.842Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1469,14 +1469,14 @@ a KMP library module, and a module with its own `platform` flavors (which the
 plugin leaves alone). It needs an Android SDK and the network.
 
 `scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
-and kmp CI does the same for its example app. It builds a minified release app per store from the
-locally published artifacts and asserts that each links only its store's SDK
-and that R8 keeps what runs by name: every Play Billing class and method the
-Play module looks up by reflection (read from its source), and every Amazon SDK
-class, because that SDK fills its own classes by reflection. It also needs an
-Android SDK and the network. A store SDK that needs R8 rules gets them in its
-flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so apps never add
-them by hand.
+and kmp CI does the same for its example app. It builds a minified release app
+per store from the locally published artifacts and asserts that each links only
+its store's SDK and that R8 keeps what runs by name: every Play Billing class
+and method the Play module looks up by reflection (read from its source), and
+every Amazon SDK class, because that SDK fills its own classes by reflection. It
+also needs an Android SDK and the network. A store SDK that needs R8 rules gets
+them in its flavor's consumer file (`openiap/consumer-rules-<store>.pro`), so
+apps never add them by hand.
 
 **Add a case whenever the rule changes.** A wrong store is invisible on the
 machine that built it — it only appears when the artifact reaches a device that
@@ -2021,7 +2021,7 @@ When a feature has sub-pages (e.g., Subscription > Upgrade/Downgrade, Alternativ
 
 ### Directory Structure
 
-```
+```sh
 src/pages/docs/features/
 ├── subscription/
 │   ├── index.tsx              # Main subscription page
@@ -2137,7 +2137,7 @@ Rules:
 
 When a component has sub-components that are only used within it:
 
-```
+```sh
 // For a component with internal sub-components
 src/components/AuthModal/
   ├── index.tsx        // Main AuthModal component
@@ -2204,9 +2204,10 @@ unreleased card for the same train exists, update it instead of adding another.
 After the train publishes, the release only verifies each version and link and
 corrects the card on `main` where one differs.
 
-Production docs wait for the train: `npm run deploy` refuses a release page that
-links a release not yet published. If a train stops partway and will not
-resume, trim its card on `main` to the packages that published before deploying.
+By default, `npm run deploy` waits for every linked release to publish. To
+deploy docs earlier, use `-f` or `--force` as described in
+[Deploying Documentation](./06-git-deployment.md#deploying-documentation).
+If a train will not resume, trim its card to the packages that published.
 
 ### Release Note Writing Limits
 
@@ -2248,6 +2249,11 @@ from issue #206 without duplicating release history across package-local files:
   diff before drafting the note.
 - Group user-visible changes by affected platform package or framework library:
   Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and MAUI.
+- Name each package and version once in its behavior group. For several
+  changes, use one parent list item with a bold package/version label and
+  nested change bullets; do not repeat the label on each change. A single
+  change can follow the label inline. The separate `Package Releases` link
+  list may repeat the package/version label.
 - Omit packages with no user-visible change and keep each remaining group to the
   smallest set of useful upgrade notes.
 - Do not replace package-specific behavior with a generic "framework parity"
@@ -2274,8 +2280,7 @@ const allNotes: Note[] = [
     element: (
       <div key="google-3-5-2-apple-3-4-0" style={noteCardStyle}>
         <AnchorLink id="google-3-5-2-apple-3-4-0" level="h4">
-          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature
-          Description
+          📅 openiap-google v3.5.2 / openiap-apple v3.4.0 - Feature Description
         </AnchorLink>
         {/* Content here */}
       </div>
@@ -2712,14 +2717,16 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces. The deploy refuses while any card
-links an unpublished release, so it waits for a train that is still publishing.
+PR, deploy the docs and verify both surfaces. Release cards normally wait for
+their packages to publish; use the flag below to deploy them earlier.
 
-Production documentation is stable-only and must deploy from a clean `main`
-checkout that exactly matches `origin/main`. The script rejects prerelease spec
-versions, other branches, stale or unpublished local snapshots, and a release
-page that links a GitHub Release not yet published, which it lists with an
-authenticated `gh`.
+Production documentation is stable-only and deploys from `main`. By default,
+the worktree must be clean, `HEAD` must match `origin/main`, and every linked
+GitHub Release must be published. `-f` or `--force` deploys the local snapshot:
+it permits uncommitted changes, a different commit from `origin/main`, and
+unpublished release links with warnings. The clean-worktree check after
+version synchronization is also skipped. Branch, version consistency, GitHub
+lookup, Vercel target, typecheck, and build checks still apply.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is
@@ -2730,6 +2737,10 @@ reports success only after Vercel returns a ready production deployment.
 ```bash
 # From monorepo root
 npm run deploy
+
+# Deploy local changes or docs ahead of package publication
+npm run deploy -f
+# Equivalent: npm run deploy --force
 ```
 
 This will:

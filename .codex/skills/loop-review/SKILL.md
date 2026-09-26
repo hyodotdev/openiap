@@ -231,6 +231,7 @@ describe a pending or partially reviewed PR as clean.
 After merge, stop the shipping phase when an affected release fails, its public
 artifact cannot be verified, production docs cannot be verified, or continuing
 would require a code change outside the reviewed PR. Preserve every successful
-release and report the exact resume point. Do not deploy docs while the card
-links an unpublished release; if the train will not resume, trim the card to
-what published through steps 4 and 5 first.
+release and report the exact resume point. If the user requests docs before
+package publication, use the explicit flag documented in
+`knowledge/internal/06-git-deployment.md#deploying-documentation`. If the train
+will not resume, trim the card to what published through steps 4 and 5 first.

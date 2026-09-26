@@ -144,8 +144,8 @@ Follow the existing card pattern:
 - Use `new Date('YYYY-MM-DD')`.
 - Use `AnchorLink` for the heading.
 - Keep package links in a `Package Releases` list.
-- Name the expected version in each package-specific bullet, as well as in the
-  linked `Package Releases` list.
+- Name the expected version once per package behavior group and in the linked
+  `Package Releases` list.
 - Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
@@ -175,10 +175,11 @@ Card section layout (mandatory for multi-package cards):
   4. `Integration notes` (or migration notes)
   5. The bordered `Package Releases` block
 - Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
-  `React Native`, `Expo`, ... headings). Each package-specific behavior gets at
-  most one `<li>` inside the shared group list, written as
-  `<strong>package version</strong> - prose description`
-  (for example `<strong>react-native-iap 16.0.2</strong> - exposes ...`).
+  `React Native`, `Expo`, ... headings). Use one parent `<li>` per package,
+  following the package-specific grouping rule in
+  `knowledge/internal/05-docs-patterns.md`: put `<strong>package version</strong>`
+  once, then one inline change or a nested `<ul>` for multiple changes.
+  Never repeat the package/version label on each nested change.
 - `Protocols and native packages` holds `Client Protocol`, `Commerce Protocol`,
   `openiap-apple`, and `openiap-google` bullets; `Framework libraries` holds the
   framework SDK bullets. Omit the section when it would be empty.
@@ -186,7 +187,8 @@ Card section layout (mandatory for multi-package cards):
   regenerating types, or republishing the same behavior belongs only in
   `Package Releases`. Do not manufacture one boilerplate bullet per wrapper.
 - One bullet may name multiple packages when the same user-visible behavior and
-  caveats apply to all of them. Keep distinct behavior in distinct bullets.
+  caveats apply to all of them. Keep distinct changes in separate nested
+  bullets within their package group.
 - The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
   August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
   reference implementations of this layout.
