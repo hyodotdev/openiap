@@ -45,10 +45,6 @@ declare -A sdk_package=(
     [horizon]=com.meta.horizon.billingclient.
     [amazon]=com.amazon.device.iap.
 )
-# The Appstore broadcasts to this receiver by name, so R8 must not rename it.
-declare -A named_class=(
-    [amazon]=com.amazon.device.iap.ResponseReceiver
-)
 
 failures=0
 
@@ -118,12 +114,14 @@ check() {
         fi
     done
 
-    local kept=${named_class[$store]:-}
-    if [ -n "$kept" ]; then
-        local apk descriptor="L${kept//.//};"
-        apk=$(find "$build/outputs/apk/release" -name '*.apk' | head -n 1)
-        if [ -z "$apk" ] || ! unzip -p "$apk" 'classes*.dex' | grep -aqF "$descriptor"; then
-            fail "$name" "the release APK has no $kept under that name"
+    # The Appstore SDK finds and fills its own classes by their com.amazon. names,
+    # and the Appstore broadcasts to its receiver by name. R8's own synthesized
+    # classes are not the SDK's.
+    if [ "$store" = amazon ]; then
+        local renamed
+        renamed=$(awk '/^com\.amazon\./ && !index($1, "$$ExternalSynthetic") && $1 ":" != $3 { print $1; exit }' "$mapping")
+        if [ -n "$renamed" ]; then
+            fail "$name" "R8 renamed Amazon SDK classes such as $renamed"
         fi
     fi
 

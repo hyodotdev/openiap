@@ -114,11 +114,13 @@ android {
         create("horizon") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
+            consumerProguardFiles("consumer-rules-horizon.pro")
         }
         // Amazon flavor - Amazon Appstore SDK IAP only
         create("amazon") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"amazon\"")
+            consumerProguardFiles("consumer-rules-amazon.pro")
         }
     }
 
