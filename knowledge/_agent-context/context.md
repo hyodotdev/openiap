@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T17:36:18.906Z
+> Last updated: 2026-09-26T18:10:10.634Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -1468,8 +1468,8 @@ store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
 a KMP library module, and a module with its own `platform` flavors (which the
 plugin leaves alone). It needs an Android SDK and the network.
 
-`scripts/verify-release-consumer.sh` is the only check that runs R8, as an
-app's release build does. It builds a minified release app per store from the
+`scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
+and kmp CI does the same for its example app. It builds a minified release app per store from the
 locally published artifacts and asserts that each links only its store's SDK
 and that R8 keeps what runs by name: every Play Billing class and method the
 Play module looks up by reflection (read from its source), and every Amazon SDK
@@ -2325,7 +2325,7 @@ Before adding or editing a `Package Releases` list:
    with `gh release view <tag> --repo hyodotdev/openiap` before changing a link.
 6. After the train publishes, compare every version and link on its card with
    the published releases and correct any that differ.
-7. Run `bun run audit:docs`; the audit fails when a published
+7. Run `bun run audit:docs`; the audit fails when a
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 
@@ -2712,9 +2712,8 @@ This matters most for a PR that changes both `packages/kit/` and
 `packages/docs/`: the kit server auto-deploys from `main` while the docs half
 stays on the previously deployed build. Server behavior can therefore go live
 while the documentation describing it is still unpublished. After merging such a
-PR, deploy the docs and verify both surfaces. If the PR also carries a release
-card, deploy once its train publishes; the deploy refuses unpublished release
-links.
+PR, deploy the docs and verify both surfaces. The deploy refuses while any card
+links an unpublished release, so it waits for a train that is still publishing.
 
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec

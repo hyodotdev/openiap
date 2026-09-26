@@ -386,8 +386,8 @@ store reaches the published `openiap-google` and `kmp-iap` artifacts in an app,
 a KMP library module, and a module with its own `platform` flavors (which the
 plugin leaves alone). It needs an Android SDK and the network.
 
-`scripts/verify-release-consumer.sh` is the only check that runs R8, as an
-app's release build does. It builds a minified release app per store from the
+`scripts/verify-release-consumer.sh` runs R8 as an app's release build does,
+and kmp CI does the same for its example app. It builds a minified release app per store from the
 locally published artifacts and asserts that each links only its store's SDK
 and that R8 keeps what runs by name: every Play Billing class and method the
 Play module looks up by reflection (read from its source), and every Amazon SDK
