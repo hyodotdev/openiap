@@ -1455,11 +1455,6 @@ function formatQuotedList(values: string[]): string {
   return `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
 }
 
-/**
- * `Package Releases` blocks link every package/version item to its GitHub
- * Release. A card written in a PR ahead of its release links the expected tags,
- * so `Planned Package Releases` is no longer used.
- */
 // Release workflows link a version's own anchor, e.g.
 // /docs/updates/releases#godot-iap-3.5.1. The page paginates and resolves a
 // hash only against a note's id or aliases, so a card that lists package
@@ -1549,8 +1544,13 @@ export function auditReleaseNoteVersionAnchors(
   return drifts;
 }
 
-function auditReleaseNotePackageLinks(filePath: string): Drift[] {
-  const src = readFileSync(filePath, "utf8");
+// Every `Package Releases` item links its GitHub Release; a card written ahead of
+// its release links the expected tag, so `Planned Package Releases` is rejected.
+export function auditReleaseNotePackageLinks(
+  filePath: string,
+  source?: string,
+): Drift[] {
+  const src = source ?? readFileSync(filePath, "utf8");
   const drifts: Drift[] = [];
   const headingRe =
     /<h5[^>]*>\s*(Planned Package Releases|Package Releases)\s*<\/h5>/g;

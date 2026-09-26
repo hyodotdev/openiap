@@ -439,7 +439,7 @@ Before adding or editing a `Package Releases` list:
    with `gh release view <tag> --repo hyodotdev/openiap` before changing a link.
 6. After the train publishes, compare every version and link on its card with
    the published releases and correct any that differ.
-7. Run `bun run audit:docs`; the audit fails when a published
+7. Run `bun run audit:docs`; the audit fails when a
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
 

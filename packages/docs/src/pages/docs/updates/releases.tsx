@@ -472,9 +472,7 @@ function Releases() {
             .
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Protocols and native packages
-          </h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
           <ul
             style={{
               marginBottom: '1rem',

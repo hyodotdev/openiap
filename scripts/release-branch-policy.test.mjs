@@ -1474,7 +1474,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
         "",
       ].join("\n"),
     );
-    // A card for an unreleased train, and a historical link the deploy knows never published.
+    // Unreleased links in both page forms, and a historical one the deploy knows never published.
     mkdirSync(resolve(temporaryRoot, "packages/docs/src/pages/docs/updates"), {
       recursive: true,
     });
@@ -1486,6 +1486,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
       [
         "const RELEASES = [{ name: 'openiap-google', version: '9.9.9', tag: 'google-9.9.9' }];",
         'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/google-3.5.3";',
+        'const NEW = "https://github.com/hyodotdev/openiap/releases/tag/expo-iap-9.9.9";',
         "",
       ].join("\n"),
     );
@@ -1517,7 +1518,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
     delete environment.npm_config_force;
     environment.MOCK_REAL_NODE = process.execPath;
     environment.PATH = `${resolve(temporaryRoot, "mock-bin")}:${process.env.PATH}`;
-    environment.MOCK_GH_RELEASES = "google-9.9.9";
+    environment.MOCK_GH_RELEASES = "google-9.9.9 expo-iap-9.9.9";
     const runDeploy = (mockOutput = "", environmentOverrides = {}, args = []) =>
       spawnSync("bash", ["scripts/deploy.sh", ...args], {
         cwd: temporaryRoot,
@@ -1537,6 +1538,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
       /links releases that are not published yet/,
     );
     assert.match(unpublished.stdout, /google-9\.9\.9/);
+    assert.match(unpublished.stdout, /expo-iap-9\.9\.9/);
     assert.doesNotMatch(unpublished.stdout, /google-3\.5\.3/);
     assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
     assert.match(unpublished.stdout, /npm run deploy --force/);
