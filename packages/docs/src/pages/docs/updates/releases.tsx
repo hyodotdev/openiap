@@ -517,9 +517,9 @@ function Releases() {
               <code>productDetailsAndroid</code>.
             </li>
             <li>
-              <strong>kmp-iap 3.6.1</strong> - creates the Horizon and Amazon
-              billing module directly instead of by reflection that R8 can
-              strip.
+              <strong>kmp-iap 3.6.1</strong> - fixes minified Horizon and Amazon
+              release builds, which failed on Play Billing classes those stores
+              don&apos;t ship or could not start billing.
             </li>
           </ul>
 

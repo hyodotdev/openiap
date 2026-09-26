@@ -250,9 +250,9 @@ openiapStore=horizon`}
 
         <h4>R8 and ProGuard</h4>
         <p>
-          No rules to add. From 3.6.1, the Android store artifact ships the keep
-          rules its billing SDK needs, so minified release builds work as they
-          are.
+          No rules to add. From 3.6.1, kmp-iap and the openiap store artifact
+          ship the R8 rules each store needs, so minified release builds work as
+          they are.
         </p>
       </section>
 
