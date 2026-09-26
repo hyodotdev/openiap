@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T17:20:20.257Z
+> Last updated: 2026-09-26T17:36:18.906Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2719,7 +2719,8 @@ links.
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
 versions, other branches, stale or unpublished local snapshots, and a release
-page that links a release not yet published.
+page that links a GitHub Release not yet published, which it lists with an
+authenticated `gh`.
 
 On a fresh checkout, first run `cd packages/docs && vercel link` and select the
 existing OpenIAP project. Deployment stops when that local project link is

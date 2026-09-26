@@ -62,14 +62,16 @@ if [ -z "$play_classes" ] || [ -z "$play_methods" ]; then
     exit 1
 fi
 
+dexdump=$(find "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/build-tools" -name dexdump -type f 2>/dev/null \
+    | sort -V | tail -n 1 || true)
+if [ -z "$dexdump" ]; then
+    echo "No dexdump under \$ANDROID_HOME/build-tools to read the Play APK with." >&2
+    exit 1
+fi
+
 # Prints each looked-up Play Billing class or method that the APK lacks.
 missing_play_lookups() {
-    local sdk_root=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}} dexdump defined name
-    dexdump=$(find "$sdk_root/build-tools" -name dexdump -type f 2>/dev/null | sort -V | tail -n 1)
-    if [ -z "$dexdump" ]; then
-        echo "(no dexdump under \$ANDROID_HOME/build-tools)"
-        return 0
-    fi
+    local defined name
     defined=$("$dexdump" "$1" | awk -F "'" '
         /^  Class descriptor/ { c = substr($2, 2, length($2) - 2); gsub("/", ".", c); print "class " c; next }
         /^  (Direct|Virtual) methods/ { m = 1; next }
