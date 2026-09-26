@@ -292,6 +292,33 @@ function listTrackedFiles(relativePath) {
     .filter((file) => file.length > 0 && exists(file));
 }
 
+// The shared store and the framework bridges call openiap through its API, so R8
+// sees every call; a reflective lookup hides its target and a release build then
+// strips it.
+function checkNoReflectionIntoOpenIap() {
+  const sources = [
+    "packages/google/openiap/src/main",
+    "libraries/react-native-iap/android/src/main",
+    "libraries/expo-iap/android/src/main",
+    "libraries/flutter_inapp_purchase/android/src",
+    "libraries/maui-iap/android",
+    "libraries/godot-iap/android",
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/OpenIapDelegateInAppPurchaseAndroid.kt",
+  ];
+  const reflective =
+    /\b(?:getMethod|getDeclaredMethod|getField|getDeclaredField|getConstructor|getDeclaredConstructor)\(|Class\.forName\(/;
+  for (const source of sources) {
+    for (const file of listTrackedFiles(source)) {
+      if (!/\.(?:kt|java)$/.test(file) || /\/(?:test|androidTest)[A-Za-z]*\//.test(file)) continue;
+      if (reflective.test(read(file))) {
+        fail(
+          `${file} looks up code by reflection, which R8 removes from release builds; call openiap directly`,
+        );
+      }
+    }
+  }
+}
+
 function checkNoOutboundWebhookStream() {
   const forbiddenFiles = [
     "packages/kit/server/api/v1/webhookStreamDrain.ts",
@@ -3374,9 +3401,7 @@ function checkBillingChoiceFieldBindings() {
       "externalTransactionToken = params.externalTransactionToken.unwrapString()",
       "linkUri = details.linkUri.wrapVariant()",
       "originalExternalTransactionId = details.originalExternalTransactionId.wrapVariant()",
-      'getMethod("getOriginalExternalTransactionId")',
-      'getMethod("getProductDetailsAndroid")',
-      "productDetailsAndroid = productDetails?.map",
+      "productDetailsAndroid = details.productDetailsAndroid?.map",
       "products = details.products.map",
       "subResponseCode = mapSubResponseCode(result.subResponseCode)",
     ],
@@ -9641,6 +9666,7 @@ checkLibraryCoverageRegistry();
 checkClientProtocol();
 checkDeprecationSchedule();
 checkNoOutboundWebhookStream();
+checkNoReflectionIntoOpenIap();
 checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();

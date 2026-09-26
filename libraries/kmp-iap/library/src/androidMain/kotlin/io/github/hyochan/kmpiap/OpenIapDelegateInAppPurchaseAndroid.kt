@@ -10,6 +10,7 @@ import android.app.Application
 import android.content.Context
 import android.os.Bundle
 import dev.hyo.openiap.OpenIapError as AndroidOpenIapError
+import dev.hyo.openiap.OpenIapModule
 import dev.hyo.openiap.OpenIapProtocol as AndroidOpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -374,11 +375,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
     private fun requireModule(): AndroidOpenIapProtocol =
         module ?: failWith(PurchaseError(code = ErrorCode.NotPrepared, message = "$storeName billing module not initialized"))
 
-    private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol {
-        val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val constructor = clazz.getConstructor(Context::class.java)
-        return constructor.newInstance(ctx) as AndroidOpenIapProtocol
-    }
+    private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol = OpenIapModule(ctx)
 
     private fun registerListeners(openModule: AndroidOpenIapProtocol) {
         val purchaseUpdate = OpenIapPurchaseUpdateListener { purchase ->

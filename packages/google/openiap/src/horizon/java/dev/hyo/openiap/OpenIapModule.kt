@@ -1887,6 +1887,11 @@ class OpenIapModule(
     }
 
     // Google Play billing programs are not supported on Horizon.
+    override fun enableBillingProgram(program: BillingProgramAndroid) {
+        // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
+        OpenIapLog.warn("enableBillingProgram is not supported on Meta Horizon (no-op)", TAG)
+    }
+
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
         OpenIapLog.warn("isBillingProgramAvailable is not supported on Meta Horizon (no-op)", TAG)
