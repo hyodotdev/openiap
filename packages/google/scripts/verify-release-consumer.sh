@@ -58,6 +58,40 @@ mapping_has_package() {
     awk -v prefix="$2" 'index($0, prefix) == 1 { found = 1; exit } END { exit !found }' "$1"
 }
 
+# The Play module looks up newer Play Billing APIs by name, so it still runs when
+# an app pins an older billing version. Reading the names from its source checks
+# a new lookup as soon as it lands.
+play_source=$(find "$google_root/openiap/src/play" -name '*.kt' -exec cat {} + | tr -s '[:space:]' ' ')
+play_classes=$(grep -oE 'Class\.forName\( ?"com\.android\.billingclient\.api\.[^"]+"' <<< "$play_source" \
+    | sed -E 's/.*"(.*)"/\1/; s/\\\$/$/g' | sort -u || true)
+play_methods=$(grep -oE 'get(Declared)?Method\( ?"[A-Za-z0-9_]+"' <<< "$play_source" \
+    | sed -E 's/.*"(.*)"/\1/' | sort -u || true)
+if [ -z "$play_classes" ] || [ -z "$play_methods" ]; then
+    echo "Found no Play Billing lookups in the Play module; update this check." >&2
+    exit 1
+fi
+
+# Prints each looked-up Play Billing class or method that the APK lacks.
+missing_play_lookups() {
+    local sdk_root=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}} dexdump defined name
+    dexdump=$(find "$sdk_root/build-tools" -name dexdump -type f 2>/dev/null | sort -V | tail -n 1)
+    if [ -z "$dexdump" ]; then
+        echo "(no dexdump under \$ANDROID_HOME/build-tools)"
+        return 0
+    fi
+    defined=$("$dexdump" "$1" | awk -F "'" '
+        /^  Class descriptor/ { c = substr($2, 2, length($2) - 2); gsub("/", ".", c); print "class " c; next }
+        /^  (Direct|Virtual) methods/ { m = 1; next }
+        /^  (Static|Instance) fields/ { m = 0; next }
+        m && /^      name +:/ { print "method " c " " $2 }')
+    for name in $play_classes; do
+        grep -qxF "class $name" <<< "$defined" || echo "$name"
+    done
+    for name in $play_methods; do
+        grep -qE "^method com\.android\.billingclient\.api\.[^ ]+ $name\$" <<< "$defined" || echo "$name()"
+    done
+}
+
 # check <case> <store> <source> [gradle args...]
 check() {
     local name=$1 store=$2 source=$3
@@ -122,6 +156,15 @@ check() {
         renamed=$(awk '/^com\.amazon\./ && !index($1, "$$ExternalSynthetic") && $1 ":" != $3 { print $1; exit }' "$mapping")
         if [ -n "$renamed" ]; then
             fail "$name" "R8 renamed Amazon SDK classes such as $renamed"
+        fi
+    fi
+
+    if [ "$store" = play ]; then
+        local apk missing
+        apk=("$build"/outputs/apk/release/*.apk)
+        missing=$(missing_play_lookups "${apk[0]}")
+        if [ -n "$missing" ]; then
+            fail "$name" "the release APK lacks Play Billing names the Play module looks up: $(echo $missing)"
         fi
     fi
 
