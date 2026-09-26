@@ -21,30 +21,20 @@ openiap_version=$(node -e \
     "$repo_root/openiap-versions.json")
 local_repository="$consumer_temp/repository"
 
+# store, openiap artifact, store SDK module, and the SDK's class prefix
+stores=(
+    "play openiap-google com.android.billingclient:billing com.android.billingclient."
+    "horizon openiap-google-horizon com.meta.horizon.billingclient.api:horizon-billing-compatibility com.meta.horizon.billingclient."
+    "amazon openiap-google-amazon com.amazon.device:amazon-appstore-sdk com.amazon.device.iap."
+)
+
 cd "$google_root"
-for variant in play horizon amazon; do
+for entry in "${stores[@]}"; do
     ./gradlew :openiap:publishMavenPublicationToMavenLocal \
-        -POPENIAP_PUBLISH_VARIANT="$variant" \
+        -POPENIAP_PUBLISH_VARIANT="${entry%% *}" \
         -Dmaven.repo.local="$local_repository" \
         --no-daemon
 done
-
-stores=(play horizon amazon)
-declare -A artifact=(
-    [play]=openiap-google
-    [horizon]=openiap-google-horizon
-    [amazon]=openiap-google-amazon
-)
-declare -A sdk=(
-    [play]=com.android.billingclient:billing
-    [horizon]=com.meta.horizon.billingclient.api:horizon-billing-compatibility
-    [amazon]=com.amazon.device:amazon-appstore-sdk
-)
-declare -A sdk_package=(
-    [play]=com.android.billingclient.
-    [horizon]=com.meta.horizon.billingclient.
-    [amazon]=com.amazon.device.iap.
-)
 
 failures=0
 
@@ -58,13 +48,14 @@ mapping_has_package() {
     awk -v prefix="$2" 'index($0, prefix) == 1 { found = 1; exit } END { exit !found }' "$1"
 }
 
-# The Play module looks up newer Play Billing APIs by name, so it still runs when
+# The Play module reaches newer Play Billing APIs by name, looking up classes and
+# methods and matching listener callbacks by method name, so it still runs when
 # an app pins an older billing version. Reading the names from its source checks
 # a new lookup as soon as it lands.
 play_source=$(find "$google_root/openiap/src/play" -name '*.kt' -exec cat {} + | tr -s '[:space:]' ' ')
 play_classes=$(grep -oE 'Class\.forName\( ?"com\.android\.billingclient\.api\.[^"]+"' <<< "$play_source" \
     | sed -E 's/.*"(.*)"/\1/; s/\\\$/$/g' | sort -u || true)
-play_methods=$(grep -oE 'get(Declared)?Method\( ?"[A-Za-z0-9_]+"' <<< "$play_source" \
+play_methods=$(grep -oE 'get(Declared)?Method\( ?"[A-Za-z0-9_]+"|method\.name == "[A-Za-z0-9_]+"' <<< "$play_source" \
     | sed -E 's/.*"(.*)"/\1/' | sort -u || true)
 if [ -z "$play_classes" ] || [ -z "$play_methods" ]; then
     echo "Found no Play Billing lookups in the Play module; update this check." >&2
@@ -123,27 +114,29 @@ check() {
         return 0
     fi
 
-    local other
-    for other in "${stores[@]}"; do
+    local entry other artifact sdk package linked kept
+    for entry in "${stores[@]}"; do
+        read -r other artifact sdk package <<< "$entry"
         if [ "$other" = "$store" ]; then
-            if ! grep -qF "io.github.hyochan.openiap:${artifact[$other]}:$openiap_version" "$log"; then
-                fail "$name" "releaseRuntimeClasspath lacks ${artifact[$other]}:$openiap_version"
+            linked=$artifact kept=$package
+            if ! grep -qF "io.github.hyochan.openiap:$artifact:$openiap_version" "$log"; then
+                fail "$name" "releaseRuntimeClasspath lacks $artifact:$openiap_version"
             fi
-            if ! grep -qF "${sdk[$other]}:" "$log"; then
-                fail "$name" "releaseRuntimeClasspath lacks ${sdk[$other]}"
+            if ! grep -qF "$sdk:" "$log"; then
+                fail "$name" "releaseRuntimeClasspath lacks $sdk"
             fi
-            if ! mapping_has_package "$mapping" "${sdk_package[$other]}"; then
-                fail "$name" "R8 kept no ${sdk_package[$other]} class"
+            if ! mapping_has_package "$mapping" "$package"; then
+                fail "$name" "R8 kept no $package class"
             fi
         else
-            if grep -qF "io.github.hyochan.openiap:${artifact[$other]}:" "$log"; then
-                fail "$name" "releaseRuntimeClasspath also links ${artifact[$other]}"
+            if grep -qF "io.github.hyochan.openiap:$artifact:" "$log"; then
+                fail "$name" "releaseRuntimeClasspath also links $artifact"
             fi
-            if grep -qF "${sdk[$other]}:" "$log"; then
-                fail "$name" "releaseRuntimeClasspath also links ${sdk[$other]}"
+            if grep -qF "$sdk:" "$log"; then
+                fail "$name" "releaseRuntimeClasspath also links $sdk"
             fi
-            if mapping_has_package "$mapping" "${sdk_package[$other]}"; then
-                fail "$name" "the release APK carries ${sdk_package[$other]} classes"
+            if mapping_has_package "$mapping" "$package"; then
+                fail "$name" "the release APK carries $package classes"
             fi
         fi
     done
@@ -169,7 +162,7 @@ check() {
     fi
 
     if [ "$failures" -eq "$failures_before" ]; then
-        echo "   ok: $name linked ${artifact[$store]} and R8 kept ${sdk_package[$store]}"
+        echo "   ok: $name linked $linked and R8 kept $kept"
     fi
 }
 

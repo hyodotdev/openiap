@@ -309,7 +309,7 @@ function checkNoReflectionIntoOpenIap() {
     /\b(?:getMethod|getDeclaredMethod|getField|getDeclaredField|getConstructor|getDeclaredConstructor)\(|Class\.forName\(/;
   for (const source of sources) {
     for (const file of listTrackedFiles(source)) {
-      if (!/\.(?:kt|java)$/.test(file) || /\/(?:test|androidTest)[A-Za-z]*\//.test(file)) continue;
+      if (!/\.(?:kt|java)$/.test(file) || /\/(?:[a-z]+Test|test)[A-Za-z]*\//.test(file)) continue;
       if (reflective.test(read(file))) {
         fail(
           `${file} looks up code by reflection, which R8 removes from release builds; call openiap directly`,
@@ -3406,6 +3406,12 @@ function checkBillingChoiceFieldBindings() {
       "subResponseCode = mapSubResponseCode(result.subResponseCode)",
     ],
     "RN Billing Choice Android bridge fields",
+  );
+  // The developer-provided listener maps the same field, so pin the user-choice one.
+  expectMatch(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    /UserChoiceBillingDetails\(\s*externalTransactionToken = details\.externalTransactionToken,\s*originalExternalTransactionId = details\.originalExternalTransactionId\.wrapVariant\(\),/,
+    "RN user choice billing bridge",
   );
   expectIncludes(
     "libraries/react-native-iap/src/__tests__/index.test.ts",
