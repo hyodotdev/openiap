@@ -72,6 +72,24 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.6.1', tag: 'google-3.6.1' },
+  {
+    name: 'react-native-iap',
+    version: '16.7.1',
+    tag: 'react-native-iap-16.7.1',
+  },
+  { name: 'expo-iap', version: '5.8.1', tag: 'expo-iap-5.8.1' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.1',
+    tag: 'flutter-iap-10.7.1',
+  },
+  { name: 'godot-iap', version: '3.6.1', tag: 'godot-iap-3.6.1' },
+  { name: 'kmp-iap', version: '3.6.1', tag: 'kmp-iap-3.6.1' },
+  { name: 'maui-iap', version: '2.6.1', tag: 'maui-iap-2.6.1' },
+];
+
 const BUILD_TIME_STORE_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-apple', version: '3.6.0', tag: '3.6.0' },
   { name: 'openiap-google', version: '3.6.0', tag: 'google-3.6.0' },
@@ -427,6 +445,109 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'minified-release-builds-2026-09-26',
+      aliases: MINIFIED_RELEASE_BUILD_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-26'),
+      element: (
+        <div key="minified-release-builds-2026-09-26" style={noteCardStyle}>
+          {MINIFIED_RELEASE_BUILD_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="minified-release-builds-2026-09-26" level="h4">
+            September 26, 2026 - Minified release builds keep billing working
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Android release builds shrunk with R8 no longer lose billing
+            features on any store, and no ProGuard rules are needed in your app.
+            See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/490"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #490
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Protocols and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.6.1</strong> - fixes minified Horizon
+              builds that failed on <code>javax.annotation.Nullable</code>, and
+              keeps the Amazon Appstore SDK classes it fills by reflection, so
+              Amazon purchases work in release builds.
+            </li>
+            <li>
+              <strong>openiap-google 3.6.1</strong> - keeps the Play Billing
+              APIs behind External Payments, Billing Choice, external links,
+              user choice billing, automatic reconnection, and{' '}
+              <code>isSuspended</code>, which R8 used to strip.
+            </li>
+            <li>
+              <strong>openiap-google 3.6.1</strong> -{' '}
+              <code>OpenIapStore.enableBillingProgram</code> now takes effect in
+              release builds; Horizon and Amazon ignore it with a warning.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.7.1</strong> -{' '}
+              <code>enableBillingProgramAndroid</code> takes effect in release
+              builds, and user choice billing events keep{' '}
+              <code>originalExternalTransactionId</code> and{' '}
+              <code>productDetailsAndroid</code>.
+            </li>
+            <li>
+              <strong>kmp-iap 3.6.1</strong> - creates the Horizon and Amazon
+              billing module directly instead of by reflection that R8 can
+              strip.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {MINIFIED_RELEASE_BUILD_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'build-time-store-resolution-2026-09-26',
       aliases: BUILD_TIME_STORE_RELEASES.map((release) => release.tag),

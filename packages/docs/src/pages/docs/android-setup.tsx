@@ -243,14 +243,15 @@ dependencies {
         </p>
 
         <h3 id="configure-proguard" className="anchor-heading">
-          4. Configure ProGuard (if using)
+          4. R8 and ProGuard
           <a href="#configure-proguard" className="anchor-link">
             #
           </a>
         </h3>
-        <p>Add to your proguard-rules.pro:</p>
-        <pre className="code-block">{`-keep class com.android.billingclient.** { *; }
--keep class com.android.vending.billing.** { *; }`}</pre>
+        <p>
+          No rules to add. From 3.6.1, each store artifact ships the keep rules
+          its billing SDK needs, so minified release builds work as they are.
+        </p>
       </section>
 
       <section>
