@@ -1,6 +1,6 @@
 ---
 name: ship-release
-description: Merge a verified OpenIAP PR, release affected stable packages sequentially with public verification, publish release docs, run review-self to stability, and deploy production docs when the user explicitly requests the full shipping workflow.
+description: Merge a verified OpenIAP PR, release affected stable packages sequentially with public verification, verify the release note the PR carried, run review-self to stability, and deploy production docs when the user explicitly requests the full shipping workflow.
 ---
 
 # Ship an OpenIAP Release (Claude Code)

@@ -461,10 +461,11 @@ Use these checks before writing a release list:
 | KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
 | MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
-If the release is not published yet, use planned wording and plain text. If the
-release is published, verify the tag exists with `gh release view <tag>` before
-linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
+A PR writes its card ahead of the release with the expected tag links, per
+"Docs Ship With The Change" in `05-docs-patterns.md`. After the release
+publishes, verify each tag with `gh release view <tag>` and correct the card
+where a version differs. This prevents stale Package Releases tables such as
+documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Do not add RC or npm `next` releases to the stable release history. Collect
 their user-facing changes and write one package-grouped entry when the release

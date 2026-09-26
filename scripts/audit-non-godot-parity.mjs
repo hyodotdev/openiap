@@ -6293,7 +6293,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "currently every five minutes",
       "`npm run deploy`. The docs site is not versioned",
-      "add the consolidated entry to",
+      "Release notes ship in the PR",
       "commit it directly to `main` together with any release-process doc updates",
       "do not open a PR for that post-release docs-only commit",
       "There is no Docs release workflow and no docs tag",

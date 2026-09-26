@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T16:20:04.056Z
+> Last updated: 2026-09-26T16:31:31.992Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2193,6 +2193,17 @@ Framework implementation listings must be derived from
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
 
+### Docs Ship With The Change
+
+A PR that changes a published package carries its documentation: the guides the
+change affects and the release card for the next version. Write the card as
+already published, because the train ships right after the merge: a `Package
+Releases` block with the expected versions and their future GitHub Release
+links, and shipped wording such as "fixes" or "adds". When an unreleased card
+for the same train exists, update it instead of adding another. After the train
+publishes, the release only verifies each version and link and corrects the
+card on `main` where one differs.
+
 ### Release Note Writing Limits
 
 Apply the project-wide Reader-First Writing Standard above. Release notes are a
@@ -2299,21 +2310,17 @@ Before adding or editing a `Package Releases` list:
 1. `git fetch origin main --tags` (or `git fetch --no-tags origin main` if
    local stale tags would fail).
 2. Read the current package metadata from `origin/main`, not from memory.
-3. For planned patch releases, add exactly one patch version to each affected
-   framework package and label the block `Planned Package Releases`.
-4. If the user explicitly asks to write the note as already released, says to
-   "assume it will be deployed/published", or asks to follow the existing linked
-   release-note style, do **not** use `Planned Package Releases` or
-   `(planned)`. Write the block as `Package Releases`, add the expected GitHub
-   Release tag link (for example `godot-iap-2.2.8`), and use shipped wording
-   such as "Publishes" / "Ships" instead of "Prepares".
-5. For links to releases that should already exist in GitHub, confirm each tag
-   exists with `gh release view <tag> --repo hyodotdev/openiap` before adding an
-   `<a href>`. This existence check is skipped only when step 4 applies because
-   the user explicitly requested an assumed post-release note.
-6. If a release workflow is still running and the user has not requested an
-   already-released note, keep the entry as plain text with planned wording. Add
-   links only after the GitHub Release exists.
+3. Give each affected package its expected next version: the next patch for a
+   backward-compatible fix, the next minor for a backward-compatible feature,
+   the next major for a breaking change. Reuse the targets on an unreleased
+   card for the same train.
+4. Write the block as `Package Releases` with each expected tag link (for
+   example `godot-iap-2.2.8`), per "Docs Ship With The Change". Do not use
+   `Planned Package Releases` or `(planned)`.
+5. When editing a card whose train already published, confirm each tag exists
+   with `gh release view <tag> --repo hyodotdev/openiap` before changing a link.
+6. After the train publishes, compare every version and link on its card with
+   the published releases and correct any that differ.
 7. Run `bun run audit:docs`; the audit fails when a published
    `Package Releases` block contains a package/version item without a GitHub
    Release link.
@@ -2794,10 +2801,11 @@ Use these checks before writing a release list:
 | KMP          | `sed -n 's/^libraryVersion=//p' libraries/kmp-iap/gradle.properties`; tag `kmp-iap-{version}`                     |
 | MAUI         | read `<PackageVersion>` from `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`; tag `maui-iap-{version}`  |
 
-If the release is not published yet, use planned wording and plain text. If the
-release is published, verify the tag exists with `gh release view <tag>` before
-linking it. This prevents stale Package Releases tables such as documenting
-`maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
+A PR writes its card ahead of the release with the expected tag links, per
+"Docs Ship With The Change" in `05-docs-patterns.md`. After the release
+publishes, verify each tag with `gh release view <tag>` and correct the card
+where a version differs. This prevents stale Package Releases tables such as
+documenting `maui-iap 1.0.1` when the actual release tag is `maui-iap-1.0.3`.
 
 Do not add RC or npm `next` releases to the stable release history. Collect
 their user-facing changes and write one package-grouped entry when the release
@@ -3058,9 +3066,9 @@ strips the `Android` suffix from method names.
 ### R9 — Published package release lists use links
 
 When a release-note block is labeled `Package Releases`, every package/version
-item in that list must link to the corresponding GitHub Release. Use
-`Planned Package Releases` only while the release workflow is still running or
-the GitHub Release does not exist yet.
+item in that list must link to the corresponding GitHub Release. A card written
+in a PR ahead of its release links the expected tags instead of using `Planned
+Package Releases`, per "Docs Ship With The Change" in `05-docs-patterns.md`.
 
 `bun run audit:docs` fails bare package/version entries under published
 `Package Releases` blocks so link regressions are caught before publishing.

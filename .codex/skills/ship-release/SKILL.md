@@ -1,6 +1,6 @@
 ---
 name: ship-release
-description: Merge a verified OpenIAP PR, release every affected stable package one at a time, verify each public registry, publish the consolidated release note, stabilize it with review-self, and deploy production docs. Use when the user explicitly asks for this full post-review shipping workflow.
+description: Merge a verified OpenIAP PR, release every affected stable package one at a time, verify each public registry, verify the consolidated release note the PR carried, stabilize it with review-self, and deploy production docs. Use when the user explicitly asks for this full post-review shipping workflow.
 ---
 
 # Ship an OpenIAP Release
@@ -75,15 +75,15 @@ the public form submission, and report it as an explicit remaining manual step
 when authentication is unavailable. Never reuse credentials supplied for a
 different service.
 
-## 3. Write the shipped release note
+## 3. Verify the release note
 
-After every package version and public URL is known, use `generate-doc` to add
-or update the consolidated release card in
-`packages/docs/src/pages/docs/updates/releases.tsx`.
+The merged PR carried the consolidated release card in
+`packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`). After
+every package version and public URL is known:
 
-- Read versions from current package metadata, not from the release plan.
-- Link the real package tags. The docs/spec tag may be the expected tag until
-  the docs release is created.
+- Compare each version and link on the card with current package metadata and
+  the published tags, and correct any that differ.
+- If the PR carried no card, add it with `generate-doc` and report the gap.
 - Lead with user-visible behavior, include required migration or platform
   caveats once, and omit version-bump mechanics.
 - Add no versioned IAPKit entry; it is a service.
