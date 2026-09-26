@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.7.1 (2026-09-26)
+
+- chore(release): openiap-google@3.6.1
+- fix: keep every store working in minified release builds (#490)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases#flutter-iap-10.7.1
+
+
 ## 10.7.0 (2026-09-26)
 
 - chore(release): openiap-google@3.6.0
