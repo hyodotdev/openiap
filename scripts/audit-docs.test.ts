@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   auditActiveCodeExampleSource,
   auditCanonicalOfferDocs,
+  auditReleaseNotePackageLinks,
   auditReleaseNoteVersionAnchors,
   auditSubscriptionFailureDocs,
   auditVerifyPurchaseDocs,
@@ -1531,5 +1532,43 @@ ${extra}      date: new Date('2026-09-17'),
         new Set(["old-card-2026-01-01"]),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("release note package links", () => {
+  const block = (heading: string, item: string) => `
+          <h5>${heading}</h5>
+          <ul>
+            <li>${item}</li>
+          </ul>
+`;
+  const linked =
+    '<a href="https://github.com/hyodotdev/openiap/releases/tag/google-9.9.9">openiap-google 9.9.9</a>';
+
+  test("accepts a linked package release", () => {
+    expect(
+      auditReleaseNotePackageLinks(
+        "releases.tsx",
+        block("Package Releases", linked),
+      ),
+    ).toEqual([]);
+  });
+
+  test("flags a package release without its GitHub Release link", () => {
+    const drifts = auditReleaseNotePackageLinks(
+      "releases.tsx",
+      block("Package Releases", "openiap-google 9.9.9"),
+    );
+    expect(drifts).toHaveLength(1);
+    expect(drifts[0].rule).toBe("R9");
+  });
+
+  test("rejects a Planned Package Releases heading", () => {
+    const drifts = auditReleaseNotePackageLinks(
+      "releases.tsx",
+      block("Planned Package Releases", linked),
+    );
+    expect(drifts).toHaveLength(1);
+    expect(drifts[0].message).toContain("Planned Package Releases");
   });
 });

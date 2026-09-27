@@ -161,8 +161,10 @@ Train rules (mistake guards):
 - **Affected packages only.** Before dispatching anything, compute the
   affected set per package with
   `git log <last-release-tag>..origin/main -- <package-path>`. Skip any
-  package with no unreleased commits. A library-only train releases only the
-  libraries the merged PRs actually touched and skips Apple/Google entirely.
+  package with no unreleased commits. A library whose pinned native version
+  moves in the train is affected too, even with no commits of its own. A
+  library-only train releases only the libraries the merged PRs actually
+  touched and skips Apple/Google entirely.
 - **Native gate.** Do not dispatch any library workflow until every affected
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
   Maven Central POMs publicly fetchable) and its package metadata is

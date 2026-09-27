@@ -48,10 +48,8 @@ mapping_has_package() {
     awk -v prefix="$2" 'index($0, prefix) == 1 { found = 1; exit } END { exit !found }' "$1"
 }
 
-# The Play module reaches newer Play Billing APIs by name, looking up classes and
-# methods and matching listener callbacks by method name, so it still runs when
-# an app pins an older billing version. Reading the names from its source checks
-# a new lookup as soon as it lands.
+# The Play module reaches newer Play Billing APIs by name so it runs on older
+# billing versions; reading those names from its source checks each new lookup.
 play_source=$(find "$google_root/openiap/src/play" -name '*.kt' -exec cat {} + | tr -s '[:space:]' ' ')
 play_classes=$(grep -oE 'Class\.forName\( ?"com\.android\.billingclient\.api\.[^"]+"' <<< "$play_source" \
     | sed -E 's/.*"(.*)"/\1/; s/\\\$/$/g' | sort -u || true)
