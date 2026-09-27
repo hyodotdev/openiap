@@ -1344,6 +1344,8 @@ test("the docs site deploys without a version of its own", () => {
   assert.match(deployScript, /release-branch-policy\.mjs assert-client-protocol/);
   assert.match(deployScript, /must deploy from the stable main branch/);
   assert.match(deployScript, /requires a clean worktree/);
+  assert.match(deployScript, /is missing; update this check/);
+  assert.match(deployScript, /Found no release links/);
   assert.match(deployScript, /packages\/docs\/\.vercel\/project\.json/);
   assert.match(
     deployScript,
@@ -1670,6 +1672,39 @@ test("production docs require a verified Vercel deployment result", (context) =>
       ready.stdout,
       /Successfully deployed to Vercel: https:\/\/openiap-test\.vercel\.app/,
     );
+
+    // A renamed or unlinked releases page fails loudly instead of deploying
+    // with the link check silently skipped.
+    const releasesPage = resolve(
+      temporaryRoot,
+      "packages/docs/src/pages/docs/updates/releases.tsx",
+    );
+    const releasesSource = readFileSync(releasesPage, "utf8");
+    const commitPage = (message) => {
+      execFileSync("git", ["add", "-A"], { cwd: temporaryRoot });
+      execFileSync("git", ["commit", "-q", "-m", message], {
+        cwd: temporaryRoot,
+      });
+      execFileSync("git", ["push", "-q", "origin", "main"], {
+        cwd: temporaryRoot,
+      });
+    };
+    rmSync(releasesPage);
+    commitPage("drop releases page");
+    const missingPage = runDeploy(readyOutput);
+    assert.notEqual(missingPage.status, 0);
+    assert.match(missingPage.stdout, /releases\.tsx is missing; update this check/);
+    assert.doesNotMatch(missingPage.stdout, /Successfully deployed to Vercel/);
+
+    writeFileSync(releasesPage, "export const notes: string[] = [];\n");
+    commitPage("strip release links");
+    const noLinks = runDeploy(readyOutput);
+    assert.notEqual(noLinks.status, 0);
+    assert.match(noLinks.stdout, /Found no release links/);
+    assert.doesNotMatch(noLinks.stdout, /Successfully deployed to Vercel/);
+
+    writeFileSync(releasesPage, releasesSource);
+    commitPage("restore releases page");
 
     for (const args of [[], ["--force"]]) {
       const syncDirty = runDeploy(readyOutput, { MOCK_SYNC_DIRTY: "1" }, args);
