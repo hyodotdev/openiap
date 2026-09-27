@@ -561,7 +561,7 @@ function Releases() {
             <span key={release.tag} id={release.tag} aria-hidden="true" />
           ))}
           <AnchorLink id="build-time-store-resolution-2026-09-26" level="h4">
-            September 26, 2026 - Your test device picks the store now
+            September 26, 2026 - Your connected device picks the store now
           </AnchorLink>
 
           <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
