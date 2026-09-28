@@ -45,6 +45,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
@@ -273,7 +274,14 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         when (call.method) {
             // Internal to the Dart first-purchase notice; not app API.
             "claimFirstPurchaseNotice" -> {
-                safe.success(context?.let(OpenIapFirstPurchaseNotice::claim) ?: false)
+                val appContext = context
+                // The flag's SharedPreferences write blocks, so keep it off the main thread.
+                scope.launch {
+                    val claimed = appContext != null && withContext(Dispatchers.IO) {
+                        runCatching { OpenIapFirstPurchaseNotice.claim(appContext) }.getOrDefault(false)
+                    }
+                    safe.success(claimed)
+                }
                 return
             }
             "manageSubscription" -> {
