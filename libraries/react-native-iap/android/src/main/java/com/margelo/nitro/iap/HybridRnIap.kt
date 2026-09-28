@@ -55,6 +55,7 @@ import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalL
 import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunchMode
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
 import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
@@ -993,6 +994,11 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
             }
         }
+    }
+
+    // Internal to react-native-iap's first-purchase notice; not app API.
+    override fun claimFirstPurchaseNotice(): Promise<Boolean> {
+        return Promise.async { OpenIapFirstPurchaseNotice.claim(context) }
     }
 
     override fun getStorefront(): Promise<String> {

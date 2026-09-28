@@ -67,6 +67,7 @@ import {
   DUPLICATE_PURCHASE_CODE,
 } from './utils/errorMapping';
 import {RnIapConsole} from './utils/debug';
+import {createFirstPurchaseNotice} from './utils/first-purchase-notice';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
 import {
@@ -77,11 +78,13 @@ import {getVegaIapModule, isVegaOS} from './vega';
 
 // Export all types
 export type {
-  RnIap,
   NitroProduct,
   NitroPurchase,
   NitroPurchaseResult,
 } from './specs/RnIap.nitro';
+// The first-purchase flag stays out of the exported type: it is not app API.
+type PublicRnIap = Omit<RnIap, 'claimFirstPurchaseNotice'>;
+export type {PublicRnIap as RnIap};
 export * from './types';
 export * from './utils/error';
 export * from './vega';
@@ -258,6 +261,10 @@ const IAP = {
     return instance;
   },
 };
+
+const showFirstPurchaseNotice = createFirstPurchaseNotice(() =>
+  IAP.instance.claimFirstPurchaseNotice(),
+);
 
 // ============================================================================
 // EVENT LISTENERS
@@ -1984,6 +1991,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async (
     if (!success) {
       throw new Error('Failed to finish transaction');
     }
+    showFirstPurchaseNotice(purchase);
     return;
   } catch (error) {
     const parsedError = parseErrorStringToJsonObj(error);

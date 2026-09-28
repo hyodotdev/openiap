@@ -756,6 +756,12 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
     params: NitroFinishTransactionParams,
   ): Promise<NitroPurchaseResult | boolean>;
 
+  /**
+   * Internal to react-native-iap, not app API: claims the once-per-install flag
+   * for the first-purchase notice. True only the first time on this install.
+   */
+  claimFirstPurchaseNotice(): Promise<boolean>;
+
   // Event listener methods
 
   /**

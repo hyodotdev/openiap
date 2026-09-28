@@ -531,7 +531,12 @@ class HybridRnIap: HybridRnIapSpec {
             }
         }
     }
-    
+
+    // Internal to react-native-iap's first-purchase notice; not app API.
+    func claimFirstPurchaseNotice() throws -> Promise<Bool> {
+        return Promise.async { OpenIapFirstPurchaseNotice.claim() }
+    }
+
     func verifyPurchase(params: NitroPurchaseVerificationParams) throws -> Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon> {
         return Promise.async {
             do {
