@@ -29,6 +29,19 @@
       "cache": {
         "disabled": true
       }
+    },
+    "quest": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "ORG_GRADLE_PROJECT_openiapStore": "horizon"
+      }
+    },
+    "fire": {
+      "env": {
+        "ORG_GRADLE_PROJECT_openiapStore": "amazon"
+      }
     }
   },
   "submit": {

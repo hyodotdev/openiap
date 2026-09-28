@@ -9,7 +9,6 @@
     "ios": "expo run:ios",
     "tvos": "EXPO_TV=1 npx expo run:ios",
     "tvos:prebuild": "EXPO_TV=1 npx expo prebuild --platform ios --clean",
-    "vega:prebuild": "node scripts/build-vega-example.mjs Debug",
     "build:vega:release": "node scripts/build-vega-example.mjs Release",
     "build:vega:debug": "node scripts/build-vega-example.mjs Debug",
     "run:vega:firetv": "node scripts/run-vega-firetv.mjs",
@@ -21,7 +20,6 @@
     "ios:log": "idevicesyslog -u 00008101-0006455036D8001E | grep dev.hyo.martie"
   },
   "dependencies": {
-    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.13.0",
     "@expo/react-native-action-sheet": "^4.1.1",
     "@expo/vector-icons": "^15.1.1",
     "@preact/signals-react": "^3.12.0",
@@ -53,30 +51,22 @@
   "devDependencies": {
     "@expo/env": "~2.4.2",
     "@babel/core": "^7.29.7",
-    "@react-native-community/cli": "11.4.1",
-    "@react-native/babel-preset": "0.76.9",
     "@react-native/jest-preset": "0.86.2",
-    "@react-native/metro-config": "^0.72.12",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^26.2.0",
     "@types/react": "~19.2.18",
     "babel-jest": "^29.7.0",
-    "babel-plugin-module-resolver": "^5.0.3",
     "jest": "^29.7.0",
     "jest-expo": "~57.0.4",
     "test-renderer": "^1.2.0",
-    "typescript": "~6.0.3",
-    "@amazon-devices/kepler-cli-platform": "~0.22.14",
-    "@amazon-devices/kepler-compatibility-metro-config": "^0.0.7",
-    "@amazon-devices/kepler-module-resolver-preset": "^0.1.16"
+    "typescript": "~6.0.3"
   },
   "overrides": {
     "expo-constants": "57.0.10",
     "fast-xml-parser": "5.7.0",
     "lodash": "4.18.1",
-    "uuid": "11.1.1",
-    "toml": "^4.1.2"
+    "uuid": "11.1.1"
   },
   "private": true,
   "expo": {
@@ -90,19 +80,5 @@
         "react-native-worklets"
       ]
     }
-  },
-  "optionalDependencies": {
-    "@amazon-devices/react-native-kepler": "^2.1.0"
-  },
-  "kepler": {
-    "projectType": "application",
-    "appName": "ExpoIAPExample",
-    "targets": [
-      "tv"
-    ],
-    "os": [
-      "vega"
-    ],
-    "api": 0.1
   }
 }
