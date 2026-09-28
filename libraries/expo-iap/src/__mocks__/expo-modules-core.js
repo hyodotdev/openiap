@@ -34,6 +34,7 @@ const mockNativeModule = {
   getStorefront: jest.fn(),
   restorePurchases: jest.fn(),
   finishTransaction: jest.fn(),
+  claimFirstPurchaseNotice: jest.fn(),
   verifyPurchase: jest.fn(),
   verifyPurchaseWithProvider: jest.fn(),
   initConnection: jest.fn(),

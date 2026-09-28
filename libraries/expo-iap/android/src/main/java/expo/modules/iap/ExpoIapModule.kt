@@ -23,6 +23,7 @@ import dev.hyo.openiap.VerifyPurchaseGoogleOptions
 import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -517,6 +518,11 @@ class ExpoIapModule : Module() {
                         promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }
+            }
+
+            // Internal: backs the JS first-purchase notice; not app API.
+            AsyncFunction("claimFirstPurchaseNotice") {
+                OpenIapFirstPurchaseNotice.claim(context)
             }
 
             AsyncFunction("verifyPurchase") { params: Map<String, Any?>, promise: Promise ->

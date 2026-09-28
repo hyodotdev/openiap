@@ -19,6 +19,7 @@ import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
 import * as AndroidApi from '../modules/android';
 import {openRedeemOfferCode} from '../index';
+import {FIRST_PURCHASE_NOTICE} from '../utils/firstPurchaseNotice';
 /* eslint-enable import/first */
 
 const ReactTestRenderer = {
@@ -677,5 +678,52 @@ describe('useIAP hook', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('prints the first-purchase notice once for one hook finish', async () => {
+    jest.mocked(ExpoIapModule.finishTransaction).mockResolvedValueOnce(true);
+    jest
+      .mocked(ExpoIapModule.claimFirstPurchaseNotice)
+      .mockResolvedValueOnce(true);
+    let hookResult: ReturnType<typeof useIAP> | null = null;
+
+    await ReactTestRenderer.act(async () => {
+      ReactTestRenderer.create(
+        <TestComponent
+          onHookReady={(hook) => {
+            hookResult = hook;
+          }}
+        />,
+      );
+      await flushPromises();
+    });
+
+    const workerId = process.env.JEST_WORKER_ID;
+    const globals = globalThis as {__DEV__?: boolean};
+    try {
+      globals.__DEV__ = true;
+      delete process.env.JEST_WORKER_ID;
+      await ReactTestRenderer.act(async () => {
+        await hookResult!.finishTransaction({
+          purchase: {
+            id: 'transaction',
+            productId: 'premium',
+            isAutoRenewing: false,
+            purchaseState: 'purchased',
+            quantity: 1,
+            store: 'apple',
+            transactionDate: 1720000000000,
+          },
+        });
+        await flushPromises();
+      });
+    } finally {
+      delete globals.__DEV__;
+      process.env.JEST_WORKER_ID = workerId;
+    }
+
+    expect(ExpoIapModule.finishTransaction).toHaveBeenCalledTimes(1);
+    expect(ExpoIapModule.claimFirstPurchaseNotice).toHaveBeenCalledTimes(1);
+    expect(consoleLogSpy.mock.calls).toEqual([[FIRST_PURCHASE_NOTICE]]);
   });
 });

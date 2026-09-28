@@ -142,6 +142,11 @@ public final class ExpoIapModule: Module {
             return true
         }
 
+        // Internal: backs the JS first-purchase notice; not app API.
+        AsyncFunction("claimFirstPurchaseNotice") { () -> Bool in
+            OpenIapFirstPurchaseNotice.claim()
+        }
+
         AsyncFunction("getAvailablePurchases") {
             (options: [String: Any]?) async throws -> [[String: Any]] in
             ExpoIapLog.payload("getAvailablePurchases", payload: options ?? [:])

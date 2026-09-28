@@ -15,6 +15,7 @@ import {
   openRedeemOfferCodeAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
+import {showFirstPurchaseNotice} from './utils/firstPurchaseNotice';
 import {restorePurchasesIOSNative} from './utils/restorePurchases';
 import {
   decodeAndroidPurchases,
@@ -1192,10 +1193,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
 }) => {
   if (Platform.OS === 'ios') {
     await ExpoIapModule.finishTransaction(purchase, isConsumable);
-    return;
-  }
-
-  if (isAndroidStoreRuntime()) {
+  } else if (isAndroidStoreRuntime()) {
     const token = purchase.purchaseToken ?? undefined;
 
     if (!token) {
@@ -1209,14 +1207,14 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
 
     if (isConsumable) {
       await ExpoIapModule.consumePurchaseAndroid(token);
-      return;
+    } else {
+      await ExpoIapModule.acknowledgePurchaseAndroid(token);
     }
-
-    await ExpoIapModule.acknowledgePurchaseAndroid(token);
-    return;
+  } else {
+    throw unsupportedPlatformError();
   }
 
-  throw unsupportedPlatformError();
+  showFirstPurchaseNotice(purchase);
 };
 
 /**
