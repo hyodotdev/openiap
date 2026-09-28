@@ -61,11 +61,13 @@ def openIapRequestedPlatform = { flavor ->
 
 ['com.android.application', 'com.android.library', 'com.android.dynamic-feature', 'com.android.test'].each { id ->
   pluginManager.withPlugin(id) {
-    // With its own platform flavors, each variant links its flavor's store.
+    // With its own platform flavors, each variant and its test components link
+    // the flavor's store; tests resolve classpaths of their own.
     androidComponents.onVariants(androidComponents.selector().all()) { variant ->
       def flavor = variant.productFlavors.find { it.first == 'platform' }?.second
       if (flavor in openIapArtifactStores.values()) {
-        openIapUseStore(flavor, [variant.runtimeConfiguration, variant.compileConfiguration])
+        def components = [variant] + variant.nestedComponents
+        openIapUseStore(flavor, components.collectMany { [it.runtimeConfiguration, it.compileConfiguration] })
       }
     }
     androidComponents.finalizeDsl { android ->

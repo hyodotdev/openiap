@@ -12,7 +12,7 @@ android {
 }
 
 dependencies {
-  implementation 'io.github.hyochan.openiap:openiap-google-horizon:3.5.2'
+  implementation 'io.github.hyochan.openiap:openiap-google-horizon:3.6.1'
 }
 
 apply from: rootProject.file('print-stores.gradle')

@@ -21,15 +21,17 @@ android {
 dependencies {
   // A module can also depend on openiap-google once, for every flavor.
   if (project.findProperty('fixturePlainDependency')) {
-    implementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
+    implementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
   } else {
-    playImplementation 'io.github.hyochan.openiap:openiap-google:3.5.2'
-    horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.5.2'
-    amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.5.2'
+    playImplementation 'io.github.hyochan.openiap:openiap-google:3.6.1'
+    horizonImplementation 'io.github.hyochan.openiap:openiap-google-horizon:3.6.1'
+    amazonImplementation 'io.github.hyochan.openiap:openiap-google-amazon:3.6.1'
   }
-  implementation 'io.github.hyochan:kmp-iap:3.5.1'
+  implementation 'io.github.hyochan:kmp-iap:3.6.1'
 }
 
 apply from: rootProject.file('print-stores.gradle')
 // No store in the task name, so only a pin can make the resolver answer.
 openIapFixturePrint('printFlavorStores', 'horizonDebugRuntimeClasspath')
+// Unit tests resolve a classpath of their own, which must link the same store.
+openIapFixturePrint('printFlavorUnitTestStores', 'horizonDebugUnitTestRuntimeClasspath')

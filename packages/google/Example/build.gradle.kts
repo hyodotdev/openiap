@@ -69,8 +69,6 @@ android {
             project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?,
             project.findProperty("EXAMPLE_OPENIAP_APP_ID") as String?,
         ).firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"
-        buildConfigField("String", "HORIZON_APP_ID", "\"${appId}\"")
-        // Ensure placeholder exists for all variants (play included)
         manifestPlaceholders["HORIZON_APP_ID"] = appId
 
         // IAPKit API Key for purchase verification
@@ -106,13 +104,6 @@ android {
         create("horizon") {
             dimension = "platform"
             buildConfigField("String", "OPENIAP_STORE", "\"horizon\"")
-
-            // Dynamically inject the Horizon App ID into AndroidManifest
-            val appId = listOf(
-                localProperties.getProperty("EXAMPLE_HORIZON_APP_ID"),
-                project.findProperty("EXAMPLE_HORIZON_APP_ID") as String?,
-            ).firstOrNull { !it.isNullOrBlank() } ?: "31705015229097839"
-            manifestPlaceholders["HORIZON_APP_ID"] = appId
         }
 
         // Amazon flavor - Amazon Appstore SDK IAP
@@ -125,10 +116,6 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
         debug {
             // For easier testing
