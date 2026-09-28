@@ -152,7 +152,9 @@ function Testing() {
         </p>
         <p>
           In sandbox and TestFlight, prices follow the App Store storefront of
-          the Apple Account that is testing, not the device region. To test a
+          the Apple Account making the purchase, not the device region. In
+          TestFlight that is the account in Media &amp; Purchases, unless you
+          switched to a Sandbox Apple Account as described above. To test a
           specific country:
         </p>
         <ul>
