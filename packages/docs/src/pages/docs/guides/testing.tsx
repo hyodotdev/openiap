@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
@@ -45,16 +46,19 @@ function Testing() {
             </a>
           </li>
           <li>
-            On your device, go to{' '}
-            <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>{' '}
-            (iOS 14+) and sign in with the sandbox Apple ID
+            In a development-signed build, start a purchase and sign in with the
+            sandbox account when the App Store asks
           </li>
-          <li>Run your app — purchases will use the sandbox environment</li>
+          <li>
+            Manage the account afterwards in{' '}
+            <strong>Settings &rarr; Developer</strong>, which appears once
+            Developer Mode is on
+          </li>
         </ol>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           Reference:{' '}
           <a
-            href="https://developer.apple.com/documentation/storekit/in-app_purchase/testing_in-app_purchases_with_sandbox"
+            href="https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -110,18 +114,83 @@ function Testing() {
           TestFlight Testing
         </AnchorLink>
         <p>
-          TestFlight builds use the sandbox environment automatically. Testers
-          do not need a separate sandbox account — purchases made in TestFlight
-          are not charged. This is the closest test environment to production.
+          TestFlight builds always run in the sandbox environment, and purchases
+          are not charged. They use the Apple Account signed in under Media
+          &amp; Purchases, so testers need no sandbox account. This is the
+          closest test environment to production.
+        </p>
+        <p>
+          To test with a Sandbox Apple Account and its sandbox controls instead,
+          sign out of Media &amp; Purchases, then sign in to the sandbox account
+          under <strong>Settings &rarr; Developer</strong>. This works only for
+          apps in your own developer account. Signing back in to Media &amp;
+          Purchases moves TestFlight purchases back to that account.
         </p>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           Reference:{' '}
           <a
-            href="https://developer.apple.com/testflight/"
+            href="https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Apple: TestFlight
+            Apple: Testing subscriptions and In-App Purchases in TestFlight
+          </a>
+        </p>
+
+        <AnchorLink id="sandbox-prices-ios" level="h3">
+          Prices and Currency in Testing
+        </AnchorLink>
+        <p>
+          OpenIAP passes StoreKit&apos;s values through unchanged: a
+          product&apos;s <code>displayPrice</code> and <code>currency</code>{' '}
+          come from StoreKit&apos;s <code>displayPrice</code> and{' '}
+          <code>priceFormatStyle.currencyCode</code>, and{' '}
+          <Link to="/docs/apis/get-storefront">
+            <code>getStorefront()</code>
+          </Link>{' '}
+          returns the country code of <code>Storefront.current</code>.
+        </p>
+        <p>
+          In sandbox and TestFlight, prices follow the App Store storefront of
+          the Apple Account that is testing, not the device region. To test a
+          specific country:
+        </p>
+        <ul>
+          <li>
+            Set the Sandbox Apple Account&apos;s{' '}
+            <strong>Country or Region</strong> in App Store Connect, then sign
+            out of the account on the device and sign back in. Product metadata
+            changes in App Store Connect can take up to an hour to reach
+            sandbox.
+          </li>
+          <li>
+            For layout and currency formatting, set the default storefront in a
+            StoreKit configuration file: Configuration Settings in Xcode 15 and
+            later, the Editor menu before that.
+          </li>
+        </ul>
+        <p>
+          If a product&apos;s currency still disagrees with the storefront,
+          fetch the same products with <code>Product.products(for:)</code> in
+          Swift. OpenIAP calls that API directly, so the same mismatch there
+          comes from StoreKit or the sandbox; report it through Feedback
+          Assistant. A check that blocks purchases when currency and storefront
+          disagree can trip in these environments, so limit it to production,
+          for example with the <code>environment</code> from{' '}
+          <Link to="/docs/apis/ios/get-app-transaction-ios">
+            <code>getAppTransactionIOS()</code>
+          </Link>
+          .
+        </p>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+          Reference:{' '}
+          <a
+            href="https://developer.apple.com/forums/thread/706641"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Apple Developer Forums: sandbox prices follow the tester&apos;s
+            storefront
           </a>
         </p>
 
@@ -131,13 +200,16 @@ function Testing() {
         <p>To reset sandbox purchase history on iOS:</p>
         <ol>
           <li>
-            Go to{' '}
-            <strong>Settings &rarr; App Store &rarr; Sandbox Account</strong>
+            Go to <strong>Settings &rarr; Developer</strong> and select your
+            Sandbox Apple Account
           </li>
-          <li>Tap your sandbox account</li>
           <li>
-            Select <strong>Manage</strong> and clear purchase history for
-            specific apps
+            Select <strong>Manage</strong>, then{' '}
+            <strong>Clear Purchase History</strong>
+          </li>
+          <li>
+            Sign out of the account and sign back in to clear the cached history
+            on the device
           </li>
         </ol>
         <p>
