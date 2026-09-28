@@ -276,7 +276,7 @@ cd ios && pod install`}
           >
             purchase verification
           </a>
-          , and it enables optional store modules —{' '}
+          , and it configures the optional store targets —{' '}
           <Link to="/docs/setup/store/onside">Onside</Link> (an iOS alternative
           marketplace), <Link to="/docs/setup/store/horizon">Horizon OS</Link>{' '}
           (Meta Quest), and <Link to="/docs/setup/store/amazon">Amazon</Link>{' '}
@@ -295,10 +295,7 @@ cd ios && pod install`}
         {
           "iapkitApiKey": "openiap-kit_pk_<your-publishable-key>",
           "modules": {
-            "onside": true,
-            "amazon": {
-              "vegaOS": false
-            }
+            "onside": true
           },
           "android": {
             "horizon": {
@@ -321,10 +318,12 @@ cd ios && pod install`}
         </p>
         <p>
           Platform-specific values live under <code>android</code> or{' '}
-          <code>ios</code>; <code>modules</code> holds opt-ins.{' '}
-          <code>modules.onside</code> links the Onside SDK and{' '}
-          <code>modules.amazon.vegaOS</code> generates the Vega target. The
-          Android store needs no option: a local debug build follows the
+          <code>ios</code>; <code>modules</code> holds opt-ins, and{' '}
+          <code>modules.onside</code> links the Onside SDK. Vega OS needs no
+          option: the plugin generates the Vega target when the project has a
+          root <code>manifest.toml</code>, and{' '}
+          <code>modules.amazon.vegaOS</code> only forces it on or off. The
+          Android store needs no option either: a local debug build follows the
           connected Quest or Fire device. An EAS cloud build has no device to
           follow and a release build never looks at one, so pin them with{' '}
           <code>ORG_GRADLE_PROJECT_openiapStore</code> in the EAS profile&apos;s{' '}
@@ -333,8 +332,8 @@ cd ios && pod install`}
             How the Store Is Selected
           </Link>
           ). The separate <code>android.amazon.vegaOS</code> block is only
-          needed when your Vega OS build requires different values (app id,
-          artifacts) than your regular Android config — see{' '}
+          needed when your Vega OS build requires different values (package id,
+          title, component id) than your regular Android config — see{' '}
           <Link to="/docs/setup/store/amazon">Amazon Store Setup</Link>.
         </p>
       </section>

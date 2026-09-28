@@ -58,11 +58,11 @@ The Android plugin remains registered, but it compiles a no-op implementation:
 `initConnection()` returns `false`, and store operations report
 `ErrorCode.IapNotAvailable`. The build contains no OpenIAP Google, Play Billing,
 Horizon, or Amazon IAP SDK dependency, and no billing manifest entry supplied by
-those SDKs. Without the property the build resolves the store itself: a
-`horizon` or `amazon` flavor, a connected Quest or Fire device on debug builds,
-or an `openiapStore=horizon|amazon` pin; Google Play otherwise. The legacy
-`openiapPlatform=none`, `horizonEnabled`, and `fireOsEnabled` properties still
-work with a deprecation warning.
+those SDKs. Without the property the build resolves the store itself: an
+`openiapStore=horizon|amazon` pin, then a `horizon` or `amazon` flavor, then a
+connected Quest or Fire device on debug builds; Google Play otherwise. The
+legacy `openiapPlatform=none`, `horizonEnabled`, and `fireOsEnabled` properties
+still work with a deprecation warning until the next major release.
 
 ## 🔧 Quick Start
 

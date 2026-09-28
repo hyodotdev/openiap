@@ -70,7 +70,7 @@
             "label": "🚀 Google: Build & Run Example",
             "type": "shell",
             "command": "sh",
-            "args": ["-c", "./gradlew :Example:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
+            "args": ["-c", "./gradlew :Example:installPlayDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
             "options": {
                 "cwd": "${workspaceFolder}/packages/google"
             },

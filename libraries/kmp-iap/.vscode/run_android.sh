@@ -34,7 +34,7 @@ else
 fi
 
 echo "🔨 Building and installing app..."
-./gradlew :example:composeApp:installDebug
+./gradlew :example:composeApp:installPlayDebug
 
 echo "🚀 Launching app..."
 adb shell am start -n dev.hyo.martie/dev.hyo.martie.MainActivity

@@ -19,9 +19,10 @@ function HorizonStoreSetup() {
       <h1>Horizon OS Store Setup</h1>
       <p>
         Horizon OS is Meta's operating system for Quest headsets, and OpenIAP
-        treats it as an Android build target. Select the <code>horizon</code>{' '}
-        platform flavor, provide the Horizon app id from Meta Horizon Developer
-        Hub, and ship a Quest artifact that is separate from your Google Play or{' '}
+        treats it as an Android build target. A debug build follows a connected
+        Quest and a release build is pinned to <code>horizon</code>; provide the
+        Horizon app id from Meta Horizon Developer Hub, and ship a Quest
+        artifact that is separate from your Google Play or{' '}
         <Link to="/docs/setup/store/amazon">Amazon Fire OS</Link> artifacts.
       </p>
 
@@ -212,7 +213,7 @@ function HorizonStoreSetup() {
           debug build finds a Quest, or when <code>openiapStore=horizon</code>{' '}
           pins a release.
         </p>
-        <CodeBlock language="kotlin">{`// settings.gradle.kts
+        <CodeBlock language="kotlin">{`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
     id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }
@@ -266,21 +267,17 @@ dependencies {
           React Native
         </AnchorLink>
         <p>
-          <code>react-native-iap</code> has no Expo config plugin, so the app
-          applies the same resolver script the library uses and writes the app
-          id into the manifest itself. Nothing below changes between Play and
-          Quest builds: a <code>horizon</code> flavor, a connected Quest on a
-          debug build, or <code>-PopeniapStore=horizon</code> picks the store.
+          <code>react-native-iap</code> picks the store itself when Gradle runs,
+          so the app only writes the Horizon app id into its manifest. Nothing
+          below changes between Play and Quest builds: a connected Quest on a
+          debug build, a <code>horizon</code> flavor, or{' '}
+          <code>-PopeniapStore=horizon</code> selects Horizon.
         </p>
         <CodeBlock language="properties">{`# android/gradle.properties
 horizonAppId=YOUR_HORIZON_APP_ID`}</CodeBlock>
         <CodeBlock language="groovy">{`// android/app/build.gradle
-apply from: new File(project(':react-native-iap').projectDir, 'openiap-store.gradle')
-
 android {
     defaultConfig {
-        missingDimensionStrategy "platform", openIapResolveStore('app').store
-
         manifestPlaceholders = [
             HORIZON_APP_ID: project.findProperty('horizonAppId') ?: ''
         ]
@@ -296,27 +293,31 @@ android {
           Flutter
         </AnchorLink>
         <p>
-          Flutter uses the same resolver as bare React Native. The app module
-          applies it from the plugin project and injects the app id through a
-          manifest placeholder; <code>localProperties</code> is the loader the
-          Flutter Android template already defines in{' '}
-          <code>android/app/build.gradle</code>. Pin a release build with{' '}
+          <code>flutter_inapp_purchase</code> picks the store itself, so the app
+          only injects the Horizon app id through a manifest placeholder. Pin a
+          release build with{' '}
           <code>ORG_GRADLE_PROJECT_openiapStore=horizon flutter build apk</code>
           .
         </p>
         <CodeBlock language="properties">{`# android/local.properties
 HORIZON_APP_ID=YOUR_HORIZON_APP_ID`}</CodeBlock>
-        <CodeBlock language="groovy">{`apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
-def openIapStore = openIapResolveStore('app', [allowNone: true]).store
+        <CodeBlock language="kotlin">{`// android/app/build.gradle.kts
+import java.util.Properties
+
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
+}
 
 android {
     defaultConfig {
-        missingDimensionStrategy 'platform', openIapStore == 'none' ? 'play' : openIapStore
-        manifestPlaceholders = [
-            HORIZON_APP_ID: localProperties.getProperty("HORIZON_APP_ID") ?: ""
-        ]
+        manifestPlaceholders["HORIZON_APP_ID"] =
+            localProperties.getProperty("HORIZON_APP_ID") ?: ""
     }
 }`}</CodeBlock>
+        <p>
+          An older Groovy <code>build.gradle</code> already defines{' '}
+          <code>localProperties</code>; set the same placeholder there.
+        </p>
         <p>Reference the placeholder in the Android manifest:</p>
         <CodeBlock language="xml">{`<meta-data
     android:name="com.meta.horizon.platform.HORIZON_APP_ID"

@@ -567,7 +567,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## godot-iap $VERSION
 
-          Godot 4.x addon for the OpenIAP specification (iOS GDExtension + Android AAR plugin).
+          Godot 4.x addon implementing the OpenIAP Client Protocol (iOS GDExtension + Android AAR plugin).
 
           ### What's Changed
 

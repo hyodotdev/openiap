@@ -51,10 +51,13 @@ function StoreSetup() {
             <code>openiapStore=play|horizon|amazon</code> as a Gradle property:{' '}
             <code>-PopeniapStore=horizon</code>,{' '}
             <code>ORG_GRADLE_PROJECT_openiapStore=horizon</code> in an EAS
-            profile, or <code>gradle.properties</code>. The legacy{' '}
-            <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
-            <code>openiapPlatform=none</code> still work with a deprecation
-            warning.
+            profile, or <code>gradle.properties</code>. <code>auto</code> means
+            no pin. The legacy <code>horizonEnabled</code> and{' '}
+            <code>fireOsEnabled</code> still pin with a deprecation warning and
+            are removed in the next major release. Only{' '}
+            <code>flutter_inapp_purchase</code> accepts{' '}
+            <code>openiapStore=none</code> (or the legacy{' '}
+            <code>openiapPlatform=none</code>) to build without a store SDK.
           </li>
           <li>
             <strong>Variant</strong> — the requested task names a store flavor:{' '}

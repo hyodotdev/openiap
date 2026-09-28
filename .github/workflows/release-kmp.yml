@@ -404,7 +404,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## kmp-iap $VERSION
 
-          Kotlin Multiplatform library for the OpenIAP specification (iOS + Android).
+          Kotlin Multiplatform library implementing the OpenIAP Client Protocol (iOS + Android).
 
           ### What's Changed
 

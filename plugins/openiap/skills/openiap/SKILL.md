@@ -26,8 +26,9 @@ using the plugin:
 When a purchase flow fails and the error does not say why, read the project
 before the code. These misconfigurations produce no message that names them:
 
-- The Android build links one store while the build flags select another, or
-  targets Horizon or Amazon on a device that only has Google Play.
+- The Android build links one store while the app expects another (check the
+  `openiap: store=` line in the Gradle log), or targets Horizon or Amazon on a
+  device that only has Google Play.
 - A secret `openiap-kit_sk_` key sits in a file the app bundle ships.
 - An Expo env name the bundler will not inline, so the key reads as undefined.
 - An IAPKit base URL that already carries `/v1/purchase/verify`.

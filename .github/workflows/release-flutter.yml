@@ -338,19 +338,10 @@ jobs:
           done
 
           if [ -n "$PREV_TAG" ]; then
-            PR_LINES=$(git log "${PREV_TAG}..HEAD" --merges --pretty=format:"%s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | \
-              sed -n 's/^Merge pull request #\([0-9]*\) from .*/\1/p')
-            for PR_NUM in $PR_LINES; do
-              PR_TITLE=$(git log --all --grep="Merge pull request #${PR_NUM}" --pretty=format:"%s" | head -1 | sed "s|Merge pull request #${PR_NUM} from [^ ]* ||")
-              if [ -n "$PR_TITLE" ]; then
-                CHANGES="${CHANGES}- ${PR_TITLE} (#${PR_NUM})\n"
-              fi
-            done
-            if [ -z "$CHANGES" ]; then
-              LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
-              if [ -n "$LOG_LINES" ]; then
-                CHANGES="${LOG_LINES}\n"
-              fi
+            # PRs are squash-merged, so each commit subject already names its PR.
+            LOG_LINES=$(git log "${PREV_TAG}..HEAD" --no-merges --invert-grep --grep='^chore(release):' --pretty=format:"- %s" -- ":(top)libraries/flutter_inapp_purchase/" ":(top)packages/google/" ":(top)packages/apple/" | head -20)
+            if [ -n "$LOG_LINES" ]; then
+              CHANGES="${LOG_LINES}\n"
             fi
           fi
           if [ -z "$CHANGES" ]; then
@@ -540,7 +531,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## flutter_inapp_purchase $VERSION
 
-          Flutter plugin for the OpenIAP specification.
+          Flutter plugin implementing the OpenIAP Client Protocol.
 
           ### What's Changed
 

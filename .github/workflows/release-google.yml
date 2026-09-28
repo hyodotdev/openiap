@@ -447,7 +447,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## OpenIAP Google $VERSION
 
-          Native Android library for the OpenIAP specification (Play + Horizon + Fire OS flavors).
+          Native Android library implementing the OpenIAP Client Protocol (Play + Horizon + Fire OS flavors).
 
           ### What's Changed
 
@@ -455,61 +455,7 @@ jobs:
 
           ### Installation
 
-          #### Google Play Store (Play flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
-          }
-          \`\`\`
-
-          #### Meta Quest / Horizon Store (Horizon flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
-          }
-          \`\`\`
-
-          #### Fire OS (Amazon flavor)
-
-          **Gradle (Kotlin DSL):**
-
-          \`\`\`kotlin
-          dependencies {
-              implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
-          }
-          \`\`\`
-
-          **Gradle (Groovy):**
-
-          \`\`\`groovy
-          dependencies {
-              implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
-          }
-          \`\`\`
-
-          #### Pick the store automatically
+          #### With the OpenIAP Gradle plugin (recommended)
 
           Apply the plugin in settings.gradle.kts and depend on openiap-google: a
           connected Quest or Fire device selects its store on a debug build, and
@@ -531,6 +477,19 @@ jobs:
           // app/build.gradle.kts
           dependencies {
               implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+          }
+          \`\`\`
+
+          #### Without the plugin
+
+          Depend on the one artifact for your store. With the plugin applied, keep
+          \`openiap-google\` and let the plugin swap it.
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")          // Google Play
+              // implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION") // Meta Horizon
+              // implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")  // Amazon Fire OS
           }
           \`\`\`
 

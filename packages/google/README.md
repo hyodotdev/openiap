@@ -103,7 +103,7 @@ Run the included sample app:
 
 ```bash
 cd packages/google
-./gradlew :Example:installDebug
+./gradlew :Example:installPlayDebug
 ```
 
 The store flavor comes from the task name, so `installPlayDebug`,

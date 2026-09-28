@@ -841,7 +841,8 @@ func _on_purchase_error(error):
             <a href="/docs/setup/store">Store Setup</a> — ship to{' '}
             <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) or{' '}
             <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon) with the{' '}
-            <code>openiap/android_store</code> export option
+            <code>openiap/android_store</code> export option;{' '}
+            <code>get_store()</code> reports the store an export linked
           </li>
           <li>
             <a

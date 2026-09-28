@@ -426,7 +426,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## expo-iap $VERSION
 
-          Expo Modules wrapper for the OpenIAP specification.
+          Expo Modules wrapper implementing the OpenIAP Client Protocol.
 
           ### What's Changed
 

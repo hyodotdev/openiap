@@ -45,7 +45,7 @@ Gradle plugin in `settings.gradle.kts` so Gradle can pick one for every module;
 see [Pick the Android store](https://openiap.dev/docs/setup/kmp#android-store).
 
 ```kotlin
-// settings.gradle.kts
+// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
     id("io.github.hyochan.openiap") version "<openiap-google version>"
 }

@@ -454,7 +454,7 @@ jobs:
             CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --invert-grep --grep='^chore(release):' --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)libraries/maui-iap/" ":(top,exclude)libraries/maui-iap/.claude/" ":(top,exclude)libraries/maui-iap/AGENTS.md" ":(top,exclude)libraries/maui-iap/CLAUDE.md")
           fi
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- Initial release / no direct code changes — picks up the latest openiap-google / openiap-apple native library updates."
+            CHANGELOG="- No direct code changes — picks up the latest openiap-google / openiap-apple native library updates."
           fi
           # These native packages are a published dependency of this release, so
           # name the versions this tag pins instead of replaying their commits.
@@ -470,7 +470,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## maui-iap $VERSION
 
-          .NET 10 MAUI / C# 12 library for the OpenIAP specification (iOS + Android + macCatalyst).
+          .NET 10 MAUI / C# 12 library implementing the OpenIAP Client Protocol (iOS + Android + macCatalyst).
 
           ### What's Changed
 

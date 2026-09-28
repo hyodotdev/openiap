@@ -373,16 +373,14 @@ function Announcements() {
                   Amazon Store Setup guide
                 </a>
               </strong>{' '}
-              shows how Fire OS apps can select the Android <code>amazon</code>{' '}
-              flavor, including <code>modules.amazon.fireOS</code> for Expo and
-              Gradle flavor selection for bare React Native, Flutter, KMP, and
-              MAUI where supported.
+              shows how each framework builds a Fire OS app for the Amazon
+              Appstore.
             </li>
             <li>
               The same Amazon Store Setup guide also covers Vega OS as a Kepler
-              runtime target, not a Fire OS Android flavor. Expo uses{' '}
-              <code>modules.amazon.vegaOS</code> and bare React Native for Vega
-              uses Kepler dependencies plus <code>manifest.toml</code>.
+              runtime target, not a Fire OS Android build. Expo detects a Vega
+              project from its <code>manifest.toml</code>, and bare React Native
+              for Vega uses Kepler dependencies plus <code>manifest.toml</code>.
             </li>
             <li>
               <strong>Amazon Appstore IAP</strong>: OpenIAP maps Amazon types of

@@ -367,7 +367,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## OpenIAP Apple $VERSION
 
-          Native iOS / macOS / tvOS / watchOS / visionOS library for the OpenIAP specification.
+          Native iOS / macOS / tvOS / watchOS / visionOS library implementing the OpenIAP Client Protocol.
 
           ### What's Changed
 

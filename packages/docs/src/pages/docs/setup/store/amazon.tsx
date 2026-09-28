@@ -264,7 +264,7 @@ function AmazonStoreSetup() {
           debug build finds a Fire device, or when{' '}
           <code>openiapStore=amazon</code> pins a release.
         </p>
-        <CodeBlock language="kotlin">{`// settings.gradle.kts
+        <CodeBlock language="kotlin">{`// settings.gradle.kts — keep mavenCentral() in pluginManagement.repositories
 plugins {
     id("io.github.hyochan.openiap") version "${OPENIAP_VERSIONS.google}"
 }
@@ -308,39 +308,24 @@ dependencies {
           React Native
         </AnchorLink>
         <p>
-          Bare React Native applies the same resolver script the library uses.
-          Place <code>AppstoreAuthenticationKey.pem</code> in{' '}
-          <code>android/app/src/main/assets</code>; an <code>amazon</code>{' '}
-          flavor, a connected Fire device on a debug build, or{' '}
-          <code>-PopeniapStore=amazon</code> then picks the store, exactly as
-          for <Link to="/docs/setup/store/horizon">Horizon OS</Link>.
+          <code>react-native-iap</code> picks the store itself when Gradle runs,
+          so the app only needs the key: place{' '}
+          <code>AppstoreAuthenticationKey.pem</code> in{' '}
+          <code>android/app/src/main/assets</code>. A connected Fire device on a
+          debug build, an <code>amazon</code> flavor, or{' '}
+          <code>-PopeniapStore=amazon</code> then selects Amazon, exactly as for{' '}
+          <Link to="/docs/setup/store/horizon">Horizon OS</Link>.
         </p>
-        <CodeBlock language="groovy">{`// android/app/build.gradle
-apply from: new File(project(':react-native-iap').projectDir, 'openiap-store.gradle')
-
-android {
-    defaultConfig {
-        missingDimensionStrategy "platform", openIapResolveStore('app').store
-    }
-}`}</CodeBlock>
 
         <AnchorLink id="flutter-fire-os" level="h3">
           Flutter
         </AnchorLink>
         <p>
-          Flutter applies the resolver from the plugin project. Keep the key in{' '}
-          <code>android/app/src/main/assets</code>; pin a release build with{' '}
+          <code>flutter_inapp_purchase</code> picks the store itself, so the app
+          only needs the key in <code>android/app/src/main/assets</code>; pin a
+          release build with{' '}
           <code>ORG_GRADLE_PROJECT_openiapStore=amazon flutter build apk</code>.
         </p>
-        <CodeBlock language="groovy">{`// android/app/build.gradle
-apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
-def openIapStore = openIapResolveStore('app', [allowNone: true]).store
-
-android {
-    defaultConfig {
-        missingDimensionStrategy 'platform', openIapStore == 'none' ? 'play' : openIapStore
-    }
-}`}</CodeBlock>
 
         <AnchorLink id="kmp-maui-fire-os" level="h3">
           KMP and MAUI

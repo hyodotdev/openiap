@@ -165,7 +165,7 @@
             "type": "node",
             "request": "launch",
             "runtimeExecutable": "bash",
-            "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && ./gradlew :example:composeApp:installDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
+            "runtimeArgs": ["-lc", "adb uninstall dev.hyo.martie || true && ./gradlew :example:composeApp:installPlayDebug && adb shell am start -n dev.hyo.martie/.MainActivity"],
             "cwd": "${workspaceFolder}/libraries/kmp-iap",
             "console": "integratedTerminal"
         }

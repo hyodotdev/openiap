@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-26T18:35:25.842Z
+> Last updated: 2026-09-28T15:14:47.854Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3624,7 +3624,9 @@ Horizon offer, the trial offer sets `basePlanIdAndroid` to the SKU; it leaves
 the remaining Play-only fields (offer token, tags, pricing phases) null
 because Amazon reports none. The base offer keeps its earlier shape:
 `basePlanIdAndroid` is the SKU, `offerTokenAndroid` is `""`, and
-`pricingPhasesAndroid` holds one synthetic recurring phase.
+`pricingPhasesAndroid` holds one synthetic recurring phase whose
+`priceAmountMicros` is the parsed price, so a zero-price check does not read
+a paid plan as a free trial.
 
 After purchase the RVS receipt reports `freeTrialEndDate` while the
 subscription is in its trial.

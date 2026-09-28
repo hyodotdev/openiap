@@ -29,7 +29,7 @@ cd openiap/packages/google
 ./gradlew :openiap:test
 
 # (Optional) Install and run the Example app
-./gradlew :Example:installDebug
+./gradlew :Example:installPlayDebug
 adb shell am start -n dev.hyo.martie/.MainActivity
 ```
 

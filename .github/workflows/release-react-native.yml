@@ -435,7 +435,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## react-native-iap $VERSION
 
-          React Native wrapper for the OpenIAP specification.
+          React Native wrapper implementing the OpenIAP Client Protocol.
 
           ### What's Changed
 
