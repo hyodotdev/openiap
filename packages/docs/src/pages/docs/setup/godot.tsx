@@ -715,6 +715,24 @@ func _on_purchase_error(error):
           <a href="#folder-structure">Required Folder Structure</a>.
         </p>
 
+        <h3 id="types-name-clash" className="anchor-heading">
+          types.gd fails to parse
+          <a href="#types-name-clash" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          An autoload or <code>class_name</code> in your project has the same
+          name as a type in <code>addons/godot-iap/types.gd</code>, such as{' '}
+          <code>IapStore</code>, and Godot reports{' '}
+          <code>
+            Cannot assign a value of type types.gd.IapStore to variable
+            &quot;store&quot;
+          </code>
+          . Rename your autoload or class, for example to <code>Shop</code>.
+          Editing <code>types.gd</code> does not survive an update.
+        </p>
+
         <h3 id="missing-export-checkbox" className="anchor-heading">
           GodotIap is missing from the export Plugins list
           <a href="#missing-export-checkbox" className="anchor-link">
