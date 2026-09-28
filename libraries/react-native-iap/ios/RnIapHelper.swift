@@ -370,6 +370,13 @@ enum RnIapHelper {
             subscriptionOffers: subscriptionOffers,
             discountOffers: discountOffers,
             nameAndroid: nil,
+            originalPriceAndroid: nil,
+            originalPriceAmountMicrosAndroid: nil,
+            introductoryPriceCyclesAndroid: nil,
+            introductoryPricePeriodAndroid: nil,
+            introductoryPriceValueAndroid: nil,
+            subscriptionPeriodAndroid: nil,
+            freeTrialPeriodAndroid: nil,
             productStatusAndroid: nil
         )
     }
@@ -627,6 +634,13 @@ enum RnIapHelper {
             subscriptionOffers: nil,
             discountOffers: nil,
             nameAndroid: nil,
+            originalPriceAndroid: nil,
+            originalPriceAmountMicrosAndroid: nil,
+            introductoryPriceCyclesAndroid: nil,
+            introductoryPricePeriodAndroid: nil,
+            introductoryPriceValueAndroid: nil,
+            subscriptionPeriodAndroid: nil,
+            freeTrialPeriodAndroid: nil,
             productStatusAndroid: nil
         )
     }

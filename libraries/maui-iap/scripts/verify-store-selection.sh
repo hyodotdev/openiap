@@ -22,7 +22,9 @@ failed=0
 # <expected> is "store:maven-artifact,...", or "fail:<substring of the error>".
 # Prefix warns=<text> to also expect that warning.
 run() {
-    local name="$1" expected="$2" target="$3"
+    local name="$1" expected="$2" target="$3" want_warns="${warns:-}"
+    # sh keeps a prefix assignment after a function returns; do not let it leak.
+    unset warns
     shift 3
     local output status=0 actual
     output=$(dotnet msbuild "$example" -nologo -p:TargetFramework=net10.0-android \
@@ -43,9 +45,9 @@ data = json.loads(raw[raw.index("{"):])
 maven = sorted(i["Identity"].split(":")[1] for i in data["Items"].get("AndroidMavenLibrary", []))
 print(data["Properties"]["OpenIapLinkedStore"] + ":" + ",".join(maven))')
     fi
-    if [[ -n "${warns:-}" ]]; then
-        expected+=" warns:$warns"
-        [[ "$output" == *"$warns"* ]] && actual+=" warns:$warns"
+    if [[ -n "$want_warns" ]]; then
+        expected+=" warns:$want_warns"
+        [[ "$output" == *"$want_warns"* ]] && actual+=" warns:$want_warns"
     fi
     if [[ "$actual" == "$expected" ]]; then
         printf '  ok   %-42s %s\n' "$name" "$expected"

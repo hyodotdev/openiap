@@ -534,9 +534,10 @@ function Releases() {
             <li>
               <strong>react-native-iap 16.7.2</strong> - Vega OS subscriptions
               report their billing period and, when the customer is eligible, a{' '}
-              <code>free-trial</code> offer, as Fire OS does. The raw{' '}
-              <code>NitroProduct</code> bridge type drops seven Android fields
-              that <code>fetchProducts</code> never returned.
+              <code>free-trial</code> offer, as Fire OS does. Seven legacy
+              Android price fields on the raw <code>NitroProduct</code> type,
+              which <code>fetchProducts</code> never returned, are deprecated;
+              the next major release removes them.
             </li>
             <li>
               <strong>expo-iap 5.8.2</strong> - the same Vega OS offers.{' '}

@@ -216,9 +216,9 @@ const flutterCustomWireMigrations = [
   ['numeric-indexed iOS SKU maps', '{ skus: [...] }'],
 ] as const;
 
-// Deprecated store-selection keys; scripts/audit-deprecation-schedule.mjs keeps
-// this list, the build warnings, and the package majors in step.
-const scheduledStoreRemovals = [
+// scripts/audit-deprecation-schedule.mjs keeps this list, the deprecation
+// notices, and the package majors in step.
+const scheduledRemovals = [
   {
     title:
       'react-native-iap, expo-iap, flutter_inapp_purchase, and the openiap-google Gradle plugin',
@@ -250,6 +250,15 @@ const scheduledStoreRemovals = [
   {
     title: 'OpenIap.Maui',
     rows: [['OpenIapAndroidStore', 'OpenIapStore']],
+  },
+  {
+    title: 'react-native-iap',
+    rows: [
+      [
+        'NitroProduct.originalPriceAndroid, originalPriceAmountMicrosAndroid, introductoryPriceValueAndroid, introductoryPriceCyclesAndroid, introductoryPricePeriodAndroid, subscriptionPeriodAndroid, freeTrialPeriodAndroid',
+        'subscriptionOffers and discountOffers on the product that fetchProducts returns',
+      ],
+    ],
   },
 ] as const;
 
@@ -538,16 +547,16 @@ function Migration() {
           Scheduled for the next major release
         </AnchorLink>
         <p>
-          These store-selection keys are deprecated. Every patch and minor
-          release keeps them working with a build warning; the next major
-          release of each package that carries them removes them. The store rule
-          itself is in{' '}
+          These keys and fields are deprecated. Every patch and minor release
+          keeps them working, and the store keys print a build warning; the next
+          major release of each package that carries them removes them. The
+          store rule itself is in{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>
           .
         </p>
-        {scheduledStoreRemovals.map((group) => (
+        {scheduledRemovals.map((group) => (
           <div key={group.title}>
             <h4>{group.title}</h4>
             <table className="doc-table">

@@ -655,6 +655,21 @@ export interface NitroProduct {
   discountOffers?: string | null;
   // Android specific fields
   nameAndroid?: string | null;
+  // Pre-offer price fields that fetchProducts never returns; the offers carry them.
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */
+  originalPriceAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */
+  originalPriceAmountMicrosAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
+  introductoryPriceCyclesAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
+  introductoryPricePeriodAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
+  introductoryPriceValueAndroid?: number | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
+  subscriptionPeriodAndroid?: string | null;
+  /** @deprecated Removed in the next major release. Use `subscriptionOffers`. */
+  freeTrialPeriodAndroid?: string | null;
   /**
    * Product fetch status (Play Billing 8.0.0+): OK, NOT_FOUND (SKU doesn't
    * exist), or NO_OFFERS_AVAILABLE (user not eligible for any offers).

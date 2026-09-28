@@ -45,13 +45,14 @@ fun readGoogleVariable(name: String, fallbackPropertyName: String): String {
 }
 
 // The published AAR is compiled against Play; exports swap in the target store's
-// openiap-google, so CI also compiles against the others with -PopeniapStore.
-val openIapStore = providers.gradleProperty("openiapStore").orNull ?: "play"
+// openiap-google, so CI also compiles against the others. Its own property, so an
+// app's openiapStore pin never changes what this library build compiles against.
+val openIapStore = providers.gradleProperty("openiapCompileStore").orNull ?: "play"
 require(openIapStore in setOf("play", "horizon", "amazon")) {
-    "godot-iap Android: openiapStore must be play, horizon, or amazon, not '$openIapStore'"
+    "godot-iap Android: openiapCompileStore must be play, horizon, or amazon, not '$openIapStore'"
 }
 require(openIapStore == "play" || findProject(":openiap") != null) {
-    "godot-iap Android: -PopeniapStore=$openIapStore needs the monorepo's packages/google"
+    "godot-iap Android: openiapCompileStore=$openIapStore needs the monorepo's packages/google"
 }
 
 val googleCompileSdk = readGoogleAndroidInt("compileSdk", "compileSdkVersion")

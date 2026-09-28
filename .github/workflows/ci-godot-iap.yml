@@ -120,7 +120,7 @@ jobs:
           cd android
           for store in horizon amazon; do
             "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-              ./gradlew --no-daemon compileDebugKotlin -PopeniapStore="$store"
+              ./gradlew --no-daemon compileDebugKotlin -PopeniapCompileStore="$store"
           done
 
       - name: Test generated types

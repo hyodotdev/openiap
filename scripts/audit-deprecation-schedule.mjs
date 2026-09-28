@@ -401,6 +401,32 @@ export const scheduledRemovalRules = [
     ],
     catalog: ["OpenIapAndroidStore"],
   },
+  {
+    label: "react-native-iap NitroProduct price fields",
+    packages: [
+      {
+        name: "react-native-iap",
+        major: 16,
+        file: "libraries/react-native-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+    ],
+    sources: [
+      {
+        file: "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
+        tokens: [
+          "originalPriceAndroid",
+          "originalPriceAmountMicrosAndroid",
+          "introductoryPriceCyclesAndroid",
+          "introductoryPricePeriodAndroid",
+          "introductoryPriceValueAndroid",
+          "subscriptionPeriodAndroid",
+          "freeTrialPeriodAndroid",
+        ],
+      },
+    ],
+    catalog: ["NitroProduct.originalPriceAndroid"],
+  },
 ];
 
 const readRepoFile = (file) => {

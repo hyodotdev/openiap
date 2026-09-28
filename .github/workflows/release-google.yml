@@ -459,7 +459,8 @@ jobs:
 
           Apply the plugin in settings.gradle.kts and depend on openiap-google: a
           connected Quest or Fire device selects its store on a debug build, and
-          \`openiapStore\` pins release builds.
+          \`openiapStore\` pins release builds. The plugin swaps in the store's
+          artifact, so do not declare a store artifact yourself.
 
           \`\`\`kotlin
           // settings.gradle.kts: the plugin is on Maven Central, not the Gradle Plugin Portal
@@ -482,8 +483,7 @@ jobs:
 
           #### Without the plugin
 
-          Depend on the one artifact for your store. With the plugin applied, keep
-          \`openiap-google\` and let the plugin swap it.
+          Depend on the one artifact for your store.
 
           \`\`\`kotlin
           dependencies {
