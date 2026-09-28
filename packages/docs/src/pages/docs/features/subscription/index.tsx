@@ -311,6 +311,17 @@ await iap.request_purchase(props)`}</CodeBlock>
                 .
               </td>
             </tr>
+            <tr>
+              <td>Amazon (Fire OS)</td>
+              <td>
+                Buy with the subscription SKU; Amazon has no offer tokens. When
+                the customer is eligible for a free trial,{' '}
+                <code>fetchProducts()</code> adds a second offer with{' '}
+                <code>paymentMode: &apos;free-trial&apos;</code> and no pricing
+                phases, so detect the trial by <code>paymentMode</code>, not by
+                a zero-priced phase.
+              </td>
+            </tr>
           </tbody>
         </table>
 

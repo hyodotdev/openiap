@@ -41,6 +41,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.lang.ref.WeakReference
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.NumberFormat
 import java.text.ParsePosition
 import java.util.Currency
@@ -447,7 +449,9 @@ internal fun buildAmazonSubscriptionProduct(
         billingCycleCount = 0,
         billingPeriod = billingPeriod,
         formattedPrice = price.orEmpty(),
-        priceAmountMicros = "0",
+        // Cross-platform trial checks read zero micros as free, so carry the real price.
+        priceAmountMicros = BigDecimal.valueOf(priceAmount).movePointRight(6)
+            .setScale(0, RoundingMode.HALF_UP).toPlainString(),
         priceCurrencyCode = "",
         recurrenceMode = 1
     )
