@@ -73,6 +73,7 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
 ];
 
 const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-apple', version: '3.6.1', tag: '3.6.1' },
   { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
   {
     name: 'react-native-iap',
@@ -468,8 +469,9 @@ function Releases() {
 
           <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
             Paid Amazon plans no longer read as free trials, Vega OS reports the
-            same offers as Fire OS, and store-selection errors and deprecation
-            warnings say what to do. See{' '}
+            same offers as Fire OS, store-selection errors and deprecation
+            warnings say what to do, and a debug build says thanks once after
+            its first purchase. See{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/500"
               target="_blank"
@@ -488,6 +490,11 @@ function Releases() {
               fontSize: '0.9rem',
             }}
           >
+            <li>
+              <strong>openiap-apple 3.6.1</strong> and{' '}
+              <strong>openiap-google 3.6.2</strong> remember, once per install,
+              that the framework library showed its first-purchase notice.
+            </li>
             <li>
               <strong>openiap-google 3.6.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
@@ -523,6 +530,15 @@ function Releases() {
             Every library below ships openiap-google 3.6.2. React Native, Expo,
             and Flutter also ship its store resolver, with the same errors and
             warnings.
+          </p>
+          <p style={{ fontSize: '0.9rem' }}>
+            In a debug build, the first purchase that finishes prints a short
+            thank-you in the console you are already watching, with a link to
+            star the repository and an invitation to list your app on the{' '}
+            <Link to="/showcase">showcase</Link>. It prints once per install,
+            never in a release build or a test run, and nothing leaves the
+            device. kmp-iap and maui-iap print it on Android only: their iOS
+            side has no reliable sign that the app is a debug build.
           </p>
           <ul
             style={{
@@ -574,7 +590,10 @@ function Releases() {
               <strong>@hyodotdev/openiap 0.2.0</strong> - <code>doctor</code>{' '}
               reads <code>openiapStore</code> pins and their aliases alongside
               the legacy flags, reports store values the build would reject, and
-              no longer suggests the deprecated flags as a fix.
+              no longer suggests the deprecated flags as a fix. The{' '}
+              <code>init</code> brief ends with a note that lets your coding
+              assistant mention the showcase and feedback channels once, and
+              never act on your behalf.
             </li>
           </ul>
 
