@@ -39,14 +39,14 @@ exact missing command, tool, device, or store prerequisite.
 | Target                      | Android / Play      | FireOS / Amazon     | Horizon    | iOS                 | VegaOS    | Onside     |
 | --------------------------- | ------------------- | ------------------- | ---------- | ------------------- | --------- | ---------- |
 | `packages/kit` local IAPKit | Martie live receipt | n/a                 | n/a        | Martie live receipt | n/a       | n/a        |
-| `packages/google` native    | build + tests       | build + tests       | build-only | n/a                 | n/a       | n/a        |
+| `packages/google` native    | tests + device flow | tests + device flow | build-only | n/a                 | n/a       | n/a        |
 | `packages/apple` native     | n/a                 | n/a                 | n/a        | build + tests       | n/a       | n/a        |
 | `react-native-iap`          | build + device flow | build + device flow | build-only | build + device flow | RN only   | n/a        |
 | `expo-iap`                  | build + device flow | build + device flow | build-only | build + device flow | Expo only | build-only |
 | `flutter_inapp_purchase`    | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 | `kmp-iap`                   | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 | `maui-iap`                  | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
-| `godot-iap`                 | build + device flow | n/a                 | n/a        | build + device flow | n/a       | n/a        |
+| `godot-iap`                 | build + device flow | build + device flow | build-only | build + device flow | n/a       | n/a        |
 
 Notes:
 
@@ -70,7 +70,6 @@ Notes:
   build: R8 can strip the log line it asserts on. Run it before the Live App
   Testing pass, not instead of it.
 - VegaOS is required only for `react-native-iap` and `expo-iap`.
-- Godot is required only on Android and iOS.
 - Horizon is build-only unless the user explicitly provides a Horizon device and
   the library has a runnable Horizon example.
 - **A connected Quest never needs to be worn.** `screencap` and plain `scrcpy`
@@ -91,9 +90,9 @@ Notes:
   real money, so treat that tap as a purchase approval and take it only when the
   current request authorizes one.
 - Onside is Expo-only and build-only; do not require Onside purchase approval.
-- KMP and MAUI must still appear in the final report for FireOS/Horizon. Use
-  the store-specific commands below; do not count the Play Android build as
-  FireOS or Horizon coverage.
+- Every framework must appear in the final report for FireOS and Horizon. Do
+  not count the Play build as FireOS or Horizon coverage; each row's store line
+  (`## Android Store Selection`) names the store its build linked.
 - The local IAPKit row uses the React Native or Expo example whose application
   id / bundle id is `dev.hyo.martie`. It is a live sandbox receipt vertical,
   never a placeholder-receipt CI smoke.
@@ -396,6 +395,28 @@ vega exec vda -s "$VEGA_DEVICE_ID" shell vpm install-async \
 Report `vpm install` internal errors, App Tester scratch permission errors, or
 missing package rows as install failures, not build failures.
 
+## Android Store Selection
+
+A debug build links the store of the adb device `ANDROID_SERIAL` names: a
+Quest links Horizon, a Fire device Amazon, anything else Play. With several
+devices attached and no `ANDROID_SERIAL`, it links Play. So every Android row
+below checks its serial first (`ANDROID_SERIAL` for Play, `FIREOS_SERIAL`,
+`HORIZON_SERIAL`), builds with `ANDROID_SERIAL` set to it, and greps the build
+output for `openiap: store=<store> (source=device;` before installing. Export
+`ANDROID_SERIAL`; a build cannot see an unexported shell variable. Godot
+prints the line with a `[GodotIap]` prefix.
+
+A row that must build with no device attached skips the serial check, pins the
+store, and expects `source=explicit` instead: prefix the build with
+`ORG_GRADLE_PROJECT_openiapStore=<store>`, replacing any `ANDROID_SERIAL=...`
+prefix (MAUI: `-p:OpenIapStore=<store>`; Godot: `openiap/android_store`).
+`source=explicit` on a device row means a leftover pin, such as an exported
+`ORG_GRADLE_PROJECT_openiapStore`, or an `openiapStore` line or legacy
+`horizonEnabled` / `fireOsEnabled` flag in a reused `android/gradle.properties`.
+Remove it and rebuild. KMP and the `packages/google` Example take the store
+from the flavor in the task name, such as `assembleAmazonDebug`, and print no
+store line.
+
 ## Package-Level Checks
 
 Google Android package:
@@ -409,6 +430,24 @@ cd packages/google
   :Example:compileHorizonDebugKotlin \
   :Example:compilePlayDebugKotlin \
   :openiap:test
+```
+
+Then the Example app on each store device. The flavor in the task name picks
+the store (there is no `installDebug`), and `ANDROID_SERIAL` picks the device;
+without it, Gradle installs on every attached device. Skip the Horizon lines
+when no Quest is attached.
+
+```bash
+cd packages/google
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+./gradlew :Example:installPlayDebug
+adb -s "$ANDROID_SERIAL" shell am start -n dev.hyo.martie/.MainActivity
+: "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
+ANDROID_SERIAL="$FIREOS_SERIAL" ./gradlew :Example:installAmazonDebug
+adb -s "$FIREOS_SERIAL" shell am start -n dev.hyo.martie/.MainActivity
+: "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+ANDROID_SERIAL="$HORIZON_SERIAL" ./gradlew :Example:installHorizonDebug
+adb -s "$HORIZON_SERIAL" shell am start -n dev.hyo.martie/.MainActivity
 ```
 
 Apple package:
@@ -451,9 +490,10 @@ bun run test --runInBand
 # `bunx expo prebuild --platform android --clean` instead.
 test -d android || bunx expo prebuild --platform android
 cd android
-./gradlew :app:assembleDebug
-# Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+build_log="$(./gradlew :app:assembleDebug)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
+# Build-only regression can stop here.
 adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
@@ -488,16 +528,17 @@ FireOS/Amazon Android path:
 cd libraries/expo-iap/example
 bunx expo prebuild --platform android --clean
 cd android
-# The build follows the connected device; the inline pin keeps a build-only run
-# exact without leaking into the next row.
-variant_report="$(ORG_GRADLE_PROJECT_openiapStore=amazon ./gradlew :app:dependencyInsight \
-  --configuration debugRuntimeClasspath --dependency openiap-google)"
-printf '%s\n' "$variant_report" | grep -F 'Variant amazonDebugRuntimeElements'
-printf '%s\n' "$variant_report" | \
-  grep -E 'ProductFlavor:platform[[:space:]]+\| amazon'
-ORG_GRADLE_PROJECT_openiapStore=amazon ./gradlew :app:assembleDebug
-# Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
+# dependencyInsight shares the debug build's invocation: on its own it is not a
+# debug build, so it would not follow the device.
+build_log="$(ANDROID_SERIAL="$FIREOS_SERIAL" ./gradlew :app:assembleDebug \
+  :app:dependencyInsight --configuration debugRuntimeClasspath \
+  --dependency openiap-google)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=amazon (source=device;'
+printf '%s\n' "$build_log" | grep -F 'Variant amazonDebugRuntimeElements'
+printf '%s\n' "$build_log" | \
+  grep -E 'ProductFlavor:platform[[:space:]]+\| amazon'
+# Build-only regression can stop here.
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
@@ -508,19 +549,22 @@ Horizon Android build and optional device path:
 cd libraries/expo-iap/example
 bunx expo prebuild --platform android --clean
 cd android
-# The build follows the connected device; the inline pin keeps a build-only run
-# exact without leaking into the next row.
-variant_report="$(ORG_GRADLE_PROJECT_openiapStore=horizon ./gradlew :app:dependencyInsight \
-  --configuration debugRuntimeClasspath --dependency openiap-google)"
-printf '%s\n' "$variant_report" | grep -F 'Variant horizonDebugRuntimeElements'
-printf '%s\n' "$variant_report" | \
-  grep -E 'ProductFlavor:platform[[:space:]]+\| horizon'
-ORG_GRADLE_PROJECT_openiapStore=horizon ./gradlew :app:assembleDebug
-# Build-only regression can stop here.
 : "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+build_log="$(ANDROID_SERIAL="$HORIZON_SERIAL" ./gradlew :app:assembleDebug \
+  :app:dependencyInsight --configuration debugRuntimeClasspath \
+  --dependency openiap-google)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=horizon (source=device;'
+printf '%s\n' "$build_log" | grep -F 'Variant horizonDebugRuntimeElements'
+printf '%s\n' "$build_log" | \
+  grep -E 'ProductFlavor:platform[[:space:]]+\| horizon'
+# Build-only regression can stop here.
 adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
+
+No Quest attached: this row is build-only. Skip the serial check and the
+install, build with `ORG_GRADLE_PROJECT_openiapStore=horizon` in place of
+`ANDROID_SERIAL="$HORIZON_SERIAL"`, and expect `source=explicit`.
 
 Onside iOS build-only path:
 
@@ -576,9 +620,10 @@ Normal Android build and launch smoke:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug
-# Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+build_log="$(./gradlew :app:assembleDebug)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
+# Build-only regression can stop here.
 adb -s "$ANDROID_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
@@ -587,19 +632,29 @@ FireOS/Amazon Android build and launch smoke:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PopeniapStore=amazon
-# Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
+build_log="$(ANDROID_SERIAL="$FIREOS_SERIAL" ./gradlew :app:assembleDebug)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=amazon (source=device;'
+# Build-only regression can stop here.
 adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
-Horizon Android build-only path:
+Horizon Android build and optional device path:
 
 ```bash
 cd libraries/react-native-iap/example/android
-./gradlew :app:assembleDebug -PopeniapStore=horizon
+: "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+build_log="$(ANDROID_SERIAL="$HORIZON_SERIAL" ./gradlew :app:assembleDebug)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=horizon (source=device;'
+# Build-only regression can stop here.
+adb -s "$HORIZON_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
+
+No Quest attached: this row is build-only. Skip the serial check and the
+install, build with `ORG_GRADLE_PROJECT_openiapStore=horizon` in place of
+`ANDROID_SERIAL="$HORIZON_SERIAL"`, and expect `source=explicit`.
 
 Normal iOS physical-device build and launch smoke:
 
@@ -663,9 +718,11 @@ Normal Android build and launch smoke:
 ```bash
 cd libraries/flutter_inapp_purchase/example
 flutter pub get
-flutter build apk --debug
-# Build-only regression can stop here.
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
+# Without -v, Flutter runs Gradle with -q, which hides the store line.
+build_log="$(flutter build apk --debug -v)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
+# Build-only regression can stop here.
 adb -s "$ANDROID_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
@@ -673,22 +730,30 @@ adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 FireOS/Amazon Android build and launch smoke:
 
 ```bash
-cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PopeniapStore=amazon
-# Build-only regression can stop here.
-# Flutter redirects its gradle output to `example/build/app/outputs/flutter-apk/`,
-# so this path is not the `android/app/build/...` layout the other examples use.
+cd libraries/flutter_inapp_purchase/example
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
-adb -s "$FIREOS_SERIAL" install -r ../build/app/outputs/flutter-apk/app-debug.apk
+build_log="$(ANDROID_SERIAL="$FIREOS_SERIAL" flutter build apk --debug -v)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=amazon (source=device;'
+# Build-only regression can stop here.
+adb -s "$FIREOS_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
-Horizon Android build-only path:
+Horizon Android build and optional device path:
 
 ```bash
-cd libraries/flutter_inapp_purchase/example/android
-./gradlew :app:assembleDebug -PopeniapStore=horizon
+cd libraries/flutter_inapp_purchase/example
+: "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+build_log="$(ANDROID_SERIAL="$HORIZON_SERIAL" flutter build apk --debug -v)"
+printf '%s\n' "$build_log" | grep -F 'openiap: store=horizon (source=device;'
+# Build-only regression can stop here.
+adb -s "$HORIZON_SERIAL" install -r build/app/outputs/flutter-apk/app-debug.apk
+adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
+
+No Quest attached: this row is build-only. Skip the serial check and the
+install, build with `ORG_GRADLE_PROJECT_openiapStore=horizon` in place of
+`ANDROID_SERIAL="$HORIZON_SERIAL"`, and expect `source=explicit`.
 
 iOS physical-device build and launch smoke:
 
@@ -735,13 +800,17 @@ adb -s "$FIREOS_SERIAL" install -r example/composeApp/build/outputs/apk/amazon/d
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
-Horizon Android build-only path:
+Horizon Android build and optional device path:
 
 ```bash
 cd libraries/kmp-iap
 ./gradlew \
   :library:compileHorizonDebugKotlinAndroid \
   :example:composeApp:assembleHorizonDebug
+# Build-only regression can stop here.
+: "${HORIZON_SERIAL:?Set HORIZON_SERIAL to the target Horizon device serial}"
+adb -s "$HORIZON_SERIAL" install -r example/composeApp/build/outputs/apk/horizon/debug/composeApp-horizon-debug.apk
+adb -s "$HORIZON_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 iOS physical-device build and launch smoke:
@@ -780,17 +849,20 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-io
 
 Android build and launch smoke. The library is the same for every store; the
 example build links one, from `OpenIapStore` or, on a Debug build, the device
-`ANDROID_SERIAL` names. Its `openiap: store=... (source=...)` line says which.
+`ANDROID_SERIAL` names.
 
 ```bash
 cd libraries/maui-iap/android
 ../../../packages/google/gradlew :openiap:assembleRelease
 cd ..
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the Play, FireOS, or Horizon device}"
-dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
+build_log="$(dotnet build \
+  example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
   -p:TargetFrameworks=net10.0-android \
   -p:EmbedAssembliesIntoApk=true \
-  --nologo
+  --nologo)"
+# Expect store=amazon on the FireOS device and store=horizon on the Quest.
+printf '%s\n' "$build_log" | grep -F 'openiap: store=play (source=device;'
 # Build-only regression can stop here.
 adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie || true
 adb -s "$ANDROID_SERIAL" install --no-incremental -r \
@@ -799,8 +871,9 @@ adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
 Run it once per store device. Without a device, pin the store instead:
-`-p:OpenIapStore=horizon`. `bash scripts/verify-store-selection.sh` covers the
-selection rule itself without hardware.
+`-p:OpenIapStore=horizon`, and expect `source=explicit`.
+`bash scripts/verify-store-selection.sh` covers the selection rule itself
+without hardware.
 
 iOS physical-device build and launch smoke:
 
@@ -822,25 +895,35 @@ xcrun devicectl device process launch \
 
 ## Godot Checks
 
-Godot is Android/iOS only for this e2e matrix.
-
-Android build and launch smoke:
+Android build and launch smoke. The plugin is the same for every store;
+`make export-android` is a debug export, and with the Android preset's
+`openiap/android_store` left at `auto` it links the store of the device
+`ANDROID_SERIAL` names.
 
 ```bash
 cd libraries/godot-iap
-make setup
-make android
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the Play, FireOS, or Horizon device}"
+# export-android runs setup and builds the Android plugin first.
+export_log="$(make export-android)"
+# Expect store=amazon on the FireOS device and store=horizon on the Quest.
+printf '%s\n' "$export_log" | \
+  grep -F '[GodotIap] openiap: store=play (source=device;'
 # Build-only regression can stop here.
-: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
-make export-android
 adb -s "$ANDROID_SERIAL" install -r Example/android/Martie.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
+Run it once per store device, installing each export before the next one
+overwrites `Martie.apk`. Without a device, pin the store instead: add
+`openiap/android_store="horizon"` under `[preset.1.options]` in
+`Example/export_presets.cfg`, expect `source=explicit`, and delete that line
+after the export.
+
 A headless Godot export runs `adb kill-server` on exit (editor setting
 `export/android/shutdown_adb_on_exit`, on by default). That drops every
 `adb reverse` rule and scrcpy session on every device, so re-create the
-`tcp:3100` rule before verifying, and export before the other Android rows.
+`tcp:3100` rule before verifying, and run the Godot rows before the other
+Android rows.
 
 iOS build and launch smoke:
 
@@ -903,15 +986,15 @@ Use this compact matrix:
 
 ```text
 Platform/package      | Target/device | Command/flow | Result | Notes
-packages/google Play  | local Gradle  | compile/test | PASS   | ...
-packages/google Fire  | local Gradle  | compile/test | PASS   | ...
-packages/google Horz  | local Gradle  | compile      | PASS   | build-only
+packages/google Play  | {serial}      | compile/test/install/purchase | PASS | ...
+packages/google Fire  | {serial}      | compile/test/install/purchase | PASS | ...
+packages/google Horz  | {serial/local Gradle} | compile[/install/store flow] | PASS | ...
 packages/apple iOS    | local SwiftPM | build/test   | PASS   | ...
 Local (IAPKit) Android | {serial}     | Martie purchase/verify/finish | PASS | corrId=...
 Local (IAPKit) iOS    | {UDID}       | Martie purchase/verify/finish | PASS | corrId=...
 RN Android            | {serial}      | build/install/purchase | PASS | ...
 RN FireOS             | {serial}      | build/install/purchase | PASS | ...
-RN Horizon            | local Gradle  | build        | PASS   | build-only
+RN Horizon            | {serial/local Gradle} | build[/install/store flow] | PASS | ...
 RN iOS                | {UDID}        | build/install/purchase | PASS | ...
 RN Vega               | {device id}   | build debug/release/run | PASS | ...
 Expo Android          | {serial}      | build/install/purchase | PASS | ...
@@ -922,20 +1005,24 @@ Expo Onside           | generic iOS   | prebuild/build | PASS | build-only
 Expo Vega             | {device id}   | build debug/release/run | PASS | ...
 Flutter Android       | {serial}      | build/install/purchase | PASS | ...
 Flutter FireOS        | {serial}      | build/install/purchase | PASS | ...
-Flutter Horizon       | local Gradle  | build        | PASS   | build-only
+Flutter Horizon       | {serial/local Gradle} | build[/install/store flow] | PASS | ...
 Flutter iOS           | {UDID}        | build/install/purchase | PASS | ...
 KMP Android           | {serial}      | build/install/purchase | PASS | ...
 KMP FireOS            | {serial}      | build/install/purchase | PASS | ...
-KMP Horizon           | local Gradle  | build        | PASS   | build-only
+KMP Horizon           | {serial/local Gradle} | build[/install/store flow] | PASS | ...
 KMP iOS               | {UDID}        | build/install/purchase | PASS | ...
 MAUI Android          | {serial}      | build/run/purchase | PASS | ...
 MAUI FireOS           | {serial}      | build/run/purchase | PASS | ...
-MAUI Horizon          | local dotnet  | build        | PASS   | build-only
+MAUI Horizon          | {serial/local dotnet} | build[/run/store flow] | PASS | ...
 MAUI iOS              | {UDID}        | build/run/purchase | PASS | ...
 Godot Android         | {serial}      | build/install/purchase | PASS | ...
+Godot FireOS          | {serial}      | build/install/purchase | PASS | ...
+Godot Horizon         | {serial/local export} | build[/install/store flow] | PASS | ...
 Godot iOS             | {UDID}        | build/install/purchase | PASS | ...
 ```
 
 Always list untested rows. Do not collapse "build passed" and "purchase flow
-passed" into one claim unless both actually ran. For unsupported rows, include
-the exact file or build script that lacks the required target switch.
+passed" into one claim unless both actually ran. Put each Android row's store
+line in Notes (KMP and `packages/google`: the flavor task). For unsupported
+rows, include the exact file or build script that lacks the required target
+switch.

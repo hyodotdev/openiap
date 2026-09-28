@@ -266,13 +266,16 @@ same local-server and purchases-view evidence as the other live lanes.
 Every item below has cost a full debugging session. Check them before
 concluding that a store, an account, or the code is at fault.
 
-**A leftover store pin outranks the device.** The FireOS and Horizon rows need
-no store variable: the build follows the connected device. A pin left behind
-(`ORG_GRADLE_PROJECT_openiapStore` still exported, `EXPO_IAP_HORIZON` or
+**A leftover store pin outranks the device.** A device row needs no store pin:
+a debug build links the store of the device `ANDROID_SERIAL` names, so each
+Android row builds with it set to that row's device and checks the build
+output for `openiap: store=<store> (source=device;` (see
+`## Android Store Selection` in `.claude/commands/e2e-tests.md`). A pin left
+behind (`ORG_GRADLE_PROJECT_openiapStore` still exported, `EXPO_IAP_HORIZON` or
 `EXPO_IAP_FIREOS` still exported, or an `openiapStore` line written by the
-deprecated `modules.horizon` / `modules.amazon.fireOS` options)
-makes a later Play run link the wrong `openiap-google` flavor, so the example
-sits on `Connecting to Store...` with
+deprecated `modules.horizon` / `modules.amazon.fireOS` options) turns that line
+into `source=explicit` and makes a later Play run link the wrong
+`openiap-google` flavor, so the example sits on `Connecting to Store...` with
 `initConnection failed: Failed to initialize connection` and
 `getStorefront failed: Billing client not ready`. Unset those variables, re-run
 `bunx expo prebuild --platform android --clean` before the Play row, then
@@ -280,7 +283,7 @@ confirm `android/gradle.properties` carries no
 `openiapStore` pin (and none of the legacy `horizonEnabled` / `fireOsEnabled`
 flags) and that `android/app/build.gradle` has no fixed
 `missingDimensionStrategy`; the Gradle build then resolves the store from the
-connected device or defaults to Play.
+device `ANDROID_SERIAL` names.
 
 **A Play "not compatible with your device" banner does not block billing.** The
 Martie production listing sets `minSdkVersion 31`, so Play marks an Android 11

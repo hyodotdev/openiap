@@ -16,27 +16,26 @@ scope.
 
 ## Scope
 
-- `packages/google` native: Play, Amazon, and Horizon compile plus tests
-  (`## Package-Level Checks`, Google Android package).
-- Play rows: all six frameworks (`react-native-iap`, `expo-iap`,
-  `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`).
-- FireOS/Amazon rows: all six except `godot-iap`, which has no Amazon flavor.
-- Horizon rows: all six except `godot-iap`, which has no Horizon flavor.
-  Horizon is build-only unless the request authorizes a visibly test/sandbox
-  checkout.
+- `packages/google` native: compile plus tests for every store, then the
+  Example app on each store device (`## Package-Level Checks`, Google Android
+  package).
+- Play, FireOS/Amazon, and Horizon rows: all six frameworks
+  (`react-native-iap`, `expo-iap`, `flutter_inapp_purchase`, `kmp-iap`,
+  `maui-iap`, `godot-iap`). Horizon is build-only unless a Quest is attached,
+  and its checkout runs only when the UI is visibly test or sandbox.
 - VegaOS rows: `react-native-iap` and `expo-iap` only.
 - Local (IAPKit) receipt vertical on Android
   (`## Local (IAPKit) Receipt Vertical`).
 
 That is the 21 Android/Horizon cells plus the 2 VegaOS cells of the full
-matrix. Report the two Godot gaps as `UNSUPPORTED` with the reason, never
-omitted; every other unavailable row is `BLOCKED` with its exact missing
+matrix. Report every unavailable row as `BLOCKED` with its exact missing
 prerequisite.
 
-For each row, run the matching Android sections under `## Expo Checks`,
-`## React Native Checks`, `## Flutter Checks`, `## KMP Checks`,
-`## MAUI Checks`, and `## Godot Checks`, then the Android platform bullets
-under `## Manual Store Flows` (Play, FireOS, VegaOS, Horizon).
+For each row, follow `## Android Store Selection`, run the matching Android
+sections under `## Expo Checks`, `## React Native Checks`,
+`## Flutter Checks`, `## KMP Checks`, `## MAUI Checks`, and
+`## Godot Checks`, then the Android platform bullets under
+`## Manual Store Flows` (Play, FireOS, VegaOS, Horizon).
 
 ## Preflight
 
