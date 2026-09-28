@@ -761,6 +761,61 @@ func _on_purchase_error(error):
           <code>fix_ios_embed.sh</code>.
         </p>
 
+        <h3 id="other-swiftgodot-plugin" className="anchor-heading">
+          iOS build or launch fails beside another SwiftGodot plugin
+          <a href="#other-swiftgodot-plugin" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          godot-iap and other SwiftGodot-based plugins, such as
+          GodotApplePlugins, each embed a runtime that installs as{' '}
+          <code>SwiftGodotRuntime.framework</code>, and an app loads only one.
+        </p>
+        <ul>
+          <li>
+            Xcode stops with{' '}
+            <code>
+              Multiple commands produce ... SwiftGodotRuntime.framework
+            </code>
+            : run <code>fix_ios_embed.sh</code> from godot-iap 3.5.2 or later on
+            the exported project. It keeps the other plugin&apos;s runtime and
+            drops its own.
+          </li>
+          <li>
+            The app aborts at launch with <code>Symbol not found</code>: the
+            runtime that stayed was built against a different SwiftGodot than
+            one of the plugins needs. godot-iap builds against SwiftGodot
+            v0.79.0; use a build of the other plugin made against the same
+            release.
+          </li>
+        </ul>
+        <p>
+          From 3.5.2, each run prints one <code>Runtime embed check</code> line:
+        </p>
+        <ul>
+          <li>
+            <code>no conflict among the embeds we could read</code> - one
+            runtime; the line lists what it saw.
+          </li>
+          <li>
+            <code>
+              Another addon already embeds ...; using ... instead of our copy
+            </code>{' '}
+            - two runtimes, and godot-iap&apos;s copy was dropped.
+          </li>
+          <li>
+            <code>could not read ...</code> - an <code>.xcframework</code> it
+            could not inspect; if Xcode lists the same framework twice under
+            Embed Frameworks, delete one copy.
+          </li>
+        </ul>
+        <p>
+          No line means the script stopped earlier; read the error it printed.
+          An export outside your Godot project needs <code>IOS_EXPORT_DIR</code>
+          , as in <a href="#ios-xcode">iOS: Xcode Framework Embedding</a>.
+        </p>
+
         <h3 id="gdextension-non-apple-editor" className="anchor-heading">
           GDExtension errors in the desktop editor
           <a href="#gdextension-non-apple-editor" className="anchor-link">
