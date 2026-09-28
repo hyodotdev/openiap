@@ -73,22 +73,22 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
 ];
 
 const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'openiap-apple', version: '3.6.1', tag: '3.6.1' },
-  { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
+  { name: 'openiap-apple', version: '3.7.0', tag: '3.7.0' },
+  { name: 'openiap-google', version: '3.7.0', tag: 'google-3.7.0' },
   {
     name: 'react-native-iap',
-    version: '16.7.2',
-    tag: 'react-native-iap-16.7.2',
+    version: '16.8.0',
+    tag: 'react-native-iap-16.8.0',
   },
-  { name: 'expo-iap', version: '5.8.2', tag: 'expo-iap-5.8.2' },
+  { name: 'expo-iap', version: '5.9.0', tag: 'expo-iap-5.9.0' },
   {
     name: 'flutter_inapp_purchase',
-    version: '10.7.2',
-    tag: 'flutter-iap-10.7.2',
+    version: '10.8.0',
+    tag: 'flutter-iap-10.8.0',
   },
-  { name: 'godot-iap', version: '3.6.2', tag: 'godot-iap-3.6.2' },
-  { name: 'kmp-iap', version: '3.6.2', tag: 'kmp-iap-3.6.2' },
-  { name: 'maui-iap', version: '2.6.2', tag: 'maui-iap-2.6.2' },
+  { name: 'godot-iap', version: '3.7.0', tag: 'godot-iap-3.7.0' },
+  { name: 'kmp-iap', version: '3.7.0', tag: 'kmp-iap-3.7.0' },
+  { name: 'maui-iap', version: '2.7.0', tag: 'maui-iap-2.7.0' },
   { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
 ];
 
@@ -491,12 +491,12 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-apple 3.6.1</strong> and{' '}
-              <strong>openiap-google 3.6.2</strong> remember, once per install,
+              <strong>openiap-apple 3.7.0</strong> and{' '}
+              <strong>openiap-google 3.7.0</strong> remember, once per install,
               that the framework library showed its first-purchase notice.
             </li>
             <li>
-              <strong>openiap-google 3.6.2</strong>
+              <strong>openiap-google 3.7.0</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   An Amazon plan&apos;s pricing phase carries its price in{' '}
@@ -527,7 +527,7 @@ function Releases() {
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <p style={{ fontSize: '0.9rem' }}>
-            Every library below ships openiap-google 3.6.2. React Native, Expo,
+            Every library below ships openiap-google 3.7.0. React Native, Expo,
             and Flutter also ship its store resolver, with the same errors and
             warnings.
           </p>
@@ -538,7 +538,8 @@ function Releases() {
             <Link to="/showcase">showcase</Link>. It prints once per install,
             never in a release build or a test run, and nothing leaves the
             device. kmp-iap and maui-iap print it on Android only: their iOS
-            side has no reliable sign that the app is a debug build.
+            side has no reliable sign that the app is a debug build. godot-iap
+            prints it on Android only in this release.
           </p>
           <ul
             style={{
@@ -548,7 +549,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.7.2</strong> - Vega OS subscriptions
+              <strong>react-native-iap 16.8.0</strong> - Vega OS subscriptions
               report their billing period and, when the customer is eligible, a{' '}
               <code>free-trial</code> offer, as Fire OS does. Seven legacy
               Android price fields on the raw <code>NitroProduct</code> type,
@@ -556,7 +557,7 @@ function Releases() {
               the next major release removes them.
             </li>
             <li>
-              <strong>expo-iap 5.8.2</strong> - the same Vega OS offers.{' '}
+              <strong>expo-iap 5.9.0</strong> - the same Vega OS offers.{' '}
               <code>modules.horizon</code> and{' '}
               <code>modules.amazon.fireOS</code> warn that they are removed in
               the next major release, and a hand-written root{' '}
@@ -564,7 +565,7 @@ function Releases() {
               prebuild.
             </li>
             <li>
-              <strong>maui-iap 2.6.2</strong> - <code>OpenIapAndroidStore</code>{' '}
+              <strong>maui-iap 2.7.0</strong> - <code>OpenIapAndroidStore</code>{' '}
               warns (<code>OPENIAP0001</code>) that it is removed in the next
               major release, and a value that disagrees with{' '}
               <code>OpenIapStore</code> fails the build, as a legacy flag does
@@ -572,9 +573,15 @@ function Releases() {
               it.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 10.7.2</strong>,{' '}
-              <strong>godot-iap 3.6.2</strong>, and{' '}
-              <strong>kmp-iap 3.6.2</strong> - the openiap-google 3.6.2 fixes.
+              <strong>godot-iap 3.7.0</strong> - release exports carry{' '}
+              <code>res://iapkit.cfg</code> again; 3.6.0 and 3.6.1 left it out.
+              An Apple restore waits five minutes instead of two, as long as a
+              purchase does, because <code>AppStore.sync()</code> can ask the
+              player to sign in.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.8.0</strong> and{' '}
+              <strong>kmp-iap 3.7.0</strong> - the openiap-google 3.7.0 fixes.
             </li>
           </ul>
 
@@ -842,10 +849,10 @@ function Releases() {
               <code>openiap/android_store</code> export option (
               <code>auto</code> follows the debug device) and{' '}
               <code>openiap/horizon_app_id</code>. Release exports leave{' '}
-              <code>res://iapkit.cfg</code> out of the bundle; if your game
-              ships its IAPKit key in that file,{' '}
+              <code>res://iapkit.cfg</code> out of the bundle, so a game that
+              ships its IAPKit key there loses it;{' '}
               <Link to="/docs/setup/godot#iapkit-cfg-release-export">
-                move it
+                see the fix
               </Link>
               .
             </li>
