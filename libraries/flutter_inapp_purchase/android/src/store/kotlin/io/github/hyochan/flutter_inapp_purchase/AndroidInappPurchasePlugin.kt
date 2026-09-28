@@ -270,10 +270,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
         // Quick methods that do not depend on billing readiness
         when (call.method) {
-            "getStore" -> {
-                safe.success(FlutterInappPurchasePlugin.getStore())
-                return
-            }
             "manageSubscription" -> {
                 val sku = call.argument<String>("sku")
                 val packageName = call.argument<String>("packageName")

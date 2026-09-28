@@ -1,4 +1,3 @@
-import java.util.Locale
 import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -73,12 +72,11 @@ for (legacy in listOf("openIapAndroidStore", "OpenIapAndroidStore")) {
     error("'$legacy' was replaced by -PopeniapStore=<play|horizon|amazon>; remove the legacy flag.")
   }
 }
-val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull?.trim()?.lowercase(Locale.ROOT)
+val requestedOpenIapStore = providers.gradleProperty("openiapStore").orNull
 val openIapStore = when (requestedOpenIapStore) {
-  null -> "play"
-  "play", "google", "gplay", "googleplay", "google-play", "gms" -> "play"
-  "horizon", "meta", "quest" -> "horizon"
-  "amazon", "fire", "fireos", "fire-os" -> "amazon"
+  null, "play" -> "play"
+  "horizon" -> "horizon"
+  "amazon" -> "amazon"
   else -> error("Unsupported -PopeniapStore='$requestedOpenIapStore'. Use play, horizon, or amazon (default: play).")
 }
 val openIapGoogleArtifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"

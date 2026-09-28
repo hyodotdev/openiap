@@ -159,7 +159,7 @@ describe('android configuration', () => {
     expect(warn).toHaveBeenCalledWith(
       'expo-iap',
       expect.stringMatching(
-        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated.*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
+        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated and will be removed in the next major release\..*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
       ),
     );
   });
@@ -472,7 +472,7 @@ describe('android configuration', () => {
       }),
     ).toEqual({
       isFireOsEnabled: true,
-      isVegaEnabled: true,
+      vegaOverride: true,
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
@@ -485,7 +485,7 @@ describe('android configuration', () => {
       }),
     ).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: true,
       isOnsideEnabled: true,
     });
@@ -501,7 +501,7 @@ describe('android configuration', () => {
 
     expect(flags).toEqual({
       isFireOsEnabled: true,
-      isVegaEnabled: false,
+      vegaOverride: false,
       isHorizonEnabled: true,
       isOnsideEnabled: false,
     });
@@ -526,7 +526,7 @@ describe('android configuration', () => {
     try {
       expect(resolveAmazonPlatformFlags(undefined)).toEqual({
         isFireOsEnabled: true,
-        isVegaEnabled: true,
+        vegaOverride: true,
         isHorizonEnabled: true,
         isOnsideEnabled: true,
       });
@@ -565,7 +565,7 @@ describe('android configuration', () => {
         }),
       ).toEqual({
         isFireOsEnabled: false,
-        isVegaEnabled: false,
+        vegaOverride: undefined,
         isHorizonEnabled: false,
         isOnsideEnabled: false,
       });
@@ -593,7 +593,7 @@ describe('android configuration', () => {
 
       expect(resolveAmazonPlatformFlags(options)).toEqual({
         isFireOsEnabled: false,
-        isVegaEnabled: false,
+        vegaOverride: undefined,
         isHorizonEnabled: false,
         isOnsideEnabled: false,
       });
@@ -618,7 +618,7 @@ describe('android configuration', () => {
 
     expect(resolveAmazonPlatformFlags(options)).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
@@ -637,7 +637,7 @@ describe('android configuration', () => {
       }),
     ).toEqual({
       isFireOsEnabled: false,
-      isVegaEnabled: false,
+      vegaOverride: undefined,
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
@@ -1331,6 +1331,7 @@ describe('vega project generation', () => {
           marker,
           'utf8',
         );
+        (WarningAggregator.addWarningAndroid as jest.Mock).mockClear();
         await prebuildAndroid(projectRoot, {});
         expect(
           fs.readFileSync(path.join(projectRoot, 'index.js'), 'utf8'),
@@ -1340,10 +1341,16 @@ describe('vega project generation', () => {
             fs.readFileSync(path.join(projectRoot, 'app.json'), 'utf8'),
           ),
         ).toMatchObject({expoIapGenerated: true});
-        // A marker the plugin did not write is still the user's file.
+        // A marker the plugin did not write is still the user's file, and
+        // keeping it is not worth a warning on every prebuild.
         expect(
           fs.readFileSync(path.join(projectRoot, 'manifest.toml'), 'utf8'),
         ).toBe(marker);
+        expect(
+          (WarningAggregator.addWarningAndroid as jest.Mock).mock.calls.some(
+            ([, message]) => String(message).includes('manifest.toml'),
+          ),
+        ).toBe(false);
       } finally {
         fs.rmSync(projectRoot, {recursive: true, force: true});
       }

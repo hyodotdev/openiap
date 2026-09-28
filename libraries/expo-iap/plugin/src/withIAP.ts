@@ -21,6 +21,7 @@ import {
 } from './withIosAlternativeBilling';
 import type {ExpoIapPluginCommonOptions} from './expoConfig.augmentation';
 import {ensureOnsidePodIOS} from './onsidePodfile';
+import {logOnce} from './logOnce';
 
 export {ensureOnsidePodIOS} from './onsidePodfile';
 
@@ -29,18 +30,6 @@ const AUTOLINKING_CONFIG_PATH = path.resolve(
   __dirname,
   '../../expo-module.config.json',
 );
-
-// Log a message only once per Node process
-const logOnce = (() => {
-  const printed = new Set<string>();
-  return (msg: string) => {
-    if (!printed.has(msg)) {
-      // stderr, so tools that read the config as JSON from stdout stay intact
-      console.error(msg);
-      printed.add(msg);
-    }
-  };
-})();
 
 const HORIZON_APP_ID_META_DATA_NAME =
   'com.meta.horizon.platform.HORIZON_APP_ID';
@@ -345,40 +334,6 @@ const withIapAndroid: ConfigPlugin<
 
   config = withAndroidManifest(config, (config) => {
     const manifest = config.modResults;
-    const existingPermissions = manifest.manifest['uses-permission'];
-    const permissions = Array.isArray(existingPermissions)
-      ? existingPermissions
-      : [];
-    if (!Array.isArray(existingPermissions) && existingPermissions) {
-      permissions.push(existingPermissions);
-    }
-    manifest.manifest['uses-permission'] = permissions;
-    const billingPerm = {$: {'android:name': 'com.android.vending.BILLING'}};
-
-    if (pinnedStore === 'amazon') {
-      const nextPermissions = permissions.filter(
-        (p) => p.$['android:name'] !== 'com.android.vending.BILLING',
-      );
-      if (nextPermissions.length !== permissions.length) {
-        manifest.manifest['uses-permission'] = nextPermissions;
-        logOnce(
-          '🧹 Removed com.android.vending.BILLING from AndroidManifest.xml',
-        );
-      }
-    } else {
-      const alreadyExists = permissions.some(
-        (p) => p.$['android:name'] === 'com.android.vending.BILLING',
-      );
-      if (!alreadyExists) {
-        permissions.push(billingPerm);
-        logOnce('✅ Added com.android.vending.BILLING to AndroidManifest.xml');
-      } else {
-        logOnce(
-          'ℹ️ com.android.vending.BILLING already exists in AndroidManifest.xml',
-        );
-      }
-    }
-
     const horizonAppIdSync = syncHorizonAppIdMetaData(
       manifest,
       props?.horizonAppId,
@@ -694,7 +649,8 @@ export interface ModuleSelectionResult {
 
 export type AmazonPlatformFlags = {
   isFireOsEnabled: boolean;
-  isVegaEnabled: boolean;
+  // Unset means auto-detect from the project's manifest.toml.
+  vegaOverride: boolean | undefined;
   isHorizonEnabled: boolean;
   isOnsideEnabled: boolean;
 };
@@ -719,9 +675,12 @@ export function resolveAmazonPlatformFlags(
   const isFireOsEnabled = hasOwnKey(moduleAmazon, 'fireOS')
     ? moduleAmazon?.fireOS === true
     : isEnvFlagEnabled('EXPO_IAP_FIREOS');
-  const isVegaEnabled = hasOwnKey(moduleAmazon, 'vegaOS')
+  // Most specific first: the module flag, then android.amazon.vegaOS.enabled,
+  // then EXPO_IAP_VEGA, which can only turn it on.
+  const vegaOverride = hasOwnKey(moduleAmazon, 'vegaOS')
     ? moduleAmazon?.vegaOS === true
-    : isEnvFlagEnabled('EXPO_IAP_VEGA');
+    : resolveVegaProjectOptions(options)?.enabled ??
+      (isEnvFlagEnabled('EXPO_IAP_VEGA') ? true : undefined);
   const modules = options?.modules;
   // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
@@ -733,7 +692,7 @@ export function resolveAmazonPlatformFlags(
 
   return {
     isFireOsEnabled,
-    isVegaEnabled,
+    vegaOverride,
     isHorizonEnabled,
     isOnsideEnabled,
   };
@@ -777,9 +736,10 @@ export function deprecatedStorePinWarning(store: 'horizon' | 'amazon'): string {
       : 'modules.amazon.fireOS (or EXPO_IAP_FIREOS)';
   const device = store === 'horizon' ? 'Quest' : 'Fire device';
   return (
-    `${key} is deprecated: a local debug build already follows the connected ${device}. ` +
-    `Pin every EAS or release build that must target it with ORG_GRADLE_PROJECT_openiapStore=${store} ` +
-    `in the build profile env; until then ${key} still pins every build of this prebuild.`
+    `${key} is deprecated and will be removed in the next major release. ` +
+    `A local debug build already follows the connected ${device}; pin EAS and release builds ` +
+    `that must target it with ORG_GRADLE_PROJECT_openiapStore=${store} in the build profile env. ` +
+    `While ${key} is set, it pins every build of this prebuild.`
   );
 }
 
@@ -840,7 +800,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
-  const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
+  const {isFireOsEnabled, vegaOverride, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
   // Outside the try, whose catch would turn this error into a warning.
   const pinnedStore = resolvePinnedAndroidStore({
@@ -871,9 +831,9 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     logOnce(
       `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, pinnedStore=${
         pinnedStore ?? 'auto'
-      }, amazonAppstoreKey=${
-        amazonAppstoreKey ?? 'none'
-      }, isVegaEnabled=${isVegaEnabled}, isOnsideEnabled=${isOnsideEnabled}`,
+      }, amazonAppstoreKey=${amazonAppstoreKey ?? 'none'}, vega=${
+        vegaOverride ?? 'auto'
+      }, isOnsideEnabled=${isOnsideEnabled}`,
     );
 
     const {includeExpoIap, includeOnside} = resolveModuleSelection(
@@ -954,19 +914,10 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
 
     syncAutolinking(autolinkState);
 
-    // Vega generation is auto-detected from the project's manifest.toml.
-    // Explicit settings win over detection, most specific first: the module
-    // flag, then android.amazon.vegaOS.enabled, then EXPO_IAP_VEGA (on only).
-    // withVega no-ops for non-Vega projects.
-    const moduleAmazon = options?.modules?.amazon;
-    const vegaProjectOptions = resolveVegaProjectOptions(options);
-    const vegaExplicit = hasOwnKey(moduleAmazon, 'vegaOS')
-      ? moduleAmazon?.vegaOS === true
-      : (vegaProjectOptions?.enabled ??
-        (isEnvFlagEnabled('EXPO_IAP_VEGA') ? true : undefined));
+    // withVega auto-detects a Vega project unless the config overrides it.
     result = withVega(result, {
-      ...vegaProjectOptions,
-      enabled: vegaExplicit,
+      ...resolveVegaProjectOptions(options),
+      enabled: vegaOverride,
     });
 
     return result;

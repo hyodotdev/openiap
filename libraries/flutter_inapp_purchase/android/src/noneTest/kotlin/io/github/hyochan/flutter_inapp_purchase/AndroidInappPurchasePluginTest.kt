@@ -21,14 +21,6 @@ class AndroidInappPurchasePluginTest {
     }
 
     @Test
-    fun `store reports none`() {
-        val result = CapturingResult()
-        AndroidInappPurchasePlugin().onMethodCall(MethodCall("getStore", null), result)
-
-        assertEquals("none", result.value)
-    }
-
-    @Test
     fun `purchase APIs report iap not available`() {
         val result = CapturingResult()
         AndroidInappPurchasePlugin().onMethodCall(MethodCall("requestPurchase", null), result)

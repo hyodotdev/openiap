@@ -176,8 +176,9 @@ dotnet publish -f net10.0-android -c Release -p:OpenIapStore=horizon
 ```
 
 The aliases `google`/`gplay`/`googleplay`/`google-play`/`gms`, `meta`/`quest`,
-and `fire`/`fireos`/`fire-os` work too, `OpenIapAndroidStore` still works, and a
-value that names no store fails the build.
+and `fire`/`fireos`/`fire-os` work too, and a value that names no store fails the
+build. `OpenIapAndroidStore` is deprecated: it still pins, with a warning, until
+the next major release, and fails the build against a different `OpenIapStore`.
 
 MAUI only: NuGet fixes dependencies before the build knows the store, so every
 build also carries Play Services and DataTransport (about 3.1 MB, with their

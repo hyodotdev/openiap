@@ -86,9 +86,9 @@ internal suspend fun endDelegatedConnectionWithCleanup(
 }
 
 internal class OpenIapDelegateInAppPurchaseAndroid(
-    private val storeName: String = "amazon",
-    private val store: Store = Store.AMAZON,
-    private val versionPlatform: String = "Android Amazon"
+    private val storeName: String,
+    private val store: Store,
+    private val versionPlatform: String
 ) : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
     private var context: Context? = null
     private var currentActivity: Activity? = null

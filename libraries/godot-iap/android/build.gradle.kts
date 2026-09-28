@@ -44,6 +44,13 @@ fun readGoogleVariable(name: String, fallbackPropertyName: String): String {
         ?: readFallbackProperty(fallbackPropertyName)
 }
 
+// The published AAR is compiled against Play; exports swap in the target store's
+// openiap-google, so CI also compiles against the others with -PopeniapStore.
+val openIapStore = providers.gradleProperty("openiapStore").orNull ?: "play"
+require(openIapStore in setOf("play", "horizon", "amazon")) {
+    "godot-iap Android: openiapStore must be play, horizon, or amazon, not '$openIapStore'"
+}
+
 val googleCompileSdk = readGoogleAndroidInt("compileSdk", "compileSdkVersion")
 val googleMinSdk = readGoogleAndroidInt("minSdk", "minSdkVersion")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion", "kotlinxCoroutinesVersion")
@@ -54,7 +61,7 @@ android {
 
     defaultConfig {
         minSdk = googleMinSdk
-        missingDimensionStrategy("platform", "play")
+        missingDimensionStrategy("platform", openIapStore)
 
         manifestPlaceholders["godotPluginName"] = pluginName
         manifestPlaceholders["godotPluginPackageName"] = pluginPackageName
@@ -89,7 +96,8 @@ dependencies {
     if (localGoogleProject != null) {
         implementation(project(":openiap"))
     } else {
-        implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
+        val artifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
+        implementation("io.github.hyochan.openiap:$artifact:$openiapGoogleVersion")
     }
 
     // Godot Android library

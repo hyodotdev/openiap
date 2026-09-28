@@ -144,10 +144,11 @@ The package includes:
 - every store's `openiap-<store>-release.aar` in `android/`, outside `lib/`,
   where .NET would link all of them
 - `buildTransitive/OpenIap.Maui.targets` and `OpenIap.Maui.props`, which link
-  one store per app build: `OpenIapStore` (alias `OpenIapAndroidStore`), else
-  the device a Debug build deploys to, else Play. That store's SDK (Google
-  Play Billing, the Horizon billing libraries, or the Amazon Appstore SDK)
-  comes from Maven. `scripts/verify-store-selection.sh` covers the rule.
+  one store per app build: `OpenIapStore` (deprecated alias
+  `OpenIapAndroidStore`), else the device a Debug build deploys to, else Play.
+  That store's SDK (Google Play Billing, the Horizon billing libraries, or the
+  Amazon Appstore SDK) comes from Maven. `scripts/verify-store-selection.sh`
+  covers the rule.
 - Play Services, DataTransport, kotlinx-serialization, Gson, AndroidX, and
   Kotlin runtime libraries as normal NuGet `PackageReference` dependencies, not
   embedded AAR copies. NuGet cannot vary them per store, so every MAUI build

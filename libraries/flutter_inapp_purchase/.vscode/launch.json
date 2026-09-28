@@ -45,8 +45,7 @@
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "cwd": "${workspaceFolder}/example",
-      "args": ["--flavor", "play"]
+      "cwd": "${workspaceFolder}/example"
     },
     {
       "name": "run horizon",
@@ -54,7 +53,7 @@
       "request": "launch",
       "program": "lib/main.dart",
       "cwd": "${workspaceFolder}/example",
-      "args": ["--flavor", "horizon"]
+      "env": { "ORG_GRADLE_PROJECT_openiapStore": "horizon" }
     },
     {
       "name": "run web (chrome)",

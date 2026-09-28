@@ -20,6 +20,7 @@ failed=0
 
 # run <name> <expected> <target> <msbuild args...>
 # <expected> is "store:maven-artifact,...", or "fail:<substring of the error>".
+# Prefix warns=<text> to also expect that warning.
 run() {
     local name="$1" expected="$2" target="$3"
     shift 3
@@ -42,6 +43,10 @@ data = json.loads(raw[raw.index("{"):])
 maven = sorted(i["Identity"].split(":")[1] for i in data["Items"].get("AndroidMavenLibrary", []))
 print(data["Properties"]["OpenIapLinkedStore"] + ":" + ",".join(maven))')
     fi
+    if [[ -n "${warns:-}" ]]; then
+        expected+=" warns:$warns"
+        [[ "$output" == *"$warns"* ]] && actual+=" warns:$warns"
+    fi
     if [[ "$actual" == "$expected" ]]; then
         printf '  ok   %-42s %s\n' "$name" "$expected"
         passed=$((passed + 1))
@@ -63,7 +68,8 @@ horizon="horizon:core-kotlin,horizon-billing-compatibility,iap-kotlin,user-age-c
 amazon="amazon:amazon-appstore-sdk"
 link=_OpenIapLinkAndroidStore
 adb="-p:AdbToolPath=$fake_sdk/"
-unset ANDROID_SERIAL FAKE_ADB_DEVICES || true
+deprecated="openiap: OpenIapAndroidStore is deprecated and will be removed in the next major release; use OpenIapStore="
+unset ANDROID_SERIAL FAKE_ADB_DEVICES warns || true
 
 echo "MAUI store selection suite"
 
@@ -71,10 +77,13 @@ echo "explicit"
 run "OpenIapStore=play"                  "$play"    $link -p:OpenIapStore=play
 run "alias quest"                        "$horizon" $link -p:OpenIapStore=quest
 run "alias fire-os"                      "$amazon"  $link -p:OpenIapStore=fire-os
-run "the OpenIapAndroidStore alias"      "$horizon" $link -p:OpenIapAndroidStore=meta
-run "OpenIapStore wins over the alias"   "$amazon"  $link -p:OpenIapStore=amazon -p:OpenIapAndroidStore=horizon
+warns="${deprecated}horizon" run "OpenIapAndroidStore pins, with a warning" "$horizon" $link -p:OpenIapAndroidStore=meta
+warns="${deprecated}amazon" run "and may agree with OpenIapStore" "$amazon" $link -p:OpenIapStore=amazon -p:OpenIapAndroidStore=fire
+run "but not disagree" "fail:openiap: OpenIapStore=amazon conflicts with OpenIapAndroidStore=horizon" $link -p:OpenIapStore=amazon -p:OpenIapAndroidStore=horizon
+warns="${deprecated}horizon" run "OpenIapStore=auto defers to it" "$horizon" $link -p:OpenIapStore=auto -p:OpenIapAndroidStore=quest
 run "a value that names no store fails"  "fail:OpenIapStore='bogus' is not a store" $link -p:OpenIapStore=bogus
 run "and names the alias when it was set" "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapAndroidStore=bogus
+run "even beside a valid OpenIapStore"   "fail:OpenIapAndroidStore='bogus' is not a store" $link -p:OpenIapStore=play -p:OpenIapAndroidStore=bogus
 
 echo "connected device"
 with_device QUEST1 "feature:oculus.hardware.standalone_vr" Oculus

@@ -21,15 +21,13 @@ apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
 apply from: new File(project(':flutter_inapp_purchase').projectDir, 'openiap-store.gradle')
 
 def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
-def openIapResolvedMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
+def openIapMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
 def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
 def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIapJunitVersion')
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')
 def openIapEspressoCoreVersion = openIapResolveDependencyVersion('androidx.test.espresso:espresso-core', 'openIapEspressoCoreVersion')
 
-// Same resolver as the plugin, so the app and flutter_inapp_purchase link one store.
 def openIapFlavor = openIapResolveStore('app', [allowNone: true]).store
-def openIapMinSdkVersion = openIapFlavor == 'amazon' ? Math.max(openIapResolvedMinSdkVersion, 24) : openIapResolvedMinSdkVersion
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')

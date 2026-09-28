@@ -655,13 +655,6 @@ export interface NitroProduct {
   discountOffers?: string | null;
   // Android specific fields
   nameAndroid?: string | null;
-  originalPriceAndroid?: string | null;
-  originalPriceAmountMicrosAndroid?: number | null;
-  introductoryPriceCyclesAndroid?: number | null;
-  introductoryPricePeriodAndroid?: string | null;
-  introductoryPriceValueAndroid?: number | null;
-  subscriptionPeriodAndroid?: string | null;
-  freeTrialPeriodAndroid?: string | null;
   /**
    * Product fetch status (Play Billing 8.0.0+): OK, NOT_FOUND (SKU doesn't
    * exist), or NO_OFFERS_AVAILABLE (user not eligible for any offers).

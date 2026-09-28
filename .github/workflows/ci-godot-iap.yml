@@ -113,6 +113,16 @@ jobs:
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
             ./gradlew --no-daemon clean assembleDebug testDebugUnitTest
 
+      # Quest and Fire exports swap in that store's openiap-google, so the one
+      # AAR must compile against each store's API, not only Play's.
+      - name: Compile Android plugin against Horizon and Amazon
+        run: |
+          cd android
+          for store in horizon amazon; do
+            "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+              ./gradlew --no-daemon compileDebugKotlin -PopeniapStore="$store"
+          done
+
       - name: Test generated types
         run: godot --headless --path Example --script res://tests/test_types_only.gd
 

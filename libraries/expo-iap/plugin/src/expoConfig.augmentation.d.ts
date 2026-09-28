@@ -10,24 +10,25 @@ export type ExpoIapModuleOverrides = {
    */
   onside?: boolean;
   /**
-   * @deprecated A debug build follows the connected Quest. Pin EAS and release
-   * builds with `ORG_GRADLE_PROJECT_openiapStore=horizon` in the profile's `env`.
-   * Still pins, with a warning.
+   * @deprecated Removed in the next major release. A debug build follows the
+   * connected Quest; pin EAS and release builds with
+   * `ORG_GRADLE_PROJECT_openiapStore=horizon` in the profile's `env`. Still
+   * pins, with a warning.
    * @platform android
    */
   horizon?: boolean;
   /**
-   * Amazon platform targets. Fire OS and Vega OS can both be enabled in the
-   * same config, but they still produce separate build artifacts.
+   * Amazon targets. Fire OS and Vega OS are separate build artifacts.
    */
   amazon?: AmazonPlatformOptions;
 };
 
 export type AmazonPlatformOptions = {
   /**
-   * @deprecated A debug build follows the connected Fire device. Pin EAS and
-   * release builds with `ORG_GRADLE_PROJECT_openiapStore=amazon` in the
-   * profile's `env`. Still pins, with a warning.
+   * @deprecated Removed in the next major release. A debug build follows the
+   * connected Fire device; pin EAS and release builds with
+   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in the profile's `env`. Still
+   * pins, with a warning.
    * @platform android
    */
   fireOS?: boolean;

@@ -1227,55 +1227,6 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     private fun convertToNitroProduct(product: ProductCommon): NitroProduct {
-        val subscriptionOffers = when (product) {
-            is ProductSubscriptionAndroid -> product.subscriptionOffers
-            is ProductAndroid -> product.subscriptionOffers.orEmpty()
-            else -> emptyList()
-        }
-        val discountOffers = when (product) {
-            is ProductAndroid -> product.discountOffers.orEmpty()
-            else -> emptyList()
-        }
-
-        var originalPriceAndroid: String? = null
-        var originalPriceAmountMicrosAndroid: Double? = null
-        var introductoryPriceValueAndroid: Double? = null
-        var introductoryPriceCyclesAndroid: Double? = null
-        var introductoryPricePeriodAndroid: String? = null
-        var subscriptionPeriodAndroid: String? = null
-        var freeTrialPeriodAndroid: String? = null
-
-        if (product.type == OpenIapProductType.InApp) {
-            discountOffers.firstOrNull()?.let { offer ->
-                originalPriceAndroid = product.displayPrice
-                originalPriceAmountMicrosAndroid =
-                    offer.fullPriceMicrosAndroid?.toDoubleOrNull()
-                        ?: product.price?.times(1_000_000)
-            }
-        } else {
-            val phases = subscriptionOffers.firstOrNull()?.pricingPhasesAndroid?.pricingPhaseList.orEmpty()
-            if (phases.isNotEmpty()) {
-                val basePhase = phases.firstOrNull { it.recurrenceMode == 2 } ?: phases.last()
-                originalPriceAndroid = basePhase.formattedPrice
-                originalPriceAmountMicrosAndroid = basePhase.priceAmountMicros.toDoubleOrNull()
-                subscriptionPeriodAndroid = basePhase.billingPeriod
-
-                val introPhase = phases.firstOrNull {
-                    it.billingCycleCount > 0 && (it.priceAmountMicros.toLongOrNull() ?: 0L) > 0L
-                }
-                if (introPhase != null) {
-                    introductoryPriceValueAndroid = introPhase.priceAmountMicros.toDoubleOrNull()?.div(1_000_000.0)
-                    introductoryPriceCyclesAndroid = introPhase.billingCycleCount.toDouble()
-                    introductoryPricePeriodAndroid = introPhase.billingPeriod
-                }
-
-                val trialPhase = phases.firstOrNull { (it.priceAmountMicros.toLongOrNull() ?: 0L) == 0L }
-                if (trialPhase != null) {
-                    freeTrialPeriodAndroid = trialPhase.billingPeriod
-                }
-            }
-        }
-
         val nameAndroid = when (product) {
             is ProductAndroid -> product.nameAndroid
             is ProductSubscriptionAndroid -> product.nameAndroid
@@ -1335,13 +1286,6 @@ class HybridRnIap : HybridRnIapSpec() {
             subscriptionOffers = subscriptionOffersStandardizedJson.wrapVariant(),
             discountOffers = discountOffersJson.wrapVariant(),
             nameAndroid = nameAndroid.wrapVariant(),
-            originalPriceAndroid = originalPriceAndroid.wrapVariant(),
-            originalPriceAmountMicrosAndroid = originalPriceAmountMicrosAndroid.wrapVariant(),
-            introductoryPriceValueAndroid = introductoryPriceValueAndroid.wrapVariant(),
-            introductoryPriceCyclesAndroid = introductoryPriceCyclesAndroid.wrapVariant(),
-            introductoryPricePeriodAndroid = introductoryPricePeriodAndroid.wrapVariant(),
-            subscriptionPeriodAndroid = subscriptionPeriodAndroid.wrapVariant(),
-            freeTrialPeriodAndroid = freeTrialPeriodAndroid.wrapVariant(),
             productStatusAndroid = productStatusAndroid.wrapVariant()
         )
     }

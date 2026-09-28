@@ -1,5 +1,7 @@
 import {createVegaIapModule, type VegaPurchasingService} from '../vega-adapter';
 import {ErrorCode} from '../types';
+import type {SubscriptionOffer} from '../types';
+import {convertNitroProductToProduct} from '../utils/type-bridge';
 
 const createService = (): jest.Mocked<VegaPurchasingService> =>
   ({
@@ -70,6 +72,38 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     })),
   }) as unknown as jest.Mocked<VegaPurchasingService>;
 
+const fetchPremiumOffers = async (periods: {
+  freeTrialPeriod?: string;
+  subscriptionPeriod?: string;
+}): Promise<SubscriptionOffer[] | null | undefined> => {
+  const service = createService();
+  service.getProductData.mockResolvedValueOnce({
+    responseCode: 1,
+    productData: new Map([
+      [
+        'dev.hyo.martie.premium',
+        {
+          sku: 'dev.hyo.martie.premium',
+          title: 'Premium',
+          description: 'All features',
+          productType: 3,
+          price: {
+            priceCurrencyCode: 'USD',
+            priceStr: '$9.99',
+            valueInMicros: 9_990_000n,
+          },
+          ...periods,
+        },
+      ],
+    ]),
+  });
+  const [product] = await createVegaIapModule(service).fetchProducts(
+    ['dev.hyo.martie.premium'],
+    'subs',
+  );
+  return product && convertNitroProductToProduct(product).subscriptionOffers;
+};
+
 describe('Amazon Vega adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
     const service = createService();
@@ -86,17 +120,15 @@ describe('Amazon Vega adapter', () => {
     const staleUpdateListener = jest.fn();
     const staleErrorListener = jest.fn();
 
-    const staleUpdateToken = module.addPurchaseUpdatedListener(
-      staleUpdateListener,
-    );
+    const staleUpdateToken =
+      module.addPurchaseUpdatedListener(staleUpdateListener);
     module.addPurchaseErrorListener(staleErrorListener);
     await module.endConnection();
 
     const activeUpdateListener = jest.fn();
     const activeErrorListener = jest.fn();
-    const activeUpdateToken = module.addPurchaseUpdatedListener(
-      activeUpdateListener,
-    );
+    const activeUpdateToken =
+      module.addPurchaseUpdatedListener(activeUpdateListener);
     expect(activeUpdateToken).toBeGreaterThan(staleUpdateToken);
     module.addPurchaseErrorListener(activeErrorListener);
     module.removePurchaseUpdatedListener(staleUpdateToken);
@@ -234,7 +266,8 @@ describe('Amazon Vega adapter', () => {
         },
         'dev.hyo.martie.premium': {
           itemType: 'SUBSCRIPTION',
-          price: 4.99,
+          // 4.1 * 1_000_000 is 4099999.9999999995 in floating point.
+          price: 4.1,
           term: 'Monthly',
           title: 'Premium Monthly',
           description: 'Monthly premium access',
@@ -243,12 +276,12 @@ describe('Amazon Vega adapter', () => {
     });
     const module = createVegaIapModule(service);
 
-    await expect(
-      module.fetchProducts(
-        ['dev.hyo.martie.10bulbs', 'dev.hyo.martie.premium'],
-        'all',
-      ),
-    ).resolves.toEqual(
+    const products = await module.fetchProducts(
+      ['dev.hyo.martie.10bulbs', 'dev.hyo.martie.premium'],
+      'all',
+    );
+
+    expect(products.map(convertNitroProductToProduct)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'dev.hyo.martie.10bulbs',
@@ -258,11 +291,95 @@ describe('Amazon Vega adapter', () => {
         expect.objectContaining({
           id: 'dev.hyo.martie.premium',
           type: 'subs',
-          price: 4.99,
-          subscriptionPeriodAndroid: 'P1M',
+          price: 4.1,
+          subscriptionOffers: [
+            expect.objectContaining({
+              period: {unit: 'month', value: 1},
+              pricingPhasesAndroid: {
+                pricingPhaseList: [
+                  expect.objectContaining({
+                    billingPeriod: 'P1M',
+                    priceAmountMicros: '4100000',
+                  }),
+                ],
+              },
+            }),
+          ],
         }),
       ]),
     );
+  });
+
+  it('reports the base offer first, then the eligible free trial', async () => {
+    await expect(
+      fetchPremiumOffers({
+        subscriptionPeriod: 'Monthly',
+        freeTrialPeriod: 'Weekly',
+      }),
+    ).resolves.toEqual([
+      {
+        basePlanIdAndroid: 'dev.hyo.martie.premium',
+        currency: 'USD',
+        displayPrice: '$9.99',
+        id: 'dev.hyo.martie.premium',
+        offerTagsAndroid: [],
+        offerTokenAndroid: '',
+        paymentMode: 'pay-as-you-go',
+        period: {unit: 'month', value: 1},
+        price: 9.99,
+        pricingPhasesAndroid: {
+          pricingPhaseList: [
+            {
+              billingCycleCount: 0,
+              billingPeriod: 'P1M',
+              formattedPrice: '$9.99',
+              priceAmountMicros: '9990000',
+              priceCurrencyCode: 'USD',
+              recurrenceMode: 1,
+            },
+          ],
+        },
+        type: 'introductory',
+      },
+      {
+        basePlanIdAndroid: 'dev.hyo.martie.premium',
+        currency: '',
+        displayPrice: '',
+        id: '',
+        paymentMode: 'free-trial',
+        period: {unit: 'week', value: 1},
+        periodCount: 1,
+        price: 0,
+        type: 'introductory',
+      },
+    ]);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['unparseable', 'Fortnightly'],
+  ])(
+    'reports the base offer only when freeTrialPeriod is %s',
+    async (_label, freeTrialPeriod) => {
+      await expect(
+        fetchPremiumOffers({subscriptionPeriod: 'Annual', freeTrialPeriod}),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          paymentMode: 'pay-as-you-go',
+          period: {unit: 'year', value: 1},
+        }),
+      ]);
+    },
+  );
+
+  it('keeps an unknown subscription period without parsing it', async () => {
+    const [baseOffer] =
+      (await fetchPremiumOffers({subscriptionPeriod: 'Fortnightly'})) ?? [];
+
+    expect(baseOffer?.period).toBeNull();
+    expect(baseOffer?.pricingPhasesAndroid?.pricingPhaseList).toEqual([
+      expect.objectContaining({billingPeriod: 'Fortnightly'}),
+    ]);
   });
 
   it('emits a purchase update and finishes with notifyFulfillment', async () => {

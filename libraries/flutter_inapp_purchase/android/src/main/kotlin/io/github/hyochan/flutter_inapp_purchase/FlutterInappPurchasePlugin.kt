@@ -20,8 +20,7 @@ class FlutterInappPurchasePlugin : FlutterPlugin, ActivityAware {
     private fun onAttached(context: Context, messenger: BinaryMessenger) {
         val methodChannel = MethodChannel(messenger, "flutter_inapp")
         channel = methodChannel
-        configuredStore = BuildConfig.OPENIAP_STORE
-        logInfo("Initializing Android IAP plugin for ${configuredStore} store")
+        logInfo("Initializing Android IAP plugin for ${BuildConfig.OPENIAP_STORE} store")
         val plugin = AndroidInappPurchasePlugin()
         plugin.setContext(context)
         plugin.setChannel(methodChannel)
@@ -55,20 +54,10 @@ class FlutterInappPurchasePlugin : FlutterPlugin, ActivityAware {
 
     companion object {
         private const val TAG = "FlutterInappPurchase"
-        private var configuredStore = "play"
 
         private fun logInfo(message: String) {
             if (Log.isLoggable(TAG, Log.INFO)) {
                 Log.i(TAG, message)
-            }
-        }
-
-        fun getStore(): String {
-            return when (configuredStore) {
-                "amazon" -> "amazon"
-                "horizon" -> "horizon"
-                "none" -> "none"
-                else -> "play_store"
             }
         }
     }
