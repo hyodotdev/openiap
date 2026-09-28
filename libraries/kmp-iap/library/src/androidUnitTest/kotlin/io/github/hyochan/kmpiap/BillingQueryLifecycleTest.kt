@@ -470,9 +470,10 @@ class BillingQueryLifecycleTest {
         )
 }
 
-private class LifecycleBillingClient(
+internal class LifecycleBillingClient(
     private val completeFirstProductQuery: Boolean = false,
     private val suspendedSubscriptionsSupported: Boolean = false,
+    private val acknowledgeResponseCode: Int? = null,
 ) : BillingClient() {
     @Volatile
     var ready = true
@@ -519,6 +520,9 @@ private class LifecycleBillingClient(
         listener: AcknowledgePurchaseResponseListener,
     ) {
         acknowledgeStarted.complete(Unit)
+        acknowledgeResponseCode?.let { code ->
+            listener.onAcknowledgePurchaseResponse(BillingResult.newBuilder().setResponseCode(code).build())
+        }
     }
 
     override fun endConnection() = Unit

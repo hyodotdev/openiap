@@ -88,7 +88,8 @@ internal suspend fun endDelegatedConnectionWithCleanup(
 internal class OpenIapDelegateInAppPurchaseAndroid(
     private val storeName: String,
     private val store: Store,
-    private val versionPlatform: String
+    private val versionPlatform: String,
+    private val firstPurchaseNotice: FirstPurchaseNotice = FirstPurchaseNotice.shared,
 ) : KmpInAppPurchase, Application.ActivityLifecycleCallbacks {
     private var context: Context? = null
     private var currentActivity: Activity? = null
@@ -202,6 +203,7 @@ internal class OpenIapDelegateInAppPurchaseAndroid(
         withMappedOpenIapError {
             requireModule().finishTransaction(purchase.toOpenIap(), isConsumable)
         }
+        firstPurchaseNotice.onTransactionFinished(purchase, context)
     }
 
     override suspend fun acknowledgePurchaseAndroid(purchaseToken: String): Boolean =

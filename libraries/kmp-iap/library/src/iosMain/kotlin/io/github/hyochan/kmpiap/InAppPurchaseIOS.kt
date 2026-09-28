@@ -367,6 +367,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun finishTransaction(purchase: PurchaseInput, isConsumable: Boolean?): Unit =
         suspendCancellableCoroutine { continuation ->
+            // No first-purchase notice on iOS: nothing reliably tells a debug build of the host app.
             val transactionId = purchase.id
             val productId = purchase.productId
 
