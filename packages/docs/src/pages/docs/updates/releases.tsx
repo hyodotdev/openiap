@@ -841,7 +841,13 @@ function Releases() {
               <strong>godot-iap 3.6.0</strong> - adds the{' '}
               <code>openiap/android_store</code> export option (
               <code>auto</code> follows the debug device) and{' '}
-              <code>openiap/horizon_app_id</code>.
+              <code>openiap/horizon_app_id</code>. Release exports leave{' '}
+              <code>res://iapkit.cfg</code> out of the bundle; if your game
+              ships its IAPKit key in that file,{' '}
+              <Link to="/docs/setup/godot#iapkit-cfg-release-export">
+                move it
+              </Link>
+              .
             </li>
             <li>
               <strong>maui-iap 2.6.0</strong>
