@@ -779,7 +779,9 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 ## See: https://openiap.dev/docs/apis/finish-transaction
 func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 	print("[GodotIap] finish_transaction called, consumable: ", is_consumable)
-	var result = await _finish_transaction_raw(purchase.to_dict(), is_consumable)
+	var purchase_dict: Dictionary = purchase.to_dict()
+	var result = await _finish_transaction_raw(purchase_dict, is_consumable)
+	_print_first_purchase_notice.call_deferred(purchase_dict, result)
 	return Types.VoidResult.from_dict(result)
 
 ## Finish transaction with raw Dictionary (convenience method).
@@ -790,6 +792,7 @@ func finish_transaction(purchase, is_consumable: bool = false) -> Variant:
 func finish_transaction_dict(purchase: Dictionary, is_consumable: bool = false) -> Variant:
 	print("[GodotIap] finish_transaction_dict called, consumable: ", is_consumable)
 	var result = await _finish_transaction_raw(purchase, is_consumable)
+	_print_first_purchase_notice.call_deferred(purchase, result)
 	return Types.VoidResult.from_dict(result)
 
 ## Internal: Finish transaction with raw Dictionary
@@ -824,6 +827,41 @@ func _finish_transaction_raw(purchase: Dictionary, is_consumable: bool) -> Dicti
 		return await _call_apple_async("finishTransaction", [args_json])
 
 	return { "success": true }
+
+# ==========================================
+# First-Purchase Notice (internal)
+# ==========================================
+
+# Byte-identical to consoleNotice in packages/docs/community-touchpoints.json.
+const _FIRST_PURCHASE_NOTICE: PackedStringArray = [
+	"[OpenIAP] First purchase finished in this app 🎉",
+	"If OpenIAP saved you time, a star helps: https://github.com/hyodotdev/openiap",
+	"When your app ships, list it for free: https://openiap.dev/showcase",
+	"(Shown once, debug builds only.)",
+]
+
+## OS.is_debug_build and DisplayServer.get_name, swappable in tests.
+var _is_debug_build: Callable = Callable(OS, "is_debug_build")
+var _display_server_name: Callable = Callable(DisplayServer, "get_name")
+var _first_purchase_notice_tried := false
+
+
+## Prints the notice once per install after a purchase finishes in a debug
+## build. Callers defer it, so it never delays or changes the finish.
+func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> void:
+	if _first_purchase_notice_tried or _native_plugin == null:
+		return
+	# A headless display server is a test runner or CI, not a developer's console.
+	if not _is_debug_build.call() or _display_server_name.call() == "headless":
+		return
+	if not result.get("success", false) or purchase.get("purchaseState") != "purchased":
+		return
+	_first_purchase_notice_tried = true
+	# A prebuilt Apple binary from before this script lacks the method.
+	if _is_apple() and not _native_plugin.has_method("claimFirstPurchaseNotice"):
+		return
+	if _native_plugin.call("claimFirstPurchaseNotice") == true:
+		print("\n".join(_FIRST_PURCHASE_NOTICE))
 
 ## Restore completed transactions.
 ## Apple platforms: Performs a lightweight sync then fetches available purchases.

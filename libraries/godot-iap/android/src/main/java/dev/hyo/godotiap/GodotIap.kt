@@ -2,6 +2,7 @@ package dev.hyo.godotiap
 
 import dev.hyo.openiap.*
 import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -436,6 +437,13 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             }
         }
+    }
+
+    /** Internal: the once-per-install flag behind godot_iap.gd's first-purchase notice; not app API. */
+    @UsedByGodot
+    fun claimFirstPurchaseNotice(): Boolean {
+        val context = activity ?: return false
+        return runCatching { OpenIapFirstPurchaseNotice.claim(context) }.getOrDefault(false)
     }
 
     @UsedByGodot

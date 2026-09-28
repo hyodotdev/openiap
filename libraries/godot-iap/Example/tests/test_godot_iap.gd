@@ -103,6 +103,54 @@ class FakeIOSAsyncPlugin:
 			}]),
 		})
 
+
+class FakeNoticePlugin:
+	extends RefCounted
+	var finish_response := JSON.stringify({"success": true})
+	var claim_response := true
+	var claims := 0
+
+	# Android passes the consumable flag; Apple sends one JSON argument.
+	func finishTransaction(_json: String, _is_consumable: bool = false) -> String:
+		return finish_response
+
+	func claimFirstPurchaseNotice() -> bool:
+		claims += 1
+		return claim_response
+
+
+## An Apple binary built before the flag method existed.
+class FakeOldApplePlugin:
+	extends RefCounted
+
+	func finishTransaction(_json: String, _is_consumable: bool = false) -> String:
+		return JSON.stringify({"success": true})
+
+
+class LogCapture:
+	extends Logger
+	var messages: Array[String] = []
+	var errors: Array[String] = []
+
+	func _log_message(message: String, _error: bool) -> void:
+		messages.append(message)
+
+	func _log_error(
+		_function: String,
+		_file: String,
+		_line: int,
+		code: String,
+		_rationale: String,
+		_editor_notify: bool,
+		_error_type: int,
+		_script_backtraces: Array[ScriptBacktrace]
+	) -> void:
+		errors.append(code)
+
+	func notices() -> Array:
+		return messages.filter(func(message: String) -> bool: return message.begins_with("[OpenIAP]"))
+
+
 func _init() -> void:
 	_run_suite.call_deferred()
 
@@ -153,6 +201,10 @@ func _run_all_tests() -> void:
 
 	# Finish transaction tests
 	await test_finish_transaction_mock()
+	await test_first_purchase_notice_prints_once()
+	await test_first_purchase_notice_needs_a_debug_console()
+	await test_first_purchase_notice_needs_a_finished_purchase()
+	await test_first_purchase_notice_is_shown_once_per_install()
 
 	# Platform-specific mock tests
 	await test_ios_methods_mock()
@@ -547,6 +599,124 @@ func test_finish_transaction_mock() -> void:
 	var result = await GodotIapPlugin.finish_transaction(purchase, true)
 
 	_assert_true(result is Types.VoidResult, "finish_transaction should return VoidResult")
+
+
+# ============================================
+# First-Purchase Notice
+# ============================================
+
+## A wrapper whose debug and display signals report a developer at a console.
+func _notice_wrapper(fake: FakeNoticePlugin, platform := "Android") -> Node:
+	var wrapper: Node = GodotIapWrapper.new()
+	wrapper._native_plugin = fake
+	wrapper._platform = platform
+	wrapper._is_debug_build = func() -> bool: return true
+	wrapper._display_server_name = func() -> String: return platform
+	return wrapper
+
+
+## Finishes one purchase and returns what was logged by the next frame.
+func _finish_for_notice(wrapper: Node, purchase_state: String) -> LogCapture:
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	await wrapper.finish_transaction_dict({"productId": "sku.notice", "purchaseState": purchase_state})
+	await process_frame
+	OS.remove_logger(capture)
+	return capture
+
+
+func test_first_purchase_notice_prints_once() -> void:
+	var notice := "\n".join(GodotIapWrapper._FIRST_PURCHASE_NOTICE) + "\n"
+	var fake := FakeNoticePlugin.new()
+	var wrapper := _notice_wrapper(fake)
+
+	var capture := LogCapture.new()
+	OS.add_logger(capture)
+	var result = await wrapper.finish_transaction_dict({"productId": "sku.notice", "purchaseState": "purchased"})
+	var claims_when_finish_returned := fake.claims
+	await process_frame
+	OS.remove_logger(capture)
+	_assert_true(result.success, "The notice should not change the finish result")
+	_assert_equal(claims_when_finish_returned, 0, "The notice should wait until the finish has returned")
+	_assert_equal(capture.notices(), [notice], "The first finished purchase in a debug build should print the notice in one log call")
+	_assert_equal(fake.claims, 1, "The first finished purchase should claim the install flag")
+
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "A later finish should not print the notice again")
+	_assert_equal(fake.claims, 1, "A later finish in the same process should skip the native flag")
+	wrapper.free()
+
+	var apple := FakeNoticePlugin.new()
+	var apple_wrapper := _notice_wrapper(apple, "iOS")
+	_assert_equal((await _finish_for_notice(apple_wrapper, "purchased")).notices(), [notice], "Apple builds should print the notice through the GDExtension flag")
+	apple_wrapper.free()
+
+	var old_apple_wrapper: Node = GodotIapWrapper.new()
+	old_apple_wrapper._native_plugin = FakeOldApplePlugin.new()
+	old_apple_wrapper._platform = "iOS"
+	old_apple_wrapper._is_debug_build = func() -> bool: return true
+	old_apple_wrapper._display_server_name = func() -> String: return "iOS"
+	var old_capture := await _finish_for_notice(old_apple_wrapper, "purchased")
+	_assert_equal(old_capture.notices(), [], "An Apple binary without the flag method should stay silent")
+	_assert_equal(old_capture.errors, [], "An Apple binary without the flag method should not raise a script error")
+	old_apple_wrapper.free()
+
+	var typed := FakeNoticePlugin.new()
+	var typed_wrapper := _notice_wrapper(typed)
+	var purchase := Types.PurchaseAndroid.new()
+	purchase.product_id = "sku.notice"
+	purchase.purchase_state = Types.PurchaseState.PURCHASED
+	await typed_wrapper.finish_transaction(purchase)
+	await process_frame
+	_assert_equal(typed.claims, 1, "finish_transaction with a typed purchase should also reach the notice")
+	typed_wrapper.free()
+
+
+func test_first_purchase_notice_needs_a_debug_console() -> void:
+	var release := FakeNoticePlugin.new()
+	var release_wrapper := _notice_wrapper(release)
+	release_wrapper._is_debug_build = func() -> bool: return false
+	_assert_equal((await _finish_for_notice(release_wrapper, "purchased")).notices(), [], "A release build should not print the notice")
+	_assert_equal(release.claims, 0, "A release build should not touch the install flag")
+	release_wrapper.free()
+
+	var headless := FakeNoticePlugin.new()
+	var headless_wrapper := _notice_wrapper(headless)
+	headless_wrapper._display_server_name = func() -> String: return "headless"
+	_assert_equal((await _finish_for_notice(headless_wrapper, "purchased")).notices(), [], "A headless test runner should not print the notice")
+	_assert_equal(headless.claims, 0, "A headless test runner should not touch the install flag")
+	headless_wrapper.free()
+
+	# Without a native plugin (Windows or Linux), the finish succeeds against a stub.
+	var stub_wrapper := _notice_wrapper(null)
+	var stub_capture := await _finish_for_notice(stub_wrapper, "purchased")
+	_assert_equal(stub_capture.notices(), [], "Without a native plugin the notice should not print")
+	_assert_equal(stub_capture.errors, [], "Without a native plugin the notice should skip the flag without an error")
+	stub_wrapper.free()
+
+
+func test_first_purchase_notice_needs_a_finished_purchase() -> void:
+	var fake := FakeNoticePlugin.new()
+	var wrapper := _notice_wrapper(fake)
+
+	fake.finish_response = JSON.stringify({"success": false, "error": "Billing unavailable"})
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "A failed finish should not print the notice")
+	fake.finish_response = JSON.stringify({"success": true})
+	for state in ["pending", "unknown"]:
+		_assert_equal((await _finish_for_notice(wrapper, state)).notices(), [], "A purchase in the %s state should not print the notice" % state)
+	_assert_equal(fake.claims, 0, "Only a finished purchase should touch the install flag")
+
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices().size(), 1, "Skipped finishes should leave the notice for the next finished purchase")
+	wrapper.free()
+
+
+func test_first_purchase_notice_is_shown_once_per_install() -> void:
+	var fake := FakeNoticePlugin.new()
+	fake.claim_response = false
+	var wrapper := _notice_wrapper(fake)
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "An install that already showed the notice should not print it")
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "Later finishes should not print it either")
+	_assert_equal(fake.claims, 1, "The process should ask the install flag only once")
+	wrapper.free()
 
 
 # ============================================
