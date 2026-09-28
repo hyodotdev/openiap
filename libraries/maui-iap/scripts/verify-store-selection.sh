@@ -79,6 +79,9 @@ echo "explicit"
 run "OpenIapStore=play"                  "$play"    $link -p:OpenIapStore=play
 run "alias quest"                        "$horizon" $link -p:OpenIapStore=quest
 run "alias fire-os"                      "$amazon"  $link -p:OpenIapStore=fire-os
+# Gradle lower-cases a pin, so MSBuild must accept any case too.
+run "a pin ignores case"                  "$horizon" $link -p:OpenIapStore=Horizon
+warns="${deprecated}horizon" run "and so does the alias" "$horizon" $link -p:OpenIapAndroidStore=QUEST
 warns="${deprecated}horizon" run "OpenIapAndroidStore pins, with a warning" "$horizon" $link -p:OpenIapAndroidStore=meta
 warns="${deprecated}amazon" run "and may agree with OpenIapStore" "$amazon" $link -p:OpenIapStore=amazon -p:OpenIapAndroidStore=fire
 run "but not disagree" "fail:openiap: OpenIapStore=amazon conflicts with OpenIapAndroidStore=horizon" $link -p:OpenIapStore=amazon -p:OpenIapAndroidStore=horizon
