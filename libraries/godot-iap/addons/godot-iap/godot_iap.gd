@@ -73,7 +73,6 @@ var _apple_async_terminal_keys: Dictionary = {}
 var _apple_async_terminal_order: Array[String] = []
 var _apple_async_cancellation_generation := 0
 var _apple_async_timeout_seconds := 30.0
-var _apple_async_restore_timeout_seconds := 120.0
 var _apple_async_ui_timeout_seconds := 300.0
 
 # Platform detection
@@ -873,10 +872,11 @@ func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
 	if _is_apple() and _native_plugin:
+		# AppStore.sync() can show a sign-in sheet, so restore waits as long as a purchase.
 		var payload = await _call_apple_async(
 			"restorePurchases",
 			[],
-			_apple_async_restore_timeout_seconds
+			_apple_async_ui_timeout_seconds
 		)
 		var apple_result = Types.VoidResult.new()
 		apple_result.success = payload.get("success", false)

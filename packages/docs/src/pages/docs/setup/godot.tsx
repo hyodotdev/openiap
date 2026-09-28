@@ -753,14 +753,15 @@ func _on_purchase_error(error):
           </a>
         </h3>
         <p>
-          From 3.6.0, godot-iap leaves <code>res://iapkit.cfg</code> out of
-          every release export and logs{' '}
+          godot-iap 3.6.0 and 3.6.1 leave <code>res://iapkit.cfg</code> out of
+          every release export and log{' '}
           <code>
             Release export: leaving res://iapkit.cfg out of the bundle
           </code>
-          . The example keeps local IAPKit settings in that file. If your game
-          ships its publishable key there, move it to another file, such as{' '}
-          <code>res://iapkit_publishable.cfg</code>, and read it from there.
+          . If your game ships its publishable key in that file, update
+          godot-iap; later releases export it again. On 3.6.x, move the key to
+          another file, such as <code>res://iapkit_publishable.cfg</code>, and
+          read it from there.
         </p>
 
         <h3 id="android-gradle-failure" className="anchor-heading">

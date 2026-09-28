@@ -214,6 +214,7 @@ func _run_all_tests() -> void:
 	await test_apple_async_timeout_and_late_callback()
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
+	await test_ios_restore_waits_for_a_sign_in_sheet()
 	test_android_signal_handlers_parse_json()
 
 	# Android JSON envelopes
@@ -666,6 +667,32 @@ func test_ios_restore_failure_emits_purchase_error() -> void:
 	GodotIapPlugin._platform = previous_platform
 	GodotIapPlugin._native_plugin = previous_plugin
 
+
+func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
+	var fake = _install_ios_fake()
+	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-sheet"})
+	var plain_timeout: float = GodotIapPlugin._apple_async_timeout_seconds
+	var sheet_timeout: float = GodotIapPlugin._apple_async_ui_timeout_seconds
+	# The restore completes after the plain timeout but inside the purchase-sheet one.
+	GodotIapPlugin._apple_async_timeout_seconds = 0.05
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 2.0
+	create_timer(0.3).timeout.connect(func() -> void:
+		GodotIapPlugin._on_products_fetched({
+			"method": "restorePurchases",
+			"requestId": "restore-sheet",
+			"success": true,
+		}))
+
+	var result = await GodotIapPlugin.restore_purchases()
+
+	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
+	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
+	_assert_true(result.success, "An iOS restore should wait as long as a purchase sheet")
+	_uninstall_fake()
 
 func test_android_request_purchase_error_envelope() -> void:
 	var fake = _install_android_fake()
