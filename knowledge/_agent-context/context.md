@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-28T17:14:59.764Z
+> Last updated: 2026-09-28T18:24:16.822Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3418,6 +3418,11 @@ asking.
 
 Vega OS runs the JavaScript adapters with no native flag store, so it prints
 nothing.
+
+kmp-iap and maui-iap print nothing on iOS. Kotlin/Native's only build signal,
+`Platform.isDebugBinary`, is experimental and describes the shared framework,
+which teams often ship prebuilt in release. .NET's closest one, the entry
+assembly's `DebuggableAttribute`, is unverified on iOS.
 
 ## Where each text appears
 

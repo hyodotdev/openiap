@@ -59,8 +59,8 @@ internal sealed partial class OpenIapAndroid
         // shape stays a flat Purchase JSON object (matches what the module expects).
         var json = JsonSerializer.Serialize(purchase.Value, JsonOptions.Default);
         var consumable = isConsumable.HasValue ? Java.Lang.Boolean.ValueOf(isConsumable.Value) : null;
-        var result = await Invoke(cb => _module.FinishTransaction(json, consumable, cb));
-        return DecodeStringValue(result);
+        return await _firstPurchaseNotice.AfterFinish(purchase.Value, async () =>
+            DecodeStringValue(await Invoke(cb => _module.FinishTransaction(json, consumable, cb))));
     }
 
     public async Task<string> RestorePurchasesAsync()

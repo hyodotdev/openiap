@@ -37,6 +37,11 @@ asking.
 Vega OS runs the JavaScript adapters with no native flag store, so it prints
 nothing.
 
+kmp-iap and maui-iap print nothing on iOS. Kotlin/Native's only build signal,
+`Platform.isDebugBinary`, is experimental and describes the shared framework,
+which teams often ship prebuilt in release. .NET's closest one, the entry
+assembly's `DebuggableAttribute`, is unverified on iOS.
+
 ## Where each text appears
 
 - **Console notice:** the six libraries above, from their own constant.

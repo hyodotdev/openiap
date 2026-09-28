@@ -292,6 +292,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null)
     {
+        // No first-purchase notice on iOS: nothing reliably tells a debug build of the host app.
         var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         // PurchaseInput wraps a Purchase union; iOS only supports the iOS variant.
         if (purchase.Value is not PurchaseIOS p)

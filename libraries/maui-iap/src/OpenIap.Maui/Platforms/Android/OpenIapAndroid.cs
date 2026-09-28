@@ -24,6 +24,7 @@ namespace OpenIap.Maui.Platforms.Android;
 internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, MutationResolver
 {
     private readonly OpenIapMauiModule _module;
+    private readonly FirstPurchaseNotice _firstPurchaseNotice;
     private readonly Subject<Purchase> _purchaseUpdated = new();
     private readonly Subject<PurchaseError> _purchaseError = new();
     private readonly Subject<string> _promotedProductIOS = new();
@@ -42,6 +43,11 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
         var ctx = global::Android.App.Application.Context
             ?? throw new InvalidOperationException("Android.App.Application.Context is null; OpenIapAndroid requires an initialised app context.");
         _module = new OpenIapMauiModule(ctx);
+        // Debug means the host app's debuggable flag: this library always ships compiled in Release.
+        _firstPurchaseNotice = new FirstPurchaseNotice(
+            isHostDebuggable: () => ctx.ApplicationInfo is { } info
+                && info.Flags.HasFlag(global::Android.Content.PM.ApplicationInfoFlags.Debuggable),
+            claim: _module.ClaimFirstPurchaseNotice);
         WireListeners();
     }
 
