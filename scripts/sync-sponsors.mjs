@@ -9,6 +9,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const repositoryRoot = path.resolve(path.dirname(scriptPath), "..");
 const registryPath = "packages/docs/sponsor-registry.json";
 const touchpointsPath = "packages/docs/community-touchpoints.json";
+const pubspecPath = "libraries/flutter_inapp_purchase/pubspec.yaml";
 
 export const sponsorBlockStart = "<!-- sponsors:start -->";
 export const sponsorBlockEnd = "<!-- sponsors:end -->";
@@ -440,6 +441,42 @@ export function synchronizeCommunityBlock(readme, communityBlock) {
   return `${before}\n\n${communityBlock}\n${after ? `\n${after}` : ""}`;
 }
 
+export function renderPackageFunding(funding) {
+  return [
+    { type: "github", url: funding.githubUrl },
+    { type: "opencollective", url: funding.openCollectiveUrl },
+    { type: "paypal", url: funding.paypalUrl },
+  ];
+}
+
+const fundingAnchors = new Set(["homepage", "repository", "bugs"]);
+
+// Sets `funding` right after the manifest's homepage/repository/bugs keys.
+export function synchronizePackageFunding(manifestText, packageFunding) {
+  const entries = Object.entries(JSON.parse(manifestText)).filter(
+    ([key]) => key !== "funding",
+  );
+  const anchor = entries.reduce(
+    (last, [key], index) => (fundingAnchors.has(key) ? index : last),
+    entries.length - 1,
+  );
+  entries.splice(anchor + 1, 0, ["funding", packageFunding]);
+  return `${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`;
+}
+
+export function synchronizePubspecFunding(pubspec, packageFunding) {
+  const withoutFunding = pubspec.replace(/^funding:\n(?:[ \t]+-.*\n)*/mu, "");
+  const anchor = [
+    ...withoutFunding.matchAll(/^(?:homepage|repository):.*\n/gmu),
+  ].at(-1);
+  if (!anchor) {
+    throw new Error("pubspec needs a homepage or repository line to place funding after");
+  }
+  const at = anchor.index + anchor[0].length;
+  const fundingBlock = packageFunding.map(({ url }) => `  - ${url}\n`).join("");
+  return `${withoutFunding.slice(0, at)}funding:\n${fundingBlock}${withoutFunding.slice(at)}`;
+}
+
 export function renderFundingConfig(registry) {
   const { funding } = registry;
 
@@ -462,6 +499,33 @@ const specificationOwner = "specs";
 const receivesSponsorBlock = (relative, readme) =>
   !relative.startsWith(`${specificationOwner}/`) ||
   readme.includes(sponsorBlockStart);
+
+// Published npm packages. A specification carries funding only after its
+// README opted in to the sponsor block, as receivesSponsorBlock decides.
+export function discoverFundingManifests(
+  root = repositoryRoot,
+  { staged = false } = {},
+) {
+  return discoverReadmes(root, { staged })
+    .filter((readme) => readme !== "README.md")
+    .map((readme) => [readme, readme.replace(/README\.md$/u, "package.json")])
+    .filter(([, manifest]) =>
+      staged
+        ? execFileSync("git", ["ls-files", "--cached", "--", manifest], {
+            cwd: root,
+            encoding: "utf8",
+          }).trim() !== ""
+        : fs.existsSync(path.join(root, manifest)),
+    )
+    .filter(([readme, manifest]) => {
+      const manifestJson = JSON.parse(readSponsorFile(root, manifest, staged));
+      return (
+        manifestJson.private !== true &&
+        receivesSponsorBlock(readme, readSponsorFile(root, readme, staged))
+      );
+    })
+    .map(([, manifest]) => manifest);
+}
 
 export function discoverReadmes(
   root = repositoryRoot,
@@ -531,6 +595,7 @@ export function synchronizeSponsorFiles(
   const touchpoints = readmes.some((relative) => communityReadmes[relative])
     ? JSON.parse(readSponsorFile(root, touchpointsPath, staged))
     : null;
+  const packageFunding = renderPackageFunding(funding);
   const changes = [];
 
   for (const relative of readmes) {
@@ -565,6 +630,26 @@ export function synchronizeSponsorFiles(
       changes.push(relative);
       if (write) {
         fs.writeFileSync(file, expected);
+      }
+    }
+  }
+
+  const fundingSurfaces = [
+    ...discoverFundingManifests(root, { staged }).map((manifest) => [
+      manifest,
+      (text) => synchronizePackageFunding(text, packageFunding),
+    ]),
+    ...(readmes.includes(pubspecPath.replace(/pubspec\.yaml$/u, "README.md"))
+      ? [[pubspecPath, (text) => synchronizePubspecFunding(text, packageFunding)]]
+      : []),
+  ];
+  for (const [relative, synchronize] of fundingSurfaces) {
+    const actual = readSponsorFile(root, relative, staged);
+    const expected = synchronize(actual);
+    if (actual !== expected) {
+      changes.push(relative);
+      if (write) {
+        fs.writeFileSync(path.join(root, relative), expected);
       }
     }
   }

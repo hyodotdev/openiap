@@ -11,14 +11,18 @@ import {
   communityBlockEnd,
   communityBlockStart,
   communityReadmes,
+  discoverFundingManifests,
   discoverReadmes,
   renderCommunityBlock,
   renderFundingConfig,
+  renderPackageFunding,
   renderSponsorBlock,
   resolveFundingLinks,
   sponsorBlockEnd,
   sponsorBlockStart,
   synchronizeCommunityBlock,
+  synchronizePackageFunding,
+  synchronizePubspecFunding,
   synchronizeReadme,
   synchronizeSponsorFiles,
   validateRegistry,
@@ -623,5 +627,48 @@ test("the community section covers the six libraries and the CLI", () => {
     "godot-iap",
     "kmp-iap",
     "react-native-iap",
+  ]);
+});
+
+test("puts npm funding after the homepage, repository, and bugs keys", () => {
+  const funding = renderPackageFunding(resolveFundingLinks(registry.funding));
+  const manifest = `${JSON.stringify(
+    { name: "pkg", homepage: "https://h.example", scripts: { test: "t" } },
+    null,
+    2,
+  )}\n`;
+  const next = synchronizePackageFunding(manifest, funding);
+  assert.deepEqual(Object.keys(JSON.parse(next)), [
+    "name",
+    "homepage",
+    "funding",
+    "scripts",
+  ]);
+  assert.deepEqual(JSON.parse(next).funding, funding);
+  assert.equal(synchronizePackageFunding(next, funding), next);
+});
+
+test("puts pubspec funding after the repository line and replaces a stale list", () => {
+  const funding = [{ url: "https://a.example" }, { url: "https://b.example" }];
+  const pubspec =
+    "name: pkg\nhomepage: https://h.example\nrepository: https://r.example\nenvironment:\n  sdk: '>=3.0.0'\n";
+  const next = synchronizePubspecFunding(pubspec, funding);
+  assert.equal(
+    next,
+    "name: pkg\nhomepage: https://h.example\nrepository: https://r.example\nfunding:\n  - https://a.example\n  - https://b.example\nenvironment:\n  sdk: '>=3.0.0'\n",
+  );
+  assert.equal(synchronizePubspecFunding(next, funding), next);
+  assert.equal(
+    synchronizePubspecFunding(next, [{ url: "https://c.example" }]),
+    "name: pkg\nhomepage: https://h.example\nrepository: https://r.example\nfunding:\n  - https://c.example\nenvironment:\n  sdk: '>=3.0.0'\n",
+  );
+});
+
+test("funds published packages and specifications that opted in, nothing private", () => {
+  assert.deepEqual(discoverFundingManifests(), [
+    "libraries/expo-iap/package.json",
+    "libraries/react-native-iap/package.json",
+    "packages/cli/package.json",
+    "specs/client/package.json",
   ]);
 });

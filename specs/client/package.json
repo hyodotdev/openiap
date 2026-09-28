@@ -69,6 +69,20 @@
     "directory": "specs/client"
   },
   "homepage": "https://openiap.dev",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/hyodotdev"
+    },
+    {
+      "type": "opencollective",
+      "url": "https://opencollective.com/openiap"
+    },
+    {
+      "type": "paypal",
+      "url": "https://www.paypal.me/dooboolab"
+    }
+  ],
   "devDependencies": {
     "@graphql-codegen/add": "^6.0.0",
     "@graphql-codegen/cli": "^6.0.0",
