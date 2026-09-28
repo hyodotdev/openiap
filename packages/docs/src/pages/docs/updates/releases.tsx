@@ -568,19 +568,20 @@ function Releases() {
             Every framework now resolves the Android store at build time with
             one shared rule: an explicit <code>openiapStore</code> pin, a store
             flavor in the Gradle task, the Quest or Fire device plugged in on
-            debug builds, otherwise Play. No more per-framework flags, and
-            conflicting signals fail the build instead of shipping the wrong
-            billing SDK. See{' '}
+            debug builds, otherwise Play. No more per-framework flags. Only
+            debug builds follow the device, so pin release builds; conflicting
+            signals fail the build instead of shipping the wrong billing SDK.
+            See{' '}
             <a
-              href="https://github.com/hyodotdev/openiap/pull/489"
+              href="https://github.com/hyodotdev/openiap/pull/482"
               target="_blank"
               rel="noopener noreferrer"
             >
-              PR #489
+              PR #482
             </a>{' '}
             and the{' '}
             <a
-              href="https://hyodotdev.medium.com/your-test-device-picks-the-store-now-not-your-config-flags-560dfd3dc89d"
+              href="https://medium.com/hyodotdev/your-test-device-picks-the-store-now-not-your-config-flags-560dfd3dc89d"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -643,7 +644,8 @@ function Releases() {
             <li>
               <strong>maui-iap 2.6.0</strong> - links one store&apos;s AAR per
               build. NuGet resolves dependencies at restore time, so every build
-              carries the Play billing client regardless of store.
+              also carries Play Services, DataTransport, and
+              kotlinx-serialization-json regardless of store.
             </li>
           </ul>
 
