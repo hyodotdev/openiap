@@ -32,6 +32,7 @@ import dev.hyo.openiap.Purchase
 import dev.hyo.openiap.RequestPurchaseProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
+import dev.hyo.openiap.helpers.OpenIapFirstPurchaseNotice
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -270,6 +271,11 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
         // Quick methods that do not depend on billing readiness
         when (call.method) {
+            // Internal to the Dart first-purchase notice; not app API.
+            "claimFirstPurchaseNotice" -> {
+                safe.success(context?.let(OpenIapFirstPurchaseNotice::claim) ?: false)
+                return
+            }
             "manageSubscription" -> {
                 val sku = call.argument<String>("sku")
                 val packageName = call.argument<String>("packageName")

@@ -21,6 +21,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler {
         when (call.method) {
             "initConnection", "endConnection", "isReady" -> result.success(false)
             "setPurchaseUpdatedListenerOptions" -> result.success(null)
+            // Internal to the Dart first-purchase notice; this build links no store.
+            "claimFirstPurchaseNotice" -> result.success(false)
             else -> result.error(
                 ERROR_CODE,
                 ERROR_MESSAGE,

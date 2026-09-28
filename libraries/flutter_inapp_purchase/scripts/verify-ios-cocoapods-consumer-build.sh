@@ -44,6 +44,17 @@ flutter pub add \
 podfile="$consumer_app/ios/Podfile"
 xcode_project="$consumer_app/ios/Runner.xcodeproj/project.pbxproj"
 
+# The plugin builds against this checkout's openiap-apple, as the SwiftPM check
+# does; a release ships openiap-apple before the libraries that need it.
+repo_root="$(cd "$package_root/../.." && pwd)"
+perl -0pi -e \
+  "s|(\n[ \t]*flutter_install_all_ios_pods[^\n]*\n)|\$1  pod 'openiap', :path => '$repo_root/packages/apple'\n|" \
+  "$podfile"
+if ! grep -Fq "pod 'openiap', :path => '$repo_root/packages/apple'" "$podfile"; then
+  echo "Failed to point the CocoaPods consumer at the local openiap pod" >&2
+  exit 1
+fi
+
 perl -0pi -e \
   "s/# platform :ios, '[0-9.]+'/platform :ios, '$minimum_ios_version'/" \
   "$podfile"

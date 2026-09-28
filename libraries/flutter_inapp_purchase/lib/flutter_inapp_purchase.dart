@@ -11,6 +11,7 @@ import 'builders.dart';
 import 'helpers.dart';
 import 'utils.dart';
 import 'errors.dart' as errors;
+import 'src/first_purchase_notice.dart';
 
 export 'types.dart' hide PurchaseError;
 export 'builders.dart';
@@ -89,6 +90,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   String get operatingSystem => _platform.operatingSystem;
 
   final Platform _pf;
+
+  late final FirstPurchaseNotice _firstPurchaseNotice =
+      FirstPurchaseNotice(_platform, _channel);
 
   FlutterInappPurchase({Platform? platform})
       : _pf = platform ?? const LocalPlatform();
@@ -1714,6 +1718,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   '[FlutterInappPurchase] Android: Failed to parse consume response',
             );
             _acknowledgedAndroidPurchaseTokens.remove(purchase.purchaseToken!);
+            unawaited(_firstPurchaseNotice.onFinished(purchase));
             return;
           }
 
@@ -1797,6 +1802,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
           if (didAcknowledge) {
             _acknowledgedAndroidPurchaseTokens[purchase.purchaseToken!] = true;
+            unawaited(_firstPurchaseNotice.onFinished(purchase));
           } else if (kDebugMode) {
             debugPrint(
               '[FlutterInappPurchase] Android: Acknowledge response indicated failure; will retry later (${purchase.productId})',
@@ -1815,6 +1821,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             'isConsumable': consumable,
           };
           await _channel.invokeMethod('finishTransaction', payload);
+          unawaited(_firstPurchaseNotice.onFinished(purchase));
           return;
         }
 
