@@ -125,18 +125,6 @@ const COMMERCE_RENAME_RELEASES: readonly ReleaseMetadata[] = [
   },
 ];
 
-const PROTOCOL_SPLIT_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'openiap-apple', version: '3.5.0', tag: '3.5.0' },
-  { name: 'openiap-google', version: '3.5.3', tag: 'google-3.5.3' },
-  {
-    name: 'flutter_inapp_purchase',
-    version: '10.6.2',
-    tag: 'flutter-iap-10.6.2',
-  },
-  { name: 'kmp-iap', version: '3.5.2', tag: 'kmp-iap-3.5.2' },
-  { name: 'maui-iap', version: '2.5.1', tag: 'maui-iap-2.5.1' },
-];
-
 const AMAZON_DIALOG_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.5.2', tag: 'google-3.5.2' },
   {
@@ -599,16 +587,31 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 3.6.0</strong> - ships the shared{' '}
-              <code>openiap-store.gradle</code> resolver and the{' '}
-              <code>io.github.hyochan.openiap</code> Gradle plugin. Horizon
-              purchases from the durable cache survive{' '}
-              <code>SERVICE_UNAVAILABLE</code>, and errors name the actual
-              store.
+              <strong>openiap-google 3.6.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Ships the shared <code>openiap-store.gradle</code> resolver
+                  and the <code>io.github.hyochan.openiap</code> Gradle plugin.
+                </li>
+                <li>
+                  Amazon subscriptions add a free-trial offer when the customer
+                  is eligible for one.
+                </li>
+                <li>
+                  Horizon purchases from the durable cache survive{' '}
+                  <code>SERVICE_UNAVAILABLE</code>, and errors name the actual
+                  store.
+                </li>
+                <li>
+                  Drops <code>BuildConfig.OPENIAP_SPEC_VERSION</code>.
+                </li>
+              </ul>
             </li>
             <li>
-              <strong>openiap-apple 3.4.0 → 3.6.0</strong> - picks up the shared
-              client protocol changes behind this release.
+              <strong>openiap-apple 3.6.0</strong> - adds{' '}
+              <code>OpenIapVersion.clientProtocolVersion</code>;{' '}
+              <code>specVersion</code> stays as a deprecated alias until client
+              protocol 1.0.0.
             </li>
           </ul>
 
@@ -631,9 +634,19 @@ function Releases() {
               move the pin to <code>ORG_GRADLE_PROJECT_openiapStore</code>.
             </li>
             <li>
+              <strong>expo-iap 5.8.0</strong> - also recognizes a Vega project
+              without an enable flag, and the config plugin logs to stderr, so
+              tools that print the Expo config as JSON get clean output.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.7.0</strong> - also stops
+              logging Android purchase tokens.
+            </li>
+            <li>
               <strong>kmp-iap 3.6.0</strong> - gains a{' '}
-              <code>Store.HORIZON</code> entry, so add the branch if you switch
-              exhaustively over <code>Store</code>.
+              <code>Store.HORIZON</code> entry, which Horizon builds now report
+              instead of <code>PLAY_STORE</code>, so add the branch if you
+              switch exhaustively over <code>Store</code>.
             </li>
             <li>
               <strong>godot-iap 3.6.0</strong> - adds the{' '}
@@ -642,26 +655,19 @@ function Releases() {
               <code>openiap/horizon_app_id</code>.
             </li>
             <li>
-              <strong>maui-iap 2.6.0</strong> - links one store&apos;s AAR per
-              build. NuGet resolves dependencies at restore time, so every build
-              also carries Play Services, DataTransport, and
-              kotlinx-serialization-json regardless of store.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Verified</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              CI resolver, Gradle plugin, MAUI packaging, and Godot store
-              suites, plus flag-free debug builds on a Pixel, a Quest, a Fire
-              tablet, and a Vega TV with live sandbox purchases on Play, Amazon,
-              and Vega.
+              <strong>maui-iap 2.6.0</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  Links one store&apos;s AAR per build. NuGet resolves
+                  dependencies at restore time, so every build also carries Play
+                  Services, DataTransport, and kotlinx-serialization-json
+                  regardless of store.
+                </li>
+                <li>
+                  Fixes duplicate <code>androidx.fragment</code> classes when an
+                  app also references current Google Play Services bindings.
+                </li>
+              </ul>
             </li>
           </ul>
 
@@ -1148,16 +1154,12 @@ function Releases() {
     },
     {
       id: 'spec-splits-into-two-protocols-2026-09-15',
-      aliases: PROTOCOL_SPLIT_RELEASES.map((release) => release.tag),
       date: new Date('2026-09-15'),
       element: (
         <div
           key="spec-splits-into-two-protocols-2026-09-15"
           style={noteCardStyle}
         >
-          {PROTOCOL_SPLIT_RELEASES.map((release) => (
-            <span key={release.tag} id={release.tag} aria-hidden="true" />
-          ))}
           <AnchorLink id="spec-splits-into-two-protocols-2026-09-15" level="h4">
             September 15, 2026 - &quot;Spec&quot; splits into the Client
             Protocol and the Commerce Protocol
@@ -1222,26 +1224,21 @@ function Releases() {
             <p style={{ margin: 0 }}>
               The <code>X-OpenIAP-Spec</code> request header is removed. It was
               optional telemetry that IAPKit only wrote to a log line, and
-              nothing ever branched on it, so verification is unaffected. With
-              it go the symbols that fed it:{' '}
-              <strong>openiap-apple 3.5.0</strong> renames{' '}
+              nothing ever branched on it, so verification is unaffected. The
+              package side shipped in the{' '}
+              <Link to="/docs/updates/releases#build-time-store-resolution-2026-09-26">
+                September 26 releases
+              </Link>
+              : <strong>openiap-apple 3.6.0</strong> renames{' '}
               <code>OpenIapVersion.specVersion</code> to{' '}
               <code>OpenIapVersion.clientProtocolVersion</code> and keeps{' '}
               <code>specVersion</code> as a deprecated alias until client
-              protocol 1.0.0, and <strong>openiap-google 3.5.3</strong> drops{' '}
+              protocol 1.0.0, and <strong>openiap-google 3.6.0</strong> drops{' '}
               <code>BuildConfig.OPENIAP_SPEC_VERSION</code>.{' '}
-              <strong>flutter_inapp_purchase 10.6.2</strong>,{' '}
-              <strong>kmp-iap 3.5.2</strong>, and{' '}
-              <strong>maui-iap 2.5.1</strong> carry the regenerated deprecation
+              <strong>flutter_inapp_purchase 10.7.0</strong>,{' '}
+              <strong>kmp-iap 3.6.0</strong>, and{' '}
+              <strong>maui-iap 2.6.0</strong> carry the regenerated deprecation
               messages that name the client protocol 1.0.0 removal train.
-            </p>
-            <p style={{ margin: '0.5rem 0 0 0' }}>
-              <strong>kmp-iap 3.5.2</strong> also adds{' '}
-              <code>Store.HORIZON</code>, and Horizon builds now report it from{' '}
-              <code>getStore()</code> instead of <code>Store.PLAY_STORE</code>.
-              A new enum case makes an exhaustive <code>when</code> over{' '}
-              <code>Store</code> fail to compile, so add a Horizon branch or an{' '}
-              <code>else</code>.
             </p>
           </Callout>
 
@@ -1251,21 +1248,6 @@ function Releases() {
             and the server-side contract has its own{' '}
             <Link to="/commerce-protocol">Commerce Protocol</Link> section.
           </p>
-
-          <h5 style={{ margin: '1rem 0 0.5rem 0' }}>Package Releases</h5>
-          <ul>
-            {PROTOCOL_SPLIT_RELEASES.map((release) => (
-              <li key={release.tag}>
-                <a
-                  href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <strong>{getReleaseLabel(release)}</strong>
-                </a>
-              </li>
-            ))}
-          </ul>
         </div>
       ),
     },
@@ -7543,11 +7525,11 @@ function Releases() {
             >
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.2"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/2.2.3"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  openiap-apple 2.2.2
+                  openiap-apple 2.2.3
                 </a>
               </li>
               <li>
@@ -8688,14 +8670,14 @@ function Releases() {
       ),
     },
 
-    // May 8, 2026 — maui-iap 1.0.1 namespace corrective release
+    // May 8, 2026 — maui-iap 1.0.2 namespace corrective release
     {
       id: 'maui-iap-1-0-1-openiap-namespace',
       date: new Date('2026-05-08'),
       element: (
         <div key="maui-iap-1-0-1-openiap-namespace" style={noteCardStyle}>
           <AnchorLink id="maui-iap-1-0-1-openiap-namespace" level="h4">
-            May 8, 2026 — maui-iap v1.0.1 OpenIap namespace update
+            May 8, 2026 — maui-iap v1.0.2 OpenIap namespace update
           </AnchorLink>
 
           <p
@@ -8704,7 +8686,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes a corrective <strong>maui-iap 1.0.1</strong> patch so the
+            Publishes a corrective <strong>maui-iap 1.0.2</strong> patch so the
             public C# namespace matches the package name and documentation.
             Generated OpenIAP types now live under <code>OpenIap</code>. Apps
             import <code>OpenIap.Maui</code> and access the MAUI facade as{' '}
@@ -8762,15 +8744,15 @@ function Releases() {
             >
               <li>
                 <a
-                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.1"
+                  href="https://github.com/hyodotdev/openiap/releases/tag/maui-iap-1.0.2"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  maui-iap 1.0.1
+                  maui-iap 1.0.2
                 </a>{' '}
                 (
                 <a
-                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.1"
+                  href="https://www.nuget.org/packages/OpenIap.Maui/1.0.2"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="external-link"
@@ -10151,7 +10133,7 @@ function Releases() {
           <div style={{ marginBottom: '1.25rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
               <a
-                href="https://github.com/hyodotdev/openiap/releases/tag/apple-2.0.0"
+                href="https://github.com/hyodotdev/openiap/releases/tag/2.0.0"
                 target="_blank"
                 rel="noopener noreferrer"
               >

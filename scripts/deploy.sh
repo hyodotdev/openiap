@@ -81,7 +81,7 @@ if [ ! -f "$RELEASES_PAGE" ]; then
     exit 1
 fi
 # Older cards that link releases which never published; drop each once its card is fixed.
-UNPUBLISHED_HISTORY=(2.1.6 2.2.2 3.5.0 apple-2.0.0 flutter-iap-10.6.2 google-3.5.3 kmp-iap-3.5.2 maui-iap-1.0.1 maui-iap-2.5.1)
+UNPUBLISHED_HISTORY=(2.1.6)
 if ! PUBLISHED_RELEASES=$(gh release list --repo hyodotdev/openiap --limit 5000 \
     --exclude-drafts --json tagName --jq '.[].tagName'); then
     echo -e "${RED}❌ Could not list GitHub Releases; install gh and run gh auth login${NC}"

@@ -1341,7 +1341,10 @@ test("the docs site deploys without a version of its own", () => {
     "the docs release workflow must not come back",
   );
 
-  assert.match(deployScript, /release-branch-policy\.mjs assert-client-protocol/);
+  assert.match(
+    deployScript,
+    /release-branch-policy\.mjs assert-client-protocol/,
+  );
   assert.match(deployScript, /must deploy from the stable main branch/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /is missing; update this check/);
@@ -1369,10 +1372,7 @@ test("the docs site deploys without a version of its own", () => {
     deployScript,
     /Vercel CLI returned no ready production deployment/,
   );
-  assert.doesNotMatch(
-    deployScript,
-    /(?:git commit|git push origin HEAD:main)/,
-  );
+  assert.doesNotMatch(deployScript, /(?:git commit|git push origin HEAD:main)/);
   assert.doesNotMatch(deployScript, /continue anyway/);
   assert.ok(
     deployScript.indexOf("release-branch-policy.mjs assert-client-protocol") <
@@ -1487,7 +1487,7 @@ test("production docs require a verified Vercel deployment result", (context) =>
       ),
       [
         "const RELEASES = [{ name: 'openiap-google', version: '9.9.9', tag: 'google-9.9.9' }];",
-        'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/google-3.5.3";',
+        'const OLD = "https://github.com/hyodotdev/openiap/releases/tag/2.1.6";',
         'const NEW = "https://github.com/hyodotdev/openiap/releases/tag/expo-iap-9.9.9";',
         "",
       ].join("\n"),
@@ -1541,15 +1541,11 @@ test("production docs require a verified Vercel deployment result", (context) =>
     );
     assert.match(unpublished.stdout, /google-9\.9\.9/);
     assert.match(unpublished.stdout, /expo-iap-9\.9\.9/);
-    assert.doesNotMatch(unpublished.stdout, /google-3\.5\.3/);
+    assert.doesNotMatch(unpublished.stdout, /\b2\.1\.6\b/);
     assert.doesNotMatch(unpublished.stdout, /Successfully deployed to Vercel/);
     assert.match(unpublished.stdout, /npm run deploy --force/);
 
-    for (const args of [
-      ["--unknown"],
-      ["3.6.1"],
-      ["--force", "3.6.1"],
-    ]) {
+    for (const args of [["--unknown"], ["3.6.1"], ["--force", "3.6.1"]]) {
       const invalidArguments = runDeploy("", {}, args);
       assert.notEqual(invalidArguments.status, 0);
       assert.match(invalidArguments.stdout, /Unsupported argument/);
@@ -1625,7 +1621,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
         input: "y\n",
       });
       assert.equal(npmEarly.status, 0, npmEarly.stderr || npmEarly.stdout);
-      assert.match(npmEarly.stdout, /Proceeding with unpublished release links/);
+      assert.match(
+        npmEarly.stdout,
+        /Proceeding with unpublished release links/,
+      );
       assert.match(npmEarly.stdout, /Successfully deployed to Vercel/);
     }
 
@@ -1693,7 +1692,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
     commitPage("drop releases page");
     const missingPage = runDeploy(readyOutput);
     assert.notEqual(missingPage.status, 0);
-    assert.match(missingPage.stdout, /releases\.tsx is missing; update this check/);
+    assert.match(
+      missingPage.stdout,
+      /releases\.tsx is missing; update this check/,
+    );
     assert.doesNotMatch(missingPage.stdout, /Successfully deployed to Vercel/);
 
     writeFileSync(releasesPage, "export const notes: string[] = [];\n");
@@ -1711,7 +1713,10 @@ test("production docs require a verified Vercel deployment result", (context) =>
       if (args.length === 0) {
         assert.notEqual(syncDirty.status, 0);
         assert.match(syncDirty.stdout, /Version metadata was not synchronized/);
-        assert.doesNotMatch(syncDirty.stdout, /Successfully deployed to Vercel/);
+        assert.doesNotMatch(
+          syncDirty.stdout,
+          /Successfully deployed to Vercel/,
+        );
       } else {
         assert.equal(syncDirty.status, 0, syncDirty.stderr || syncDirty.stdout);
         assert.match(syncDirty.stdout, /Successfully deployed to Vercel/);
@@ -1726,8 +1731,14 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.match(dirty.stdout, /requires a clean worktree/);
     assert.doesNotMatch(dirty.stdout, /Successfully deployed to Vercel/);
     for (const flag of ["-f", "--force"]) {
-      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [flag]);
-      assert.equal(dirtyEarly.status, 0, dirtyEarly.stderr || dirtyEarly.stdout);
+      const dirtyEarly = runDeploy(readyOutput, { MOCK_GH_RELEASES: "" }, [
+        flag,
+      ]);
+      assert.equal(
+        dirtyEarly.status,
+        0,
+        dirtyEarly.stderr || dirtyEarly.stdout,
+      );
       assert.match(dirtyEarly.stdout, /Deploying local uncommitted changes/);
       assert.match(dirtyEarly.stdout, /Successfully deployed to Vercel/);
       assert.equal(readFileSync(localWork, "utf8"), "local work\n");
@@ -1741,7 +1752,11 @@ test("production docs require a verified Vercel deployment result", (context) =>
     assert.notEqual(ahead.status, 0);
     assert.match(ahead.stdout, /Local main must exactly match origin\/main/);
     const forcedAhead = runDeploy(readyOutput, {}, ["--force"]);
-    assert.equal(forcedAhead.status, 0, forcedAhead.stderr || forcedAhead.stdout);
+    assert.equal(
+      forcedAhead.status,
+      0,
+      forcedAhead.stderr || forcedAhead.stdout,
+    );
     assert.match(forcedAhead.stdout, /Deploying local main, which differs/);
     assert.match(forcedAhead.stdout, /Successfully deployed to Vercel/);
   } finally {
