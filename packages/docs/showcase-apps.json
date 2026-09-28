@@ -7,7 +7,7 @@
       "library": "expo-iap",
       "ios": "https://apps.apple.com/us/app/sudoku-rabbit-daily-puzzles/id6742900571",
       "android": "https://play.google.com/store/apps/details?id=com.bustedout.sudokurabbit",
-      "ratings": 149,
+      "ratings": 153,
       "installs": 1000
     },
     {
@@ -37,7 +37,7 @@
       "ios": "https://apps.apple.com/us/app/recallai-ai-memo-chat/id6784931826",
       "android": "https://play.google.com/store/apps/details?id=dev.hyo.recallai",
       "ratings": 0,
-      "installs": 1
+      "installs": 5
     },
     {
       "name": "Boxa",
@@ -104,6 +104,17 @@
       "web": "https://dribu.de/",
       "ratings": 9,
       "installs": 1000
+    },
+    {
+      "name": "Moonlit Beacon",
+      "tagline": "Light the beacons, defeat spirits, and wake each region's Guardian",
+      "logo": "/showcase/moonlit-beacon.webp",
+      "library": "godot-iap",
+      "iapkit": true,
+      "ios": "https://apps.apple.com/us/app/moonlit-beacon/id6796293839",
+      "android": "https://play.google.com/store/apps/details?id=com.crossplatformkorea.moonlitbeacon",
+      "ratings": 0,
+      "installs": 5
     }
   ]
 }
