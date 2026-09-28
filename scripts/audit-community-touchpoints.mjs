@@ -25,14 +25,16 @@ export const noticeRoots = {
   "maui-iap": ["libraries/maui-iap/src/OpenIap.Maui"],
 };
 
-// Consumer surfaces that carry the note verbatim; the AI assistants guide
-// imports the JSON instead of copying it.
+// Consumer surfaces that carry the note verbatim.
 export const assistantNoteRoots = [
   "packages/cli/src",
   "plugins/openiap/skills/openiap/SKILL.md",
   "packages/docs/public/llms.txt",
   "packages/docs/public/llms-full.txt",
 ];
+
+// The AI assistants guide renders the note from the JSON instead of copying it.
+export const assistantNoteRenderer = "packages/docs/src/pages/docs/guides/ai-assistants.tsx";
 
 // Contributor surfaces the note must stay out of.
 export const contributorRoots = ["AGENTS.md", ".claude", ".codex"];
@@ -79,6 +81,18 @@ function filesContaining(root, roots, needle) {
     );
 }
 
+// Each line is its own string literal right after the previous one, so the
+// lines cannot be reordered or merged.
+function listsLinesInOrder(source, lines) {
+  let end = source.indexOf(lines[0]) + lines[0].length;
+  for (const line of lines.slice(1)) {
+    const start = source.indexOf(line, end);
+    if (start === -1 || !/^["'][\s,]*["']$/u.test(source.slice(end, start))) return false;
+    end = start + line.length;
+  }
+  return true;
+}
+
 export function collectCommunityTouchpointFailures(root = repositoryRoot) {
   const failures = [];
   const { consoleNotice, assistantNote } = JSON.parse(
@@ -94,10 +108,14 @@ export function collectCommunityTouchpointFailures(root = repositoryRoot) {
       continue;
     }
     const source = fs.readFileSync(path.join(root, files[0]), "utf8");
-    for (const line of consoleNotice) {
-      if (!source.includes(line)) {
-        failures.push(`${files[0]}: notice line differs from ${touchpointsPath}: ${line}`);
-      }
+    const missing = consoleNotice.filter((line) => !source.includes(line));
+    for (const line of missing) {
+      failures.push(`${files[0]}: notice line differs from ${touchpointsPath}: ${line}`);
+    }
+    if (missing.length === 0 && !listsLinesInOrder(source, consoleNotice)) {
+      failures.push(
+        `${files[0]}: notice lines must be separate literals in the order of ${touchpointsPath}`,
+      );
     }
   }
 
@@ -113,6 +131,12 @@ export function collectCommunityTouchpointFailures(root = repositoryRoot) {
     if (!fs.readFileSync(path.join(root, files[0]), "utf8").includes(assistantNote)) {
       failures.push(`${files[0]}: note for coding assistants differs from ${touchpointsPath}`);
     }
+  }
+
+  const renderer = path.join(root, assistantNoteRenderer);
+  const rendererText = fs.existsSync(renderer) ? fs.readFileSync(renderer, "utf8") : "";
+  if (!rendererText.includes("community-touchpoints.json") || !rendererText.includes(".assistantNote")) {
+    failures.push(`${assistantNoteRenderer}: must render assistantNote from ${touchpointsPath}`);
   }
 
   const body = assistantNote.split("\n").slice(1).join("\n");

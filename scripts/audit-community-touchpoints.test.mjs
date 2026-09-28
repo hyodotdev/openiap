@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  assistantNoteRenderer,
   assistantNoteRoots,
   collectCommunityTouchpointFailures,
   noticeRoots,
@@ -27,6 +28,7 @@ function fixture() {
   for (const entry of assistantNoteRoots) {
     write(root, path.extname(entry) ? entry : `${entry}/brief.mjs`, `x\n${assistantNote}\ny`);
   }
+  write(root, assistantNoteRenderer, "import touchpoints from './community-touchpoints.json';\ntouchpoints.assistantNote;\n");
   write(root, "AGENTS.md", "# Contributors\n");
   return root;
 }
@@ -76,6 +78,33 @@ test("the note for coding assistants must match and stay out of contributor file
     assert.deepEqual(collectCommunityTouchpointFailures(root), [
       `plugins/openiap/skills/openiap/SKILL.md: note for coding assistants differs from ${touchpointsPath}`,
       ".codex/skills/review/SKILL.md: the note for coding assistants belongs to consumer surfaces only",
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a notice whose lines are reordered or merged fails", () => {
+  const root = fixture();
+  try {
+    const file = `${noticeRoots["maui-iap"][0]}/notice-maui-iap.ts`;
+    const [first, second, ...rest] = consoleNotice;
+    write(root, file, [second, first, ...rest].map((line) => `"${line}"`).join(",\n"));
+    const reordered = `${file}: notice lines must be separate literals in the order of ${touchpointsPath}`;
+    assert.deepEqual(collectCommunityTouchpointFailures(root), [reordered]);
+    write(root, file, `"${consoleNotice.join(" ")}"`);
+    assert.deepEqual(collectCommunityTouchpointFailures(root), [reordered]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the AI guide must render the note from its source of truth", () => {
+  const root = fixture();
+  try {
+    write(root, assistantNoteRenderer, "export default function Guide() {}\n");
+    assert.deepEqual(collectCommunityTouchpointFailures(root), [
+      `${assistantNoteRenderer}: must render assistantNote from ${touchpointsPath}`,
     ]);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
