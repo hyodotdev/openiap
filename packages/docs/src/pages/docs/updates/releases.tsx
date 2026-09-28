@@ -72,6 +72,25 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'expo-iap', version: '5.6.3', tag: 'expo-iap-5.6.3' },
 ];
 
+const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
+  { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
+  {
+    name: 'react-native-iap',
+    version: '16.7.2',
+    tag: 'react-native-iap-16.7.2',
+  },
+  { name: 'expo-iap', version: '5.8.2', tag: 'expo-iap-5.8.2' },
+  {
+    name: 'flutter_inapp_purchase',
+    version: '10.7.2',
+    tag: 'flutter-iap-10.7.2',
+  },
+  { name: 'godot-iap', version: '3.6.2', tag: 'godot-iap-3.6.2' },
+  { name: 'kmp-iap', version: '3.6.2', tag: 'kmp-iap-3.6.2' },
+  { name: 'maui-iap', version: '2.6.2', tag: 'maui-iap-2.6.2' },
+  { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
+];
+
 const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
   { name: 'openiap-google', version: '3.6.1', tag: 'google-3.6.1' },
   {
@@ -433,6 +452,156 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    {
+      id: 'amazon-subscription-offers-2026-09-29',
+      aliases: AMAZON_OFFER_FIX_RELEASES.map((release) => release.tag),
+      date: new Date('2026-09-29'),
+      element: (
+        <div key="amazon-subscription-offers-2026-09-29" style={noteCardStyle}>
+          {AMAZON_OFFER_FIX_RELEASES.map((release) => (
+            <span key={release.tag} id={release.tag} aria-hidden="true" />
+          ))}
+          <AnchorLink id="amazon-subscription-offers-2026-09-29" level="h4">
+            September 29, 2026 - Amazon subscriptions report real prices and
+            trials
+          </AnchorLink>
+
+          <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+            Paid Amazon plans no longer read as free trials, Vega OS reports the
+            same offers as Fire OS, and store-selection errors and deprecation
+            warnings say what to do. See{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/500"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #500
+            </a>
+            .
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native packages</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.6.2</strong>
+              <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
+                <li>
+                  An Amazon plan&apos;s pricing phase carries its price in{' '}
+                  <code>priceAmountMicros</code>. It reported <code>0</code>, so
+                  a zero-price trial check read every paid Amazon plan as a free
+                  trial.
+                </li>
+                <li>
+                  The Gradle plugin links a flavor&apos;s store into its
+                  unit-test and instrumented-test classpaths too; a Horizon test
+                  run got the Play artifact next to the Horizon one.
+                </li>
+                <li>
+                  Store-selection errors name a fix that works: build one store
+                  per invocation, or pass an option&apos;s value inline (
+                  <code>--name=value</code>).
+                </li>
+                <li>
+                  <code>horizonEnabled</code>, <code>fireOsEnabled</code>, and{' '}
+                  <code>openiapPlatform=none</code> warn that they are removed
+                  in the next major release; see{' '}
+                  <Link to="/docs/updates/migration#next-major">Migration</Link>
+                  .
+                </li>
+              </ul>
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <p style={{ fontSize: '0.9rem' }}>
+            Every library below ships openiap-google 3.6.2. React Native, Expo,
+            and Flutter also ship its store resolver, with the same errors and
+            warnings.
+          </p>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.7.2</strong> - Vega OS subscriptions
+              report their billing period and, when the customer is eligible, a{' '}
+              <code>free-trial</code> offer, as Fire OS does. The raw{' '}
+              <code>NitroProduct</code> bridge type drops seven Android fields
+              that <code>fetchProducts</code> never returned.
+            </li>
+            <li>
+              <strong>expo-iap 5.8.2</strong> - the same Vega OS offers.{' '}
+              <code>modules.horizon</code> and{' '}
+              <code>modules.amazon.fireOS</code> warn that they are removed in
+              the next major release, and a hand-written root{' '}
+              <code>manifest.toml</code> no longer draws a warning on every
+              prebuild.
+            </li>
+            <li>
+              <strong>maui-iap 2.6.2</strong> - <code>OpenIapAndroidStore</code>{' '}
+              warns (<code>OPENIAP0001</code>) that it is removed in the next
+              major release, and a value that disagrees with{' '}
+              <code>OpenIapStore</code> fails the build, as a legacy flag does
+              in Gradle. <code>OpenIapStore=auto</code> now leaves the choice to
+              it.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.7.2</strong>,{' '}
+              <strong>godot-iap 3.6.2</strong>, and{' '}
+              <strong>kmp-iap 3.6.2</strong> - the openiap-google 3.6.2 fixes.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Tooling</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>@hyodotdev/openiap 0.2.0</strong> - <code>doctor</code>{' '}
+              reads <code>openiapStore</code> pins and their aliases alongside
+              the legacy flags, reports store values the build would reject, and
+              no longer suggests the deprecated flags as a fix.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul>
+              {AMAZON_OFFER_FIX_RELEASES.map((release) => (
+                <li key={release.tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{getReleaseLabel(release)}</strong>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
     {
       id: 'minified-release-builds-2026-09-26',
       aliases: MINIFIED_RELEASE_BUILD_RELEASES.map((release) => release.tag),

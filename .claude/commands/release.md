@@ -169,7 +169,12 @@ Train rules (mistake guards):
   native release (Apple, Google) is registry-verified (CocoaPods trunk /
   Maven Central POMs publicly fetchable) and its package metadata is
   synchronized on `main`. Workflow success is not deployment; poll the
-  registry.
+  registry. Each library workflow enforces this with
+  `release-branch-policy.mjs native-gate`, which refuses a stable release while
+  openiap-google or openiap-apple has source commits after its release tag
+  (expo-iap 5.7.0 shipped 93 minutes before the natives it needed). Set
+  `allow_unreleased_native` only for a library fix that must not wait for an
+  unrelated native change.
 - **Release notes ship in the PR.** The consolidated card in
   `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
   written ahead of the release (see `generate-doc`). After every package in the
@@ -179,7 +184,10 @@ Train rules (mistake guards):
   and do not open a PR for that post-release docs-only commit. Run the docs
   deployment; to deploy before publication, use the explicit flag in
   `knowledge/internal/06-git-deployment.md#deploying-documentation`.
-  If a train will not resume, trim its card to what published.
+  If a train will not resume, trim its card to what published. CI's release
+  note audit (`bun run audit:release-notes`) fails a PR into `main` that
+  changes a published package's source without touching the card; a
+  behavior-neutral PR carries the `፦ refactor` label instead.
   There is no Docs release workflow and no docs tag; if a Docs
   GitHub Release is requested, explain that the docs site is not a versioned
   artifact.
@@ -188,6 +196,22 @@ Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
 native workflow has synchronized its package metadata before dispatching the
 next package or docs release. Do not dispatch the full list in parallel.
+
+## Published but the Workflow Failed
+
+A registry can publish and still fail the step: CocoaPods trunk answered
+openiap-apple 3.5.0 with a 504 after the pod went live. Check the registry
+(Verification Sources) before touching anything.
+
+- **The artifact is public.** The release happened. Keep the release commit and
+  tag; never rewrite `main` (it rejects force-pushes) or delete the tag. Rerun
+  the same workflow from `main` with `version=current`: it verifies the
+  existing tag with `scripts/assert-release-tag.mjs` and finishes the GitHub
+  Release and the remaining steps.
+- **Nothing is public.** Fix forward in a PR, then release again.
+- **Never republish a version or recreate a tag.** Registries are immutable; a
+  wrong artifact is superseded by the next patch, and its changes go on the
+  next card unless the maintainer asks to leave that version unannounced.
 
 ## Dependency Modernization Release Gate
 
@@ -269,7 +293,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | React Native | `npm view react-native-iap@{version} version dist-tags --json`           |
 | Expo         | `npm view expo-iap@{version} version dist-tags --json`                   |
 | Flutter      | `https://pub.dev/api/packages/flutter_inapp_purchase/versions/{version}` |
-| Godot        | GitHub Release and `godot-iap-{version}.zip` contents                    |
+| Godot        | GitHub Release, `godot-iap-{version}.zip`, and Asset Library 4627 (below) |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
 | MAUI         | NuGet flat-container package and GitHub Release                          |
 | Docs         | Production `openiap.dev` responds with the new content (no tag)          |
@@ -295,7 +319,10 @@ maintainer's logged-in browser session: update the version string and the
 download commit/URL to the new `godot-iap-{version}` release, then submit the
 edit for review. Never enter credentials; if no logged-in session is
 available, report the exact version and release ZIP URL so the maintainer can
-perform the edit, and record it as pending work.
+perform the edit, and record it as pending work. The accepted version is
+`curl -s https://godotengine.org/asset-library/api/asset/4627 | jq -r .version_string`;
+until moderation accepts the edit, report its edit id as pending. 3.6.1 was
+missed because this step was left for later.
 
 ## Final Report
 

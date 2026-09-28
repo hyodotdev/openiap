@@ -305,6 +305,162 @@ const activeDocsExcluded = [
   "packages/docs/src/pages/docs/updates/releases.tsx",
 ];
 
+const PACKAGE_JSON_VERSION = /"version":\s*"([^"]+)"/;
+const NEXT_MAJOR_NOTICE = /removed in the next major release/i;
+const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
+
+// Deprecated keys that every patch and minor keeps, with a warning, until the
+// next major of each package that ships them. `major` is the package's major
+// when the key was deprecated; a rule is due once any package moves past it.
+export const scheduledRemovalRules = [
+  {
+    label: "legacy Gradle store flags",
+    packages: [
+      {
+        name: "openiap-google",
+        major: 3,
+        file: "openiap-versions.json",
+        pattern: /"google":\s*"([^"]+)"/,
+      },
+      {
+        name: "react-native-iap",
+        major: 16,
+        file: "libraries/react-native-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+      {
+        name: "expo-iap",
+        major: 5,
+        file: "libraries/expo-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+      {
+        name: "flutter_inapp_purchase",
+        major: 10,
+        file: "libraries/flutter_inapp_purchase/pubspec.yaml",
+        pattern: /^version:\s*(\S+)/m,
+      },
+    ],
+    sources: [
+      {
+        file: "packages/google/gradle/openiap-store.gradle",
+        tokens: ["horizonEnabled", "fireOsEnabled", "openiapPlatform"],
+      },
+    ],
+    catalog: [
+      "horizonEnabled=true",
+      "fireOsEnabled=true",
+      "openiapPlatform=none",
+    ],
+  },
+  {
+    label: "expo-iap store pin options",
+    packages: [
+      {
+        name: "expo-iap",
+        major: 5,
+        file: "libraries/expo-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+    ],
+    sources: [
+      {
+        file: "libraries/expo-iap/plugin/src/withIAP.ts",
+        tokens: [
+          "modules.horizon",
+          "modules.amazon.fireOS",
+          "EXPO_IAP_HORIZON",
+          "EXPO_IAP_FIREOS",
+        ],
+      },
+      {
+        file: "libraries/expo-iap/plugin/src/expoConfig.augmentation.d.ts",
+        tokens: ["horizon?: boolean", "fireOS?: boolean"],
+      },
+    ],
+    catalog: [
+      "modules.horizon / EXPO_IAP_HORIZON=1",
+      "modules.amazon.fireOS / EXPO_IAP_FIREOS=1",
+    ],
+  },
+  {
+    label: "OpenIap.Maui store alias",
+    packages: [
+      {
+        name: "OpenIap.Maui",
+        major: 2,
+        file: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        pattern: /<PackageVersion>([^<]+)<\/PackageVersion>/,
+      },
+    ],
+    sources: [
+      {
+        file: "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets",
+        tokens: ["OpenIapAndroidStore"],
+      },
+    ],
+    catalog: ["OpenIapAndroidStore"],
+  },
+];
+
+const readRepoFile = (file) => {
+  const absolute = path.join(root, file);
+  return fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : "";
+};
+
+export const collectScheduledRemovalFailures = (
+  rules = scheduledRemovalRules,
+  readFile = readRepoFile,
+) => {
+  const failures = [];
+  for (const rule of rules) {
+    const due = [];
+    for (const pkg of rule.packages) {
+      const version = pkg.pattern.exec(readFile(pkg.file))?.[1];
+      const major = Number(version?.split(".")[0]);
+      if (!Number.isInteger(major)) {
+        failures.push(`${pkg.file}: cannot read the ${pkg.name} version`);
+      } else if (major > pkg.major) {
+        due.push(`${pkg.name} ${version}`);
+      } else if (major < pkg.major) {
+        failures.push(
+          `${pkg.file}: ${rule.label} names ${pkg.name} major ${pkg.major}, but the package is ${version}`,
+        );
+      }
+    }
+    if (due.length > 0) {
+      failures.push(
+        `${rule.label}: ${due.join(", ")} is past the major that deprecated them; remove them there, with their catalog rows and this rule`,
+      );
+      continue;
+    }
+    for (const source of rule.sources) {
+      const text = readFile(source.file);
+      for (const token of source.tokens) {
+        if (!text.includes(token)) {
+          failures.push(
+            `${source.file}: ${rule.label} dropped ${JSON.stringify(token)} before the next major release`,
+          );
+        }
+      }
+      if (!NEXT_MAJOR_NOTICE.test(text)) {
+        failures.push(
+          `${source.file}: ${rule.label} must say they are removed in the next major release`,
+        );
+      }
+    }
+    const catalog = readFile(MIGRATION_PAGE);
+    for (const entry of rule.catalog) {
+      if (!catalog.includes(entry)) {
+        failures.push(
+          `${MIGRATION_PAGE}: ${rule.label} has no migration row for ${JSON.stringify(entry)}`,
+        );
+      }
+    }
+  }
+  return failures;
+};
+
 const forbiddenFiles = [
   "packages/apple/Sources/Models/TypeAliases.swift",
   "packages/apple/Sources/ReceiptValidationCompat.swift",
@@ -554,7 +710,10 @@ export const collectCompletedRemovalFailures = () => {
 };
 
 export const runAudit = () => {
-  const failures = collectCompletedRemovalFailures();
+  const failures = [
+    ...collectCompletedRemovalFailures(),
+    ...collectScheduledRemovalFailures(),
+  ];
   if (failures.length > 0) {
     console.error("Deprecated API removal audit failed:\n");
     for (const failure of failures) console.error(`- ${failure}`);
@@ -562,7 +721,7 @@ export const runAudit = () => {
   }
 
   console.log(
-    `Deprecated API removal audit passed (${completedRemovalRules.length} source groups, ${activeDocsForbiddenTokens.length} active-doc tokens).`,
+    `Deprecated API removal audit passed (${completedRemovalRules.length} source groups, ${activeDocsForbiddenTokens.length} active-doc tokens, ${scheduledRemovalRules.length} scheduled removals).`,
   );
   return true;
 };

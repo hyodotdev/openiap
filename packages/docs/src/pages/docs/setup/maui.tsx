@@ -309,19 +309,10 @@ public class SceneDelegate : MauiUISceneDelegate
             Console.
           </li>
           <li>
-            Add the Play Billing permission to{' '}
-            <code>Platforms/Android/AndroidManifest.xml</code>.
-          </li>
-          <li>
             Upload a build with the same package name and signing lineage to an
             internal or closed test track before testing purchases.
           </li>
         </ul>
-        <CodeBlock language="xml">
-          {`<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-  <uses-permission android:name="com.android.vending.BILLING" />
-</manifest>`}
-        </CodeBlock>
       </section>
 
       <section>

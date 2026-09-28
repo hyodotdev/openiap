@@ -346,6 +346,73 @@ export function updateNativeVersion(packageId, targetVersion, root = repoRoot) {
   return updatedVersions;
 }
 
+// Framework libraries pin the released native packages, so a library released
+// while one of them has unreleased source ships without that change (expo-iap
+// 5.7.0 went out 93 minutes before the natives it needed).
+export const nativeReleaseGates = {
+  google: {
+    tag: (version) => `google-${version}`,
+    paths: [
+      "packages/google/openiap/src/main",
+      "packages/google/openiap/src/play",
+      "packages/google/openiap/src/horizon",
+      "packages/google/openiap/src/amazon",
+      "packages/google/openiap/build.gradle.kts",
+      "packages/google/gradle",
+      "packages/google/gradle-plugin/src/main",
+    ],
+  },
+  apple: {
+    tag: (version) => version,
+    paths: [
+      "packages/apple/Sources",
+      "packages/apple/Package.swift",
+      "packages/apple/openiap.podspec",
+    ],
+  },
+};
+
+function runGit(args, root = repoRoot) {
+  return execFileSync("git", args, { cwd: root, encoding: "utf8" });
+}
+
+// Source commits since each native package's release tag; version bumps excluded.
+export function findUnreleasedNativeChanges(
+  versions,
+  { git = runGit, gates = nativeReleaseGates } = {},
+) {
+  const pending = [];
+  for (const [id, gate] of Object.entries(gates)) {
+    const tag = gate.tag(versions[id]);
+    let log;
+    try {
+      log = git(["log", "--format=%h %s", `${tag}..HEAD`, "--", ...gate.paths]);
+    } catch {
+      throw new Error(
+        `Cannot compare with release tag '${tag}'; check out with full history and tags (fetch-depth: 0)`,
+      );
+    }
+    const commits = log
+      .split("\n")
+      .filter((line) => line && !/^\S+ chore\(release\):/.test(line));
+    if (commits.length > 0) {
+      pending.push({ label: versionSources[id].label, tag, commits });
+    }
+  }
+  return pending;
+}
+
+export function assertNativesReleased(versions, options) {
+  const pending = findUnreleasedNativeChanges(versions, options);
+  if (pending.length === 0) return;
+  const details = pending
+    .map(({ label, tag, commits }) => `${label} since ${tag}: ${commits.join("; ")}`)
+    .join(" | ");
+  throw new Error(
+    `Native gate: release the native packages first, or rerun with allow_unreleased_native when this library must not wait. ${details}`,
+  );
+}
+
 function readCurrentBranch() {
   try {
     return execFileSync("git", ["branch", "--show-current"], {
@@ -410,6 +477,31 @@ function runGuard(args) {
     `Release branch policy: ${source.label} ${channel} release on '${expectedBranch}' ` +
       `(current ${currentVersion})`,
   );
+}
+
+// Run once per framework library release, from a full-history checkout.
+function runNativeGate(args) {
+  const [versionMode, prerelease] = args;
+  if (!versionMode) {
+    throw new Error(
+      "Usage: release-branch-policy.mjs native-gate <version-mode> <prerelease>",
+    );
+  }
+  // A retry republishes a tag already cut; a prerelease may precede the natives.
+  if (
+    versionMode === "current" ||
+    versionMode === "rc-bump" ||
+    String(prerelease) === "true"
+  ) {
+    console.log(`Native gate: not needed for version=${versionMode}, prerelease=${prerelease}.`);
+    return;
+  }
+  if (process.env.OPENIAP_ALLOW_UNRELEASED_NATIVE === "true") {
+    console.log("::warning::Native gate skipped by allow_unreleased_native.");
+    return;
+  }
+  assertNativesReleased(readVersionManifest());
+  console.log("Native gate: openiap-google and openiap-apple have no unreleased source changes.");
 }
 
 function runAssertClientProtocol() {
@@ -478,6 +570,10 @@ function main() {
     runGuard(args);
     return;
   }
+  if (command === "native-gate") {
+    runNativeGate(args);
+    return;
+  }
   if (command === "update-native") {
     runUpdateNative(args);
     return;
@@ -487,7 +583,7 @@ function main() {
     return;
   }
   throw new Error(
-    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|update-native> [arguments]",
+    "Usage: release-branch-policy.mjs <assert-client-protocol|audit|guard|native-gate|update-native> [arguments]",
   );
 }
 

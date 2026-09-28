@@ -216,6 +216,43 @@ const flutterCustomWireMigrations = [
   ['numeric-indexed iOS SKU maps', '{ skus: [...] }'],
 ] as const;
 
+// Deprecated store-selection keys; scripts/audit-deprecation-schedule.mjs keeps
+// this list, the build warnings, and the package majors in step.
+const scheduledStoreRemovals = [
+  {
+    title:
+      'react-native-iap, expo-iap, flutter_inapp_purchase, and the openiap-google Gradle plugin',
+    rows: [
+      [
+        'horizonEnabled=true',
+        'openiapStore=horizon, or no pin: a debug build follows the connected Quest',
+      ],
+      [
+        'fireOsEnabled=true',
+        'openiapStore=amazon, or no pin: a debug build follows the connected Fire device',
+      ],
+      ['openiapPlatform=none (flutter_inapp_purchase)', 'openiapStore=none'],
+    ],
+  },
+  {
+    title: 'expo-iap',
+    rows: [
+      [
+        'modules.horizon / EXPO_IAP_HORIZON=1',
+        'ORG_GRADLE_PROJECT_openiapStore=horizon in the EAS profile env; a local debug build follows the connected Quest',
+      ],
+      [
+        'modules.amazon.fireOS / EXPO_IAP_FIREOS=1',
+        'ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env; a local debug build follows the connected Fire device',
+      ],
+    ],
+  },
+  {
+    title: 'OpenIap.Maui',
+    rows: [['OpenIapAndroidStore', 'OpenIapStore']],
+  },
+] as const;
+
 const packageCompatibilityMigrations = [
   {
     title: 'openiap-apple (OpenIAP 3.0)',
@@ -376,7 +413,7 @@ const packageCompatibilityMigrations = [
       ],
       [
         'config.android.amazon.fireOS / boolean config.android.amazon.vegaOS',
-        'config.modules.amazon.fireOS / config.modules.amazon.vegaOS',
+        'ORG_GRADLE_PROJECT_openiapStore=amazon / a root manifest.toml, or config.modules.amazon.vegaOS to force Vega',
       ],
     ],
   },
@@ -495,6 +532,45 @@ function Migration() {
         that drop the previously deprecated, OpenIAP-owned compatibility surface
         and the canonical call to use instead.
       </p>
+
+      <section>
+        <AnchorLink id="next-major" level="h2">
+          Scheduled for the next major release
+        </AnchorLink>
+        <p>
+          These store-selection keys are deprecated. Every patch and minor
+          release keeps them working with a build warning; the next major
+          release of each package that carries them removes them. The store rule
+          itself is in{' '}
+          <Link to="/docs/setup/store#selection">
+            How the Store Is Selected
+          </Link>
+          .
+        </p>
+        {scheduledStoreRemovals.map((group) => (
+          <div key={group.title}>
+            <h4>{group.title}</h4>
+            <table className="doc-table">
+              <thead>
+                <tr>
+                  <th>Deprecated key</th>
+                  <th>Migrate to</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.rows.map(([deprecated, replacement]) => (
+                  <tr key={deprecated}>
+                    <td>
+                      <code>{deprecated}</code>
+                    </td>
+                    <td>{replacement}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </section>
 
       {/* ---------------------------------------------------------------
           Migration train: 2.x -> 3.0

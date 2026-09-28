@@ -321,9 +321,24 @@ jobs:
           COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
           COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
           CI: true
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose
-          echo "✅ Published to CocoaPods"
+          if pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose; then
+            echo "✅ Published to CocoaPods"
+            exit 0
+          fi
+          # Trunk can publish and still answer with an error; 3.5.0 got a 504
+          # after it went live, and failing here left it without a release.
+          for _ in 1 2 3 4 5 6; do
+            sleep 20
+            if pod trunk info openiap | awk -v version="$VERSION" \
+              '$1 == "-" && $2 == version { found=1 } END { exit !found }'; then
+              echo "::warning::pod trunk push reported an error, but openiap $VERSION is on CocoaPods; continuing"
+              exit 0
+            fi
+          done
+          echo "::error::pod trunk push failed and openiap $VERSION is not on CocoaPods"
+          exit 1
 
       - name: Generate release notes
         id: release_notes

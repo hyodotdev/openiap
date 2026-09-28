@@ -9,6 +9,7 @@ import {
   collectForbiddenMatches,
   collectMissingRequiredTexts,
   collectRepositorySchemaDeprecations,
+  collectScheduledRemovalFailures,
   collectSchemaDeprecationFailures,
   completedRemovalRules,
 } from "./audit-deprecation-schedule.mjs";
@@ -251,4 +252,80 @@ test("the walker skips SwiftPM checkouts of this repository", () => {
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
   }
+});
+
+const scheduledRule = {
+  label: "legacy flag",
+  packages: [
+    { name: "lib", major: 3, file: "version.txt", pattern: /^(\S+)$/ },
+  ],
+  sources: [{ file: "source.gradle", tokens: ["legacyFlag"] }],
+  catalog: ["legacyFlag=true"],
+};
+
+const scheduledFiles = (overrides = {}) => {
+  const files = {
+    "version.txt": "3.4.0",
+    "source.gradle":
+      "warn('legacyFlag is deprecated and will be removed in the next major release')",
+    "packages/docs/src/pages/docs/updates/migration.tsx": "['legacyFlag=true', 'newFlag']",
+    ...overrides,
+  };
+  return (file) => files[file] ?? "";
+};
+
+test("a scheduled removal passes while its major keeps the key and says when it goes", () => {
+  assert.deepEqual(
+    collectScheduledRemovalFailures([scheduledRule], scheduledFiles()),
+    [],
+  );
+});
+
+test("a scheduled removal fails when a minor drops the key early", () => {
+  const failures = collectScheduledRemovalFailures(
+    [scheduledRule],
+    scheduledFiles({
+      "source.gradle": "// removed in the next major release",
+    }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /dropped "legacyFlag" before the next major release/);
+});
+
+test("a scheduled removal fails when the warning names no removal", () => {
+  const failures = collectScheduledRemovalFailures(
+    [scheduledRule],
+    scheduledFiles({ "source.gradle": "warn('legacyFlag is deprecated')" }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /must say they are removed in the next major release/);
+});
+
+test("a scheduled removal is due once the package ships its next major", () => {
+  const failures = collectScheduledRemovalFailures(
+    [scheduledRule],
+    scheduledFiles({ "version.txt": "4.0.0" }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /lib 4\.0\.0 is past the major that deprecated them/);
+});
+
+test("a scheduled removal needs its migration row", () => {
+  const failures = collectScheduledRemovalFailures(
+    [scheduledRule],
+    scheduledFiles({
+      "packages/docs/src/pages/docs/updates/migration.tsx": "",
+    }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /no migration row for "legacyFlag=true"/);
+});
+
+test("a scheduled removal rejects a major that the package never reached", () => {
+  const failures = collectScheduledRemovalFailures(
+    [scheduledRule],
+    scheduledFiles({ "version.txt": "2.9.0" }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /names lib major 3, but the package is 2\.9\.0/);
 });

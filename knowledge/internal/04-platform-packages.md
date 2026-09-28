@@ -308,7 +308,8 @@ on the other stores; they never select anything.
 
 ```text
 1. explicit  openiapStore=<store>   -P / ORG_GRADLE_PROJECT_openiapStore / gradle.properties
-             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read, deprecation warning)
+             (legacy horizonEnabled, fireOsEnabled, openiapPlatform=none: still read with a
+             warning until the next major release; `bun audit:deprecations` holds that boundary)
 2. variant   a requested task carries a store flavor: assembleHorizonRelease, installAmazonDebug
 3. device    debug tasks only: the adb device ANDROID_SERIAL names, or the single
              attached one -> Quest = horizon, Fire = amazon
@@ -319,8 +320,7 @@ A store pin against a different task flavor, two store flavors named by the
 requested tasks, and a pin against a legacy flag each fail the build. Opting out
 with `openiapStore=none` never conflicts with a task flavor, because it links
 nothing; it does still conflict with a legacy flag that names a store. An anchor
-task that
-builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
+task that builds every flavor — `assemble`, or `assembleDebug` reaching a source-included
 openiap-google — is not that case and is allowed. The device is a fallback, not a
 competing signal — a pin or a flavor outranks it without complaint. A release
 build never consults a device, and several attached devices select nothing
@@ -350,10 +350,10 @@ file into its jar at build time. Every other build system reads the same names:
 | Consumer                            | Input                                                                                                |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                  |
-| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` still pin, with a warning    |
+| expo-iap config plugin              | writes no store; deprecated `modules.horizon` / `modules.amazon.fireOS` pin, with a warning          |
 | kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                    |
 | OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store        |
-| maui-iap                            | package targets at app build: `OpenIapStore` (alias `OpenIapAndroidStore`), Debug-build device, play |
+| maui-iap                            | package targets at app build: `OpenIapStore` (deprecated `OpenIapAndroidStore`), Debug device, play  |
 | godot-iap                           | export option `openiap/android_store`; `auto` follows the device on a debug export, else play        |
 | `openiap doctor`                    | reads `openiapStore`, `openiapPlatform` and the legacy flags with the same table                     |
 

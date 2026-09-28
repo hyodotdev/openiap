@@ -312,7 +312,7 @@ await iap.request_purchase(props)`}</CodeBlock>
               </td>
             </tr>
             <tr>
-              <td>Amazon (Fire OS)</td>
+              <td>Amazon (Fire OS and Vega OS)</td>
               <td>
                 Buy with the subscription SKU; Amazon has no offer tokens. When
                 the customer is eligible for a free trial,{' '}

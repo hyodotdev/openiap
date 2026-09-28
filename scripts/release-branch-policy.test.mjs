@@ -17,6 +17,8 @@ import { isolateGitEnvironment } from "./git-test-environment.mjs";
 import {
   allowsPrereleaseMetadata,
   assertClientProtocol,
+  assertNativesReleased,
+  findUnreleasedNativeChanges,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
@@ -1153,12 +1155,9 @@ test("framework release workflows refuse stale dispatch heads", () => {
       ).source;
       assert.match(
         publishedProvenanceStep,
-        /Allow five minutes for the immutable provenance to propagate/,
+        /expo-iap 5\.8\.1 took over five minutes\. Allow fifteen\./,
       );
-      assert.match(
-        publishedProvenanceStep,
-        /^\s*for attempt in \{1\.\.30\}; do\s*$/mu,
-      );
+      assert.match(publishedProvenanceStep, /^\s*for _ in \{1\.\.90\}; do\s*$/mu);
       assert.match(publishedProvenanceStep, /^\s*sleep 10\s*$/mu);
     }
   }
@@ -1851,12 +1850,9 @@ test("OpenIAP npm publication binds the exact source run attempt", () => {
   assert.ok(authorizationGuard < publish);
   assert.match(
     publishedProvenanceStep,
-    /Allow five minutes for the immutable provenance to propagate/u,
+    /expo-iap 5\.8\.1 took over five minutes\. Allow fifteen\./u,
   );
-  assert.match(
-    publishedProvenanceStep,
-    /^\s*for _attempt in \{1\.\.30\}; do\s*$/mu,
-  );
+  assert.match(publishedProvenanceStep, /^\s*for _ in \{1\.\.90\}; do\s*$/mu);
   assert.match(
     publishedProvenanceStep,
     /if node scripts\/verify-npm-release-provenance\.mjs \\\n\s+"\$PACKAGE_NAME" "\$VERSION" "\$GITHUB_SHA"/u,
@@ -2050,4 +2046,69 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
     readWorkflow("release-openiap.yml"),
     /"\$PACKAGE_ID" "\$RELEASE_BRANCH" "\$TAG" "\$VERSION" \\\n\s+"\$PACKAGE_NAME"/,
   );
+});
+
+const nativeVersions = { google: "3.6.1", apple: "3.6.0" };
+
+test("the native gate lists source commits since each native release tag", () => {
+  const ranges = [];
+  const git = (args) => {
+    ranges.push(args[2]);
+    return args[2] === "google-3.6.1..HEAD"
+      ? "abc1234 fix(google): a store fix\ndef5678 chore(release): openiap-google@3.6.1\n"
+      : "0123abc chore(release): openiap-google@3.6.1\n";
+  };
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: ["abc1234 fix(google): a store fix"],
+    },
+  ]);
+  assert.deepEqual(ranges, ["google-3.6.1..HEAD", "3.6.0..HEAD"]);
+});
+
+test("the native gate refuses a library release while a native change is unreleased", () => {
+  const git = (args) =>
+    args[2] === "3.6.0..HEAD" ? "abc1234 feat(apple): a new API\n" : "";
+  assert.throws(
+    () => assertNativesReleased(nativeVersions, { git }),
+    /Native gate: release the native packages first.*openiap-apple since 3\.6\.0: abc1234 feat\(apple\): a new API/,
+  );
+  assert.doesNotThrow(() => assertNativesReleased(nativeVersions, { git: () => "" }));
+});
+
+test("the native gate asks for full history when a release tag is missing", () => {
+  const git = () => {
+    throw new Error("fatal: bad revision");
+  };
+  assert.throws(
+    () => findUnreleasedNativeChanges(nativeVersions, { git }),
+    /Cannot compare with release tag 'google-3\.6\.1'.*fetch-depth: 0/,
+  );
+});
+
+test("every framework library release runs the native gate from full history", () => {
+  for (const filename of [
+    "release-react-native.yml",
+    "release-expo.yml",
+    "release-flutter.yml",
+    "release-godot.yml",
+    "release-kmp.yml",
+    "release-maui.yml",
+  ]) {
+    const workflow = readFileSync(
+      resolve(repoRoot, ".github/workflows", filename),
+      "utf8",
+    );
+    const start = workflow.indexOf("  release-branch:\n");
+    const job = workflow.slice(start, workflow.indexOf("\n\n  validate", start));
+    assert.match(job, /fetch-depth: 0/, `${filename} release-branch checkout`);
+    assert.match(
+      job,
+      /OPENIAP_ALLOW_UNRELEASED_NATIVE: \$\{\{ inputs\.allow_unreleased_native \}\}\n\s+run: >-\n\s+node scripts\/release-branch-policy\.mjs native-gate/,
+      `${filename} runs the native gate`,
+    );
+    assert.match(workflow, /\n      allow_unreleased_native:\n/, `${filename} input`);
+  }
 });

@@ -5950,15 +5950,15 @@ function checkFrameworkDependencyHygiene() {
     if (
       !publishedProvenanceStep ||
       !publishedProvenanceStep.source.includes(
-        "Allow five minutes for the immutable provenance to propagate",
+        "expo-iap 5.8.1 took over five minutes. Allow fifteen.",
       ) ||
-      !/^\s*for attempt in \{1\.\.30\}; do\s*$/mu.test(
+      !/^\s*for _ in \{1\.\.90\}; do\s*$/mu.test(
         publishedProvenanceStep.source,
       ) ||
       !/^\s*sleep 10\s*$/mu.test(publishedProvenanceStep.source)
     ) {
       fail(
-        `${npmReleaseWorkflow} must wait up to five minutes for npm provenance inside its published-provenance step`,
+        `${npmReleaseWorkflow} must wait up to fifteen minutes for npm provenance inside its published-provenance step`,
       );
     }
     if (
@@ -7427,6 +7427,10 @@ function checkFrameworkDependencyHygiene() {
             ])
           : null;
       },
+      "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets": (text) =>
+        [...text.matchAll(/<_OpenIapStoreName Include="([^"]+)" Store="([a-z]+)"/g)].flatMap(
+          (one) => one[1].split(";").map((alias) => [alias, one[2]]),
+        ),
     };
     const parsedAliases = {};
     for (const [file, parse] of Object.entries(aliasTables)) {
@@ -7439,8 +7443,9 @@ function checkFrameworkDependencyHygiene() {
       }
       parsedAliases[file] = new Map(entries);
     }
-    // Godot has no opt-out build, so `none` is the one id it may omit.
+    // Godot and MAUI have no opt-out build, so `none` is the one id they may omit.
     const godotFile = "libraries/godot-iap/addons/godot-iap/android_store.gd";
+    const mauiFile = "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets";
     // The facade maps aliases onto the three ids; the ids and the opt-out are
     // not keys there, and it has no device so `auto` never reaches it.
     const facadeFile =
@@ -7451,7 +7456,7 @@ function checkFrameworkDependencyHygiene() {
       for (const [file, table] of Object.entries(parsedAliases)) {
         if (file === "packages/google/gradle/openiap-store.gradle") continue;
         for (const [alias, store] of reference) {
-          if (file === godotFile && store === "none") continue;
+          if ((file === godotFile || file === mauiFile) && store === "none") continue;
           if (file === facadeFile && facadeSkips.has(alias)) continue;
           const mine = table.get(alias);
           if (mine === undefined) {
@@ -7480,7 +7485,7 @@ function checkFrameworkDependencyHygiene() {
       if (!expected) {
         fail(`${resolverFile}: the device feature checks could not be read`);
       } else {
-        for (const probe of [godotFile, "libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
+        for (const probe of [godotFile, mauiFile]) {
           if (exists(probe) && features(probe) !== expected) {
             fail(
               `${probe}: device features [${features(probe)}] differ from the resolver's [${expected}]`,
@@ -7489,22 +7494,17 @@ function checkFrameworkDependencyHygiene() {
         }
       }
     }
-    // MSBuild cannot hold a table, so check every alias appears in a condition.
-    // The app build resolves the store there, device step included.
-    for (const csproj of ["libraries/maui-iap/src/OpenIap.Maui/buildTransitive/OpenIap.Maui.targets"]) {
-      expectFile(csproj);
-      if (!exists(csproj) || !reference) continue;
-      const text = read(csproj);
-      for (const [alias, store] of reference) {
-        if (store === "none") continue;
-        const condition = new RegExp(
-          `'\\$\\(OpenIapStoreKey\\)' == '${alias}'[^>]*>${store}<`,
+    // MAUI's unknown-store error lists every value its table accepts.
+    if (reference && exists(mauiFile)) {
+      const hint = /is not a store\. Use ([a-z, ]+), or ([a-z]+) \(aliases: ([a-z/, -]+)\)\./.exec(
+        read(mauiFile),
+      );
+      const listed = hint ? [...hint[1].split(", "), hint[2], ...hint[3].split(/, |\//)] : [];
+      const accepted = [...reference].filter(([, store]) => store !== "none").map(([alias]) => alias);
+      if (listed.sort().join() !== accepted.sort().join()) {
+        fail(
+          `${mauiFile}: the unknown-store error lists [${listed.join(", ")}], not [${accepted.join(", ")}]`,
         );
-        if (!condition.test(text.replace(/\n\s*/g, " "))) {
-          fail(
-            `${csproj}: store alias ${JSON.stringify(alias)} does not select ${store}`,
-          );
-        }
       }
     }
     for (const app of [

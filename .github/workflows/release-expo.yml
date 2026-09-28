@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_unreleased_native:
+        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        required: false
+        default: false
+        type: boolean
       publish_only:
         description: "Internal: publish an existing release tag to npm"
         required: false
@@ -53,6 +58,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # The native gate compares with the native release tags.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Enforce stable and prerelease branches
@@ -63,6 +70,15 @@ jobs:
           node scripts/release-branch-policy.mjs guard expo
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
+
+      - name: Require released native packages
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          OPENIAP_ALLOW_UNRELEASED_NATIVE: ${{ inputs.allow_unreleased_native }}
+        run: >-
+          node scripts/release-branch-policy.mjs native-gate
+          "$VERSION_TYPE" "$IS_PRERELEASE"
 
   validate-android:
     needs: [release-branch]
@@ -684,8 +700,8 @@ jobs:
           RELEASE_TAG="expo-iap-$VERSION"
           VERIFIED=false
           # npm can expose package metadata before its attestation endpoint is
-          # ready. Allow five minutes for the immutable provenance to propagate.
-          for attempt in {1..30}; do
+          # ready; expo-iap 5.8.1 took over five minutes. Allow fifteen.
+          for _ in {1..90}; do
             if node "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" \
               expo-iap "$VERSION" "$GITHUB_SHA" "$RELEASE_TAG" \
               release-expo.yml; then

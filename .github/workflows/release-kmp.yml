@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      allow_unreleased_native:
+        description: "Release although openiap-google or openiap-apple has unreleased source changes"
+        required: false
+        default: false
+        type: boolean
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -39,6 +44,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # The native gate compares with the native release tags.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Enforce stable and prerelease branches
@@ -49,6 +56,15 @@ jobs:
           node scripts/release-branch-policy.mjs guard kmp
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
+
+      - name: Require released native packages
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          OPENIAP_ALLOW_UNRELEASED_NATIVE: ${{ inputs.allow_unreleased_native }}
+        run: >-
+          node scripts/release-branch-policy.mjs native-gate
+          "$VERSION_TYPE" "$IS_PRERELEASE"
 
   validate-android:
     needs: [release-branch]

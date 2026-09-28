@@ -3,7 +3,7 @@
 > OpenIAP: Vendor-neutral in-app purchase standard. OpenIAP governs exactly two protocols. The Client Protocol (@hyodotdev/openiap-client-protocol) is the purchase API an app calls across Apple, Google, Meta Horizon and Amazon; openiap-apple, openiap-google and the six framework libraries implement it. The Commerce Protocol (@hyodotdev/openiap-commerce-protocol) is the server-side contract for verification, entitlements and store events; any backend may implement it, and IAPKit is one such implementation. Each protocol is versioned by its own npm package. A version labelled "OpenIAP Spec" in older material belongs to a retired lineage that numbered the client contract 2.x and 3.x in step with the native libraries; the Client Protocol is now versioned on its own from 0.1.0, so its version and a native library version are never comparable numbers.
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-09-28T15:14:47.863Z
+> Generated: 2026-09-28T15:56:04.323Z
 
 ## Reading instructions for coding assistants
 
@@ -623,6 +623,11 @@ because Amazon reports none. The base offer keeps its earlier shape:
 `pricingPhasesAndroid` holds one synthetic recurring phase whose
 `priceAmountMicros` is the parsed price, so a zero-price check does not read
 a paid plan as a free trial.
+
+The Vega OS adapters in `react-native-iap` and `expo-iap` map Kepler's
+`subscriptionPeriod` and `freeTrialPeriod` the same way, so one listing shows
+the same offers on Fire OS and Vega OS. Kepler prices carry a currency code,
+so the Vega base offer keeps it where Fire OS leaves `currency` empty.
 
 After purchase the RVS receipt reports `freeTrialEndDate` while the
 subscription is in its trial.

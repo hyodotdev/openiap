@@ -25,10 +25,16 @@ jobs:
   audit-release-state:
     name: Audit Release Branch State
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          # A PR's merge commit and its base, for the release note audit.
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Node
@@ -42,6 +48,20 @@ jobs:
       - name: Reject prerelease metadata on main
         run: node scripts/release-branch-policy.mjs audit
 
+      - name: Require a release note for published source changes
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Read labels now, not from the event, so a re-run sees one added later.
+          LABELS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')
+          if grep -qxF '፦ refactor' <<<"$LABELS"; then
+            echo "Release note audit skipped: the PR is labeled ፦ refactor."
+            exit 0
+          fi
+          node scripts/audit-release-notes.mjs HEAD^1
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -53,6 +73,7 @@ jobs:
       - name: Test release automation
         run: >-
           node --test scripts/release-branch-policy.test.mjs
+          scripts/audit-release-notes.test.mjs
           scripts/release-openiap.test.mjs
           scripts/audit-release-sync-script.test.mjs
           scripts/npm-publish-authorization.test.mjs

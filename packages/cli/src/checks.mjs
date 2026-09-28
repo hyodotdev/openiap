@@ -162,7 +162,7 @@ export function androidStoreChecks(root, framework) {
         "error",
         "android/gradle.properties",
         "horizonEnabled and fireOsEnabled are both true.",
-        "Leave one store enabled and regenerate the Android project.",
+        "Delete both deprecated flags; pin with openiapStore only where a build must target one store.",
         { line: properties.get("horizonEnabled")?.line },
       ),
     );
@@ -256,8 +256,8 @@ export function androidStoreChecks(root, framework) {
         "android-store-flavor-mismatch",
         "error",
         app.file,
-        `The project links ${stores.join(" and ")} while gradle.properties selects ${selects}.`,
-        "Regenerate the Android project so both come from one run.",
+        `${app.file} sets the ${stores.join(" and ")} flavor while gradle.properties selects ${selects}.`,
+        "Remove the missingDimensionStrategy line; the build resolves the store itself. In Expo, run npx expo prebuild --clean.",
         { line, expected: selects, actual: stores.join(",") },
       ),
     );
