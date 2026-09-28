@@ -468,6 +468,9 @@ jobs:
       - name: Verify version and generated synchronization is committed
         run: node scripts/assert-clean-worktree.mjs
 
+      - name: Test community touchpoint audit
+        run: node --test scripts/audit-community-touchpoints.test.mjs
+
       - name: Run non-Godot SDK parity audit
         run: node scripts/audit-non-godot-parity.mjs
 

@@ -13,6 +13,7 @@ import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mj
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertClientProtocol } from "./release-branch-policy.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
+import { collectCommunityTouchpointFailures } from "./audit-community-touchpoints.mjs";
 import {
   collectPurchasePayloadParityFailures,
   extractBalancedAfterMarker,
@@ -9711,6 +9712,7 @@ checkReleaseNoteGroupingGuidance();
 checkXcode27StoreKitCoverage();
 expectNoExampleStorefrontIOS();
 expectNoApi24ConcurrentKeySets();
+for (const failure of collectCommunityTouchpointFailures()) fail(failure);
 
 if (failures.length > 0) {
   console.error(
