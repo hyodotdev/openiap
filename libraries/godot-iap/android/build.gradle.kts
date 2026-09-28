@@ -50,6 +50,9 @@ val openIapStore = providers.gradleProperty("openiapStore").orNull ?: "play"
 require(openIapStore in setOf("play", "horizon", "amazon")) {
     "godot-iap Android: openiapStore must be play, horizon, or amazon, not '$openIapStore'"
 }
+require(openIapStore == "play" || findProject(":openiap") != null) {
+    "godot-iap Android: -PopeniapStore=$openIapStore needs the monorepo's packages/google"
+}
 
 val googleCompileSdk = readGoogleAndroidInt("compileSdk", "compileSdkVersion")
 val googleMinSdk = readGoogleAndroidInt("minSdk", "minSdkVersion")
@@ -96,8 +99,7 @@ dependencies {
     if (localGoogleProject != null) {
         implementation(project(":openiap"))
     } else {
-        val artifact = if (openIapStore == "play") "openiap-google" else "openiap-google-$openIapStore"
-        implementation("io.github.hyochan.openiap:$artifact:$openiapGoogleVersion")
+        implementation("io.github.hyochan.openiap:openiap-google:$openiapGoogleVersion")
     }
 
     // Godot Android library
