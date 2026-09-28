@@ -26,9 +26,20 @@ function Showcase() {
       <section className="home-section">
         <div className="section-container" style={{ maxWidth: '960px' }}>
           <h1>Who uses OpenIAP?</h1>
-          <p className="section-subtitle">
+          <p className="section-subtitle" style={{ marginBottom: '0.75rem' }}>
             {SHOWCASE_APPS.length} apps ship in-app purchases with OpenIAP
             libraries. Ordered by App Store and Google Play review counts.
+          </p>
+          <p className="section-subtitle">
+            Shipped an app with OpenIAP? List it for free: reply to{' '}
+            <a href={SHOWCASE_DISCUSSION_URL} target="_blank" rel="noreferrer">
+              discussion #350
+            </a>{' '}
+            or open a{' '}
+            <a href={SHOWCASE_GUIDE_URL} target="_blank" rel="noreferrer">
+              pull request
+            </a>
+            .
           </p>
           <div style={{ ...showcaseGridStyle, marginTop: '2.5rem' }}>
             {SHOWCASE_APPS.map((app) => (
