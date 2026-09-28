@@ -236,11 +236,13 @@ dependencies {
           meta-data on every prebuild and the Gradle build picks the store. An
           EAS build has no Quest to follow and a release build never looks, so
           pin every EAS profile that must target Horizon in its <code>env</code>
-          .
+          . The Meta Horizon Store takes APK uploads, and EAS builds an AAB
+          unless <code>android.buildType</code> is <code>apk</code>.
         </p>
         <CodeBlock language="json">{`{
   "build": {
     "quest": {
+      "android": { "buildType": "apk" },
       "env": { "ORG_GRADLE_PROJECT_openiapStore": "horizon" }
     }
   }
