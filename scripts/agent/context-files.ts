@@ -20,6 +20,7 @@ export const CONTEXT_DIRECT_INPUTS = Object.freeze({
   kmpPackage: "libraries/kmp-iap/gradle.properties",
   mauiPackage: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
   commerceProtocolSpec: "specs/commerce-protocol/SPEC.md",
+  communityTouchpoints: "packages/docs/community-touchpoints.json",
 });
 
 const knowledgeRoot = "knowledge";

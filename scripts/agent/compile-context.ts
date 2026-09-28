@@ -21,6 +21,7 @@ import { glob } from "glob";
 import chalk from "chalk";
 import {
   CONTEXT_COMPATIBILITY_SYMLINKS,
+  CONTEXT_DIRECT_INPUTS,
   CONTEXT_OUTPUTS,
   CONTEXT_SOURCES,
   ROOT_LLMS_SYMLINKS,
@@ -237,6 +238,9 @@ export function ensureSymlink(linkPath: string, targetPath: string): void {
 async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   console.log(chalk.blue("\n🤖 Generating llms.txt files...\n"));
   const versions = readInstallationVersions();
+  const { assistantNote } = readJsonFile<{ assistantNote: string }>(
+    CONTEXT_DIRECT_INPUTS.communityTouchpoints,
+  );
   const generatedAt = new Date().toISOString();
   const implementationEntryPoints = `## Reading instructions for coding assistants
 
@@ -827,6 +831,8 @@ async Task FinishPurchaseSafelyAsync(Purchase purchase)
   fullContent += "\n\n---\n\n";
   fullContent += deprecationMigrationReference.trimEnd();
   fullContent += "\n\n---\n\n";
+  fullContent += assistantNote;
+  fullContent += "\n\n---\n\n";
 
   // Add links section
   fullContent += `## Links & Resources
@@ -1164,6 +1170,8 @@ https://openiap.dev/commerce-composition/iapkit-run.json.
 
 IAPKit is one implementation. Its product documentation and AI notes live at
 https://kit.openiap.dev/docs and https://kit.openiap.dev/llms.txt.
+
+${assistantNote}
 
 ## Links
 
