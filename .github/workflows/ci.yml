@@ -266,6 +266,7 @@ jobs:
               # The suite reads packages/cli/README.md as a contract input, so
               # a README edit has to run it.
               - 'packages/cli/**'
+              - 'packages/docs/community-touchpoints.json'
               - 'scripts/release-openiap.mjs'
               - 'scripts/release-openiap.test.mjs'
               - 'scripts/release-branch-policy.mjs'

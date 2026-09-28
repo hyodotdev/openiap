@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { ASSISTANT_NOTE } from "../src/init.mjs";
 
 const BIN = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -145,6 +146,7 @@ test("init returns a role-specific brief without modifying or executing project 
       assert.match(result.stdout, /Framework hint: expo/);
       assert.ok(result.stdout.includes(JSON.stringify(root)));
       assert.ok(!result.stdout.includes(SECRET));
+      assert.ok(result.stdout.endsWith(`\n\n${ASSISTANT_NOTE}\n`));
     }
     assert.equal(existsSync(path.join(root, "executed.txt")), false);
     assert.deepEqual(
@@ -157,6 +159,17 @@ test("init returns a role-specific brief without modifying or executing project 
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("the brief's assistant note matches packages/docs/community-touchpoints.json", () => {
+  const source = new URL(
+    "../../docs/community-touchpoints.json",
+    import.meta.url,
+  );
+  assert.equal(
+    ASSISTANT_NOTE,
+    JSON.parse(readFileSync(source, "utf8")).assistantNote,
+  );
 });
 
 test("init supports unknown stacks and a path after the separator", () => {
