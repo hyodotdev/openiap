@@ -311,8 +311,9 @@ const MIGRATION_PAGE = "packages/docs/src/pages/docs/updates/migration.tsx";
 
 // Deprecated keys that every patch and minor keeps, with a warning, until the
 // next major of each package that ships them. `major` is the package's major
-// when the key was deprecated. A rule is due once every listed package has
-// moved past it: a shared source cannot drop a key one package still ships.
+// when the key was deprecated. A key several packages share goes in one major
+// of all of them: a library that took the new openiap-google in a later minor
+// would otherwise lose the key in that minor.
 export const scheduledRemovalRules = [
   {
     label: "legacy Gradle store flags",
@@ -460,6 +461,11 @@ export const collectScheduledRemovalFailures = (
         `${rule.label}: ${due.join(", ")} is past the major that deprecated them; remove them there, with their catalog rows and this rule`,
       );
       continue;
+    }
+    if (due.length > 0) {
+      failures.push(
+        `${rule.label}: ${due.join(", ")} passed its major alone; the key goes in one major of every package that carries it, so keep it and raise that package's major in this rule`,
+      );
     }
     for (const source of rule.sources) {
       const text = readFile(source.file);

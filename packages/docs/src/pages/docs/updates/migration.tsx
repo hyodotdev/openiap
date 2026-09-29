@@ -550,8 +550,8 @@ function Migration() {
           These keys and fields are deprecated. Every patch and minor release
           keeps them working, and the store keys print a build warning. Each
           goes in the next major release of the package that carries it; the
-          Gradle store keys, which several packages read, go once every one of
-          them has shipped its next major. The store rule itself is in{' '}
+          Gradle store keys, which several packages read, go in one major
+          release of all of them. The store rule itself is in{' '}
           <Link to="/docs/setup/store#selection">
             How the Store Is Selected
           </Link>
