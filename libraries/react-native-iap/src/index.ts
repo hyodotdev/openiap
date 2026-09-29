@@ -74,7 +74,7 @@ import {
   convertAndroidPurchasesOrThrow,
   convertApplePurchasesOrThrow,
 } from './utils/available-purchases';
-import {getVegaIapModule, isVegaOS} from './vega';
+import {getVegaIapModule as getVegaAdapter, isVegaOS} from './vega';
 
 // Export all types
 export type {
@@ -87,7 +87,8 @@ type PublicRnIap = Omit<RnIap, 'claimFirstPurchaseNotice'>;
 export type {PublicRnIap as RnIap};
 export * from './types';
 export * from './utils/error';
-export * from './vega';
+export {isVegaOS} from './vega';
+export const getVegaIapModule = (): PublicRnIap | null => getVegaAdapter();
 
 /** Product type accepted by public query and purchase helpers. */
 export type ProductTypeInput = 'in-app' | 'subs';
@@ -172,7 +173,7 @@ let attachingPendingNativeListeners = false;
 export const isNitroReady = (): boolean => {
   if (iapRef) return true;
   if (isVegaOS()) {
-    iapRef = getVegaIapModule();
+    iapRef = getVegaAdapter();
     return Boolean(iapRef);
   }
   try {
@@ -217,7 +218,7 @@ function getRawIapInstance(): RnIap {
   if (iapRef) return iapRef;
 
   if (isVegaOS()) {
-    const vegaModule = getVegaIapModule();
+    const vegaModule = getVegaAdapter();
     if (!vegaModule) {
       throw new Error(
         'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',

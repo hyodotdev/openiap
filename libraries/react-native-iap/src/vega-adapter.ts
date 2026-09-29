@@ -730,6 +730,8 @@ function mapProduct(product: VegaProduct): NitroProduct {
     platform: 'android',
     introductoryPricePaymentModeIOS: 'empty',
     nameAndroid: product.title ?? sku,
+    subscriptionPeriodAndroid: getSubscriptionPeriod(product) || null,
+    freeTrialPeriodAndroid: toIsoBillingPeriod(product.freeTrialPeriod) || null,
     subscriptionOffers:
       type === 'subs' ? stringifyJson(createSubscriptionOffers(product)) : null,
     productStatusAndroid: 'ok',

@@ -1,5 +1,5 @@
 import {Platform} from 'react-native';
-import type {RnIap} from '../index';
+import type {getVegaIapModule, RnIap} from '../index';
 import type {MutationField, PurchaseIOS, PurchaseState} from '../types';
 import {
   createFirstPurchaseNotice,
@@ -229,6 +229,18 @@ describe('finishTransaction', () => {
     expect(consoleLog).not.toHaveBeenCalled();
   });
 
+  it('stays silent when the native finish reports failure', async () => {
+    mockNative.finishTransaction.mockResolvedValue(false);
+
+    await expect(
+      finishTransaction({purchase: purchase('purchased')}),
+    ).rejects.toThrow('Failed to finish transaction');
+    await flush();
+
+    expect(mockNative.claimFirstPurchaseNotice).not.toHaveBeenCalled();
+    expect(consoleLog).not.toHaveBeenCalled();
+  });
+
   it('stays silent for a pending purchase', async () => {
     await finishTransaction({purchase: purchase('pending')});
     await flush();
@@ -261,9 +273,13 @@ describe('finishTransaction', () => {
     expect(consoleLog).not.toHaveBeenCalled();
   });
 
-  it('keeps the native flag out of the exported RnIap type', () => {
+  it('keeps the native flag out of the exported types', () => {
     const iap: Partial<RnIap> = {};
     // @ts-expect-error The flag is internal to react-native-iap; `yarn typecheck` fails if it leaks.
     expect(iap.claimFirstPurchaseNotice).toBeUndefined();
+
+    const vega: Partial<NonNullable<ReturnType<typeof getVegaIapModule>>> = {};
+    // @ts-expect-error Same for the Vega adapter type.
+    expect(vega.claimFirstPurchaseNotice).toBeUndefined();
   });
 });

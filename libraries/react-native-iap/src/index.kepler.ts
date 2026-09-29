@@ -1,4 +1,4 @@
-import {getVegaIapModule} from './vega';
+import {getVegaIapModule as getVegaAdapter} from './vega';
 import {ErrorCode} from './types';
 import type {
   MutationField,
@@ -19,6 +19,7 @@ import type {
   NitroProduct,
   NitroPurchase,
   NitroPurchaseRequest,
+  RnIap,
 } from './specs/RnIap.nitro';
 import {
   convertNitroProductToProduct,
@@ -32,7 +33,12 @@ import {createPurchaseError} from './utils/errorMapping';
 
 export * from './types';
 export * from './utils/error';
-export * from './vega';
+export {isVegaOS} from './vega';
+// The first-purchase flag is internal, as in the main entry.
+export const getVegaIapModule = (): Omit<
+  RnIap,
+  'claimFirstPurchaseNotice'
+> | null => getVegaAdapter();
 export {useIAP, type UseIapOptions} from './hooks/useIAP';
 export {kitApi, KitApiError} from './kit-api';
 export type {
@@ -69,7 +75,7 @@ const unsupported = (feature: string): never => {
 };
 
 const getModule = () => {
-  const module = getVegaIapModule();
+  const module = getVegaAdapter();
   if (!module) {
     throw new Error(
       'Amazon Vega IAP module is unavailable. Install @amazon-devices/keplerscript-appstore-iap-lib in the Vega app target and build with the React Native for Vega kepler platform.',

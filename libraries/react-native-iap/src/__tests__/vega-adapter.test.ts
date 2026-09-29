@@ -355,6 +355,39 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
+  it('keeps filling the deprecated Android period fields', async () => {
+    const service = createService();
+    service.getProductData.mockResolvedValueOnce({
+      responseCode: 1,
+      productData: new Map([
+        [
+          'dev.hyo.martie.premium',
+          {
+            sku: 'dev.hyo.martie.premium',
+            productType: 3,
+            price: {
+              priceCurrencyCode: 'USD',
+              priceStr: '$9.99',
+              valueInMicros: 9_990_000n,
+            },
+            subscriptionPeriod: 'Monthly',
+            freeTrialPeriod: 'Weekly',
+          },
+        ],
+      ]),
+    });
+
+    const [product] = await createVegaIapModule(service).fetchProducts(
+      ['dev.hyo.martie.premium'],
+      'subs',
+    );
+
+    expect(product).toMatchObject({
+      subscriptionPeriodAndroid: 'P1M',
+      freeTrialPeriodAndroid: 'P1W',
+    });
+  });
+
   it.each([
     ['missing', undefined],
     ['unparseable', 'Fortnightly'],
