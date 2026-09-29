@@ -231,7 +231,9 @@ test("the walker skips SwiftPM checkouts of this repository", () => {
   // An iOS derivedDataPath outside the "build"/"DerivedData" names — for
   // example the ios/build-e2e-onside in .claude/commands/e2e-tests.md —
   // leaves a SourcePackages tree that vendors this repository's own sources.
-  const fixture = path.join(repoRoot, ".tmp-source-packages-fixture");
+  // Per process, so two runs of this suite in one checkout cannot collide.
+  const name = `.tmp-source-packages-fixture-${process.pid}`;
+  const fixture = path.join(repoRoot, name);
   const vendored = path.join(fixture, "SourcePackages", "checkouts", "openiap");
   const authored = path.join(fixture, "src");
   try {
@@ -241,13 +243,13 @@ test("the walker skips SwiftPM checkouts of this repository", () => {
     fs.writeFileSync(path.join(authored, "Authored.kt"), "val y = Removed\n");
 
     const matches = collectForbiddenMatches({
-      roots: [".tmp-source-packages-fixture"],
+      roots: [name],
       tokens: ["Removed"],
     });
 
     assert.deepEqual(
       matches.map((match) => match.file),
-      [".tmp-source-packages-fixture/src/Authored.kt"],
+      [`${name}/src/Authored.kt`],
     );
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
