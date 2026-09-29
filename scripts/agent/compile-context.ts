@@ -542,9 +542,11 @@ Requires .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   shape as \`react-native-iap\`, adapted for Expo managed/bare workflows.
 - The Android store is resolved at build time: the connected device on a
   local debug build, \`ORG_GRADLE_PROJECT_openiapStore\` in the EAS profile
-  env for EAS and release builds, which have no device to follow. A Fire OS
-  declaration (\`modules.amazon.fireOS\` or \`EXPO_IAP_FIREOS=1\`) also pins
-  Amazon, ahead of the device. The config plugin otherwise carries store values only:
+  env for EAS and release builds, which have no device to follow.
+  \`modules.amazon.fireOS\` also pins Amazon, ahead of the device. The
+  \`EXPO_IAP_*\` environment flags are deprecated and removed in expo-iap
+  6.0.0; an \`app.config.js\` can read the EAS profile env and set the plugin
+  option instead. The config plugin otherwise carries store values only:
   \`android.horizon.appId\`, \`android.amazon.appstoreKey\`, the opt-in
   \`modules.onside\`, and optional \`android.amazon.vegaOS\` metadata. A
   root \`manifest.toml\` turns the Vega target on unless Fire OS is declared;

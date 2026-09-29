@@ -668,20 +668,27 @@ function hasOwnKey(
   return value != null && Object.prototype.hasOwnProperty.call(value, key);
 }
 
+// Collects each deprecated EXPO_IAP_* flag that decided a value, for its warning.
 export function resolveAmazonPlatformFlags(
   options?: AmazonPlatformFlagOptions | void,
+  envFlagsUsed: string[] = [],
 ): AmazonPlatformFlags {
+  const readEnvFlag = (name: string): boolean => {
+    const enabled = isEnvFlagEnabled(name);
+    if (enabled) envFlagsUsed.push(name);
+    return enabled;
+  };
   const moduleAmazon = options?.modules?.amazon;
   const isFireOsEnabled = hasOwnKey(moduleAmazon, 'fireOS')
     ? moduleAmazon?.fireOS === true
-    : isEnvFlagEnabled('EXPO_IAP_FIREOS');
+    : readEnvFlag('EXPO_IAP_FIREOS');
   // Most specific first: the module flag, then android.amazon.vegaOS.enabled,
   // then EXPO_IAP_VEGA, which can only turn it on. A Fire OS declaration
   // outranks the manifest.toml guess, so Vega stays off unless declared too.
   const vegaOverride = hasOwnKey(moduleAmazon, 'vegaOS')
     ? moduleAmazon?.vegaOS === true
     : resolveVegaProjectOptions(options)?.enabled ??
-      (isEnvFlagEnabled('EXPO_IAP_VEGA')
+      (readEnvFlag('EXPO_IAP_VEGA')
         ? true
         : isFireOsEnabled
         ? false
@@ -690,10 +697,10 @@ export function resolveAmazonPlatformFlags(
   // Both flags are reported so resolvePinnedAndroidStore can refuse the pair.
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
     ? modules?.horizon === true
-    : isEnvFlagEnabled('EXPO_IAP_HORIZON');
+    : readEnvFlag('EXPO_IAP_HORIZON');
   const isOnsideEnabled = hasOwnKey(modules, 'onside')
     ? modules?.onside === true
-    : isEnvFlagEnabled('EXPO_IAP_ONSIDE');
+    : readEnvFlag('EXPO_IAP_ONSIDE');
 
   return {
     isFireOsEnabled,
@@ -734,11 +741,28 @@ export function resolvePinnedAndroidStore(
     : null;
 }
 
+const REMOVED_IN = `removed in the next major release (expo-iap ${
+  Number(String(pkg.version).split('.')[0]) + 1
+}.0.0)`;
+
 const DEPRECATED_HORIZON_PIN =
-  'modules.horizon (or EXPO_IAP_HORIZON) is deprecated and will be removed in the next major release. ' +
+  `modules.horizon (or EXPO_IAP_HORIZON) is deprecated and will be ${REMOVED_IN}. ` +
   'A local debug build already follows the connected Quest; pin EAS and release builds ' +
   'that must target it with ORG_GRADLE_PROJECT_openiapStore=horizon in the build profile env. ' +
   'While modules.horizon (or EXPO_IAP_HORIZON) is set, it pins every build of this prebuild.';
+
+// EXPO_IAP_HORIZON is left to DEPRECATED_HORIZON_PIN.
+const DEPRECATED_ENV_FLAGS: Record<string, {replacement: string; ios?: true}> =
+  {
+    EXPO_IAP_FIREOS: {
+      replacement:
+        'set modules.amazon.fireOS, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
+    },
+    EXPO_IAP_VEGA: {
+      replacement: 'set modules.amazon.vegaOS, or keep a root manifest.toml',
+    },
+    EXPO_IAP_ONSIDE: {replacement: 'set modules.onside', ios: true},
+  };
 
 export function resolveAlternativeBillingIOS(
   options?: ExpoIapPluginOptions | void,
@@ -797,8 +821,9 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
+  const envFlagsUsed: string[] = [];
   const {isFireOsEnabled, vegaOverride, isHorizonEnabled, isOnsideEnabled} =
-    resolveAmazonPlatformFlags(options);
+    resolveAmazonPlatformFlags(options, envFlagsUsed);
   // Outside the try, whose catch would turn this error into a warning.
   const pinnedStore = resolvePinnedAndroidStore({
     isFireOsEnabled,
@@ -819,6 +844,18 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     const amazonAppstoreKey = resolveAmazonAppstoreKey(options);
     if (pinnedStore === 'horizon') {
       WarningAggregator.addWarningAndroid('expo-iap', DEPRECATED_HORIZON_PIN);
+    }
+    for (const name of envFlagsUsed) {
+      const flag = DEPRECATED_ENV_FLAGS[name];
+      if (!flag) continue;
+      const warn = flag.ios
+        ? WarningAggregator.addWarningIOS
+        : WarningAggregator.addWarningAndroid;
+      warn(
+        'expo-iap',
+        `${name}=1 is deprecated and will be ${REMOVED_IN}; ${flag.replacement} instead. ` +
+          'An app.config.js can read the EAS profile env to set a plugin option per build.',
+      );
     }
     const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
 

@@ -85,6 +85,24 @@ export const scheduledRemovalRules = [
     catalog: ["modules.horizon / EXPO_IAP_HORIZON=1"],
   },
   {
+    label: "expo-iap environment flags",
+    packages: [
+      {
+        name: "expo-iap",
+        major: 5,
+        file: "libraries/expo-iap/package.json",
+        pattern: PACKAGE_JSON_VERSION,
+      },
+    ],
+    sources: [
+      {
+        file: "libraries/expo-iap/plugin/src/withIAP.ts",
+        tokens: ["'EXPO_IAP_FIREOS'", "'EXPO_IAP_VEGA'", "'EXPO_IAP_ONSIDE'"],
+      },
+    ],
+    catalog: ["EXPO_IAP_FIREOS=1", "EXPO_IAP_VEGA=1", "EXPO_IAP_ONSIDE=1"],
+  },
+  {
     label: "OpenIap.Maui store alias",
     packages: [
       {

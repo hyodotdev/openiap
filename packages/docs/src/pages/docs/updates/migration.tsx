@@ -237,6 +237,12 @@ const scheduledRemovals = [
         'modules.horizon / EXPO_IAP_HORIZON=1',
         'ORG_GRADLE_PROJECT_openiapStore=horizon in the EAS profile env; a local debug build follows the connected Quest',
       ],
+      [
+        'EXPO_IAP_FIREOS=1',
+        'modules.amazon.fireOS, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
+      ],
+      ['EXPO_IAP_VEGA=1', 'modules.amazon.vegaOS, or a root manifest.toml'],
+      ['EXPO_IAP_ONSIDE=1', 'modules.onside'],
     ],
   },
   {

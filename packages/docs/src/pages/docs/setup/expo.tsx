@@ -284,9 +284,8 @@ cd ios && pod install`}
           happens when Gradle runs — a store flavor, a connected Quest or Fire
           device on a local debug build, or an <code>openiapStore</code> pin —
           so keep the store credentials in the config and pin a build that must
-          target one store in its EAS profile. A Fire OS build can also declare
-          itself with <code>modules.amazon.fireOS</code> or{' '}
-          <code>EXPO_IAP_FIREOS=1</code>.
+          target one store in its EAS profile. A Fire OS app can also declare
+          itself with <code>modules.amazon.fireOS</code>.
         </p>
         <CodeBlock language="json">
           {`{

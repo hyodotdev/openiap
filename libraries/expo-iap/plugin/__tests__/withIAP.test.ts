@@ -159,7 +159,7 @@ describe('android configuration', () => {
     expect(warn).toHaveBeenCalledWith(
       'expo-iap',
       expect.stringMatching(
-        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated and will be removed in the next major release\..*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
+        /modules\.horizon \(or EXPO_IAP_HORIZON\) is deprecated and will be removed in the next major release \(expo-iap \d+\.0\.0\)\..*ORG_GRADLE_PROJECT_openiapStore=horizon/u,
       ),
     );
   });
@@ -178,6 +178,64 @@ describe('android configuration', () => {
     });
 
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns that the EXPO_IAP_* flags are deprecated when one decides a value', () => {
+    const {version} = jest.requireActual<{version: string}>(
+      '../../package.json',
+    );
+    const nextMajor = Number(version.split('.')[0]) + 1;
+    const flags = {
+      EXPO_IAP_FIREOS: 'modules.amazon.fireOS',
+      EXPO_IAP_VEGA: 'modules.amazon.vegaOS',
+      EXPO_IAP_ONSIDE: 'modules.onside',
+    };
+    const previous = Object.keys(flags).map(
+      (name) => [name, process.env[name]] as const,
+    );
+    const android = WarningAggregator.addWarningAndroid as jest.Mock;
+    const ios = WarningAggregator.addWarningIOS as jest.Mock;
+    android.mockClear();
+    ios.mockClear();
+    try {
+      for (const name of Object.keys(flags)) process.env[name] = '1';
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
+      const messages = [...android.mock.calls, ...ios.mock.calls].map(
+        ([, message]) => String(message),
+      );
+      for (const [name, replacement] of Object.entries(flags)) {
+        expect(
+          messages.filter((message) =>
+            message.startsWith(
+              `${name}=1 is deprecated and will be removed in the next major release (expo-iap ${nextMajor}.0.0); set ${replacement}`,
+            ),
+          ),
+        ).toHaveLength(1);
+      }
+      // Onside is iOS only, so its warning goes to the iOS list.
+      expect(
+        ios.mock.calls.some(([, message]) =>
+          String(message).startsWith('EXPO_IAP_ONSIDE=1'),
+        ),
+      ).toBe(true);
+
+      android.mockClear();
+      ios.mockClear();
+      // A plugin option outranks the flag, so the flag decided nothing.
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
+        modules: {onside: false, amazon: {fireOS: false, vegaOS: false}},
+      });
+      expect(
+        [...android.mock.calls, ...ios.mock.calls].some(([, message]) =>
+          /EXPO_IAP_/u.test(String(message)),
+        ),
+      ).toBe(false);
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
   });
 
   it('does not warn when nothing pins the store', () => {

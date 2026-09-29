@@ -586,14 +586,16 @@ function Releases() {
                   free-trial offer, as in react-native-iap.
                 </li>
                 <li>
-                  <code>modules.horizon</code> warns that the next major release
-                  removes it.
+                  <code>modules.horizon</code> and the{' '}
+                  <code>EXPO_IAP_FIREOS</code>, <code>EXPO_IAP_VEGA</code>,{' '}
+                  <code>EXPO_IAP_ONSIDE</code>, and{' '}
+                  <code>EXPO_IAP_HORIZON</code> environment flags warn that
+                  expo-iap 6.0.0 removes them; set the matching plugin options
+                  instead.
                 </li>
                 <li>
-                  <code>modules.amazon.fireOS</code> and{' '}
-                  <code>EXPO_IAP_FIREOS</code> are no longer deprecated, and a
-                  Fire OS declaration turns off Vega auto-detection for that
-                  build.
+                  <code>modules.amazon.fireOS</code> is no longer deprecated,
+                  and it turns off Vega auto-detection.
                 </li>
                 <li>
                   A hand-written root <code>manifest.toml</code> no longer draws

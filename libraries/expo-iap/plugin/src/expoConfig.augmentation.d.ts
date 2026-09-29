@@ -26,9 +26,9 @@ export type ExpoIapModuleOverrides = {
 export type AmazonPlatformOptions = {
   /**
    * Declares a Fire OS build: pins the Amazon store over the connected device
-   * and turns off Vega auto-detection. A static `true` applies to every build,
-   * Vega included; `EXPO_IAP_FIREOS=1` in one EAS profile's `env` declares
-   * only that build.
+   * and turns off Vega auto-detection. It applies to every build of the
+   * config; to pin one EAS profile only, set
+   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in its `env`.
    * @platform android
    */
   fireOS?: boolean;

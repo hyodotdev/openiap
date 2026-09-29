@@ -350,7 +350,7 @@ file into its jar at build time. Every other build system reads the same names:
 | Consumer                            | Input                                                                                               |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | react-native-iap, expo-iap, Flutter | wrapper `build.gradle` applies the script; example apps do the same                                 |
-| expo-iap config plugin              | `modules.amazon.fireOS` / `EXPO_IAP_FIREOS` pin amazon; deprecated `modules.horizon` still pins     |
+| expo-iap config plugin              | `modules.amazon.fireOS` pins amazon; deprecated `modules.horizon` still pins                        |
 | kmp-iap                             | library flavors match an app `platform` dimension, or the Gradle plugin picks one                   |
 | OpenIAP Gradle plugin (native, KMP) | applied in settings; selects kmp-iap's store variant and swaps `openiap-google` for the store       |
 | maui-iap                            | package targets at app build: `OpenIapStore` (deprecated `OpenIapAndroidStore`), Debug device, play |
