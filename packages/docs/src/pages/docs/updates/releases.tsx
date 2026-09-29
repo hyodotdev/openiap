@@ -73,23 +73,23 @@ const FRAMEWORK_PLAY_FIX_RELEASES: readonly ReleaseMetadata[] = [
 ];
 
 const AMAZON_OFFER_FIX_RELEASES: readonly ReleaseMetadata[] = [
-  { name: 'openiap-apple', version: '3.7.0', tag: '3.7.0' },
-  { name: 'openiap-google', version: '3.7.0', tag: 'google-3.7.0' },
+  { name: 'openiap-apple', version: '3.6.1', tag: '3.6.1' },
+  { name: 'openiap-google', version: '3.6.2', tag: 'google-3.6.2' },
   {
     name: 'react-native-iap',
-    version: '16.8.0',
-    tag: 'react-native-iap-16.8.0',
+    version: '16.7.2',
+    tag: 'react-native-iap-16.7.2',
   },
-  { name: 'expo-iap', version: '5.9.0', tag: 'expo-iap-5.9.0' },
+  { name: 'expo-iap', version: '5.8.2', tag: 'expo-iap-5.8.2' },
   {
     name: 'flutter_inapp_purchase',
-    version: '10.8.0',
-    tag: 'flutter-iap-10.8.0',
+    version: '10.7.2',
+    tag: 'flutter-iap-10.7.2',
   },
-  { name: 'godot-iap', version: '3.7.0', tag: 'godot-iap-3.7.0' },
-  { name: 'kmp-iap', version: '3.7.0', tag: 'kmp-iap-3.7.0' },
-  { name: 'maui-iap', version: '2.7.0', tag: 'maui-iap-2.7.0' },
-  { name: '@hyodotdev/openiap', version: '0.2.0', tag: 'openiap-0.2.0' },
+  { name: 'godot-iap', version: '3.6.2', tag: 'godot-iap-3.6.2' },
+  { name: 'kmp-iap', version: '3.6.2', tag: 'kmp-iap-3.6.2' },
+  { name: 'maui-iap', version: '2.6.2', tag: 'maui-iap-2.6.2' },
+  { name: '@hyodotdev/openiap', version: '0.1.1', tag: 'openiap-0.1.1' },
 ];
 
 const MINIFIED_RELEASE_BUILD_RELEASES: readonly ReleaseMetadata[] = [
@@ -491,12 +491,12 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-apple 3.7.0</strong> and{' '}
-              <strong>openiap-google 3.7.0</strong> remember, once per install,
+              <strong>openiap-apple 3.6.1</strong> and{' '}
+              <strong>openiap-google 3.6.2</strong> remember, once per install,
               that the framework library showed its first-purchase notice.
             </li>
             <li>
-              <strong>openiap-google 3.7.0</strong>
+              <strong>openiap-google 3.6.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   Amazon plans report their price in{' '}
@@ -538,8 +538,8 @@ function Releases() {
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <p style={{ fontSize: '0.9rem' }}>
-            Every library below ships openiap-google 3.7.0 and openiap-apple
-            3.7.0. React Native, Expo, and Flutter also ship
+            Every library below ships openiap-google 3.6.2 and openiap-apple
+            3.6.1. React Native, Expo, and Flutter also ship
             openiap-google&apos;s store resolver, with the same errors and
             warnings.
           </p>
@@ -562,7 +562,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.8.0</strong>
+              <strong>react-native-iap 16.7.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   Vega OS subscriptions report their billing period and, when
@@ -579,7 +579,7 @@ function Releases() {
               </ul>
             </li>
             <li>
-              <strong>expo-iap 5.9.0</strong>
+              <strong>expo-iap 5.8.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   Vega OS subscriptions report their billing period and
@@ -605,7 +605,7 @@ function Releases() {
               </ul>
             </li>
             <li>
-              <strong>maui-iap 2.7.0</strong>
+              <strong>maui-iap 2.6.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   <code>OpenIapAndroidStore</code> warns (
@@ -621,7 +621,7 @@ function Releases() {
               </ul>
             </li>
             <li>
-              <strong>godot-iap 3.7.0</strong>
+              <strong>godot-iap 3.6.2</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   Release exports carry <code>res://iapkit.cfg</code> again;
@@ -651,7 +651,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>@hyodotdev/openiap 0.2.0</strong>
+              <strong>@hyodotdev/openiap 0.1.1</strong>
               <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem' }}>
                 <li>
                   <code>doctor</code> reads <code>openiapStore</code> pins and
