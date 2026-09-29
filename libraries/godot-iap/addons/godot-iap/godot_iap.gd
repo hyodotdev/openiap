@@ -872,7 +872,7 @@ func restore_purchases() -> Variant:
 	print("[GodotIap] restore_purchases called")
 
 	if _is_apple() and _native_plugin:
-		# AppStore.sync() can show a sign-in sheet, so restore waits as long as a purchase.
+		# AppStore.sync() can show a sign-in sheet, so restore gets the system-sheet timeout.
 		var payload = await _call_apple_async(
 			"restorePurchases",
 			[],

@@ -94,6 +94,10 @@ Copy `Example/iapkit.cfg.example` to `Example/iapkit.cfg` (untracked) and fill i
 | `base_url`           | Origin of a local IAPKit server; empty uses the host.  |
 | `amazon_rvs_sandbox` | `true` for Amazon App Tester receipts.                 |
 
+Every export carries `iapkit.cfg`, release exports included: keep an `sk_` key
+out of it, and clear `base_url` before exporting a build that should use the
+hosted IAPKit.
+
 `base_url` is an origin, not the verify path. For **Local (IAPKit)** the key and
 the local server must target the same Convex deployment. An Android device on
 USB reaches the host through

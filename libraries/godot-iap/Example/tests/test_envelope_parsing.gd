@@ -688,10 +688,20 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 		}))
 
 	var result = await GodotIapPlugin.restore_purchases()
+	_assert_true(result.success, "An iOS restore should outlast the plain timeout")
+
+	# It stops at the system-sheet timeout, not at a separate, longer one.
+	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-late"})
+	GodotIapPlugin._apple_async_timeout_seconds = 30.0
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 0.05
+	var started := Time.get_ticks_msec()
+	var late = await GodotIapPlugin.restore_purchases()
+	var waited_ms := Time.get_ticks_msec() - started
 
 	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
 	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
-	_assert_true(result.success, "An iOS restore should wait as long as a purchase sheet")
+	_assert_false(late.success, "An unanswered iOS restore should fail")
+	_assert_true(waited_ms < 5000, "An iOS restore should stop at the system-sheet timeout")
 	_uninstall_fake()
 
 func test_android_request_purchase_error_envelope() -> void:
