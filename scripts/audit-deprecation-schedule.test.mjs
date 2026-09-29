@@ -419,6 +419,20 @@ test("a dropped scheduled removal needs the key gone, before and after the major
   }
 });
 
+test("a dropped rule names the last major that shipped the key", () => {
+  const raised = {
+    ...scheduledRule,
+    dropped: true,
+    packages: [{ ...scheduledRule.packages[0], major: 4 }],
+  };
+  const failures = collectScheduledRemovalFailures(
+    [raised],
+    scheduledFiles({ "source.gradle": "" }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /names lib major 4, but the package is 3\.4\.0/);
+});
+
 test("a package in a dropped rule can only release its next major", () => {
   const dropped = { ...scheduledRule, dropped: true };
   const files = scheduledFiles({ "source.gradle": "" });

@@ -155,11 +155,12 @@ export const collectScheduledRemovalFailures = (
     const passed = [];
     for (const pkg of rule.packages) {
       const { version, major } = majorOf(pkg, readFile);
+      // A kept rule may name the next major; a dropped one names the last that shipped the key.
       if (!Number.isInteger(major)) {
         failures.push(`${pkg.file}: cannot read the ${pkg.name} version`);
       } else if (major > pkg.major) {
         passed.push(`${pkg.name} ${version}`);
-      } else if (major < pkg.major - 1) {
+      } else if (rule.dropped ? major < pkg.major : major < pkg.major - 1) {
         failures.push(
           `${pkg.file}: ${rule.label} names ${pkg.name} major ${pkg.major}, but the package is ${version}`,
         );
