@@ -46,6 +46,10 @@ const EXPO = {
 const RN = {
   "package.json": JSON.stringify({ dependencies: { "react-native-iap": "1" } }),
 };
+const FLUTTER = {
+  "pubspec.yaml":
+    "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
+};
 const SECRET_KEY = `openiap-kit_sk_${"4f2a9c1e".repeat(8)}`;
 
 test("a Play project with nothing else set reports nothing", () => {
@@ -250,6 +254,28 @@ test("a pin that disagrees with a legacy flag is a conflict", () => {
   );
 });
 
+test("an opt-out beside a legacy flag points to openiapStore", () => {
+  withProject(
+    {
+      ...FLUTTER,
+      "android/gradle.properties": "openiapPlatform=none\nfireOsEnabled=true\n",
+    },
+    (root) => {
+      const conflict = doctor(root).findings.find(
+        (one) => one.id === "android-store-flavor-conflict",
+      );
+      assert.match(
+        conflict.message,
+        /openiapPlatform=none conflicts with fireOsEnabled=true/u,
+      );
+      assert.match(
+        conflict.fix,
+        /Replace both with openiapStore=none \(flutter_inapp_purchase only\)/u,
+      );
+    },
+  );
+});
+
 test("a value that is not a store is an error", () => {
   withProject(
     { ...EXPO, "android/gradle.properties": "openiapStore=bogus\n" },
@@ -413,10 +439,6 @@ test("the legacy opt-out key is read, and only accepts none", () => {
 
 // Each row matches what the resolver fixture does with the same gradle.properties.
 test("gradle.properties is judged the way Gradle judges it", () => {
-  const FLUTTER = {
-    "pubspec.yaml":
-      "name: app\ndependencies:\n  flutter_inapp_purchase: ^10.0.0\n",
-  };
   for (const [framework, properties, expected, message] of [
     [
       RN,

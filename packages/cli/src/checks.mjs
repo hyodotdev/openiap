@@ -173,7 +173,7 @@ export function androidStoreChecks(root, framework) {
         "error",
         "android/gradle.properties",
         `openiapPlatform=none conflicts with ${fireOs ? "fireOsEnabled" : "horizonEnabled"}=true.`,
-        "Drop the legacy store flag, or drop the opt-out.",
+        "Replace both with openiapStore=none (flutter_inapp_purchase only), or delete both and pin with openiapStore only where a build must target one store.",
         { line: platformEntry?.line },
       ),
     );
