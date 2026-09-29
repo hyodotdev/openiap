@@ -63,6 +63,8 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "csh -c 'gh pr create --fill'",
     'tcsh -c "gh pr create"',
     "ksh -c 'gh pr create'",
+    "sudo -u kshuser gh pr create",
+    "sudo -u josh gh pr create",
   ]) {
     assert.equal(shell(command), true, command);
   }

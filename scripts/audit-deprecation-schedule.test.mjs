@@ -522,7 +522,10 @@ test("every release workflow runs the scheduled removal gate for its package", (
     assert.doesNotMatch(steps, /\n {2}[\w-]+:\n/u, workflow);
     assert.match(steps, /fetch-depth: 0/u, workflow);
     const tag = releaseTagOf(name, "$");
-    assert.ok(tag && text.includes(tag), `${workflow} cuts no ${tag} tag`);
+    assert.ok(
+      tag && text.includes(`RELEASE_TAG="${tag}`),
+      `${workflow} cuts no ${tag} tag`,
+    );
   }
   const gated = new Set(Object.values(releaseGates));
   for (const rule of scheduledRemovalRules) {
