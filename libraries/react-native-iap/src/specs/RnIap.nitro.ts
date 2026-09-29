@@ -655,7 +655,7 @@ export interface NitroProduct {
   discountOffers?: string | null;
   // Android specific fields
   nameAndroid?: string | null;
-  // Pre-offer price fields that fetchProducts never returns; the offers carry them.
+  // Legacy fields: fetchProducts drops them, and the offers carry the same data.
   /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */
   originalPriceAndroid?: string | null;
   /** @deprecated Removed in the next major release. Use `subscriptionOffers` or `discountOffers`. */

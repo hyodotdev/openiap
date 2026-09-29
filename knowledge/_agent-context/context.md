@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-09-28T18:24:16.822Z
+> Last updated: 2026-09-29T01:47:42.684Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -3409,8 +3409,8 @@ asking.
 
 | Library                | Finish point                                             | Debug signal                                   | Test runner                      | Flag                                      | Console                                  |
 | ---------------------- | -------------------------------------------------------- | ---------------------------------------------- | -------------------------------- | ----------------------------------------- | ---------------------------------------- |
-| react-native-iap       | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Nitro `claimFirstPurchaseNotice`          | `console.log` (Metro)                    |
-| expo-iap               | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Expo module `claimFirstPurchaseNotice`    | `console.log` (Metro)                    |
+| react-native-iap       | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Nitro `claimFirstPurchaseNotice`          | `console.log` (DevTools, Logcat, Xcode)  |
+| expo-iap               | `finishTransaction` in `src/index.ts`                    | `__DEV__`                                      | `JEST_WORKER_ID`                 | Expo module `claimFirstPurchaseNotice`    | `console.log` (Expo CLI terminal)        |
 | flutter_inapp_purchase | `finishTransaction` in `lib/flutter_inapp_purchase.dart` | `kDebugMode`                                   | `FLUTTER_TEST` environment       | method channel `claimFirstPurchaseNotice` | `debugPrint` (`flutter run`)             |
 | godot-iap              | `finish_transaction` in `godot_iap.gd`                   | `OS.is_debug_build()`                          | headless display server          | plugin method `claimFirstPurchaseNotice`  | `print` (Godot output)                   |
 | kmp-iap                | Android `finishTransaction`                              | host `FLAG_DEBUGGABLE`; iOS none, so no notice | JUnit on the classpath           | openiap-google helper                     | `Log.i` (Logcat)                         |
@@ -3418,6 +3418,11 @@ asking.
 
 Vega OS runs the JavaScript adapters with no native flag store, so it prints
 nothing.
+
+React Native's CLI no longer forwards `console.log` to the Metro terminal
+(`--client-logs` is deprecated and off), so the line shows in React Native
+DevTools, Logcat (`ReactNativeJS`), and the Xcode console; Expo CLI prints it
+in its terminal. Keep `console.log`: `console.warn` opens LogBox, which is UI.
 
 kmp-iap and maui-iap print nothing on iOS. Kotlin/Native's only build signal,
 `Platform.isDebugBinary`, is experimental and describes the shared framework,
