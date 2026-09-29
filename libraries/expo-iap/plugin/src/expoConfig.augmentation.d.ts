@@ -28,7 +28,8 @@ export type AmazonPlatformOptions = {
    * Declares a Fire OS build: pins the Amazon store over the connected device
    * and turns off Vega auto-detection. It applies to every build of the
    * config; to pin one EAS profile only, set
-   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in its `env`.
+   * `ORG_GRADLE_PROJECT_openiapStore=amazon` in its `env`, and in a root that
+   * also builds Vega, set `fireOS` from that value in `app.config.js`.
    * @platform android
    */
   fireOS?: boolean;

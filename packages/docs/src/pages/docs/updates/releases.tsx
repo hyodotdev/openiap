@@ -590,8 +590,9 @@ function Releases() {
                   <code>EXPO_IAP_FIREOS</code>, <code>EXPO_IAP_VEGA</code>,{' '}
                   <code>EXPO_IAP_ONSIDE</code>, and{' '}
                   <code>EXPO_IAP_HORIZON</code> environment flags warn that
-                  expo-iap 6.0.0 removes them; set the matching plugin options
-                  instead.
+                  expo-iap 6.0.0 removes them; see{' '}
+                  <Link to="/docs/updates/migration#next-major">Migration</Link>{' '}
+                  for each replacement.
                 </li>
                 <li>
                   <code>modules.amazon.fireOS</code> is no longer deprecated,

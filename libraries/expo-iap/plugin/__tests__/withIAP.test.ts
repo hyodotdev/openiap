@@ -230,6 +230,15 @@ describe('android configuration', () => {
           /EXPO_IAP_/u.test(String(message)),
         ),
       ).toBe(false);
+
+      ios.mockClear();
+      // An explicit module choice never reads EXPO_IAP_ONSIDE.
+      plugin({name: 'app', slug: 'app'} as ExpoConfig, {module: 'expo-iap'});
+      expect(
+        ios.mock.calls.some(([, message]) =>
+          /EXPO_IAP_ONSIDE/u.test(String(message)),
+        ),
+      ).toBe(false);
     } finally {
       for (const [name, value] of previous) {
         if (value === undefined) delete process.env[name];

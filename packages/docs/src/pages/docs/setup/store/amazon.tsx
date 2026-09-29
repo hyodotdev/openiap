@@ -314,12 +314,10 @@ dependencies {
 ]`}</CodeBlock>
         <p>
           <code>modules.amazon.fireOS</code> also turns off{' '}
-          <a href="#expo-vega-os">Vega auto-detection</a>, and a static value
-          applies to every build. A root that also builds Vega sets it from the
-          Fire profile&apos;s pin in <code>app.config.ts</code>, so only the
-          Fire build skips the Vega files. Otherwise the Vega{' '}
-          <code>index.js</code> it generates becomes the Android entry when{' '}
-          <code>package.json</code> has no <code>main</code>.
+          <a href="#expo-vega-os">Vega auto-detection</a>. A static{' '}
+          <code>true</code> would skip the Vega files for the Vega build too, so
+          a root that builds both sets it from the Fire profile&apos;s pin in{' '}
+          <code>app.config.ts</code>.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
@@ -440,7 +438,10 @@ dependencies {
         <p>
           Expo recognizes a Vega target on its own: a root{' '}
           <code>manifest.toml</code> turns Vega file generation on, so a fresh
-          checkout with a committed manifest needs no flag.{' '}
+          checkout with a committed manifest needs no flag. Generation also
+          writes a root <code>index.js</code>, so when the same root builds
+          Android, keep a <code>main</code> in <code>package.json</code>;
+          without one, that file becomes the Android entry.{' '}
           <a href="#expo-fire-os">
             <code>modules.amazon.fireOS</code>
           </a>{' '}

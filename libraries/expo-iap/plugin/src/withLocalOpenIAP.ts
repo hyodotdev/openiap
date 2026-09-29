@@ -314,7 +314,7 @@ const withLocalOpenIAP: ConfigPlugin<
         if (updatedContent !== podfileContent) {
           podfileContent = updatedContent;
           podfileChanged = true;
-          logOnce('📦 expo-iap: Enabled OnsideKit (EXPO_IAP_ONSIDE=1)');
+          logOnce('📦 expo-iap: Enabled OnsideKit');
         }
       }
 
