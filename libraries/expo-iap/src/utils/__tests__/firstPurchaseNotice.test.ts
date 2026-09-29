@@ -146,6 +146,7 @@ describe('finishTransaction', () => {
     const {finishTransaction} = await import('../../index');
     jest.mocked(native.finishTransaction).mockResolvedValue(true);
     jest.mocked(native.acknowledgePurchaseAndroid).mockResolvedValue({});
+    jest.mocked(native.consumePurchaseAndroid).mockResolvedValue({});
     jest.mocked(native.claimFirstPurchaseNotice).mockResolvedValue(true);
     return {native, finishTransaction};
   };
@@ -171,6 +172,16 @@ describe('finishTransaction', () => {
       expect(consoleLog.mock.calls).toEqual([[expectedNotice]]);
     },
   );
+
+  it('prints after an Android consume as well as an acknowledge', async () => {
+    const {native, finishTransaction} = await load('android');
+    await finishTransaction({purchase: purchase(), isConsumable: true});
+    await flushPromises();
+
+    expect(native.consumePurchaseAndroid).toHaveBeenCalledTimes(1);
+    expect(native.acknowledgePurchaseAndroid).not.toHaveBeenCalled();
+    expect(consoleLog.mock.calls).toEqual([[expectedNotice]]);
+  });
 
   it('does not claim after a failed finish', async () => {
     const {native, finishTransaction} = await load('ios');
