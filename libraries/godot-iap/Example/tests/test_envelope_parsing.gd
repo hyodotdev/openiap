@@ -127,6 +127,9 @@ class FakeImmediateApplePlugin:
 	func getReceiptDataIOS() -> String:
 		return _respond("getReceiptDataIOS", "0")
 
+	func syncIOS() -> String:
+		return _respond("syncIOS", JSON.stringify({"success": true}))
+
 	func getStorefront() -> String:
 		return _respond("getStorefront", "0")
 
@@ -215,6 +218,7 @@ func _run_all_tests() -> void:
 	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
 	await test_ios_restore_waits_for_a_sign_in_sheet()
+	await test_ios_sync_waits_for_a_sign_in_sheet()
 	test_android_signal_handlers_parse_json()
 
 	# Android JSON envelopes
@@ -704,6 +708,32 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 	# Timers run on frame deltas and can fire a frame early, so the lower bound is loose.
 	_assert_true(waited_ms >= 250, "An iOS restore should wait for the system-sheet timeout, not fail at once")
 	_assert_true(waited_ms < 5000, "An iOS restore should stop at the system-sheet timeout")
+	_uninstall_fake()
+
+func test_ios_sync_waits_for_a_sign_in_sheet() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
+	var fake = _install_ios_fake()
+	fake.responses["syncIOS"] = JSON.stringify({"status": "pending", "requestId": "sync-sheet"})
+	var plain_timeout: float = GodotIapPlugin._apple_async_timeout_seconds
+	var sheet_timeout: float = GodotIapPlugin._apple_async_ui_timeout_seconds
+	# The sync completes after the plain timeout but inside the system-sheet one.
+	GodotIapPlugin._apple_async_timeout_seconds = 0.05
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 2.0
+	create_timer(0.3).timeout.connect(func() -> void:
+		GodotIapPlugin._on_products_fetched({
+			"method": "syncIOS",
+			"requestId": "sync-sheet",
+			"success": true,
+		}))
+
+	var synced = await GodotIapPlugin.sync_ios()
+
+	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
+	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
+	_assert_true(synced, "An iOS sync should outlast the plain timeout while a sign-in sheet is up")
 	_uninstall_fake()
 
 func test_android_request_purchase_error_envelope() -> void:

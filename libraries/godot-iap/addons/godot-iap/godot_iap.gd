@@ -1439,7 +1439,8 @@ func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
 func sync_ios() -> bool:
 	if not (_native_plugin and _platform == "iOS"):
 		return false
-	var payload = await _call_apple_async("syncIOS")
+	# AppStore.sync() can show a sign-in sheet, as in restore_purchases().
+	var payload = await _call_apple_async("syncIOS", [], _apple_async_ui_timeout_seconds)
 	return payload.get("success", false)
 
 ## Clear pending transactions from the StoreKit payment queue (iOS only).
