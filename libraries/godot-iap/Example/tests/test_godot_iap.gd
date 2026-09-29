@@ -218,6 +218,7 @@ func _run_all_tests() -> void:
 	await test_finish_transaction_mock()
 	await test_first_purchase_notice_prints_once()
 	await test_first_purchase_notice_needs_a_debug_console()
+	await test_first_purchase_notice_defaults_to_the_engine_hooks()
 	await test_first_purchase_notice_needs_a_finished_purchase()
 	await test_first_purchase_notice_is_shown_once_per_install()
 	await test_first_purchase_notice_reads_the_android_jni_boolean()
@@ -708,6 +709,23 @@ func test_first_purchase_notice_needs_a_debug_console() -> void:
 	_assert_equal(stub_capture.notices(), [], "Without a native plugin the notice should not print")
 	_assert_equal(stub_capture.errors, [], "Without a native plugin the notice should skip the flag without an error")
 	stub_wrapper.free()
+
+
+func test_first_purchase_notice_defaults_to_the_engine_hooks() -> void:
+	# The other tests swap both hooks; this one keeps what ships.
+	var fake := FakeNoticePlugin.new()
+	var wrapper: Node = GodotIapWrapper.new()
+	wrapper._native_plugin = fake
+	wrapper._platform = "Android"
+	_assert_equal(wrapper._is_debug_build.get_method(), &"is_debug_build", "The debug check should default to OS.is_debug_build")
+	_assert_equal(wrapper._is_debug_build.get_object(), OS, "The debug check should default to the OS singleton")
+	_assert_equal(wrapper._display_server_name.get_method(), &"get_name", "The display check should default to DisplayServer.get_name")
+	_assert_equal(wrapper._display_server_name.get_object(), DisplayServer, "The display check should default to the DisplayServer singleton")
+	# The runner passes --headless, so the shipped hooks must keep this run silent.
+	_assert_equal(DisplayServer.get_name(), "headless", "This suite must run with --headless")
+	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "A headless run with the shipped hooks should not print the notice")
+	_assert_equal(fake.claims, 0, "A headless run with the shipped hooks should not touch the install flag")
+	wrapper.free()
 
 
 func test_first_purchase_notice_needs_a_finished_purchase() -> void:
