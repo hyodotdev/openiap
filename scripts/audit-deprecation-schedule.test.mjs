@@ -15,6 +15,7 @@ import {
 import {
   collectScheduledRemovalFailures,
   releaseGateFailure,
+  releaseTagOf,
   scheduledRemovalRules,
 } from "./scheduled-removals.mjs";
 import { execFileSync } from "node:child_process";
@@ -457,6 +458,23 @@ test("a package in a dropped rule can only release its next major", () => {
   assert.equal(releaseGateFailure("other", "patch", [dropped], files), null);
 });
 
+test("a dropped rule still lets version=current retry a version that has its tag", () => {
+  const dropped = { ...scheduledRule, dropped: true };
+  const files = scheduledFiles({ "source.gradle": "" });
+  const tagged = (name, version) => name === "lib" && version === "3.4.0";
+  assert.equal(
+    releaseGateFailure("lib", "current", [dropped], files, tagged),
+    null,
+  );
+  for (const mode of ["patch", "minor"]) {
+    assert.match(
+      releaseGateFailure("lib", mode, [dropped], files, tagged) ?? "",
+      /must release with version=major/,
+      mode,
+    );
+  }
+});
+
 const releaseGates = {
   "release-google.yml": "openiap-google",
   "release-react-native.yml": "react-native-iap",
@@ -493,12 +511,17 @@ test("every release workflow runs the scheduled removal gate for its package", (
       path.join(repoRoot, ".github/workflows", workflow),
       "utf8",
     );
-    assert.ok(
-      text.includes(
-        `run: node scripts/scheduled-removals.mjs release-gate ${name} "$VERSION_TYPE"`,
-      ),
-      workflow,
+    const header = "\n  release-branch:\n";
+    const job = text.indexOf(header);
+    const gate = text.indexOf(
+      `run: node scripts/scheduled-removals.mjs release-gate ${name} "$VERSION_TYPE"`,
     );
+    assert.ok(job >= 0 && gate > job, workflow);
+    // The gate's own job needs the tags, or a version=current retry reads as a first release.
+    const steps = text.slice(job + header.length, gate);
+    assert.doesNotMatch(steps, /\n {2}[\w-]+:\n/u, workflow);
+    assert.match(steps, /fetch-depth: 0/u, workflow);
+    assert.ok(releaseTagOf(name, "1.2.3"), `${name} has no release tag`);
   }
   const gated = new Set(Object.values(releaseGates));
   for (const rule of scheduledRemovalRules) {

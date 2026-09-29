@@ -182,7 +182,8 @@ Train rules (mistake guards):
   refuses the major until it has. To drop a key,
   remove it for every package in its rule in one PR and mark the rule
   `dropped: true`; every release workflow then refuses anything but
-  `version=major` for those packages; if one of them ships a major while the
+  `version=major` for those packages, apart from a `version=current` retry of
+  a version whose tag already exists; if one of them ships a major while the
   drop PR is open, set its `major` in the rule to that one before merging.
   Delete the rule any time after all of
   them have shipped it; until then it also keeps the key from coming back.

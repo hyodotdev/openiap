@@ -10,9 +10,14 @@
 // those packages ships that major. Node built-ins only, so release jobs run it
 // without installing anything.
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  libraryReleaseTags,
+  nativeReleaseGates,
+} from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_JSON_VERSION = /"version":\s*"([^"]+)"/;
@@ -136,6 +141,35 @@ export const scheduledRemovalRules = [
   },
 ];
 
+// The tag each package's release cuts; version=current republishes it.
+const releaseTags = {
+  "openiap-google": nativeReleaseGates.google.tag,
+  "react-native-iap": libraryReleaseTags["react-native"],
+  "expo-iap": libraryReleaseTags.expo,
+  flutter_inapp_purchase: libraryReleaseTags.flutter,
+  "godot-iap": libraryReleaseTags.godot,
+  "kmp-iap": libraryReleaseTags.kmp,
+  "OpenIap.Maui": libraryReleaseTags.maui,
+};
+
+export const releaseTagOf = (packageName, version) =>
+  releaseTags[packageName]?.(version);
+
+const hasReleaseTag = (packageName, version) => {
+  const tag = releaseTagOf(packageName, version);
+  if (!tag) return false;
+  try {
+    execFileSync(
+      "git",
+      ["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`],
+      { cwd: root, stdio: "ignore" },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const readRepoFile = (file) => {
   const absolute = path.join(root, file);
   return fs.existsSync(absolute) ? fs.readFileSync(absolute, "utf8") : "";
@@ -225,6 +259,7 @@ export function releaseGateFailure(
   versionMode,
   rules = scheduledRemovalRules,
   readFile = readRepoFile,
+  isTagged = hasReleaseTag,
 ) {
   for (const rule of rules) {
     const pkg = rule.packages.find(
@@ -232,6 +267,10 @@ export function releaseGateFailure(
     );
     if (!pkg) continue;
     const { version, major } = majorOf(pkg, readFile);
+    // A retry of a tagged version rebuilds that tag, not this checkout.
+    if (versionMode === "current" && isTagged(packageName, version)) {
+      return null;
+    }
     if (rule.dropped && versionMode !== "major" && !(major > pkg.major)) {
       return `${packageName} ${version} has dropped ${rule.label}, so it must release with version=major, not ${versionMode}`;
     }
