@@ -217,8 +217,6 @@ Supported the project before the OpenIAP sponsor program.
 
 ## Community
 
-Have a question or need help? Ask in [react-native-iap Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap).
-
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 
 ## Contributing

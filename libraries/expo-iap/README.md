@@ -79,8 +79,6 @@ Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyodotde
 
 ## Community
 
-Have a question or need help? Ask in [expo-iap Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap).
-
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 
 <!-- community:start -->

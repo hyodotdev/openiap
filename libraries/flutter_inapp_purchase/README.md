@@ -139,8 +139,6 @@ Other libraries built on OpenIAP: [react-native-iap](https://github.com/hyodotde
 
 ## Community
 
-Have a question or need help? Ask in [flutter_inapp_purchase Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/flutter_inapp_purchase).
-
 For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/issues).
 
 <!-- community:start -->
