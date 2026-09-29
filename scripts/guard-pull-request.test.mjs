@@ -60,6 +60,9 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     'eval "gh pr create --fill"',
     "fish -c 'gh pr create --fill'",
     'dash -c "gh pr create"',
+    "csh -c 'gh pr create --fill'",
+    'tcsh -c "gh pr create"',
+    "ksh -c 'gh pr create'",
   ]) {
     assert.equal(shell(command), true, command);
   }

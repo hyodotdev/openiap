@@ -16,8 +16,8 @@ export const reason =
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
 const substitution = /\$\(([^()]*)\)/gu;
 // Shell keywords, `eval "`, assignments, wrappers with their options, a
-// timeout's duration, and `sh -c "` before the command word. An option never takes a PR
-// client, a wrapper, or a shell as its value, so `env -i gh` and
+// timeout's duration, and `sh -c "` before the command word. An option never
+// takes a PR client, a wrapper, or a shell as its value, so `env -i gh` and
 // `sudo -E bash -c` still reach the command.
 // A path or value never runs past a separator, so each command start is
 // scanned only to the end of its own command.
@@ -26,7 +26,7 @@ const client = String.raw`${dir}(?:gh|hub|curl)\b`;
 const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
 const wrapper = String.raw`${dir}(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
 const timeout = String.raw`${dir}g?timeout\b`;
-const shell = String.raw`${dir}(?:ba|da|fi|z)?sh\b`;
+const shell = String.raw`${dir}(?:ba|da|fi|k|z|t?c)?sh\b`;
 const wrapperOption = String.raw`\s+-[\w-]\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
   String.raw`^(?:[\s({!]+|\w+=[^\s;&|]*\s+|${keyword}\s+|eval\s+["']?|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
