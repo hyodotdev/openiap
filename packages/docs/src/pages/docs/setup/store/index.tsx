@@ -82,7 +82,11 @@ function StoreSetup() {
             (for MAUI, the IDE&apos;s <code>AdbTarget</code> first), or the
             single attached one, is a Quest or a Fire device. Release builds
             never look at a device, and several attached devices select nothing
-            unless <code>ANDROID_SERIAL</code> picks one.
+            unless <code>ANDROID_SERIAL</code> picks one. The device pickers in{' '}
+            <code>flutter run -d</code>, <code>expo run:android --device</code>,
+            and <code>react-native run-android --deviceId</code> are not passed
+            to Gradle, so export <code>ANDROID_SERIAL</code> yourself when
+            several devices are attached.
           </li>
           <li>
             <strong>Play</strong> otherwise.
