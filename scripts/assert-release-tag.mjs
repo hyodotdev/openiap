@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   commerceProtocolManifest,
+  libraryReleaseTags,
+  nativeReleaseGates,
   openiapNpmPackages,
   validateVersion,
 } from "./release-branch-policy.mjs";
@@ -22,7 +24,10 @@ export const PACKAGE_CONFIG = {
   ),
   apple: {
     path: "openiap-versions.json",
-    tags: (version) => [version, `apple-v${version}`],
+    tags: (version) => [
+      nativeReleaseGates.apple.tag(version),
+      `apple-v${version}`,
+    ],
     version: (content) => JSON.parse(content).apple,
   },
   conformance: {
@@ -40,39 +45,42 @@ export const PACKAGE_CONFIG = {
   },
   expo: {
     path: "libraries/expo-iap/package.json",
-    tags: (version) => [`expo-iap-${version}`],
+    tags: (version) => [libraryReleaseTags.expo(version)],
     version: (content) => JSON.parse(content).version,
   },
   flutter: {
     path: "libraries/flutter_inapp_purchase/pubspec.yaml",
-    tags: (version) => [`flutter-iap-${version}`],
+    tags: (version) => [libraryReleaseTags.flutter(version)],
     version: (content) => content.match(/^version:\s*([^\s#]+)/mu)?.[1],
   },
   godot: {
     path: "libraries/godot-iap/addons/godot-iap/plugin.cfg",
-    tags: (version) => [`godot-iap-${version}`],
+    tags: (version) => [libraryReleaseTags.godot(version)],
     version: (content) => content.match(/^version="([^"]+)"/mu)?.[1],
   },
   google: {
     path: "openiap-versions.json",
-    tags: (version) => [`google-${version}`, `google-v${version}`],
+    tags: (version) => [
+      nativeReleaseGates.google.tag(version),
+      `google-v${version}`,
+    ],
     version: (content) => JSON.parse(content).google,
   },
   kmp: {
     path: "libraries/kmp-iap/gradle.properties",
-    tags: (version) => [`kmp-iap-${version}`],
+    tags: (version) => [libraryReleaseTags.kmp(version)],
     version: (content) => content.match(/^libraryVersion=(.+)$/mu)?.[1]?.trim(),
   },
   maui: {
     path: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    tags: (version) => [`maui-iap-${version}`],
+    tags: (version) => [libraryReleaseTags.maui(version)],
     version: (content) =>
       content.match(/<PackageVersion>([^<]+)<\/PackageVersion>/u)?.[1] ??
       content.match(/<Version>([^<]+)<\/Version>/u)?.[1],
   },
   "react-native": {
     path: "libraries/react-native-iap/package.json",
-    tags: (version) => [`react-native-iap-${version}`],
+    tags: (version) => [libraryReleaseTags["react-native"](version)],
     version: (content) => JSON.parse(content).version,
   },
 };
