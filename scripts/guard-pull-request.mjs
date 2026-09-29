@@ -26,7 +26,7 @@ const timeout = String.raw`(?:\S*/)?g?timeout\b`;
 const shell = String.raw`(?:\S*/)?(?:ba|z)?sh\b`;
 const wrapperOption = String.raw`\s+-{1,2}[\w-]+\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}\s+(?:-{1,2}[\w-]+\s+)*?-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=\S*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
   "u",
 );
 const flags = String.raw`(?:\s+-{1,2}[\w-]+(?:[=\s]+[^\s-]\S*)?)*`;
@@ -35,13 +35,22 @@ const ghPrCreate = new RegExp(
   "u",
 );
 const hubPullRequest = /^(?:\S*\/)?hub\s+pull-request\b/u;
+// Copilot opens the pull request itself once it has a task or an issue.
+const copilotTask = new RegExp(
+  String.raw`^(?:\S*/)?gh${flags}\s+agent-task${flags}\s+create\b`,
+  "u",
+);
+const copilotAssignee = new RegExp(
+  String.raw`^(?:\S*/)?gh${flags}\s+issue${flags}\s+(?:create|edit)\b.*\s(?:--add-assignee|--assignee|-a)[=\s]+["']?[^\s"']*@copilot\b`,
+  "u",
+);
 const restClient = /^(?:\S*\/)?(?:gh\s+api|curl)\b/u;
 // `repos/$REPO/pulls` names owner and repository in one segment.
 const pullsEndpoint = /\brepos\/(?:[^\s/"']+\/){1,2}pulls(?=$|[\s"'?])/u;
 // gh api sends POST once it has a field or body, unless -X GET says otherwise;
 // curl's -f is --fail, so only a key= field counts.
 const writeFlag =
-  /(?:-X\s*|--method[=\s]+|--request[=\s]+)POST\b|\s-d\s*\S|\s-[fF]\s*[\w.[\]-]+=|--(?:raw-)?field\b|--data\b|--json\b|--form\b|--input\b/u;
+  /(?:-X\s*|--method[=\s]+|--request[=\s]+)POST\b|\s-d\s*\S|\s-[fF]\s*["']?[\w.[\]-]+=|--(?:raw-)?field\b|--data\b|--json\b|--form\b|--input\b/u;
 const explicitGet = /(?:-X\s*|--method[=\s]+|--request[=\s]+)GET\b/u;
 const graphqlCreate =
   /^(?:\S*\/)?gh\s+api\s+graphql\b[\s\S]*\bcreatePullRequest\b/u;
@@ -59,6 +68,8 @@ function opensPullRequestIn(command) {
     return (
       ghPrCreate.test(words) ||
       hubPullRequest.test(words) ||
+      copilotTask.test(words) ||
+      copilotAssignee.test(words) ||
       (restClient.test(words) &&
         pullsEndpoint.test(words) &&
         writeFlag.test(words) &&

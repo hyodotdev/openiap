@@ -45,6 +45,11 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "xargs -I{} gh pr create --fill",
     "nice -n 10 gh pr create --fill",
     "hub pull-request -m x",
+    'gh agent-task create "fix the flaky test"',
+    "gh issue edit 12 --add-assignee @copilot",
+    "gh issue create --title x --assignee monalisa,@copilot",
+    "bash -o pipefail -c 'gh pr create --fill'",
+    "bash -euo pipefail -c 'gh pr create'",
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -59,6 +64,7 @@ test("REST and GraphQL calls that create a pull request need approval", () => {
     'curl -H "Authorization: token $(gh auth token)" -X POST https://api.github.com/repos/o/r/pulls -d @body.json',
     "curl --form title=x https://api.github.com/repos/o/r/pulls",
     "gh api repos/$REPO/pulls -f title=x -f head=b -f base=main",
+    'gh api repos/hyodotdev/openiap/pulls -f "title=$T" -f "head=$H" -f "base=main"',
     "gh api repos/o/r/pulls \\\n  -f title=x \\\n  -f head=b -f base=main",
     `curl --json '{"title":"x"}' https://api.github.com/repos/o/r/pulls`,
     "gh api graphql -f query='mutation { createPullRequest(input: {}) { pullRequest { url } } }'",
@@ -91,6 +97,8 @@ test("reading, editing, or mentioning pull requests does not", () => {
     'git commit -m "fix\n2 gh pr create cases"',
     "env -i gh pr list",
     "if gh pr view 1; then echo open; fi",
+    "gh issue edit 12 --add-assignee @me",
+    "gh agent-task list",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
   ]) {
     assert.equal(shell(command), false, command);
