@@ -355,24 +355,24 @@ export const publishedSources = {
     /^packages\/google\/openiap\/src\/(main|play|horizon|amazon)\//,
     /^packages\/google\/openiap\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
     /^packages\/google\/gradle\/[^/]+\.gradle$/,
-    /^packages\/google\/gradle-plugin\/src\/main\//,
+    /^packages\/google\/gradle-plugin\/(src\/main\/|build\.gradle\.kts$)/,
   ],
   apple: [
     /^packages\/apple\/Sources\//,
     /^packages\/apple\/(Package\.swift|openiap\.podspec)$/,
-    // SwiftPM resolves openiap-apple from the repository root.
-    /^Package\.swift$/,
+    // SwiftPM and CocoaPods git sources resolve openiap-apple from the root.
+    /^(Package\.swift|openiap\.podspec)$/,
   ],
   "client-protocol": [
     /^specs\/client\/src\/(generated\/|[^/]+\.graphql$|kit-api\.ts$)/,
   ],
-  cli: [/^packages\/cli\/src\//],
+  cli: [/^packages\/cli\/(src|bin)\//],
   "react-native": [
     /^libraries\/react-native-iap\/(src|ios|android\/src\/main)\//,
-    /^libraries\/react-native-iap\/(android\/[^/]+\.gradle|NitroIap\.podspec|nitro\.json)$/,
+    /^libraries\/react-native-iap\/(android\/([^/]+\.gradle|consumer-rules[\w-]*\.pro|CMakeLists\.txt)|NitroIap\.podspec|nitro\.json)$/,
   ],
   expo: [
-    /^libraries\/expo-iap\/(src|ios|plugin\/src|android\/src\/main)\//,
+    /^libraries\/expo-iap\/(src|ios|onside|plugin\/src|android\/src\/main)\//,
     /^libraries\/expo-iap\/(android\/[^/]+\.gradle|app\.plugin\.js|expo-module\.config\.json)$/,
   ],
   flutter: [
@@ -385,7 +385,7 @@ export const publishedSources = {
   ],
   kmp: [
     /^libraries\/kmp-iap\/library\/src\/(commonMain|androidMain|iosMain)\//,
-    /^libraries\/kmp-iap\/library\/build\.gradle\.kts$/,
+    /^libraries\/kmp-iap\/library\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
   ],
   maui: [/^libraries\/maui-iap\/(src|android\/openiap)\//],
 };
@@ -413,7 +413,7 @@ export const nativeReleaseGates = {
   },
   apple: {
     tag: (version) => version,
-    roots: ["packages/apple", "Package.swift"],
+    roots: ["packages/apple", "Package.swift", "openiap.podspec"],
   },
 };
 

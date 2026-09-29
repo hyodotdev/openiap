@@ -22,6 +22,13 @@ test("published source changes need the release card", () => {
       "Package.swift",
       "specs/client/src/api.graphql",
       "specs/client/src/generated/types.gd",
+      "openiap.podspec",
+      "packages/google/gradle-plugin/build.gradle.kts",
+      "packages/cli/bin/openiap.mjs",
+      "libraries/react-native-iap/android/consumer-rules.pro",
+      "libraries/react-native-iap/android/CMakeLists.txt",
+      "libraries/expo-iap/onside/index.js",
+      "libraries/kmp-iap/library/consumer-rules-non-play.pro",
     ]),
     [
       "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
@@ -33,6 +40,13 @@ test("published source changes need the release card", () => {
       "Package.swift",
       "specs/client/src/api.graphql",
       "specs/client/src/generated/types.gd",
+      "openiap.podspec",
+      "packages/google/gradle-plugin/build.gradle.kts",
+      "packages/cli/bin/openiap.mjs",
+      "libraries/react-native-iap/android/consumer-rules.pro",
+      "libraries/react-native-iap/android/CMakeLists.txt",
+      "libraries/expo-iap/onside/index.js",
+      "libraries/kmp-iap/library/consumer-rules-non-play.pro",
     ],
   );
 });
@@ -60,6 +74,9 @@ test("tests, examples, docs, and manifests need no release card", () => {
       "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/PlatformStoreTest.kt",
       "specs/client/codegen/plugins/gdscript.ts",
       "specs/client/src/generated-gdscript.test.ts",
+      "libraries/react-native-iap/android/gradle.properties",
+      "libraries/kmp-iap/library/library.podspec",
+      "packages/google/openiap/proguard-rules.pro",
     ]),
     [],
   );
