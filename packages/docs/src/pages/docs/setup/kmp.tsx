@@ -247,7 +247,7 @@ openiapStore=horizon`}
           <a href="/docs/setup/store#selection">How the Store Is Selected</a>{' '}
           for the full rule. At runtime, <code>getStore()</code> reports the
           linked store: <code>Store.HORIZON</code> on a Horizon build,{' '}
-          <code>Store.AMAZON</code> on Fire OS, and{' '}
+          <code>Store.AMAZON</code> on an Amazon build, and{' '}
           <code>Store.PLAY_STORE</code> otherwise.
         </p>
 
