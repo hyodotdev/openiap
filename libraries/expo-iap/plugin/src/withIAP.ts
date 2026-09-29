@@ -652,18 +652,13 @@ export type AmazonPlatformFlags = {
   // Unset means auto-detect from the project's manifest.toml.
   vegaOverride: boolean | undefined;
   isHorizonEnabled: boolean;
-  isOnsideEnabled: boolean;
 };
 
 type AmazonPlatformFlagOptions = ExpoIapPluginOptions;
 
-function isEnvFlagEnabled(name: string): boolean {
-  return process.env[name] === '1';
-}
-
 // Records a deprecated EXPO_IAP_* flag that decided a value, for its warning.
 function readEnvFlag(name: string, used: string[]): boolean {
-  const enabled = isEnvFlagEnabled(name);
+  const enabled = process.env[name] === '1';
   if (enabled) used.push(name);
   return enabled;
 }
@@ -699,17 +694,8 @@ export function resolveAmazonPlatformFlags(
   const isHorizonEnabled = hasOwnKey(modules, 'horizon')
     ? modules?.horizon === true
     : readEnvFlag('EXPO_IAP_HORIZON', envFlagsUsed);
-  // Only logged; resolveModuleSelection decides Onside and reports the flag.
-  const isOnsideEnabled = hasOwnKey(modules, 'onside')
-    ? modules?.onside === true
-    : isEnvFlagEnabled('EXPO_IAP_ONSIDE');
 
-  return {
-    isFireOsEnabled,
-    vegaOverride,
-    isHorizonEnabled,
-    isOnsideEnabled,
-  };
+  return {isFireOsEnabled, vegaOverride, isHorizonEnabled};
 }
 
 export function resolveHorizonAppId(
@@ -824,7 +810,7 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   options,
 ) => {
   const envFlagsUsed: string[] = [];
-  const {isFireOsEnabled, vegaOverride, isHorizonEnabled, isOnsideEnabled} =
+  const {isFireOsEnabled, vegaOverride, isHorizonEnabled} =
     resolveAmazonPlatformFlags(options, envFlagsUsed);
   // Outside the try, whose catch would turn this error into a warning.
   const pinnedStore = resolvePinnedAndroidStore({
@@ -849,18 +835,17 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
     }
     const iosAlternativeBilling = resolveAlternativeBillingIOS(options);
 
+    const {includeExpoIap, includeOnside} = resolveModuleSelection(
+      config as ExpoConfig,
+      options,
+      envFlagsUsed,
+    );
     logOnce(
       `🔍 [expo-iap] Config values: horizonAppId=${horizonAppId}, pinnedStore=${
         pinnedStore ?? 'auto'
       }, amazonAppstoreKey=${amazonAppstoreKey ?? 'none'}, vega=${
         vegaOverride ?? 'auto'
-      }, isOnsideEnabled=${isOnsideEnabled}`,
-    );
-
-    const {includeExpoIap, includeOnside} = resolveModuleSelection(
-      config as ExpoConfig,
-      options,
-      envFlagsUsed,
+      }, onside=${includeOnside}`,
     );
     for (const name of envFlagsUsed) {
       const flag = DEPRECATED_ENV_FLAGS[name];

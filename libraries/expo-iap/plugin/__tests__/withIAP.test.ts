@@ -195,6 +195,19 @@ describe('android configuration', () => {
     );
     const android = WarningAggregator.addWarningAndroid as jest.Mock;
     const ios = WarningAggregator.addWarningIOS as jest.Mock;
+    const warnedFlags = (
+      config: Partial<ExpoConfig>,
+      options: ExpoIapPluginOptions,
+    ) => {
+      android.mockClear();
+      ios.mockClear();
+      plugin({name: 'app', slug: 'app', ...config} as ExpoConfig, options);
+      return [...android.mock.calls, ...ios.mock.calls]
+        .map(([, message]) => String(message))
+        .filter((message) => message.startsWith('EXPO_IAP_'))
+        .map((message) => message.split('=')[0])
+        .sort();
+    };
     android.mockClear();
     ios.mockClear();
     try {
@@ -219,26 +232,58 @@ describe('android configuration', () => {
         ),
       ).toBe(true);
 
-      android.mockClear();
-      ios.mockClear();
-      // A plugin option outranks the flag, so the flag decided nothing.
-      plugin({name: 'app', slug: 'app'} as ExpoConfig, {
-        modules: {onside: false, amazon: {fireOS: false, vegaOS: false}},
-      });
-      expect(
-        [...android.mock.calls, ...ios.mock.calls].some(([, message]) =>
-          /EXPO_IAP_/u.test(String(message)),
-        ),
-      ).toBe(false);
+      // A source that outranks a flag decides its value, so that flag is not
+      // reported while the other flags still are.
+      const outranked: Array<{
+        flag: string;
+        config?: Partial<ExpoConfig>;
+        options: ExpoIapPluginOptions;
+      }> = [
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          options: {modules: {amazon: {fireOS: false}}},
+        },
+        {flag: 'EXPO_IAP_VEGA', options: {modules: {amazon: {vegaOS: false}}}},
+        {
+          flag: 'EXPO_IAP_VEGA',
+          options: {android: {amazon: {vegaOS: {enabled: false}}}},
+        },
+        {
+          flag: 'EXPO_IAP_VEGA',
+          options: {android: {amazon: {vegaOS: {enabled: true}}}},
+        },
+        {flag: 'EXPO_IAP_ONSIDE', options: {modules: {onside: false}}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {module: 'expo-iap'}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {module: 'onside'}},
+        {
+          flag: 'EXPO_IAP_ONSIDE',
+          config: {ios: {onside: {enabled: false}}},
+          options: {},
+        },
+        {
+          flag: 'EXPO_IAP_ONSIDE',
+          config: {ios: {onside: {enabled: true}}},
+          options: {},
+        },
+      ];
+      for (const {flag, config = {}, options} of outranked) {
+        const expected = Object.keys(flags)
+          .filter((name) => name !== flag)
+          .sort();
+        expect([flag, options, warnedFlags(config, options)]).toEqual([
+          flag,
+          options,
+          expected,
+        ]);
+      }
 
-      ios.mockClear();
-      // An explicit module choice never reads EXPO_IAP_ONSIDE.
-      plugin({name: 'app', slug: 'app'} as ExpoConfig, {module: 'expo-iap'});
+      // With every flag outranked, nothing is reported.
       expect(
-        ios.mock.calls.some(([, message]) =>
-          /EXPO_IAP_ONSIDE/u.test(String(message)),
+        warnedFlags(
+          {},
+          {modules: {onside: false, amazon: {fireOS: false, vegaOS: false}}},
         ),
-      ).toBe(false);
+      ).toEqual([]);
     } finally {
       for (const [name, value] of previous) {
         if (value === undefined) delete process.env[name];
@@ -557,7 +602,6 @@ describe('android configuration', () => {
       isFireOsEnabled: true,
       vegaOverride: true,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
@@ -568,7 +612,6 @@ describe('android configuration', () => {
       isFireOsEnabled: true,
       vegaOverride: false,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
     // An explicit Vega setting still wins, so one prebuild can declare both.
     expect(
@@ -591,16 +634,15 @@ describe('android configuration', () => {
     }
   });
 
-  it('keeps Onside and Horizon under modules', () => {
+  it('keeps Horizon under modules', () => {
     expect(
       resolveAmazonPlatformFlags({
-        modules: {horizon: true, onside: true},
+        modules: {horizon: true},
       }),
     ).toEqual({
       isFireOsEnabled: false,
       vegaOverride: undefined,
       isHorizonEnabled: true,
-      isOnsideEnabled: true,
     });
   });
 
@@ -616,7 +658,6 @@ describe('android configuration', () => {
       isFireOsEnabled: true,
       vegaOverride: false,
       isHorizonEnabled: true,
-      isOnsideEnabled: false,
     });
     // Gradle and the doctor both fail this combination; silently preferring
     // Fire OS here would ship a store the config never asked for.
@@ -628,20 +669,17 @@ describe('android configuration', () => {
       fireOS: process.env.EXPO_IAP_FIREOS,
       vega: process.env.EXPO_IAP_VEGA,
       horizon: process.env.EXPO_IAP_HORIZON,
-      onside: process.env.EXPO_IAP_ONSIDE,
     };
 
     process.env.EXPO_IAP_FIREOS = '1';
     process.env.EXPO_IAP_VEGA = '1';
     process.env.EXPO_IAP_HORIZON = '1';
-    process.env.EXPO_IAP_ONSIDE = '1';
 
     try {
       expect(resolveAmazonPlatformFlags(undefined)).toEqual({
         isFireOsEnabled: true,
         vegaOverride: true,
         isHorizonEnabled: true,
-        isOnsideEnabled: true,
       });
     } finally {
       if (previous.fireOS === undefined) {
@@ -659,11 +697,6 @@ describe('android configuration', () => {
       } else {
         process.env.EXPO_IAP_HORIZON = previous.horizon;
       }
-      if (previous.onside === undefined) {
-        delete process.env.EXPO_IAP_ONSIDE;
-      } else {
-        process.env.EXPO_IAP_ONSIDE = previous.onside;
-      }
     }
   });
 
@@ -680,7 +713,6 @@ describe('android configuration', () => {
         isFireOsEnabled: false,
         vegaOverride: undefined,
         isHorizonEnabled: false,
-        isOnsideEnabled: false,
       });
     } finally {
       if (previous === undefined) {
@@ -691,35 +723,25 @@ describe('android configuration', () => {
     }
   });
 
-  it('keeps explicit null module flags ahead of Expo IAP platform env flags', () => {
-    const previous = {
-      horizon: process.env.EXPO_IAP_HORIZON,
-      onside: process.env.EXPO_IAP_ONSIDE,
-    };
+  it('keeps an explicit null Horizon flag ahead of the Expo IAP platform env flag', () => {
+    const previous = process.env.EXPO_IAP_HORIZON;
     process.env.EXPO_IAP_HORIZON = '1';
-    process.env.EXPO_IAP_ONSIDE = '1';
 
     try {
       const options = {
-        modules: {horizon: null, onside: null},
+        modules: {horizon: null},
       } as unknown as ExpoIapPluginOptions;
 
       expect(resolveAmazonPlatformFlags(options)).toEqual({
         isFireOsEnabled: false,
         vegaOverride: undefined,
         isHorizonEnabled: false,
-        isOnsideEnabled: false,
       });
     } finally {
-      if (previous.horizon === undefined) {
+      if (previous === undefined) {
         delete process.env.EXPO_IAP_HORIZON;
       } else {
-        process.env.EXPO_IAP_HORIZON = previous.horizon;
-      }
-      if (previous.onside === undefined) {
-        delete process.env.EXPO_IAP_ONSIDE;
-      } else {
-        process.env.EXPO_IAP_ONSIDE = previous.onside;
+        process.env.EXPO_IAP_HORIZON = previous;
       }
     }
   });
@@ -733,7 +755,6 @@ describe('android configuration', () => {
       isFireOsEnabled: false,
       vegaOverride: undefined,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
@@ -752,7 +773,6 @@ describe('android configuration', () => {
       isFireOsEnabled: false,
       vegaOverride: undefined,
       isHorizonEnabled: false,
-      isOnsideEnabled: false,
     });
   });
 
