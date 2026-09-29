@@ -217,22 +217,25 @@ export const collectScheduledRemovalFailures = (
   return failures;
 };
 
-// Why this release of a package must be a major, or null when it need not be.
+// Why this release of a package is refused, or null when it may go ahead: a
+// dropped key needs a major, and a major needs every kept key raised first.
 export function releaseGateFailure(
   packageName,
   versionMode,
   rules = scheduledRemovalRules,
   readFile = readRepoFile,
 ) {
-  if (versionMode === "major") return null;
-  for (const rule of rules.filter((candidate) => candidate.dropped)) {
+  for (const rule of rules) {
     const pkg = rule.packages.find(
       (candidate) => candidate.name === packageName,
     );
     if (!pkg) continue;
     const { version, major } = majorOf(pkg, readFile);
-    if (!(major > pkg.major)) {
+    if (rule.dropped && versionMode !== "major" && !(major > pkg.major)) {
       return `${packageName} ${version} has dropped ${rule.label}, so it must release with version=major, not ${versionMode}`;
+    }
+    if (!rule.dropped && versionMode === "major" && major === pkg.major) {
+      return `${packageName} ${version} still ships ${rule.label} as major ${pkg.major}; raise its major in that rule, or drop the key, before a major release`;
     }
   }
   return null;

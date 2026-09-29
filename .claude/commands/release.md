@@ -178,7 +178,8 @@ Train rules (mistake guards):
 - **A major and scheduled deprecations.** `scripts/scheduled-removals.mjs`
   (run by `audit:parity`) keeps each key in the migration guide's next-major
   table until its packages pass the major their rule names. A package that goes
-  major and keeps a key raises its `major` in the rule first. To drop a key,
+  major and keeps a key raises its `major` in the rule first; the release gate
+  refuses the major until it has. To drop a key,
   remove it for every package in its rule in one PR and mark the rule
   `dropped: true`; every release workflow then refuses anything but
   `version=major` for those packages. Delete the rule any time after all of

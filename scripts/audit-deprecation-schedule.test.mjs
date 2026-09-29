@@ -453,6 +453,26 @@ const releaseGates = {
   "release-maui.yml": "OpenIap.Maui",
 };
 
+test("a major release waits until every kept key of the package is raised or dropped", () => {
+  const files = scheduledFiles();
+  assert.match(
+    releaseGateFailure("lib", "major", [scheduledRule], files) ?? "",
+    /lib 3\.4\.0 still ships legacy flag as major 3; raise its major in that rule, or drop the key, before a major release/,
+  );
+  const raised = {
+    ...scheduledRule,
+    packages: [{ ...scheduledRule.packages[0], major: 4 }],
+  };
+  assert.equal(releaseGateFailure("lib", "major", [raised], files), null);
+  for (const mode of ["patch", "minor", "current", "rc-bump"]) {
+    assert.equal(
+      releaseGateFailure("lib", mode, [scheduledRule], files),
+      null,
+      mode,
+    );
+  }
+});
+
 test("every release workflow runs the scheduled removal gate for its package", () => {
   for (const [workflow, name] of Object.entries(releaseGates)) {
     const text = fs.readFileSync(
