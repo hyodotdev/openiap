@@ -212,12 +212,8 @@ all: android ios macos
 # Run GDScript unit tests and verify the tracked macOS native framework pair
 test:
 	@echo "$(GREEN)Running GDScript unit tests...$(NC)"
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_native_extension.gd
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_types_only.gd
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_api_surface.gd
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_envelope_parsing.gd
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_godot_iap.gd
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --script tests/test_android_store.gd
+	@GODOT="$(GODOT)" bash scripts/run-godot-suite.sh test_native_extension test_types_only \
+		test_api_surface test_envelope_parsing test_godot_iap test_android_store
 	@echo "$(GREEN)✓ Tests complete$(NC)"
 
 # Clean build artifacts

@@ -118,8 +118,7 @@ bun run audit:commerce-evidence || echo "commerce evidence differs from current 
 # Godot native bridges
 (cd libraries/godot-iap/android && ./gradlew build)
 (cd libraries/godot-iap/ios-gdextension && swift build)
-(cd libraries/godot-iap && godot --headless --path Example --script res://tests/test_types_only.gd)
-(cd libraries/godot-iap && godot --headless --path Example --script res://tests/test_godot_iap.gd)
+(cd libraries/godot-iap && bash scripts/run-godot-suite.sh test_types_only test_godot_iap)
 
 # KMP library/iOS framework checks plus every Android store's native example build
 (cd libraries/kmp-iap && ./gradlew \

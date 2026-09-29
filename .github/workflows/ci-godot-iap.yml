@@ -123,20 +123,24 @@ jobs:
               ./gradlew --no-daemon compileDebugKotlin -PopeniapCompileStore="$store"
           done
 
+      # Godot exits 0 on a script parse error; the runner turns that into a failure.
+      - name: Test the suite runner
+        run: node --test scripts/run-godot-suite.test.mjs
+
       - name: Test generated types
-        run: godot --headless --path Example --script res://tests/test_types_only.gd
+        run: bash scripts/run-godot-suite.sh test_types_only
 
       - name: Test API surface parity
-        run: godot --headless --path Example --script res://tests/test_api_surface.gd
+        run: bash scripts/run-godot-suite.sh test_api_surface
 
       - name: Test native envelope parsing
-        run: godot --headless --path Example --script res://tests/test_envelope_parsing.gd
+        run: bash scripts/run-godot-suite.sh test_envelope_parsing
 
       - name: Test wrapper mapping
-        run: godot --headless --path Example --script res://tests/test_godot_iap.gd
+        run: bash scripts/run-godot-suite.sh test_godot_iap
 
       - name: Test export store mapping
-        run: godot --headless --path Example --script res://tests/test_android_store.gd
+        run: bash scripts/run-godot-suite.sh test_android_store
 
   verify-minimum-godot:
     name: Verify on Godot 4.3
@@ -157,10 +161,9 @@ jobs:
           use-dotnet: false
 
       - name: Test generated types, API surface, envelopes, and export store mapping
-        run: |
-          for suite in test_types_only test_api_surface test_envelope_parsing test_android_store; do
-            godot --headless --path Example --script "res://tests/$suite.gd"
-          done
+        run: >
+          bash scripts/run-godot-suite.sh
+          test_types_only test_api_surface test_envelope_parsing test_android_store
 
   apple-changes:
     name: Detect Apple framework sources
