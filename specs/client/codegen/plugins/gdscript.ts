@@ -5,10 +5,16 @@
  * Uses the IR (Intermediate Representation) for maintainable code generation.
  */
 
+import { basename } from 'node:path';
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
 import { generatedFileHeader } from '../core/generated-header.js';
 import type { IRSchema, IREnum, IRInterface, IRObject, IRInput, IRUnion, IROperation, IRType, IRField } from '../core/types.js';
 import { GDSCRIPT_KEYWORDS, GRAPHQL_TO_GDSCRIPT, requireGraphQLScalarMapping, toSnakeCase, toConstantCase } from '../core/utils.js';
+
+// Godot resolves a type annotation against a project's autoloads and
+// class_name scripts before this file's own types, so annotations name them
+// through the file's preload of itself.
+const SELF_ALIAS = '_Types';
 
 export class GDScriptPlugin extends CodegenPlugin {
   readonly name = 'gdscript';
@@ -53,7 +59,12 @@ export class GDScriptPlugin extends CodegenPlugin {
     if (type.kind === 'union') {
       return 'Variant';
     }
-    return type.name!;
+    return this.typeRef(type.name!);
+  }
+
+  /** A type from this file, safe to use in an annotation, `is`, or `as`. */
+  private typeRef(name: string): string {
+    return `${SELF_ALIAS}.${name}`;
   }
 
   escapeKeyword(name: string): string {
@@ -272,6 +283,10 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('#        var store: Types.IapStore = Types.IapStore.APPLE');
     this.emit('# ============================================================================');
     this.emit('');
+    this.emit('# Annotations below name this file\'s types through its own preload, so a');
+    this.emit('# project autoload or class_name with the same name cannot replace them.');
+    this.emit(`const ${SELF_ALIAS} = preload("${basename(this.getOutputPath())}")`);
+    this.emit('');
   }
 
   protected generateDocComment(description: string | undefined, indent: string = ''): void {
@@ -447,7 +462,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('');
       const hasStrictRequiredEnum = this.typeHasRequiredEnumWithoutUnknown(irObject.name, this.schema);
       const decoderOptions = hasStrictRequiredEnum ? ', report_errors: bool = true' : '';
-      this.emit(`\tstatic func from_dict(data: Dictionary${decoderOptions}) -> ${irObject.name}:`);
+      this.emit(`\tstatic func from_dict(data: Dictionary${decoderOptions}) -> ${this.typeRef(irObject.name)}:`);
       if (hasStrictRequiredEnum) {
         this.emitRequiredEnumGuards(irObject.name, fields);
       }
@@ -582,7 +597,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       } else {
         this.emit(`${itemIndent}\tarr.append(${elementTypeName}.from_dict(item))`);
       }
-      this.emit(`${itemIndent}elif item is ${elementTypeName}:`);
+      this.emit(`${itemIndent}elif item is ${this.typeRef(elementTypeName)}:`);
       this.emit(`${itemIndent}\tarr.append(item)`);
       this.emit(`${itemIndent}else:`);
       if (elementType.nullable && !isRequestContext) {
@@ -819,7 +834,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('');
       const hasStrictRequiredEnum = !responseDerivedInput && this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
       const decoderOptions = hasStrictRequiredEnum ? ', report_errors: bool = true' : '';
-      this.emit(`\tstatic func from_dict(data: Dictionary${decoderOptions}) -> ${irInput.name}:`);
+      this.emit(`\tstatic func from_dict(data: Dictionary${decoderOptions}) -> ${this.typeRef(irInput.name)}:`);
       if (!responseDerivedInput) {
         this.emitInputFieldGuards(irInput.name, fields);
       }
@@ -951,14 +966,14 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.generateDocComment(irInput.description);
     this.emit('class RequestPurchaseProps:');
     this.generateDocComment(requestPurchase.description, '\t');
-    this.emit('\tvar request: RequestPurchasePropsByPlatforms');
+    this.emit(`\tvar request: ${this.typeRef('RequestPurchasePropsByPlatforms')}`);
     this.generateDocComment(requestSubscription.description, '\t');
-    this.emit('\tvar request_subscription: RequestSubscriptionPropsByPlatforms');
+    this.emit(`\tvar request_subscription: ${this.typeRef('RequestSubscriptionPropsByPlatforms')}`);
     this.generateDocComment(type.description, '\t');
-    this.emit('\tvar type: ProductQueryType = ProductQueryType.IN_APP');
+    this.emit(`\tvar type: ${this.typeRef('ProductQueryType')} = ProductQueryType.IN_APP`);
     this.emit('');
     this.emit(
-      '\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms) -> RequestPurchaseProps:',
+      `\tstatic func in_app(platforms: ${this.typeRef('RequestPurchasePropsByPlatforms')}) -> ${this.typeRef('RequestPurchaseProps')}:`,
     );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request = platforms');
@@ -966,14 +981,14 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\t\treturn obj');
     this.emit('');
     this.emit(
-      '\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms) -> RequestPurchaseProps:',
+      `\tstatic func subs(platforms: ${this.typeRef('RequestSubscriptionPropsByPlatforms')}) -> ${this.typeRef('RequestPurchaseProps')}:`,
     );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request_subscription = platforms');
     this.emit('\t\tobj.type = ProductQueryType.SUBS');
     this.emit('\t\treturn obj');
     this.emit('');
-    this.emit('\tstatic func from_dict(data: Dictionary) -> RequestPurchaseProps:');
+    this.emit(`\tstatic func from_dict(data: Dictionary) -> ${this.typeRef('RequestPurchaseProps')}:`);
     this.emit('\t\tvar has_purchase = data.has("requestPurchase") and data["requestPurchase"] != null');
     this.emit('\t\tvar has_subscription = data.has("requestSubscription") and data["requestSubscription"] != null');
     this.emit('\t\tif has_purchase == has_subscription:');
@@ -1119,7 +1134,7 @@ export class GDScriptPlugin extends CodegenPlugin {
             }
           }
           this.emit('');
-          this.emit(`\t\t\tstatic func from_dict(data: Dictionary) -> Args:`);
+          this.emit(`\t\t\tstatic func from_dict(data: Dictionary) -> ${this.typeRef(`${irOperation.name}.${field.name}Field.Args`)}:`);
           this.emit(`\t\t\t\tvar obj = Args.new()`);
           for (const arg of field.args) {
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));

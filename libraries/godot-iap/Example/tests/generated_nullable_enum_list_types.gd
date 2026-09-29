@@ -7,6 +7,10 @@
 #        var store: Types.IapStore = Types.IapStore.APPLE
 # ============================================================================
 
+# Annotations below name this file's types through its own preload, so a
+# project autoload or class_name with the same name cannot replace them.
+const _Types = preload("generated_nullable_enum_list_types.gd")
+
 # ============================================================================
 # Enums
 # ============================================================================
@@ -26,16 +30,16 @@ enum StrictStatus {
 
 class EnumListHolder:
 	## Status values from the schema. Preserves every documentation line. @see https://openiap.dev/docs/types
-	var statuses: Array[TestStatus] = []
-	var strict_statuses: Array[StrictStatus] = []
+	var statuses: Array[_Types.TestStatus] = []
+	var strict_statuses: Array[_Types.StrictStatus] = []
 	var nullable_strict_statuses: Array[Variant] = []
 	var nullable_labels: Array[Variant] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> EnumListHolder:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.EnumListHolder:
 		var obj = EnumListHolder.new()
 		if data.has("statuses") and data["statuses"] != null:
 			if data["statuses"] is Array:
-				var arr: Array[TestStatus] = []
+				var arr: Array[_Types.TestStatus] = []
 				for item in data["statuses"]:
 					if item is String and TEST_STATUS_FROM_STRING.has(item):
 						arr.append(TEST_STATUS_FROM_STRING[item])
@@ -46,7 +50,7 @@ class EnumListHolder:
 				obj.statuses = arr
 		if data.has("strictStatuses") and data["strictStatuses"] != null:
 			if data["strictStatuses"] is Array:
-				var arr: Array[StrictStatus] = []
+				var arr: Array[_Types.StrictStatus] = []
 				for item in data["strictStatuses"]:
 					if item is String and STRICT_STATUS_FROM_STRING.has(item):
 						arr.append(STRICT_STATUS_FROM_STRING[item])

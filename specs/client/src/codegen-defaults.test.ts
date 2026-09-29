@@ -193,7 +193,7 @@ describe('codegen defaults', () => {
       schema([field('renderer', rendererType, 'GOOGLE_RENDERED')], [rendererEnum]),
     );
 
-    expect(output).toContain('var renderer: Renderer = Renderer.GOOGLE_RENDERED');
+    expect(output).toContain('var renderer: _Types.Renderer = Renderer.GOOGLE_RENDERED');
 
     const csharpOutput = new CSharpPlugin({ outputPath: 'Types.cs' }).generate(
       schema([field('renderer', rendererType, 'GOOGLE_RENDERED')], [rendererEnum]),
@@ -259,7 +259,7 @@ describe('codegen defaults', () => {
       schema([field('categories', listType, ['TRANSACTIONAL'])], [categoryEnum]),
     );
 
-    expect(output).toContain('var categories: Array[Category] = [Category.TRANSACTIONAL]');
+    expect(output).toContain('var categories: Array[_Types.Category] = [Category.TRANSACTIONAL]');
   });
 
   it('renders object defaults from IR without re-reading product policy', () => {
@@ -293,7 +293,7 @@ describe('codegen defaults', () => {
     expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(product)).toContain(
       'public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;',
     );
-    expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(product)).toContain('var platform: IapPlatform = IapPlatform.IOS');
+    expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(product)).toContain('var platform: _Types.IapPlatform = IapPlatform.IOS');
   });
 
   it('derives Swift ErrorCode compatibility cases from IR aliases', () => {

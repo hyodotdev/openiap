@@ -722,14 +722,30 @@ func _on_purchase_error(error):
           </a>
         </h3>
         <p>
-          An autoload or <code>class_name</code> in your project has the same
-          name as a type in <code>addons/godot-iap/types.gd</code>, such as{' '}
-          <code>IapStore</code>, and Godot reports{' '}
-          <code>
-            Cannot assign a value of type types.gd.IapStore to variable
-            &quot;store&quot;
-          </code>
-          . Rename your autoload or class, for example to <code>Shop</code>.
+          Godot stops loading <code>addons/godot-iap/types.gd</code> when an
+          autoload or <code>class_name</code> in your project reuses one of its
+          names:
+        </p>
+        <ul>
+          <li>
+            An enum name, such as <code>IapStore</code>, gives{' '}
+            <code>
+              Cannot assign a value of type types.gd.IapStore to variable
+              &quot;store&quot;
+            </code>{' '}
+            in godot-iap 3.6.x and earlier. Update godot-iap; later releases
+            load beside it.
+          </li>
+          <li>
+            A class name, such as <code>PurchaseAndroid</code>, gives{' '}
+            <code>
+              Class &quot;PurchaseAndroid&quot; hides an autoload singleton
+            </code>{' '}
+            or <code>hides a global script class</code> in every version. Rename
+            your script, for example to <code>Shop</code>.
+          </li>
+        </ul>
+        <p>
           Editing <code>types.gd</code> does not survive an update.
         </p>
 
@@ -761,7 +777,8 @@ func _on_purchase_error(error):
           . If your game ships its publishable key in that file, update
           godot-iap; later releases export it again. On 3.6.x, move the key to
           another file, such as <code>res://iapkit_publishable.cfg</code>, and
-          read it from there.
+          read it from there. Every export carries the file, so keep only a
+          publishable <code>pk_</code> key in it.
         </p>
 
         <h3 id="android-gradle-failure" className="anchor-heading">

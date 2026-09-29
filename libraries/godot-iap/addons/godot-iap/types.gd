@@ -7,6 +7,10 @@
 #        var store: Types.IapStore = Types.IapStore.APPLE
 # ============================================================================
 
+# Annotations below name this file's types through its own preload, so a
+# project autoload or class_name with the same name cannot replace them.
+const _Types = preload("types.gd")
+
 # ============================================================================
 # Enums
 # ============================================================================
@@ -372,9 +376,9 @@ class ActiveSubscription:
 	## The current plan identifier. This is: - On Android: the basePlanId (e.g., "premium", "premium-year") - On iOS: the productId (e.g., "com.example.premium_monthly", "com.example.premium_yearly") This provides a unified way to identify which specific plan/tier the user is subscribed to.
 	var current_plan_id: Variant = null
 	## Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status, pending upgrades/downgrades, and auto-renewal preferences.
-	var renewal_info_ios: RenewalInfoIOS
+	var renewal_info_ios: _Types.RenewalInfoIOS
 
-	static func from_dict(data: Dictionary) -> ActiveSubscription:
+	static func from_dict(data: Dictionary) -> _Types.ActiveSubscription:
 		var obj = ActiveSubscription.new()
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
@@ -438,9 +442,9 @@ class ActiveSubscription:
 ## Advanced Commerce metadata from a transaction (iOS 18.4+). Contains item details, tax information, and refund data for purchases made through the Advanced Commerce API using generic SKUs. Only present for transactions that use the Advanced Commerce API.
 class AdvancedCommerceInfoIOS:
 	## The items purchased as part of this transaction
-	var items: Array[AdvancedCommerceItemIOS] = []
+	var items: Array[_Types.AdvancedCommerceItemIOS] = []
 	## Subscription period for this transaction. Available in OpenIAP 3.1.0 / openiap-apple 3.1.0 (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+, or visionOS 2.4+).
-	var period: SubscriptionPeriodValueIOS
+	var period: _Types.SubscriptionPeriodValueIOS
 	## Request reference identifier for tracking
 	var request_reference_id: Variant = null
 	## Tax code for the transaction
@@ -456,15 +460,15 @@ class AdvancedCommerceInfoIOS:
 	## Optional description
 	var description: Variant = null
 
-	static func from_dict(data: Dictionary) -> AdvancedCommerceInfoIOS:
+	static func from_dict(data: Dictionary) -> _Types.AdvancedCommerceInfoIOS:
 		var obj = AdvancedCommerceInfoIOS.new()
 		if data.has("items") and data["items"] != null:
 			if data["items"] is Array:
-				var arr: Array[AdvancedCommerceItemIOS] = []
+				var arr: Array[_Types.AdvancedCommerceItemIOS] = []
 				for item in data["items"]:
 					if item is Dictionary:
 						arr.append(AdvancedCommerceItemIOS.from_dict(item))
-					elif item is AdvancedCommerceItemIOS:
+					elif item is _Types.AdvancedCommerceItemIOS:
 						arr.append(item)
 					else:
 						push_error("Invalid AdvancedCommerceItemIOS list value for items")
@@ -526,7 +530,7 @@ class AdvancedCommerceItemDetailsIOS:
 	## JSON representation of the item details
 	var json_representation: Variant = null
 
-	static func from_dict(data: Dictionary) -> AdvancedCommerceItemDetailsIOS:
+	static func from_dict(data: Dictionary) -> _Types.AdvancedCommerceItemDetailsIOS:
 		var obj = AdvancedCommerceItemDetailsIOS.new()
 		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
 			obj.json_representation = data["jsonRepresentation"]
@@ -541,13 +545,13 @@ class AdvancedCommerceItemDetailsIOS:
 ## An item purchased through the Advanced Commerce API (iOS 18.4+). Represents a developer-defined product within a generic SKU transaction.
 class AdvancedCommerceItemIOS:
 	## The item's detail information
-	var details: AdvancedCommerceItemDetailsIOS
+	var details: _Types.AdvancedCommerceItemDetailsIOS
 	## Refunds issued for this item, if any
-	var refunds: Array[AdvancedCommerceRefundIOS] = []
+	var refunds: Array[_Types.AdvancedCommerceRefundIOS] = []
 	## Date access to this item was revoked (milliseconds since epoch)
 	var revocation_date: Variant = null
 
-	static func from_dict(data: Dictionary) -> AdvancedCommerceItemIOS:
+	static func from_dict(data: Dictionary) -> _Types.AdvancedCommerceItemIOS:
 		var obj = AdvancedCommerceItemIOS.new()
 		if data.has("details") and data["details"] != null:
 			if data["details"] is Dictionary:
@@ -556,11 +560,11 @@ class AdvancedCommerceItemIOS:
 				obj.details = data["details"]
 		if data.has("refunds") and data["refunds"] != null:
 			if data["refunds"] is Array:
-				var arr: Array[AdvancedCommerceRefundIOS] = []
+				var arr: Array[_Types.AdvancedCommerceRefundIOS] = []
 				for item in data["refunds"]:
 					if item is Dictionary:
 						arr.append(AdvancedCommerceRefundIOS.from_dict(item))
-					elif item is AdvancedCommerceRefundIOS:
+					elif item is _Types.AdvancedCommerceRefundIOS:
 						arr.append(item)
 					else:
 						push_error("Invalid AdvancedCommerceRefundIOS list value for refunds")
@@ -595,7 +599,7 @@ class AdvancedCommerceRefundIOS:
 	## JSON representation of the refund details
 	var json_representation: Variant = null
 
-	static func from_dict(data: Dictionary) -> AdvancedCommerceRefundIOS:
+	static func from_dict(data: Dictionary) -> _Types.AdvancedCommerceRefundIOS:
 		var obj = AdvancedCommerceRefundIOS.new()
 		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
 			obj.json_representation = data["jsonRepresentation"]
@@ -627,7 +631,7 @@ class AppTransaction:
 	## Store channel of the original app purchase: consumer, education, enterprise, or another future StoreKit value (Apple 27+ beta).
 	var store_type: Variant = null
 
-	static func from_dict(data: Dictionary) -> AppTransaction:
+	static func from_dict(data: Dictionary) -> _Types.AppTransaction:
 		var obj = AppTransaction.new()
 		if data.has("bundleId") and data["bundleId"] != null:
 			obj.bundle_id = data["bundleId"]
@@ -692,7 +696,7 @@ class BillingChoiceInfoAndroid:
 	## Play Loyalty information for the user.
 	var play_billing_loyalty_info: Variant = null
 
-	static func from_dict(data: Dictionary) -> BillingChoiceInfoAndroid:
+	static func from_dict(data: Dictionary) -> _Types.BillingChoiceInfoAndroid:
 		var obj = BillingChoiceInfoAndroid.new()
 		if data.has("playBillingChoiceImageUrl") and data["playBillingChoiceImageUrl"] != null:
 			obj.play_billing_choice_image_url = data["playBillingChoiceImageUrl"]
@@ -712,13 +716,13 @@ class BillingProgramAvailabilityResultAndroid:
 	## Whether the billing program is available for the user
 	var is_available: bool = false
 	## The billing program that was checked
-	var billing_program: BillingProgramAndroid
+	var billing_program: _Types.BillingProgramAndroid
 	## Billing Choice screen renderer. Populated only for available BILLING_CHOICE results. Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
 	var choice_screen_type: Variant = null
 	## Whether external-link payment is available for Billing Choice. Populated only for available BILLING_CHOICE results. Available in OpenIAP 2.1.0 / openiap-google 2.3.0.
 	var is_external_link_available: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> BillingProgramAvailabilityResultAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.BillingProgramAvailabilityResultAndroid:
 		if not data.has("billingProgram") or not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid BillingProgramAvailabilityResultAndroid.billingProgram enum value")
@@ -765,11 +769,11 @@ class BillingProgramAvailabilityResultAndroid:
 ## Reporting details for transactions made outside of Google Play Billing (Android) Contains the external transaction token needed for reporting Available in Google Play Billing Library 8.2.0+
 class BillingProgramReportingDetailsAndroid:
 	## The billing program that the reporting details are associated with
-	var billing_program: BillingProgramAndroid
+	var billing_program: _Types.BillingProgramAndroid
 	## External transaction token used to report transactions made outside of Google Play Billing. Do not cache it for a later redirect session. For External Offer, the same token may report multiple purchases made during the session that generated it.
 	var external_transaction_token: String = ""
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> BillingProgramReportingDetailsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.BillingProgramReportingDetailsAndroid:
 		if not data.has("billingProgram") or not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid BillingProgramReportingDetailsAndroid.billingProgram enum value")
@@ -805,7 +809,7 @@ class BillingResultAndroid:
 	## Sub-response code for more granular error information (8.0+). Provides additional context when responseCode indicates an error.
 	var sub_response_code: Variant = null
 
-	static func from_dict(data: Dictionary) -> BillingResultAndroid:
+	static func from_dict(data: Dictionary) -> _Types.BillingResultAndroid:
 		var obj = BillingResultAndroid.new()
 		if data.has("responseCode") and data["responseCode"] != null:
 			obj.response_code = data["responseCode"]
@@ -845,7 +849,7 @@ class BundledSubscriptionIOS:
 	var subscription_group_level: int = 0
 	var subscription_group_display_name: String = ""
 
-	static func from_dict(data: Dictionary) -> BundledSubscriptionIOS:
+	static func from_dict(data: Dictionary) -> _Types.BundledSubscriptionIOS:
 		var obj = BundledSubscriptionIOS.new()
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
@@ -889,9 +893,9 @@ class DeveloperProvidedBillingDetailsAndroid:
 	## Original external transaction ID when replacing a subscription that was purchased through developer billing.
 	var original_external_transaction_id: Variant = null
 	## Products selected for the developer billing flow.
-	var products: Array[DeveloperProvidedBillingProductAndroid] = []
+	var products: Array[_Types.DeveloperProvidedBillingProductAndroid] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> DeveloperProvidedBillingDetailsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.DeveloperProvidedBillingDetailsAndroid:
 		var obj = DeveloperProvidedBillingDetailsAndroid.new()
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
@@ -901,14 +905,14 @@ class DeveloperProvidedBillingDetailsAndroid:
 			obj.original_external_transaction_id = data["originalExternalTransactionId"]
 		if data.has("products") and data["products"] != null:
 			if data["products"] is Array:
-				var arr: Array[DeveloperProvidedBillingProductAndroid] = []
+				var arr: Array[_Types.DeveloperProvidedBillingProductAndroid] = []
 				for item in data["products"]:
 					if item is Dictionary:
 						var decoded_developer_provided_billing_product_android = DeveloperProvidedBillingProductAndroid.from_dict(item, report_errors)
 						if decoded_developer_provided_billing_product_android == null:
 							return null
 						arr.append(decoded_developer_provided_billing_product_android)
-					elif item is DeveloperProvidedBillingProductAndroid:
+					elif item is _Types.DeveloperProvidedBillingProductAndroid:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -942,11 +946,11 @@ class DeveloperProvidedBillingProductAndroid:
 	## Product identifier.
 	var id: String = ""
 	## Google Play product type (in-app or subscription).
-	var type: ProductType
+	var type: _Types.ProductType
 	## Subscription offer token, when applicable.
 	var offer_token: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> DeveloperProvidedBillingProductAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.DeveloperProvidedBillingProductAndroid:
 		if not data.has("type") or not ((data["type"] is String and PRODUCT_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and PRODUCT_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid DeveloperProvidedBillingProductAndroid.type enum value")
@@ -984,7 +988,7 @@ class DiscountAmountAndroid:
 	## Formatted discount amount with currency sign (e.g., "$4.99")
 	var formatted_discount_amount: String = ""
 
-	static func from_dict(data: Dictionary) -> DiscountAmountAndroid:
+	static func from_dict(data: Dictionary) -> _Types.DiscountAmountAndroid:
 		var obj = DiscountAmountAndroid.new()
 		if data.has("discountAmountMicros") and data["discountAmountMicros"] != null:
 			obj.discount_amount_micros = data["discountAmountMicros"]
@@ -1003,9 +1007,9 @@ class DiscountDisplayInfoAndroid:
 	## Percentage discount (e.g., 33 for 33% off) Only returned for percentage-based discounts
 	var percentage_discount: Variant = null
 	## Absolute discount amount details Only returned for fixed amount discounts
-	var discount_amount: DiscountAmountAndroid
+	var discount_amount: _Types.DiscountAmountAndroid
 
-	static func from_dict(data: Dictionary) -> DiscountDisplayInfoAndroid:
+	static func from_dict(data: Dictionary) -> _Types.DiscountDisplayInfoAndroid:
 		var obj = DiscountDisplayInfoAndroid.new()
 		if data.has("percentageDiscount") and data["percentageDiscount"] != null:
 			obj.percentage_discount = data["percentageDiscount"]
@@ -1037,7 +1041,7 @@ class DiscountOffer:
 	## Currency code (ISO 4217, e.g., "USD")
 	var currency: String = ""
 	## Offer category. DiscountOffer currently represents Android one-time product offers and is populated as OneTime. Introductory and Promotional are used by SubscriptionOffer.
-	var type: DiscountOfferType
+	var type: _Types.DiscountOfferType
 	## [Android] Offer token required for purchase. Must be passed to requestPurchase() when purchasing with this offer.
 	var offer_token_android: Variant = null
 	## [Android] List of tags associated with this offer.
@@ -1051,17 +1055,17 @@ class DiscountOffer:
 	## [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
 	var formatted_discount_amount_android: Variant = null
 	## [Android] Valid time window for the offer. Contains startTimeMillis and endTimeMillis.
-	var valid_time_window_android: ValidTimeWindowAndroid
+	var valid_time_window_android: _Types.ValidTimeWindowAndroid
 	## [Android] Limited quantity information. Contains maximumQuantity and remainingQuantity.
-	var limited_quantity_info_android: LimitedQuantityInfoAndroid
+	var limited_quantity_info_android: _Types.LimitedQuantityInfoAndroid
 	## [Android] Pre-order details if this is a pre-order offer. Available in Google Play Billing Library 8.1.0+
-	var preorder_details_android: PreorderDetailsAndroid
+	var preorder_details_android: _Types.PreorderDetailsAndroid
 	## [Android] Rental details if this is a rental offer.
-	var rental_details_android: RentalDetailsAndroid
+	var rental_details_android: _Types.RentalDetailsAndroid
 	## [Android] Purchase option ID for this offer. Used to identify which purchase option the user selected. Available in Google Play Billing Library 8.0+
 	var purchase_option_id_android: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> DiscountOffer:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.DiscountOffer:
 		if not data.has("type") or not ((data["type"] is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and DISCOUNT_OFFER_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid DiscountOffer.type enum value")
@@ -1171,7 +1175,7 @@ class EntitlementIOS:
 	var transaction_id: String = ""
 	var json_representation: String = ""
 
-	static func from_dict(data: Dictionary) -> EntitlementIOS:
+	static func from_dict(data: Dictionary) -> _Types.EntitlementIOS:
 		var obj = EntitlementIOS.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -1195,7 +1199,7 @@ class ExternalPurchaseCustomLinkNoticeResultIOS:
 	## Optional error message if the presentation failed
 	var error: Variant = null
 
-	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkNoticeResultIOS:
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseCustomLinkNoticeResultIOS:
 		var obj = ExternalPurchaseCustomLinkNoticeResultIOS.new()
 		if data.has("continued") and data["continued"] != null:
 			obj.continued = data["continued"]
@@ -1217,7 +1221,7 @@ class ExternalPurchaseCustomLinkTokenResultIOS:
 	## Optional error message if token retrieval failed
 	var error: Variant = null
 
-	static func from_dict(data: Dictionary) -> ExternalPurchaseCustomLinkTokenResultIOS:
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseCustomLinkTokenResultIOS:
 		var obj = ExternalPurchaseCustomLinkTokenResultIOS.new()
 		if data.has("token") and data["token"] != null:
 			obj.token = data["token"]
@@ -1240,7 +1244,7 @@ class ExternalPurchaseLinkResultIOS:
 	## Optional error message if the presentation failed
 	var error: Variant = null
 
-	static func from_dict(data: Dictionary) -> ExternalPurchaseLinkResultIOS:
+	static func from_dict(data: Dictionary) -> _Types.ExternalPurchaseLinkResultIOS:
 		var obj = ExternalPurchaseLinkResultIOS.new()
 		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
@@ -1258,13 +1262,13 @@ class ExternalPurchaseLinkResultIOS:
 ## Result of presenting external purchase notice sheet (iOS 17.4+) Returns the token when user continues to external purchase.
 class ExternalPurchaseNoticeResultIOS:
 	## Notice result indicating user action
-	var result: ExternalPurchaseNoticeAction
+	var result: _Types.ExternalPurchaseNoticeAction
 	## Optional error message if the presentation failed
 	var error: Variant = null
 	## External purchase token returned when user continues (iOS 17.4+). This token should be reported to Apple's External Purchase Server API. Only present when result is Continue.
 	var external_purchase_token: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> ExternalPurchaseNoticeResultIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ExternalPurchaseNoticeResultIOS:
 		if not data.has("result") or not ((data["result"] is String and EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING.has(data["result"])) or (data["result"] is int and EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES.has(data["result"]))):
 			if report_errors:
 				push_error("Invalid ExternalPurchaseNoticeResultIOS.result enum value")
@@ -1298,12 +1302,12 @@ class ExternalPurchaseNoticeResultIOS:
 
 ## Public app-facing data attached to one store product in IAPKit. Never place credentials, signing keys, or server-authoritative rules here.
 class IapkitProductClientPayload:
-	var format: IapkitClientPayloadFormat
+	var format: _Types.IapkitClientPayloadFormat
 	var body: String = ""
 	var version: float = 0.0
 	var updated_at: float = 0.0
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> IapkitProductClientPayload:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.IapkitProductClientPayload:
 		if not data.has("format") or not ((data["format"] is String and IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING.has(data["format"])) or (data["format"] is int and IAPKIT_CLIENT_PAYLOAD_FORMAT_VALUES.has(data["format"]))):
 			if report_errors:
 				push_error("Invalid IapkitProductClientPayload.format enum value")
@@ -1342,11 +1346,11 @@ class IapkitProductClientPayload:
 ## Result from showing Play billing in-app messages (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageResultAndroid:
 	## Response code for the in-app messaging flow.
-	var response_code: InAppMessageResponseCodeAndroid
+	var response_code: _Types.InAppMessageResponseCodeAndroid
 	## Purchase token returned when a subscription status changed.
 	var purchase_token: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> InAppMessageResultAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.InAppMessageResultAndroid:
 		if not data.has("responseCode") or not ((data["responseCode"] is String and IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_FROM_STRING.has(data["responseCode"])) or (data["responseCode"] is int and IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_VALUES.has(data["responseCode"]))):
 			if report_errors:
 				push_error("Invalid InAppMessageResultAndroid.responseCode enum value")
@@ -1381,7 +1385,7 @@ class InstallmentPlanDetailsAndroid:
 	## Subsequent committed payments count after the subscription plan renews. For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12, users will be committed to another 12 monthly payments when the plan renews. Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
 	var subsequent_commitment_payments_count: int = 0
 
-	static func from_dict(data: Dictionary) -> InstallmentPlanDetailsAndroid:
+	static func from_dict(data: Dictionary) -> _Types.InstallmentPlanDetailsAndroid:
 		var obj = InstallmentPlanDetailsAndroid.new()
 		if data.has("commitmentPaymentsCount") and data["commitmentPaymentsCount"] != null:
 			obj.commitment_payments_count = data["commitmentPaymentsCount"]
@@ -1402,7 +1406,7 @@ class LimitedQuantityInfoAndroid:
 	## Remaining quantity the user can still purchase
 	var remaining_quantity: int = 0
 
-	static func from_dict(data: Dictionary) -> LimitedQuantityInfoAndroid:
+	static func from_dict(data: Dictionary) -> _Types.LimitedQuantityInfoAndroid:
 		var obj = LimitedQuantityInfoAndroid.new()
 		if data.has("maximumQuantity") and data["maximumQuantity"] != null:
 			obj.maximum_quantity = data["maximumQuantity"]
@@ -1423,7 +1427,7 @@ class PendingPurchaseUpdateAndroid:
 	## Purchase token for the pending transaction. Use this token to track or manage the pending purchase update.
 	var purchase_token: String = ""
 
-	static func from_dict(data: Dictionary) -> PendingPurchaseUpdateAndroid:
+	static func from_dict(data: Dictionary) -> _Types.PendingPurchaseUpdateAndroid:
 		var obj = PendingPurchaseUpdateAndroid.new()
 		if data.has("products") and data["products"] != null:
 			if data["products"] is Array:
@@ -1449,7 +1453,7 @@ class PreorderDetailsAndroid:
 	## Pre-order release time in milliseconds since epoch. This is when the product will be available to users who pre-ordered.
 	var preorder_release_time_millis: String = ""
 
-	static func from_dict(data: Dictionary) -> PreorderDetailsAndroid:
+	static func from_dict(data: Dictionary) -> _Types.PreorderDetailsAndroid:
 		var obj = PreorderDetailsAndroid.new()
 		if data.has("preorderPresaleEndTimeMillis") and data["preorderPresaleEndTimeMillis"] != null:
 			obj.preorder_presale_end_time_millis = data["preorderPresaleEndTimeMillis"]
@@ -1471,7 +1475,7 @@ class PricingPhaseAndroid:
 	var price_amount_micros: String = ""
 	var recurrence_mode: int = 0
 
-	static func from_dict(data: Dictionary) -> PricingPhaseAndroid:
+	static func from_dict(data: Dictionary) -> _Types.PricingPhaseAndroid:
 		var obj = PricingPhaseAndroid.new()
 		if data.has("formattedPrice") and data["formattedPrice"] != null:
 			obj.formatted_price = data["formattedPrice"]
@@ -1498,17 +1502,17 @@ class PricingPhaseAndroid:
 		return dict
 
 class PricingPhasesAndroid:
-	var pricing_phase_list: Array[PricingPhaseAndroid] = []
+	var pricing_phase_list: Array[_Types.PricingPhaseAndroid] = []
 
-	static func from_dict(data: Dictionary) -> PricingPhasesAndroid:
+	static func from_dict(data: Dictionary) -> _Types.PricingPhasesAndroid:
 		var obj = PricingPhasesAndroid.new()
 		if data.has("pricingPhaseList") and data["pricingPhaseList"] != null:
 			if data["pricingPhaseList"] is Array:
-				var arr: Array[PricingPhaseAndroid] = []
+				var arr: Array[_Types.PricingPhaseAndroid] = []
 				for item in data["pricingPhaseList"]:
 					if item is Dictionary:
 						arr.append(PricingPhaseAndroid.from_dict(item))
-					elif item is PricingPhaseAndroid:
+					elif item is _Types.PricingPhaseAndroid:
 						arr.append(item)
 					else:
 						push_error("Invalid PricingPhaseAndroid list value for pricingPhaseList")
@@ -1534,22 +1538,22 @@ class ProductAndroid:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType = ProductType.IN_APP
+	var type: _Types.ProductType = ProductType.IN_APP
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform = IapPlatform.ANDROID
+	var platform: _Types.IapPlatform = IapPlatform.ANDROID
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+) OK = product fetched successfully NOT_FOUND = SKU doesn't exist NO_OFFERS_AVAILABLE = user not eligible for any offers Available in Google Play Billing Library 8.0.0+
 	var product_status_android: Variant = null
 	## Standardized Android one-time product purchase options and offers. Native metadata uses Android-suffixed fields. @see https://openiap.dev/docs/types/discount-offer
-	var discount_offers: Array[DiscountOffer] = []
+	var discount_offers: Array[_Types.DiscountOffer] = []
 	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
-	var subscription_offers: Array[SubscriptionOffer] = []
+	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> ProductAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ProductAndroid:
 		if data.has("type") and data["type"] != null and not ((data["type"] is String and PRODUCT_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and PRODUCT_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid ProductAndroid.type enum value")
@@ -1603,14 +1607,14 @@ class ProductAndroid:
 				obj.product_status_android = ProductStatusAndroid.UNKNOWN
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			if data["discountOffers"] is Array:
-				var arr: Array[DiscountOffer] = []
+				var arr: Array[_Types.DiscountOffer] = []
 				for item in data["discountOffers"]:
 					if item is Dictionary:
 						var decoded_discount_offer = DiscountOffer.from_dict(item, report_errors)
 						if decoded_discount_offer == null:
 							return null
 						arr.append(decoded_discount_offer)
-					elif item is DiscountOffer:
+					elif item is _Types.DiscountOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -1619,14 +1623,14 @@ class ProductAndroid:
 				obj.discount_offers = arr
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[SubscriptionOffer] = []
+				var arr: Array[_Types.SubscriptionOffer] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)
 						if decoded_subscription_offer == null:
 							return null
 						arr.append(decoded_subscription_offer)
-					elif item is SubscriptionOffer:
+					elif item is _Types.SubscriptionOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -1688,23 +1692,23 @@ class ProductIOS:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType = ProductType.IN_APP
+	var type: _Types.ProductType = ProductType.IN_APP
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform = IapPlatform.IOS
+	var platform: _Types.IapPlatform = IapPlatform.IOS
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
 	var json_representation_ios: String = ""
-	var type_ios: ProductTypeIOS
+	var type_ios: _Types.ProductTypeIOS
 	## Standardized subscription offers. Cross-platform type with iOS-specific fields using suffix. Note: iOS does not support one-time product discounts. @see https://openiap.dev/docs/types/subscription-offer
-	var subscription_offers: Array[SubscriptionOffer] = []
+	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
-	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
+	var pricing_terms_ios: Array[_Types.SubscriptionPricingTermsIOS] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> ProductIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ProductIOS:
 		if data.has("type") and data["type"] != null and not ((data["type"] is String and PRODUCT_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and PRODUCT_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid ProductIOS.type enum value")
@@ -1766,14 +1770,14 @@ class ProductIOS:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[SubscriptionOffer] = []
+				var arr: Array[_Types.SubscriptionOffer] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)
 						if decoded_subscription_offer == null:
 							return null
 						arr.append(decoded_subscription_offer)
-					elif item is SubscriptionOffer:
+					elif item is _Types.SubscriptionOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -1782,14 +1786,14 @@ class ProductIOS:
 				obj.subscription_offers = arr
 		if data.has("pricingTermsIOS") and data["pricingTermsIOS"] != null:
 			if data["pricingTermsIOS"] is Array:
-				var arr: Array[SubscriptionPricingTermsIOS] = []
+				var arr: Array[_Types.SubscriptionPricingTermsIOS] = []
 				for item in data["pricingTermsIOS"]:
 					if item is Dictionary:
 						var decoded_subscription_pricing_terms_ios = SubscriptionPricingTermsIOS.from_dict(item, report_errors)
 						if decoded_subscription_pricing_terms_ios == null:
 							return null
 						arr.append(decoded_subscription_pricing_terms_ios)
-					elif item is SubscriptionPricingTermsIOS:
+					elif item is _Types.SubscriptionPricingTermsIOS:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -1852,20 +1856,20 @@ class ProductSubscriptionAndroid:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType = ProductType.SUBS
+	var type: _Types.ProductType = ProductType.SUBS
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform = IapPlatform.ANDROID
+	var platform: _Types.IapPlatform = IapPlatform.ANDROID
 	var name_android: String = ""
 	## Product-level status code indicating fetch result (Android 8.0+) OK = product fetched successfully NOT_FOUND = SKU doesn't exist NO_OFFERS_AVAILABLE = user not eligible for any offers Available in Google Play Billing Library 8.0.0+
 	var product_status_android: Variant = null
 	## Standardized subscription offers. Cross-platform type with Android-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
-	var subscription_offers: Array[SubscriptionOffer] = []
+	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> ProductSubscriptionAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ProductSubscriptionAndroid:
 		if data.has("type") and data["type"] != null and not ((data["type"] is String and PRODUCT_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and PRODUCT_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid ProductSubscriptionAndroid.type enum value")
@@ -1919,14 +1923,14 @@ class ProductSubscriptionAndroid:
 				obj.product_status_android = ProductStatusAndroid.UNKNOWN
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[SubscriptionOffer] = []
+				var arr: Array[_Types.SubscriptionOffer] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)
 						if decoded_subscription_offer == null:
 							return null
 						arr.append(decoded_subscription_offer)
-					elif item is SubscriptionOffer:
+					elif item is _Types.SubscriptionOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -1978,34 +1982,34 @@ class ProductSubscriptionIOS:
 	var id: String = ""
 	var title: String = ""
 	var description: String = ""
-	var type: ProductType = ProductType.SUBS
+	var type: _Types.ProductType = ProductType.SUBS
 	var display_name: Variant = null
 	var display_price: String = ""
 	var currency: String = ""
 	var price: Variant = null
 	var debug_description: Variant = null
-	var platform: IapPlatform = IapPlatform.IOS
+	var platform: _Types.IapPlatform = IapPlatform.IOS
 	var display_name_ios: String = ""
 	var is_family_shareable_ios: bool = false
 	var json_representation_ios: String = ""
-	var type_ios: ProductTypeIOS
+	var type_ios: _Types.ProductTypeIOS
 	## Standardized subscription offers. Cross-platform type with iOS-specific fields using suffix. @see https://openiap.dev/docs/types/subscription-offer
-	var subscription_offers: Array[SubscriptionOffer] = []
+	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
-	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
+	var pricing_terms_ios: Array[_Types.SubscriptionPricingTermsIOS] = []
 	## Subscriptions included in this Apple subscription bundle. Empty or null for every other product type (Apple 27+ beta).
-	var bundled_subscriptions_ios: Array[BundledSubscriptionIOS] = []
+	var bundled_subscriptions_ios: Array[_Types.BundledSubscriptionIOS] = []
 	## App Store subscription group identifier for intro-offer eligibility checks.
 	var subscription_group_id_ios: Variant = null
 	var introductory_price_ios: Variant = null
 	var introductory_price_as_amount_ios: Variant = null
-	var introductory_price_payment_mode_ios: PaymentModeIOS = PaymentModeIOS.EMPTY
+	var introductory_price_payment_mode_ios: _Types.PaymentModeIOS = PaymentModeIOS.EMPTY
 	var introductory_price_number_of_periods_ios: Variant = null
 	var introductory_price_subscription_period_ios: Variant = null
 	var subscription_period_number_ios: Variant = null
 	var subscription_period_unit_ios: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> ProductSubscriptionIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.ProductSubscriptionIOS:
 		if data.has("type") and data["type"] != null and not ((data["type"] is String and PRODUCT_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and PRODUCT_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid ProductSubscriptionIOS.type enum value")
@@ -2071,14 +2075,14 @@ class ProductSubscriptionIOS:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[SubscriptionOffer] = []
+				var arr: Array[_Types.SubscriptionOffer] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)
 						if decoded_subscription_offer == null:
 							return null
 						arr.append(decoded_subscription_offer)
-					elif item is SubscriptionOffer:
+					elif item is _Types.SubscriptionOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -2087,14 +2091,14 @@ class ProductSubscriptionIOS:
 				obj.subscription_offers = arr
 		if data.has("pricingTermsIOS") and data["pricingTermsIOS"] != null:
 			if data["pricingTermsIOS"] is Array:
-				var arr: Array[SubscriptionPricingTermsIOS] = []
+				var arr: Array[_Types.SubscriptionPricingTermsIOS] = []
 				for item in data["pricingTermsIOS"]:
 					if item is Dictionary:
 						var decoded_subscription_pricing_terms_ios = SubscriptionPricingTermsIOS.from_dict(item, report_errors)
 						if decoded_subscription_pricing_terms_ios == null:
 							return null
 						arr.append(decoded_subscription_pricing_terms_ios)
-					elif item is SubscriptionPricingTermsIOS:
+					elif item is _Types.SubscriptionPricingTermsIOS:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -2103,11 +2107,11 @@ class ProductSubscriptionIOS:
 				obj.pricing_terms_ios = arr
 		if data.has("bundledSubscriptionsIOS") and data["bundledSubscriptionsIOS"] != null:
 			if data["bundledSubscriptionsIOS"] is Array:
-				var arr: Array[BundledSubscriptionIOS] = []
+				var arr: Array[_Types.BundledSubscriptionIOS] = []
 				for item in data["bundledSubscriptionsIOS"]:
 					if item is Dictionary:
 						arr.append(BundledSubscriptionIOS.from_dict(item))
-					elif item is BundledSubscriptionIOS:
+					elif item is _Types.BundledSubscriptionIOS:
 						arr.append(item)
 					else:
 						push_error("Invalid BundledSubscriptionIOS list value for bundledSubscriptionsIOS")
@@ -2248,9 +2252,9 @@ class PurchaseAndroid:
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
-	var store: IapStore = IapStore.UNKNOWN
+	var store: _Types.IapStore = IapStore.UNKNOWN
 	var quantity: int = 0
-	var purchase_state: PurchaseState = PurchaseState.UNKNOWN
+	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var data_android: Variant = null
@@ -2264,13 +2268,13 @@ class PurchaseAndroid:
 	## Whether the subscription is suspended (Android) A suspended subscription means the user's payment method failed and they need to fix it. Users should be directed to the subscription center to resolve the issue. Do NOT grant entitlements for suspended subscriptions. Available in Google Play Billing Library 8.1.0+
 	var is_suspended_android: Variant = null
 	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android) Contains the new products and purchase token for the pending transaction. Returns null if no pending update exists. Available in Google Play Billing Library 5.0+
-	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
+	var pending_purchase_update_android: _Types.PendingPurchaseUpdateAndroid
 	## Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()). Only populated on the Amazon flavor; required for server-side Amazon RVS receipt verification (userId + receiptId). Null on Google Play and Horizon.
 	var user_id_amazon: Variant = null
 	## Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()), for example "US" or "FR". Only populated on the Amazon flavor.
 	var user_marketplace_amazon: Variant = null
 
-	static func from_dict(data: Dictionary) -> PurchaseAndroid:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseAndroid:
 		var obj = PurchaseAndroid.new()
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
@@ -2391,7 +2395,7 @@ class PurchaseAndroid:
 		return dict
 
 class PurchaseError:
-	var code: ErrorCode = ErrorCode.UNKNOWN
+	var code: _Types.ErrorCode = ErrorCode.UNKNOWN
 	var message: String = ""
 	var product_id: Variant = null
 	var debug_message: Variant = null
@@ -2401,7 +2405,7 @@ class PurchaseError:
 	var product_type: Variant = null
 	var is_empty_product_list: Variant = null
 
-	static func from_dict(data: Dictionary) -> PurchaseError:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseError:
 		var obj = PurchaseError.new()
 		if data.has("code") and data["code"] != null:
 			var enum_str = data["code"]
@@ -2473,9 +2477,9 @@ class PurchaseIOS:
 	var transaction_date: float = 0.0
 	var purchase_token: Variant = null
 	## Store where purchase was made
-	var store: IapStore = IapStore.UNKNOWN
+	var store: _Types.IapStore = IapStore.UNKNOWN
 	var quantity: int = 0
-	var purchase_state: PurchaseState = PurchaseState.UNKNOWN
+	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
 	var is_auto_renewing: bool = false
 	var current_plan_id: Variant = null
 	var transaction_id: String = ""
@@ -2500,15 +2504,15 @@ class PurchaseIOS:
 	var revocation_reason_ios: Variant = null
 	## StoreKit revocation type, including assignment-revocation on Apple 26.4+ when compiled with the Xcode 27 SDK.
 	var revocation_type_ios: Variant = null
-	var offer_ios: PurchaseOfferIOS
+	var offer_ios: _Types.PurchaseOfferIOS
 	var currency_code_ios: Variant = null
 	var currency_symbol_ios: Variant = null
 	var country_code_ios: Variant = null
-	var renewal_info_ios: RenewalInfoIOS
+	var renewal_info_ios: _Types.RenewalInfoIOS
 	## iOS 26.4+ billing plan selected for this transaction.
 	var billing_plan_type_ios: Variant = null
 	## iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
-	var commitment_info_ios: TransactionCommitmentInfoIOS
+	var commitment_info_ios: _Types.TransactionCommitmentInfoIOS
 	## Original transaction identifier for the subscription bundle that produced this transaction (Apple 27+ SDK; back-deployed by StoreKit).
 	var bundle_original_transaction_id_ios: Variant = null
 	## Product identifier of the subscription bundle that produced this transaction.
@@ -2520,9 +2524,9 @@ class PurchaseIOS:
 	## Original transaction identifier replaced when moving between a standalone subscription and a subscription bundle.
 	var previous_original_transaction_id_ios: Variant = null
 	## Advanced Commerce API metadata (iOS 18.4+). Present only for transactions that use the Advanced Commerce API. Contains item details, tax information, and refund data for generic SKU purchases.
-	var advanced_commerce_info_ios: AdvancedCommerceInfoIOS
+	var advanced_commerce_info_ios: _Types.AdvancedCommerceInfoIOS
 
-	static func from_dict(data: Dictionary) -> PurchaseIOS:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseIOS:
 		var obj = PurchaseIOS.new()
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
@@ -2746,7 +2750,7 @@ class PurchaseOfferIOS:
 	var type: String = ""
 	var payment_mode: String = ""
 
-	static func from_dict(data: Dictionary) -> PurchaseOfferIOS:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseOfferIOS:
 		var obj = PurchaseOfferIOS.new()
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
@@ -2767,7 +2771,7 @@ class RefundResultIOS:
 	var status: String = ""
 	var message: Variant = null
 
-	static func from_dict(data: Dictionary) -> RefundResultIOS:
+	static func from_dict(data: Dictionary) -> _Types.RefundResultIOS:
 		var obj = RefundResultIOS.new()
 		if data.has("status") and data["status"] != null:
 			obj.status = data["status"]
@@ -2785,11 +2789,11 @@ class RefundResultIOS:
 class RenewalCommitmentInfoIOS:
 	var commitment_auto_renew_product_id: String = ""
 	var commitment_auto_renew_status: bool = false
-	var commitment_renewal_billing_plan_type: SubscriptionBillingPlanTypeIOS = SubscriptionBillingPlanTypeIOS.UNKNOWN
+	var commitment_renewal_billing_plan_type: _Types.SubscriptionBillingPlanTypeIOS = SubscriptionBillingPlanTypeIOS.UNKNOWN
 	var commitment_renewal_date: float = 0.0
 	var commitment_renewal_price: float = 0.0
 
-	static func from_dict(data: Dictionary) -> RenewalCommitmentInfoIOS:
+	static func from_dict(data: Dictionary) -> _Types.RenewalCommitmentInfoIOS:
 		var obj = RenewalCommitmentInfoIOS.new()
 		if data.has("commitmentAutoRenewProductId") and data["commitmentAutoRenewProductId"] != null:
 			obj.commitment_auto_renew_product_id = data["commitmentAutoRenewProductId"]
@@ -2845,7 +2849,7 @@ class RenewalInfoIOS:
 	## iOS 26.4+ billing plan that will renew after the current period.
 	var renewal_billing_plan_type: Variant = null
 	## iOS 26.4+ renewal commitment metadata for monthly subscriptions with a 12-month commitment.
-	var commitment_info: RenewalCommitmentInfoIOS
+	var commitment_info: _Types.RenewalCommitmentInfoIOS
 	## Original transaction identifier for the bundle used by the next renewal.
 	var bundle_original_transaction_id: Variant = null
 	## Product identifier for the bundle used by the next renewal.
@@ -2855,7 +2859,7 @@ class RenewalInfoIOS:
 	## Whether this subscription will leave its bundle and renew standalone.
 	var will_unbundle: Variant = null
 
-	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
+	static func from_dict(data: Dictionary) -> _Types.RenewalInfoIOS:
 		var obj = RenewalInfoIOS.new()
 		if data.has("jsonRepresentation") and data["jsonRepresentation"] != null:
 			obj.json_representation = data["jsonRepresentation"]
@@ -2951,7 +2955,7 @@ class RentalDetailsAndroid:
 	## Rental expiration period in ISO 8601 format Time after rental period ends when user can still extend
 	var rental_expiration_period: Variant = null
 
-	static func from_dict(data: Dictionary) -> RentalDetailsAndroid:
+	static func from_dict(data: Dictionary) -> _Types.RentalDetailsAndroid:
 		var obj = RentalDetailsAndroid.new()
 		if data.has("rentalPeriod") and data["rentalPeriod"] != null:
 			obj.rental_period = data["rentalPeriod"]
@@ -2967,19 +2971,19 @@ class RentalDetailsAndroid:
 		return dict
 
 class RequestVerifyPurchaseWithIapkitResult:
-	var store: IapStore = IapStore.UNKNOWN
+	var store: _Types.IapStore = IapStore.UNKNOWN
 	## Available in OpenIAP 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
 	## The current state of the purchase.
-	var state: IapkitPurchaseState = IapkitPurchaseState.UNKNOWN
+	var state: _Types.IapkitPurchaseState = IapkitPurchaseState.UNKNOWN
 	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Store-verified product identifier when the provider returns one.
 	var product_id: Variant = null
 	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Public product payload when includeClientPayload was requested, the Apple or Google receipt is valid, and a payload exists for that product.
-	var client_payload: IapkitProductClientPayload
+	var client_payload: _Types.IapkitProductClientPayload
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitResult:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
@@ -3031,10 +3035,10 @@ class RequestVerifyPurchaseWithIapkitResult:
 
 class SubscriptionCommitmentInfoIOS:
 	var display_price: String = ""
-	var period: SubscriptionPeriodValueIOS
+	var period: _Types.SubscriptionPeriodValueIOS
 	var price: float = 0.0
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> SubscriptionCommitmentInfoIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.SubscriptionCommitmentInfoIOS:
 		var obj = SubscriptionCommitmentInfoIOS.new()
 		if data.has("displayPrice") and data["displayPrice"] != null:
 			obj.display_price = data["displayPrice"]
@@ -3079,9 +3083,9 @@ class SubscriptionOffer:
 	## Currency code (ISO 4217, e.g., "USD")
 	var currency: Variant = null
 	## Type of subscription offer (Introductory or Promotional)
-	var type: DiscountOfferType
+	var type: _Types.DiscountOfferType
 	## Subscription period for this offer
-	var period: SubscriptionPeriod
+	var period: _Types.SubscriptionPeriod
 	## Number of periods the offer applies
 	var period_count: Variant = null
 	## Payment mode during the offer period
@@ -3105,11 +3109,11 @@ class SubscriptionOffer:
 	## [Android] List of tags associated with this offer.
 	var offer_tags_android: Array[String] = []
 	## [Android] Pricing phases for this subscription offer. Contains detailed pricing information for each phase (trial, intro, regular).
-	var pricing_phases_android: PricingPhasesAndroid
+	var pricing_phases_android: _Types.PricingPhasesAndroid
 	## [Android] Installment plan details for this subscription offer. Only set for installment subscription plans; null for non-installment plans. Available in Google Play Billing Library 7.0+
-	var installment_plan_details_android: InstallmentPlanDetailsAndroid
+	var installment_plan_details_android: _Types.InstallmentPlanDetailsAndroid
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> SubscriptionOffer:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.SubscriptionOffer:
 		if not data.has("type") or not ((data["type"] is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(data["type"])) or (data["type"] is int and DISCOUNT_OFFER_TYPE_VALUES.has(data["type"]))):
 			if report_errors:
 				push_error("Invalid SubscriptionOffer.type enum value")
@@ -3233,11 +3237,11 @@ class SubscriptionOffer:
 ## Subscription period value combining unit and count.
 class SubscriptionPeriod:
 	## The period unit (day, week, month, year)
-	var unit: SubscriptionPeriodUnit = SubscriptionPeriodUnit.UNKNOWN
+	var unit: _Types.SubscriptionPeriodUnit = SubscriptionPeriodUnit.UNKNOWN
 	## The number of units (e.g., 1 for monthly, 3 for quarterly)
 	var value: int = 0
 
-	static func from_dict(data: Dictionary) -> SubscriptionPeriod:
+	static func from_dict(data: Dictionary) -> _Types.SubscriptionPeriod:
 		var obj = SubscriptionPeriod.new()
 		if data.has("unit") and data["unit"] != null:
 			var enum_str = data["unit"]
@@ -3261,10 +3265,10 @@ class SubscriptionPeriod:
 		return dict
 
 class SubscriptionPeriodValueIOS:
-	var unit: SubscriptionPeriodIOS = SubscriptionPeriodIOS.EMPTY
+	var unit: _Types.SubscriptionPeriodIOS = SubscriptionPeriodIOS.EMPTY
 	var value: int = 0
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> SubscriptionPeriodValueIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.SubscriptionPeriodValueIOS:
 		if data.has("unit") and data["unit"] != null and not ((data["unit"] is String and SUBSCRIPTION_PERIOD_IOS_FROM_STRING.has(data["unit"])) or (data["unit"] is int and SUBSCRIPTION_PERIOD_IOS_VALUES.has(data["unit"]))):
 			if report_errors:
 				push_error("Invalid SubscriptionPeriodValueIOS.unit enum value")
@@ -3298,13 +3302,13 @@ class SubscriptionPeriodValueIOS:
 
 class SubscriptionPricingTermsIOS:
 	var billing_display_price: String = ""
-	var billing_period: SubscriptionPeriodValueIOS
-	var billing_plan_type: SubscriptionBillingPlanTypeIOS = SubscriptionBillingPlanTypeIOS.UNKNOWN
+	var billing_period: _Types.SubscriptionPeriodValueIOS
+	var billing_plan_type: _Types.SubscriptionBillingPlanTypeIOS = SubscriptionBillingPlanTypeIOS.UNKNOWN
 	var billing_price: float = 0.0
-	var commitment_info: SubscriptionCommitmentInfoIOS
-	var subscription_offers: Array[SubscriptionOffer] = []
+	var commitment_info: _Types.SubscriptionCommitmentInfoIOS
+	var subscription_offers: Array[_Types.SubscriptionOffer] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> SubscriptionPricingTermsIOS:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.SubscriptionPricingTermsIOS:
 		var obj = SubscriptionPricingTermsIOS.new()
 		if data.has("billingDisplayPrice") and data["billingDisplayPrice"] != null:
 			obj.billing_display_price = data["billingDisplayPrice"]
@@ -3352,14 +3356,14 @@ class SubscriptionPricingTermsIOS:
 			return null
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[SubscriptionOffer] = []
+				var arr: Array[_Types.SubscriptionOffer] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)
 						if decoded_subscription_offer == null:
 							return null
 						arr.append(decoded_subscription_offer)
-					elif item is SubscriptionOffer:
+					elif item is _Types.SubscriptionOffer:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -3398,9 +3402,9 @@ class SubscriptionPricingTermsIOS:
 
 class SubscriptionStatusIOS:
 	var state: String = ""
-	var renewal_info: RenewalInfoIOS
+	var renewal_info: _Types.RenewalInfoIOS
 
-	static func from_dict(data: Dictionary) -> SubscriptionStatusIOS:
+	static func from_dict(data: Dictionary) -> _Types.SubscriptionStatusIOS:
 		var obj = SubscriptionStatusIOS.new()
 		if data.has("state") and data["state"] != null:
 			obj.state = data["state"]
@@ -3426,7 +3430,7 @@ class TransactionCommitmentInfoIOS:
 	var commitment_price: float = 0.0
 	var total_billing_periods: int = 0
 
-	static func from_dict(data: Dictionary) -> TransactionCommitmentInfoIOS:
+	static func from_dict(data: Dictionary) -> _Types.TransactionCommitmentInfoIOS:
 		var obj = TransactionCommitmentInfoIOS.new()
 		if data.has("billingPeriodNumber") and data["billingPeriodNumber"] != null:
 			obj.billing_period_number = data["billingPeriodNumber"]
@@ -3455,9 +3459,9 @@ class UserChoiceBillingDetails:
 	## List of product IDs selected by the user
 	var products: Array[String] = []
 	## Structured product details selected in the user-choice flow, including the product type and offer token. Legacy payloads may omit this field; use products as the product-ID fallback. Available in OpenIAP 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
-	var product_details_android: Array[DeveloperProvidedBillingProductAndroid] = []
+	var product_details_android: Array[_Types.DeveloperProvidedBillingProductAndroid] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> UserChoiceBillingDetails:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.UserChoiceBillingDetails:
 		var obj = UserChoiceBillingDetails.new()
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
@@ -3472,14 +3476,14 @@ class UserChoiceBillingDetails:
 				obj.products = arr
 		if data.has("productDetailsAndroid") and data["productDetailsAndroid"] != null:
 			if data["productDetailsAndroid"] is Array:
-				var arr: Array[DeveloperProvidedBillingProductAndroid] = []
+				var arr: Array[_Types.DeveloperProvidedBillingProductAndroid] = []
 				for item in data["productDetailsAndroid"]:
 					if item is Dictionary:
 						var decoded_developer_provided_billing_product_android = DeveloperProvidedBillingProductAndroid.from_dict(item, report_errors)
 						if decoded_developer_provided_billing_product_android == null:
 							return null
 						arr.append(decoded_developer_provided_billing_product_android)
-					elif item is DeveloperProvidedBillingProductAndroid:
+					elif item is _Types.DeveloperProvidedBillingProductAndroid:
 						arr.append(item)
 					else:
 						if report_errors:
@@ -3513,7 +3517,7 @@ class ValidTimeWindowAndroid:
 	## End time in milliseconds since epoch
 	var end_time_millis: String = ""
 
-	static func from_dict(data: Dictionary) -> ValidTimeWindowAndroid:
+	static func from_dict(data: Dictionary) -> _Types.ValidTimeWindowAndroid:
 		var obj = ValidTimeWindowAndroid.new()
 		if data.has("startTimeMillis") and data["startTimeMillis"] != null:
 			obj.start_time_millis = data["startTimeMillis"]
@@ -3549,7 +3553,7 @@ class VerifyPurchaseResultAndroid:
 	var term_sku: String = ""
 	var test_transaction: bool = false
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseResultAndroid:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseResultAndroid:
 		var obj = VerifyPurchaseResultAndroid.new()
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
@@ -3627,7 +3631,7 @@ class VerifyPurchaseResultHorizon:
 	## Unix timestamp (seconds) when the entitlement was granted.
 	var grant_time: Variant = null
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseResultHorizon:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseResultHorizon:
 		var obj = VerifyPurchaseResultHorizon.new()
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
@@ -3655,7 +3659,7 @@ class VerifyPurchaseResultIOS:
 	## Latest transaction if available
 	var latest_transaction: Variant
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseResultIOS:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseResultIOS:
 		var obj = VerifyPurchaseResultIOS.new()
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
@@ -3679,7 +3683,7 @@ class VerifyPurchaseWithProviderError:
 	var message: String = ""
 	var code: Variant = null
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseWithProviderError:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseWithProviderError:
 		var obj = VerifyPurchaseWithProviderError.new()
 		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
@@ -3695,13 +3699,13 @@ class VerifyPurchaseWithProviderError:
 		return dict
 
 class VerifyPurchaseWithProviderResult:
-	var provider: PurchaseVerificationProvider
+	var provider: _Types.PurchaseVerificationProvider
 	## IAPKit verification result
-	var iapkit: RequestVerifyPurchaseWithIapkitResult
+	var iapkit: _Types.RequestVerifyPurchaseWithIapkitResult
 	## Error details if verification failed
-	var errors: Array[VerifyPurchaseWithProviderError] = []
+	var errors: Array[_Types.VerifyPurchaseWithProviderError] = []
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> VerifyPurchaseWithProviderResult:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.VerifyPurchaseWithProviderResult:
 		if not data.has("provider") or not ((data["provider"] is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(data["provider"])) or (data["provider"] is int and PURCHASE_VERIFICATION_PROVIDER_VALUES.has(data["provider"]))):
 			if report_errors:
 				push_error("Invalid VerifyPurchaseWithProviderResult.provider enum value")
@@ -3722,11 +3726,11 @@ class VerifyPurchaseWithProviderResult:
 				obj.iapkit = data["iapkit"]
 		if data.has("errors") and data["errors"] != null:
 			if data["errors"] is Array:
-				var arr: Array[VerifyPurchaseWithProviderError] = []
+				var arr: Array[_Types.VerifyPurchaseWithProviderError] = []
 				for item in data["errors"]:
 					if item is Dictionary:
 						arr.append(VerifyPurchaseWithProviderError.from_dict(item))
-					elif item is VerifyPurchaseWithProviderError:
+					elif item is _Types.VerifyPurchaseWithProviderError:
 						arr.append(item)
 					else:
 						push_error("Invalid VerifyPurchaseWithProviderError list value for errors")
@@ -3759,7 +3763,7 @@ class VerifyPurchaseWithProviderResult:
 class VoidResult:
 	var success: bool = false
 
-	static func from_dict(data: Dictionary) -> VoidResult:
+	static func from_dict(data: Dictionary) -> _Types.VoidResult:
 		var obj = VoidResult.new()
 		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
@@ -3780,7 +3784,7 @@ class AndroidSubscriptionOfferInput:
 	## Offer token
 	var offer_token: String = ""
 
-	static func from_dict(data: Dictionary) -> AndroidSubscriptionOfferInput:
+	static func from_dict(data: Dictionary) -> _Types.AndroidSubscriptionOfferInput:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required AndroidSubscriptionOfferInput.sku value")
 			return null
@@ -3805,11 +3809,11 @@ class AndroidSubscriptionOfferInput:
 ## Parameters for showing a billing program information dialog (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class BillingProgramInformationDialogParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
-	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
+	var billing_program: _Types.BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
 	## External transaction token returned by the Billing Choice reporting-details flow.
 	var external_transaction_token: String = ""
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> BillingProgramInformationDialogParamsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.BillingProgramInformationDialogParamsAndroid:
 		if not data.has("externalTransactionToken") or not data["externalTransactionToken"] is String:
 			push_error("Invalid required BillingProgramInformationDialogParamsAndroid.externalTransactionToken value")
 			return null
@@ -3848,7 +3852,7 @@ class DeepLinkOptions:
 	## Android package name to target (required on Android)
 	var package_name_android: Variant = null
 
-	static func from_dict(data: Dictionary) -> DeepLinkOptions:
+	static func from_dict(data: Dictionary) -> _Types.DeepLinkOptions:
 		if data.has("skuAndroid") and data["skuAndroid"] != null and not data["skuAndroid"] is String:
 			push_error("Invalid DeepLinkOptions.skuAndroid value")
 			return null
@@ -3873,7 +3877,7 @@ class DeepLinkOptions:
 ## Parameters for a developer billing option in a purchase flow (Android). Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+). Only billingProgram is required; link fields are used when the selected program links outside the app.
 class DeveloperBillingOptionParamsAndroid:
 	## The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.
-	var billing_program: BillingProgramAndroid
+	var billing_program: _Types.BillingProgramAndroid
 	## The URI where the external payment will be processed. Required only when the selected billing program links outside the app.
 	var link_uri: Variant = null
 	## The launch mode for the external payment link. Required only when the selected billing program links outside the app.
@@ -3881,7 +3885,7 @@ class DeveloperBillingOptionParamsAndroid:
 	## A pre-generated external transaction token for a Billing Choice external-link flow. Omit it when Google Play should provide the token in the callback.
 	var external_transaction_token: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> DeveloperBillingOptionParamsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.DeveloperBillingOptionParamsAndroid:
 		if data.has("linkUri") and data["linkUri"] != null and not data["linkUri"] is String:
 			push_error("Invalid DeveloperBillingOptionParamsAndroid.linkUri value")
 			return null
@@ -3947,7 +3951,7 @@ class DiscountOfferInputIOS:
 	## Timestamp of discount offer
 	var timestamp: float = 0.0
 
-	static func from_dict(data: Dictionary) -> DiscountOfferInputIOS:
+	static func from_dict(data: Dictionary) -> _Types.DiscountOfferInputIOS:
 		if not data.has("identifier") or not data["identifier"] is String:
 			push_error("Invalid required DiscountOfferInputIOS.identifier value")
 			return null
@@ -3993,13 +3997,13 @@ class DiscountOfferInputIOS:
 ## Parameters for fetching Billing Choice display information (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 class GetBillingChoiceInfoParamsAndroid:
 	## Billing program. Currently only BILLING_CHOICE is supported.
-	var billing_program: BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
+	var billing_program: _Types.BillingProgramAndroid = BillingProgramAndroid.BILLING_CHOICE
 	## Desired Play Billing choice image layout.
-	var play_billing_choice_image_layout: BillingChoiceImageLayoutAndroid = BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
+	var play_billing_choice_image_layout: _Types.BillingChoiceImageLayoutAndroid = BillingChoiceImageLayoutAndroid.RECTANGULAR_FOUR_BY_ONE
 	## BCP 47 locale tag. If omitted, Play Billing uses the user's default locale.
 	var user_locale: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> GetBillingChoiceInfoParamsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.GetBillingChoiceInfoParamsAndroid:
 		if data.has("userLocale") and data["userLocale"] != null and not data["userLocale"] is String:
 			push_error("Invalid GetBillingChoiceInfoParamsAndroid.userLocale value")
 			return null
@@ -4053,13 +4057,13 @@ class GetBillingChoiceInfoParamsAndroid:
 ## Parameters for showing Play billing in-app messages (Android) Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (upstream API available since Play Billing 4.1.0).
 class InAppMessageParamsAndroid:
 	## In-app message categories to show. Defaults to transactional messages.
-	var categories: Array[InAppMessageCategoryAndroid] = [InAppMessageCategoryAndroid.TRANSACTIONAL]
+	var categories: Array[_Types.InAppMessageCategoryAndroid] = [InAppMessageCategoryAndroid.TRANSACTIONAL]
 
-	static func from_dict(data: Dictionary) -> InAppMessageParamsAndroid:
+	static func from_dict(data: Dictionary) -> _Types.InAppMessageParamsAndroid:
 		var obj = InAppMessageParamsAndroid.new()
 		if data.has("categories") and data["categories"] != null:
 			if data["categories"] is Array:
-				var arr: Array[InAppMessageCategoryAndroid] = []
+				var arr: Array[_Types.InAppMessageCategoryAndroid] = []
 				for item in data["categories"]:
 					if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
 						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
@@ -4091,9 +4095,9 @@ class InitConnectionConfig:
 	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
 	## Billing Choice renderer configured in Play Console. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
-	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
+	var billing_choice_screen_type_android: _Types.BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
 
-	static func from_dict(data: Dictionary) -> InitConnectionConfig:
+	static func from_dict(data: Dictionary) -> _Types.InitConnectionConfig:
 		var obj = InitConnectionConfig.new()
 		if data.has("enableBillingProgramAndroid") and data["enableBillingProgramAndroid"] != null:
 			var enum_str = data["enableBillingProgramAndroid"]
@@ -4132,17 +4136,17 @@ class InitConnectionConfig:
 ## Parameters for launching an external link (Android) Used with launchExternalLink to initiate external offer, app install, or developer-rendered Billing Choice flows Available in Google Play Billing Library 8.2.0+
 class LaunchExternalLinkParamsAndroid:
 	## The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)
-	var billing_program: BillingProgramAndroid
+	var billing_program: _Types.BillingProgramAndroid
 	## The external link launch mode
-	var launch_mode: ExternalLinkLaunchModeAndroid
+	var launch_mode: _Types.ExternalLinkLaunchModeAndroid
 	## The type of the external link
-	var link_type: ExternalLinkTypeAndroid
+	var link_type: _Types.ExternalLinkTypeAndroid
 	## The URI where the content will be accessed from
 	var link_uri: String = ""
 	## External transaction token for a developer-rendered Billing Choice external-link flow. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
 	var external_transaction_token: Variant = null
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> LaunchExternalLinkParamsAndroid:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.LaunchExternalLinkParamsAndroid:
 		if not data.has("linkUri") or not data["linkUri"] is String:
 			push_error("Invalid required LaunchExternalLinkParamsAndroid.linkUri value")
 			return null
@@ -4220,9 +4224,9 @@ class LaunchExternalLinkParamsAndroid:
 
 class ProductRequest:
 	var skus: Array[String] = []
-	var type: ProductQueryType = ProductQueryType.IN_APP
+	var type: _Types.ProductQueryType = ProductQueryType.IN_APP
 
-	static func from_dict(data: Dictionary) -> ProductRequest:
+	static func from_dict(data: Dictionary) -> _Types.ProductRequest:
 		if not data.has("skus") or not data["skus"] is Array:
 			push_error("Invalid required ProductRequest.skus value")
 			return null
@@ -4269,7 +4273,7 @@ class PromotionalOfferJWSInputIOS:
 	## Compact JWS string signed by your server. The JWS should contain the promotional offer signature data. Format: header.payload.signature (base64url encoded)
 	var jws: String = ""
 
-	static func from_dict(data: Dictionary) -> PromotionalOfferJWSInputIOS:
+	static func from_dict(data: Dictionary) -> _Types.PromotionalOfferJWSInputIOS:
 		if not data.has("offerId") or not data["offerId"] is String:
 			push_error("Invalid required PromotionalOfferJWSInputIOS.offerId value")
 			return null
@@ -4301,10 +4305,10 @@ class PurchaseInput:
 	## Store where purchase was made
 	var store: Variant = null
 	var quantity: int = 0
-	var purchase_state: PurchaseState = PurchaseState.UNKNOWN
+	var purchase_state: _Types.PurchaseState = PurchaseState.UNKNOWN
 	var is_auto_renewing: bool = false
 
-	static func from_dict(data: Dictionary) -> PurchaseInput:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseInput:
 		var obj = PurchaseInput.new()
 		if data.has("id") and data["id"] != null:
 			obj.id = data["id"]
@@ -4379,7 +4383,7 @@ class PurchaseOptions:
 	## Include suspended subscriptions in the result (Android 8.1+). Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements. Users should be directed to the subscription center to resolve payment issues. Default: false (only active subscriptions are returned)
 	var include_suspended_android: Variant = null
 
-	static func from_dict(data: Dictionary) -> PurchaseOptions:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseOptions:
 		if data.has("alsoPublishToEventListenerIOS") and data["alsoPublishToEventListenerIOS"] != null and not data["alsoPublishToEventListenerIOS"] is bool:
 			push_error("Invalid PurchaseOptions.alsoPublishToEventListenerIOS value")
 			return null
@@ -4412,7 +4416,7 @@ class PurchaseUpdatedListenerOptions:
 	## iOS only. Defaults to true. When false, listener callbacks also receive StoreKit replay events for a transaction ID that was already emitted during the current connection session. Android ignores this option.
 	var dedupe_transaction_ios: Variant = null
 
-	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
+	static func from_dict(data: Dictionary) -> _Types.PurchaseUpdatedListenerOptions:
 		if data.has("dedupeTransactionIOS") and data["dedupeTransactionIOS"] != null and not data["dedupeTransactionIOS"] is bool:
 			push_error("Invalid PurchaseUpdatedListenerOptions.dedupeTransactionIOS value")
 			return null
@@ -4439,9 +4443,9 @@ class RequestPurchaseAndroidProps:
 	## Offer token for one-time purchase discounts (8.0+). Pass the offerToken from discountOffers to apply a discount offer to the purchase.
 	var offer_token: Variant = null
 	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
-	var developer_billing_option: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option: _Types.DeveloperBillingOptionParamsAndroid
 
-	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestPurchaseAndroidProps:
 		if not data.has("skus") or not data["skus"] is Array:
 			push_error("Invalid required RequestPurchaseAndroidProps.skus value")
 			return null
@@ -4520,11 +4524,11 @@ class RequestPurchaseIosProps:
 	## Purchase quantity
 	var quantity: Variant = null
 	## Promotional offer to apply (subscriptions only, ignored for one-time purchases). iOS only supports promotional offers for auto-renewable subscriptions.
-	var with_offer: DiscountOfferInputIOS
+	var with_offer: _Types.DiscountOfferInputIOS
 	## Advanced commerce data token (iOS 15+). Used with StoreKit 2's Product.PurchaseOption.custom API for passing campaign tokens, affiliate IDs, or other attribution data. The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
 	var advanced_commerce_data: Variant = null
 
-	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestPurchaseIosProps:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required RequestPurchaseIosProps.sku value")
 			return null
@@ -4584,25 +4588,25 @@ class RequestPurchaseIosProps:
 
 class RequestPurchaseProps:
 	## Per-platform purchase request props
-	var request: RequestPurchasePropsByPlatforms
+	var request: _Types.RequestPurchasePropsByPlatforms
 	## Per-platform subscription request props
-	var request_subscription: RequestSubscriptionPropsByPlatforms
+	var request_subscription: _Types.RequestSubscriptionPropsByPlatforms
 	## Explicit purchase type hint (defaults to in-app)
-	var type: ProductQueryType = ProductQueryType.IN_APP
+	var type: _Types.ProductQueryType = ProductQueryType.IN_APP
 
-	static func in_app(platforms: RequestPurchasePropsByPlatforms) -> RequestPurchaseProps:
+	static func in_app(platforms: _Types.RequestPurchasePropsByPlatforms) -> _Types.RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
 		obj.request = platforms
 		obj.type = ProductQueryType.IN_APP
 		return obj
 
-	static func subs(platforms: RequestSubscriptionPropsByPlatforms) -> RequestPurchaseProps:
+	static func subs(platforms: _Types.RequestSubscriptionPropsByPlatforms) -> _Types.RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
 		obj.request_subscription = platforms
 		obj.type = ProductQueryType.SUBS
 		return obj
 
-	static func from_dict(data: Dictionary) -> RequestPurchaseProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestPurchaseProps:
 		var has_purchase = data.has("requestPurchase") and data["requestPurchase"] != null
 		var has_subscription = data.has("requestSubscription") and data["requestSubscription"] != null
 		if has_purchase == has_subscription:
@@ -4656,11 +4660,11 @@ class RequestPurchaseProps:
 ## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms:
 	## Apple-specific purchase parameters
-	var apple: RequestPurchaseIosProps
+	var apple: _Types.RequestPurchaseIosProps
 	## Google-specific purchase parameters
-	var google: RequestPurchaseAndroidProps
+	var google: _Types.RequestPurchaseAndroidProps
 
-	static func from_dict(data: Dictionary) -> RequestPurchasePropsByPlatforms:
+	static func from_dict(data: Dictionary) -> _Types.RequestPurchasePropsByPlatforms:
 		var obj = RequestPurchasePropsByPlatforms.new()
 		if data.has("apple") and data["apple"] != null:
 			if data["apple"] is Dictionary:
@@ -4712,13 +4716,13 @@ class RequestSubscriptionAndroidProps:
 	## Original external transaction ID for replacing a subscription that was purchased through developer billing. Available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 	var original_external_transaction_id: Variant = null
 	## Subscription offers
-	var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
+	var subscription_offers: Array[_Types.AndroidSubscriptionOfferInput] = []
 	## Product-level replacement parameters (8.1.0+) Use this instead of replacementMode for item-level replacement This singular form requires skus to contain exactly one target product. Multi-item subscription changes need a per-target replacement mapping and are rejected rather than applying one oldProductId to multiple products.
-	var subscription_product_replacement_params: SubscriptionProductReplacementParamsAndroid
+	var subscription_product_replacement_params: _Types.SubscriptionProductReplacementParamsAndroid
 	## Developer billing option parameters for external payments and Billing Choice. Billing Choice is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
-	var developer_billing_option: DeveloperBillingOptionParamsAndroid
+	var developer_billing_option: _Types.DeveloperBillingOptionParamsAndroid
 
-	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestSubscriptionAndroidProps:
 		if not data.has("skus") or not data["skus"] is Array:
 			push_error("Invalid required RequestSubscriptionAndroidProps.skus value")
 			return null
@@ -4763,14 +4767,14 @@ class RequestSubscriptionAndroidProps:
 			obj.original_external_transaction_id = data["originalExternalTransactionId"]
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
-				var arr: Array[AndroidSubscriptionOfferInput] = []
+				var arr: Array[_Types.AndroidSubscriptionOfferInput] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
 						var decoded_android_subscription_offer_input = AndroidSubscriptionOfferInput.from_dict(item)
 						if decoded_android_subscription_offer_input == null:
 							return null
 						arr.append(decoded_android_subscription_offer_input)
-					elif item is AndroidSubscriptionOfferInput:
+					elif item is _Types.AndroidSubscriptionOfferInput:
 						arr.append(item)
 					else:
 						push_error("Invalid AndroidSubscriptionOfferInput list value for subscriptionOffers")
@@ -4841,11 +4845,11 @@ class RequestSubscriptionIosProps:
 	var app_account_token: Variant = null
 	var quantity: Variant = null
 	## Promotional offer to apply for subscription purchases. Requires server-signed offer with nonce, timestamp, keyId, and signature.
-	var with_offer: DiscountOfferInputIOS
+	var with_offer: _Types.DiscountOfferInputIOS
 	## Win-back offer to apply (iOS 18+) Used to re-engage churned subscribers with a discount or free trial. The offer is available when the customer is eligible and can be discovered via StoreKit Message (automatic) or subscription offer APIs.
-	var win_back_offer: WinBackOfferInputIOS
+	var win_back_offer: _Types.WinBackOfferInputIOS
 	## JWS promotional offer (iOS 15+, WWDC 2025). New signature format using compact JWS string for promotional offers. Back-deployed to iOS 15.
-	var promotional_offer_jws: PromotionalOfferJWSInputIOS
+	var promotional_offer_jws: _Types.PromotionalOfferJWSInputIOS
 	## Billing plan to use when purchasing an annual subscription that offers monthly billing with a 12-month commitment (iOS 26.4+).
 	var billing_plan_type: Variant = null
 	## Compact JWS string for overriding introductory offer eligibility (iOS 15+, WWDC 2025). When nil, the system determines eligibility. Generate the JWS on your server and pass it to StoreKit's introductoryOfferEligibility(compactJWS:) purchase option.
@@ -4853,7 +4857,7 @@ class RequestSubscriptionIosProps:
 	## Advanced commerce data token (iOS 15+). Used with StoreKit 2's Product.PurchaseOption.custom API for passing campaign tokens, affiliate IDs, or other attribution data. The data is formatted as JSON: {"signatureInfo": {"token": "<value>"}}
 	var advanced_commerce_data: Variant = null
 
-	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestSubscriptionIosProps:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required RequestSubscriptionIosProps.sku value")
 			return null
@@ -4965,11 +4969,11 @@ class RequestSubscriptionIosProps:
 ## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms:
 	## Apple-specific subscription parameters
-	var apple: RequestSubscriptionIosProps
+	var apple: _Types.RequestSubscriptionIosProps
 	## Google-specific subscription parameters
-	var google: RequestSubscriptionAndroidProps
+	var google: _Types.RequestSubscriptionAndroidProps
 
-	static func from_dict(data: Dictionary) -> RequestSubscriptionPropsByPlatforms:
+	static func from_dict(data: Dictionary) -> _Types.RequestSubscriptionPropsByPlatforms:
 		var obj = RequestSubscriptionPropsByPlatforms.new()
 		if data.has("apple") and data["apple"] != null:
 			if data["apple"] is Dictionary:
@@ -5017,7 +5021,7 @@ class RequestVerifyPurchaseWithIapkitAmazonProps:
 	## Use Amazon RVS Cloud Sandbox for App Tester receipts.
 	var sandbox: Variant = null
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAmazonProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitAmazonProps:
 		if data.has("expectedProductId") and data["expectedProductId"] != null and not data["expectedProductId"] is String:
 			push_error("Invalid RequestVerifyPurchaseWithIapkitAmazonProps.expectedProductId value")
 			return null
@@ -5057,7 +5061,7 @@ class RequestVerifyPurchaseWithIapkitAppleProps:
 	## The JWS token returned with the purchase response.
 	var jws: String = ""
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAppleProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitAppleProps:
 		if not data.has("jws") or not data["jws"] is String:
 			push_error("Invalid required RequestVerifyPurchaseWithIapkitAppleProps.jws value")
 			return null
@@ -5076,7 +5080,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 	## The token provided to the user's device when the product or subscription was purchased.
 	var purchase_token: String = ""
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitGoogleProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitGoogleProps:
 		if not data.has("purchaseToken") or not data["purchaseToken"] is String:
 			push_error("Invalid required RequestVerifyPurchaseWithIapkitGoogleProps.purchaseToken value")
 			return null
@@ -5097,7 +5101,7 @@ class RequestVerifyPurchaseWithIapkitHorizonProps:
 	## Meta app-scoped user ID. The openiap-google Horizon module resolves the logged-in user when omitted.
 	var user_id: Variant = null
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitHorizonProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitHorizonProps:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required RequestVerifyPurchaseWithIapkitHorizonProps.sku value")
 			return null
@@ -5128,15 +5132,15 @@ class RequestVerifyPurchaseWithIapkitProps:
 	## Available in OpenIAP 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. Include the product's public IAPKit client payload in a valid Apple or Google verification response. Horizon and Amazon accept this option for cross-platform request compatibility but omit the payload. Defaults to false so existing response shapes and bandwidth remain unchanged.
 	var include_client_payload: Variant = null
 	## Apple App Store verification parameters.
-	var apple: RequestVerifyPurchaseWithIapkitAppleProps
+	var apple: _Types.RequestVerifyPurchaseWithIapkitAppleProps
 	## Google Play Store verification parameters.
-	var google: RequestVerifyPurchaseWithIapkitGoogleProps
+	var google: _Types.RequestVerifyPurchaseWithIapkitGoogleProps
 	## Meta Horizon verification parameters.
-	var horizon: RequestVerifyPurchaseWithIapkitHorizonProps
+	var horizon: _Types.RequestVerifyPurchaseWithIapkitHorizonProps
 	## Amazon Appstore verification parameters.
-	var amazon: RequestVerifyPurchaseWithIapkitAmazonProps
+	var amazon: _Types.RequestVerifyPurchaseWithIapkitAmazonProps
 
-	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitProps:
+	static func from_dict(data: Dictionary) -> _Types.RequestVerifyPurchaseWithIapkitProps:
 		if data.has("apiKey") and data["apiKey"] != null and not data["apiKey"] is String:
 			push_error("Invalid RequestVerifyPurchaseWithIapkitProps.apiKey value")
 			return null
@@ -5230,9 +5234,9 @@ class SubscriptionProductReplacementParamsAndroid:
 	## The old product ID that needs to be replaced
 	var old_product_id: String = ""
 	## The replacement mode for this product change
-	var replacement_mode: SubscriptionReplacementModeAndroid = SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE
+	var replacement_mode: _Types.SubscriptionReplacementModeAndroid = SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE
 
-	static func from_dict(data: Dictionary) -> SubscriptionProductReplacementParamsAndroid:
+	static func from_dict(data: Dictionary) -> _Types.SubscriptionProductReplacementParamsAndroid:
 		if not data.has("oldProductId") or not data["oldProductId"] is String:
 			push_error("Invalid required SubscriptionProductReplacementParamsAndroid.oldProductId value")
 			return null
@@ -5269,7 +5273,7 @@ class VerifyPurchaseAppleOptions:
 	## Product SKU to validate
 	var sku: String = ""
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseAppleOptions:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseAppleOptions:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required VerifyPurchaseAppleOptions.sku value")
 			return null
@@ -5297,7 +5301,7 @@ class VerifyPurchaseGoogleOptions:
 	## Whether this is a subscription purchase (affects API endpoint used)
 	var is_sub: Variant = null
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseGoogleOptions:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseGoogleOptions:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required VerifyPurchaseGoogleOptions.sku value")
 			return null
@@ -5349,7 +5353,7 @@ class VerifyPurchaseHorizonOptions:
 	## Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token). ⚠️ Sensitive: Do not log this value.
 	var access_token: String = ""
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseHorizonOptions:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseHorizonOptions:
 		if not data.has("sku") or not data["sku"] is String:
 			push_error("Invalid required VerifyPurchaseHorizonOptions.sku value")
 			return null
@@ -5381,13 +5385,13 @@ class VerifyPurchaseHorizonOptions:
 ## Platform-specific purchase verification parameters. - apple: Verifies via App Store Server API - google: Verifies via Google Play Developer API - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps:
 	## Apple App Store verification parameters.
-	var apple: VerifyPurchaseAppleOptions
+	var apple: _Types.VerifyPurchaseAppleOptions
 	## Google Play Store verification parameters.
-	var google: VerifyPurchaseGoogleOptions
+	var google: _Types.VerifyPurchaseGoogleOptions
 	## Meta Horizon (Quest) verification parameters.
-	var horizon: VerifyPurchaseHorizonOptions
+	var horizon: _Types.VerifyPurchaseHorizonOptions
 
-	static func from_dict(data: Dictionary) -> VerifyPurchaseProps:
+	static func from_dict(data: Dictionary) -> _Types.VerifyPurchaseProps:
 		var obj = VerifyPurchaseProps.new()
 		if data.has("apple") and data["apple"] != null:
 			if data["apple"] is Dictionary:
@@ -5441,10 +5445,10 @@ class VerifyPurchaseProps:
 		return dict
 
 class VerifyPurchaseWithProviderProps:
-	var provider: PurchaseVerificationProvider
-	var iapkit: RequestVerifyPurchaseWithIapkitProps
+	var provider: _Types.PurchaseVerificationProvider
+	var iapkit: _Types.RequestVerifyPurchaseWithIapkitProps
 
-	static func from_dict(data: Dictionary, report_errors: bool = true) -> VerifyPurchaseWithProviderProps:
+	static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.VerifyPurchaseWithProviderProps:
 		if not data.has("provider") or not ((data["provider"] is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(data["provider"])) or (data["provider"] is int and PURCHASE_VERIFICATION_PROVIDER_VALUES.has(data["provider"]))):
 			if report_errors:
 				push_error("Invalid VerifyPurchaseWithProviderProps.provider enum value")
@@ -5490,7 +5494,7 @@ class WinBackOfferInputIOS:
 	## The win-back offer ID from App Store Connect
 	var offer_id: String = ""
 
-	static func from_dict(data: Dictionary) -> WinBackOfferInputIOS:
+	static func from_dict(data: Dictionary) -> _Types.WinBackOfferInputIOS:
 		if not data.has("offerId") or not data["offerId"] is String:
 			push_error("Invalid required WinBackOfferInputIOS.offerId value")
 			return null
@@ -6029,9 +6033,9 @@ class Query:
 		const name = "fetchProducts"
 		const snake_name = "fetch_products"
 		class Args:
-			var params: ProductRequest
+			var params: _Types.ProductRequest
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.fetchProductsField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6051,7 +6055,7 @@ class Query:
 		class Args:
 			var options: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.getAvailablePurchasesField.Args:
 				var obj = Args.new()
 				if data.has("options") and data["options"] != null:
 					obj.options = data["options"]
@@ -6072,7 +6076,7 @@ class Query:
 		class Args:
 			var subscription_ids: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.getActiveSubscriptionsField.Args:
 				var obj = Args.new()
 				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
 					if data["subscriptionIds"] is Array:
@@ -6104,7 +6108,7 @@ class Query:
 		class Args:
 			var subscription_ids: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.hasActiveSubscriptionsField.Args:
 				var obj = Args.new()
 				if data.has("subscriptionIds") and data["subscriptionIds"] != null:
 					if data["subscriptionIds"] is Array:
@@ -6171,9 +6175,9 @@ class Query:
 		const snake_name = "get_external_purchase_custom_link_token_ios"
 		class Args:
 			## Token type: acquisition (new customers) or services (existing customers)
-			var token_type: ExternalPurchaseCustomLinkTokenTypeIOS
+			var token_type: _Types.ExternalPurchaseCustomLinkTokenTypeIOS
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.getExternalPurchaseCustomLinkTokenIOSField.Args:
 				var obj = Args.new()
 				if data.has("tokenType") and data["tokenType"] != null:
 					var enum_str = data["tokenType"]
@@ -6212,7 +6216,7 @@ class Query:
 		class Args:
 			var group_id: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.isEligibleForIntroOfferIOSField.Args:
 				var obj = Args.new()
 				if data.has("groupID") and data["groupID"] != null:
 					obj.group_id = data["groupID"]
@@ -6232,7 +6236,7 @@ class Query:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.subscriptionStatusIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6252,7 +6256,7 @@ class Query:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.currentEntitlementIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6272,7 +6276,7 @@ class Query:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.latestTransactionIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6292,7 +6296,7 @@ class Query:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.isTransactionVerifiedIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6312,7 +6316,7 @@ class Query:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.getTransactionJwsIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6357,9 +6361,9 @@ class Query:
 		const name = "getBillingChoiceInfoAndroid"
 		const snake_name = "get_billing_choice_info_android"
 		class Args:
-			var params: GetBillingChoiceInfoParamsAndroid
+			var params: _Types.GetBillingChoiceInfoParamsAndroid
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Query.getBillingChoiceInfoAndroidField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6393,7 +6397,7 @@ class Mutation:
 		class Args:
 			var config: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.initConnectionField.Args:
 				var obj = Args.new()
 				if data.has("config") and data["config"] != null:
 					obj.config = data["config"]
@@ -6421,9 +6425,9 @@ class Mutation:
 		const name = "requestPurchase"
 		const snake_name = "request_purchase"
 		class Args:
-			var params: RequestPurchaseProps
+			var params: _Types.RequestPurchaseProps
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.requestPurchaseField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6441,10 +6445,10 @@ class Mutation:
 		const name = "finishTransaction"
 		const snake_name = "finish_transaction"
 		class Args:
-			var purchase: PurchaseInput
+			var purchase: _Types.PurchaseInput
 			var is_consumable: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.finishTransactionField.Args:
 				var obj = Args.new()
 				if data.has("purchase") and data["purchase"] != null:
 					obj.purchase = data["purchase"]
@@ -6477,7 +6481,7 @@ class Mutation:
 		class Args:
 			var options: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.deepLinkToSubscriptionsField.Args:
 				var obj = Args.new()
 				if data.has("options") and data["options"] != null:
 					obj.options = data["options"]
@@ -6505,9 +6509,9 @@ class Mutation:
 		const name = "verifyPurchase"
 		const snake_name = "verify_purchase"
 		class Args:
-			var options: VerifyPurchaseProps
+			var options: _Types.VerifyPurchaseProps
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.verifyPurchaseField.Args:
 				var obj = Args.new()
 				if data.has("options") and data["options"] != null:
 					obj.options = data["options"]
@@ -6525,9 +6529,9 @@ class Mutation:
 		const name = "verifyPurchaseWithProvider"
 		const snake_name = "verify_purchase_with_provider"
 		class Args:
-			var options: VerifyPurchaseWithProviderProps
+			var options: _Types.VerifyPurchaseWithProviderProps
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.verifyPurchaseWithProviderField.Args:
 				var obj = Args.new()
 				if data.has("options") and data["options"] != null:
 					obj.options = data["options"]
@@ -6565,7 +6569,7 @@ class Mutation:
 		class Args:
 			var sku: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.beginRefundRequestIOSField.Args:
 				var obj = Args.new()
 				if data.has("sku") and data["sku"] != null:
 					obj.sku = data["sku"]
@@ -6612,7 +6616,7 @@ class Mutation:
 		class Args:
 			var url: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.presentExternalPurchaseLinkIOSField.Args:
 				var obj = Args.new()
 				if data.has("url") and data["url"] != null:
 					obj.url = data["url"]
@@ -6631,9 +6635,9 @@ class Mutation:
 		const snake_name = "show_external_purchase_custom_link_notice_ios"
 		class Args:
 			## Notice type determining the style of disclosure
-			var notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS
+			var notice_type: _Types.ExternalPurchaseCustomLinkNoticeTypeIOS
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.showExternalPurchaseCustomLinkNoticeIOSField.Args:
 				var obj = Args.new()
 				if data.has("noticeType") and data["noticeType"] != null:
 					var enum_str = data["noticeType"]
@@ -6663,7 +6667,7 @@ class Mutation:
 		class Args:
 			var purchase_token: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.acknowledgePurchaseAndroidField.Args:
 				var obj = Args.new()
 				if data.has("purchaseToken") and data["purchaseToken"] != null:
 					obj.purchase_token = data["purchaseToken"]
@@ -6683,7 +6687,7 @@ class Mutation:
 		class Args:
 			var purchase_token: String
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.consumePurchaseAndroidField.Args:
 				var obj = Args.new()
 				if data.has("purchaseToken") and data["purchaseToken"] != null:
 					obj.purchase_token = data["purchaseToken"]
@@ -6701,9 +6705,9 @@ class Mutation:
 		const name = "isBillingProgramAvailableAndroid"
 		const snake_name = "is_billing_program_available_android"
 		class Args:
-			var program: BillingProgramAndroid
+			var program: _Types.BillingProgramAndroid
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.isBillingProgramAvailableAndroidField.Args:
 				var obj = Args.new()
 				if data.has("program") and data["program"] != null:
 					var enum_str = data["program"]
@@ -6731,10 +6735,10 @@ class Mutation:
 		const name = "createBillingProgramReportingDetailsAndroid"
 		const snake_name = "create_billing_program_reporting_details_android"
 		class Args:
-			var program: BillingProgramAndroid
+			var program: _Types.BillingProgramAndroid
 			var developer_billing_type: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.createBillingProgramReportingDetailsAndroidField.Args:
 				var obj = Args.new()
 				if data.has("program") and data["program"] != null:
 					var enum_str = data["program"]
@@ -6776,9 +6780,9 @@ class Mutation:
 		const name = "launchExternalLinkAndroid"
 		const snake_name = "launch_external_link_android"
 		class Args:
-			var params: LaunchExternalLinkParamsAndroid
+			var params: _Types.LaunchExternalLinkParamsAndroid
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.launchExternalLinkAndroidField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6805,9 +6809,9 @@ class Mutation:
 		const name = "showBillingProgramInformationDialogAndroid"
 		const snake_name = "show_billing_program_information_dialog_android"
 		class Args:
-			var params: BillingProgramInformationDialogParamsAndroid
+			var params: _Types.BillingProgramInformationDialogParamsAndroid
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.showBillingProgramInformationDialogAndroidField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6827,7 +6831,7 @@ class Mutation:
 		class Args:
 			var params: Variant = null
 
-			static func from_dict(data: Dictionary) -> Args:
+			static func from_dict(data: Dictionary) -> _Types.Mutation.showInAppMessagesAndroidField.Args:
 				var obj = Args.new()
 				if data.has("params") and data["params"] != null:
 					obj.params = data["params"]
@@ -6850,7 +6854,7 @@ class Mutation:
 # Query API helpers
 
 ## Fetch products or subscriptions from the store. See: https://openiap.dev/docs/apis/fetch-products
-static func fetch_products_args(params: ProductRequest) -> Dictionary:
+static func fetch_products_args(params: _Types.ProductRequest) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):
@@ -6900,7 +6904,7 @@ static func is_eligible_for_external_purchase_custom_link_ios_args() -> Dictiona
 	return {}
 
 ## Fetch a token for Apple's External Purchase Server reporting API (iOS 18.1+). Use this token to report transactions made through ExternalPurchaseCustomLink. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:) See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
-static func get_external_purchase_custom_link_token_ios_args(token_type: ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
+static func get_external_purchase_custom_link_token_ios_args(token_type: _Types.ExternalPurchaseCustomLinkTokenTypeIOS) -> Dictionary:
 	var args = {}
 	if EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(token_type):
 		args["tokenType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES[token_type]
@@ -6961,7 +6965,7 @@ static func get_all_transactions_ios_args() -> Dictionary:
 	return {}
 
 ## Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client is not ready. See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
-static func get_billing_choice_info_android_args(params: GetBillingChoiceInfoParamsAndroid) -> Dictionary:
+static func get_billing_choice_info_android_args(params: _Types.GetBillingChoiceInfoParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):
@@ -6987,7 +6991,7 @@ static func end_connection_args() -> Dictionary:
 	return {}
 
 ## Initiate a purchase or subscription flow; rely on events for final state. See: https://openiap.dev/docs/apis/request-purchase
-static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
+static func request_purchase_args(params: _Types.RequestPurchaseProps) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):
@@ -6997,7 +7001,7 @@ static func request_purchase_args(params: RequestPurchaseProps) -> Dictionary:
 	return args
 
 ## Complete a transaction after server-side verification. Required on Android within 3 days. See: https://openiap.dev/docs/apis/finish-transaction
-static func finish_transaction_args(purchase: PurchaseInput, is_consumable: Variant = null) -> Dictionary:
+static func finish_transaction_args(purchase: _Types.PurchaseInput, is_consumable: Variant = null) -> Dictionary:
 	var args = {}
 	if purchase != null:
 		if purchase.has_method("to_dict"):
@@ -7027,7 +7031,7 @@ static func open_redeem_offer_code_args() -> Dictionary:
 	return {}
 
 ## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
-static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
+static func verify_purchase_args(options: _Types.VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:
 		if options.has_method("to_dict"):
@@ -7037,7 +7041,7 @@ static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	return args
 
 ## Verify via a managed provider without standing up your own server. The PurchaseVerificationProvider enum currently exposes only IAPKit; platform availability may differ by implementation. See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
-static func verify_purchase_with_provider_args(options: VerifyPurchaseWithProviderProps) -> Dictionary:
+static func verify_purchase_with_provider_args(options: _Types.VerifyPurchaseWithProviderProps) -> Dictionary:
 	var args = {}
 	if options != null:
 		if options.has_method("to_dict"):
@@ -7079,7 +7083,7 @@ static func present_external_purchase_link_ios_args(url: String) -> Dictionary:
 	return args
 
 ## Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+). Call this after a deliberate customer interaction before linking out to external purchases. Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:) See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
-static func show_external_purchase_custom_link_notice_ios_args(notice_type: ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
+static func show_external_purchase_custom_link_notice_ios_args(notice_type: _Types.ExternalPurchaseCustomLinkNoticeTypeIOS) -> Dictionary:
 	var args = {}
 	if EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES.has(notice_type):
 		args["noticeType"] = EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES[notice_type]
@@ -7100,7 +7104,7 @@ static func consume_purchase_android_args(purchase_token: String) -> Dictionary:
 	return args
 
 ## Check whether a billing program (e.g., External Payments) is available for the current user. Replaces the deprecated isExternalOfferAvailableAsync API. Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API. Returns availability result with isAvailable flag. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
-static func is_billing_program_available_android_args(program: BillingProgramAndroid) -> Dictionary:
+static func is_billing_program_available_android_args(program: _Types.BillingProgramAndroid) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
 		args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
@@ -7109,7 +7113,7 @@ static func is_billing_program_available_android_args(program: BillingProgramAnd
 	return args
 
 ## Create the reporting details and external transaction token required by a billing program. Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations must use 8.2.1+ and create fresh details immediately before every redirect session; do not cache the token for a later redirect. The same token may report multiple purchases made during one External Offer session. Replaces the deprecated createExternalOfferReportingDetailsAsync API. Returns external transaction token needed for reporting external transactions. developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted, native Android defaults it to IN_APP. The Billing Choice extension is available in OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
-static func create_billing_program_reporting_details_android_args(program: BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
+static func create_billing_program_reporting_details_android_args(program: _Types.BillingProgramAndroid, developer_billing_type: Variant = null) -> Dictionary:
 	var args = {}
 	if BILLING_PROGRAM_ANDROID_VALUES.has(program):
 		args["program"] = BILLING_PROGRAM_ANDROID_VALUES[program]
@@ -7123,7 +7127,7 @@ static func create_billing_program_reporting_details_android_args(program: Billi
 	return args
 
 ## Launch an external content/offer link from inside the Billing Programs flow (introduced in Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+), including developer-rendered Billing Choice external-link flows. Billing Choice availability: OpenIAP 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Replaces the deprecated showExternalOfferInformationDialog API. Shows Play Store dialog and optionally launches external URL. Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/launch-external-link-android
-static func launch_external_link_android_args(params: LaunchExternalLinkParamsAndroid) -> Dictionary:
+static func launch_external_link_android_args(params: _Types.LaunchExternalLinkParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):
@@ -7137,7 +7141,7 @@ static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 
 ## Show Google's mandatory information dialog before a developer-rendered, in-app Billing Choice screen. OpenIAP availability: 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). Throws OpenIapError.NotPrepared if billing client not ready. See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
-static func show_billing_program_information_dialog_android_args(params: BillingProgramInformationDialogParamsAndroid) -> Dictionary:
+static func show_billing_program_information_dialog_android_args(params: _Types.BillingProgramInformationDialogParamsAndroid) -> Dictionary:
 	var args = {}
 	if params != null:
 		if params.has_method("to_dict"):

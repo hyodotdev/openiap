@@ -377,7 +377,7 @@ describe('unknown enum decoder compatibility', () => {
     expect(output).toContain('if enum_str is String and TOLERANT_STATUS_FROM_STRING.has(enum_str):');
     expect(output).toContain('elif enum_str is int and TOLERANT_STATUS_VALUES.has(enum_str):');
     expect(output).toContain('obj.status = TolerantStatus.UNKNOWN');
-    expect(output).toContain('static func from_dict(data: Dictionary, report_errors: bool = true) -> Payload:');
+    expect(output).toContain('static func from_dict(data: Dictionary, report_errors: bool = true) -> _Types.Payload:');
     expect(output).toContain('push_error("Invalid Payload.format enum value")');
     expect(output).toContain('\t\t\treturn null');
     expect(output).toContain(

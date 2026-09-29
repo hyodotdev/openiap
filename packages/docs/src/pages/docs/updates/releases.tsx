@@ -574,10 +574,12 @@ function Releases() {
             </li>
             <li>
               <strong>godot-iap 3.7.0</strong> - release exports carry{' '}
-              <code>res://iapkit.cfg</code> again; 3.6.0 and 3.6.1 left it out.
-              An Apple restore waits five minutes instead of two, as long as a
-              purchase does, because <code>AppStore.sync()</code> can ask the
-              player to sign in.
+              <code>res://iapkit.cfg</code> again; 3.6.0 and 3.6.1 left it out.{' '}
+              <code>types.gd</code> loads beside a project autoload or{' '}
+              <code>class_name</code> that reuses one of its enum names, such as{' '}
+              <code>IapStore</code>. An Apple restore waits five minutes instead
+              of two, like Apple&apos;s other system sheets, because{' '}
+              <code>AppStore.sync()</code> can ask the player to sign in.
             </li>
             <li>
               <strong>flutter_inapp_purchase 10.8.0</strong> and{' '}
