@@ -221,6 +221,8 @@ export FAKE_ADB_QUEST1_MANUFACTURER=Oculus
 run "two devices select nothing"           play/default     assembleDebug
 ANDROID_SERIAL=QUEST1 run "ANDROID_SERIAL picks one of them" horizon/device assembleDebug
 ANDROID_SERIAL=ABSENT run "an absent serial selects nothing" play/default   assembleDebug
+ANDROID_SERIAL=ABSENT warns "and says so under --quiet"     "openiap: ANDROID_SERIAL=ABSENT is not attached; not selecting a store from a device" assembleDebug
+warns "the store decision shows under --quiet"             "openiap: store=play (source=default; " assembleDebug
 clear_device
 run "no adb at all"                        play/default     assembleDebug
 

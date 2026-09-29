@@ -64,7 +64,7 @@ ext.openIapExplicitStore = { String label, boolean allowNone ->
       : fireOs ? ['fireOsEnabled=true', 'amazon']
       : horizon ? ['horizonEnabled=true', 'horizon'] : [null, null]
   if (legacy != null) {
-    // Quiet, not warn: Flutter runs Gradle with -q, which hides warnings.
+    // Quiet, like every openiap line here: Flutter runs Gradle with -q.
     logger.quiet("${label}: ${legacyKey} is deprecated and will be removed in the next major release; use openiapStore=${legacy}")
   }
   def pin = explicit == 'auto' ? null : explicit
@@ -299,7 +299,7 @@ ext.openIapDeviceStore = {
   def serial
   if (requested) {
     if (!serials.contains(requested)) {
-      logger.warn("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
+      logger.quiet("openiap: ANDROID_SERIAL=${requested} is not attached; not selecting a store from a device")
       return null
     }
     serial = requested
@@ -312,7 +312,7 @@ ext.openIapDeviceStore = {
   def manufacturerText = openIapAdbText([adb, '-s', serial, 'shell', 'getprop', 'ro.product.manufacturer'])
   // A device that dropped after the listing answers with nothing; that is not Play.
   if (!features?.trim() && !manufacturerText?.trim()) {
-    logger.warn("openiap: ${serial} stopped responding; not selecting a store from a device")
+    logger.quiet("openiap: ${serial} stopped responding; not selecting a store from a device")
     return null
   }
   features = features ?: ''
@@ -361,7 +361,7 @@ ext.openIapResolveStore = { String label, Map options = [:] ->
     resolution = [store: 'play', source: 'default', reason: 'no store signal']
   }
   rootProject.ext.openIapStoreResolution = resolution
-  logger.lifecycle("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
+  logger.quiet("openiap: store=${resolution.store} (source=${resolution.source}; ${resolution.reason})")
   openIapVerifyTaskGraph(label, resolution)
   return resolution
 }
