@@ -532,8 +532,9 @@ function Releases() {
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <p style={{ fontSize: '0.9rem' }}>
-            Every library below ships openiap-google 3.7.0. React Native, Expo,
-            and Flutter also ship its store resolver, with the same errors and
+            Every library below ships openiap-google 3.7.0 and openiap-apple
+            3.7.0. React Native, Expo, and Flutter also ship
+            openiap-google&apos;s store resolver, with the same errors and
             warnings.
           </p>
           <p style={{ fontSize: '0.9rem' }}>
@@ -618,8 +619,9 @@ function Releases() {
                   such as <code>IapStore</code>.
                 </li>
                 <li>
-                  An Apple restore waits five minutes instead of two, like
-                  Apple&apos;s other system sheets, because{' '}
+                  On Apple, <code>restore_purchases()</code> and{' '}
+                  <code>sync_ios()</code> wait up to five minutes, as
+                  Apple&apos;s other system sheets do, because{' '}
                   <code>AppStore.sync()</code> can ask the player to sign in.
                 </li>
               </ul>
