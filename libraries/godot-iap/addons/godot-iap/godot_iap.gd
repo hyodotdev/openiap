@@ -859,7 +859,9 @@ func _print_first_purchase_notice(purchase: Dictionary, result: Dictionary) -> v
 	# A prebuilt Apple binary from before this script lacks the method.
 	if _is_apple() and not _native_plugin.has_method("claimFirstPurchaseNotice"):
 		return
-	if _native_plugin.call("claimFirstPurchaseNotice") == true:
+	# Android's JNI bridge returns a Kotlin Boolean as int (1/0), and null on a failed call.
+	var claimed: Variant = _native_plugin.call("claimFirstPurchaseNotice")
+	if claimed != null and bool(claimed):
 		print("\n".join(_FIRST_PURCHASE_NOTICE))
 
 ## Restore completed transactions.

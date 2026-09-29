@@ -119,6 +119,21 @@ class FakeNoticePlugin:
 		return claim_response
 
 
+## Android's JNI bridge hands a Kotlin Boolean to GDScript as int (1/0), and
+## null when the call fails, so the return is deliberately untyped.
+class FakeAndroidNoticePlugin:
+	extends RefCounted
+	var claim_response = 1
+	var claims := 0
+
+	func finishTransaction(_json: String, _is_consumable: bool = false) -> String:
+		return JSON.stringify({"success": true})
+
+	func claimFirstPurchaseNotice():
+		claims += 1
+		return claim_response
+
+
 ## An Apple binary built before the flag method existed.
 class FakeOldApplePlugin:
 	extends RefCounted
@@ -205,6 +220,7 @@ func _run_all_tests() -> void:
 	await test_first_purchase_notice_needs_a_debug_console()
 	await test_first_purchase_notice_needs_a_finished_purchase()
 	await test_first_purchase_notice_is_shown_once_per_install()
+	await test_first_purchase_notice_reads_the_android_jni_boolean()
 
 	# Platform-specific mock tests
 	await test_ios_methods_mock()
@@ -606,7 +622,7 @@ func test_finish_transaction_mock() -> void:
 # ============================================
 
 ## A wrapper whose debug and display signals report a developer at a console.
-func _notice_wrapper(fake: FakeNoticePlugin, platform := "Android") -> Node:
+func _notice_wrapper(fake: Object, platform := "Android") -> Node:
 	var wrapper: Node = GodotIapWrapper.new()
 	wrapper._native_plugin = fake
 	wrapper._platform = platform
@@ -717,6 +733,26 @@ func test_first_purchase_notice_is_shown_once_per_install() -> void:
 	_assert_equal((await _finish_for_notice(wrapper, "purchased")).notices(), [], "Later finishes should not print it either")
 	_assert_equal(fake.claims, 1, "The process should ask the install flag only once")
 	wrapper.free()
+
+
+func test_first_purchase_notice_reads_the_android_jni_boolean() -> void:
+	var notice := "\n".join(GodotIapWrapper._FIRST_PURCHASE_NOTICE) + "\n"
+	var fake := FakeAndroidNoticePlugin.new()
+	var wrapper := _notice_wrapper(fake)
+	var first := await _finish_for_notice(wrapper, "purchased")
+	_assert_equal(first.notices(), [notice], "An Android claim that returns int 1 should print the notice")
+	_assert_equal(first.errors, [], "An Android claim that returns int 1 should not raise a script error")
+	wrapper.free()
+
+	for response in [0, null]:
+		var quiet := FakeAndroidNoticePlugin.new()
+		quiet.claim_response = response
+		var quiet_wrapper := _notice_wrapper(quiet)
+		var capture := await _finish_for_notice(quiet_wrapper, "purchased")
+		_assert_equal(capture.notices(), [], "An Android claim that returns %s should stay silent" % str(response))
+		_assert_equal(capture.errors, [], "An Android claim that returns %s should not raise a script error" % str(response))
+		_assert_equal(quiet.claims, 1, "An Android claim that returns %s should still be asked once" % str(response))
+		quiet_wrapper.free()
 
 
 # ============================================
