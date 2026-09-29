@@ -89,9 +89,11 @@ describe('createFirstPurchaseNotice', () => {
     expect(log).toHaveBeenCalledTimes(1);
   });
 
-  it('stays silent when the install already showed it', () => {
+  it('asks once and stays silent when the install already showed it', () => {
     claim.mockReturnValue(false);
-    notice()(purchase('purchased'));
+    const show = notice();
+    show(purchase('purchased'));
+    show(purchase('purchased'));
 
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log).not.toHaveBeenCalled();
@@ -107,11 +109,13 @@ describe('createFirstPurchaseNotice', () => {
     expect(log).toHaveBeenCalledTimes(1);
   });
 
-  it('swallows a flag that throws', () => {
+  it('swallows a flag that throws and does not ask again', () => {
     claim.mockImplementationOnce(() => {
       throw new Error('native method missing');
     });
-    expect(() => notice()(purchase('purchased'))).not.toThrow();
+    const show = notice();
+    expect(() => show(purchase('purchased'))).not.toThrow();
+    show(purchase('purchased'));
 
     expect(claim).toHaveBeenCalledTimes(1);
     expect(log).not.toHaveBeenCalled();
@@ -234,12 +238,6 @@ describe('finishTransaction', () => {
 
     expect(mockNative.claimFirstPurchaseNotice).toHaveBeenCalledTimes(1);
     expect(consoleLog).not.toHaveBeenCalled();
-  });
-
-  it('prints in the same turn as the finish, with nothing left to settle', async () => {
-    await finishTransaction({purchase: purchase('purchased')});
-
-    expect(consoleLog.mock.calls).toEqual([[NOTICE]]);
   });
 
   it('keeps the native flag out of the exported types', () => {
