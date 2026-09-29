@@ -744,10 +744,11 @@ const DEPRECATED_ENV_FLAGS: Record<string, {replacement: string; ios?: true}> =
   {
     EXPO_IAP_FIREOS: {
       replacement:
-        'set modules.amazon.fireOS, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
+        'set modules.amazon.fireOS, which also turns Vega auto-detection off, or ORG_GRADLE_PROJECT_openiapStore=amazon in the EAS profile env',
     },
     EXPO_IAP_VEGA: {
-      replacement: 'set modules.amazon.vegaOS, or keep a root manifest.toml',
+      replacement:
+        'set modules.amazon.vegaOS, or keep a root manifest.toml when Fire OS is not declared',
     },
     EXPO_IAP_ONSIDE: {replacement: 'set modules.onside', ios: true},
   };

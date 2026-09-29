@@ -105,7 +105,8 @@ type AutoModuleOptions = BaseExpoIapOptions & {
 
 type ExplicitModuleOptions = BaseExpoIapOptions & {
   module: 'expo-iap' | 'onside';
-  modules?: never;
+  // The module choice replaces modules.onside; the platform modules stay.
+  modules?: Omit<ExpoIapModuleOverrides, 'onside'> & {onside?: never};
 };
 
 export type ExpoIapPluginCommonOptions =

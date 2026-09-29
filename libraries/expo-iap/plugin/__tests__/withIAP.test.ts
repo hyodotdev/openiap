@@ -55,16 +55,6 @@ const typedPluginOptions: ExpoIapPluginOptions = {
   },
 };
 
-const typedLegacyAmazonOptions: ExpoIapPluginOptions = {
-  module: 'auto',
-  android: {
-    amazon: {
-      fireOS: true,
-      vegaOS: false,
-    },
-  },
-};
-
 const explicitModeOptions: ExpoIapPluginCommonOptions = {
   module: 'onside',
 };
@@ -72,12 +62,24 @@ const explicitModeOptions: ExpoIapPluginCommonOptions = {
 const invalidExplicitOptions: ExpoIapPluginCommonOptions = {
   modules: {onside: false},
 };
+
+const explicitModeWithPlatformModules: ExpoIapPluginCommonOptions = {
+  module: 'expo-iap',
+  modules: {horizon: true, amazon: {fireOS: true, vegaOS: false}},
+};
+
+// @ts-expect-error the module choice already selects Onside
+const explicitOnsideWithOnsideModule: ExpoIapPluginCommonOptions = {
+  module: 'onside',
+  modules: {onside: true},
+};
 void autoModeOptions;
 void groupedAmazonOptions;
 void typedPluginOptions;
-void typedLegacyAmazonOptions;
 void explicitModeOptions;
 void invalidExplicitOptions;
+void explicitModeWithPlatformModules;
+void explicitOnsideWithOnsideModule;
 
 jest.mock('expo/config-plugins', () => {
   const plugins = jest.requireActual('expo/config-plugins');
@@ -952,7 +954,9 @@ describe('android configuration', () => {
   });
 
   it('adds Horizon App ID metadata whenever an app id is configured', () => {
-    const manifest = {manifest: {}};
+    const manifest: Parameters<typeof syncHorizonAppIdMetaData>[0] = {
+      manifest: {},
+    };
 
     expect(syncHorizonAppIdMetaData(manifest, undefined)).toBe('unchanged');
     expect(manifest.manifest).not.toHaveProperty('application');
