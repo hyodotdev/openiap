@@ -88,6 +88,18 @@ jest.mock('expo/config-plugins', () => {
   };
 });
 
+// The plugin rewrites the tracked expo-module.config.json to match the modules
+// a test selects; restore it so a failing test cannot leave the checkout dirty.
+const restoreAutolinkingConfig = (() => {
+  const fs = jest.requireActual('fs') as typeof import('fs');
+  const path = jest.requireActual('path') as typeof import('path');
+  const file = path.resolve(__dirname, '../../expo-module.config.json');
+  const original = fs.readFileSync(file, 'utf8');
+  return () => fs.writeFileSync(file, original, 'utf8');
+})();
+
+afterAll(restoreAutolinkingConfig);
+
 describe('android configuration', () => {
   it('leaves an app build file without OpenIAP lines untouched', () => {
     const baseGradle =
@@ -195,6 +207,13 @@ describe('android configuration', () => {
     );
     const android = WarningAggregator.addWarningAndroid as jest.Mock;
     const ios = WarningAggregator.addWarningIOS as jest.Mock;
+    const flagsWarned = (...lists: jest.Mock[]) =>
+      lists
+        .flatMap((list) => list.mock.calls)
+        .map(([, message]) => String(message))
+        .filter((message) => message.startsWith('EXPO_IAP_'))
+        .map((message) => message.split('=')[0])
+        .sort();
     const warnedFlags = (
       config: Partial<ExpoConfig>,
       options: ExpoIapPluginOptions,
@@ -202,16 +221,18 @@ describe('android configuration', () => {
       android.mockClear();
       ios.mockClear();
       plugin({name: 'app', slug: 'app', ...config} as ExpoConfig, options);
-      return [...android.mock.calls, ...ios.mock.calls]
-        .map(([, message]) => String(message))
-        .filter((message) => message.startsWith('EXPO_IAP_'))
-        .map((message) => message.split('=')[0])
-        .sort();
+      return flagsWarned(android, ios);
     };
-    android.mockClear();
-    ios.mockClear();
     try {
+      // Only the value 1 turns a flag on.
+      for (const value of ['0', 'true']) {
+        for (const name of Object.keys(flags)) process.env[name] = value;
+        expect(warnedFlags({}, {})).toEqual([]);
+      }
+
       for (const name of Object.keys(flags)) process.env[name] = '1';
+      android.mockClear();
+      ios.mockClear();
       plugin({name: 'app', slug: 'app'} as ExpoConfig, {});
       const messages = [...android.mock.calls, ...ios.mock.calls].map(
         ([, message]) => String(message),
@@ -226,14 +247,15 @@ describe('android configuration', () => {
         ).toHaveLength(1);
       }
       // Onside is iOS only, so its warning goes to the iOS list.
-      expect(
-        ios.mock.calls.some(([, message]) =>
-          String(message).startsWith('EXPO_IAP_ONSIDE=1'),
-        ),
-      ).toBe(true);
+      expect(flagsWarned(android)).toEqual([
+        'EXPO_IAP_FIREOS',
+        'EXPO_IAP_VEGA',
+      ]);
+      expect(flagsWarned(ios)).toEqual(['EXPO_IAP_ONSIDE']);
 
       // A source that outranks a flag decides its value, so that flag is not
-      // reported while the other flags still are.
+      // reported while the other flags still are. A null Amazon key decides
+      // too, as null does for modules.horizon.
       const outranked: Array<{
         flag: string;
         config?: Partial<ExpoConfig>;
@@ -243,7 +265,22 @@ describe('android configuration', () => {
           flag: 'EXPO_IAP_FIREOS',
           options: {modules: {amazon: {fireOS: false}}},
         },
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          options: {modules: {amazon: {fireOS: true}}},
+        },
+        {
+          flag: 'EXPO_IAP_FIREOS',
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {amazon: {fireOS: null}}},
+        },
         {flag: 'EXPO_IAP_VEGA', options: {modules: {amazon: {vegaOS: false}}}},
+        {flag: 'EXPO_IAP_VEGA', options: {modules: {amazon: {vegaOS: true}}}},
+        {
+          flag: 'EXPO_IAP_VEGA',
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {amazon: {vegaOS: null}}},
+        },
         {
           flag: 'EXPO_IAP_VEGA',
           options: {android: {amazon: {vegaOS: {enabled: false}}}},
@@ -253,6 +290,7 @@ describe('android configuration', () => {
           options: {android: {amazon: {vegaOS: {enabled: true}}}},
         },
         {flag: 'EXPO_IAP_ONSIDE', options: {modules: {onside: false}}},
+        {flag: 'EXPO_IAP_ONSIDE', options: {modules: {onside: true}}},
         {flag: 'EXPO_IAP_ONSIDE', options: {module: 'expo-iap'}},
         {flag: 'EXPO_IAP_ONSIDE', options: {module: 'onside'}},
         {
@@ -270,10 +308,38 @@ describe('android configuration', () => {
         const expected = Object.keys(flags)
           .filter((name) => name !== flag)
           .sort();
-        expect([flag, options, warnedFlags(config, options)]).toEqual([
+        expect([flag, config, options, warnedFlags(config, options)]).toEqual([
           flag,
+          config,
           options,
           expected,
+        ]);
+      }
+
+      // These leave the value open, so every flag still decides and is
+      // reported. Unlike a null Amazon key, a null modules.onside is unset.
+      const undecided: Array<{
+        config?: Partial<ExpoConfig>;
+        options: ExpoIapPluginOptions;
+      }> = [
+        {options: {module: 'auto'}},
+        {options: {modules: {onside: undefined}}},
+        {
+          // @ts-expect-error app.json can hold null where the type allows only a boolean
+          options: {modules: {onside: null}},
+        },
+        {config: {ios: {onside: {}}}, options: {}},
+        {
+          options: {
+            android: {amazon: {vegaOS: {packageId: 'dev.example.vega'}}},
+          },
+        },
+      ];
+      for (const {config = {}, options} of undecided) {
+        expect([config, options, warnedFlags(config, options)]).toEqual([
+          config,
+          options,
+          Object.keys(flags).sort(),
         ]);
       }
 
@@ -1118,6 +1184,30 @@ describe('ios module selection', () => {
     });
   });
 
+  it('treats a null modules.onside as unset, so ios config and then the env decide', () => {
+    const options: ExpoIapPluginCommonOptions = {
+      // @ts-expect-error app.json can hold null where the type allows only a boolean
+      modules: {onside: null},
+    };
+    const includeOnside = (ios?: ExpoConfig['ios']) =>
+      resolveModuleSelection(createConfig(ios), options).includeOnside;
+    const previous = process.env.EXPO_IAP_ONSIDE;
+    process.env.EXPO_IAP_ONSIDE = '1';
+
+    try {
+      expect(includeOnside()).toBe(true);
+      expect(includeOnside({onside: {enabled: false}})).toBe(false);
+      delete process.env.EXPO_IAP_ONSIDE;
+      expect(includeOnside({onside: {enabled: true}})).toBe(true);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous;
+      }
+    }
+  });
+
   describe('autolinking computation', () => {
     const entries = (state: AutolinkState) => [
       {name: 'ExpoIapModule', enable: state.expoIap},
@@ -1650,6 +1740,39 @@ describe('plugin logging', () => {
         ),
       ).toBe(true);
     } finally {
+      error.mockRestore();
+    }
+  });
+
+  it('logs the Onside decision the plugin acts on', () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const previous = process.env.EXPO_IAP_ONSIDE;
+    const logged = (appId: string) =>
+      error.mock.calls
+        .map(([message]) => String(message))
+        .find((message) => message.includes(`horizonAppId=${appId}`));
+
+    try {
+      // Unique app ids, since logOnce prints each message once per process.
+      delete process.env.EXPO_IAP_ONSIDE;
+      plugin(
+        {name: 'app', slug: 'app'},
+        {module: 'onside', android: {horizon: {appId: 'onside-forced'}}},
+      );
+      expect(logged('onside-forced')).toMatch(/onside=true$/u);
+
+      process.env.EXPO_IAP_ONSIDE = '1';
+      plugin(
+        {name: 'app', slug: 'app'},
+        {module: 'expo-iap', android: {horizon: {appId: 'onside-excluded'}}},
+      );
+      expect(logged('onside-excluded')).toMatch(/onside=false$/u);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous;
+      }
       error.mockRestore();
     }
   });
