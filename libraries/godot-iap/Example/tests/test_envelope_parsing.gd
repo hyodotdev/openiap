@@ -677,7 +677,7 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-sheet"})
 	var plain_timeout: float = GodotIapPlugin._apple_async_timeout_seconds
 	var sheet_timeout: float = GodotIapPlugin._apple_async_ui_timeout_seconds
-	# The restore completes after the plain timeout but inside the purchase-sheet one.
+	# The restore completes after the plain timeout but inside the system-sheet one.
 	GodotIapPlugin._apple_async_timeout_seconds = 0.05
 	GodotIapPlugin._apple_async_ui_timeout_seconds = 2.0
 	create_timer(0.3).timeout.connect(func() -> void:
@@ -693,7 +693,7 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 	# It stops at the system-sheet timeout, not at a separate, longer one.
 	fake.responses["restorePurchases"] = JSON.stringify({"status": "pending", "requestId": "restore-late"})
 	GodotIapPlugin._apple_async_timeout_seconds = 30.0
-	GodotIapPlugin._apple_async_ui_timeout_seconds = 0.05
+	GodotIapPlugin._apple_async_ui_timeout_seconds = 0.5
 	var started := Time.get_ticks_msec()
 	var late = await GodotIapPlugin.restore_purchases()
 	var waited_ms := Time.get_ticks_msec() - started
@@ -701,7 +701,8 @@ func test_ios_restore_waits_for_a_sign_in_sheet() -> void:
 	GodotIapPlugin._apple_async_timeout_seconds = plain_timeout
 	GodotIapPlugin._apple_async_ui_timeout_seconds = sheet_timeout
 	_assert_false(late.success, "An unanswered iOS restore should fail")
-	_assert_true(waited_ms >= 40, "An iOS restore should wait for the system-sheet timeout, not fail at once")
+	# Timers run on frame deltas and can fire a frame early, so the lower bound is loose.
+	_assert_true(waited_ms >= 250, "An iOS restore should wait for the system-sheet timeout, not fail at once")
 	_assert_true(waited_ms < 5000, "An iOS restore should stop at the system-sheet timeout")
 	_uninstall_fake()
 
