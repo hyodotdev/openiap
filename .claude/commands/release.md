@@ -176,10 +176,13 @@ Train rules (mistake guards):
   `allow_unreleased_native` only for a library fix that must not wait for an
   unrelated native change.
 - **A major that removes scheduled deprecations.** `audit:parity` keeps each
-  key in the migration guide's next-major table until its package passes that
-  major, and fails once it has. Bump the package to its new major in the PR that
-  removes the keys, then release it with `version=current`; a `version=major`
-  run would ship the keys and turn `main` red.
+  key in the migration guide's next-major table until every package that
+  carries it passes its major, and fails once they all have. In the PR that
+  removes the keys, bump the last of those packages to its new major and drop
+  the keys, their migration rows, and their rule, then release it with
+  `version=current`; a `version=major` run would ship the keys and turn `main`
+  red. Earlier majors of a package that shares a key, such as the Gradle store
+  flags, keep it.
 - **Release notes ship in the PR.** The consolidated card in
   `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
   written ahead of the release (see `generate-doc`). After every package in the
