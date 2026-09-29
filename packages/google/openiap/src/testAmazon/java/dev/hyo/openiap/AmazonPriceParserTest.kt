@@ -41,4 +41,13 @@ class AmazonPriceParserTest {
             )
         }
     }
+
+    @Test
+    fun readsTheDecimalSeparatorWhateverTheDeviceLocale() {
+        for (locale in listOf(Locale.US, Locale.GERMANY)) {
+            Locale.setDefault(locale)
+            assertEquals("$locale 9,99 €", 9.99, AmazonPriceParser.toPriceAmount("9,99 €"), 0.0001)
+            assertEquals("$locale 12.50", 12.5, AmazonPriceParser.toPriceAmount("12.50"), 0.0001)
+        }
+    }
 }

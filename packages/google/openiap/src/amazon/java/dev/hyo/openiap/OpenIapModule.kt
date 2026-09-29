@@ -305,23 +305,19 @@ internal object AmazonPriceParser {
         return normalized.toDoubleOrNull() ?: 0.0
     }
 
+    // Only the currency format: a plain number format in an English locale
+    // reads "9,99 €" as 999, so every other price goes to the separator rules.
     private fun parseLocalizedPrice(value: String): Double? {
-        val locale = Locale.getDefault()
-        return listOf(
-            NumberFormat.getCurrencyInstance(locale),
-            NumberFormat.getNumberInstance(locale)
-        ).firstNotNullOfOrNull { format ->
-            val position = ParsePosition(0)
-            val parsed = format.parse(value, position)
-            if (
-                parsed != null &&
-                position.index > 0 &&
-                !value.hasUnparsedPriceCharacters(position.index)
-            ) {
-                parsed.toDouble()
-            } else {
-                null
-            }
+        val position = ParsePosition(0)
+        val parsed = NumberFormat.getCurrencyInstance(Locale.getDefault()).parse(value, position)
+        return if (
+            parsed != null &&
+            position.index > 0 &&
+            !value.hasUnparsedPriceCharacters(position.index)
+        ) {
+            parsed.toDouble()
+        } else {
+            null
         }
     }
 
