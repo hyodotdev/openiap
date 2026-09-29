@@ -166,7 +166,7 @@ void main() {
         PlatformException(code: 'service-error');
     await app('android').finishTransaction(purchase: _android());
 
-    // The macOS plugin does not implement the claim.
+    // A host app whose native plugin predates the claim.
     responses['claimFirstPurchaseNotice'] = MissingPluginException();
     await app('macos').finishTransaction(purchase: _apple());
     await settle();
