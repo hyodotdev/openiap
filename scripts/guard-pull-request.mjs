@@ -15,8 +15,8 @@ export const reason =
 // messages quote commands in them far more often than agents run them.
 const commandStart = /\n|;|&&|\|\|?|&|\$\(/gu;
 const substitution = /\$\(([^()]*)\)/gu;
-// Shell keywords, assignments, wrappers with their options, a timeout's
-// duration, and `sh -c "` before the command word. An option never takes a PR
+// Shell keywords, `eval "`, assignments, wrappers with their options, a
+// timeout's duration, and `sh -c "` before the command word. An option never takes a PR
 // client, a wrapper, or a shell as its value, so `env -i gh` and
 // `sudo -E bash -c` still reach the command.
 // A path or value never runs past a separator, so each command start is
@@ -26,10 +26,10 @@ const client = String.raw`${dir}(?:gh|hub|curl)\b`;
 const keyword = String.raw`(?:if|elif|while|until|then|do|else)\b`;
 const wrapper = String.raw`${dir}(?:command|exec|sudo|env|nice|nohup|time|xargs)\b`;
 const timeout = String.raw`${dir}g?timeout\b`;
-const shell = String.raw`${dir}(?:ba|z)?sh\b`;
+const shell = String.raw`${dir}(?:ba|da|fi|z)?sh\b`;
 const wrapperOption = String.raw`\s+-[\w-]\S*(?:\s+(?!-|${client}|${wrapper}|${timeout}|${shell})\S+)?`;
 const commandPrefix = new RegExp(
-  String.raw`^(?:[\s({!]+|\w+=[^\s;&|]*\s+|${keyword}\s+|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
+  String.raw`^(?:[\s({!]+|\w+=[^\s;&|]*\s+|${keyword}\s+|eval\s+["']?|${wrapper}(?:${wrapperOption})*\s+|${timeout}(?:${wrapperOption})*\s+(?!${client}|${wrapper}|${timeout}|${shell})\S+\s+|${shell}(?:${wrapperOption})*?\s+-\w*c\s+["']?)*`,
   "u",
 );
 // One way to read each option, so a long line cannot backtrack for seconds.
@@ -61,8 +61,10 @@ const writeFlag =
 const explicitGet = /(?:-X\s*|--method[=\s]+|--request[=\s]+)GET\b/u;
 const graphqlCommand = new RegExp(String.raw`^${dir}gh\s+api\s+graphql\b`, "u");
 const createPullRequest = /\bcreatePullRequest\b/gu;
-// Assigning Copilot to an issue ends in a pull request Copilot opens.
-const mcpCreate = /^mcp__.+__(?:create_pull_request|assign_copilot_to_issue)/u;
+// Assigning Copilot to an issue ends in a pull request Copilot opens; a review
+// of an existing pull request does not open one.
+const mcpCreate =
+  /^mcp__.+__(?:create_pull_request(?!_review)|assign_copilot_to_issue)/u;
 
 function opensPullRequestIn(command) {
   // A GraphQL query often spans lines, so a mutation anywhere after the command counts.

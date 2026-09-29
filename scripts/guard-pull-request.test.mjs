@@ -56,6 +56,10 @@ test("gh pr create and gh pr new need approval wherever the command starts", () 
     "gh issue create --title x --assignee monalisa,@copilot",
     "bash -o pipefail -c 'gh pr create --fill'",
     "bash -euo pipefail -c 'gh pr create'",
+    "eval gh pr create --fill",
+    'eval "gh pr create --fill"',
+    "fish -c 'gh pr create --fill'",
+    'dash -c "gh pr create"',
   ]) {
     assert.equal(shell(command), true, command);
   }
@@ -107,6 +111,7 @@ test("reading, editing, or mentioning pull requests does not", () => {
     "gh issue edit 12 --add-assignee @me",
     "gh agent-task list",
     'git commit -m "gh api repos/o/r/pulls -f title=x"',
+    'eval "$(ssh-agent -s)"',
   ]) {
     assert.equal(shell(command), false, command);
   }
@@ -129,6 +134,10 @@ test("GitHub MCP tools that create a pull request need approval", () => {
   );
   assert.equal(
     opensPullRequest({ tool_name: "mcp__github__list_pull_requests" }),
+    false,
+  );
+  assert.equal(
+    opensPullRequest({ tool_name: "mcp__github__create_pull_request_review" }),
     false,
   );
   assert.equal(
@@ -210,7 +219,15 @@ test("long commands are read in linear time", () => {
     performance.now() - heredocStarted < 500,
     "a long heredoc must not be rescanned per line",
   );
-  for (const unit of ["$(", "\n", "sh -a;", "a;", "$(a)", "gh api graphql;"]) {
+  for (const unit of [
+    "$(",
+    "\n",
+    "sh -a;",
+    "a;",
+    "$(a)",
+    "gh api graphql;",
+    "eval '",
+  ]) {
     const input = unit.repeat(Math.ceil(40000 / unit.length));
     const unitStarted = performance.now();
     assert.equal(shell(input), false);
