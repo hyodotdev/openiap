@@ -462,6 +462,9 @@ jobs:
       - name: Test review-automation comment sweep
         run: node --test scripts/delete-review-automation-comments.test.mjs
 
+      - name: Test pull request guard
+        run: node --test scripts/guard-pull-request.test.mjs
+
       - name: Sync generated version files
         run: ./scripts/sync-versions.sh
 

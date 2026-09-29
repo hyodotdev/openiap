@@ -144,6 +144,15 @@ a review reply is one to three sentences, outcome first. No preamble, no
 investigation narrative, no thanking-and-summarising. Canonical rules in
 [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-style).
 
+### Opening Pull Requests
+
+Open a pull request only when the maintainer asked for one in this
+conversation. Work found while a PR is open goes into that PR; a small docs fix
+with no open PR is a one-line question about committing straight to `main`.
+Claude Code holds every PR creation for approval
+(`scripts/guard-pull-request.mjs`). Canonical rule in
+[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#opening-pull-requests).
+
 ### Platform Function Naming
 
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)
