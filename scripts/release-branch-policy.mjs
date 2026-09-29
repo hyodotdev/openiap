@@ -346,30 +346,85 @@ export function updateNativeVersion(packageId, targetVersion, root = repoRoot) {
   return updatedVersions;
 }
 
+// What each published package ships. A change here needs a release card
+// (audit-release-notes.mjs), and a framework library release waits until the
+// native packages have released theirs (native-gate below). Manifests stay out
+// so dependency bumps pass.
+export const publishedSources = {
+  google: [
+    /^packages\/google\/openiap\/src\/(main|play|horizon|amazon)\//,
+    /^packages\/google\/openiap\/(build\.gradle\.kts|consumer-rules[\w-]*\.pro)$/,
+    /^packages\/google\/gradle\/[^/]+\.gradle$/,
+    /^packages\/google\/gradle-plugin\/src\/main\//,
+  ],
+  apple: [
+    /^packages\/apple\/Sources\//,
+    /^packages\/apple\/(Package\.swift|openiap\.podspec)$/,
+    // SwiftPM resolves openiap-apple from the repository root.
+    /^Package\.swift$/,
+  ],
+  "client-protocol": [
+    /^specs\/client\/src\/(generated\/|[^/]+\.graphql$|kit-api\.ts$)/,
+  ],
+  cli: [/^packages\/cli\/src\//],
+  "react-native": [
+    /^libraries\/react-native-iap\/(src|ios|android\/src\/main)\//,
+    /^libraries\/react-native-iap\/(android\/[^/]+\.gradle|NitroIap\.podspec|nitro\.json)$/,
+  ],
+  expo: [
+    /^libraries\/expo-iap\/(src|ios|plugin\/src|android\/src\/main)\//,
+    /^libraries\/expo-iap\/(android\/[^/]+\.gradle|app\.plugin\.js|expo-module\.config\.json)$/,
+  ],
+  flutter: [
+    /^libraries\/flutter_inapp_purchase\/(lib|ios|macos|android\/src\/(main|none|store))\//,
+    /^libraries\/flutter_inapp_purchase\/android\/[^/]+\.gradle$/,
+  ],
+  godot: [
+    /^libraries\/godot-iap\/(addons\/godot-iap|android\/src\/main|ios-gdextension)\//,
+    /^libraries\/godot-iap\/android\/build\.gradle\.kts$/,
+  ],
+  kmp: [
+    /^libraries\/kmp-iap\/library\/src\/(commonMain|androidMain|iosMain)\//,
+    /^libraries\/kmp-iap\/library\/build\.gradle\.kts$/,
+  ],
+  maui: [/^libraries\/maui-iap\/(src|android\/openiap)\//],
+};
+
+const isTest = (file) =>
+  /(^|\/)(__tests__|__mocks__|tests?)\//.test(file) ||
+  /\.(test|spec)\.[^./]+$/.test(file);
+
+export function shipsIn(packageId, file) {
+  return !isTest(file) && publishedSources[packageId].some((pattern) => pattern.test(file));
+}
+
+export function shipsInAnyPackage(file) {
+  return Object.keys(publishedSources).some((packageId) => shipsIn(packageId, file));
+}
+
 // Framework libraries pin the released native packages, so a library released
-// while one of them has unreleased source ships without that change (expo-iap
-// 5.7.0 went out 93 minutes before the natives it needed).
+// while one of them has unreleased source ships without that change (an Expo
+// release once went out 93 minutes before the natives it needed). `roots`
+// only narrows the log; publishedSources decides what counts.
 export const nativeReleaseGates = {
   google: {
     tag: (version) => `google-${version}`,
-    paths: [
-      "packages/google/openiap/src/main",
-      "packages/google/openiap/src/play",
-      "packages/google/openiap/src/horizon",
-      "packages/google/openiap/src/amazon",
-      "packages/google/openiap/build.gradle.kts",
-      "packages/google/gradle",
-      "packages/google/gradle-plugin/src/main",
-    ],
+    roots: ["packages/google"],
   },
   apple: {
     tag: (version) => version,
-    paths: [
-      "packages/apple/Sources",
-      "packages/apple/Package.swift",
-      "packages/apple/openiap.podspec",
-    ],
+    roots: ["packages/apple", "Package.swift"],
   },
+};
+
+// The tags the framework library release workflows cut.
+export const libraryReleaseTags = {
+  "react-native": (version) => `react-native-iap-${version}`,
+  expo: (version) => `expo-iap-${version}`,
+  flutter: (version) => `flutter-iap-${version}`,
+  godot: (version) => `godot-iap-${version}`,
+  kmp: (version) => `kmp-iap-${version}`,
+  maui: (version) => `maui-iap-${version}`,
 };
 
 function runGit(args, root = repoRoot) {
@@ -386,15 +441,29 @@ export function findUnreleasedNativeChanges(
     const tag = gate.tag(versions[id]);
     let log;
     try {
-      log = git(["log", "--format=%h %s", `${tag}..HEAD`, "--", ...gate.paths]);
+      log = git([
+        "log",
+        "--format=%x00%h %s",
+        "--name-only",
+        `${tag}..HEAD`,
+        "--",
+        ...gate.roots,
+      ]);
     } catch {
       throw new Error(
         `Cannot compare with release tag '${tag}'; check out with full history and tags (fetch-depth: 0)`,
       );
     }
     const commits = log
-      .split("\n")
-      .filter((line) => line && !/^\S+ chore\(release\):/.test(line));
+      .split("\0")
+      .map((entry) => entry.split("\n").filter(Boolean))
+      .filter(
+        ([subject, ...files]) =>
+          subject &&
+          !/^\S+ chore\(release\):/.test(subject) &&
+          files.some((file) => shipsIn(id, file)),
+      )
+      .map(([subject]) => subject);
     if (commits.length > 0) {
       pending.push({ label: versionSources[id].label, tag, commits });
     }
@@ -479,21 +548,44 @@ function runGuard(args) {
   );
 }
 
-// Run once per framework library release, from a full-history checkout.
-function runNativeGate(args) {
-  const [versionMode, prerelease] = args;
-  if (!versionMode) {
+// Why a library release may skip the native gate, or null when it may not.
+export function nativeGateSkipReason(
+  library,
+  versionMode,
+  prerelease,
+  { root = repoRoot, git = runGit } = {},
+) {
+  const releaseTag = libraryReleaseTags[library];
+  if (!releaseTag) {
     throw new Error(
-      "Usage: release-branch-policy.mjs native-gate <version-mode> <prerelease>",
+      `Unknown framework library '${library}'. Expected one of: ${Object.keys(libraryReleaseTags).join(", ")}`,
     );
   }
-  // A retry republishes a tag already cut; a prerelease may precede the natives.
-  if (
-    versionMode === "current" ||
-    versionMode === "rc-bump" ||
-    String(prerelease) === "true"
-  ) {
-    console.log(`Native gate: not needed for version=${versionMode}, prerelease=${prerelease}.`);
+  if (versionMode === "rc-bump" || String(prerelease) === "true") {
+    return "a prerelease may precede the native packages";
+  }
+  if (versionMode !== "current") return null;
+  // version=current without its tag is a first release, so it is gated too.
+  const tag = releaseTag(versionSources[library].read(root));
+  try {
+    git(["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`], root);
+    return `${tag} exists, so this republishes it`;
+  } catch {
+    return null;
+  }
+}
+
+// Run once per framework library release, from a full-history checkout.
+function runNativeGate(args) {
+  const [library, versionMode, prerelease] = args;
+  if (!library || !versionMode) {
+    throw new Error(
+      "Usage: release-branch-policy.mjs native-gate <library> <version-mode> <prerelease>",
+    );
+  }
+  const skipReason = nativeGateSkipReason(library, versionMode, prerelease);
+  if (skipReason) {
+    console.log(`Native gate: not needed; ${skipReason}.`);
     return;
   }
   if (process.env.OPENIAP_ALLOW_UNRELEASED_NATIVE === "true") {

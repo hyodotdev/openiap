@@ -19,6 +19,8 @@ import {
   assertClientProtocol,
   assertNativesReleased,
   findUnreleasedNativeChanges,
+  libraryReleaseTags,
+  nativeGateSkipReason,
   assertReleaseBranch,
   compareSemVer,
   findPrereleaseVersions,
@@ -2049,14 +2051,19 @@ test("Commerce Protocol current retries cannot reuse an unscoped npm release", (
 });
 
 const nativeVersions = { google: "3.6.1", apple: "3.6.0" };
+// One `git log --format=%x00%h %s --name-only` entry.
+const logEntry = (subject, ...files) => `\0${subject}\n\n${files.join("\n")}\n`;
+const rangeOf = (args) => args.find((arg) => arg.endsWith("..HEAD"));
+const googleSource = "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapModule.kt";
 
 test("the native gate lists source commits since each native release tag", () => {
   const ranges = [];
   const git = (args) => {
-    ranges.push(args[2]);
-    return args[2] === "google-3.6.1..HEAD"
-      ? "abc1234 fix(google): a store fix\ndef5678 chore(release): openiap-google@3.6.1\n"
-      : "0123abc chore(release): openiap-google@3.6.1\n";
+    ranges.push(rangeOf(args));
+    return rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry("abc1234 fix(google): a store fix", googleSource) +
+          logEntry("def5678 chore(release): openiap-google@3.6.1", googleSource)
+      : logEntry("0123abc chore(release): openiap-apple@3.6.0", "Package.swift");
   };
   assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
     {
@@ -2068,9 +2075,33 @@ test("the native gate lists source commits since each native release tag", () =>
   assert.deepEqual(ranges, ["google-3.6.1..HEAD", "3.6.0..HEAD"]);
 });
 
+test("the native gate counts only what the native packages ship", () => {
+  const git = (args) =>
+    rangeOf(args) === "google-3.6.1..HEAD"
+      ? logEntry("1111111 test(google): a test", "packages/google/openiap/src/testPlay/java/X.kt") +
+        logEntry("2222222 docs(google): the example", "packages/google/Example/app/build.gradle.kts") +
+        logEntry("3333333 fix(google): keep rules", "packages/google/openiap/consumer-rules.pro")
+      : logEntry("4444444 fix(apple): the SwiftPM manifest", "Package.swift") +
+        logEntry("5555555 test(apple): a test", "packages/apple/Tests/OpenIapTests/X.swift");
+  assert.deepEqual(findUnreleasedNativeChanges(nativeVersions, { git }), [
+    {
+      label: "openiap-google",
+      tag: "google-3.6.1",
+      commits: ["3333333 fix(google): keep rules"],
+    },
+    {
+      label: "openiap-apple",
+      tag: "3.6.0",
+      commits: ["4444444 fix(apple): the SwiftPM manifest"],
+    },
+  ]);
+});
+
 test("the native gate refuses a library release while a native change is unreleased", () => {
   const git = (args) =>
-    args[2] === "3.6.0..HEAD" ? "abc1234 feat(apple): a new API\n" : "";
+    rangeOf(args) === "3.6.0..HEAD"
+      ? logEntry("abc1234 feat(apple): a new API", "packages/apple/Sources/OpenIapModule.swift")
+      : "";
   assert.throws(
     () => assertNativesReleased(nativeVersions, { git }),
     /Native gate: release the native packages first.*openiap-apple since 3\.6\.0: abc1234 feat\(apple\): a new API/,
@@ -2088,15 +2119,40 @@ test("the native gate asks for full history when a release tag is missing", () =
   );
 });
 
+test("a library release skips the native gate only for a prerelease or a retry", () => {
+  const refs = [];
+  const git = (tagExists) => (args) => {
+    refs.push(args.at(-1));
+    if (!tagExists) throw new Error("exit 1");
+    return "";
+  };
+  const tag = `refs/tags/react-native-iap-${versionSources["react-native"].read(repoRoot)}`;
+  assert.match(nativeGateSkipReason("react-native", "rc-bump", "false", { git: git(false) }), /prerelease/);
+  assert.match(nativeGateSkipReason("react-native", "patch", "true", { git: git(false) }), /prerelease/);
+  assert.equal(nativeGateSkipReason("react-native", "patch", "false", { git: git(true) }), null);
+  assert.equal(nativeGateSkipReason("react-native", "current", "false", { git: git(false) }), null);
+  assert.ok(
+    nativeGateSkipReason("react-native", "current", "false", { git: git(true) }).includes(
+      `${tag.slice("refs/tags/".length)} exists`,
+    ),
+  );
+  assert.deepEqual(refs, [tag, tag]);
+  assert.throws(() => nativeGateSkipReason("google", "patch", "false"), /Unknown framework library 'google'/);
+});
+
+test("the native gate knows the tag each library release cuts", () => {
+  for (const [library, releaseTag] of Object.entries(libraryReleaseTags)) {
+    assert.match(
+      readWorkflow(`release-${library}.yml`),
+      new RegExp(`RELEASE_TAG="${releaseTag("")}\\$\\{?(NEW_)?VERSION`),
+      library,
+    );
+  }
+});
+
 test("every framework library release runs the native gate from full history", () => {
-  for (const filename of [
-    "release-react-native.yml",
-    "release-expo.yml",
-    "release-flutter.yml",
-    "release-godot.yml",
-    "release-kmp.yml",
-    "release-maui.yml",
-  ]) {
+  for (const library of Object.keys(libraryReleaseTags)) {
+    const filename = `release-${library}.yml`;
     const workflow = readFileSync(
       resolve(repoRoot, ".github/workflows", filename),
       "utf8",
@@ -2106,7 +2162,9 @@ test("every framework library release runs the native gate from full history", (
     assert.match(job, /fetch-depth: 0/, `${filename} release-branch checkout`);
     assert.match(
       job,
-      /OPENIAP_ALLOW_UNRELEASED_NATIVE: \$\{\{ inputs\.allow_unreleased_native \}\}\n\s+run: >-\n\s+node scripts\/release-branch-policy\.mjs native-gate/,
+      new RegExp(
+        String.raw`OPENIAP_ALLOW_UNRELEASED_NATIVE: \$\{\{ inputs\.allow_unreleased_native \}\}\n\s+run: >-\n\s+node scripts/release-branch-policy\.mjs native-gate ${library}\n`,
+      ),
       `${filename} runs the native gate`,
     );
     assert.match(workflow, /\n      allow_unreleased_native:\n/, `${filename} input`);

@@ -172,7 +172,7 @@ Train rules (mistake guards):
   registry. Each library workflow enforces this with
   `release-branch-policy.mjs native-gate`, which refuses a stable release while
   openiap-google or openiap-apple has source commits after its release tag
-  (expo-iap 5.7.0 shipped 93 minutes before the natives it needed). Set
+  (an Expo release once shipped 93 minutes before the natives it needed). Set
   `allow_unreleased_native` only for a library fix that must not wait for an
   unrelated native change.
 - **Release notes ship in the PR.** The consolidated card in

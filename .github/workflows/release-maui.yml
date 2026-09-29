@@ -68,7 +68,7 @@ jobs:
           IS_PRERELEASE: ${{ inputs.prerelease }}
           OPENIAP_ALLOW_UNRELEASED_NATIVE: ${{ inputs.allow_unreleased_native }}
         run: >-
-          node scripts/release-branch-policy.mjs native-gate
+          node scripts/release-branch-policy.mjs native-gate maui
           "$VERSION_TYPE" "$IS_PRERELEASE"
 
   validate:
