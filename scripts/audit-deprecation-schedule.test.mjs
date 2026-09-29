@@ -398,25 +398,25 @@ test("a scheduled removal rejects a major further ahead than the next one", () =
   assert.match(failures[0], /names lib major 3, but the package is 1\.9\.0/);
 });
 
-test("a dropped scheduled removal needs the key gone, then the rule deleted", () => {
+test("a dropped scheduled removal needs the key gone, before and after the majors ship", () => {
   const dropped = { ...scheduledRule, dropped: true };
   const gone = { "source.gradle": "// the flag is gone" };
-  assert.deepEqual(
-    collectScheduledRemovalFailures([dropped], scheduledFiles(gone)),
-    [],
-  );
-  const kept = collectScheduledRemovalFailures([dropped], scheduledFiles());
-  assert.equal(kept.length, 1);
-  assert.match(kept[0], /is marked dropped but still has "legacyFlag"/);
-  const shipped = collectScheduledRemovalFailures(
-    [dropped],
-    scheduledFiles({ ...gone, "version.txt": "4.0.0" }),
-  );
-  assert.equal(shipped.length, 1);
-  assert.match(
-    shipped[0],
-    /every package has shipped the major that dropped them; delete this rule/,
-  );
+  for (const version of ["3.4.0", "4.0.0"]) {
+    assert.deepEqual(
+      collectScheduledRemovalFailures(
+        [dropped],
+        scheduledFiles({ ...gone, "version.txt": version }),
+      ),
+      [],
+      version,
+    );
+    const back = collectScheduledRemovalFailures(
+      [dropped],
+      scheduledFiles({ "version.txt": version }),
+    );
+    assert.equal(back.length, 1, version);
+    assert.match(back[0], /is marked dropped but still has "legacyFlag"/);
+  }
 });
 
 test("a package in a dropped rule can only release its next major", () => {
@@ -477,16 +477,16 @@ test("every release workflow runs the scheduled removal gate for its package", (
   }
 });
 
-test("the release gate command passes when no rule is dropped", () => {
+test("the release gate command passes a package that no rule names", () => {
   const output = execFileSync(
     "node",
     [
       path.join(repoRoot, "scripts/scheduled-removals.mjs"),
       "release-gate",
-      "openiap-google",
+      "godot-iap",
       "patch",
     ],
     { encoding: "utf8" },
   );
-  assert.match(output, /openiap-google may release with version=patch/);
+  assert.match(output, /godot-iap may release with version=patch/);
 });

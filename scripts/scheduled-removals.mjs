@@ -166,11 +166,7 @@ export const collectScheduledRemovalFailures = (
       }
     }
     if (rule.dropped) {
-      if (passed.length === rule.packages.length) {
-        failures.push(
-          `${rule.label}: every package has shipped the major that dropped them; delete this rule`,
-        );
-      }
+      // Left in place after the majors ship, the rule still catches the key coming back.
       for (const source of rule.sources) {
         const text = readFile(source.file);
         for (const token of source.tokens) {

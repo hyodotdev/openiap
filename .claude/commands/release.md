@@ -181,8 +181,9 @@ Train rules (mistake guards):
   major and keeps a key raises its `major` in the rule first. To drop a key,
   remove it for every package in its rule in one PR and mark the rule
   `dropped: true`; every release workflow then refuses anything but
-  `version=major` for those packages, and once all of them have shipped it the
-  audit asks you to delete the rule. Nobody bumps a version by hand for this.
+  `version=major` for those packages. Delete the rule any time after all of
+  them have shipped it; until then it also keeps the key from coming back.
+  Nobody bumps a version by hand for this.
 - **Release notes ship in the PR.** The consolidated card in
   `packages/docs/src/pages/docs/updates/releases.tsx` merged with the change,
   written ahead of the release (see `generate-doc`). After every package in the
