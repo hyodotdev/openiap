@@ -55,6 +55,11 @@ jobs:
           "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
 
+      - name: Require a major for dropped deprecations
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+        run: node scripts/scheduled-removals.mjs release-gate flutter_inapp_purchase "$VERSION_TYPE"
+
       - name: Require released native packages
         env:
           VERSION_TYPE: ${{ inputs.version }}

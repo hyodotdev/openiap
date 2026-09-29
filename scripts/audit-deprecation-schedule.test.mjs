@@ -9,10 +9,15 @@ import {
   collectForbiddenMatches,
   collectMissingRequiredTexts,
   collectRepositorySchemaDeprecations,
-  collectScheduledRemovalFailures,
   collectSchemaDeprecationFailures,
   completedRemovalRules,
 } from "./audit-deprecation-schedule.mjs";
+import {
+  collectScheduledRemovalFailures,
+  releaseGateFailure,
+  scheduledRemovalRules,
+} from "./scheduled-removals.mjs";
+import { execFileSync } from "node:child_process";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -223,7 +228,9 @@ test("overdue schema deprecations are reported as failures", () => {
 test("schema deprecation audit rejects malformed spec versions", () => {
   assert.deepEqual(
     collectSchemaDeprecationFailures({ entries: [], issues: [] }, "not-semver"),
-    ["specs/client/package.json: Invalid client protocol version: 'not-semver'"],
+    [
+      "specs/client/package.json: Invalid client protocol version: 'not-semver'",
+    ],
   );
 });
 
@@ -270,7 +277,8 @@ const scheduledFiles = (overrides = {}) => {
     "version.txt": "3.4.0",
     "source.gradle":
       "warn('legacyFlag is deprecated and will be removed in the next major release')",
-    "packages/docs/src/pages/docs/updates/migration.tsx": "['legacyFlag=true', 'newFlag']",
+    "packages/docs/src/pages/docs/updates/migration.tsx":
+      "['legacyFlag=true', 'newFlag']",
     ...overrides,
   };
   return (file) => files[file] ?? "";
@@ -291,7 +299,10 @@ test("a scheduled removal fails when a minor drops the key early", () => {
     }),
   );
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /dropped "legacyFlag" before the next major release/);
+  assert.match(
+    failures[0],
+    /dropped "legacyFlag" before the next major release/,
+  );
 });
 
 test("a scheduled removal fails when the warning names no removal", () => {
@@ -300,7 +311,10 @@ test("a scheduled removal fails when the warning names no removal", () => {
     scheduledFiles({ "source.gradle": "warn('legacyFlag is deprecated')" }),
   );
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /must say they are removed in the next major release/);
+  assert.match(
+    failures[0],
+    /must say they are removed in the next major release/,
+  );
 });
 
 test("a scheduled removal is due once the package ships its next major", () => {
@@ -309,7 +323,10 @@ test("a scheduled removal is due once the package ships its next major", () => {
     scheduledFiles({ "version.txt": "4.0.0" }),
   );
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /lib 4\.0\.0 is past the major that deprecated them/);
+  assert.match(
+    failures[0],
+    /lib 4\.0\.0 is past the major that deprecated them/,
+  );
 });
 
 test("a scheduled removal shared by several packages goes in one major of all of them", () => {
@@ -325,7 +342,10 @@ test("a scheduled removal shared by several packages goes in one major of all of
     scheduledFiles({ "version.txt": "4.0.0", "other.txt": "5.2.0" }),
   );
   assert.equal(alone.length, 1);
-  assert.match(alone[0], /lib 4\.0\.0 passed its major alone; .*raise that package's major/);
+  assert.match(
+    alone[0],
+    /lib 4\.0\.0 passed its major alone; .*raise that package's major/,
+  );
   assert.deepEqual(
     collectScheduledRemovalFailures(
       [shared],
@@ -338,7 +358,10 @@ test("a scheduled removal shared by several packages goes in one major of all of
     scheduledFiles({ "version.txt": "4.0.0", "other.txt": "6.0.0" }),
   );
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /lib 4\.0\.0, other 6\.0\.0 is past the major that deprecated them/);
+  assert.match(
+    failures[0],
+    /lib 4\.0\.0, other 6\.0\.0 is past the major that deprecated them/,
+  );
 });
 
 test("a scheduled removal needs its migration row", () => {
@@ -356,7 +379,10 @@ test("a scheduled removal may name the major a package is about to ship", () => 
   // A package that goes major and keeps the key raises its entry beforehand.
   for (const version of ["2.9.0", "3.0.0"]) {
     assert.deepEqual(
-      collectScheduledRemovalFailures([scheduledRule], scheduledFiles({ "version.txt": version })),
+      collectScheduledRemovalFailures(
+        [scheduledRule],
+        scheduledFiles({ "version.txt": version }),
+      ),
       [],
       version,
     );
@@ -370,4 +396,97 @@ test("a scheduled removal rejects a major further ahead than the next one", () =
   );
   assert.equal(failures.length, 1);
   assert.match(failures[0], /names lib major 3, but the package is 1\.9\.0/);
+});
+
+test("a dropped scheduled removal needs the key gone, then the rule deleted", () => {
+  const dropped = { ...scheduledRule, dropped: true };
+  const gone = { "source.gradle": "// the flag is gone" };
+  assert.deepEqual(
+    collectScheduledRemovalFailures([dropped], scheduledFiles(gone)),
+    [],
+  );
+  const kept = collectScheduledRemovalFailures([dropped], scheduledFiles());
+  assert.equal(kept.length, 1);
+  assert.match(kept[0], /is marked dropped but still has "legacyFlag"/);
+  const shipped = collectScheduledRemovalFailures(
+    [dropped],
+    scheduledFiles({ ...gone, "version.txt": "4.0.0" }),
+  );
+  assert.equal(shipped.length, 1);
+  assert.match(
+    shipped[0],
+    /every package has shipped the major that dropped them; delete this rule/,
+  );
+});
+
+test("a package in a dropped rule can only release its next major", () => {
+  const dropped = { ...scheduledRule, dropped: true };
+  const files = scheduledFiles({ "source.gradle": "" });
+  assert.equal(releaseGateFailure("lib", "major", [dropped], files), null);
+  for (const mode of ["patch", "minor", "current"]) {
+    assert.match(
+      releaseGateFailure("lib", mode, [dropped], files) ?? "",
+      new RegExp(
+        `lib 3\\.4\\.0 has dropped legacy flag, so it must release with version=major, not ${mode}`,
+      ),
+    );
+  }
+  const released = scheduledFiles({
+    "source.gradle": "",
+    "version.txt": "4.0.1",
+  });
+  assert.equal(releaseGateFailure("lib", "patch", [dropped], released), null);
+  assert.equal(
+    releaseGateFailure("lib", "patch", [scheduledRule], files),
+    null,
+  );
+  assert.equal(releaseGateFailure("other", "patch", [dropped], files), null);
+});
+
+const releaseGates = {
+  "release-google.yml": "openiap-google",
+  "release-react-native.yml": "react-native-iap",
+  "release-expo.yml": "expo-iap",
+  "release-flutter.yml": "flutter_inapp_purchase",
+  "release-godot.yml": "godot-iap",
+  "release-kmp.yml": "kmp-iap",
+  "release-maui.yml": "OpenIap.Maui",
+};
+
+test("every release workflow runs the scheduled removal gate for its package", () => {
+  for (const [workflow, name] of Object.entries(releaseGates)) {
+    const text = fs.readFileSync(
+      path.join(repoRoot, ".github/workflows", workflow),
+      "utf8",
+    );
+    assert.ok(
+      text.includes(
+        `run: node scripts/scheduled-removals.mjs release-gate ${name} "$VERSION_TYPE"`,
+      ),
+      workflow,
+    );
+  }
+  const gated = new Set(Object.values(releaseGates));
+  for (const rule of scheduledRemovalRules) {
+    for (const pkg of rule.packages) {
+      assert.ok(
+        gated.has(pkg.name),
+        `${rule.label}: ${pkg.name} has no release gate`,
+      );
+    }
+  }
+});
+
+test("the release gate command passes when no rule is dropped", () => {
+  const output = execFileSync(
+    "node",
+    [
+      path.join(repoRoot, "scripts/scheduled-removals.mjs"),
+      "release-gate",
+      "openiap-google",
+      "patch",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.match(output, /openiap-google may release with version=patch/);
 });

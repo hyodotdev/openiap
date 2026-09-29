@@ -216,7 +216,7 @@ const flutterCustomWireMigrations = [
   ['numeric-indexed iOS SKU maps', '{ skus: [...] }'],
 ] as const;
 
-// scripts/audit-deprecation-schedule.mjs keeps this list, the deprecation
+// scripts/scheduled-removals.mjs keeps this list, the deprecation
 // notices, and the package majors in step.
 const scheduledRemovals = [
   {

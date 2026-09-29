@@ -9,10 +9,8 @@ import {
   gqlPublishedArtifactPaths,
 } from "../specs/client/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../specs/client/scripts/verify-generated-sync.mjs";
-import {
-  collectCompletedRemovalFailures,
-  collectScheduledRemovalFailures,
-} from "./audit-deprecation-schedule.mjs";
+import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
+import { collectScheduledRemovalFailures } from "./scheduled-removals.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertClientProtocol } from "./release-branch-policy.mjs";
 import { collectHorizonExampleAppIdFailures } from "./audit-horizon-example-app-id.mjs";
